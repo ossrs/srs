@@ -537,6 +537,10 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTMPT, http to tranverse firewalls
 1. [no-plan] Support file source, transcoding file to live stream
 
+## Compare
+
+Compare SRS with other media server.
+
 ## Releases
 
 * 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
@@ -562,10 +566,6 @@ Supported operating systems and hardware:
 * 2013-10-25, [Release v0.2](https://github.com/simple-rtmp-server/srs/releases/tag/0.2), support [rtmp](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMPHandshake) flash publish, h264, time jitter correct. 10125 lines.<br/>
 * 2013-10-23, [Release v0.1](https://github.com/simple-rtmp-server/srs/releases/tag/0.1), support [rtmp FMLE/FFMPEG publish](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP), vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
-
-## Compare
-
-Compare SRS with other media server.
 
 ## History
 
@@ -1030,98 +1030,17 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 
 The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 
-<table>
-    <tr>
-        <th>Update</th>
-        <th>SRS</th>
-        <th>Clients</th>
-        <th>Type</th>
-        <th>CPU</th>
-        <th>Memory</th>
-        <th>Commit</th>
-    </tr>
-    <tr>
-        <td>2014-12-03</td>
-        <td>1.0.10</td>
-        <td>1.2k(1200)</td>
-        <td>publishers</td>
-        <td>96%</td>
-        <td>43MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-12-03</td>
-        <td>2.0.12</td>
-        <td>1.2k(1200)</td>
-        <td>publishers</td>
-        <td>96%</td>
-        <td>43MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-12-03</td>
-        <td>2.0.47</td>
-        <td>1.2k(1200)</td>
-        <td>publishers</td>
-        <td>84%</td>
-        <td>76MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-03</td>
-        <td>2.0.47</td>
-        <td>1.4k(1400)</td>
-        <td>publishers</td>
-        <td>95%</td>
-        <td>140MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-12-03</td>
-        <td>2.0.48</td>
-        <td>1.4k(1400)</td>
-        <td>publishers</td>
-        <td>95%</td>
-        <td>140MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-04</td>
-        <td>2.0.49</td>
-        <td>1.4k(1400)</td>
-        <td>publishers</td>
-        <td>68%</td>
-        <td>144MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-12-04</td>
-        <td>2.0.49</td>
-        <td>2.5k(2500)</td>
-        <td>publishers</td>
-        <td>95%</td>
-        <td>404MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-04</td>
-        <td>2.0.51</td>
-        <td>2.5k(2500)</td>
-        <td>publishers</td>
-        <td>91%</td>
-        <td>259MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/f57801eb46c16755b173984b915a4166922df6a6">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-04</td>
-        <td>2.0.52</td>
-        <td>4.0k(4000)</td>
-        <td>publishers</td>
-        <td>80%</td>
-        <td>331MB</td>
-        <td>(mr_sleep=350)<br/><a href="https://github.com/simple-rtmp-server/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da">commit</a></td>
-    </tr>
-</table>
+|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit    |
+| ------------- | --------- | ------------- | ------------- | --------- | --------  | --------  |
+|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -       |
+|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -       |
+|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    | <a href="https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8">commit</a> |
+|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -       |
+|   2014-12-03  |   2.0.48  |   1.4k(1400   |   publishers  |   95%     |   140MB   | <a href="https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf">commit</a> |
+|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -       |
+|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   <a href="https://github.com/simple-rtmp-server/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff">commit</a>  |
+|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   <a href="https://github.com/simple-rtmp-server/srs/commit/f57801eb46c16755b173984b915a4166922df6a6">commit</a>  |
+|   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   (mr_sleep=350)<br/><a href="https://github.com/simple-rtmp-server/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da">commit</a>   |
 
 ### Latency benchmark
 
