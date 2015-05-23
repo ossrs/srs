@@ -357,7 +357,8 @@ Supported operating systems and hardware:
 * Apple OSX(Darwin), both 32 and 64bits.
 * All hardware with x86/x86_64/arm/mips cpu.
 
-## Summary
+## Features
+
 1. Simple, also stable enough.
 1. High-performance(
 [CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance),
@@ -561,6 +562,10 @@ Supported operating systems and hardware:
 * 2013-10-25, [Release v0.2](https://github.com/simple-rtmp-server/srs/releases/tag/0.2), support [rtmp](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMPHandshake) flash publish, h264, time jitter correct. 10125 lines.<br/>
 * 2013-10-23, [Release v0.1](https://github.com/simple-rtmp-server/srs/releases/tag/0.1), support [rtmp FMLE/FFMPEG publish](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP), vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
+
+## Compare
+
+Compare SRS with other media server.
 
 ## History
 
