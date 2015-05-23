@@ -115,19 +115,19 @@ cd simple-rtmp-server/trunk
 </pre>
 
 <strong>See also:</strong>
-* Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP],[EN][v1_EN_SampleRTMP])
-* Usage: How to delivery HLS?([CN][v1_CN_SampleHLS],[EN][v1_EN_SampleHLS])
-* Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2[EN][v1_EN_SampleTranscode2HLS])
-* Usage: How to transode RTMP stream by SRS?([CN][v1_CN_SampleFFMPEG],[EN][v1_EN_SampleFFMPEG])
-* Usage: How to forward stream to other server?([CN][v1_CN_SampleForward[EN][v1_EN_SampleForward])
-* Usage: How to deploy low lantency application?([CN][v1_CN_SampleRealtime[EN][v1_EN_SampleRealtime])
-* Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM],[EN][v1_EN_SampleARM])
-* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_Sample[EN][v1_EN_SampleIngest])
-* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v1_CN_SampleHTTP[EN][v1_EN_SampleHTTP])
-* Usage: How to show the demo of [CN][v1_CN_SampleDemo[EN][v1_EN_SampleDemo])
-* Usage: How to publish h.264 raw stream to [CN][v2_CN_SrsLibrtmp2],[EN][v2_EN_SrsLibrtmp2])
-* Usage: Solution using SRS?([CN][v1_CN_Sample],[EN][v1_EN_Sample])
-* Usage: Why SRS?([CN][v1_CN_Product],[EN][v1_EN_Product])
+* Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* Usage: How to delivery HLS?([CN][v1_CN_SampleHLS], [EN][v1_EN_SampleHLS])
+* Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2], [EN][v1_EN_SampleTranscode2HLS])
+* Usage: How to transode RTMP stream by SRS?([CN][v1_CN_SampleFFMPEG], [EN][v1_EN_SampleFFMPEG])
+* Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
+* Usage: How to deploy low lantency application?([CN][v1_CN_SampleRealtime], [EN][v1_EN_SampleRealtime])
+* Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
+* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_Sample], [EN][v1_EN_SampleIngest])
+* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v1_CN_SampleHTTP], [EN][v1_EN_SampleHTTP])
+* Usage: How to show the demo of [CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
+* Usage: How to publish h.264 raw stream to [CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2])
+* Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
+* Usage: Why SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
 
 ## Wiki
 
