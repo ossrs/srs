@@ -117,7 +117,7 @@ cd simple-rtmp-server/trunk
 <strong>See also:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery HLS?([CN][v1_CN_SampleHLS], [EN][v1_EN_SampleHLS])
-* Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2], [EN][v1_EN_SampleTranscode2HLS])
+* Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2HLS], [EN][v1_EN_SampleTranscode2HLS])
 * Usage: How to transode RTMP stream by SRS?([CN][v1_CN_SampleFFMPEG], [EN][v1_EN_SampleFFMPEG])
 * Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
 * Usage: How to deploy low lantency application?([CN][v1_CN_SampleRealtime], [EN][v1_EN_SampleRealtime])
@@ -191,18 +191,18 @@ Supported operating systems and hardware:
 1. Support Ingest([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) FILE/HTTP/RTMP/RTSP(RTP, SDP) to RTMP using external tools(e.g ffmepg).
 1. Support DVR([CN][v1_CN_DVR], [EN][v1_EN_DVR]), record live to flv file for vod.
 1. Support tracable log, session based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
-1. Support DRM token traverse([CN][v1_CN_DRM#tokentraverse], [EN][v1_EN_DRM#tokentraverse]) for fms origin authenticate.
+1. Support DRM token traverse([CN][v1_CN_DRM2], [EN][v1_EN_DRM2]) for fms origin authenticate.
 1. Support system full utest on gtest.
 1. Support embeded HTTP server([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP]) for hls(live/vod)
 1. Support vod stream(http flv/hls vod stream)([CN][v2_CN_FlvVodStream], [EN][v2_EN_FlvVodStream]).
 1. Stable [1.0release branch](https://github.com/simple-rtmp-server/srs/tree/1.0release).
-1. Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp#publish-h264-raw-data], [EN][v2_EN_SrsLibrtmp#publish-h264-raw-data]) by srs-librtmp.
+1. Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2]) by srs-librtmp.
 1. Support [6k+ clients][bug #194], 3Gbps per process.
 1. Suppport [English wiki][v1_EN_Home).
 1. Research and simplify st, [bug #182][bug #182].
 1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213][bug #213].
 1. Support [10k+ clients][bug #251], 4Gbps per process.
-1. Support publish aac adts raw stream([CN][v2_CN_SrsLibrtmp#publish-audio-raw-stream], [EN][v2_EN_SrsLibrtmp#publish-audio-raw-stream]) by srs-librtmp.
+1. Support publish aac adts raw stream([CN][v2_CN_SrsLibrtmp3], [EN][v2_EN_SrsLibrtmp3]) by srs-librtmp.
 1. Support 0.1s+ latency, read [bug #257][bug #257].
 1. Support allow/deny publish/play for all or specified ip([CN][v2_CN_Security], [EN][v2_EN_Security]).
 1. Support custom dvr path and http callback, read [bug #179][bug #179] and [bug #274][bug #274].
@@ -213,7 +213,7 @@ Supported operating systems and hardware:
 1. [dev] Realease [2.0release branch][branch2].
 1. [experiment] Support push MPEG-TS over UDP to SRS, read [bug #250][bug #250].
 1. [experiment] Support push RTSP to SRS, read [bug #133][bug #133].
-1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer#push-http-flv-to-srs], [EN][v2_EN_Streamer#push-http-flv-to-srs]).
+1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -770,6 +770,8 @@ Winlin
 [v1_EN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRealtime
 [v1_CN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleARM
 [v1_EN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleARM
+[v1_CN_SampleIngest]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest
+[v1_EN_SampleIngest]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleIngest
 [v1_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleHTTP
 [v1_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleHTTP
 [v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
@@ -830,24 +832,24 @@ Winlin
 [v1_EN_DVR]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DVR
 [v1_CN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog
 [v1_EN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLog
-[v1_CN_DRM#tokentraverse]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse
-[v1_EN_DRM#tokentraverse]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DRM#tokentraverse
+[v1_CN_DRM2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse
+[v1_EN_DRM2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DRM#tokentraverse
 [v2_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHTTP
 [v2_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHTTP
 [v2_CN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_FlvVodStream
 [v2_EN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_FlvVodStream
-[v2_CN_SrsLibrtmp#publish-h264-raw-data]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
-[v2_EN_SrsLibrtmp#publish-h264-raw-data]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
-[v2_CN_SrsLibrtmp#publish-audio-raw-stream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream
-[v2_EN_SrsLibrtmp#publish-audio-raw-stream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream
+[v2_CN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
+[v2_EN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
+[v2_CN_SrsLibrtmp3]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream
+[v2_EN_SrsLibrtmp3]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream
 [v2_CN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Security
 [v2_EN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Security
 [v2_CN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHttpStream
 [v2_EN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_DeliveryHttpStream
 [v1_CN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS
 [v1_EN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS
-[v2_CN_Streamer#push-http-flv-to-srs]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
-[v2_EN_Streamer#push-http-flv-to-srs]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
+[v2_CN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
+[v2_EN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
 
 [bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
 [bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
