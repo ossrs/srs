@@ -25,6 +25,7 @@
 
 #include <stdlib.h>
 #include <sstream>
+#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
