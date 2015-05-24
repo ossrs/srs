@@ -35,6 +35,9 @@ class SrsStream;
 class SrsFileWriter;
 class SrsFileReader;
 
+#define SRS_FLV_TAG_HEADER_SIZE 11
+#define SRS_FLV_PREVIOUS_TAG_SIZE 4
+
 /**
 * encode data to flv file.
 */
@@ -44,6 +47,7 @@ private:
     SrsFileWriter* _fs;
 private:
     SrsStream* tag_stream;
+    char tag_header[SRS_FLV_TAG_HEADER_SIZE];
 public:
     SrsFlvEncoder();
     virtual ~SrsFlvEncoder();

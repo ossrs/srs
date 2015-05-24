@@ -38,9 +38,6 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-#define SRS_FLV_TAG_HEADER_SIZE 11
-#define SRS_FLV_PREVIOUS_TAG_SIZE 4
-
 SrsFlvEncoder::SrsFlvEncoder()
 {
     _fs = NULL;
@@ -119,19 +116,22 @@ int SrsFlvEncoder::write_metadata(char type, char* data, int size)
     srs_assert(data);
     
     // 11 bytes tag header
-    char tag_header[] = {
+    /*char tag_header[] = {
         (char)type, // TagType UB [5], 18 = script data
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8
         (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
-    };
+    };*/
     
     // write data size.
-    if ((ret = tag_stream->initialize(tag_header + 1, 3)) != ERROR_SUCCESS) {
+    if ((ret = tag_stream->initialize(tag_header, 8)) != ERROR_SUCCESS) {
         return ret;
     }
+    tag_stream->write_1bytes(type);
     tag_stream->write_3bytes(size);
+    tag_stream->write_3bytes(0x00);
+    tag_stream->write_1bytes(0x00);
     
     if ((ret = write_tag(tag_header, sizeof(tag_header), data, size)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
@@ -152,18 +152,19 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     timestamp &= 0x7fffffff;
     
     // 11bytes tag header
-    char tag_header[] = {
+    /*char tag_header[] = {
         (char)SrsCodecFlvTagAudio, // TagType UB [5], 8 = audio
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8
         (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
-    };
+    };*/
     
     // write data size.
-    if ((ret = tag_stream->initialize(tag_header + 1, 7)) != ERROR_SUCCESS) {
+    if ((ret = tag_stream->initialize(tag_header, 8)) != ERROR_SUCCESS) {
         return ret;
     }
+    tag_stream->write_1bytes(SrsCodecFlvTagAudio);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
@@ -188,18 +189,19 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     timestamp &= 0x7fffffff;
     
     // 11bytes tag header
-    char tag_header[] = {
+    /*char tag_header[] = {
         (char)SrsCodecFlvTagVideo, // TagType UB [5], 9 = video
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8
         (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
-    };
+    };*/
     
     // write data size.
-    if ((ret = tag_stream->initialize(tag_header + 1, 7)) != ERROR_SUCCESS) {
+    if ((ret = tag_stream->initialize(tag_header, 8)) != ERROR_SUCCESS) {
         return ret;
     }
+    tag_stream->write_1bytes(SrsCodecFlvTagVideo);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
