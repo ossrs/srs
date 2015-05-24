@@ -340,6 +340,7 @@ Remark:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-24, fix [#404](https://github.com/simple-rtmp-server/srs/issues/404) register handler then start http thread. 2.0.167.
 * v2.0, 2015-05-23, refine the thread, protocol, kbps code. 2.0.166
 * v2.0, 2015-05-23, fix [#391](https://github.com/simple-rtmp-server/srs/issues/391) copy request for async call.
 * v2.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 2.0.165

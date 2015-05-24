@@ -1854,15 +1854,18 @@ int SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
         
         sflvs[sid] = entry;
         
-        // start http stream cache thread
-        if ((ret = entry->cache->start()) != ERROR_SUCCESS) {
-            srs_error("http: start stream cache failed. ret=%d", ret);
+        // mount the http flv stream.
+        // we must register the handler, then start the thread,
+        // for the thread will cause thread switch context.
+        // @see https://github.com/simple-rtmp-server/srs/issues/404
+        if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
+            srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
             return ret;
         }
         
-        // mount the http flv stream.
-        if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
-            srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
+        // start http stream cache thread
+        if ((ret = entry->cache->start()) != ERROR_SUCCESS) {
+            srs_error("http: start stream cache failed. ret=%d", ret);
             return ret;
         }
         srs_trace("http: mount flv stream for vhost=%s, mount=%s", sid.c_str(), mount.c_str());
