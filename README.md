@@ -116,6 +116,7 @@ cd simple-rtmp-server/trunk
 
 <strong>See also:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* Usage: How to delivery RTMP Cluster?([CN][v1_CN_SampleRTMPCluster], [EN][v1_EN_SampleRTMPCluster])
 * Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
 * Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v2_CN_SampleHttpFlvCluster], [EN][v2_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v1_CN_SampleHLS], [EN][v1_EN_SampleHLS])
@@ -839,6 +840,8 @@ Winlin
 [v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
 [v1_CN_SampleRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleRTMP
 [v1_EN_SampleRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRTMP
+[v1_CN_SampleRTMPCluster]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleRTMPCluster
+[v1_EN_SampleRTMPCluster]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRTMPCluster
 [v1_CN_SampleHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleHLS
 [v1_EN_SampleHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleHLS
 [v1_CN_SampleTranscode2HLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleTranscode2HLS
