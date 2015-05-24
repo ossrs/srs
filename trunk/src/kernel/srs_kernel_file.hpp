@@ -31,6 +31,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#ifndef _WIN32
+#include <sys/uio.h>
+#endif
+
 /**
 * file writer, to write to file.
 */
@@ -62,6 +67,11 @@ public:
     * @param pnwrite the output nb_write, NULL to ignore.
     */
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    /**
+     * for the HTTP FLV, to writev to improve performance.
+     * @see https://github.com/simple-rtmp-server/srs/issues/405
+     */
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**

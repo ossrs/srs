@@ -66,11 +66,14 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
     content_length = -1;
     written = 0;
     header_sent = false;
+    nb_iovss_cache = 0;
+    iovss_cache = NULL;
 }
 
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
+    srs_freep(iovss_cache);
 }
 
 int SrsHttpResponseWriter::final_request()
@@ -98,17 +101,18 @@ int SrsHttpResponseWriter::write(char* data, int size)
     
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
+        
+        if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
+            srs_error("http: send header failed. ret=%d", ret);
+            return ret;
+        }
     }
     
+    // check the bytes send and content length.
     written += size;
     if (content_length != -1 && written > content_length) {
         ret = ERROR_HTTP_CONTENT_LENGTH;
         srs_error("http: exceed content length. ret=%d", ret);
-        return ret;
-    }
-    
-    if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
-        srs_error("http: send header failed. ret=%d", ret);
         return ret;
     }
     
@@ -123,17 +127,105 @@ int SrsHttpResponseWriter::write(char* data, int size)
     }
     
     // send in chunked encoding.
-    std::stringstream ss;
-    ss << hex << size << SRS_HTTP_CRLF;
-    std::string ch = ss.str();
-    if ((ret = skt->write((void*)ch.data(), (int)ch.length(), NULL)) != ERROR_SUCCESS) {
+    int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    
+    iovec iovs[4];
+    iovs[0].iov_base = (char*)header_cache;
+    iovs[0].iov_len = (int)nb_size;
+    iovs[1].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[1].iov_len = 2;
+    iovs[2].iov_base = (char*)data;
+    iovs[2].iov_len = size;
+    iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[3].iov_len = 2;
+    
+    ssize_t nwrite;
+    if ((ret = skt->writev(iovs, 4, &nwrite)) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = skt->write((void*)data, size, NULL)) != ERROR_SUCCESS) {
+    
+    return ret;
+}
+
+int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when header not ready, or not chunked, send one by one.
+    if (!header_wrote || content_length != -1) {
+        ssize_t nwrite = 0;
+        for (int i = 0; i < iovcnt; i++) {
+            iovec* piovc = iov + i;
+            nwrite += piovc->iov_len;
+            if ((ret = write((char*)piovc->iov_base, (int)piovc->iov_len)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        if (pnwrite) {
+            *pnwrite = nwrite;
+        }
+        
         return ret;
     }
-    if ((ret = skt->write((void*)SRS_HTTP_CRLF, 2, NULL)) != ERROR_SUCCESS) {
+    
+    // ignore NULL content.
+    if (iovcnt <= 0) {
         return ret;
+    }
+    
+    // send in chunked encoding.
+    int nb_iovss = 3 + iovcnt;
+    iovec* iovss = iovss_cache;
+    if (nb_iovss_cache < nb_iovss) {
+        srs_freep(iovss_cache);
+        nb_iovss_cache = nb_iovss;
+        iovss = iovss_cache = new iovec[nb_iovss];
+    }
+    
+    // send in chunked encoding.
+    
+    // chunk size.
+    int size = 0;
+    for (int i = 0; i < iovcnt; i++) {
+        iovec* data_iov = iov + i;
+        size += data_iov->iov_len;
+    }
+    written += size;
+    
+    // chunk header
+    int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    iovec* iovs = iovss;
+    iovs[0].iov_base = (char*)header_cache;
+    iovs[0].iov_len = (int)nb_size;
+    iovs++;
+    
+    // chunk header eof.
+    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[0].iov_len = 2;
+    iovs++;
+    
+    // chunk body.
+    for (int i = 0; i < iovcnt; i++) {
+        iovec* data_iov = iov + i;
+        iovs[0].iov_base = (char*)data_iov->iov_base;
+        iovs[0].iov_len = (int)data_iov->iov_len;
+        iovs++;
+    }
+    
+    // chunk body eof.
+    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[0].iov_len = 2;
+    iovs++;
+    
+    // sendout all ioves.
+    ssize_t nwrite;
+    if ((ret = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (pnwrite) {
+        *pnwrite = nwrite;
     }
     
     return ret;
@@ -1365,6 +1457,21 @@ int SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
     return ERROR_SUCCESS;
 }
 
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+SrsFastFlvStreamEncoder::SrsFastFlvStreamEncoder()
+{
+}
+
+SrsFastFlvStreamEncoder::~SrsFastFlvStreamEncoder()
+{
+}
+
+int SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
+{
+    return enc->write_tags(msgs, count);
+}
+#endif
+
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
     enc = new SrsAacEncoder();
@@ -1509,6 +1616,11 @@ int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return writer->write((char*)buf, (int)count);
 }
 
+int SrsStreamWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    return writer->writev(iov, iovcnt, pnwrite);
+}
+
 SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)
 {
     source = s;
@@ -1530,7 +1642,11 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+        enc = new SrsFastFlvStreamEncoder();
+#else
         enc = new SrsFlvStreamEncoder();
+#endif
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc = new SrsAacStreamEncoder();
@@ -1576,6 +1692,10 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
     }
     
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+    SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
+#endif
+    
     while (true) {
         pprint->elapse();
 
@@ -1602,7 +1722,15 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         
         // sendout all messages.
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+        if (ffe) {
+            ret = ffe->write_tags(msgs.msgs, count);
+        } else {
+            ret = streaming_send_messages(enc, msgs.msgs, count);
+        }
+#else
         ret = streaming_send_messages(enc, msgs.msgs, count);
+#endif
     
         // free the messages.
         for (int i = 0; i < count; i++) {

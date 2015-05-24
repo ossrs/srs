@@ -33,6 +33,11 @@
 #include <string>
 #include <vector>
 
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#ifndef _WIN32
+#include <sys/uio.h>
+#endif
+
 class SrsFileReader;
 class SrsHttpHeader;
 class ISrsHttpMessage;
@@ -188,6 +193,11 @@ public:
     // the initial 512 bytes of written data to DetectContentType.
     // @param data, the data to send. NULL to flush header only.
     virtual int write(char* data, int size) = 0;
+    /**
+     * for the HTTP FLV, to writev to improve performance.
+     * @see https://github.com/simple-rtmp-server/srs/issues/405
+     */
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
     
     // WriteHeader sends an HTTP response header with status code.
     // If WriteHeader is not called explicitly, the first call to Write

@@ -71,6 +71,10 @@ class SrsHttpMessage;
 
 #ifdef SRS_AUTO_HTTP_PARSER
 
+// the http chunked header size,
+// for writev, there always one chunk to send it.
+#define SRS_HTTP_HEADER_CACHE_SIZE 64
+
 /**
  * response writer use st socket
  */
@@ -79,6 +83,10 @@ class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 private:
     SrsStSocket* skt;
     SrsHttpHeader* hdr;
+private:
+    char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
+    iovec* iovss_cache;
+    int nb_iovss_cache;
 private:
     // reply header has been (logically) written
     bool header_wrote;
@@ -102,6 +110,7 @@ public:
     virtual int final_request();
     virtual SrsHttpHeader* header();
     virtual int write(char* data, int size);
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
     virtual int send_header(char* data, int size);
 };
@@ -203,8 +212,8 @@ public:
      * set the original messages, then update the message.
      */
     virtual int update(std::string url, http_parser* header,
-                       SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
-                       );
+        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
+    );
 private:
     virtual SrsConnection* connection();
 public:
@@ -443,7 +452,7 @@ public:
 */
 class SrsFlvStreamEncoder : public ISrsStreamEncoder
 {
-private:
+protected:
     SrsFlvEncoder* enc;
 public:
     SrsFlvStreamEncoder();
@@ -457,6 +466,24 @@ public:
     virtual bool has_cache();
     virtual int dump_cache(SrsConsumer* consumer);
 };
+
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+/**
+ * the fast flv stream encoder.
+ * @see https://github.com/simple-rtmp-server/srs/issues/405
+ */
+class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
+{
+public:
+    SrsFastFlvStreamEncoder();
+    virtual ~SrsFastFlvStreamEncoder();
+public:
+    /**
+     * write the tags in a time.
+     */
+    virtual int write_tags(SrsSharedPtrMessage** msgs, int count);
+};
+#endif
 
 /**
 * the ts stream encoder, remux rtmp stream to ts stream.
@@ -538,6 +565,7 @@ public:
     virtual int64_t tellg();
 public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**

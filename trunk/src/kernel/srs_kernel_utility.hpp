@@ -138,5 +138,28 @@ extern char* srs_av_base64_encode(char* out, int out_size, const u_int8_t* in, i
 */
 extern int ff_hex_to_data(u_int8_t* data, const char* p);
 
+/**
+ * generate the c0 chunk header for msg.
+ * @param cache, the cache to write header.
+ * @param nb_cache, the size of cache.
+ * @return the size of header. 0 if cache not enough.
+ */
+extern int srs_chunk_header_c0(
+    int perfer_cid, u_int32_t timestamp, int32_t payload_length,
+    int8_t message_type, int32_t stream_id,
+    char* cache, int nb_cache
+    );
+
+/**
+ * generate the c3 chunk header for msg.
+ * @param cache, the cache to write header.
+ * @param nb_cache, the size of cache.
+ * @return the size of header. 0 if cache not enough.
+ */
+extern int srs_chunk_header_c3(
+    int perfer_cid, u_int32_t timestamp,
+    char* cache, int nb_cache
+    );
+
 #endif
 
