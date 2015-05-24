@@ -134,7 +134,9 @@ int SrsFlvEncoder::write_metadata(char type, char* data, int size)
     tag_stream->write_3bytes(size);
     
     if ((ret = write_tag(tag_header, sizeof(tag_header), data, size)) != ERROR_SUCCESS) {
-        srs_error("write flv data tag failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("write flv data tag failed. ret=%d", ret);
+        }
         return ret;
     }
     
@@ -168,7 +170,9 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     
     if ((ret = write_tag(tag_header, sizeof(tag_header), data, size)) != ERROR_SUCCESS) {
-        srs_error("write flv audio tag failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("write flv audio tag failed. ret=%d", ret);
+        }
         return ret;
     }
     
@@ -221,13 +225,17 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     
     // write tag header.
     if ((ret = _fs->write(header, header_size, NULL)) != ERROR_SUCCESS) {
-        srs_error("write flv tag header failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("write flv tag header failed. ret=%d", ret);
+        }
         return ret;
     }
     
     // write tag data.
     if ((ret = _fs->write(tag, tag_size, NULL)) != ERROR_SUCCESS) {
-        srs_error("write flv tag failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("write flv tag failed. ret=%d", ret);
+        }
         return ret;
     }
     
@@ -238,7 +246,9 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     }
     tag_stream->write_4bytes(tag_size + header_size);
     if ((ret = _fs->write(pre_size, sizeof(pre_size), NULL)) != ERROR_SUCCESS) {
-        srs_error("write flv previous tag size failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("write flv previous tag size failed. ret=%d", ret);
+        }
         return ret;
     }
     
