@@ -181,5 +181,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #undef SRS_PERF_SO_SNDBUF_SIZE
 #endif
 
+/**
+ * define the following macro to enable the fast flv encoder.
+ * @see https://github.com/simple-rtmp-server/srs/issues/405
+ */
+#undef SRS_PERF_FAST_FLV_ENCODER
+#define SRS_PERF_FAST_FLV_ENCODER
+
 #endif
 

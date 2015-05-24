@@ -29,12 +29,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#ifndef _WIN32
+#include <sys/uio.h>
+#endif
+
 #include <string>
 
 #include <srs_kernel_consts.hpp>
 
 class SrsMessageHeader;
 class SrsSharedPtrMessage;
+class ISrsProtocolReaderWriter;
 
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
@@ -91,29 +97,6 @@ extern std::string srs_generate_tc_url(
 extern bool srs_bytes_equals(void* pa, void* pb, int size);
 
 /**
-* generate the c0 chunk header for msg.
-* @param cache, the cache to write header.
-* @param nb_cache, the size of cache.
-* @return the size of header. 0 if cache not enough.
-*/
-extern int srs_chunk_header_c0(
-    int perfer_cid, u_int32_t timestamp, int32_t payload_length,
-    int8_t message_type, int32_t stream_id,
-    char* cache, int nb_cache
-);
-
-/**
-* generate the c3 chunk header for msg.
-* @param cache, the cache to write header.
-* @param nb_cache, the size of cache.
-* @return the size of header. 0 if cache not enough.
-*/
-extern int srs_chunk_header_c3(
-    int perfer_cid, u_int32_t timestamp, 
-    char* cache, int nb_cache
-);
-
-/**
 * create shared ptr message from bytes.
 * @param data the packet bytes. user should never free it.
 * @param ppmsg output the shared ptr message. user should free it.
@@ -122,6 +105,9 @@ extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int s
 
 // get the stream identify, vhost/app/stream.
 extern std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream);
+
+// write large numbers of iovs.
+extern int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
 
 #endif
 

@@ -175,7 +175,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     }
     
     // send in chunked encoding.
-    int nb_iovss = iovcnt * 4;
+    int nb_iovss = 3 + iovcnt;
     iovec* iovss = iovss_cache;
     if (nb_iovss_cache < nb_iovss) {
         srs_freep(iovss_cache);
@@ -183,29 +183,44 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
         iovss = iovss_cache = new iovec[nb_iovss];
     }
     
-    char* pheader_cache = header_cache;
+    // send in chunked encoding.
+    
+    // chunk size.
+    int size = 0;
     for (int i = 0; i < iovcnt; i++) {
-        int left = SRS_HTTP_HEADER_CACHE_SIZE - (int)(pheader_cache - header_cache);
-        srs_assert(left > 0);
-        
         iovec* data_iov = iov + i;
-        int nb_size = snprintf(pheader_cache, left, "%x", (int)data_iov->iov_len);
-        
-        iovec* iovs = iovss + (i * 4);
-        iovs[0].iov_base = (char*)pheader_cache;
-        iovs[0].iov_len = (int)nb_size;
-        iovs[1].iov_base = (char*)SRS_HTTP_CRLF;
-        iovs[1].iov_len = 2;
-        iovs[2].iov_base = (char*)data_iov->iov_base;
-        iovs[2].iov_len = (int)data_iov->iov_len;
-        iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
-        iovs[3].iov_len = 2;
-        
-        pheader_cache += nb_size;
+        size += data_iov->iov_len;
+    }
+    written += size;
+    
+    // chunk header
+    int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    iovec* iovs = iovss;
+    iovs[0].iov_base = (char*)header_cache;
+    iovs[0].iov_len = (int)nb_size;
+    iovs++;
+    
+    // chunk header eof.
+    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[0].iov_len = 2;
+    iovs++;
+    
+    // chunk body.
+    for (int i = 0; i < iovcnt; i++) {
+        iovec* data_iov = iov + i;
+        iovs[0].iov_base = (char*)data_iov->iov_base;
+        iovs[0].iov_len = (int)data_iov->iov_len;
+        iovs++;
     }
     
+    // chunk body eof.
+    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[0].iov_len = 2;
+    iovs++;
+    
+    // sendout all ioves.
     ssize_t nwrite;
-    if ((ret = skt->writev(iovss, nb_iovss, &nwrite)) != ERROR_SUCCESS) {
+    if ((ret = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1442,6 +1457,21 @@ int SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
     return ERROR_SUCCESS;
 }
 
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+SrsFastFlvStreamEncoder::SrsFastFlvStreamEncoder()
+{
+}
+
+SrsFastFlvStreamEncoder::~SrsFastFlvStreamEncoder()
+{
+}
+
+int SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
+{
+    return enc->write_tags(msgs, count);
+}
+#endif
+
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
     enc = new SrsAacEncoder();
@@ -1612,7 +1642,11 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+        enc = new SrsFastFlvStreamEncoder();
+#else
         enc = new SrsFlvStreamEncoder();
+#endif
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc = new SrsAacStreamEncoder();
@@ -1658,6 +1692,10 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
     }
     
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+    SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
+#endif
+    
     while (true) {
         pprint->elapse();
 
@@ -1684,7 +1722,15 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         
         // sendout all messages.
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+        if (ffe) {
+            ret = ffe->write_tags(msgs.msgs, count);
+        } else {
+            ret = streaming_send_messages(enc, msgs.msgs, count);
+        }
+#else
         ret = streaming_send_messages(enc, msgs.msgs, count);
+#endif
     
         // free the messages.
         for (int i = 0; i < count; i++) {

@@ -71,11 +71,9 @@ class SrsHttpMessage;
 
 #ifdef SRS_AUTO_HTTP_PARSER
 
-// for HTTP FLV, each video/audio packet is send by 3 iovs,
-// while each iov is send by 4 sub iovs, that is needs 3 chunk header,
-// suppose each header is 16 length, 3*16=48 is ok.
-// that is, 512 can used for 16 iovs to send.
-#define SRS_HTTP_HEADER_CACHE_SIZE 512
+// the http chunked header size,
+// for writev, there always one chunk to send it.
+#define SRS_HTTP_HEADER_CACHE_SIZE 64
 
 /**
  * response writer use st socket
@@ -214,8 +212,8 @@ public:
      * set the original messages, then update the message.
      */
     virtual int update(std::string url, http_parser* header,
-                       SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
-                       );
+        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
+    );
 private:
     virtual SrsConnection* connection();
 public:
@@ -454,7 +452,7 @@ public:
 */
 class SrsFlvStreamEncoder : public ISrsStreamEncoder
 {
-private:
+protected:
     SrsFlvEncoder* enc;
 public:
     SrsFlvStreamEncoder();
@@ -468,6 +466,24 @@ public:
     virtual bool has_cache();
     virtual int dump_cache(SrsConsumer* consumer);
 };
+
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+/**
+ * the fast flv stream encoder.
+ * @see https://github.com/simple-rtmp-server/srs/issues/405
+ */
+class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
+{
+public:
+    SrsFastFlvStreamEncoder();
+    virtual ~SrsFastFlvStreamEncoder();
+public:
+    /**
+     * write the tags in a time.
+     */
+    virtual int write_tags(SrsSharedPtrMessage** msgs, int count);
+};
+#endif
 
 /**
 * the ts stream encoder, remux rtmp stream to ts stream.
