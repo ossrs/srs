@@ -117,6 +117,7 @@ cd simple-rtmp-server/trunk
 <strong>See also:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
+* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v2_CN_SampleHttpFlvCluster], [EN][v2_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v1_CN_SampleHLS], [EN][v1_EN_SampleHLS])
 * Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2HLS], [EN][v1_EN_SampleTranscode2HLS])
 * Usage: How to transode RTMP stream by SRS?([CN][v1_CN_SampleFFMPEG], [EN][v1_EN_SampleFFMPEG])
@@ -932,6 +933,8 @@ Winlin
 [v2_EN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
 [v2_CN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlv
 [v2_EN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHttpFlv
+[v2_CN_SampleHttpFlvCluster]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlvCluster
+[v2_EN_SampleHttpFlvCluster]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHttpFlvCluster
 
 [bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
 [bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
