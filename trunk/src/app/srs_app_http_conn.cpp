@@ -66,11 +66,14 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
     content_length = -1;
     written = 0;
     header_sent = false;
+    nb_iovss_cache = 0;
+    iovss_cache = NULL;
 }
 
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
+    srs_freep(iovss_cache);
 }
 
 int SrsHttpResponseWriter::final_request()
@@ -173,8 +176,12 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     
     // send in chunked encoding.
     int nb_iovss = iovcnt * 4;
-    iovec* iovss = new iovec[nb_iovss];
-    SrsAutoFree(iovec, iovss);
+    iovec* iovss = iovss_cache;
+    if (nb_iovss_cache < nb_iovss) {
+        srs_freep(iovss_cache);
+        nb_iovss_cache = nb_iovss;
+        iovss = iovss_cache = new iovec[nb_iovss];
+    }
     
     char* pheader_cache = header_cache;
     for (int i = 0; i < iovcnt; i++) {

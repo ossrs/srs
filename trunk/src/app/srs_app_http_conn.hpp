@@ -85,7 +85,10 @@ class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 private:
     SrsStSocket* skt;
     SrsHttpHeader* hdr;
+private:
     char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
+    iovec* iovss_cache;
+    int nb_iovss_cache;
 private:
     // reply header has been (logically) written
     bool header_wrote;
