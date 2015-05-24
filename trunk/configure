@@ -153,15 +153,15 @@ MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream"
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
-#RTMP Protocol, depends on core/kernel, provides rtmp/htttp protocol features.
+#RTMP/HTTP/Raw Protocol, depends on core/kernel, provides rtmp/htttp protocol features.
 MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_rtmp_amf0" "srs_rtmp_io" "srs_rtmp_stack" "srs_rtmp_sdk"
         "srs_rtmp_handshake" "srs_rtmp_utility" "srs_rtmp_msg_array" "srs_protocol_buffer"
         "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps")
-RTMP_INCS="src/protocol"; MODULE_DIR=${RTMP_INCS} . auto/modules.sh
-RTMP_OBJS="${MODULE_OBJS[@]}"
+PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
+PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
 #App Module
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
@@ -228,7 +228,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
@@ -246,7 +246,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 # srs librtmp
 if [ $SRS_LIBRTMP = YES ]; then
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${LIBS_OBJS[@]}"
     BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
 fi
 #
@@ -258,7 +258,7 @@ if [ $SRS_UTEST = YES ]; then
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
 
