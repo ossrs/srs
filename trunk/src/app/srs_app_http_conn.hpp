@@ -71,6 +71,8 @@ class SrsHttpMessage;
 
 #ifdef SRS_AUTO_HTTP_PARSER
 
+#define SRS_HTTP_HEADER_CACHE_SIZE 16
+
 /**
  * response writer use st socket
  */
@@ -79,6 +81,7 @@ class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 private:
     SrsStSocket* skt;
     SrsHttpHeader* hdr;
+    char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
 private:
     // reply header has been (logically) written
     bool header_wrote;

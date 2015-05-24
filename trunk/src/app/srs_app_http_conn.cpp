@@ -123,16 +123,20 @@ int SrsHttpResponseWriter::write(char* data, int size)
     }
     
     // send in chunked encoding.
-    std::stringstream ss;
-    ss << hex << size << SRS_HTTP_CRLF;
-    std::string ch = ss.str();
-    if ((ret = skt->write((void*)ch.data(), (int)ch.length(), NULL)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = skt->write((void*)data, size, NULL)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = skt->write((void*)SRS_HTTP_CRLF, 2, NULL)) != ERROR_SUCCESS) {
+    int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
+    
+    iovec iovs[4];
+    iovs[0].iov_base = (char*)header_cache;
+    iovs[0].iov_len = (int)nb_size;
+    iovs[1].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[1].iov_len = 2;
+    iovs[2].iov_base = (char*)data;
+    iovs[2].iov_len = size;
+    iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
+    iovs[3].iov_len = 2;
+    
+    ssize_t nwrite;
+    if ((ret = skt->writev(iovs, 4, &nwrite)) != ERROR_SUCCESS) {
         return ret;
     }
     

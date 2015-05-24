@@ -326,7 +326,7 @@ Remark:
 * 2014-04-28, [Release v1.0-mainline2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline2), support [dvr](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR), android, [edge](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge). 35255 lines.<br/>
 * 2014-04-07, [Release v1.0-mainline](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline), support [arm](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm), [init.d](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService), http [server](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPServer)/[api](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi), [ingest](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest). 30000 lines.<br/>
 * 2013-12-25, [Release v0.9](https://github.com/simple-rtmp-server/srs/releases/tag/0.9), support bandwidth test, player/encoder/chat [demos](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo). 20926 lines.<br/>
-* 2013-12-08, [Release v0.8](https://github.com/simple-rtmp-server/srs/releases/tag/0.8), support [http hooks callback](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback), update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
+* 2013-12-08, [Release v0.8](https://github.com/simple-rtmp-server/srs/releases/tag/0.8), support [http hooks callback](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback), update [SB](https://github.com/simple-rtmp-server/srs-bench). 19186 lines.<br/>
 * 2013-12-03, [Release v0.7](https://github.com/simple-rtmp-server/srs/releases/tag/0.7), support [live stream transcoding](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG). 17605 lines.<br/>
 * 2013-11-29, [Release v0.6](https://github.com/simple-rtmp-server/srs/releases/tag/0.6), support [forward](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward) stream to origin/edge. 16094 lines.<br/>
 * 2013-11-26, [Release v0.5](https://github.com/simple-rtmp-server/srs/releases/tag/0.5), support [HLS(m3u8)](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS), fragment and window. 14449 lines.<br/>
@@ -521,7 +521,7 @@ Remark:
 * v1.0, 2014-06-27, SRS online 30days with RTMP/HLS.
 * v1.0, 2014-06-25, fix [#108](https://github.com/simple-rtmp-server/srs/issues/108), support config time jitter for encoder non-monotonical stream. 0.9.133
 * v1.0, 2014-06-23, support report summaries in heartbeat. 0.9.132
-* v1.0, 2014-06-22, performance refine, support [3k+](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance#%E6%80%A7%E8%83%BD%E4%BE%8B%E8%A1%8C%E6%8A%A5%E5%91%8A4k) connections(270kbps). 0.9.130
+* v1.0, 2014-06-22, performance refine, support [3k+](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance#performancereport4k) connections(270kbps). 0.9.130
 * v1.0, 2014-06-21, support edge [token traverse](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse), fix [#104](https://github.com/simple-rtmp-server/srs/issues/104). 0.9.129
 * v1.0, 2014-06-19, add connections count to api summaries. 0.9.127
 * v1.0, 2014-06-19, add srs bytes and kbps to api summaries. 0.9.126
@@ -614,7 +614,7 @@ Remark:
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
-* v0.8, 2013-12-07, update http/hls/rtmp load test tool [st_load](https://github.com/winlinvip/st-load), use SRS rtmp sdk.
+* v0.8, 2013-12-07, update http/hls/rtmp load test tool [SB](https://github.com/simple-rtmp-server/srs-bench), use SRS rtmp sdk.
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
 * v0.8, 2013-12-05, fix the forward/hls/encoder bug.
@@ -672,9 +672,9 @@ Performance benchmark history, on virtual box.
 * See also: [Performance for x86/x64 Test Guide](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance)
 * See also: [Performance for RaspberryPi](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RaspberryPi)
 
-### Play benchmark
+### Play RTMP benchmark
 
-The play benchmark by [st-load](https://github.com/winlinvip/st-load):
+The play RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
 
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
@@ -692,9 +692,9 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 |   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
 |   2014-12-07  |   2.0.67  |   10k(10000)  |   players     |   95%     |   656MB   |   [code][p12] |
 
-### Publish benchmark
+### Publish RTMP benchmark
 
-The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
+The publish RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
@@ -707,6 +707,16 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 |   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   [code][p3]  |
 |   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
 |   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   [code][p5]  |
+
+### Play HTTP FLV benchmark
+
+The play HTTP FLV benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
+
+
+|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
+| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
+|   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
+|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   -           |
 
 ### Latency benchmark
 
