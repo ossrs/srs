@@ -98,17 +98,18 @@ int SrsHttpResponseWriter::write(char* data, int size)
     
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
+        
+        if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
+            srs_error("http: send header failed. ret=%d", ret);
+            return ret;
+        }
     }
     
+    // check the bytes send and content length.
     written += size;
     if (content_length != -1 && written > content_length) {
         ret = ERROR_HTTP_CONTENT_LENGTH;
         srs_error("http: exceed content length. ret=%d", ret);
-        return ret;
-    }
-    
-    if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
-        srs_error("http: send header failed. ret=%d", ret);
         return ret;
     }
     
@@ -138,6 +139,71 @@ int SrsHttpResponseWriter::write(char* data, int size)
     ssize_t nwrite;
     if ((ret = skt->writev(iovs, 4, &nwrite)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    return ret;
+}
+
+int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when header not ready, or not chunked, send one by one.
+    if (!header_wrote || content_length != -1) {
+        ssize_t nwrite = 0;
+        for (int i = 0; i < iovcnt; i++) {
+            iovec* piovc = iov + i;
+            nwrite += piovc->iov_len;
+            if ((ret = write((char*)piovc->iov_base, (int)piovc->iov_len)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        if (pnwrite) {
+            *pnwrite = nwrite;
+        }
+        
+        return ret;
+    }
+    
+    // ignore NULL content.
+    if (iovcnt <= 0) {
+        return ret;
+    }
+    
+    // send in chunked encoding.
+    int nb_iovss = iovcnt * 4;
+    iovec* iovss = new iovec[nb_iovss];
+    SrsAutoFree(iovec, iovss);
+    
+    char* pheader_cache = header_cache;
+    for (int i = 0; i < iovcnt; i++) {
+        int left = SRS_HTTP_HEADER_CACHE_SIZE - (int)(pheader_cache - header_cache);
+        srs_assert(left > 0);
+        
+        iovec* data_iov = iov + i;
+        int nb_size = snprintf(pheader_cache, left, "%x", (int)data_iov->iov_len);
+        
+        iovec* iovs = iovss + (i * 4);
+        iovs[0].iov_base = (char*)pheader_cache;
+        iovs[0].iov_len = (int)nb_size;
+        iovs[1].iov_base = (char*)SRS_HTTP_CRLF;
+        iovs[1].iov_len = 2;
+        iovs[2].iov_base = (char*)data_iov->iov_base;
+        iovs[2].iov_len = (int)data_iov->iov_len;
+        iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
+        iovs[3].iov_len = 2;
+        
+        pheader_cache += nb_size;
+    }
+    
+    ssize_t nwrite;
+    if ((ret = skt->writev(iovss, nb_iovss, &nwrite)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (pnwrite) {
+        *pnwrite = nwrite;
     }
     
     return ret;
@@ -1511,6 +1577,11 @@ int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
         *pnwrite = count;
     }
     return writer->write((char*)buf, (int)count);
+}
+
+int SrsStreamWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    return writer->writev(iov, iovcnt, pnwrite);
 }
 
 SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)

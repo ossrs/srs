@@ -71,7 +71,11 @@ class SrsHttpMessage;
 
 #ifdef SRS_AUTO_HTTP_PARSER
 
-#define SRS_HTTP_HEADER_CACHE_SIZE 16
+// for HTTP FLV, each video/audio packet is send by 3 iovs,
+// while each iov is send by 4 sub iovs, that is needs 3 chunk header,
+// suppose each header is 16 length, 3*16=48 is ok.
+// that is, 512 can used for 16 iovs to send.
+#define SRS_HTTP_HEADER_CACHE_SIZE 512
 
 /**
  * response writer use st socket
@@ -105,6 +109,7 @@ public:
     virtual int final_request();
     virtual SrsHttpHeader* header();
     virtual int write(char* data, int size);
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
     virtual int send_header(char* data, int size);
 };
@@ -541,6 +546,7 @@ public:
     virtual int64_t tellg();
 public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**

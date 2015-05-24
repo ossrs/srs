@@ -716,7 +716,8 @@ The play HTTP FLV benchmark by [SB](https://github.com/simple-rtmp-server/srs-be
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
 |   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
-|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   -           |
+|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   [code][p17] |
+|   2014-05-24  |   2.0.169 |   3.0k(3000)  |   players     |   94%     |   188MB   |   [code][p18] |
 
 ### Latency benchmark
 
@@ -832,6 +833,7 @@ Winlin
 [p14]: https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
 [p15]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
 [p16]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
+[p17]: https://github.com/simple-rtmp-server/srs/commit/fc995473eb02c7cf64b5b212b456e11f34aa7984
 
 [authors]: https://github.com/simple-rtmp-server/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#bigthanks

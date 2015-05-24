@@ -223,31 +223,24 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
 {
     int ret = ERROR_SUCCESS;
     
-    // write tag header.
-    if ((ret = _fs->write(header, header_size, NULL)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("write flv tag header failed. ret=%d", ret);
-        }
-        return ret;
-    }
-    
-    // write tag data.
-    if ((ret = _fs->write(tag, tag_size, NULL)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("write flv tag failed. ret=%d", ret);
-        }
-        return ret;
-    }
-    
     // PreviousTagSizeN UI32 Size of last tag, including its header, in bytes.
     char pre_size[SRS_FLV_PREVIOUS_TAG_SIZE];
     if ((ret = tag_stream->initialize(pre_size, SRS_FLV_PREVIOUS_TAG_SIZE)) != ERROR_SUCCESS) {
         return ret;
     }
     tag_stream->write_4bytes(tag_size + header_size);
-    if ((ret = _fs->write(pre_size, sizeof(pre_size), NULL)) != ERROR_SUCCESS) {
+    
+    iovec iovs[3];
+    iovs[0].iov_base = header;
+    iovs[0].iov_len = header_size;
+    iovs[1].iov_base = tag;
+    iovs[1].iov_len = tag_size;
+    iovs[2].iov_base = pre_size;
+    iovs[2].iov_len = sizeof(SRS_FLV_PREVIOUS_TAG_SIZE);
+    
+    if ((ret = _fs->writev(iovs, 3, NULL)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("write flv previous tag size failed. ret=%d", ret);
+            srs_error("write flv tag failed. ret=%d", ret);
         }
         return ret;
     }
