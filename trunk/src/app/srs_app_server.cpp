@@ -787,7 +787,7 @@ int SrsServer::http_handle()
     }
 #endif
     
-#ifdef SRS_AUTO_HTTP_SERVER
+#if defined(SRS_AUTO_HTTP_SERVER) && defined(SRS_AUTO_HTTP_API)
     // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
     if ((ret = http_stream_mux->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
         return ret;
