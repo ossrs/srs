@@ -265,7 +265,7 @@ Compare SRS with other media server.
 |   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
 | Token Traverse|   Stable  |   X       |   X       |   Stable  |   X       |
 
-### Performance
+### Efficiency
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
