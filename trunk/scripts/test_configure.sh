@@ -128,7 +128,7 @@ ok_msg "test \" ${item} \""
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test \" ${item} \" failed. ret=$ret"; exit $ret; fi
 ok_msg "test \" ${item} \" success"
 
-item="./configure --fast--with-stream-caster"
+item="./configure --fast --with-stream-caster"
 ok_msg "test \" ${item} \""
 ($item && make $params) >>$log 2>&1
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test \" ${item} \" failed. ret=$ret"; exit $ret; fi
