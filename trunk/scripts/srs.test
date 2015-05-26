@@ -1,5 +1,11 @@
 #!/bin/bash
 
-bash scripts/test_configure.sh && ./objs/srs_utest
+echo "Usage: $0 [-jN]"
+echo "        -jN The make jobs, for example, -j8 to use 8cpu to make"
+
+params="$@"
+echo "params is: $params"
+
+bash scripts/test_configure.sh $params && ./objs/srs_utest
 ret=$?; if [[ 0 -ne $ret ]]; then echo "configure test and utest failed."; exit $ret; fi
 echo "configure test and utest success"; 
