@@ -61,6 +61,8 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
+#if defined(SRS_AUTO_HTTP_PARSER)
+
 /**
 * main entrance.
 */
@@ -1401,4 +1403,16 @@ int proxy_hls2rtmp(string hls, string rtmp)
     
     return ret;
 }
+
+#else
+
+int main(int argc, char** argv)
+{
+#ifndef SRS_AUTO_HTTP_PARSER
+    srs_error("ingest requires http-api or http-server");
+#endif
+    return -1;
+}
+
+#endif
 
