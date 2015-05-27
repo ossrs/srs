@@ -154,9 +154,9 @@ int SrsStreamListener::listen(string i, int p)
         return ret;
     }
     
-    srs_info("listen thread cid=%d, current_cid=%d, "
+    srs_info("listen thread current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
 
     srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
@@ -327,9 +327,9 @@ int SrsUdpStreamListener::listen(string i, int p)
         return ret;
     }
     
-    srs_info("listen thread cid=%d, current_cid=%d, "
+    srs_info("listen thread current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
+        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
     
     // notify the handler the fd changed.
     if ((ret = caster->on_stfd_change(listener->stfd())) != ERROR_SUCCESS) {
