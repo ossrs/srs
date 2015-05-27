@@ -357,52 +357,49 @@ int SrsMessageQueue::dump_packets(SrsConsumer* consumer, bool atc, int tba, int 
 
 void SrsMessageQueue::shrink()
 {
-    int iframe_index = -1;
+    SrsSharedPtrMessage* video_sh = NULL;
+    SrsSharedPtrMessage* audio_sh = NULL;
+    int msgs_size = (int)msgs.size();
     
-    // issue the first iframe.
-    // skip the first frame, whatever the type of it,
-    // for when we shrinked, the first is the iframe,
-    // we will directly remove the gop next time.
-    for (int i = 1; i < (int)msgs.size(); i++) {
+    // remove all msg
+    // igone the sequence header
+    for (int i = 0; i < (int)msgs.size(); i++) {
         SrsSharedPtrMessage* msg = msgs.at(i);
-        
-        if (msg->is_video()) {
-            if (SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
-                // the max frame index to remove.
-                iframe_index = i;
-                
-                // set the start time, we will remove until this frame.
-                av_start_time = msg->timestamp;
-                
-                break;
-            }
+
+        if (msg->is_video() && SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+            srs_freep(video_sh);
+            video_sh = msg;
+            continue;
         }
+        else if (msg->is_audio() && SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+            srs_freep(audio_sh);
+            audio_sh = msg;
+            continue;
+        }
+
+        srs_freep(msg);
     }
-    
-    // no iframe, for audio, clear the queue.
-    // it is ok to clear for audio, for the shrink tell us the queue is full.
-    // for video, we clear util the I-Frame, for the decoding must start from I-frame,
-    // for audio, it's ok to clear any data, also we can clear the whole queue.
-    // @see: https://github.com/simple-rtmp-server/srs/issues/134
-    if (iframe_index < 0) {
-        clear();
-        return;
+    msgs.clear();  
+
+    // update av_start_time
+    av_start_time = av_end_time;
+    //push_back secquence header and update timestamp
+    if (video_sh) {
+        video_sh->timestamp = av_end_time;
+        msgs.push_back(video_sh);
+    }
+    if (audio_sh) {
+        audio_sh->timestamp = av_end_time;
+        msgs.push_back(audio_sh);
     }
     
     if (_ignore_shrink) {
         srs_info("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
-            (int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+            (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
     } else {
         srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
-            (int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+            (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
     }
-    
-    // remove the first gop from the front
-    for (int i = 0; i < iframe_index; i++) {
-        SrsSharedPtrMessage* msg = msgs.at(i);
-        srs_freep(msg);
-    }
-    msgs.erase(msgs.begin(), msgs.begin() + iframe_index);
 }
 
 void SrsMessageQueue::clear()
