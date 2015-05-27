@@ -426,7 +426,7 @@ fi
 # http-parser-2.1
 #####################################################################################
 # check the arm flag file, if flag changed, need to rebuild the st.
-if [ $SRS_HTTP_PARSER = YES ]; then
+if [ $SRS_HTTP_CORE = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
     if [ $SRS_EMBEDED_CPU = YES ]; then
         if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then

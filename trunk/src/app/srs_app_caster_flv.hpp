@@ -37,7 +37,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsConfDirective;
 class SrsHttpServeMux;
-class SrsHttpConn;
 class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
@@ -48,7 +47,6 @@ class SrsFlvDecoder;
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_http.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_kernel_file.hpp>
 
@@ -75,7 +73,7 @@ public:
     virtual void remove(SrsConnection* c);
 // ISrsHttpHandler
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 /**
@@ -96,9 +94,9 @@ public:
     SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsDynamicHttpConn();
 public:
-    virtual int on_got_http_message(SrsHttpMessage* msg);
+    virtual int on_got_http_message(ISrsHttpMessage* msg);
 public:
-    virtual int proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string o);
+    virtual int proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
     virtual int do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);

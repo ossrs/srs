@@ -96,7 +96,7 @@ void show_macro_features()
     srs_warn("check feature http server: off");
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     srs_trace("check feature http parser: on");
 #else
     srs_warn("check feature http parser: off");

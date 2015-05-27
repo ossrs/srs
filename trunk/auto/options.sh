@@ -45,7 +45,7 @@ SRS_GPROF=RESERVED
 ################################################################
 # libraries
 SRS_FFMPEG_STUB=RESERVED
-SRS_HTTP_PARSER=RESERVED
+SRS_HTTP_CORE=RESERVED
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
@@ -376,7 +376,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CORE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
@@ -403,7 +403,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
@@ -430,7 +430,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CORE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
@@ -457,7 +457,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CORE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
@@ -484,7 +484,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CORE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
@@ -511,7 +511,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -539,7 +539,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -566,7 +566,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -593,7 +593,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -620,7 +620,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -647,7 +647,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -674,7 +674,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -701,7 +701,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -728,7 +728,7 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
@@ -761,11 +761,11 @@ function apply_user_detail_options() {
     if [ $SRS_TRANSCODE = YES ]; then SRS_FFMPEG_STUB=YES; fi
     if [ $SRS_INGEST = YES ]; then SRS_FFMPEG_STUB=YES; fi
 
-    # if http-xxxx specified, open the SRS_HTTP_PARSER
-    SRS_HTTP_PARSER=NO
-    if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
-    if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
-    if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
+    # if http-xxxx specified, open the SRS_HTTP_CORE
+    SRS_HTTP_CORE=NO
+    if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_CORE=YES; fi
+    if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_CORE=YES; fi
+    if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_CORE=YES; fi
 
     # parse the jobs for make
     if [[ "" -eq SRS_JOBS ]]; then 
@@ -790,7 +790,7 @@ function apply_user_detail_options() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CORE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
@@ -855,13 +855,14 @@ function check_option_conflicts() {
         if [ $SRS_GPERF_MP = YES ]; then echo "gperf-mp depends on gperf, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_CP = YES ]; then echo "gperf-cp depends on gperf, see: ./configure --help"; __check_ok=NO; fi
     fi
-    if [ $SRS_GPERF_MC = YES ]; then
-        if [ $SRS_GPERF_MP = YES ]; then
-            echo "gperf-mc not compatible with gperf-mp, see: ./configure --help";
-            echo "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html";
-            echo "Note that since the heap-checker uses the heap-profiling framework internally, it is not possible to run both the heap-checker and heap profiler at the same time";
-            __check_ok=NO
-        fi
+    if [[ $SRS_GPERF_MC = YES && $SRS_GPERF_MP = YES ]]; then
+        echo "gperf-mc not compatible with gperf-mp, see: ./configure --help";
+        echo "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html";
+        echo "Note that since the heap-checker uses the heap-profiling framework internally, it is not possible to run both the heap-checker and heap profiler at the same time";
+        __check_ok=NO
+    fi
+    if [[ $SRS_HTTP_CORE = NO && $SRS_STREAM_CASTER = YES ]]; then
+       echo "stream-caster depends on http-api or http-server, see: ./configure --help"; __check_ok=NO;
     fi
     # generate the group option: SRS_GPERF
     __gperf_slow=NO
@@ -885,10 +886,8 @@ function check_option_conflicts() {
     fi
 
     # if x86/x64 or directly build, never use static
-    if [ $SRS_X86_X64 = YES ]; then
-        if [ $SRS_STATIC = YES ]; then
-            echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
-        fi
+    if [[ $SRS_X86_X64 = YES &&  $SRS_STATIC = YES ]]; then
+        echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
     fi
     
     # TODO: FIXME: check more os.

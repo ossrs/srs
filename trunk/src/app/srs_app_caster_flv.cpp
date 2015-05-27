@@ -33,7 +33,6 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_pithy_print.hpp>
-#include <srs_app_http.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_flv.hpp>
@@ -89,9 +88,10 @@ void SrsAppCasterFlv::remove(SrsConnection* c)
     }
 }
 
-int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    SrsDynamicHttpConn* conn = dynamic_cast<SrsDynamicHttpConn*>(r->connection());
+    SrsHttpMessage* msg = dynamic_cast<SrsHttpMessage*>(r);
+    SrsDynamicHttpConn* conn = dynamic_cast<SrsDynamicHttpConn*>(msg->connection());
     srs_assert(conn);
     
     std::string app = srs_path_dirname(r->path());
@@ -134,13 +134,13 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
     srs_freep(pprint);
 }
 
-int SrsDynamicHttpConn::on_got_http_message(SrsHttpMessage* msg)
+int SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     return ret;
 }
 
-int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string o)
+int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o)
 {
     int ret = ERROR_SUCCESS;
     
@@ -430,7 +430,7 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
     }
     
     int total_read = 0;
-    while (total_read < count) {
+    while (total_read < (int)count) {
         int nread = 0;
         if ((ret = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != ERROR_SUCCESS) {
             return ret;

@@ -240,7 +240,7 @@ private:
 #ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpServer* http_stream_mux;
 #endif
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     SrsHttpHeartbeat* http_heartbeat;
 #endif
 #ifdef SRS_AUTO_INGEST

@@ -115,7 +115,7 @@ END
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 # hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
 LibHttpParserRoot=""; LibHttpParserfile=""
-if [ $SRS_HTTP_PARSER = YES ]; then LibHttpParserRoot="${SRS_OBJS_DIR}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
+if [ $SRS_HTTP_CORE = YES ]; then LibHttpParserRoot="${SRS_OBJS_DIR}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi

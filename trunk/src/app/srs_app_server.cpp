@@ -495,7 +495,7 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_mux = new SrsHttpServer(this);
 #endif
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     http_heartbeat = NULL;
 #endif
 #ifdef SRS_AUTO_INGEST
@@ -530,7 +530,7 @@ void SrsServer::destroy()
     srs_freep(http_stream_mux);
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     srs_freep(http_heartbeat);
 #endif
 
@@ -589,7 +589,7 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     }
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     srs_assert(!http_heartbeat);
     http_heartbeat = new SrsHttpHeartbeat();
 #endif
@@ -971,7 +971,7 @@ int SrsServer::do_cycle()
                 srs_info("update network server kbps info.");
                 resample_kbps();
             }
-    #ifdef SRS_AUTO_HTTP_PARSER
+    #ifdef SRS_AUTO_HTTP_CORE
             if (_srs_config->get_heartbeat_enabled()) {
                 if ((i % heartbeat_max_resolution) == 0) {
                     srs_info("do http heartbeat, for internal server to report.");

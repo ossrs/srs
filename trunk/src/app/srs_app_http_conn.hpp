@@ -30,11 +30,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
 #include <http_parser.h>
 #endif
 
-#if defined(SRS_AUTO_HTTP_PARSER) || defined(SRS_AUTO_HTTP_SERVER)
+#ifdef SRS_AUTO_HTTP_CORE
 
 #include <map>
 #include <string>
@@ -69,7 +69,7 @@ class SrsHttpMessage;
 
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
 
 // the http chunked header size,
 // for writev, there always one chunk to send it.
@@ -214,7 +214,7 @@ public:
     virtual int update(std::string url, http_parser* header,
         SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
     );
-private:
+public:
     virtual SrsConnection* connection();
 public:
     virtual u_int8_t method();
@@ -711,6 +711,9 @@ private:
     virtual int initialize_hls_streaming();
 };
 
+#endif
+
+#ifdef SRS_AUTO_HTTP_CORE
 class SrsHttpConn : public SrsConnection
 {
 private:
