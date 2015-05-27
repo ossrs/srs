@@ -607,7 +607,7 @@ int SrsServer::initialize_st()
     int ret = ERROR_SUCCESS;
     
     // init st
-    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
+    if ((ret = srs_st_init()) != ERROR_SUCCESS) {
         srs_error("init st failed. ret=%d", ret);
         return ret;
     }

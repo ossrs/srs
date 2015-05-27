@@ -43,10 +43,13 @@ SrsThreadContext::~SrsThreadContext()
 {
 }
 
-void SrsThreadContext::generate_id()
+int SrsThreadContext::generate_id()
 {
     static int id = 100;
-    cache[st_thread_self()] = id++;
+    
+    int gid = id++;
+    cache[st_thread_self()] = gid;
+    return gid;
 }
 
 int SrsThreadContext::get_id()

@@ -66,8 +66,9 @@ ISrsThreadContext::~ISrsThreadContext()
 {
 }
 
-void ISrsThreadContext::generate_id()
+int ISrsThreadContext::generate_id()
 {
+    return 0;
 }
 
 int ISrsThreadContext::get_id()
