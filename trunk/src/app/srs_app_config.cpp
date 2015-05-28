@@ -364,6 +364,8 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
 
 SrsConfig::SrsConfig()
 {
+    dolphin = false;
+    
     show_help = false;
     show_version = false;
     test_conf = false;
@@ -376,6 +378,25 @@ SrsConfig::SrsConfig()
 SrsConfig::~SrsConfig()
 {
     srs_freep(root);
+}
+
+bool SrsConfig::is_dolphin()
+{
+    return dolphin;
+}
+
+void SrsConfig::set_config_directive(SrsConfDirective* parent, string dir, string value)
+{
+    SrsConfDirective* d = parent->get(dir);
+    
+    if (!d) {
+        d = new SrsConfDirective();
+        d->name = dir;
+        parent->directives.push_back(d);
+    }
+    
+    d->args.clear();
+    d->args.push_back(value);
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)
@@ -1260,6 +1281,19 @@ int SrsConfig::parse_argv(int& i, char** argv)
                 show_help = false;
                 test_conf = true;
                 break;
+            case 'p':
+                dolphin = true;
+                if (*p) {
+                    dolphin_port = p;
+                    continue;
+                }
+                if (argv[++i]) {
+                    dolphin_port = argv[i];
+                    continue;
+                }
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("option \"-p\" requires params, ret=%d", ret);
+                return ret;
             case 'v':
             case 'V':
                 show_help = false;
@@ -1269,11 +1303,11 @@ int SrsConfig::parse_argv(int& i, char** argv)
                 show_help = false;
                 if (*p) {
                     config_file = p;
-                    return ret;
+                    continue;
                 }
                 if (argv[++i]) {
                     config_file = argv[i];
-                    return ret;
+                    continue;
                 }
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("option \"-c\" requires parameter, ret=%d", ret);
@@ -1843,6 +1877,14 @@ int SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     
     if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    // mock by dolphin mode.
+    // for the dolphin will start srs with specified params.
+    if (dolphin) {
+        set_config_directive(root, "listen", dolphin_port);
+        set_config_directive(root, "daemon", "off");
+        set_config_directive(root, "srs_log_tank", "console");
     }
 
     return ret;

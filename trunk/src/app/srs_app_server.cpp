@@ -639,6 +639,11 @@ int SrsServer::acquire_pid_file()
 {
     int ret = ERROR_SUCCESS;
     
+    // when srs in dolphin mode, no need the pid file.
+    if (_srs_config->is_dolphin()) {
+        return ret;
+    }
+    
     std::string pid_file = _srs_config->get_pid_file();
     
     // -rw-r--r-- 
