@@ -271,7 +271,8 @@ private:
      * @see https://github.com/simple-rtmp-server/srs-dolphin
      */
     bool dolphin;
-    std::string dolphin_port;
+    std::string dolphin_rtmp_port;
+    std::string dolphin_http_port;
     /**
     * whether show help and exit.
     */
