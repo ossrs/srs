@@ -51,7 +51,7 @@ public:
     SrsThreadContext();
     virtual ~SrsThreadContext();
 public:
-    virtual void generate_id();
+    virtual int generate_id();
     virtual int get_id();
 };
 

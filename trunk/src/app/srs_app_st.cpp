@@ -42,7 +42,7 @@ bool srs_st_epoll_is_supported(void)
 }
 #endif
 
-int srs_init_st()
+int srs_st_init()
 {
     int ret = ERROR_SUCCESS;
     

@@ -23,11 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_hls.hpp>
 
-/**
-* the HLS section, only available when HLS enabled.
-*/
-#ifdef SRS_AUTO_HLS
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -71,6 +66,11 @@ ISrsHlsHandler::ISrsHlsHandler()
 ISrsHlsHandler::~ISrsHlsHandler()
 {
 }
+
+/**
+ * * the HLS section, only available when HLS enabled.
+ * */
+#ifdef SRS_AUTO_HLS
 
 SrsHlsCacheWriter::SrsHlsCacheWriter(bool write_cache, bool write_file)
 {

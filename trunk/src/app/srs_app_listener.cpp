@@ -113,18 +113,18 @@ int SrsUdpListener::listen()
     
     if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
-        srs_error("create linux socket error. port=%d, ret=%d", ip.c_str(), port, ret);
+        srs_error("create linux socket error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("create linux socket success. port=%d, fd=%d", ip.c_str(), port, _fd);
+    srs_verbose("create linux socket success. ip=%s, port=%d, fd=%d", ip.c_str(), port, _fd);
     
     int reuse_socket = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
-        srs_error("setsockopt reuse-addr error. port=%d, ret=%d", ip.c_str(), port, ret);
+        srs_error("setsockopt reuse-addr error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", ip.c_str(), port, _fd);
+    srs_verbose("setsockopt reuse-addr success. ip=%s, port=%d, fd=%d", ip.c_str(), port, _fd);
     
     sockaddr_in addr;
     addr.sin_family = AF_INET;

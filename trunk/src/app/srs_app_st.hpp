@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 // initialize st, requires epoll.
-extern int srs_init_st();
+extern int srs_st_init();
 
 // close the netfd, and close the underlayer fd.
 extern void srs_close_stfd(st_netfd_t& stfd);

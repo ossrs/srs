@@ -29,11 +29,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-/**
-* the HLS section, only available when HLS enabled.
-*/
-#ifdef SRS_AUTO_HLS
-
 #include <string>
 #include <vector>
 
@@ -85,6 +80,11 @@ public:
     */
     virtual int on_hls_unpublish(SrsRequest* req) = 0;
 };
+
+/**
+ * * the HLS section, only available when HLS enabled.
+ * */
+#ifdef SRS_AUTO_HLS
 
 /**
 * write to file and cache.

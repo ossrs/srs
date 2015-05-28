@@ -76,10 +76,10 @@ fi
 echo "" >> $SRS_AUTO_HEADERS_H
 
 # auto headers in depends.
-if [ $SRS_HTTP_PARSER = YES ]; then
-    echo "#define SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+if [ $SRS_HTTP_CORE = YES ]; then
+    echo "#define SRS_AUTO_HTTP_CORE" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HTTP_CORE" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_HTTP_SERVER = YES ]; then

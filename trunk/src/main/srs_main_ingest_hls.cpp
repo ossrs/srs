@@ -61,6 +61,8 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
+#if defined(SRS_AUTO_HTTP_CORE)
+
 /**
 * main entrance.
 */
@@ -70,7 +72,7 @@ int main(int argc, char** argv)
     srs_assert(srs_is_little_endian());
     
     // directly failed when compile limited.
-#if !defined(SRS_AUTO_HTTP_PARSER)
+#if !defined(SRS_AUTO_HTTP_CORE)
     srs_error("depends on http-parser.");
     exit(-1);
 #endif
@@ -1376,7 +1378,7 @@ int proxy_hls2rtmp(string hls, string rtmp)
     int ret = ERROR_SUCCESS;
     
     // init st.
-    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
+    if ((ret = srs_st_init()) != ERROR_SUCCESS) {
         srs_error("init st failed. ret=%d", ret);
         return ret;
     }
@@ -1401,4 +1403,16 @@ int proxy_hls2rtmp(string hls, string rtmp)
     
     return ret;
 }
+
+#else
+
+int main(int argc, char** argv)
+{
+#ifndef SRS_AUTO_HTTP_CORE
+    srs_error("ingest requires http-api or http-server");
+#endif
+    return -1;
+}
+
+#endif
 

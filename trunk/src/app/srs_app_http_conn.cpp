@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
-#if defined(SRS_AUTO_HTTP_PARSER) || defined(SRS_AUTO_HTTP_SERVER)
+#if defined(SRS_AUTO_HTTP_CORE) || defined(SRS_AUTO_HTTP_SERVER)
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -55,7 +55,7 @@ using namespace std;
 
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
 
 SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 {
@@ -2423,6 +2423,9 @@ int SrsHttpServer::initialize_hls_streaming()
     return ret;
 }
 
+#endif
+
+#ifdef SRS_AUTO_HTTP_CORE
 SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
     : SrsConnection(cm, fd)
 {

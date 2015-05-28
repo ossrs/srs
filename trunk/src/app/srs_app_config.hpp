@@ -267,6 +267,12 @@ class SrsConfig
 // user command
 private:
     /**
+     * whether srs is run in dolphin mode.
+     * @see https://github.com/simple-rtmp-server/srs-dolphin
+     */
+    bool dolphin;
+    std::string dolphin_port;
+    /**
     * whether show help and exit.
     */
     bool show_help;
@@ -309,6 +315,14 @@ private:
 public:
     SrsConfig();
     virtual ~SrsConfig();
+// dolphin
+public:
+    /**
+     * whether srs is in dolphin mode.
+     */
+    virtual bool is_dolphin();
+private:
+    virtual void set_config_directive(SrsConfDirective* parent, std::string dir, std::string value);
 // reload
 public:
     /**

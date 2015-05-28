@@ -154,9 +154,9 @@ int SrsStreamListener::listen(string i, int p)
         return ret;
     }
     
-    srs_info("listen thread cid=%d, current_cid=%d, "
+    srs_info("listen thread current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
 
     srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
@@ -327,9 +327,9 @@ int SrsUdpStreamListener::listen(string i, int p)
         return ret;
     }
     
-    srs_info("listen thread cid=%d, current_cid=%d, "
+    srs_info("listen thread current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
+        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
     
     // notify the handler the fd changed.
     if ((ret = caster->on_stfd_change(listener->stfd())) != ERROR_SUCCESS) {
@@ -495,7 +495,7 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_mux = new SrsHttpServer(this);
 #endif
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     http_heartbeat = NULL;
 #endif
 #ifdef SRS_AUTO_INGEST
@@ -530,7 +530,7 @@ void SrsServer::destroy()
     srs_freep(http_stream_mux);
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     srs_freep(http_heartbeat);
 #endif
 
@@ -589,7 +589,7 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     }
 #endif
 
-#ifdef SRS_AUTO_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_CORE
     srs_assert(!http_heartbeat);
     http_heartbeat = new SrsHttpHeartbeat();
 #endif
@@ -607,7 +607,7 @@ int SrsServer::initialize_st()
     int ret = ERROR_SUCCESS;
     
     // init st
-    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
+    if ((ret = srs_st_init()) != ERROR_SUCCESS) {
         srs_error("init st failed. ret=%d", ret);
         return ret;
     }
@@ -638,6 +638,11 @@ int SrsServer::initialize_signal()
 int SrsServer::acquire_pid_file()
 {
     int ret = ERROR_SUCCESS;
+    
+    // when srs in dolphin mode, no need the pid file.
+    if (_srs_config->is_dolphin()) {
+        return ret;
+    }
     
     std::string pid_file = _srs_config->get_pid_file();
     
@@ -971,7 +976,7 @@ int SrsServer::do_cycle()
                 srs_info("update network server kbps info.");
                 resample_kbps();
             }
-    #ifdef SRS_AUTO_HTTP_PARSER
+    #ifdef SRS_AUTO_HTTP_CORE
             if (_srs_config->get_heartbeat_enabled()) {
                 if ((i % heartbeat_max_resolution) == 0) {
                     srs_info("do http heartbeat, for internal server to report.");

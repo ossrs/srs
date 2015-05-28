@@ -961,8 +961,8 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
         return ret;
     }
     srs_verbose("read message header success. "
-            "fmt=%d, mh_size=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
-            fmt, mh_size, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, 
+            "fmt=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
+            fmt, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, 
             chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
     
     // read msg payload from chunk stream.

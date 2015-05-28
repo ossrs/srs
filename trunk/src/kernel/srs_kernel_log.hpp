@@ -102,7 +102,7 @@ public:
     ISrsThreadContext();
     virtual ~ISrsThreadContext();
 public:
-    virtual void generate_id();
+    virtual int generate_id();
     virtual int get_id();
 };
 
