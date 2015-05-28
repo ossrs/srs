@@ -217,6 +217,7 @@ Supported operating systems and hardware:
 1. [experiment] Support push MPEG-TS over UDP to SRS, read [bug #250][bug #250].
 1. [experiment] Support push RTSP to SRS, read [bug #133][bug #133].
 1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
+1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -270,6 +271,7 @@ Compare SRS with other media server.
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
+|MultipleProcess| Experiment|   Stable  |   X       |   X       |   X       |
 |   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
 |   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
 
@@ -306,6 +308,7 @@ Compare SRS with other media server.
 Remark:
 
 1. Concurrency: The concurrency of single process.
+1. MultipleProcess: SRS is single process, while [srs-dolphin][srs-dolphin] is a MultipleProcess SRS.
 1. HLS aonly: The HLS audio only streaming delivery.
 1. BW check: The bandwidth check.
 1. Security: To allow or deny stream publish or play.
@@ -339,7 +342,7 @@ Remark:
 ## History
 
 ### SRS 2.0 history
-
+* v2.0, 2015-05-28, support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 * v2.0, 2015-05-24, fix [#404](https://github.com/simple-rtmp-server/srs/issues/404) register handler then start http thread. 2.0.167.
 * v2.0, 2015-05-23, refine the thread, protocol, kbps code. 2.0.166
 * v2.0, 2015-05-23, fix [#391](https://github.com/simple-rtmp-server/srs/issues/391) copy request for async call.
@@ -671,6 +674,7 @@ Performance benchmark history, on virtual box.
 
 * See also: [Performance for x86/x64 Test Guide](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance)
 * See also: [Performance for RaspberryPi](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RaspberryPi)
+* About multiple-process performance, read [srs-dolphin][srs-dolphin].
 
 ### Play RTMP benchmark
 
@@ -853,6 +857,7 @@ Winlin
 [srs]: https://github.com/simple-rtmp-server/srs
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
 [oschina]: http://git.oschina.net/winlinvip/srs.oschina
+[srs-dolphin]: https://github.com/simple-rtmp-server/srs-dolphin
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
