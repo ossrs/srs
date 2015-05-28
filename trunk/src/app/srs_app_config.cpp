@@ -391,12 +391,16 @@ void SrsConfig::set_config_directive(SrsConfDirective* parent, string dir, strin
     
     if (!d) {
         d = new SrsConfDirective();
-        d->name = dir;
+        if (!dir.empty()) {
+            d->name = dir;
+        }
         parent->directives.push_back(d);
     }
     
     d->args.clear();
-    d->args.push_back(value);
+    if (!value.empty()) {
+        d->args.push_back(value);
+    }
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)
@@ -1284,15 +1288,28 @@ int SrsConfig::parse_argv(int& i, char** argv)
             case 'p':
                 dolphin = true;
                 if (*p) {
-                    dolphin_port = p;
+                    dolphin_rtmp_port = p;
                     continue;
                 }
                 if (argv[++i]) {
-                    dolphin_port = argv[i];
+                    dolphin_rtmp_port = argv[i];
                     continue;
                 }
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("option \"-p\" requires params, ret=%d", ret);
+                return ret;
+            case 'x':
+                dolphin = true;
+                if (*p) {
+                    dolphin_http_port = p;
+                    continue;
+                }
+                if (argv[++i]) {
+                    dolphin_http_port = argv[i];
+                    continue;
+                }
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("option \"-x\" requires params, ret=%d", ret);
                 return ret;
             case 'v':
             case 'V':
@@ -1338,6 +1355,9 @@ void SrsConfig::print_help(char** argv)
         "   -v, -V              : show version and exit(0)\n"
         "   -t                  : test configuration file, exit(error_code).\n"
         "   -c filename         : use configuration file for SRS\n"
+        "For srs-dolphin:\n"
+        "   -p  rtmp-port       : the rtmp port to listen.\n"
+        "   -x  http-port       : the http port to listen.\n"
         "\n"
         RTMP_SIG_SRS_WEB"\n"
         RTMP_SIG_SRS_URL"\n"
@@ -1882,7 +1902,16 @@ int SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     // mock by dolphin mode.
     // for the dolphin will start srs with specified params.
     if (dolphin) {
-        set_config_directive(root, "listen", dolphin_port);
+        // for RTMP.
+        set_config_directive(root, "listen", dolphin_rtmp_port);
+        
+        // for HTTP
+        set_config_directive(root, "http_server", "");
+        SrsConfDirective* http_server = root->get("http_server");
+        set_config_directive(http_server, "enabled", "on");
+        set_config_directive(http_server, "listen", dolphin_http_port);
+        
+        // others.
         set_config_directive(root, "daemon", "off");
         set_config_directive(root, "srs_log_tank", "console");
     }
