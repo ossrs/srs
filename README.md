@@ -731,7 +731,7 @@ The latency between encoder and player with realtime config(
 [CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency),
 [EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency)
 ):
-
+|   
 
 |   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
 | ------------- | --------- | --------- | --------- | --------- | --------  |
@@ -742,6 +742,32 @@ The latency between encoder and player with realtime config(
 We use FMLE as encoder for benchmark. The latency of server is 0.1s+, 
 and the bottleneck is the encoder. For more information, read 
 [bug #257](https://github.com/simple-rtmp-server/srs/issues/257#issuecomment-66864413).
+
+### HLS overhead
+
+About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS to FLV by ffmpeg.
+
+| Bitrate   |   Duration    |   FLV(KB)     |   HLS(KB)     |   Overhead    |
+| -------   |   --------    |   -------     |   --------    |   ---------   |
+| 275kbps   |   600s        |   11144       |   12756       |   14.46%      |
+| 260kbps   |   1860s       |   59344       |   68004       |   14.59%      |
+| 697kbps   |   60s         |   5116        |   5476        |   7.03%       |
+| 565kbps   |   453s        |   31316       |   33544       |   7.11%       |
+| 565kbps   |   1813s       |   125224      |   134140      |   7.12%       |
+| 861kbps   |   497s        |   52316       |   54924       |   4.98%       |
+| 857kbps   |   1862s       |   195008      |   204768      |   5.00%       |
+| 1301kbps  |   505s        |   80320       |   83676       |   4.17%       |
+| 1312kbps  |   1915s       |   306920      |   319680      |   4.15%       |
+| 2707kbps  |   600s        |   198356      |   204560      |   3.12%       |
+| 2814kbps  |   1800s       |   618456      |   637660      |   3.10%       |
+| 2828kbps  |   60s         |   20716       |   21356       |   3.08%       |
+| 2599kbps  |   307s        |   97580       |   100672      |   3.16%       |
+| 2640kbps  |   1283s       |   413880      |   426912      |   3.14%       |
+| 5254kbps  |   71s         |   45832       |   47056       |   2.67%       |
+| 5147kbps  |   370s        |   195040      |   200280      |   2.68%       |
+| 5158kbps  |   1327s       |   835664      |   858092      |   2.68%       |
+
+The HLS overhead is calc by: (HLS - FLV) / FLV * 100%
 
 ## Architecture
 
