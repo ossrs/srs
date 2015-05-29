@@ -302,10 +302,12 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
             vs = SrsTsStreamVideoH264; 
             video_pid = TS_VIDEO_AVC_PID;
             break;
+        case SrsCodecVideoDisabled:
+            vs = SrsTsStreamReserved;
+            break;
         case SrsCodecVideoReserved:
         case SrsCodecVideoReserved1:
         case SrsCodecVideoReserved2:
-        case SrsCodecVideoDisabled:
         case SrsCodecVideoSorensonH263:
         case SrsCodecVideoScreenVideo:
         case SrsCodecVideoOn2VP6:
@@ -323,6 +325,9 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
             as = SrsTsStreamAudioMp3; 
             audio_pid = TS_AUDIO_MP3_PID;
             break;
+        case SrsCodecAudioDisabled:
+            as = SrsTsStreamReserved;
+            break;
         case SrsCodecAudioReserved1:
         case SrsCodecAudioLinearPCMPlatformEndian:
         case SrsCodecAudioADPCM:
@@ -338,6 +343,12 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
         case SrsCodecAudioReservedDeviceSpecificSound:
             as = SrsTsStreamReserved;
             break;
+    }
+    
+    if (as == SrsTsStreamReserved && vs == SrsTsStreamReserved) {
+        ret = ERROR_HLS_NO_STREAM;
+        srs_error("hls: no video or audio stream, vcodec=%d, acodec=%d. ret=%d", vc, ac, ret);
+        return ret;
     }
     
     // when any codec changed, write PAT/PMT table.
@@ -360,6 +371,12 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
 int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     int ret = ERROR_SUCCESS;
+    
+    if (vs != SrsTsStreamVideoH264 && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
+        ret = ERROR_HLS_NO_STREAM;
+        srs_error("hls: no pmt pcr pid, vs=%d, as=%d. ret=%d", vs, as, ret);
+        return ret;
+    }
 
     int16_t pmt_number = TS_PMT_NUMBER;
     int16_t pmt_pid = TS_PMT_PID;
@@ -754,15 +771,17 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
     pmt->last_section_number = 0;
     pmt->program_info_length = 0;
     
-    // use audio to carray pcr by default.
-    // for hls, there must be atleast one audio channel.
-    pmt->PCR_PID = apid;
-    pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
-    
     // if h.264 specified, use video to carry pcr.
     if (vs == SrsTsStreamVideoH264) {
         pmt->PCR_PID = vpid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
+    } else if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
+        // use audio to carray pcr by default.
+        // for hls, there must be atleast one audio channel.
+        pmt->PCR_PID = apid;
+        pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
+    } else {
+        srs_assert(false);
     }
     
     pmt->CRC_32 = 0; // calc in encode.

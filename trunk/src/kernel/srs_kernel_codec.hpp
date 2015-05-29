@@ -136,6 +136,9 @@ enum SrsCodecAudio
     // set to the max value to reserved, for array map.
     SrsCodecAudioReserved1                = 16,
     
+    // for user to disable audio, for example, use pure video hls.
+    SrsCodecAudioDisabled                   = 17,
+    
     SrsCodecAudioLinearPCMPlatformEndian             = 0,
     SrsCodecAudioADPCM                                 = 1,
     SrsCodecAudioMP3                                 = 2,
