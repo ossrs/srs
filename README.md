@@ -342,6 +342,7 @@ Remark:
 ## History
 
 ### SRS 2.0 history
+* v2.0, 2015-05-29, fix [#409](https://github.com/simple-rtmp-server/srs/issues/409) support pure video hls. 2.0.172.
 * v2.0, 2015-05-28, support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 * v2.0, 2015-05-24, fix [#404](https://github.com/simple-rtmp-server/srs/issues/404) register handler then start http thread. 2.0.167.
 * v2.0, 2015-05-23, refine the thread, protocol, kbps code. 2.0.166

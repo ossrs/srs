@@ -420,6 +420,9 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         } else if (default_acodec_str == "aac") {
             default_acodec = SrsCodecAudioAAC;
             srs_info("hls: use default aac acodec");
+        } else if (default_acodec_str == "an") {
+            default_acodec = SrsCodecAudioDisabled;
+            srs_info("hls: use default an acodec for pure video");
         } else {
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
         }
