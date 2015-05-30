@@ -109,12 +109,12 @@ stop() {
     ok_msg "Stopping SRS(pid ${srs_pid})..."
     
     # process exists, try to kill to stop normally
-    for((i=0;i<30;i++)); do
+    for((i=0;i<100;i++)); do
         load_process_info
         if [[ 0 -eq $? ]]; then
             kill -s SIGTERM ${srs_pid} 2>/dev/null
             ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "send signal SIGTERM failed ret=$ret"; return $ret; fi
-            sleep 0.1
+            sleep 0.3
         else
             ok_msg "SRS stopped by SIGTERM"
             # delete the pid file when stop success.

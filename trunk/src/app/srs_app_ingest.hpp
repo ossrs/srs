@@ -52,6 +52,9 @@ public:
     
     SrsIngesterFFMPEG(SrsFFMPEG* _ffmpeg, std::string _vhost, std::string _id);
     virtual ~SrsIngesterFFMPEG();
+    
+    // @see SrsFFMPEG.fast_stop().
+    virtual void fast_stop();
 };
 
 /**

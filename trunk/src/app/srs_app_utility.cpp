@@ -44,6 +44,9 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_kernel_stream.hpp>
 
+// the longest time to wait for a process to quit.
+#define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
+
 int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {
     int ret = ERROR_SUCCESS;
@@ -223,7 +226,6 @@ void srs_parse_endpoint(string ip_port, string& ip, int& port)
     port = ::atoi(the_port.c_str());
 }
 
-#define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 int srs_kill_forced(int& pid)
 {
     int ret = ERROR_SUCCESS;
@@ -232,13 +234,13 @@ int srs_kill_forced(int& pid)
         return ret;
     }
     
-    // first, try kill by SIGINT.
-    if (kill(pid, SIGINT) < 0) {
+    // first, try kill by SIGTERM.
+    if (kill(pid, SIGTERM) < 0) {
         return ERROR_SYSTEM_KILL;
     }
     
     // wait to quit.
-    srs_trace("send SIGINT to pid=%d", pid);
+    srs_trace("send SIGTERM to pid=%d", pid);
     for (int i = 0; i < SRS_PROCESS_QUIT_TIMEOUT_MS / 10; i++) {
         int status = 0;
         pid_t qpid = -1;
@@ -253,7 +255,7 @@ int srs_kill_forced(int& pid)
         }
         
         // killed, set pid to -1.
-        srs_trace("SIGINT stop process pid=%d ok.", pid);
+        srs_trace("SIGTERM stop process pid=%d ok.", pid);
         pid = -1;
         
         return ret;

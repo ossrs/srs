@@ -52,6 +52,7 @@ using namespace std;
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
     started            = false;
+    fast_stopped       = false;
     pid                = -1;
     ffmpeg             = ffmpeg_bin;
     
@@ -484,6 +485,11 @@ int SrsFFMPEG::cycle()
         return ret;
     }
     
+    // ffmpeg is prepare to stop, donot cycle.
+    if (fast_stopped) {
+        return ret;
+    }
+    
     int status = 0;
     pid_t p = waitpid(pid, &status, WNOHANG);
     
@@ -522,6 +528,27 @@ void SrsFFMPEG::stop()
     
     // terminated, set started to false to stop the cycle.
     started = false;
+}
+
+void SrsFFMPEG::fast_stop()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!started) {
+        return;
+    }
+    
+    if (pid <= 0) {
+        return;
+    }
+    
+    if (kill(pid, SIGTERM) < 0) {
+        ret = ERROR_SYSTEM_KILL;
+        srs_warn("ignore fast stop ffmpeg failed, pid=%d. ret=%d", pid, ret);
+        return;
+    }
+    
+    return;
 }
 
 #endif
