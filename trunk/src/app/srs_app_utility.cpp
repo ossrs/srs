@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <wait.h>
 
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
