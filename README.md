@@ -250,7 +250,7 @@ Compare SRS with other media server.
 |   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
 |   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
 |   VHOST       |   Stable  |   X       |   X       |   Stable  |   Stable  |
-|   Reload      |   Stable  |   Stable  |   X       |   X       |   X       |
+|   Reload      |   Stable  |   X       |   X       |   X       |   X       |
 |   Forward     |   Stable  |   X       |   X       |   X       |   X       |
 |   ATC         |   Stable  |   X       |   X       |   X       |   X       |
 
@@ -312,6 +312,7 @@ Remark:
 1. HLS aonly: The HLS audio only streaming delivery.
 1. BW check: The bandwidth check.
 1. Security: To allow or deny stream publish or play.
+1. Reload: Nginx supports reload, but not nginx-rtmp.
 
 ## Releases
 

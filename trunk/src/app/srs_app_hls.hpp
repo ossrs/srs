@@ -260,6 +260,9 @@ public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
 public:
+    virtual void dispose();
+    virtual int cycle();
+public:
     virtual int sequence_no();
     virtual std::string ts_url();
     virtual double duration();

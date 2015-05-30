@@ -292,6 +292,7 @@ SrsHlsMuxer::SrsHlsMuxer()
 
 SrsHlsMuxer::~SrsHlsMuxer()
 {
+    
     std::vector<SrsHlsSegment*>::iterator it;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
@@ -303,6 +304,40 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(req);
     srs_freep(async);
     srs_freep(context);
+}
+
+void SrsHlsMuxer::dispose()
+{
+    if (!should_write_file) {
+        return;
+    }
+    
+    std::vector<SrsHlsSegment*>::iterator it;
+    for (it = segments.begin(); it != segments.end(); ++it) {
+        SrsHlsSegment* segment = *it;
+        if (unlink(segment->full_path.c_str()) < 0) {
+            srs_warn("dispose unlink path failed, file=%s.", segment->full_path.c_str());
+        }
+    }
+    
+    if (current) {
+        std::string path = current->full_path + ".tmp";
+        if (unlink(path.c_str()) < 0) {
+            srs_warn("dispose unlink path failed, file=%s", path.c_str());
+        }
+    }
+    
+    if (unlink(m3u8.c_str()) < 0) {
+        srs_warn("dispose unlink path failed. file=%s", m3u8.c_str());
+    }
+    srs_trace("gracefully dispose hls %s", req? req->get_stream_url().c_str() : "");
+}
+
+int SrsHlsMuxer::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
 }
 
 int SrsHlsMuxer::sequence_no()
@@ -720,6 +755,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
         std::string tmp_file = current->full_path + ".tmp";
         if (should_write_file) {
             unlink(tmp_file.c_str());
+            if (unlink(tmp_file.c_str()) < 0) {
+                srs_warn("drop unlink path failed, file=%s.", tmp_file.c_str());
+            }
         }
         
         srs_freep(current);
@@ -754,7 +792,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
         SrsHlsSegment* segment = segment_to_remove[i];
         
         if (hls_cleanup) {
-            unlink(segment->full_path.c_str());
+            if (unlink(segment->full_path.c_str()) < 0) {
+                srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
+            }
         }
         
         srs_freep(segment);
@@ -1111,15 +1151,17 @@ SrsHls::~SrsHls()
 
 void SrsHls::dispose()
 {
+    if (hls_enabled) {
+        on_unpublish();
+    }
+    
+    muxer->dispose();
 }
 
 int SrsHls::cycle()
 {
-    int ret = ERROR_SUCCESS;
-    
     srs_info("hls cycle for source %d", source->source_id());
-    
-    return ret;
+    return muxer->cycle();
 }
 
 int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
