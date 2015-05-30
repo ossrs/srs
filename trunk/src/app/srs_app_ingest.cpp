@@ -159,6 +159,11 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
     return ret;
 }
 
+void SrsIngester::dispose()
+{
+    stop();
+}
+
 void SrsIngester::stop()
 {
     pthread->stop();

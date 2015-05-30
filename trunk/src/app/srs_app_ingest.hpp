@@ -70,6 +70,8 @@ public:
     SrsIngester();
     virtual ~SrsIngester();
 public:
+    virtual void dispose();
+public:
     virtual int start();
     virtual void stop();
 // interface ISrsReusableThreadHandler.

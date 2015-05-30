@@ -403,6 +403,10 @@ int SrsFFMPEG::start()
     
     // child process: ffmpeg encoder engine.
     if (pid == 0) {
+        // ignore the SIGINT and SIGTERM
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTERM, SIG_IGN);
+        
         // redirect logs to file.
         int log_fd = -1;
         int flags = O_CREAT|O_WRONLY|O_APPEND;
