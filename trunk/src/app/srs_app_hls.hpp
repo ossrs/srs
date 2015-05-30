@@ -261,7 +261,6 @@ public:
     virtual ~SrsHlsMuxer();
 public:
     virtual void dispose();
-    virtual int cycle();
 public:
     virtual int sequence_no();
     virtual std::string ts_url();
@@ -382,7 +381,11 @@ private:
     SrsHlsCache* hls_cache;
     ISrsHlsHandler* handler;
 private:
+    SrsRequest* _req;
     bool hls_enabled;
+    bool hls_can_dispose;
+    int64_t last_update_time;
+private:
     SrsSource* source;
     SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
