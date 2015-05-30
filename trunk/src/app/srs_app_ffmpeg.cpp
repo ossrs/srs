@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_utility.hpp>
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
@@ -51,6 +52,7 @@ using namespace std;
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
     started            = false;
+    fast_stopped       = false;
     pid                = -1;
     ffmpeg             = ffmpeg_bin;
     
@@ -402,6 +404,10 @@ int SrsFFMPEG::start()
     
     // child process: ffmpeg encoder engine.
     if (pid == 0) {
+        // ignore the SIGINT and SIGTERM
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTERM, SIG_IGN);
+        
         // redirect logs to file.
         int log_fd = -1;
         int flags = O_CREAT|O_WRONLY|O_APPEND;
@@ -479,6 +485,11 @@ int SrsFFMPEG::cycle()
         return ret;
     }
     
+    // ffmpeg is prepare to stop, donot cycle.
+    if (fast_stopped) {
+        return ret;
+    }
+    
     int status = 0;
     pid_t p = waitpid(pid, &status, WNOHANG);
     
@@ -509,24 +520,35 @@ void SrsFFMPEG::stop()
     // when rewind, upstream will stop publish(unpublish),
     // unpublish event will stop all ffmpeg encoders,
     // then publish will start all ffmpeg encoders.
-    if (pid > 0) {
-        if (kill(pid, SIGKILL) < 0) {
-            srs_warn("kill the encoder failed, ignored. pid=%d", pid);
-        }
-        
-        // wait for the ffmpeg to quit.
-        // ffmpeg will gracefully quit if signal is:
-        //         1) SIGHUP     2) SIGINT     3) SIGQUIT
-        // other signals, directly exit(123), for example:
-        //        9) SIGKILL    15) SIGTERM
-        int status = 0;
-        if (waitpid(pid, &status, 0) < 0) {
-            srs_warn("wait the encoder quit failed, ignored. pid=%d", pid);
-        }
-        
-        srs_trace("stop the encoder success. pid=%d", pid);
-        pid = -1;
+    int ret = srs_kill_forced(pid);
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("ignore kill the encoder failed, pid=%d. ret=%d", pid, ret);
+        return;
     }
+    
+    // terminated, set started to false to stop the cycle.
+    started = false;
+}
+
+void SrsFFMPEG::fast_stop()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!started) {
+        return;
+    }
+    
+    if (pid <= 0) {
+        return;
+    }
+    
+    if (kill(pid, SIGTERM) < 0) {
+        ret = ERROR_SYSTEM_KILL;
+        srs_warn("ignore fast stop ffmpeg failed, pid=%d. ret=%d", pid, ret);
+        return;
+    }
+    
+    return;
 }
 
 #endif

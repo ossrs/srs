@@ -771,6 +771,32 @@ SrsSource* SrsSource::fetch(std::string vhost, std::string app, std::string stre
     return source;
 }
 
+void SrsSource::dispose_all()
+{
+    std::map<std::string, SrsSource*>::iterator it;
+    for (it = pool.begin(); it != pool.end(); ++it) {
+        SrsSource* source = it->second;
+        source->dispose();
+    }
+    return;
+}
+
+int SrsSource::cycle_all()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: support remove dead source for a long time.
+    std::map<std::string, SrsSource*>::iterator it;
+    for (it = pool.begin(); it != pool.end(); ++it) {
+        SrsSource* source = it->second;
+        if ((ret = source->cycle()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
 void SrsSource::destroy()
 {
     std::map<std::string, SrsSource*>::iterator it;
@@ -907,6 +933,26 @@ SrsSource::~SrsSource()
 #endif
 
     srs_freep(_req);
+}
+
+void SrsSource::dispose()
+{
+#ifdef SRS_AUTO_HLS
+    hls->dispose();
+#endif
+}
+
+int SrsSource::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->cycle()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
 }
 
 int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh)

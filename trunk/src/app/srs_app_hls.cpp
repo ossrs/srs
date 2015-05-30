@@ -305,6 +305,37 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(context);
 }
 
+void SrsHlsMuxer::dispose()
+{
+    if (should_write_file) {
+        std::vector<SrsHlsSegment*>::iterator it;
+        for (it = segments.begin(); it != segments.end(); ++it) {
+            SrsHlsSegment* segment = *it;
+            if (unlink(segment->full_path.c_str()) < 0) {
+                srs_warn("dispose unlink path failed, file=%s.", segment->full_path.c_str());
+            }
+            srs_freep(segment);
+        }
+        segments.clear();
+        
+        if (current) {
+            std::string path = current->full_path + ".tmp";
+            if (unlink(path.c_str()) < 0) {
+                srs_warn("dispose unlink path failed, file=%s", path.c_str());
+            }
+            srs_freep(current);
+        }
+        
+        if (unlink(m3u8.c_str()) < 0) {
+            srs_warn("dispose unlink path failed. file=%s", m3u8.c_str());
+        }
+    }
+    
+    // TODO: FIXME: support hls dispose in HTTP cache.
+    
+    srs_trace("gracefully dispose hls %s", req? req->get_stream_url().c_str() : "");
+}
+
 int SrsHlsMuxer::sequence_no()
 {
     return _sequence_no;
@@ -720,6 +751,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
         std::string tmp_file = current->full_path + ".tmp";
         if (should_write_file) {
             unlink(tmp_file.c_str());
+            if (unlink(tmp_file.c_str()) < 0) {
+                srs_warn("drop unlink path failed, file=%s.", tmp_file.c_str());
+            }
         }
         
         srs_freep(current);
@@ -754,7 +788,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
         SrsHlsSegment* segment = segment_to_remove[i];
         
         if (hls_cleanup) {
-            unlink(segment->full_path.c_str());
+            if (unlink(segment->full_path.c_str()) < 0) {
+                srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
+            }
         }
         
         srs_freep(segment);
@@ -1085,6 +1121,8 @@ SrsHls::SrsHls()
     handler = NULL;
     
     hls_enabled = false;
+    hls_can_dispose = false;
+    last_update_time = 0;
 
     codec = new SrsAvcAacCodec();
     sample = new SrsCodecSample();
@@ -1109,6 +1147,46 @@ SrsHls::~SrsHls()
     srs_freep(pprint);
 }
 
+void SrsHls::dispose()
+{
+    if (hls_enabled) {
+        on_unpublish();
+    }
+    
+    muxer->dispose();
+}
+
+int SrsHls::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_info("hls cycle for source %d", source->source_id());
+    
+    if (last_update_time <= 0) {
+        last_update_time = srs_get_system_time_ms();
+    }
+    
+    if (!_req) {
+        return ret;
+    }
+    
+    int hls_dispose = _srs_config->get_hls_dispose(_req->vhost) * 1000;
+    if (srs_get_system_time_ms() - last_update_time <= hls_dispose) {
+        return ret;
+    }
+    last_update_time = srs_get_system_time_ms();
+    
+    if (!hls_can_dispose) {
+        return ret;
+    }
+    hls_can_dispose = false;
+    
+    srs_trace("hls cycle to dispose hls %s, timeout=%dms", _req->get_stream_url().c_str(), hls_dispose);
+    dispose();
+    
+    return ret;
+}
+
 int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
 {
     int ret = ERROR_SUCCESS;
@@ -1127,6 +1205,11 @@ int SrsHls::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
+    _req = req;
+    
+    // update the hls time, for hls_dispose.
+    last_update_time = srs_get_system_time_ms();
+    
     // support multiple publish.
     if (hls_enabled) {
         return ret;
@@ -1143,6 +1226,9 @@ int SrsHls::on_publish(SrsRequest* req)
     
     // if enabled, open the muxer.
     hls_enabled = true;
+    
+    // ok, the hls can be dispose, or need to be dispose.
+    hls_can_dispose = true;
     
     // notice the source to get the cached sequence header.
     // when reload to start hls, hls will never get the sequence header in stream,
@@ -1195,6 +1281,9 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     if (!hls_enabled) {
         return ret;
     }
+    
+    // update the hls time, for hls_dispose.
+    last_update_time = srs_get_system_time_ms();
 
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
@@ -1256,6 +1345,9 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
     if (!hls_enabled) {
         return ret;
     }
+    
+    // update the hls time, for hls_dispose.
+    last_update_time = srs_get_system_time_ms();
 
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);

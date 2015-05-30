@@ -411,6 +411,11 @@ public:
     */
     static SrsSource* fetch(std::string vhost, std::string app, std::string stream);
     /**
+     * dispose and cycle all sources.
+     */
+    static void dispose_all();
+    static int cycle_all();
+    /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
     */
@@ -486,6 +491,9 @@ private:
 public:
     SrsSource();
     virtual ~SrsSource();
+public:
+    virtual void dispose();
+    virtual int cycle();
 // initialize, get and setter.
 public:
     /**

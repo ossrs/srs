@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
@@ -42,6 +43,9 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_json.hpp>
 #include <srs_kernel_stream.hpp>
+
+// the longest time to wait for a process to quit.
+#define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
 int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {
@@ -220,6 +224,62 @@ void srs_parse_endpoint(string ip_port, string& ip, int& port)
     std::string the_port;
     srs_parse_endpoint(ip_port, ip, the_port);
     port = ::atoi(the_port.c_str());
+}
+
+int srs_kill_forced(int& pid)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (pid <= 0) {
+        return ret;
+    }
+    
+    // first, try kill by SIGTERM.
+    if (kill(pid, SIGTERM) < 0) {
+        return ERROR_SYSTEM_KILL;
+    }
+    
+    // wait to quit.
+    srs_trace("send SIGTERM to pid=%d", pid);
+    for (int i = 0; i < SRS_PROCESS_QUIT_TIMEOUT_MS / 10; i++) {
+        int status = 0;
+        pid_t qpid = -1;
+        if ((qpid = waitpid(pid, &status, WNOHANG)) < 0) {
+            return ERROR_SYSTEM_KILL;
+        }
+        
+        // 0 is not quit yet.
+        if (qpid == 0) {
+            st_usleep(10 * 1000);
+            continue;
+        }
+        
+        // killed, set pid to -1.
+        srs_trace("SIGTERM stop process pid=%d ok.", pid);
+        pid = -1;
+        
+        return ret;
+    }
+
+    // then, try kill by SIGKILL.
+    if (kill(pid, SIGKILL) < 0) {
+        return ERROR_SYSTEM_KILL;
+    }
+    
+    // wait for the process to quit.
+    // for example, ffmpeg will gracefully quit if signal is:
+    //         1) SIGHUP     2) SIGINT     3) SIGQUIT
+    // other signals, directly exit(123), for example:
+    //        9) SIGKILL    15) SIGTERM
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+        return ERROR_SYSTEM_KILL;
+    }
+    
+    srs_trace("SIGKILL stop process pid=%d ok.", pid);
+    pid = -1;
+    
+    return ret;
 }
 
 static SrsRusage _srs_system_rusage;
@@ -422,7 +482,7 @@ void srs_update_proc_stat()
     // @see https://github.com/simple-rtmp-server/srs/issues/397
     static int user_hz = 0;
     if (user_hz <= 0) {
-        user_hz = sysconf(_SC_CLK_TCK);
+        user_hz = (int)sysconf(_SC_CLK_TCK);
         srs_trace("USER_HZ=%d", user_hz);
         srs_assert(user_hz > 0);
     }
@@ -646,12 +706,12 @@ void srs_update_disk_stat()
         
         if (o.pgpgin > 0 && r.pgpgin > o.pgpgin && duration_ms > 0) {
             // KBps = KB * 1000 / ms = KB/s
-            r.in_KBps = (r.pgpgin - o.pgpgin) * 1000 / duration_ms;
+            r.in_KBps = (int)((r.pgpgin - o.pgpgin) * 1000 / duration_ms);
         }
         
         if (o.pgpgout > 0 && r.pgpgout > o.pgpgout && duration_ms > 0) {
             // KBps = KB * 1000 / ms = KB/s
-            r.out_KBps = (r.pgpgout - o.pgpgout) * 1000 / duration_ms;
+            r.out_KBps = (int)((r.pgpgout - o.pgpgout) * 1000 / duration_ms);
         }
     }
     
@@ -771,8 +831,8 @@ SrsCpuInfo* srs_get_cpuinfo()
     // initialize cpu info.
     cpu = new SrsCpuInfo();
     cpu->ok = true;
-    cpu->nb_processors = sysconf(_SC_NPROCESSORS_CONF);
-    cpu->nb_processors_online = sysconf(_SC_NPROCESSORS_ONLN);
+    cpu->nb_processors = (int)sysconf(_SC_NPROCESSORS_CONF);
+    cpu->nb_processors_online = (int)sysconf(_SC_NPROCESSORS_ONLN);
     
     return cpu;
 }

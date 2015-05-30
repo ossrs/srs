@@ -250,7 +250,7 @@ Compare SRS with other media server.
 |   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
 |   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
 |   VHOST       |   Stable  |   X       |   X       |   Stable  |   Stable  |
-|   Reload      |   Stable  |   Stable  |   X       |   X       |   X       |
+|   Reload      |   Stable  |   X       |   X       |   X       |   X       |
 |   Forward     |   Stable  |   X       |   X       |   X       |   X       |
 |   ATC         |   Stable  |   X       |   X       |   X       |   X       |
 
@@ -312,6 +312,7 @@ Remark:
 1. HLS aonly: The HLS audio only streaming delivery.
 1. BW check: The bandwidth check.
 1. Security: To allow or deny stream publish or play.
+1. Reload: Nginx supports reload, but not nginx-rtmp.
 
 ## Releases
 
@@ -346,6 +347,8 @@ Remark:
 * v3.0, 2015-03-15, fork srs2 and start srs3. 3.0.0
 
 ### SRS 2.0 history
+
+* v2.0, 2015-05-30, fix [#209](https://github.com/simple-rtmp-server/srs/issues/209) cleanup hls when stop and timeout. 2.0.173.
 * v2.0, 2015-05-29, fix [#409](https://github.com/simple-rtmp-server/srs/issues/409) support pure video hls. 2.0.172.
 * v2.0, 2015-05-28, support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 * v2.0, 2015-05-24, fix [#404](https://github.com/simple-rtmp-server/srs/issues/404) register handler then start http thread. 2.0.167.

@@ -480,6 +480,7 @@ SrsServer::SrsServer()
 {
     signal_reload = false;
     signal_gmc_stop = false;
+    signal_gracefully_quit = false;
     pid_fd = -1;
     
     signal_manager = NULL;
@@ -519,7 +520,7 @@ void SrsServer::destroy()
     close_listeners(SrsListenerHttpStream);
 
 #ifdef SRS_AUTO_INGEST
-    ingester->stop();
+    ingester->dispose();
 #endif
     
 #ifdef SRS_AUTO_HTTP_API
@@ -553,6 +554,21 @@ void SrsServer::destroy()
     // @remark never destroy the source, 
     // when we free all sources, the fmle publish may retry
     // and segment fault.
+}
+
+void SrsServer::dispose()
+{
+    _srs_config->unsubscribe(this);
+    
+#ifdef SRS_AUTO_INGEST
+    ingester->dispose();
+    srs_trace("gracefully dispose ingesters");
+#endif
+    
+    SrsSource::dispose_all();
+    srs_trace("gracefully dispose sources");
+    
+    srs_trace("terminate server");
 }
 
 int SrsServer::initialize(ISrsServerCycle* cycle_handler)
@@ -831,6 +847,7 @@ int SrsServer::cycle()
     srs_warn("system quit");
 #else
     srs_warn("main cycle terminated, system quit normally.");
+    dispose();
     exit(0);
 #endif
     
@@ -877,9 +894,9 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-    if (signo == SIGTERM) {
-        srs_trace("user terminate program");
-        exit(0);
+    if (signo == SIGTERM && !signal_gracefully_quit) {
+        srs_trace("user terminate program, gracefully quit.");
+        signal_gracefully_quit = true;
         return;
     }
 }
@@ -903,7 +920,7 @@ int SrsServer::do_cycle()
     
     // the deamon thread, update the time cache
     while (true) {
-        if(handler && (ret = handler->on_cycle(conns.size())) != ERROR_SUCCESS){
+        if(handler && (ret = handler->on_cycle((int)conns.size())) != ERROR_SUCCESS){
             srs_error("cycle handle failed. ret=%d", ret);
             return ret;
         }
@@ -917,12 +934,18 @@ int SrsServer::do_cycle()
         
         for (int i = 0; i < temp_max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+            
+            // gracefully quit for SIGINT or SIGTERM.
+            if (signal_gracefully_quit) {
+                srs_trace("cleanup for gracefully terminate.");
+                return ret;
+            }
         
-// for gperf heap checker,
-// @see: research/gperftools/heap-checker/heap_checker.cc
-// if user interrupt the program, exit to check mem leak.
-// but, if gperf, use reload to ensure main return normally,
-// because directly exit will cause core-dump.
+            // for gperf heap checker,
+            // @see: research/gperftools/heap-checker/heap_checker.cc
+            // if user interrupt the program, exit to check mem leak.
+            // but, if gperf, use reload to ensure main return normally,
+            // because directly exit will cause core-dump.
 #ifdef SRS_AUTO_GPERF_MC
             if (signal_gmc_stop) {
                 srs_warn("gmc got singal to stop server.");
@@ -930,6 +953,7 @@ int SrsServer::do_cycle()
             }
 #endif
         
+            // do reload the config.
             if (signal_reload) {
                 signal_reload = false;
                 srs_info("get signal reload, to reload the config.");
@@ -939,6 +963,11 @@ int SrsServer::do_cycle()
                     return ret;
                 }
                 srs_trace("reload config success.");
+            }
+            
+            // notice the stream sources to cycle.
+            if ((ret = SrsSource::cycle_all()) != ERROR_SUCCESS) {
+                return ret;
             }
             
             // update the cache time
