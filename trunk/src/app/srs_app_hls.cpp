@@ -1109,6 +1109,19 @@ SrsHls::~SrsHls()
     srs_freep(pprint);
 }
 
+void SrsHls::dispose()
+{
+}
+
+int SrsHls::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_info("hls cycle for source %d", source->source_id());
+    
+    return ret;
+}
+
 int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
 {
     int ret = ERROR_SUCCESS;

@@ -403,6 +403,9 @@ public:
     SrsHls();
     virtual ~SrsHls();
 public:
+    virtual void dispose();
+    virtual int cycle();
+public:
     /**
     * initialize the hls by handler and source.
     */

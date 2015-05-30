@@ -562,8 +562,11 @@ void SrsServer::dispose()
     
 #ifdef SRS_AUTO_INGEST
     ingester->dispose();
-    srs_trace("gracefully cleanup ingesters");
+    srs_trace("gracefully dispose ingesters");
 #endif
+    
+    SrsSource::dispose_all();
+    srs_trace("gracefully dispose sources");
     
     srs_trace("terminate server");
 }
@@ -960,6 +963,11 @@ int SrsServer::do_cycle()
                     return ret;
                 }
                 srs_trace("reload config success.");
+            }
+            
+            // notice the stream sources to cycle.
+            if ((ret = SrsSource::cycle_all()) != ERROR_SUCCESS) {
+                return ret;
             }
             
             // update the cache time
