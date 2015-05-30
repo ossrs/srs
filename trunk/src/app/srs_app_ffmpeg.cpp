@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_utility.hpp>
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
@@ -509,24 +510,14 @@ void SrsFFMPEG::stop()
     // when rewind, upstream will stop publish(unpublish),
     // unpublish event will stop all ffmpeg encoders,
     // then publish will start all ffmpeg encoders.
-    if (pid > 0) {
-        if (kill(pid, SIGKILL) < 0) {
-            srs_warn("kill the encoder failed, ignored. pid=%d", pid);
-        }
-        
-        // wait for the ffmpeg to quit.
-        // ffmpeg will gracefully quit if signal is:
-        //         1) SIGHUP     2) SIGINT     3) SIGQUIT
-        // other signals, directly exit(123), for example:
-        //        9) SIGKILL    15) SIGTERM
-        int status = 0;
-        if (waitpid(pid, &status, 0) < 0) {
-            srs_warn("wait the encoder quit failed, ignored. pid=%d", pid);
-        }
-        
-        srs_trace("stop the encoder success. pid=%d", pid);
-        pid = -1;
+    int ret = srs_kill_forced(pid);
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("ignore kill the encoder failed, pid=%d. ret=%d", pid, ret);
+        return;
     }
+    
+    // terminated, set started to false to stop the cycle.
+    started = false;
 }
 
 #endif

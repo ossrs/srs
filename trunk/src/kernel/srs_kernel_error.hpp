@@ -96,6 +96,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_TIME                   1055
 #define ERROR_SYSTEM_DIR_EXISTS             1056
 #define ERROR_SYSTEM_CREATE_DIR             1057
+#define ERROR_SYSTEM_KILL                   1058
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
