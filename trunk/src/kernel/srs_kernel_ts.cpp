@@ -771,17 +771,21 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
     pmt->last_section_number = 0;
     pmt->program_info_length = 0;
     
-    // if h.264 specified, use video to carry pcr.
-    if (vs == SrsTsStreamVideoH264) {
-        pmt->PCR_PID = vpid;
-        pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
-    } else if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
+    // must got one valid codec.
+    srs_assert(vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
+    
+    // if mp3 or aac specified, use audio to carry pcr.
+    if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
         // use audio to carray pcr by default.
         // for hls, there must be atleast one audio channel.
         pmt->PCR_PID = apid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
-    } else {
-        srs_assert(false);
+    }
+    
+    // if h.264 specified, use video to carry pcr.
+    if (vs == SrsTsStreamVideoH264) {
+        pmt->PCR_PID = vpid;
+        pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
     }
     
     pmt->CRC_32 = 0; // calc in encode.
