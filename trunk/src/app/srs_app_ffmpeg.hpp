@@ -45,7 +45,7 @@ class SrsFFMPEG
 {
 private:
     bool started;
-    // whether SIGINT send but need to wait or SIGKILL.
+    // whether SIGTERM send but need to wait or SIGKILL.
     bool fast_stopped;
     pid_t pid;
 private:
