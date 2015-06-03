@@ -1155,6 +1155,14 @@ void SrsHls::dispose()
         on_unpublish();
     }
     
+    // only dispose hls when positive.
+    if (_req) {
+        int hls_dispose = _srs_config->get_hls_dispose(_req->vhost);
+        if (hls_dispose <= 0) {
+            return;
+        }
+    }
+    
     muxer->dispose();
 }
 
