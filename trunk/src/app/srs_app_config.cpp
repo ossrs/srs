@@ -3566,7 +3566,7 @@ int SrsConfig::get_hls_dispose(string vhost)
 {
     SrsConfDirective* conf = get_hls(vhost);
     
-    int DEFAULT = 300;
+    int DEFAULT = 0;
     
     if (!conf) {
         return DEFAULT;
