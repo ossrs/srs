@@ -2119,6 +2119,11 @@ int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
             return ret;
         }
     }
+    
+    // find again, ignore if not exits.
+    if (shls.find(sid) == shls.end()) {
+        return ret;
+    }
 
     SrsHlsEntry* entry = shls[sid];
     srs_assert(entry);
