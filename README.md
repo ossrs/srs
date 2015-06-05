@@ -348,6 +348,7 @@ Remark:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-30, fix [#420](https://github.com/simple-rtmp-server/srs/issues/420) remove ts for hls ram mode.
 * v2.0, 2015-05-30, fix [#209](https://github.com/simple-rtmp-server/srs/issues/209) cleanup hls when stop and timeout. 2.0.173.
 * v2.0, 2015-05-29, fix [#409](https://github.com/simple-rtmp-server/srs/issues/409) support pure video hls. 2.0.172.
 * v2.0, 2015-05-28, support [srs-dolphin][srs-dolphin], the multiple-process SRS.

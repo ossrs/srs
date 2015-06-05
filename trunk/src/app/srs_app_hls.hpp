@@ -64,20 +64,25 @@ public:
     virtual ~ISrsHlsHandler();
 public:
     /**
-    * when publish stream
-    */
+     * when publish stream
+     */
     virtual int on_hls_publish(SrsRequest* req) = 0;
     /**
-    * when update the m3u8 file.
-    */
+     * when update the m3u8 file.
+     */
     virtual int on_update_m3u8(SrsRequest* r, std::string m3u8) = 0;
     /**
-    * when reap new ts file.
-    */
+     * when reap new ts file.
+     */
     virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts) = 0;
     /**
-    * when unpublish stream
-    */
+     * when remove the specified ts file,
+     * for the hls to remove the expired ts not in hls window.
+     */
+    virtual int on_remove_ts(SrsRequest* r, std::string uri) = 0;
+    /**
+     * when unpublish stream
+     */
     virtual int on_hls_unpublish(SrsRequest* req) = 0;
 };
 

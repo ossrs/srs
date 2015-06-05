@@ -1878,6 +1878,7 @@ int SrsHlsTsStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 
 SrsHlsEntry::SrsHlsEntry()
 {
+    tmpl = NULL;
 }
 
 SrsHttpServer::SrsHttpServer(SrsServer* svr)
@@ -1948,6 +1949,7 @@ int SrsHttpServer::initialize()
     return ret;
 }
 
+// TODO: FIXME: rename for HTTP FLV mount.
 int SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
@@ -2063,6 +2065,7 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
         }
     
         SrsHlsEntry* tmpl = thls[r->vhost];
+        srs_assert(tmpl);
         
         entry = new SrsHlsEntry();
         mount = tmpl->mount;
@@ -2075,6 +2078,7 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
         // remove the default vhost mount
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
+        entry->tmpl = tmpl;
         entry->mount = mount;
         shls[sid] = entry;
     
@@ -2109,32 +2113,23 @@ int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
     
     std::string sid = r->get_stream_url();
     
-    // when no hls mounted, ignore.
+    // when no hls mounted, init with empty m3u8.
+    if (shls.find(sid) == shls.end()) {
+        if ((ret = hls_update_m3u8(r, "")) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    // find again, ignore if not exits.
     if (shls.find(sid) == shls.end()) {
         return ret;
     }
 
     SrsHlsEntry* entry = shls[sid];
     srs_assert(entry);
+    srs_assert(entry->tmpl);
 
-    std::string mount = entry->mount;
-    
-    // the ts is relative from the m3u8, the same start dir.
-    size_t pos = string::npos;
-    if ((pos = mount.rfind("/")) != string::npos) {
-        mount = mount.substr(0, pos);
-    }
-
-    // replace the vhost variable
-    mount = srs_string_replace(mount, "[vhost]", r->vhost);
-    mount = srs_string_replace(mount, "[app]", r->app);
-
-    // remove the default vhost mount
-    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
-
-    // mount with ts.
-    mount += "/";
-    mount += uri;
+    std::string mount = hls_mount_generate(r, uri, entry->tmpl->mount);
 
     if (entry->streams.find(mount) == entry->streams.end()) {
         ISrsHttpHandler* he = new SrsHlsTsStream();
@@ -2153,6 +2148,40 @@ int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
     }
     srs_trace("hls update ts ok, mount=%s", mount.c_str());
 
+    return ret;
+}
+
+
+int SrsHttpServer::hls_remove_ts(SrsRequest* r, string uri)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string sid = r->get_stream_url();
+    
+    // when no hls mounted, ignore.
+    if (shls.find(sid) == shls.end()) {
+        return ret;
+    }
+    
+    SrsHlsEntry* entry = shls[sid];
+    srs_assert(entry);
+    srs_assert(entry->tmpl);
+    
+    std::string mount = hls_mount_generate(r, uri, entry->tmpl->mount);
+    
+    // ignore when no ts mounted.
+    if (entry->streams.find(mount) == entry->streams.end()) {
+        return ret;
+    }
+    
+    // update the ts stream.
+    SrsHlsTsStream* hts = dynamic_cast<SrsHlsTsStream*>(entry->streams[mount]);
+    if (hts) {
+        hts->set_ts("");
+        // TODO: FIXME: unmount and remove the http handler.
+    }
+    srs_trace("hls remove ts ok, mount=%s", mount.c_str());
+    
     return ret;
 }
 
@@ -2421,6 +2450,30 @@ int SrsHttpServer::initialize_hls_streaming()
     }
     
     return ret;
+}
+
+string SrsHttpServer::hls_mount_generate(SrsRequest* r, string uri, string tmpl)
+{
+    std::string mount = tmpl;
+    
+    // the ts is relative from the m3u8, the same start dir.
+    size_t pos = string::npos;
+    if ((pos = mount.rfind("/")) != string::npos) {
+        mount = mount.substr(0, pos);
+    }
+    
+    // replace the vhost variable
+    mount = srs_string_replace(mount, "[vhost]", r->vhost);
+    mount = srs_string_replace(mount, "[app]", r->app);
+    
+    // remove the default vhost mount
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
+    
+    // mount with ts.
+    mount += "/";
+    mount += uri;
+    
+    return mount;
 }
 
 #endif

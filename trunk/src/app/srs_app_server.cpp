@@ -1411,6 +1411,20 @@ int SrsServer::on_update_ts(SrsRequest* r, string uri, string ts)
     return ret;
 }
 
+
+int SrsServer::on_remove_ts(SrsRequest* r, string uri)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    if ((ret = http_stream_mux->hls_remove_ts(r, uri)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
 int SrsServer::on_hls_unpublish(SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
