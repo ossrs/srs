@@ -375,6 +375,7 @@ public:
     virtual int on_hls_publish(SrsRequest* r);
     virtual int on_update_m3u8(SrsRequest* r, std::string m3u8);
     virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts);
+    virtual int on_remove_ts(SrsRequest* r, std::string uri);
     virtual int on_hls_unpublish(SrsRequest* r);
 };
 

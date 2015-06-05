@@ -787,9 +787,16 @@ int SrsHlsMuxer::segment_close(string log_desc)
     for (int i = 0; i < (int)segment_to_remove.size(); i++) {
         SrsHlsSegment* segment = segment_to_remove[i];
         
-        if (hls_cleanup) {
+        if (hls_cleanup && should_write_file) {
             if (unlink(segment->full_path.c_str()) < 0) {
                 srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
+            }
+        }
+        
+        if (should_write_cache) {
+            if ((ret = handler->on_remove_ts(req, segment->uri)) != ERROR_SUCCESS) {
+                srs_warn("remove the ts from ram hls failed. ret=%d", ret);
+                return ret;
             }
         }
         

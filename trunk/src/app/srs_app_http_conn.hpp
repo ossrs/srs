@@ -650,11 +650,15 @@ public:
 /**
 * the srs hls entry.
 */
+// TODO: FIXME: use hte hls template and entry.
 struct SrsHlsEntry
 {
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
+    
+    // the template to create the entry
+    SrsHlsEntry* tmpl;
 
     // key: the m3u8/ts file path.
     // value: the http handler.
@@ -696,6 +700,7 @@ public:
     virtual int mount_hls(SrsRequest* r);
     virtual int hls_update_m3u8(SrsRequest* r, std::string m3u8);
     virtual int hls_update_ts(SrsRequest* r, std::string uri, std::string ts);
+    virtual int hls_remove_ts(SrsRequest* r, std::string uri);
     virtual void unmount_hls(SrsRequest* r);
 // interface ISrsReloadHandler.
 public:
@@ -709,6 +714,7 @@ private:
     virtual int initialize_static_file();
     virtual int initialize_flv_streaming();
     virtual int initialize_hls_streaming();
+    virtual std::string hls_mount_generate(SrsRequest* r, std::string uri, std::string tmpl);
 };
 
 #endif
