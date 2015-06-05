@@ -1124,6 +1124,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
 
 SrsHls::SrsHls()
 {
+    _req = NULL;
     source = NULL;
     handler = NULL;
     
@@ -1144,6 +1145,7 @@ SrsHls::SrsHls()
 
 SrsHls::~SrsHls()
 {
+    srs_freep(_req);
     srs_freep(codec);
     srs_freep(sample);
     srs_freep(jitter);
@@ -1158,6 +1160,14 @@ void SrsHls::dispose()
 {
     if (hls_enabled) {
         on_unpublish();
+    }
+    
+    // only dispose hls when positive.
+    if (_req) {
+        int hls_dispose = _srs_config->get_hls_dispose(_req->vhost);
+        if (hls_dispose <= 0) {
+            return;
+        }
     }
     
     muxer->dispose();
@@ -1212,7 +1222,8 @@ int SrsHls::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
-    _req = req;
+    srs_freep(_req);
+    _req = req->copy();
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time_ms();
