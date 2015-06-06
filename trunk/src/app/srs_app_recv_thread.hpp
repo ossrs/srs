@@ -61,8 +61,9 @@ public:
     */
     virtual bool can_handle() = 0;
     /**
-    * process the received message.
-    */
+     * process the received message.
+     * @remark user must free this message.
+     */
     virtual int handle(SrsCommonMessage* msg) = 0;
     /**
     * when recv message error.

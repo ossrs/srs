@@ -536,8 +536,6 @@ public:
     virtual int on_video(SrsCommonMessage* video);
 private:
     virtual int on_video_imp(SrsSharedPtrMessage* video);
-private:
-    virtual int do_mix_correct(SrsSharedPtrMessage* msg);
 public:
     virtual int on_aggregate(SrsCommonMessage* msg);
     /**

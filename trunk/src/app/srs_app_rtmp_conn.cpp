@@ -916,7 +916,6 @@ int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg
             srs_error("fmle decode unpublish message failed. ret=%d", ret);
             return ret;
         }
-
         SrsAutoFree(SrsPacket, pkt);
 
         // for flash, any packet is republish.

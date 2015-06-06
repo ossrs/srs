@@ -604,15 +604,15 @@ int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
 
     // the gop cache know when to gop it.
     SrsSharedPtrMessage* msg = shared_msg;
-
-    // disable gop cache when not h.264
-    if (!SrsFlvCodec::video_is_h264(msg->payload, msg->size)) {
-        srs_info("gop donot cache video for none h.264");
-        return ret;
-    }
     
     // got video, update the video count if acceptable
     if (msg->is_video()) {
+        // drop video when not h.264
+        if (!SrsFlvCodec::video_is_h264(msg->payload, msg->size)) {
+            srs_info("gop cache drop video for none h.264");
+            return ret;
+        }
+        
         cached_video_count++;
         audio_after_last_video_count = 0;
     }
@@ -1464,11 +1464,25 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     }
     srs_info("Audio dts=%"PRId64", size=%d", msg.timestamp, msg.size);
     
+    // directly process the audio message.
     if (!mix_correct) {
         return on_audio_imp(&msg);
     }
     
-    return do_mix_correct(&msg);
+    // insert msg to the queue.
+    mix_queue->push(msg.copy());
+    
+    // fetch someone from mix queue.
+    SrsSharedPtrMessage* m = mix_queue->pop();
+    if (!m) {
+        return ret;
+    }
+    
+    // consume the monotonically increase message.
+    ret = on_audio_imp(m);
+    srs_freep(m);
+    
+    return ret;
 }
 
 int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
@@ -1628,11 +1642,26 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     }
     srs_info("Video dts=%"PRId64", size=%d", msg.timestamp, msg.size);
     
+    // directly process the audio message.
     if (!mix_correct) {
         return on_video_imp(&msg);
     }
     
-    return do_mix_correct(&msg);
+    // insert msg to the queue.
+    mix_queue->push(msg.copy());
+    
+    // fetch someone from mix queue.
+    SrsSharedPtrMessage* m = mix_queue->pop();
+    if (!m) {
+        return ret;
+    }
+    SrsAutoFree(SrsSharedPtrMessage, m);
+    
+    // consume the monotonically increase message.
+    ret = on_video_imp(m);
+    srs_freep(m);
+    
+    return ret;
 }
 
 int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
@@ -1764,29 +1793,6 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
     
     return ret;
-}
-
-int SrsSource::do_mix_correct(SrsSharedPtrMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // insert msg to the queue.
-    mix_queue->push(msg->copy());
-    
-    // fetch someone from mix queue.
-    SrsSharedPtrMessage* m = mix_queue->pop();
-    if (!m) {
-        return ret;
-    }
-    SrsAutoFree(SrsSharedPtrMessage, m);
-    
-    // consume the monotonically increase message.
-    if (m->is_audio()) {
-        return on_audio_imp(m);
-    }
-    
-    srs_assert(m->is_video());
-    return on_video_imp(m);
 }
 
 int SrsSource::on_aggregate(SrsCommonMessage* msg)
