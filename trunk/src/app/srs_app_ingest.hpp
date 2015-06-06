@@ -45,14 +45,26 @@ class SrsPithyPrint;
 */
 class SrsIngesterFFMPEG
 {
-public:
+private:
     std::string vhost;
     std::string id;
     SrsFFMPEG* ffmpeg;
-    
-    SrsIngesterFFMPEG(SrsFFMPEG* _ffmpeg, std::string _vhost, std::string _id);
+    int64_t starttime;
+public:
+    SrsIngesterFFMPEG();
     virtual ~SrsIngesterFFMPEG();
-    
+public:
+    virtual int initialize(SrsFFMPEG* ff, std::string v, std::string i);
+    // the ingest uri, [vhost]/[ingest id]
+    virtual std::string uri();
+    // the alive in ms.
+    virtual int alive();
+    virtual bool equals(std::string v, std::string i);
+    virtual bool equals(std::string v);
+public:
+    virtual int start();
+    virtual void stop();
+    virtual int cycle();
     // @see SrsFFMPEG.fast_stop().
     virtual void fast_stop();
 };
