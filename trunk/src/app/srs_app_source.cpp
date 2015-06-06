@@ -1479,7 +1479,11 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     }
     
     // consume the monotonically increase message.
-    ret = on_audio_imp(m);
+    if (m->is_audio()) {
+        ret = on_audio_imp(m);
+    } else {
+        ret = on_video_imp(m);
+    }
     srs_freep(m);
     
     return ret;
@@ -1670,7 +1674,11 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     SrsAutoFree(SrsSharedPtrMessage, m);
     
     // consume the monotonically increase message.
-    ret = on_video_imp(m);
+    if (m->is_audio()) {
+        ret = on_audio_imp(m);
+    } else {
+        ret = on_video_imp(m);
+    }
     srs_freep(m);
     
     return ret;
