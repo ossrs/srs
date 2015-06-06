@@ -266,6 +266,28 @@ bool SrsFlvCodec::audio_is_aac(char* data, int size)
     return sound_format == SrsCodecAudioAAC;
 }
 
+bool SrsFlvCodec::video_is_acceptable(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char frame_type = data[0];
+    char codec_id = frame_type & 0x0f;
+    frame_type = (frame_type >> 4) & 0x0f;
+    
+    if (frame_type < 1 || frame_type > 5) {
+        return false;
+    }
+    
+    if (codec_id < 2 || codec_id > 7) {
+        return false;
+    }
+    
+    return true;
+}
+
 string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
 {
     switch (nalu_type) {

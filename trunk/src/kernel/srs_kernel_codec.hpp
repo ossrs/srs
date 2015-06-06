@@ -222,6 +222,12 @@ public:
     * check codec aac.
     */
     static bool audio_is_aac(char* data, int size);
+    /**
+     * check the video RTMP/flv header info,
+     * @return true if video RTMP/flv header is ok.
+     * @remark all type of audio is possible, no need to check audio.
+     */
+    static bool video_is_acceptable(char* data, int size);
 };
 
 /**

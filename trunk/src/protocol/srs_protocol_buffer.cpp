@@ -97,8 +97,8 @@ void SrsFastBuffer::set_buffer(int buffer_size)
     }
     
     // realloc for buffer change bigger.
-    int start = p - buffer;
-    int nb_bytes = end - p;
+    int start = (int)(p - buffer);
+    int nb_bytes = (int)(end - p);
     
     buffer = (char*)realloc(buffer, nb_resize_buf);
     nb_buffer = nb_resize_buf;
