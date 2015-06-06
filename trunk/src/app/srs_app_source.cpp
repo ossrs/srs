@@ -1633,6 +1633,18 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
     
+    // drop any unknown header video.
+    // @see https://github.com/simple-rtmp-server/srs/issues/421
+    if (!SrsFlvCodec::video_is_acceptable(shared_video->payload, shared_video->size)) {
+        char b0 = 0x00;
+        if (shared_video->size > 0) {
+            b0 = shared_video->payload[0];
+        }
+        
+        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+        return ret;
+    }
+    
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.
     SrsSharedPtrMessage msg;
