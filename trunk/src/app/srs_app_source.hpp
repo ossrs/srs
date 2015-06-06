@@ -375,6 +375,7 @@ class SrsMixQueue
 {
 private:
     u_int32_t nb_videos;
+    u_int32_t nb_audios;
     std::multimap<int64_t, SrsSharedPtrMessage*> msgs;
 public:
     SrsMixQueue();
