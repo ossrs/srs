@@ -869,7 +869,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         pprint->elapse();
 
         // cond wait for error.
-        trd->wait(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000);
+        trd->wait(SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US / 1000);
 
         // check the thread error code.
         if ((ret = trd->error_code()) != ERROR_SUCCESS) {

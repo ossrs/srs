@@ -74,6 +74,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the timeout to wait client data,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+// the timeout for publish recv.
+// we must use more smaller timeout, for the recv never know the status
+// of underlayer socket.
+#define SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
