@@ -900,6 +900,9 @@ SrsSource::SrsSource()
     gop_cache = new SrsGopCache();
     aggregate_stream = new SrsStream();
     
+    is_monotonically_increase = false;
+    last_packet_time = 0;
+    
     _srs_config->subscribe(this);
     atc = false;
 }
@@ -1467,6 +1470,15 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
+    // monotically increase detect.
+    if (!mix_correct && is_monotonically_increase) {
+        if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
+            is_monotonically_increase = false;
+            srs_warn("stream not monotonically increase, please open mix_correct.");
+        }
+    }
+    last_packet_time = shared_audio->header.timestamp;
+    
     // convert shared_audio to msg, user should not use shared_audio again.
     // the payload is transfer to msg, and set to NULL in shared_audio.
     SrsSharedPtrMessage msg;
@@ -1648,6 +1660,15 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 int SrsSource::on_video(SrsCommonMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
+    
+    // monotically increase detect.
+    if (!mix_correct && is_monotonically_increase) {
+        if (last_packet_time > 0 && shared_video->header.timestamp < last_packet_time) {
+            is_monotonically_increase = false;
+            srs_warn("stream not monotonically increase, please open mix_correct.");
+        }
+    }
+    last_packet_time = shared_video->header.timestamp;
     
     // drop any unknown header video.
     // @see https://github.com/simple-rtmp-server/srs/issues/421
@@ -1969,6 +1990,10 @@ int SrsSource::on_publish()
     
     // reset the mix queue.
     mix_queue->clear();
+    
+    // detect the monotonically again.
+    is_monotonically_increase = true;
+    last_packet_time = 0;
     
     // create forwarders
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {

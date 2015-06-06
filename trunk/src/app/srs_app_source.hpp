@@ -437,6 +437,9 @@ private:
     // whether use interlaced/mixed algorithm to correct timestamp.
     bool mix_correct;
     SrsMixQueue* mix_queue;
+    // whether stream is monotonically increase.
+    bool is_monotonically_increase;
+    int64_t last_packet_time;
     // hls handler.
 #ifdef SRS_AUTO_HLS
     SrsHls* hls;
