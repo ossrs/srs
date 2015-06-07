@@ -16,6 +16,8 @@ file
 	../../src/core/srs_core.cpp,
 	../../src/core/srs_core_autofree.hpp,
 	../../src/core/srs_core_autofree.cpp,
+        ../../src/core/srs_core_mem_watch.hpp,
+        ../../src/core/srs_core_mem_watch.cpp,
 	../../src/core/srs_core_performance.hpp,
 	../../src/core/srs_core_performance.cpp,
 	kernel readonly separator,

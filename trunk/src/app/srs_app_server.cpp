@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
+#include <srs_core_mem_watch.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -556,6 +557,10 @@ void SrsServer::destroy()
     // @remark never destroy the source, 
     // when we free all sources, the fmle publish may retry
     // and segment fault.
+    
+#ifdef SRS_MEM_WATCH
+    srs_memory_report();
+#endif
 }
 
 void SrsServer::dispose()
@@ -571,6 +576,10 @@ void SrsServer::dispose()
     srs_trace("gracefully dispose sources");
     
     srs_trace("terminate server");
+    
+#ifdef SRS_MEM_WATCH
+    srs_memory_report();
+#endif
 }
 
 int SrsServer::initialize(ISrsServerCycle* cycle_handler)
@@ -891,6 +900,9 @@ void SrsServer::on_signal(int signo)
         signal_gmc_stop = true;
 #else
         srs_trace("user terminate program");
+#ifdef SRS_MEM_WATCH
+        srs_memory_report();
+#endif
         exit(0);
 #endif
         return;

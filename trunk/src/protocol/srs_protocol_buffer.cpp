@@ -72,7 +72,7 @@ SrsFastBuffer::~SrsFastBuffer()
 
 int SrsFastBuffer::size()
 {
-    return end - p;
+    return (int)(end - p);
 }
 
 char* SrsFastBuffer::bytes()

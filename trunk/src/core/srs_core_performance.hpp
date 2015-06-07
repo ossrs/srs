@@ -188,5 +188,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #undef SRS_PERF_FAST_FLV_ENCODER
 #define SRS_PERF_FAST_FLV_ENCODER
 
+/**
+ * whether enable the special memory watcher.
+ * which used for memory leak debug and hurts performance.
+ */
+#define SRS_MEM_WATCH
+#undef SRS_MEM_WATCH
+
 #endif
 
