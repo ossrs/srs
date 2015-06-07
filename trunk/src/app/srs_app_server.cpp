@@ -523,6 +523,8 @@ void SrsServer::destroy()
     ingester->dispose();
 #endif
     
+    SrsSource::dispose_all();
+    
 #ifdef SRS_AUTO_HTTP_API
     srs_freep(http_api_mux);
 #endif

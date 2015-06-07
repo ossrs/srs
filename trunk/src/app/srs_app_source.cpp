@@ -583,6 +583,11 @@ SrsGopCache::~SrsGopCache()
     clear();
 }
 
+void SrsGopCache::dispose()
+{
+    clear();
+}
+
 void SrsGopCache::set(bool enabled)
 {
     enable_gop_cache = enabled;
@@ -955,6 +960,8 @@ void SrsSource::dispose()
 #ifdef SRS_AUTO_HLS
     hls->dispose();
 #endif
+    
+    gop_cache->dispose();
 }
 
 int SrsSource::cycle()
