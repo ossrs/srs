@@ -433,9 +433,35 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         return ERROR_HTTP_STATUS_INVLIAD;
     }
     
-    // TODO: FIXME: parse json.
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+    if (res.empty()) {
         return ERROR_HTTP_DATA_INVLIAD;
+    }
+    
+    // parse string res to json.
+    SrsJsonAny* info = SrsJsonAny::loads((char*)res.c_str());
+    SrsAutoFree(SrsJsonAny, info);
+    
+    // if res is number of error code
+    if (!info->is_object()) {
+        if (res != SRS_HTTP_RESPONSE_OK) {
+            return ERROR_HTTP_DATA_INVLIAD;
+        }
+        return ret;
+    }
+    
+    // if res is json obj, like: {"code": 0, "data": ""}
+    SrsJsonObject* res_info = info->to_object();
+    SrsJsonAny* res_code = NULL;
+    if ((res_code = res_info->ensure_property_integer("code")) == NULL) {
+        ret = ERROR_RESPONSE_CODE;
+        srs_error("res code error, ret=%d", ret);
+        return ret;
+    }
+
+    if ((res_code->to_integer()) != ERROR_SUCCESS) {
+        ret = ERROR_RESPONSE_CODE;
+        srs_error("res code error, ret=%d, code=%d", ret, code);
+        return ret;
     }
 
     return ret;
