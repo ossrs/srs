@@ -48,6 +48,7 @@ using namespace std;
 // for example, libaacplus, aac, fdkaac
 #define SRS_RTMP_ENCODER_ACODEC         "aac"
 #define SRS_RTMP_ENCODER_LIBAACPLUS     "libaacplus"
+#define SRS_RTMP_ENCODER_LIBFDKAAC      "libfdk_aac"
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -174,7 +175,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     }
     
     // @see, https://github.com/simple-rtmp-server/srs/issues/145
-    if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS) {
+    if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS && acodec != SRS_RTMP_ENCODER_LIBFDKAAC) {
         if (abitrate < 16 || abitrate > 72) {
             ret = ERROR_ENCODER_ABITRATE;
             srs_error("invalid abitrate for aac: %d, must in [16, 72], ret=%d", abitrate, ret);

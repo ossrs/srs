@@ -783,7 +783,7 @@ public:
     virtual std::vector<std::string> get_engine_vfilter(SrsConfDirective* engine);
     /**
     * get the vcodec of engine,
-    * the codec of video, copy or libx264
+    * the codec of video, can be vn, copy or libx264
     */
     virtual std::string         get_engine_vcodec(SrsConfDirective* engine);
     /**
@@ -827,7 +827,7 @@ public:
     virtual std::vector<std::string> get_engine_vparams(SrsConfDirective* engine);
     /**
     * get the acodec of engine,
-    * the audio codec can be copy or libaacplus
+    * the audio codec can be an, copy or libfdk_aac
     */
     virtual std::string         get_engine_acodec(SrsConfDirective* engine);
     /**

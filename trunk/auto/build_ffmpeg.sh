@@ -19,9 +19,6 @@ echo "SRS_JOBS: ${SRS_JOBS}"
 mkdir -p ${ff_build_dir}
 mkdir -p ${ff_release_dir}
 
-# for ubuntu14, donot compile libaacplus.
-UBUNTU14=NO;grep -in "Ubuntu 14." /etc/issue >/dev/null 2>&1; if [[ $? -eq 0 ]]; then UBUNTU14=YES; fi
-
 # yasm for libx264
 ff_yasm_bin=${ff_release_dir}/bin/yasm
 if [[ -f ${ff_yasm_bin} ]]; then 

@@ -289,7 +289,7 @@ std::string _full_conf = ""
 "                bf              3;                                                                                                                      \n          "
 "                refs            10;                                                                                                                     \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        70;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -320,7 +320,7 @@ std::string _full_conf = ""
 "            vpreset         superfast;                                                                                                                  \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -349,7 +349,7 @@ std::string _full_conf = ""
 "            vpreset         superfast;                                                                                                                  \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -379,7 +379,7 @@ std::string _full_conf = ""
 "            vpreset         superfast;                                                                                                                  \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -396,7 +396,7 @@ std::string _full_conf = ""
 "        engine acodec {                                                                                                                                 \n          "
 "            enabled         on;                                                                                                                         \n          "
 "            vcodec          copy;                                                                                                                       \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -413,7 +413,7 @@ std::string _full_conf = ""
 "        engine vn {                                                                                                                                     \n          "
 "            enabled         on;                                                                                                                         \n          "
 "            vcodec          vn;                                                                                                                         \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -461,7 +461,7 @@ std::string _full_conf = ""
 "                bf              3;                                                                                                                      \n          "
 "                refs            10;                                                                                                                     \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        70;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -483,7 +483,7 @@ std::string _full_conf = ""
 "            vpreset         medium;                                                                                                                     \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        70;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -503,7 +503,7 @@ std::string _full_conf = ""
 "            vpreset         fast;                                                                                                                       \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        60;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -523,7 +523,7 @@ std::string _full_conf = ""
 "            vpreset         superfast;                                                                                                                  \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -534,7 +534,7 @@ std::string _full_conf = ""
 "        engine vcopy {                                                                                                                                  \n          "
 "            enabled         on;                                                                                                                         \n          "
 "            vcodec          copy;                                                                                                                       \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -581,7 +581,7 @@ std::string _full_conf = ""
 "            vpreset         superfast;                                                                                                                  \n          "
 "            vparams {                                                                                                                                   \n          "
 "            }                                                                                                                                           \n          "
-"            acodec          libaacplus;                                                                                                                 \n          "
+"            acodec          libfdk_aac;                                                                                                                 \n          "
 "            abitrate        45;                                                                                                                         \n          "
 "            asample_rate    44100;                                                                                                                      \n          "
 "            achannels       2;                                                                                                                          \n          "
@@ -2586,7 +2586,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_mirror)
         EXPECT_STREQ("baseline", conf.get_engine_vprofile(engine).c_str());
         EXPECT_STREQ("superfast", conf.get_engine_vpreset(engine).c_str());
         EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-        EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+        EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
         EXPECT_EQ(45, conf.get_engine_abitrate(engine));
         EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
         EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -2676,7 +2676,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_crop)
         EXPECT_STREQ("baseline", conf.get_engine_vprofile(engine).c_str());
         EXPECT_STREQ("superfast", conf.get_engine_vpreset(engine).c_str());
         EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-        EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+        EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
         EXPECT_EQ(45, conf.get_engine_abitrate(engine));
         EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
         EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -2766,7 +2766,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_logo)
         EXPECT_STREQ("baseline", conf.get_engine_vprofile(engine).c_str());
         EXPECT_STREQ("superfast", conf.get_engine_vpreset(engine).c_str());
         EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-        EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+        EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
         EXPECT_EQ(45, conf.get_engine_abitrate(engine));
         EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
         EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -2849,7 +2849,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_audio)
             EXPECT_STREQ("flv", conf.get_engine_iformat(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vfilter(engine).size() == 0);
             EXPECT_STREQ("copy", conf.get_engine_vcodec(engine).c_str());
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(45, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -2933,7 +2933,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_vn)
             EXPECT_STREQ("flv", conf.get_engine_iformat(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vfilter(engine).size() == 0);
             EXPECT_STREQ("vn", conf.get_engine_vcodec(engine).c_str());
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(45, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3105,7 +3105,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
             EXPECT_STREQ("main", conf.get_engine_vprofile(engine).c_str());
             EXPECT_STREQ("medium", conf.get_engine_vpreset(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() > 0);
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(70, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3130,7 +3130,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
             EXPECT_STREQ("main", conf.get_engine_vprofile(engine).c_str());
             EXPECT_STREQ("medium", conf.get_engine_vpreset(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(70, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3155,7 +3155,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
             EXPECT_STREQ("main", conf.get_engine_vprofile(engine).c_str());
             EXPECT_STREQ("fast", conf.get_engine_vpreset(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(60, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3180,7 +3180,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
             EXPECT_STREQ("baseline", conf.get_engine_vprofile(engine).c_str());
             EXPECT_STREQ("superfast", conf.get_engine_vpreset(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(45, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3197,7 +3197,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
             EXPECT_STREQ("flv", conf.get_engine_iformat(engine).c_str());
             EXPECT_TRUE((int)conf.get_engine_vfilter(engine).size() == 0);
             EXPECT_STREQ("copy", conf.get_engine_vcodec(engine).c_str());
-            EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+            EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
             EXPECT_EQ(45, conf.get_engine_abitrate(engine));
             EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
             EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -3322,7 +3322,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_ffempty)
         EXPECT_STREQ("baseline", conf.get_engine_vprofile(engine).c_str());
         EXPECT_STREQ("superfast", conf.get_engine_vpreset(engine).c_str());
         EXPECT_TRUE((int)conf.get_engine_vparams(engine).size() == 0);
-        EXPECT_STREQ("libaacplus", conf.get_engine_acodec(engine).c_str());
+        EXPECT_STREQ("libfdk_aac", conf.get_engine_acodec(engine).c_str());
         EXPECT_EQ(45, conf.get_engine_abitrate(engine));
         EXPECT_EQ(44100, conf.get_engine_asample_rate(engine));
         EXPECT_EQ(2, conf.get_engine_achannels(engine));
@@ -4837,12 +4837,12 @@ VOID TEST(ConfigMainTest, CheckConf_transcode)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodec libaacplus;}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodec libfdk_aac;}}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodecs libaacplus;}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodecs libfdk_aac;}}}"));
     }
     
     if (true) {
