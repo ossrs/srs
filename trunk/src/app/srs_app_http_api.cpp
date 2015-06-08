@@ -529,7 +529,7 @@ int SrsHttpApi::do_cycle()
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
     // process http messages.
-    for (;;) {
+    while(!disposed) {
         ISrsHttpMessage* req = NULL;
         
         // get a http message

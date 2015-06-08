@@ -320,7 +320,7 @@ int SrsRtmpConn::service_cycle()
     }
     srs_verbose("on_bw_done success");
     
-    while (true) {
+    while (!disposed) {
         ret = stream_service_cycle();
         
         // stream service must terminated with error, never success.
@@ -361,6 +361,8 @@ int SrsRtmpConn::service_cycle()
         srs_error("control message(%d) reject as error. ret=%d", ret, ret);
         return ret;
     }
+    
+    return ret;
 }
 
 int SrsRtmpConn::stream_service_cycle()
@@ -635,7 +637,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // set the sock options.
     play_set_sock_options();
     
-    while (true) {
+    while (!disposed) {
         // collect elapse for pithy print.
         pprint->elapse();
 
@@ -865,7 +867,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     }
 
     int64_t nb_msgs = 0;
-    while (true) {
+    while (!disposed) {
         pprint->elapse();
 
         // cond wait for error.

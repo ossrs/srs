@@ -40,6 +40,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
     id = 0;
     manager = cm;
     stfd = c;
+    disposed = false;
     
     // the client thread should reap itself, 
     // so we never use joinable.
@@ -50,12 +51,24 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
 
 SrsConnection::~SrsConnection()
 {
+    dispose();
+    
+    srs_freep(pthread);
+}
+
+void SrsConnection::dispose()
+{
+    if (disposed) {
+        return;
+    }
+    
+    disposed = true;
+    
     /**
      * when delete the connection, stop the connection,
      * close the underlayer socket, delete the thread.
      */
     srs_close_stfd(stfd);
-    srs_freep(pthread);
 }
 
 int SrsConnection::start()
