@@ -100,6 +100,7 @@
     <ClInclude Include="..\..\src\app\srs_app_utility.hpp" />
     <ClInclude Include="..\..\src\core\srs_core.hpp" />
     <ClInclude Include="..\..\src\core\srs_core_autofree.hpp" />
+    <ClInclude Include="..\..\src\core\srs_core_mem_watch.hpp" />
     <ClInclude Include="..\..\src\core\srs_core_performance.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_aac.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp" />
@@ -181,6 +182,7 @@
     <ClCompile Include="..\..\src\app\srs_app_utility.cpp" />
     <ClCompile Include="..\..\src\core\srs_core.cpp" />
     <ClCompile Include="..\..\src\core\srs_core_autofree.cpp" />
+    <ClCompile Include="..\..\src\core\srs_core_mem_watch.cpp" />
     <ClCompile Include="..\..\src\core\srs_core_performance.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_aac.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp" />

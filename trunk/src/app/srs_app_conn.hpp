@@ -83,10 +83,19 @@ protected:
     * the ip of client.
     */
     std::string ip;
+    /**
+     * whether the connection is disposed,
+     * when disposed, connection should stop cycle and cleanup itself.
+     */;
+    bool disposed;
 public:
     SrsConnection(IConnectionManager* cm, st_netfd_t c);
     virtual ~SrsConnection();
 public:
+    /**
+     * to dipose the connection.
+     */
+    virtual void dispose();
     /**
     * start the client green thread.
     * when server get a client from listener, 

@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
+#include <srs_core_mem_watch.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -513,15 +514,7 @@ void SrsServer::destroy()
 {
     srs_warn("start destroy server");
     
-    _srs_config->unsubscribe(this);
-    
-    close_listeners(SrsListenerRtmpStream);
-    close_listeners(SrsListenerHttpApi);
-    close_listeners(SrsListenerHttpStream);
-
-#ifdef SRS_AUTO_INGEST
-    ingester->dispose();
-#endif
+    dispose();
     
 #ifdef SRS_AUTO_HTTP_API
     srs_freep(http_api_mux);
@@ -547,28 +540,39 @@ void SrsServer::destroy()
     srs_freep(signal_manager);
     
     srs_freep(handler);
-    
-    // @remark never destroy the connections, 
-    // for it's still alive.
-
-    // @remark never destroy the source, 
-    // when we free all sources, the fmle publish may retry
-    // and segment fault.
 }
 
 void SrsServer::dispose()
 {
     _srs_config->unsubscribe(this);
     
+    // prevent fresh clients.
+    close_listeners(SrsListenerRtmpStream);
+    close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerMpegTsOverUdp);
+    close_listeners(SrsListenerRtsp);
+    close_listeners(SrsListenerFlv);
+    
 #ifdef SRS_AUTO_INGEST
     ingester->dispose();
-    srs_trace("gracefully dispose ingesters");
 #endif
     
     SrsSource::dispose_all();
-    srs_trace("gracefully dispose sources");
     
-    srs_trace("terminate server");
+    while (!conns.empty()) {
+        std::vector<SrsConnection*>::iterator it;
+        for (it = conns.begin(); it != conns.end(); ++it) {
+            SrsConnection* conn = *it;
+            conn->dispose();
+        }
+        
+        st_usleep(100 * 1000);
+    }
+    
+#ifdef SRS_MEM_WATCH
+    srs_memory_report();
+#endif
 }
 
 int SrsServer::initialize(ISrsServerCycle* cycle_handler)
@@ -889,6 +893,9 @@ void SrsServer::on_signal(int signo)
         signal_gmc_stop = true;
 #else
         srs_trace("user terminate program");
+#ifdef SRS_MEM_WATCH
+        srs_memory_report();
+#endif
         exit(0);
 #endif
         return;

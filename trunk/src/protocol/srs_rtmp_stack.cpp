@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_buffer.hpp>
 #include <srs_rtmp_utility.hpp>
+#include <srs_core_mem_watch.hpp>
 
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
@@ -364,6 +365,7 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
         srs_verbose("entire msg received");
         
         if (!msg) {
+            srs_info("got empty message without error.");
             continue;
         }
         
@@ -467,7 +469,7 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             iovs[0].iov_len = nbh;
             
             // payload iov
-            int payload_size = srs_min(out_chunk_size, pend - p);
+            int payload_size = srs_min(out_chunk_size, (int)(pend - p));
             iovs[1].iov_base = p;
             iovs[1].iov_len = payload_size;
             
@@ -1411,6 +1413,9 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsCommonMessage** 
     if (!chunk->msg->payload) {
         chunk->msg->payload = new char[chunk->header.payload_length];
         srs_verbose("create payload for RTMP message. size=%d", chunk->header.payload_length);
+#ifdef SRS_MEM_WATCH
+        srs_memory_watch(chunk->msg->payload, "msg.payload", chunk->header.payload_length);
+#endif
     }
     
     // read payload to buffer

@@ -310,6 +310,10 @@ public:
     virtual ~SrsGopCache();
 public:
     /**
+     * cleanup when system quit.
+     */
+    virtual void dispose();
+    /**
     * to enable or disable the gop cache.
     */
     virtual void set(bool enabled);

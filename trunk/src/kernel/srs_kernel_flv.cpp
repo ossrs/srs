@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_mem_watch.hpp>
 
 SrsMessageHeader::SrsMessageHeader()
 {
@@ -159,6 +160,9 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
+#ifdef SRS_MEM_WATCH
+    srs_memory_unwatch(payload);
+#endif
     srs_freep(payload);
 }
 
@@ -171,6 +175,9 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
+#ifdef SRS_MEM_WATCH
+    srs_memory_unwatch(payload);
+#endif
     srs_freep(payload);
 }
 

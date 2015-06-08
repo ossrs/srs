@@ -2860,13 +2860,15 @@ vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* engine)
 
 string SrsConfig::get_engine_vcodec(SrsConfDirective* engine)
 {
+    static string DEFAULT = "";
+    
     if (!engine) {
-        return "";
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vcodec");
     if (!conf) {
-        return "";
+        return DEFAULT;
     }
     
     return conf->arg0();
@@ -2998,13 +3000,15 @@ vector<string> SrsConfig::get_engine_vparams(SrsConfDirective* engine)
 
 string SrsConfig::get_engine_acodec(SrsConfDirective* engine)
 {
+    static string DEFAULT = "";
+    
     if (!engine) {
-        return "";
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("acodec");
     if (!conf) {
-        return "";
+        return DEFAULT;
     }
     
     return conf->arg0();
