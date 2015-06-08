@@ -192,8 +192,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * whether enable the special memory watcher.
  * which used for memory leak debug and hurts performance.
  */
-#undef SRS_MEM_WATCH
 #define SRS_MEM_WATCH
+#undef SRS_MEM_WATCH
 
 #endif
 

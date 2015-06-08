@@ -211,6 +211,11 @@ void check_macro_features()
     #warning "current branch is not stable, please use stable branch instead."
     srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
 #endif
+    
+#ifdef SRS_MEM_WATCH
+    #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
+    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
+#endif
 
 #if defined(SRS_AUTO_STREAM_CASTER)
     #warning "stream caster is experiment feature."

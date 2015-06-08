@@ -961,6 +961,12 @@ void SrsSource::dispose()
     hls->dispose();
 #endif
     
+    // cleaup the cached packets.
+    srs_freep(cache_metadata);
+    srs_freep(cache_sh_video);
+    srs_freep(cache_sh_audio);
+    
+    // cleanup the gop cache.
     gop_cache->dispose();
 }
 
