@@ -324,7 +324,10 @@ int SrsRtmpConn::service_cycle()
         ret = stream_service_cycle();
         
         // stream service must terminated with error, never success.
-        srs_assert(ret != ERROR_SUCCESS);
+        // when terminated with success, it's user required to stop.
+        if (ret == ERROR_SUCCESS) {
+            continue;
+        }
         
         // when not system control error, fatal error, return.
         if (!srs_is_system_control_error(ret)) {
