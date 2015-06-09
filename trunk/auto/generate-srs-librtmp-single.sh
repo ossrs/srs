@@ -80,7 +80,7 @@ function build_module_hpp()
 }
 SRS_LIBRTMP_OBJS="${CORE_OBJS[@]}" && build_module_hpp
 SRS_LIBRTMP_OBJS="${KERNEL_OBJS[@]}" && build_module_hpp
-SRS_LIBRTMP_OBJS="${RTMP_OBJS[@]}" && build_module_hpp
+SRS_LIBRTMP_OBJS="${PROTOCOL_OBJS[@]}" && build_module_hpp
 SRS_LIBRTMP_OBJS="${LIBS_OBJS[@]}" && build_module_hpp
 # module to cpp files.
 function build_module_cpp()
@@ -99,7 +99,7 @@ function build_module_cpp()
 }
 SRS_LIBRTMP_OBJS="${CORE_OBJS[@]}" && build_module_cpp
 SRS_LIBRTMP_OBJS="${KERNEL_OBJS[@]}" && build_module_cpp
-SRS_LIBRTMP_OBJS="${RTMP_OBJS[@]}" && build_module_cpp
+SRS_LIBRTMP_OBJS="${PROTOCOL_OBJS[@]}" && build_module_cpp
 SRS_LIBRTMP_OBJS="${LIBS_OBJS[@]}" && build_module_cpp
 
 # create example.cpp

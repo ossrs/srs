@@ -423,6 +423,14 @@ void SrsMessageQueue::clear()
     av_start_time = av_end_time = -1;
 }
 
+ISrsWakable::ISrsWakable()
+{
+}
+
+ISrsWakable::~ISrsWakable()
+{
+}
+
 SrsConsumer::SrsConsumer(SrsSource* _source)
 {
     source = _source;
@@ -551,14 +559,6 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     // use cond block wait for high performance mode.
     st_cond_wait(mw_wait);
 }
-
-void SrsConsumer::wakeup()
-{
-    if (mw_waiting) {
-        st_cond_signal(mw_wait);
-        mw_waiting = false;
-    }
-}
 #endif
 
 int SrsConsumer::on_play_client_pause(bool is_pause)
@@ -569,6 +569,16 @@ int SrsConsumer::on_play_client_pause(bool is_pause)
     paused = is_pause;
     
     return ret;
+}
+
+void SrsConsumer::wakeup()
+{
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    if (mw_waiting) {
+        st_cond_signal(mw_wait);
+        mw_waiting = false;
+    }
+#endif
 }
 
 SrsGopCache::SrsGopCache()

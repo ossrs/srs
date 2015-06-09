@@ -197,9 +197,27 @@ private:
 };
 
 /**
+ * the wakable used for some object
+ * which is waiting on cond.
+ */
+class ISrsWakable
+{
+public:
+    ISrsWakable();
+    virtual ~ISrsWakable();
+public:
+    /**
+     * when the consumer(for player) got msg from recv thread,
+     * it must be processed for maybe it's a close msg, so the cond
+     * wait must be wakeup.
+     */
+    virtual void wakeup() = 0;
+};
+
+/**
 * the consumer for SrsSource, that is a play client.
 */
-class SrsConsumer
+class SrsConsumer : public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
@@ -257,17 +275,19 @@ public:
     * @param duration the messgae duration to wait.
     */
     virtual void wait(int nb_msgs, int duration);
-    /**
-    * when the consumer(for player) got msg from recv thread,
-    * it must be processed for maybe it's a close msg, so the cond
-    * wait must be wakeup.
-    */
-    virtual void wakeup();
 #endif
     /**
     * when client send the pause message.
     */
     virtual int on_play_client_pause(bool is_pause);
+// ISrsWakable
+public:
+    /**
+     * when the consumer(for player) got msg from recv thread,
+     * it must be processed for maybe it's a close msg, so the cond
+     * wait must be wakeup.
+     */
+    virtual void wakeup();
 };
 
 /**
