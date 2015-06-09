@@ -374,8 +374,6 @@ SrsSignalManager::SrsSignalManager(SrsServer* server)
 
 SrsSignalManager::~SrsSignalManager()
 {
-    srs_freep(pthread);
-    
     srs_close_stfd(signal_read_stfd);
     
     if (sig_pipe[0] > 0) {
@@ -384,24 +382,13 @@ SrsSignalManager::~SrsSignalManager()
     if (sig_pipe[1] > 0) {
         ::close(sig_pipe[1]);
     }
+    
+    srs_freep(pthread);
 }
 
 int SrsSignalManager::initialize()
 {
     int ret = ERROR_SUCCESS;
-    return ret;
-}
-
-int SrsSignalManager::start()
-{
-    int ret = ERROR_SUCCESS;
-    
-    /**
-    * Note that if multiple processes are used (see below), 
-    * the signal pipe should be initialized after the fork(2) call 
-    * so that each process has its own private pipe.
-    */
-    struct sigaction sa;
     
     /* Create signal pipe */
     if (pipe(sig_pipe) < 0) {
@@ -409,6 +396,24 @@ int SrsSignalManager::start()
         srs_error("create signal manager pipe failed. ret=%d", ret);
         return ret;
     }
+    
+    if ((signal_read_stfd = st_netfd_open(sig_pipe[0])) == NULL) {
+        ret = ERROR_SYSTEM_CREATE_PIPE;
+        srs_error("create signal manage st pipe failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSignalManager::start()
+{
+    /**
+    * Note that if multiple processes are used (see below), 
+    * the signal pipe should be initialized after the fork(2) call 
+    * so that each process has its own private pipe.
+    */
+    struct sigaction sa;
     
     /* Install sig_catcher() as a signal handler */
     sa.sa_handler = SrsSignalManager::sig_catcher;
@@ -439,10 +444,6 @@ int SrsSignalManager::start()
 int SrsSignalManager::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
-    if (signal_read_stfd == NULL) {
-        signal_read_stfd = st_netfd_open(sig_pipe[0]);
-    }
 
     int signo;
     
@@ -852,6 +853,7 @@ int SrsServer::cycle()
 #else
     srs_warn("main cycle terminated, system quit normally.");
     dispose();
+    srs_trace("srs terminated");
     exit(0);
 #endif
     
