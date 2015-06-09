@@ -293,10 +293,14 @@ private:
     virtual void dispose();
 // server startup workflow, @see run_master()
 public:
+    /**
+     * initialize server with callback handler.
+     * @remark user must free the cycle handler.
+     */
     virtual int initialize(ISrsServerCycle* cycle_handler);
+    virtual int initialize_st();
     virtual int initialize_signal();
     virtual int acquire_pid_file();
-    virtual int initialize_st();
     virtual int listen();
     virtual int register_signal();
     virtual int http_handle();

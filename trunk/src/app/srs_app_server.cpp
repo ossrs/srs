@@ -539,8 +539,6 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
-    
-    srs_freep(handler);
 }
 
 void SrsServer::dispose()
