@@ -129,19 +129,20 @@ namespace internal {
                 if (ret) {
                     srs_warn("core: ignore join thread failed.");
                 }
+            }
+            
+            // wait the thread actually terminated.
+            // sometimes the thread join return -1, for example,
+            // when thread use st_recvfrom, the thread join return -1.
+            // so here, we use a variable to ensure the thread stopped.
+            // @remark even the thread not joinable, we must ensure the thread stopped when stop.
+            while (!really_terminated) {
+                st_usleep(10 * 1000);
                 
-                // wait the thread actually terminated.
-                // sometimes the thread join return -1, for example,
-                // when thread use st_recvfrom, the thread join return -1.
-                // so here, we use a variable to ensure the thread stopped.
-                while (!really_terminated) {
-                    st_usleep(10 * 1000);
-                    
-                    if (really_terminated) {
-                        break;
-                    }
-                    srs_warn("core: wait thread to actually terminated");
+                if (really_terminated) {
+                    break;
                 }
+                srs_warn("core: wait thread to actually terminated");
             }
             
             tid = NULL;

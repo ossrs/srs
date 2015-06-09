@@ -254,6 +254,11 @@ int main(int argc, char** argv)
         "it is not possible to run both the heap-checker and heap profiler at the same time");
 #endif
     
+    // never use gmp to check memory leak.
+#ifdef SRS_AUTO_GPERF_MP
+    #warning "gmp is not used for memory leak, please use gmc instead."
+#endif
+    
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {

@@ -166,6 +166,18 @@ SrsCommonMessage::~SrsCommonMessage()
     srs_freep(payload);
 }
 
+void SrsCommonMessage::create_payload(int size)
+{
+    srs_freep(payload);
+    
+    payload = new char[size];
+    srs_verbose("create payload for RTMP message. size=%d", size);
+    
+#ifdef SRS_MEM_WATCH
+    srs_memory_watch(payload, "RTMP.msg.payload", size);
+#endif
+}
+
 SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;

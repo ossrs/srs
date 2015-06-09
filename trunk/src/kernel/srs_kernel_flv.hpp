@@ -283,8 +283,12 @@ public:
     char* payload;
 public:
     SrsCommonMessage();
-public:
     virtual ~SrsCommonMessage();
+public:
+    /**
+     * alloc the payload to specified size of bytes.
+     */
+    virtual void create_payload(int size);
 };
 
 /**

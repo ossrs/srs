@@ -223,6 +223,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HDS_OPEN_FRAGMENT_FAILED      3060
 #define ERROR_HDS_WRITE_FRAGMENT_FAILED     3061
 #define ERROR_HLS_NO_STREAM                 3062
+#define ERROR_JSON_LOADS                    3063
+#define ERROR_RESPONSE_CODE                 3064
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
@@ -262,6 +264,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // user-define error.
 ///////////////////////////////////////////////////////
 #define ERROR_USER_START                    9000
+#define ERROR_USER_DISCONNECT               9001
+#define ERROR_SOURCE_NOT_FOUND              9002
 #define ERROR_USER_END                      9999
 
 /**

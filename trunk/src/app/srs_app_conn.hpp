@@ -86,7 +86,7 @@ protected:
     /**
      * whether the connection is disposed,
      * when disposed, connection should stop cycle and cleanup itself.
-     */;
+     */
     bool disposed;
 public:
     SrsConnection(IConnectionManager* cm, st_netfd_t c);
