@@ -92,7 +92,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
         if (ag == SrsRtmpJitterAlgorithmZERO) {
             // for the first time, last_pkt_correct_time is zero.
             // while when timestamp overflow, the timestamp become smaller, reset the last_pkt_correct_time.
-            if (last_pkt_correct_time <= 0 || last_pkt_correct_time > msg->timestamp) {
+            if (last_pkt_correct_time <= 0 || msg->timestamp < last_pkt_correct_time) {
                 last_pkt_correct_time = msg->timestamp;
             }
             msg->timestamp -= last_pkt_correct_time;
