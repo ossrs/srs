@@ -344,6 +344,7 @@ Remark:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-06-10, fix [#424](https://github.com/simple-rtmp-server/srs/issues/424) fix aggregate timestamp bug. 2.0.174
 * v2.0, 2015-06-06, fix [#421](https://github.com/simple-rtmp-server/srs/issues/421) drop video for unkown RTMP header.
 * v2.0, 2015-06-05, fix [#420](https://github.com/simple-rtmp-server/srs/issues/420) remove ts for hls ram mode.
 * v2.0, 2015-05-30, fix [#209](https://github.com/simple-rtmp-server/srs/issues/209) cleanup hls when stop and timeout. 2.0.173.

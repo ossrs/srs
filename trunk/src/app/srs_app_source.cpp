@@ -1922,7 +1922,8 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
         timestamp &= 0x7FFFFFFF;
         
         // adjust abs timestamp in aggregate msg.
-        if (delta < 0) {
+        // only -1 means uninitialized delta.
+        if (delta == -1) {
             delta = (int)msg->header.timestamp - (int)timestamp;
         }
         timestamp += delta;
