@@ -1265,7 +1265,7 @@ int SrsStreamCache::start()
     return pthread->start();
 }
 
-int SrsStreamCache::dump_cache(SrsConsumer* consumer)
+int SrsStreamCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1276,8 +1276,8 @@ int SrsStreamCache::dump_cache(SrsConsumer* consumer)
         return ret;
     }
     
-    // TODO: FIXME: config it.
-    if ((ret = queue->dump_packets(consumer, false, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
+    // the jitter is get from SrsSource, which means the time_jitter of vhost.
+    if ((ret = queue->dump_packets(consumer, false, jitter)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1398,7 +1398,7 @@ bool SrsTsStreamEncoder::has_cache()
     return false;
 }
 
-int SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
+int SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
 {
     // for ts stream, ignore cache.
     return ERROR_SUCCESS;
@@ -1451,7 +1451,7 @@ bool SrsFlvStreamEncoder::has_cache()
     return false;
 }
 
-int SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
+int SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
 {
     // for flv stream, ignore cache.
     return ERROR_SUCCESS;
@@ -1518,10 +1518,10 @@ bool SrsAacStreamEncoder::has_cache()
     return true;
 }
 
-int SrsAacStreamEncoder::dump_cache(SrsConsumer* consumer)
+int SrsAacStreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_assert(cache);
-    return cache->dump_cache(consumer);
+    return cache->dump_cache(consumer, jitter);
 }
 
 SrsMp3StreamEncoder::SrsMp3StreamEncoder()
@@ -1574,10 +1574,10 @@ bool SrsMp3StreamEncoder::has_cache()
     return true;
 }
 
-int SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer)
+int SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_assert(cache);
-    return cache->dump_cache(consumer);
+    return cache->dump_cache(consumer, jitter);
 }
 
 SrsStreamWriter::SrsStreamWriter(ISrsHttpResponseWriter* w)
@@ -1686,7 +1686,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // if gop cache enabled for encoder, dump to consumer.
     if (enc->has_cache()) {
-        if ((ret = enc->dump_cache(consumer)) != ERROR_SUCCESS) {
+        if ((ret = enc->dump_cache(consumer, source->jitter())) != ERROR_SUCCESS) {
             srs_error("http: dump cache to consumer failed. ret=%d", ret);
             return ret;
         }

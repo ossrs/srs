@@ -273,7 +273,7 @@ int SrsFlvSegment::write_audio(SrsSharedPtrMessage* shared_audio)
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
-    if ((jitter->correct(audio, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
+    if ((jitter->correct(audio, jitter_algorithm)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -324,7 +324,7 @@ int SrsFlvSegment::write_video(SrsSharedPtrMessage* shared_video)
         }
     }
     
-    if ((jitter->correct(video, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
+    if ((jitter->correct(video, jitter_algorithm)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -334,7 +334,7 @@ int SrsFlvSegment::write_video(SrsSharedPtrMessage* shared_video)
         return ret;
     }
     
-    int32_t timestamp = plan->filter_timestamp(video->timestamp);
+    int32_t timestamp = (int32_t)plan->filter_timestamp(video->timestamp);
     if ((ret = enc->write_video(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
