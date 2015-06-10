@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_file.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_source.hpp>
 
 class SrsServer;
 class SrsSource;
@@ -407,7 +408,7 @@ public:
     virtual ~SrsStreamCache();
 public:
     virtual int start();
-    virtual int dump_cache(SrsConsumer* consumer);
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 // interface ISrsEndlessThreadHandler.
 public:
     virtual int cycle();
@@ -444,7 +445,7 @@ public:
     /**
     * dumps the cache of encoder to consumer.
     */
-    virtual int dump_cache(SrsConsumer* consumer) = 0;
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
 };
 
 /**
@@ -464,7 +465,7 @@ public:
     virtual int write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer);
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
@@ -502,7 +503,7 @@ public:
     virtual int write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer);
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**
@@ -523,7 +524,7 @@ public:
     virtual int write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer);
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**
@@ -544,7 +545,7 @@ public:
     virtual int write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer);
+    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**

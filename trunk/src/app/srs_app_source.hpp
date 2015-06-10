@@ -95,12 +95,9 @@ public:
 public:
     /**
     * detect the time jitter and correct it.
-    * @param tba, the audio timebase, used to calc the "right" delta if jitter detected.
-    * @param tbv, the video timebase, used to calc the "right" delta if jitter detected.
-    * @param start_at_zero whether ensure stream start at zero.
-    * @param mono_increasing whether ensure stream is monotonically inscreasing.
+    * @param ag the algorithm to use for time jitter.
     */
-    virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
+    virtual int correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
     /**
     * get current client time, the last packet time.
     */
@@ -186,7 +183,7 @@ public:
     * dumps packets to consumer, use specified args.
     * @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
     */
-    virtual int dump_packets(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
+    virtual int dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 private:
     /**
     * remove a gop from the front.
@@ -255,13 +252,9 @@ public:
     * enqueue an shared ptr message.
     * @param shared_msg, directly ptr, copy it if need to save it.
     * @param whether atc, donot use jitter correct if true.
-    * @param tba timebase of audio.
-    *         used to calc the audio time delta if time-jitter detected.
-    * @param tbv timebase of video.
-    *        used to calc the video time delta if time-jitter detected.
     * @param ag the algorithm of time jitter.
     */
-    virtual int enqueue(SrsSharedPtrMessage* shared_msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
+    virtual int enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
     /**
     * get packets in consumer queue.
     * @param msgs the msgs array to dump packets to send.
@@ -351,9 +344,7 @@ public:
     /**
     * dump the cached gop to consumer.
     */
-    virtual int dump(SrsConsumer* consumer, 
-        bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm jitter_algorithm
-    );
+    virtual int dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
     /**
     * used for atc to get the time of gop cache,
     * the atc will adjust the sequence header timestamp to gop cache.
@@ -492,14 +483,6 @@ private:
     ISrsSourceHandler* handler;
 private:
     /**
-    * the sample rate of audio in metadata.
-    */
-    int sample_rate;
-    /**
-    * the video frame rate in metadata.
-    */
-    int frame_rate;
-    /**
     * can publish, true when is not streaming
     */
     bool _can_publish;
@@ -595,6 +578,7 @@ public:
     );
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
+    virtual SrsRtmpJitterAlgorithm jitter();
 // internal
 public:
     // for edge, when play edge stream, check the state

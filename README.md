@@ -348,6 +348,7 @@ Remark:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-06-10, fix [#425](https://github.com/simple-rtmp-server/srs/issues/425) refine the time jitter, correct (-inf,-250)+(250,+inf) to 10ms. 2.0.175
 * v2.0, 2015-06-10, fix [#424](https://github.com/simple-rtmp-server/srs/issues/424) fix aggregate timestamp bug. 2.0.174
 * v2.0, 2015-06-06, fix [#421](https://github.com/simple-rtmp-server/srs/issues/421) drop video for unkown RTMP header.
 * v2.0, 2015-06-05, fix [#420](https://github.com/simple-rtmp-server/srs/issues/420) remove ts for hls ram mode.
