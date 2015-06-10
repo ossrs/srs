@@ -88,6 +88,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
     duration = 0;
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
+    wakable = NULL;
     
     mw_sleep = SRS_PERF_MW_SLEEP;
     mw_enabled = false;
@@ -108,6 +109,16 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(bandwidth);
     srs_freep(security);
     srs_freep(kbps);
+}
+
+void SrsRtmpConn::dispose()
+{
+    SrsConnection::dispose();
+    
+    // wakeup the handler which need to notice.
+    if (wakable) {
+        wakable->wakeup();
+    }
 }
 
 // TODO: return detail message when error for client.
@@ -597,7 +608,9 @@ int SrsRtmpConn::playing(SrsSource* source)
     }
     
     // delivery messages for clients playing stream.
+    wakable = consumer;
     ret = do_playing(source, consumer, &trd);
+    wakable = NULL;
     
     // stop isolate recv thread
     trd.stop();

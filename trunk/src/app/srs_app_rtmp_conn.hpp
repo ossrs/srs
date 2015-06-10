@@ -53,6 +53,7 @@ class SrsSharedPtrMessage;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
 class SrsSecurity;
+class ISrsWakable;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -70,6 +71,8 @@ private:
     SrsRefer* refer;
     SrsBandwidth* bandwidth;
     SrsSecurity* security;
+    // the wakable handler, maybe NULL.
+    ISrsWakable* wakable;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/simple-rtmp-server/srs/issues/47
@@ -85,6 +88,8 @@ private:
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c);
     virtual ~SrsRtmpConn();
+public:
+    virtual void dispose();
 protected:
     virtual int do_cycle();
 // interface ISrsReloadHandler
