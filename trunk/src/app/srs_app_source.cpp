@@ -1472,7 +1472,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_audio->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
-            srs_warn("stream not monotonically increase, please open mix_correct.");
+            srs_warn("AUTIO: stream not monotonically increase, please open mix_correct.");
         }
     }
     last_packet_time = shared_audio->header.timestamp;
@@ -1663,7 +1663,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     if (!mix_correct && is_monotonically_increase) {
         if (last_packet_time > 0 && shared_video->header.timestamp < last_packet_time) {
             is_monotonically_increase = false;
-            srs_warn("stream not monotonically increase, please open mix_correct.");
+            srs_warn("VIDEO: stream not monotonically increase, please open mix_correct.");
         }
     }
     last_packet_time = shared_video->header.timestamp;
