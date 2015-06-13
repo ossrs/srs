@@ -2173,8 +2173,8 @@ int SrsRtmpClient::play(string stream, int stream_id)
         pkt->stream_name = stream;
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send play stream failed. "
-                      "stream=%s, stream_id=%d, ret=%d",
-                      stream.c_str(), stream_id, ret);
+                "stream=%s, stream_id=%d, ret=%d", 
+                stream.c_str(), stream_id, ret);
             return ret;
         }
     }
@@ -2190,8 +2190,8 @@ int SrsRtmpClient::play(string stream, int stream_id)
         
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send set buffer length failed. "
-                      "stream=%s, stream_id=%d, bufferLength=%d, ret=%d",
-                      stream.c_str(), stream_id, buffer_length_ms, ret);
+                "stream=%s, stream_id=%d, bufferLength=%d, ret=%d", 
+                stream.c_str(), stream_id, buffer_length_ms, ret);
             return ret;
         }
     }
@@ -2202,8 +2202,8 @@ int SrsRtmpClient::play(string stream, int stream_id)
         pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send set chunk size failed. "
-                      "stream=%s, chunk_size=%d, ret=%d",
-                      stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
+                "stream=%s, chunk_size=%d, ret=%d", 
+                stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
             return ret;
         }
     }
@@ -2221,8 +2221,8 @@ int SrsRtmpClient::publish(string stream, int stream_id)
         pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send set chunk size failed. "
-                      "stream=%s, chunk_size=%d, ret=%d",
-                      stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
+                "stream=%s, chunk_size=%d, ret=%d", 
+                stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
             return ret;
         }
     }
@@ -2233,8 +2233,8 @@ int SrsRtmpClient::publish(string stream, int stream_id)
         pkt->stream_name = stream;
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send publish message failed. "
-                      "stream=%s, stream_id=%d, ret=%d",
-                      stream.c_str(), stream_id, ret);
+                "stream=%s, stream_id=%d, ret=%d", 
+                stream.c_str(), stream_id, ret);
             return ret;
         }
     }
@@ -2253,7 +2253,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
         SrsFMLEStartPacket* pkt = SrsFMLEStartPacket::create_release_stream(stream);
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send FMLE publish "
-                      "release stream failed. stream=%s, ret=%d", stream.c_str(), ret);
+                "release stream failed. stream=%s, ret=%d", stream.c_str(), ret);
             return ret;
         }
     }
@@ -2263,7 +2263,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
         SrsFMLEStartPacket* pkt = SrsFMLEStartPacket::create_FC_publish(stream);
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send FMLE publish "
-                      "FCPublish failed. stream=%s, ret=%d", stream.c_str(), ret);
+                "FCPublish failed. stream=%s, ret=%d", stream.c_str(), ret);
             return ret;
         }
     }
@@ -2274,7 +2274,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
         pkt->transaction_id = 4;
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send FMLE publish "
-                      "createStream failed. stream=%s, ret=%d", stream.c_str(), ret);
+                "createStream failed. stream=%s, ret=%d", stream.c_str(), ret);
             return ret;
         }
     }
@@ -2290,7 +2290,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
         SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsCreateStreamResPacket, pkt);
         srs_info("get create stream response message");
-        
+
         stream_id = (int)pkt->stream_id;
     }
     
@@ -2300,7 +2300,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
         pkt->stream_name = stream;
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send FMLE publish publish failed. "
-                      "stream=%s, stream_id=%d, ret=%d", stream.c_str(), stream_id, ret);
+                "stream=%s, stream_id=%d, ret=%d", stream.c_str(), stream_id, ret);
             return ret;
         }
     }
@@ -2458,9 +2458,9 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     
     srs_info("get connect app message params success.");
     
-    srs_discovery_tc_url(req->tcUrl,
-                         req->schema, req->host, req->vhost, req->app, req->port,
-                         req->param);
+    srs_discovery_tc_url(req->tcUrl, 
+        req->schema, req->host, req->vhost, req->app, req->port,
+        req->param);
     req->strip();
     
     return ret;
@@ -2493,7 +2493,7 @@ int SrsRtmpServer::set_peer_bandwidth(int bandwidth, int type)
         return ret;
     }
     srs_info("send set bandwidth message "
-             "success. bandwidth=%d, type=%d", bandwidth, type);
+        "success. bandwidth=%d, type=%d", bandwidth, type);
     
     return ret;
 }
@@ -2558,7 +2558,7 @@ void SrsRtmpServer::response_connect_reject(SrsRequest* /*req*/, const char* des
         return;
     }
     srs_info("send connect app response rejected message success.");
-    
+
     return;
 }
 
@@ -2589,7 +2589,7 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             }
             return ret;
         }
-        
+
         SrsAutoFree(SrsCommonMessage, msg);
         SrsMessageHeader& h = msg->header;
         
@@ -2599,7 +2599,7 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
         
         if (!h.is_amf0_command() && !h.is_amf3_command()) {
             srs_trace("identify ignore messages except "
-                      "AMF0/AMF3 command message. type=%#x", h.message_type);
+                "AMF0/AMF3 command message. type=%#x", h.message_type);
             continue;
         }
         
@@ -2713,7 +2713,7 @@ int SrsRtmpServer::start_play(int stream_id)
     // |RtmpSampleAccess(false, false)
     if (true) {
         SrsSampleAccessPacket* pkt = new SrsSampleAccessPacket();
-        
+
         // allow audio/video sample.
         // @see: https://github.com/simple-rtmp-server/srs/issues/49
         pkt->audio_sample_access = true;
@@ -2824,7 +2824,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
         
         SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsFMLEStartPacket, pkt);
-        
+    
         fc_publish_tid = pkt->transaction_id;
     }
     // FCPublish response
@@ -3005,17 +3005,17 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
             }
             return ret;
         }
-        
+
         SrsAutoFree(SrsCommonMessage, msg);
         SrsMessageHeader& h = msg->header;
         
         if (h.is_ackledgement() || h.is_set_chunk_size() || h.is_window_ackledgement_size() || h.is_user_control_message()) {
             continue;
         }
-        
+    
         if (!h.is_amf0_command() && !h.is_amf3_command()) {
             srs_trace("identify ignore messages except "
-                      "AMF0/AMF3 command message. type=%#x", h.message_type);
+                "AMF0/AMF3 command message. type=%#x", h.message_type);
             continue;
         }
         
@@ -3024,7 +3024,7 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
             srs_error("identify decode message failed. ret=%d", ret);
             return ret;
         }
-        
+
         SrsAutoFree(SrsPacket, pkt);
         
         if (dynamic_cast<SrsPlayPacket*>(pkt)) {
@@ -3085,7 +3085,7 @@ int SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& typ
     duration = req->duration;
     
     srs_info("identity client type=play, stream_name=%s, duration=%.2f", stream_name.c_str(), duration);
-    
+
     return ret;
 }
 
