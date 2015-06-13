@@ -64,8 +64,6 @@ file
 	../../src/protocol/srs_rtmp_io.cpp,
 	../../src/protocol/srs_rtmp_msg_array.hpp,
 	../../src/protocol/srs_rtmp_msg_array.cpp,
-	../../src/protocol/srs_rtmp_sdk.hpp,
-	../../src/protocol/srs_rtmp_sdk.cpp,
 	../../src/protocol/srs_rtmp_stack.hpp,
 	../../src/protocol/srs_rtmp_stack.cpp,
 	../../src/protocol/srs_rtmp_utility.hpp,
