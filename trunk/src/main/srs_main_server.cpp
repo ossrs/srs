@@ -212,7 +212,7 @@ void check_macro_features()
     srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
 #endif
     
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
     #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
     srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
 #endif

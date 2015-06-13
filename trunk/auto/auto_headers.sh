@@ -136,6 +136,12 @@ else
     echo "#undef SRS_AUTO_SSL" >> $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_MEM_WATCH = YES ]; then
+    echo "#define SRS_AUTO_MEM_WATCH" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_MEM_WATCH" >> $SRS_AUTO_HEADERS_H
+fi
+
 # whether compile ffmpeg tool
 if [ $SRS_FFMPEG_TOOL = YES ]; then
     echo "#define SRS_AUTO_FFMPEG_TOOL" >> $SRS_AUTO_HEADERS_H

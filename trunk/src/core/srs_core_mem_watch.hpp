@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
 
 #include <string>
 

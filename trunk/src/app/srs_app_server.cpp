@@ -569,7 +569,7 @@ void SrsServer::dispose()
         st_usleep(100 * 1000);
     }
     
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
 }
@@ -893,7 +893,7 @@ void SrsServer::on_signal(int signo)
         signal_gmc_stop = true;
 #else
         srs_trace("user terminate program");
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
         srs_memory_report();
 #endif
         exit(0);

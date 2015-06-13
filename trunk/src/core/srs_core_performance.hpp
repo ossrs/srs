@@ -174,7 +174,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * to force the server to send smaller tcp packet.
 * @see https://github.com/simple-rtmp-server/srs/issues/320
 * @remark undef it to auto calc it by merged write sleep ms.
-* @remark only apply it when SRS_PERF_MW_SO_RCVBUF is defined.
+* @remark only apply it when SRS_PERF_MW_SO_SNDBUF is defined.
 */
 #ifdef SRS_PERF_MW_SO_SNDBUF
     //#define SRS_PERF_SO_SNDBUF_SIZE 1024
@@ -187,13 +187,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #undef SRS_PERF_FAST_FLV_ENCODER
 #define SRS_PERF_FAST_FLV_ENCODER
-
-/**
- * whether enable the special memory watcher.
- * which used for memory leak debug and hurts performance.
- */
-#define SRS_MEM_WATCH
-#undef SRS_MEM_WATCH
 
 #endif
 
