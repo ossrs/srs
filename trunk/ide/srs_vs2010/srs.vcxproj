@@ -125,7 +125,6 @@
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_sdk.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtsp_stack.hpp" />
@@ -208,7 +207,6 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_sdk.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtsp_stack.cpp" />

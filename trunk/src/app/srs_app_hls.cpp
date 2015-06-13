@@ -41,7 +41,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>

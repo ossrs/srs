@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_mem_watch.hpp>
 
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
 
 #include <map>
 #include <stdio.h>
@@ -68,7 +68,7 @@ void srs_memory_unwatch(void* ptr)
 
 void srs_memory_report()
 {
-    printf("srs memory leak report:\n");
+    printf("srs memory watch leak report:\n");
     
     int total = 0;
     std::map<void*, SrsMemoryObject*>::iterator it;
@@ -79,6 +79,7 @@ void srs_memory_report()
     }
     
     printf("%d objects leak %dKB.\n", (int)_srs_ptrs.size(), total / 1024);
+    printf("@remark use script to cleanup for memory watch: ./etc/init.d/srs stop\n");
 }
 
 #endif

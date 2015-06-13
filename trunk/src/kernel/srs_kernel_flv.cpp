@@ -160,7 +160,7 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freep(payload);
@@ -173,7 +173,7 @@ void SrsCommonMessage::create_payload(int size)
     payload = new char[size];
     srs_verbose("create payload for RTMP message. size=%d", size);
     
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
     srs_memory_watch(payload, "RTMP.msg.payload", size);
 #endif
 }
@@ -187,7 +187,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
-#ifdef SRS_MEM_WATCH
+#ifdef SRS_AUTO_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freep(payload);

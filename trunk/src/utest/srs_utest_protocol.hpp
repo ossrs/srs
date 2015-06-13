@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <srs_rtmp_utility.hpp>
 
-#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_handshake.hpp>
 #include <srs_protocol_buffer.hpp>
 

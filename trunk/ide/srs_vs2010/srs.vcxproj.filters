@@ -214,9 +214,6 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_sdk.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp">
       <Filter>srs</Filter>
     </ClCompile>
@@ -412,9 +409,6 @@
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_sdk.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp">

@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_io.hpp>
 #include <srs_app_config.hpp>
 #include <srs_rtmp_utility.hpp>

@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_lib_simple_socket.hpp>
 #include <srs_rtmp_utility.hpp>
 #include <srs_core_autofree.hpp>

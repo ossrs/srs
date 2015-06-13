@@ -60,6 +60,9 @@ SRS_LOG_TRACE=RESERVED
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
 SRS_USE_SYS_SSL=NO
+# enable memory watch, detect memory leak,
+# similar to gmc, should disable in release version for hurts performance.
+SRS_MEM_WATCH=NO
 # export the srs-librtmp to specified project, NO to disable it.
 SRS_EXPORT_LIBRTMP_PROJECT=NO
 # export the srs-librtmp to a single .h and .c, NO to disable it.
@@ -195,6 +198,7 @@ Conflicts:
 
 Experts:
   --use-sys-ssl                     donot compile ssl, use system ssl(-lssl) if required.
+  --memory-watch                    enable memory watch to detect memory leaking(hurts performance).
   --export-librtmp-project=<path>   export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    export srs-librtmp to a single file(.h+.cpp) in path.
 
@@ -283,6 +287,7 @@ function parse_user_option() {
         --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
+        --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
 

@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_rtmp_io.hpp>
 #include <srs_rtmp_utility.hpp>
-#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_kernel_stream.hpp>
 
 #ifdef SRS_AUTO_SSL
