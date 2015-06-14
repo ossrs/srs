@@ -1204,25 +1204,27 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return ret;
 }
 
-SrsStaticHttpConn::SrsStaticHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
     : SrsHttpConn(cm, fd, m)
 {
 }
 
-SrsStaticHttpConn::~SrsStaticHttpConn()
+SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 {
 }
 
-int SrsStaticHttpConn::on_got_http_message(ISrsHttpMessage* msg)
+int SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    // TODO: FIXME: use the post body.
-    std::string res;
+    ISrsHttpResponseReader* br = msg->body_reader();
     
-    // get response body.
-    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
-        return ret;
+    // drop all request body.
+    while (!br->eof()) {
+        char body[4096];
+        if ((ret = br->read(body, 4096, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     return ret;

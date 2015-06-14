@@ -394,12 +394,14 @@ private:
     virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-// TODO: FIXME: rename to SrsResponseOnlyHttpConn.
-class SrsStaticHttpConn : public SrsHttpConn
+/**
+ * drop body of request, only process the response.
+ */
+class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
-    SrsStaticHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
-    virtual ~SrsStaticHttpConn();
+    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
+    virtual ~SrsResponseOnlyHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);
 };

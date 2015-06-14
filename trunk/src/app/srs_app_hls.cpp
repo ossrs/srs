@@ -752,7 +752,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         if (should_write_file) {
             unlink(tmp_file.c_str());
             if (unlink(tmp_file.c_str()) < 0) {
-                srs_warn("drop unlink path failed, file=%s.", tmp_file.c_str());
+                srs_warn("ignore unlink path failed, file=%s.", tmp_file.c_str());
             }
         }
         
