@@ -131,8 +131,6 @@ file
 	../../src/app/srs_app_server.cpp,
 	../../src/app/srs_app_st.hpp,
 	../../src/app/srs_app_st.cpp,
-	../../src/app/srs_app_st_socket.hpp,
-	../../src/app/srs_app_st_socket.cpp,
 	../../src/app/srs_app_statistic.hpp,
 	../../src/app/srs_app_statistic.cpp,
 	../../src/app/srs_app_source.hpp,
