@@ -95,7 +95,6 @@
     <ClInclude Include="..\..\src\app\srs_app_source.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_st.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_statistic.hpp" />
-    <ClInclude Include="..\..\src\app\srs_app_st_socket.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_thread.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_utility.hpp" />
     <ClInclude Include="..\..\src\core\srs_core.hpp" />
@@ -176,7 +175,6 @@
     <ClCompile Include="..\..\src\app\srs_app_source.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_st.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_statistic.cpp" />
-    <ClCompile Include="..\..\src\app\srs_app_st_socket.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_thread.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_utility.cpp" />
     <ClCompile Include="..\..\src\core\srs_core.cpp" />

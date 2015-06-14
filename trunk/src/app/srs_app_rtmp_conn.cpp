@@ -42,7 +42,7 @@ using namespace std;
 #include <srs_app_refer.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_bandwidth.hpp>
-#include <srs_app_st_socket.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_utility.hpp>

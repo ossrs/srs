@@ -30,7 +30,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_app_st_socket.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_json.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_http_client.hpp>

@@ -35,7 +35,7 @@ using namespace std;
 #include <srs_rtmp_io.hpp>
 #include <srs_app_config.hpp>
 #include <srs_rtmp_utility.hpp>
-#include <srs_app_st_socket.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>

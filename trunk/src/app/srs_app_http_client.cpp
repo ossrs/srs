@@ -31,7 +31,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_app_st_socket.hpp>
+#include <srs_app_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
