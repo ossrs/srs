@@ -235,10 +235,11 @@ class SrsServer : virtual public ISrsReloadHandler
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
+    // TODO: FIXME: rename to http_api
     SrsHttpServeMux* http_api_mux;
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    SrsHttpServer* http_stream_mux;
+    SrsHttpServer* http_server;
 #endif
 #ifdef SRS_AUTO_HTTP_CORE
     SrsHttpHeartbeat* http_heartbeat;
