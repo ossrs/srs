@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3C036B551B2D0AC10078E2E0 /* srs_app_http_static.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C036B511B2D0AC10078E2E0 /* srs_app_http_static.cpp */; };
+		3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C036B531B2D0AC10078E2E0 /* srs_app_http_stream.cpp */; };
 		3C068D6A1B10149F00AA722C /* srs_protocol_kbps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C068D681B10149F00AA722C /* srs_protocol_kbps.cpp */; };
 		3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */; };
 		3C0E1B8D1B0F5ADF003ADEF7 /* srs_http_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */; };
@@ -121,6 +123,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3C036B511B2D0AC10078E2E0 /* srs_app_http_static.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_http_static.cpp; path = ../../../src/app/srs_app_http_static.cpp; sourceTree = "<group>"; };
+		3C036B521B2D0AC10078E2E0 /* srs_app_http_static.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_http_static.hpp; path = ../../../src/app/srs_app_http_static.hpp; sourceTree = "<group>"; };
+		3C036B531B2D0AC10078E2E0 /* srs_app_http_stream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_http_stream.cpp; path = ../../../src/app/srs_app_http_stream.cpp; sourceTree = "<group>"; };
+		3C036B541B2D0AC10078E2E0 /* srs_app_http_stream.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_http_stream.hpp; path = ../../../src/app/srs_app_http_stream.hpp; sourceTree = "<group>"; };
 		3C068D681B10149F00AA722C /* srs_protocol_kbps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_kbps.cpp; path = ../../../src/protocol/srs_protocol_kbps.cpp; sourceTree = "<group>"; };
 		3C068D691B10149F00AA722C /* srs_protocol_kbps.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_protocol_kbps.hpp; path = ../../../src/protocol/srs_protocol_kbps.hpp; sourceTree = "<group>"; };
 		3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_buffer.cpp; path = ../../../src/protocol/srs_protocol_buffer.cpp; sourceTree = "<group>"; };
@@ -551,6 +557,10 @@
 				3C1232671AAE81D900CE8F6C /* srs_app_http_conn.hpp */,
 				3C1232681AAE81D900CE8F6C /* srs_app_http_hooks.cpp */,
 				3C1232691AAE81D900CE8F6C /* srs_app_http_hooks.hpp */,
+				3C036B511B2D0AC10078E2E0 /* srs_app_http_static.cpp */,
+				3C036B521B2D0AC10078E2E0 /* srs_app_http_static.hpp */,
+				3C036B531B2D0AC10078E2E0 /* srs_app_http_stream.cpp */,
+				3C036B541B2D0AC10078E2E0 /* srs_app_http_stream.hpp */,
 				3C12326C1AAE81D900CE8F6C /* srs_app_ingest.cpp */,
 				3C12326D1AAE81D900CE8F6C /* srs_app_ingest.hpp */,
 				3C12326E1AAE81D900CE8F6C /* srs_app_json.cpp */,
@@ -907,10 +917,12 @@
 				3C1232461AAE81A400CE8F6C /* srs_rtmp_msg_array.cpp in Sources */,
 				3C1232A71AAE81D900CE8F6C /* srs_app_listener.cpp in Sources */,
 				3C1232261AAE814D00CE8F6C /* srs_kernel_flv.cpp in Sources */,
+				3C036B551B2D0AC10078E2E0 /* srs_app_http_static.cpp in Sources */,
 				3C663F1A1AB0155100286D8B /* srs_rtmp_dump.c in Sources */,
 				3CE6CD311AE4AFB800706E07 /* srs_main_ingest_hls.cpp in Sources */,
 				3C28EDDF1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp in Sources */,
 				3C1232241AAE814D00CE8F6C /* srs_kernel_error.cpp in Sources */,
+				3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */,
 				3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */,
 				3C1232441AAE81A400CE8F6C /* srs_rtmp_handshake.cpp in Sources */,
 				3C1232291AAE814D00CE8F6C /* srs_kernel_stream.cpp in Sources */,

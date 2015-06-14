@@ -64,6 +64,12 @@
     <ClCompile Include="..\..\src\app\srs_app_http_conn.cpp">
       <Filter>srs</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\app\srs_app_http_static.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\app\srs_app_http_stream.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\app\srs_app_http_hooks.cpp">
       <Filter>srs</Filter>
     </ClCompile>

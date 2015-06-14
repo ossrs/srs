@@ -77,6 +77,8 @@
     <ClInclude Include="..\..\src\app\srs_app_http_api.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_client.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_conn.hpp" />
+    <ClInclude Include="..\..\src\app\srs_app_http_static.hpp" />
+    <ClInclude Include="..\..\src\app\srs_app_http_stream.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_hooks.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_ingest.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_json.hpp" />
@@ -157,6 +159,8 @@
     <ClCompile Include="..\..\src\app\srs_app_http_api.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_client.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_conn.cpp" />
+    <ClCompile Include="..\..\src\app\srs_app_http_static.cpp" />
+    <ClCompile Include="..\..\src\app\srs_app_http_stream.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_hooks.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_ingest.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_json.cpp" />

@@ -496,7 +496,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsHttpServeMux();
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_mux = new SrsHttpServer(this);
+    http_server = new SrsHttpServer(this);
 #endif
 #ifdef SRS_AUTO_HTTP_CORE
     http_heartbeat = NULL;
@@ -522,7 +522,7 @@ void SrsServer::destroy()
 #endif
 
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_freep(http_stream_mux);
+    srs_freep(http_server);
 #endif
 
 #ifdef SRS_AUTO_HTTP_CORE
@@ -602,8 +602,8 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
 #endif
 
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_assert(http_stream_mux);
-    if ((ret = http_stream_mux->initialize()) != ERROR_SUCCESS) {
+    srs_assert(http_server);
+    if ((ret = http_server->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -807,13 +807,6 @@ int SrsServer::http_handle()
         return ret;
     }
     if ((ret = http_api_mux->handle("/api/v1/streams", new SrsGoApiStreams())) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-    
-#if defined(SRS_AUTO_HTTP_SERVER) && defined(SRS_AUTO_HTTP_API)
-    // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
-    if ((ret = http_stream_mux->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1226,7 +1219,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsStaticHttpConn(this, client_stfd, &http_stream_mux->mux);
+        conn = new SrsStaticHttpConn(this, client_stfd, http_server);
 #else
         srs_warn("close http client for server not support http-server");
         srs_close_stfd(client_stfd);
@@ -1364,7 +1357,7 @@ int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->http_mount(s, r)) != ERROR_SUCCESS) {
+    if ((ret = http_server->http_mount(s, r)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1375,7 +1368,7 @@ int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
 void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
 {
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_mux->http_unmount(s, r);
+    http_server->http_unmount(s, r);
 #endif
 }
 
@@ -1384,7 +1377,7 @@ int SrsServer::on_hls_publish(SrsRequest* r)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->mount_hls(r)) != ERROR_SUCCESS) {
+    if ((ret = http_server->mount_hls(r)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1397,7 +1390,7 @@ int SrsServer::on_update_m3u8(SrsRequest* r, string m3u8)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->hls_update_m3u8(r, m3u8)) != ERROR_SUCCESS) {
+    if ((ret = http_server->hls_update_m3u8(r, m3u8)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1410,7 +1403,7 @@ int SrsServer::on_update_ts(SrsRequest* r, string uri, string ts)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->hls_update_ts(r, uri, ts)) != ERROR_SUCCESS) {
+    if ((ret = http_server->hls_update_ts(r, uri, ts)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1424,7 +1417,7 @@ int SrsServer::on_remove_ts(SrsRequest* r, string uri)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->hls_remove_ts(r, uri)) != ERROR_SUCCESS) {
+    if ((ret = http_server->hls_remove_ts(r, uri)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1437,7 +1430,7 @@ int SrsServer::on_hls_unpublish(SrsRequest* r)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_mux->unmount_hls(r);
+    http_server->unmount_hls(r);
 #endif
     
     return ret;

@@ -228,6 +228,11 @@ ISrsHttpHandler::~ISrsHttpHandler()
 {
 }
 
+bool ISrsHttpHandler::is_not_found()
+{
+    return false;
+}
+
 SrsHttpRedirectHandler::SrsHttpRedirectHandler(string u, int c)
 {
     url = u;
@@ -251,6 +256,11 @@ SrsHttpNotFoundHandler::SrsHttpNotFoundHandler()
 
 SrsHttpNotFoundHandler::~SrsHttpNotFoundHandler()
 {
+}
+
+bool SrsHttpNotFoundHandler::is_not_found()
+{
+    return true;
 }
 
 int SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -487,6 +497,14 @@ ISrsHttpMatchHijacker::~ISrsHttpMatchHijacker()
 {
 }
 
+ISrsHttpServeMux::ISrsHttpServeMux()
+{
+}
+
+ISrsHttpServeMux::~ISrsHttpServeMux()
+{
+}
+
 SrsHttpServeMux::SrsHttpServeMux()
 {
 }
@@ -604,6 +622,19 @@ int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
     return ret;
 }
 
+bool SrsHttpServeMux::can_serve(ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ISrsHttpHandler* h = NULL;
+    if ((ret = find_handler(r, &h)) != ERROR_SUCCESS) {
+        return false;
+    }
+    
+    srs_assert(h);
+    return !h->is_not_found();
+}
+
 int SrsHttpServeMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
@@ -654,9 +685,9 @@ int SrsHttpServeMux::find_handler(ISrsHttpMessage* r, ISrsHttpHandler** ph)
         }
     }
     
+    static ISrsHttpHandler* h404 = new SrsHttpNotFoundHandler();
     if (*ph == NULL) {
-        // TODO: FIXME: memory leak.
-        *ph = new SrsHttpNotFoundHandler();
+        *ph = h404;
     }
     
     return ret;

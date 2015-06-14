@@ -247,6 +247,7 @@ public:
     ISrsHttpHandler();
     virtual ~ISrsHttpHandler();
 public:
+    virtual bool is_not_found();
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
 };
 
@@ -270,6 +271,7 @@ public:
     SrsHttpNotFoundHandler();
     virtual ~SrsHttpNotFoundHandler();
 public:
+    virtual bool is_not_found();
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
@@ -347,6 +349,18 @@ public:
     virtual int hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph) = 0;
 };
 
+/**
+ * the server mux, all http server should implements it.
+ */
+class ISrsHttpServeMux
+{
+public:
+    ISrsHttpServeMux();
+    virtual ~ISrsHttpServeMux();
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
+};
+
 // ServeMux is an HTTP request multiplexer.
 // It matches the URL of each incoming request against a list of registered
 // patterns and calls the handler for the pattern that
@@ -374,7 +388,7 @@ public:
 // ServeMux also takes care of sanitizing the URL request path,
 // redirecting any request containing . or .. elements to an
 // equivalent .- and ..-free URL.
-class SrsHttpServeMux
+class SrsHttpServeMux : public ISrsHttpServeMux
 {
 private:
     // the pattern handler, to handle the http request.
@@ -406,7 +420,10 @@ public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
     virtual int handle(std::string pattern, ISrsHttpHandler* handler);
-    // interface ISrsHttpHandler
+    // whether the http muxer can serve the specified message,
+    // if not, user can try next muxer.
+    virtual bool can_serve(ISrsHttpMessage* r);
+// interface ISrsHttpServeMux
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
