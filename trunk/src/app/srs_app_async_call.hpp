@@ -48,7 +48,16 @@ public:
     ISrsAsyncCallTask();
     virtual ~ISrsAsyncCallTask();
 public:
+    /**
+     * execute the task async.
+     * this method is the actual execute method of task,
+     * for example, to notify callback server.
+     */
     virtual int call() = 0;
+    /**
+     * convert task to string to describe it.
+     * used for logger.
+     */
     virtual std::string to_string() = 0;
 };
 
