@@ -232,7 +232,7 @@ git clone https://gitlab.com/winlinvip/srs-gitlab.git
 
 <pre>
 git clone https://github.com/simple-rtmp-server/srs &&
-cd simple-rtmp-server/trunk
+cd srs/trunk
 </pre>
 
 <strong>Step 2:</strong> build SRS,
