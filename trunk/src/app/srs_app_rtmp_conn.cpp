@@ -455,14 +455,6 @@ int SrsRtmpConn::stream_service_cycle()
         case SrsRtmpConnPlay: {
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
-            if (vhost_is_edge) {
-                // notice edge to start for the first client.
-                if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
-                    srs_error("notice edge start play stream failed. ret=%d", ret);
-                    return ret;
-                }
-            }
-            
             // response connection start play
             if ((ret = rtmp->start_play(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("start to play stream failed. ret=%d", ret);
@@ -481,13 +473,6 @@ int SrsRtmpConn::stream_service_cycle()
         }
         case SrsRtmpConnFMLEPublish: {
             srs_verbose("FMLE start to publish stream %s.", req->stream.c_str());
-            
-            if (vhost_is_edge) {
-                if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
-                    srs_error("notice edge start publish stream failed. ret=%d", ret);
-                    return ret;
-                }
-            }
             
             if ((ret = rtmp->start_fmle_publish(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("start to publish stream failed. ret=%d", ret);
@@ -510,13 +495,6 @@ int SrsRtmpConn::stream_service_cycle()
         }
         case SrsRtmpConnFlashPublish: {
             srs_verbose("flash start to publish stream %s.", req->stream.c_str());
-            
-            if (vhost_is_edge) {
-                if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
-                    srs_error("notice edge start publish stream failed. ret=%d", ret);
-                    return ret;
-                }
-            }
             
             if ((ret = rtmp->start_flash_publish(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("flash start to publish stream failed. ret=%d", ret);
@@ -596,6 +574,14 @@ int SrsRtmpConn::playing(SrsSource* source)
     }
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
+
+    if (_srs_config->get_vhost_is_edge(req->vhost)) {
+        // notice edge to start for the first client.
+        if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
+            srs_error("notice edge start play stream failed. ret=%d", ret);
+            return ret;
+        }
+    }
     
     // use isolate thread to recv, 
     // @see: https://github.com/simple-rtmp-server/srs/issues/217
@@ -874,6 +860,12 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             return ret;
         }
         srs_verbose("hls on_publish success.");
+    }
+    else {
+        if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
+            srs_error("notice edge start publish stream failed. ret=%d", ret);
+            return ret;
+        }
     }
 
     // start isolate recv thread.
