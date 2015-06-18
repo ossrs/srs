@@ -860,8 +860,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             return ret;
         }
         srs_verbose("hls on_publish success.");
-    }
-    else {
+    } else {
         if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
             srs_error("notice edge start publish stream failed. ret=%d", ret);
             return ret;
