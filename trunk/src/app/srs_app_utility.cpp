@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include <stdlib.h>
 #include <sys/time.h>
+#include <map>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -1018,6 +1019,46 @@ void srs_update_network_devices()
 #endif
 }
 
+// we detect all network device as internet or intranet device, by its ip address.
+//      key is device name, for instance, eth0
+//      value is whether internet, for instance, true.
+static std::map<std::string, bool> _srs_device_ifs;
+
+bool srs_net_device_is_internet(string ifname)
+{
+    if (_srs_device_ifs.find(ifname) == _srs_device_ifs.end()) {
+        return false;
+    }
+    return _srs_device_ifs[ifname];
+}
+
+bool srs_net_device_is_internet(in_addr_t addr)
+{
+    u_int32_t addr_h = ntohl(addr);
+    
+    // lo, 127.0.0.0-127.0.0.1
+    if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
+        return false;
+    }
+    
+    // Class A 10.0.0.0-10.255.255.255
+    if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
+        return false;
+    }
+    
+    // Class B 172.16.0.0-172.31.255.255
+    if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
+        return false;
+    }
+    
+    // Class C 192.168.0.0-192.168.255.255
+    if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
+        return false;
+    }
+    
+    return true;
+}
+
 SrsNetworkRtmpServer::SrsNetworkRtmpServer()
 {
     ok = false;
@@ -1186,7 +1227,9 @@ void retrieve_local_ipv4_ips()
     
     ifaddrs* p = ifap;
     while (p != NULL) {
-        sockaddr* addr = p->ifa_addr;
+        ifaddrs* cur = p;
+        sockaddr* addr = cur->ifa_addr;
+        p = p->ifa_next;
         
         // retrieve ipv4 addr
         // ignore the tun0 network device, 
@@ -1208,9 +1251,16 @@ void retrieve_local_ipv4_ips()
                 srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
                 ips.push_back(ip);
             }
+            
+            // set the device internet status.
+            if (!srs_net_device_is_internet(inaddr->s_addr)) {
+                srs_trace("detect intranet address: %s", ip.c_str());
+                _srs_device_ifs[cur->ifa_name] = false;
+            } else {
+                srs_trace("detect internet address: %s", ip.c_str());
+                _srs_device_ifs[cur->ifa_name] = true;
+            }
         }
-        
-        p = p->ifa_next;
     }
 
     freeifaddrs(ifap);
@@ -1326,7 +1376,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
         
         // ignore the lo interface.
         std::string inter = o.name;
-        if (!o.ok || inter == "lo") {
+        if (!o.ok || inter == "lo" || !srs_net_device_is_internet(inter)) {
             continue;
         }
         

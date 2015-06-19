@@ -609,6 +609,9 @@ extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
 // the deamon st-thread will update it.
 extern void srs_update_network_devices();
+// detect whether specified device is internet public address.
+extern bool srs_net_device_is_internet(std::string ifname);
+extern bool srs_net_device_is_internet(in_addr_t addr);
 
 // system connections, and srs rtmp network summary
 class SrsNetworkRtmpServer
