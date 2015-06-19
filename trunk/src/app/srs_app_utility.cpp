@@ -1000,12 +1000,14 @@ void srs_update_network_devices()
     
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
             // @remark, we use our algorithm, not sysstat.
+            char fname[7];
             sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
-                r.name, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
+                fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
                 &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
                 
-            r.name[sizeof(r.name) - 1] = 0;
+            sscanf(fname, "%s", r.name);
             _nb_srs_system_network_devices = i + 1;
+            srs_info("scan network device ifname=%s, total=%d", r.name, _nb_srs_system_network_devices);
             
             r.sample_time = srs_get_system_time_ms();
             r.ok = true;
@@ -1026,6 +1028,8 @@ static std::map<std::string, bool> _srs_device_ifs;
 
 bool srs_net_device_is_internet(string ifname)
 {
+    srs_info("check ifname=%s", ifname.c_str());
+
     if (_srs_device_ifs.find(ifname) == _srs_device_ifs.end()) {
         return false;
     }
@@ -1254,10 +1258,10 @@ void retrieve_local_ipv4_ips()
             
             // set the device internet status.
             if (!srs_net_device_is_internet(inaddr->s_addr)) {
-                srs_trace("detect intranet address: %s", ip.c_str());
+                srs_trace("detect intranet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
                 _srs_device_ifs[cur->ifa_name] = false;
             } else {
-                srs_trace("detect internet address: %s", ip.c_str());
+                srs_trace("detect internet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
                 _srs_device_ifs[cur->ifa_name] = true;
             }
         }

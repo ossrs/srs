@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <sstream>
 
+#include <arpa/inet.h>
 #include <sys/resource.h>
 
 #include <srs_app_st.hpp>
