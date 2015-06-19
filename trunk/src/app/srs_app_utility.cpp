@@ -1374,19 +1374,30 @@ void srs_api_dump_summaries(std::stringstream& ss)
     int64_t n_sample_time = 0;
     int64_t nr_bytes = 0;
     int64_t ns_bytes = 0;
+    int64_t nri_bytes = 0;
+    int64_t nsi_bytes = 0;
     int nb_n = srs_get_network_devices_count();
     for (int i = 0; i < nb_n; i++) {
         SrsNetworkDevices& o = n[i];
         
         // ignore the lo interface.
         std::string inter = o.name;
-        if (!o.ok || inter == "lo" || !srs_net_device_is_internet(inter)) {
+        if (!o.ok) {
+            continue;
+        }
+        
+        // update the sample time.
+        n_sample_time = o.sample_time;
+        
+        // stat the intranet bytes.
+        if (inter == "lo" || !srs_net_device_is_internet(inter)) {
+            nri_bytes += o.rbytes;
+            nsi_bytes += o.sbytes;
             continue;
         }
         
         nr_bytes += o.rbytes;
         ns_bytes += o.sbytes;
-        n_sample_time = o.sample_time;
     }
     
     // all data is ok?
@@ -1425,9 +1436,15 @@ void srs_api_dump_summaries(std::stringstream& ss)
                 << SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << SRS_JFIELD_CONT
+                // system network bytes stat.
                 << SRS_JFIELD_ORG("net_sample_time", n_sample_time) << SRS_JFIELD_CONT
+                // internet public address network device bytes.
                 << SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << SRS_JFIELD_CONT
+                // intranet private address network device bytes.
+                << SRS_JFIELD_ORG("net_recvi_bytes", nri_bytes) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("net_sendi_bytes", nsi_bytes) << SRS_JFIELD_CONT
+                // srs network bytes stat.
                 << SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << SRS_JFIELD_CONT
