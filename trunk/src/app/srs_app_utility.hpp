@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <sstream>
 
+#include <arpa/inet.h>
 #include <sys/resource.h>
 
 #include <srs_app_st.hpp>
@@ -609,6 +610,9 @@ extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
 // the deamon st-thread will update it.
 extern void srs_update_network_devices();
+// detect whether specified device is internet public address.
+extern bool srs_net_device_is_internet(std::string ifname);
+extern bool srs_net_device_is_internet(in_addr_t addr);
 
 // system connections, and srs rtmp network summary
 class SrsNetworkRtmpServer

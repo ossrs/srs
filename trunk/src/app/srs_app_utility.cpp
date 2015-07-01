@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include <stdlib.h>
 #include <sys/time.h>
+#include <map>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -999,12 +1000,14 @@ void srs_update_network_devices()
     
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
             // @remark, we use our algorithm, not sysstat.
+            char fname[7];
             sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
-                r.name, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
+                fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
                 &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
                 
-            r.name[sizeof(r.name) - 1] = 0;
+            sscanf(fname, "%s", r.name);
             _nb_srs_system_network_devices = i + 1;
+            srs_info("scan network device ifname=%s, total=%d", r.name, _nb_srs_system_network_devices);
             
             r.sample_time = srs_get_system_time_ms();
             r.ok = true;
@@ -1016,6 +1019,48 @@ void srs_update_network_devices()
     // TODO: FIXME: impelments it.
     // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
+}
+
+// we detect all network device as internet or intranet device, by its ip address.
+//      key is device name, for instance, eth0
+//      value is whether internet, for instance, true.
+static std::map<std::string, bool> _srs_device_ifs;
+
+bool srs_net_device_is_internet(string ifname)
+{
+    srs_info("check ifname=%s", ifname.c_str());
+
+    if (_srs_device_ifs.find(ifname) == _srs_device_ifs.end()) {
+        return false;
+    }
+    return _srs_device_ifs[ifname];
+}
+
+bool srs_net_device_is_internet(in_addr_t addr)
+{
+    u_int32_t addr_h = ntohl(addr);
+    
+    // lo, 127.0.0.0-127.0.0.1
+    if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
+        return false;
+    }
+    
+    // Class A 10.0.0.0-10.255.255.255
+    if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
+        return false;
+    }
+    
+    // Class B 172.16.0.0-172.31.255.255
+    if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
+        return false;
+    }
+    
+    // Class C 192.168.0.0-192.168.255.255
+    if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
+        return false;
+    }
+    
+    return true;
 }
 
 SrsNetworkRtmpServer::SrsNetworkRtmpServer()
@@ -1186,7 +1231,9 @@ void retrieve_local_ipv4_ips()
     
     ifaddrs* p = ifap;
     while (p != NULL) {
-        sockaddr* addr = p->ifa_addr;
+        ifaddrs* cur = p;
+        sockaddr* addr = cur->ifa_addr;
+        p = p->ifa_next;
         
         // retrieve ipv4 addr
         // ignore the tun0 network device, 
@@ -1208,9 +1255,16 @@ void retrieve_local_ipv4_ips()
                 srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
                 ips.push_back(ip);
             }
+            
+            // set the device internet status.
+            if (!srs_net_device_is_internet(inaddr->s_addr)) {
+                srs_trace("detect intranet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                _srs_device_ifs[cur->ifa_name] = false;
+            } else {
+                srs_trace("detect internet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                _srs_device_ifs[cur->ifa_name] = true;
+            }
         }
-        
-        p = p->ifa_next;
     }
 
     freeifaddrs(ifap);
@@ -1320,19 +1374,30 @@ void srs_api_dump_summaries(std::stringstream& ss)
     int64_t n_sample_time = 0;
     int64_t nr_bytes = 0;
     int64_t ns_bytes = 0;
+    int64_t nri_bytes = 0;
+    int64_t nsi_bytes = 0;
     int nb_n = srs_get_network_devices_count();
     for (int i = 0; i < nb_n; i++) {
         SrsNetworkDevices& o = n[i];
         
         // ignore the lo interface.
         std::string inter = o.name;
-        if (!o.ok || inter == "lo") {
+        if (!o.ok) {
+            continue;
+        }
+        
+        // update the sample time.
+        n_sample_time = o.sample_time;
+        
+        // stat the intranet bytes.
+        if (inter == "lo" || !srs_net_device_is_internet(inter)) {
+            nri_bytes += o.rbytes;
+            nsi_bytes += o.sbytes;
             continue;
         }
         
         nr_bytes += o.rbytes;
         ns_bytes += o.sbytes;
-        n_sample_time = o.sample_time;
     }
     
     // all data is ok?
@@ -1371,9 +1436,15 @@ void srs_api_dump_summaries(std::stringstream& ss)
                 << SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << SRS_JFIELD_CONT
+                // system network bytes stat.
                 << SRS_JFIELD_ORG("net_sample_time", n_sample_time) << SRS_JFIELD_CONT
+                // internet public address network device bytes.
                 << SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << SRS_JFIELD_CONT
+                // intranet private address network device bytes.
+                << SRS_JFIELD_ORG("net_recvi_bytes", nri_bytes) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("net_sendi_bytes", nsi_bytes) << SRS_JFIELD_CONT
+                // srs network bytes stat.
                 << SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << SRS_JFIELD_CONT
