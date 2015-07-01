@@ -981,11 +981,11 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     }
     srs_info("sps parse profile=%d, level=%d, sps_id=%d", profile_idc, level_idc, seq_parameter_set_id);
     
+    int32_t chroma_format_idc = -1;
     if (profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 244
         || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118
         || profile_idc == 128
     ) {
-        int32_t chroma_format_idc = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1016,9 +1016,18 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
             return ret;
         }
         if (seq_scaling_matrix_present_flag) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("sps the seq_scaling_matrix_present_flag invalid. ret=%d", ret);
-            return ret;
+            int nb_scmpfs = ((chroma_format_idc != 3)? 8:12);
+            for (int i = 0; i < nb_scmpfs; i++) {
+                int8_t seq_scaling_matrix_present_flag_i = -1;
+                if ((ret = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag_i)) != ERROR_SUCCESS) {
+                    return ret;
+                }
+                if (seq_scaling_matrix_present_flag_i) {
+                    ret = ERROR_HLS_DECODE_ERROR;
+                    srs_error("sps the seq_scaling_matrix_present_flag invalid, i=%d, nb_scmpfs=%d. ret=%d", i, nb_scmpfs, ret);
+                    return ret;
+                }
+            }
         }
     }
     
