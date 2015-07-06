@@ -639,11 +639,11 @@ int SrsDvrPlan::on_reap_segment()
 SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
 {
     std::string plan = _srs_config->get_dvr_plan(vhost);
-    if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT) {
+    if (srs_config_dvr_is_plan_segment(plan)) {
         return new SrsDvrSegmentPlan();
-    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION) {
+    } else if (srs_config_dvr_is_plan_session(plan)) {
         return new SrsDvrSessionPlan();
-    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND) {
+    } else if (srs_config_dvr_is_plan_append(plan)) {
         return new SrsDvrAppendPlan();
     } else {
         srs_error("invalid dvr plan=%s, vhost=%s", plan.c_str(), vhost.c_str());
