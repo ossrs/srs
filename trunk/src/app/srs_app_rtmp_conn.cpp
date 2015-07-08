@@ -206,6 +206,7 @@ int SrsRtmpConn::do_cycle()
     }
     
     ret = service_cycle();
+    
     http_hooks_on_close();
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_disconnect(_srs_context->get_id());
