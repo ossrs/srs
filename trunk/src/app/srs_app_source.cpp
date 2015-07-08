@@ -1350,14 +1350,13 @@ int SrsSource::source_id()
     return _source_id;
 }
 
-bool SrsSource::can_publish()
+bool SrsSource::can_publish(bool is_edge)
 {
-    return _can_publish;
-}
+    if (is_edge) {
+        return publish_edge->can_publish();
+    }
 
-bool SrsSource::proxy_can_publish()
-{
-    return publish_edge->can_publish();
+    return _can_publish;
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)

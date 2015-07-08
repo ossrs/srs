@@ -121,6 +121,7 @@ void SrsEdgeIngester::stop()
 int SrsEdgeIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
+
     _source->on_source_id_changed(_srs_context->get_id());
         
     std::string ep_server, ep_port;
@@ -384,8 +385,8 @@ int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
     
     kbps->set_io(io, io);
     
-    srs_trace("edge pull connected, can_publish=%d, url=%s/%s, server=%s:%d",
-        _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
+    srs_trace("edge pull connected, url=%s/%s, server=%s:%d",
+        _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
     
     return ret;
 }
