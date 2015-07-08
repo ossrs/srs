@@ -806,6 +806,11 @@ int SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
     return ret;
 }
 
+bool SrsPublishEdge::can_publish()
+{
+    return state != SrsEdgeStatePublish;
+}
+
 int SrsPublishEdge::on_client_publish()
 {
     int ret = ERROR_SUCCESS;

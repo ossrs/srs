@@ -538,6 +538,7 @@ public:
 // logic data methods
 public:
     virtual bool can_publish();
+    virtual bool proxy_can_publish();
     virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 public:
     virtual int on_audio(SrsCommonMessage* audio);

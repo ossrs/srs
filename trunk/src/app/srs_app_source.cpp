@@ -1355,6 +1355,11 @@ bool SrsSource::can_publish()
     return _can_publish;
 }
 
+bool SrsSource::proxy_can_publish()
+{
+    return publish_edge->can_publish();
+}
+
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;

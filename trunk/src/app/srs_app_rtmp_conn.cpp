@@ -423,26 +423,19 @@ int SrsRtmpConn::stream_service_cycle()
         }
     }
     srs_assert(source != NULL);
-    
+
+    // check ASAP, to fail it faster if invalid.
+    if (type != SrsRtmpConnPlay) {
+        if ((ret = prepare_publish(source, vhost_is_edge)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((ret = stat->on_client(_srs_context->get_id(), req)) != ERROR_SUCCESS) {
         srs_error("stat client failed. ret=%d", ret);
         return ret;
-    }
-
-    // check ASAP, to fail it faster if invalid.
-    if (type != SrsRtmpConnPlay && !vhost_is_edge) {
-        // check publish available
-        // for edge, never check it, for edge use proxy mode.
-        if (!source->can_publish()) {
-            ret = ERROR_SYSTEM_STREAM_BUSY;
-            srs_warn("stream %s is already publishing. ret=%d", 
-                req->get_stream_url().c_str(), ret);
-            // to delay request
-            st_usleep(SRS_STREAM_BUSY_SLEEP_US);
-            return ret;
-        }
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
@@ -1257,6 +1250,31 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl.c_str());
     
+    return ret;
+}
+
+int SrsRtmpConn::prepare_publish(SrsSource* source, bool vhost_is_edge)
+{
+    int ret = ERROR_SUCCESS;
+    srs_assert(source);
+
+    // check publish available
+    bool can_publish = false;
+    if (vhost_is_edge) {
+        can_publish = source->proxy_can_publish();
+    } else {
+        can_publish = source->can_publish();
+    }
+    
+    if (!can_publish) {
+        ret = ERROR_SYSTEM_STREAM_BUSY;
+        srs_warn("stream %s is already publishing. ret=%d", 
+            req->get_stream_url().c_str(), ret);
+        // to delay request
+        st_usleep(SRS_STREAM_BUSY_SLEEP_US);
+        return ret;
+    }
+
     return ret;
 }
 
