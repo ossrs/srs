@@ -55,11 +55,98 @@ using namespace _srs_internal;
 #define SRS_CONF_PERFER_FALSE(conf_arg) conf_arg == "on"
 #define SRS_CONF_PERFER_TRUE(conf_arg) conf_arg != "off"
 
+///////////////////////////////////////////////////////////
+// default consts values
+///////////////////////////////////////////////////////////
+#define SRS_CONF_DEFAULT_PID_FILE "./objs/srs.pid"
+#define SRS_CONF_DEFAULT_LOG_FILE "./objs/srs.log"
+#define SRS_CONF_DEFAULT_LOG_LEVEL "trace"
+#define SRS_CONF_DEFAULT_LOG_TANK_CONSOLE "console"
+#define SRS_CONF_DEFAULT_COFNIG_FILE "conf/srs.conf"
+#define SRS_CONF_DEFAULT_FF_LOG_DIR "./objs"
+#define SRS_CONF_DEFAULT_UTC_TIME false
+
+#define SRS_CONF_DEFAULT_MAX_CONNECTIONS 1000
+#define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_HLS_M3U8_FILE "[app]/[stream].m3u8"
+#define SRS_CONF_DEFAULT_HLS_TS_FILE "[app]/[stream]-[seq].ts"
+#define SRS_CONF_DEFAULT_HLS_TS_FLOOR false
+#define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
+#define SRS_CONF_DEFAULT_HLS_TD_RATIO 1.5
+#define SRS_CONF_DEFAULT_HLS_AOF_RATIO 2.0
+#define SRS_CONF_DEFAULT_HLS_WINDOW 60
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE "ignore"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE "continue"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
+#define SRS_CONF_DEFAULT_HLS_STORAGE "disk"
+#define SRS_CONF_DEFAULT_HLS_MOUNT "[vhost]/[app]/[stream].m3u8"
+#define SRS_CONF_DEFAULT_HLS_ACODEC "aac"
+#define SRS_CONF_DEFAULT_HLS_VCODEC "h264"
+#define SRS_CONF_DEFAULT_HLS_CLEANUP true
+#define SRS_CONF_DEFAULT_HLS_WAIT_KEYFRAME true
+#define SRS_CONF_DEFAULT_HLS_NB_NOTIFY 64
+#define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html/[app]/[stream].[timestamp].flv"
+#define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
+#define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
+#define SRS_CONF_DEFAULT_DVR_PLAN_APPEND "append"
+#define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
+#define SRS_CONF_DEFAULT_DVR_DURATION 30
+#define SRS_CONF_DEFAULT_TIME_JITTER "full"
+#define SRS_CONF_DEFAULT_ATC_AUTO true
+#define SRS_CONF_DEFAULT_MIX_CORRECT false
+// in seconds, the paused queue length.
+#define SRS_CONF_DEFAULT_PAUSED_LENGTH 10
+// the interval in seconds for bandwidth check
+#define SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL 30
+// the interval in seconds for bandwidth check
+#define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
+
+#define SRS_CONF_DEFAULT_HTTP_MOUNT "[vhost]/"
+#define SRS_CONF_DEFAULT_HTTP_REMUX_MOUNT "[vhost]/[app]/[stream].flv"
+#define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
+#define SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE 0
+
+#define SRS_CONF_DEFAULT_HTTP_STREAM_PORT "8080"
+#define SRS_CONF_DEFAULT_HTTP_API_PORT "1985"
+#define SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN true
+
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://"SRS_CONSTS_LOCALHOST":8085/api/v1/servers"
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES false
+
+#define SRS_CONF_DEFAULT_SECURITY_ENABLED false
+
+#define SRS_CONF_DEFAULT_STREAM_CASTER_ENABLED false
+#define SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP "mpegts_over_udp"
+#define SRS_CONF_DEFAULT_STREAM_CASTER_RTSP "rtsp"
+#define SRS_CONF_DEFAULT_STREAM_CASTER_FLV "flv"
+
+#define SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX 0
+
+#define SRS_CONF_DEFAULT_PITHY_PRINT_MS 10000
+
+#define SRS_CONF_DEFAULT_INGEST_TYPE_FILE "file"
+#define SRS_CONF_DEFAULT_INGEST_TYPE_STREAM "stream"
+
+#define SRS_CONF_DEFAULT_TRANSCODE_IFORMAT "flv"
+#define SRS_CONF_DEFAULT_TRANSCODE_OFORMAT "flv"
+
+#define SRS_CONF_DEFAULT_EDGE_MODE false
+#define SRS_CONF_DEFAULT_EDGE_TOKEN_TRAVERSE false
+#define SRS_CONF_DEFAULT_EDGE_TRANSFORM_VHOST "[vhost]"
+
+// hds default value
+#define SRS_CONF_DEFAULT_HDS_PATH       "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_HDS_WINDOW     (60)
+#define SRS_CONF_DEFAULT_HDS_FRAGMENT   (10)
+
 // '\n'
-#define SRS_LF (char)0x0a
+#define SRS_LF (char)SRS_CONSTS_LF
 
 // '\r'
-#define SRS_CR (char)0x0d
+#define SRS_CR (char)SRS_CONSTS_CR
 
 bool is_common_space(char ch)
 {
@@ -4284,3 +4371,37 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
     return true;
 }
 
+bool srs_config_hls_is_on_error_ignore(string strategy)
+{
+    return strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE;
+}
+
+bool srs_config_hls_is_on_error_continue(string strategy)
+{
+    return strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE;
+}
+
+bool srs_config_ingest_is_file(string type)
+{
+    return type == SRS_CONF_DEFAULT_INGEST_TYPE_FILE;
+}
+
+bool srs_config_ingest_is_stream(string type)
+{
+    return type == SRS_CONF_DEFAULT_INGEST_TYPE_STREAM;
+}
+
+bool srs_config_dvr_is_plan_segment(string plan)
+{
+    return plan == SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT;
+}
+
+bool srs_config_dvr_is_plan_session(string plan)
+{
+    return plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION;
+}
+
+bool srs_config_dvr_is_plan_append(string plan)
+{
+    return plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND;
+}

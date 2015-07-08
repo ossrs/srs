@@ -154,14 +154,17 @@ public:
     virtual void on_stream_close(SrsRequest* req);
 public:
     /**
-    * when got a client to publish/play stream,
-    * @param id, the client srs id.
-    * @param req, the client request object.
-    */
+     * when got a client to publish/play stream,
+     * @param id, the client srs id.
+     * @param req, the client request object.
+     */
     virtual int on_client(int id, SrsRequest* req);
     /**
-    * client disconnect
-    */
+     * client disconnect
+     * @remark the on_disconnect always call, while the on_client is call when
+     *      only got the request object, so the client specified by id maybe not
+     *      exists in stat.
+     */
     virtual void on_disconnect(int id);
     /**
     * sample the kbps, add delta bytes of conn.

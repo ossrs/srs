@@ -94,6 +94,13 @@ int SrsEdgeIngester::initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest
 
 int SrsEdgeIngester::start()
 {
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = _source->on_publish()) != ERROR_SUCCESS) {
+        srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
+        return ret;
+    }
+
     return pthread->start();
 }
 
@@ -114,7 +121,9 @@ void SrsEdgeIngester::stop()
 int SrsEdgeIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
+
+    _source->on_source_id_changed(_srs_context->get_id());
+        
     std::string ep_server, ep_port;
     if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
@@ -141,11 +150,6 @@ int SrsEdgeIngester::cycle()
     if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d", 
             req->stream.c_str(), stream_id, ret);
-        return ret;
-    }
-    
-    if ((ret = _source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
         return ret;
     }
     
@@ -381,8 +385,8 @@ int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
     
     kbps->set_io(io, io);
     
-    srs_trace("edge pull connected, can_publish=%d, url=%s/%s, server=%s:%d",
-        _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
+    srs_trace("edge pull connected, url=%s/%s, server=%s:%d",
+        _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
     
     return ret;
 }
@@ -801,6 +805,11 @@ int SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
     }
     
     return ret;
+}
+
+bool SrsPublishEdge::can_publish()
+{
+    return state != SrsEdgeStatePublish;
 }
 
 int SrsPublishEdge::on_client_publish()

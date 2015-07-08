@@ -207,6 +207,7 @@ public:
     virtual void set_queue_size(double queue_size);
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual bool can_publish();
     /**
     * when client publish stream on edge.
     */

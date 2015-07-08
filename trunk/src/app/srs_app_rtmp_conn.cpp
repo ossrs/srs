@@ -206,6 +206,7 @@ int SrsRtmpConn::do_cycle()
     }
     
     ret = service_cycle();
+    
     http_hooks_on_close();
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_disconnect(_srs_context->get_id());
@@ -432,10 +433,9 @@ int SrsRtmpConn::stream_service_cycle()
     }
 
     // check ASAP, to fail it faster if invalid.
-    if (type != SrsRtmpConnPlay && !vhost_is_edge) {
+    if (type != SrsRtmpConnPlay) {
         // check publish available
-        // for edge, never check it, for edge use proxy mode.
-        if (!source->can_publish()) {
+        if (!source->can_publish(vhost_is_edge)) {
             ret = ERROR_SYSTEM_STREAM_BUSY;
             srs_warn("stream %s is already publishing. ret=%d", 
                 req->get_stream_url().c_str(), ret);

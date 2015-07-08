@@ -1350,8 +1350,12 @@ int SrsSource::source_id()
     return _source_id;
 }
 
-bool SrsSource::can_publish()
+bool SrsSource::can_publish(bool is_edge)
 {
+    if (is_edge) {
+        return publish_edge->can_publish();
+    }
+
     return _can_publish;
 }
 
@@ -1522,7 +1526,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
-        if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE) {
+        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
             
             // unpublish, ignore ret.
@@ -1530,7 +1534,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
             
             // ignore.
             ret = ERROR_SUCCESS;
-        } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
+        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
             // compare the sequence header with audio, continue when it's actually an sequence header.
             if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg->size) {
                 srs_warn("the audio is actually a sequence header, ignore this packet.");
@@ -1726,7 +1730,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
-        if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE) {
+        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
             
             // unpublish, ignore ret.
@@ -1734,7 +1738,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             
             // ignore.
             ret = ERROR_SUCCESS;
-        } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
+        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
             // compare the sequence header with video, continue when it's actually an sequence header.
             if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg->size) {
                 srs_warn("the video is actually a sequence header, ignore this packet.");

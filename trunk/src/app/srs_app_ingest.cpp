@@ -369,7 +369,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         return ret;
     }
 
-    if (input_type == SRS_CONF_DEFAULT_INGEST_TYPE_FILE) {
+    if (srs_config_ingest_is_file(input_type)) {
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;
@@ -383,7 +383,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
             return ret;
         }
-    } else if (input_type == SRS_CONF_DEFAULT_INGEST_TYPE_STREAM) {
+    } else if (srs_config_ingest_is_stream(input_type)) {
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;
