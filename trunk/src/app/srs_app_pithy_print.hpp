@@ -55,22 +55,25 @@ public:
 };
 
 /**
-* the stage is used for a collection of object to do print,
-* the print time in a stage is constant and not changed.
-* for example, stage #1 for all play clients, print time is 3s,
-* if there is 10clients, then all clients should print in 10*3s.
-* Usage:
-        SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
-        SrsAutoFree(SrsPithyPrint, pprint);
-        while (true) {
-            pprint->elapse();
-            if (pprint->can_print()) {
-                // print pithy message.
-                // user can get the elapse time by: pprint->age()
-            }
-            // read and write RTMP messages.
-        }
-*/
+ * the stage is used for a collection of object to do print,
+ * the print time in a stage is constant and not changed,
+ * that is, we always got one message to print every specified time.
+ *
+ * for example, stage #1 for all play clients, print time is 3s,
+ * if there is 1client, it will print every 3s.
+ * if there is 10clients, random select one to print every 3s.
+ * Usage:
+         SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
+         SrsAutoFree(SrsPithyPrint, pprint);
+         while (true) {
+             pprint->elapse();
+             if (pprint->can_print()) {
+                 // print pithy message.
+                 // user can get the elapse time by: pprint->age()
+             }
+             // read and write RTMP messages.
+         }
+ */
 class SrsPithyPrint
 {
 private:
