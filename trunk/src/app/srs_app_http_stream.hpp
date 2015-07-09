@@ -242,6 +242,9 @@ private:
     bool _is_aac;
     bool _is_mp3;
 public:
+    SrsRequest* req;
+    SrsSource* source;
+public:
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
@@ -252,7 +255,8 @@ public:
     SrsStreamCache* cache;
     
     SrsLiveEntry(std::string m, bool h);
-    
+    void reset_hstrs(bool h);
+
     bool is_flv();
     bool is_ts();
     bool is_mp3();
@@ -348,13 +352,14 @@ public:
     virtual void unmount_hls(SrsRequest* r);
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_vhost_http_remux_updated();
+    virtual int on_reload_vhost_http_remux_updated(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
 // interface ISrsHttpMatchHijacker
 public:
     virtual int hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);
 private:
     virtual int initialize_flv_streaming();
+    virtual int initialize_flv_entry(std::string vhost);
     virtual int initialize_hls_streaming();
     virtual std::string hls_mount_generate(SrsRequest* r, std::string uri, std::string tmpl);
 };
