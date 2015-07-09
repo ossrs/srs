@@ -163,7 +163,6 @@ class SrsPlayEdge
 {
 private:
     SrsEdgeState state;
-    SrsEdgeUserState user_state;
     SrsEdgeIngester* ingester;
 public:
     SrsPlayEdge();
@@ -198,7 +197,6 @@ class SrsPublishEdge
 {
 private:
     SrsEdgeState state;
-    SrsEdgeUserState user_state;
     SrsEdgeForwarder* forwarder;
 public:
     SrsPublishEdge();

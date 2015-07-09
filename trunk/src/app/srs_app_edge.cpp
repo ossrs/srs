@@ -705,7 +705,6 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
 SrsPlayEdge::SrsPlayEdge()
 {
     state = SrsEdgeStateInit;
-    user_state = SrsEdgeUserStateInit;
     ingester = new SrsEdgeIngester();
 }
 
@@ -728,14 +727,6 @@ int SrsPlayEdge::initialize(SrsSource* source, SrsRequest* req)
 int SrsPlayEdge::on_client_play()
 {
     int ret = ERROR_SUCCESS;
-    
-    // error state.
-    if (user_state != SrsEdgeUserStateInit) {
-        ret = ERROR_RTMP_EDGE_PLAY_STATE;
-        srs_error("invalid state for client to pull stream on edge. "
-            "state=%d, user_state=%d, ret=%d", state, user_state, ret);
-        return ret;
-    }
     
     // start ingest when init state.
     if (state == SrsEdgeStateInit) {
@@ -782,7 +773,6 @@ int SrsPlayEdge::on_ingest_play()
 SrsPublishEdge::SrsPublishEdge()
 {
     state = SrsEdgeStateInit;
-    user_state = SrsEdgeUserStateInit;
     forwarder = new SrsEdgeForwarder();
 }
 
@@ -816,19 +806,11 @@ int SrsPublishEdge::on_client_publish()
 {
     int ret = ERROR_SUCCESS;
     
-    // error state.
-    if (user_state != SrsEdgeUserStateInit) {
-        ret = ERROR_RTMP_EDGE_PUBLISH_STATE;
-        srs_error("invalid state for client to publish stream on edge. "
-            "state=%d, user_state=%d, ret=%d", state, user_state, ret);
-        return ret;
-    }
-    
     // error when not init state.
     if (state != SrsEdgeStateInit) {
         ret = ERROR_RTMP_EDGE_PUBLISH_STATE;
         srs_error("invalid state for client to publish stream on edge. "
-            "state=%d, user_state=%d, ret=%d", state, user_state, ret);
+            "state=%d, ret=%d", state, ret);
         return ret;
     }
     

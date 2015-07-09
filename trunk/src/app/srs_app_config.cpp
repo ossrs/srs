@@ -852,6 +852,18 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                     return ret;
                 }
             }
+
+            // http_remux, only one per vhost.
+            if (get_vhost_http_remux_enabled(vhost)) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
+            }
             srs_trace("reload new vhost %s success.", vhost.c_str());
             continue;
         }
@@ -1060,7 +1072,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("http_remux"), old_vhost->get("http_remux"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_remux_updated()) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -1077,7 +1089,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             }
             continue;
         }
-        srs_trace("igreno reload vhost, enabled old: %d, new: %d", 
+        srs_trace("ignore reload vhost, enabled old: %d, new: %d",
             get_vhost_enabled(old_vhost), get_vhost_enabled(new_vhost));
     }
     
