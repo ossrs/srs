@@ -1958,26 +1958,6 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
     return ret;
 }
 
-int SrsSource::acquire_publish()
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (!_can_publish) {
-        ret = ERROR_SYSTEM_STREAM_BUSY;
-        srs_warn("publish lock stream failed, ret=%d", ret);
-        return ret;
-    }
-    
-    _can_publish = false;
-    
-    return ret;
-}
-
-void SrsSource::release_publish()
-{
-    _can_publish = true;
-}
-
 int SrsSource::on_publish()
 {
     int ret = ERROR_SUCCESS;
