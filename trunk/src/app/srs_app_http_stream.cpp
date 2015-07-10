@@ -1228,7 +1228,9 @@ int SrsHttpStreamServer::initialize_flv_streaming()
             continue;
         }
 
-        initialize_flv_entry(conf->arg0());
+        if ((ret = initialize_flv_entry(conf->arg0())) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     return ret;
 }
