@@ -4418,3 +4418,18 @@ bool srs_config_dvr_is_plan_append(string plan)
 {
     return plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND;
 }
+
+bool srs_stream_caster_is_udp(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP;
+}
+
+bool srs_stream_caster_is_rtsp(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_RTSP;
+}
+
+bool srs_stream_caster_is_flv(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_FLV;
+}

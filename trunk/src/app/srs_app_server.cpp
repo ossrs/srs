@@ -1120,11 +1120,11 @@ int SrsServer::listen_stream_caster()
         SrsListener* listener = NULL;
 
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
-        if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP) {
+        if (srs_stream_caster_is_udp(caster)) {
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
-        } else if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_RTSP) {
+        } else if (srs_stream_caster_is_rtsp(caster)) {
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
-        } else if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_FLV) {
+        } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else {
             ret = ERROR_STREAM_CASTER_ENGINE;
