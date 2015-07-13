@@ -38,6 +38,7 @@ int proxy(srs_flv_t flv, srs_rtmp_t ortmp);
 int connect_oc(srs_rtmp_t ortmp);
 
 #define RE_PULSE_MS 300
+#define RE_PULSE_JITTER_MS 3000
 int64_t re_create();
 void re_update(int64_t re, int32_t starttime, u_int32_t time);
 void re_cleanup(int64_t re, int32_t starttime, u_int32_t time);
@@ -256,7 +257,7 @@ void re_update(int64_t re, int32_t starttime, u_int32_t time)
     // send by pulse algorithm.
     int64_t now = srs_utils_time_ms();
     int64_t diff = time - starttime - (now -re);
-    if (diff > RE_PULSE_MS) {
+    if (diff > RE_PULSE_MS && diff < RE_PULSE_JITTER_MS) {
         usleep((useconds_t)(diff * 1000));
     }
 }
