@@ -1,13 +1,13 @@
 #Simple-RTMP-Server
 
-SRS/2.0，开发代号：[ZhouGuowen][release2]
+SRS/2.0, [ZhouGuowen][release2]
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
 SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
-Contact by QQ or Skype, read [Contact][contact]
+Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 
 ## Why SRS?
 
@@ -1021,5 +1021,6 @@ Winlin
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
 [centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
 
-
+[srs2_CN]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
+[srs2_EN]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
 
