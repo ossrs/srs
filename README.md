@@ -1,43 +1,13 @@
 #Simple-RTMP-Server
 
-SRS/1.0，开发代号：[HuKaiqun](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release10)
+SRS/1.0, [HuKaiqun](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release10)
 
-SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
+SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
+SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
 
-下载发布版(github): 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
-其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
-下载发布版(国内阿里云镜像): 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
-其他[more...](http://www.ossrs.net/srs.release/releases/)<br/>
-腾讯QQ和微信：[Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)<br/>
-同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
-
-获得源码(github): [https://github.com/simple-rtmp-server/srs](https://github.com/simple-rtmp-server/srs) [GIT使用方法](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git)
-
-```bash
-git clone https://github.com/simple-rtmp-server/srs.git
-```
-
-获得源码(国内CSDN镜像): [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) [GIT使用方法](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git)
-
-```bash
-git clone https://code.csdn.net/winlinvip/srs-csdn.git
-```
-
-获得源码(国内OSChina镜像): [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) [GIT使用方法](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git)
-
-```bash
-git clone https://git.oschina.net/winlinvip/srs.oschina.git
-```
-
-报告问题(BugReport): [https://github.com/simple-rtmp-server/srs/issues/new](https://github.com/simple-rtmp-server/srs/issues/new)<br/>
-中文资料(Wiki): [https://github.com/simple-rtmp-server/srs/wiki](https://github.com/simple-rtmp-server/srs/wiki) <br/>
-使用步骤(Usage): [https://github.com/simple-rtmp-server/srs#usage](#usage) <br/>
-公用机器(LiveShow): [https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LiveShow](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LiveShow) <br/>
-捐款(Donation): [GitHub](http://winlinvip.github.io/srs.release/donation/index.html) 
-或 [阿里云镜像](http://www.ossrs.net/srs.release/donation/index.html) ，查看
-[捐献墙(Donations)](https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt)<br/>
+Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
+Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
+Website for SRS/1.0, read SRS 1.0 [Chinese][srs1_CN] or [English][srs1_EN].
 
 ## About
 
@@ -48,120 +18,6 @@ supports origin/edge/vhost and transcode/ingest and dvr/forward
 and http-api/http-callback/reload, introduces tracable 
 session-oriented log, exports client srs-librtmp, 
 provides EN/CN wiki and the most simple architecture.
-
-SRS focus on small problem domain, which is the most complex for all software(see OOAD). 
-Because of lack of deveoper resource, SRS only provides features which is the most popular 
-for internet. SRS is simple for and only for problem domain is simplified.
-
-SRS is a simple, RTMP(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP)
-),
-HLS(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS)
-), 
-high-performance(2.7k+ clients)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance)
-),
-single processes, edge/origin live server, 
-x86/x64/arm(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLinuxArm)
-),
-compile depends on st(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Architecture), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Architecture)
-)(required),
-[ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
-use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and 
-[cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
-minimum run. see Build(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Build)
-).
-
-SRS supports vhost(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RtmpUrlVhost)
-),
-rtmp(encoder push(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP)
-),
-client/edge(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Edge),
-) pull), 
-ingester(srs pull)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Ingest)
-),
-HLS(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS)
-),
-HLS audio only(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS#hlsaudioonly)
-),
-transcoding(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG)
-),
-forward(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG)
-),
-http hooks(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPCallback)
-),
-http api(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPApi)
-),
-http server(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPServer),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPServer)
-),
-dvr(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR), 
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DVR)
-) and
-SRS-librtmp(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLibrtmp)
-).
-
-SRS-librtmp(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLibrtmp)
-)
-is a client library, only depends on c++ and socket, with 
-examples(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp#srs-librtmp-examples),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLibrtmp#srs-librtmp-examples)
-)(to play, 
-publish, ingest flv/rtmp, inject flv, 
-SRS-librtmp(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLibrtmp)
-)
-provides apis to support RTMP, FLV and AMF0.
-
-WebSite: [http://ossrs.net](http://ossrs.net) <br/>
-Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
-Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
-CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) <br/>
-See also: [https://github.com/simple-rtmp-server/srs](https://github.com/simple-rtmp-server/srs)  <br/>
-Github DEMO: [demo with your SRS](http://winlinvip.github.io/srs.release/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170)  <br/>
-Wiki: [https://github.com/simple-rtmp-server/srs/wiki](https://github.com/simple-rtmp-server/srs/wiki)  <br/>
-StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), 
-[NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), 
-[RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), 
-[FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 ## AUTHORS
 
@@ -789,4 +645,17 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
 
 Beijing, 2013.10<br/>
 Winlin
+
+
+[contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
+[more0]: http://winlinvip.github.io/srs.release/releases/
+[more1]: http://www.ossrs.net/srs.release/releases/
+
+[branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
+[release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
+
+[srs1_CN]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Home
+[srs1_EN]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home
 
