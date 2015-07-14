@@ -697,7 +697,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
     srs_assert(it == segments.end());
 
     // valid, add to segments if segment duration is ok
-    if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    // when too small, it maybe not enough data to play.
+    // when too large, it maybe timestamp corrupt.
+    if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration <= max_td) {
         segments.push_back(current);
         
         // use async to call the http hooks, for it will cause thread switch.
@@ -748,7 +750,6 @@ int SrsHlsMuxer::segment_close(string log_desc)
         // rename from tmp to real path
         std::string tmp_file = current->full_path + ".tmp";
         if (should_write_file) {
-            unlink(tmp_file.c_str());
             if (unlink(tmp_file.c_str()) < 0) {
                 srs_warn("ignore unlink path failed, file=%s.", tmp_file.c_str());
             }
@@ -815,6 +816,11 @@ int SrsHlsMuxer::refresh_m3u8()
 {
     int ret = ERROR_SUCCESS;
     
+    // no segments, also no m3u8, return.
+    if (segments.size() == 0) {
+        return ret;
+    }
+    
     std::string temp_m3u8 = m3u8 + ".temp";
     if ((ret = _refresh_m3u8(temp_m3u8)) == ERROR_SUCCESS) {
         if (should_write_file && rename(temp_m3u8.c_str(), m3u8.c_str()) < 0) {
@@ -824,7 +830,9 @@ int SrsHlsMuxer::refresh_m3u8()
     }
     
     // remove the temp file.
-    unlink(temp_m3u8.c_str());
+    if (unlink(temp_m3u8.c_str()) < 0) {
+        srs_warn("ignore remove m3u8 failed, %s", temp_m3u8.c_str());
+    }
     
     return ret;
 }
