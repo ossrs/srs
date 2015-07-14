@@ -164,7 +164,7 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
     SrsSharedPtrMessage* metadata = shared_metadata->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(metadata, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(metadata, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(metadata);
         return ret;
     }
@@ -183,7 +183,7 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
     SrsSharedPtrMessage* msg = shared_audio->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
     }
@@ -207,7 +207,7 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
     SrsSharedPtrMessage* msg = shared_video->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
     }

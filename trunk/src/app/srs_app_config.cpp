@@ -853,6 +853,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
             }
 
+            // TODO: reload new http_remux in on_vhost_add
             // http_remux, only one per vhost.
             if (get_vhost_http_remux_enabled(vhost)) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -4416,4 +4417,19 @@ bool srs_config_dvr_is_plan_session(string plan)
 bool srs_config_dvr_is_plan_append(string plan)
 {
     return plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND;
+}
+
+bool srs_stream_caster_is_udp(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP;
+}
+
+bool srs_stream_caster_is_rtsp(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_RTSP;
+}
+
+bool srs_stream_caster_is_flv(string caster)
+{
+    return caster == SRS_CONF_DEFAULT_STREAM_CASTER_FLV;
 }

@@ -233,7 +233,7 @@ private:
     int64_t previous_floor_ts;
 private:
     int _sequence_no;
-    int target_duration;
+    int max_td;
     std::string m3u8;
     std::string m3u8_url;
 private:
