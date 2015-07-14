@@ -805,7 +805,14 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         entry->cache = new SrsStreamCache(s, r);
         entry->stream = new SrsLiveStream(s, r, entry->cache);
 
-        srs_assert(!tmpl->req);
+        // TODO: FIXME: maybe refine the logic of http remux service.
+        // if user push streams followed:
+        //     rtmp://test.com/live/stream1
+        //     rtmp://test.com/live/stream2
+        // and they will using the same template, such as: [vhost]/[app]/[stream].flv
+        // so, need to free last request object, otherwise, it will cause memory leak.
+        srs_freep(tmpl->req);
+
         tmpl->source = s;
         tmpl->req = r->copy();
         
@@ -1170,8 +1177,8 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     std::string sid = r->get_stream_url();
     // check if the stream is enabled.
     if (sflvs.find(sid) != sflvs.end()) {
-        SrsLiveEntry* entry = sflvs[sid];
-        if (!entry->stream->entry->enabled) {
+        SrsLiveEntry* s_entry = sflvs[sid];
+        if (!s_entry->stream->entry->enabled) {
             srs_error("stream is disabled, hijack failed. ret=%d", ret);
             return ret;
         }
