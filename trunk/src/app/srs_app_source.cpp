@@ -55,8 +55,8 @@ using namespace std;
 // 115 packets is 3s.
 #define SRS_PURE_AUDIO_GUESS_COUNT 115
 
-// when got these videos or audios, mix ok.
-#define SRS_MIX_CORRECT_MIX_AV 10
+// when got these videos or audios, pure audio or video, mix ok.
+#define SRS_MIX_CORRECT_PURE_AV 10
 
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -849,12 +849,25 @@ void SrsMixQueue::push(SrsSharedPtrMessage* msg)
 
 SrsSharedPtrMessage* SrsMixQueue::pop()
 {
-    // when got 10+ videos or audios, mix ok.
-    // when got 1 video and 1 audio, mix ok.
-    if (nb_videos < SRS_MIX_CORRECT_MIX_AV && nb_audios < SRS_MIX_CORRECT_MIX_AV) {
-        if (nb_videos < 1 || nb_audios < 1) {
-            return NULL;
-        }
+    bool mix_ok = false;
+    
+    // pure video
+    if (nb_videos >= SRS_MIX_CORRECT_PURE_AV && nb_audios == 0) {
+        mix_ok = true;
+    }
+    
+    // pure audio
+    if (nb_audios >= SRS_MIX_CORRECT_PURE_AV && nb_videos == 0) {
+        mix_ok = true;
+    }
+    
+    // got 1 video and 1 audio, mix ok.
+    if (nb_videos >= 1 && nb_audios >= 1) {
+        mix_ok = true;
+    }
+    
+    if (!mix_ok) {
+        return NULL;
     }
     
     // pop the first msg.
