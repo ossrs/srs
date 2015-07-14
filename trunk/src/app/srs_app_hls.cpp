@@ -53,6 +53,8 @@ using namespace std;
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
+// when hls timestamp jump, reset it.
+#define SRS_AUTO_HLS_SEGMENT_TIMESTAMP_JUMP_MS 300
 
 // fragment plus the deviation percent.
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.3
@@ -161,6 +163,11 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     // update the segment duration, which is nagetive,
     // just ignore it.
     if (current_frame_dts < segment_start_dts) {
+        // for atc and timestamp jump, reset the start dts.
+        if (current_frame_dts < segment_start_dts - SRS_AUTO_HLS_SEGMENT_TIMESTAMP_JUMP_MS * 90) {
+            srs_warn("hls timestamp jump %"PRId64"=>%"PRId64, segment_start_dts, current_frame_dts);
+            segment_start_dts = current_frame_dts;
+        }
         return;
     }
     
@@ -830,8 +837,10 @@ int SrsHlsMuxer::refresh_m3u8()
     }
     
     // remove the temp file.
-    if (unlink(temp_m3u8.c_str()) < 0) {
-        srs_warn("ignore remove m3u8 failed, %s", temp_m3u8.c_str());
+    if (srs_path_exists(temp_m3u8)) {
+        if (unlink(temp_m3u8.c_str()) < 0) {
+            srs_warn("ignore remove m3u8 failed, %s", temp_m3u8.c_str());
+        }
     }
     
     return ret;
