@@ -1335,7 +1335,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     }
     
     // TODO: FIXME: config the jitter of HLS.
-    if ((ret = jitter->correct(audio, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(audio, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_error("rtmp jitter correct audio failed. ret=%d", ret);
         return ret;
     }
@@ -1393,7 +1393,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
     }
     
     // TODO: FIXME: config the jitter of HLS.
-    if ((ret = jitter->correct(video, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(video, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_error("rtmp jitter correct video failed. ret=%d", ret);
         return ret;
     }
