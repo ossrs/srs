@@ -280,7 +280,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_ts_floor = false;
-    target_duration = 0;
+    max_td = 0;
     _sequence_no = 0;
     current = NULL;
     acodec = SrsCodecAudioReserved1;
@@ -400,10 +400,8 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
     m3u8 = path + "/" + m3u8_url;
 
-    // we always keep the target duration increasing.
-    int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
-    srs_info("hls update target duration %d=>%d, aof=%.2f", target_duration, max_td, aof_ratio);
-    target_duration = max_td;
+    // when update config, reset the history target duration.
+    max_td = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
 
     std::string storage = _srs_config->get_hls_storage(r->vhost);
     if (storage == "ram") {
@@ -861,6 +859,9 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
     srs_verbose("write m3u8 sequence success.");
     
+    // iterator shared for td generation and segemnts wrote.
+    std::vector<SrsHlsSegment*>::iterator it;
+    
     // #EXT-X-TARGETDURATION:4294967295\n
     /**
     * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
@@ -871,11 +872,13 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     * typical target duration is 10 seconds.
     */
     // @see https://github.com/simple-rtmp-server/srs/issues/304#issuecomment-74000081
-    std::vector<SrsHlsSegment*>::iterator it;
+    int target_duration = 0;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
         target_duration = srs_max(target_duration, (int)ceil(segment->duration));
     }
+    target_duration = srs_max(target_duration, max_td);
+    
     ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
     srs_verbose("write m3u8 duration success.");
     
