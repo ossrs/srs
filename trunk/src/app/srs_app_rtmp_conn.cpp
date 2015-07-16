@@ -782,8 +782,14 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     while (!disposed) {
         pprint->elapse();
 
-        // cond wait for error.
-        trd->wait(SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US / 1000);
+        // cond wait for timeout.
+        if (nb_msgs == 0) {
+            // when not got msgs, wait for a larger timeout.
+            // @see https://github.com/simple-rtmp-server/srs/issues/441
+            trd->wait(SRS_CONSTS_RTMP_PUBLISHER_NO_MSG_RECV_TIMEOUT_US / 1000);
+        } else {
+            trd->wait(SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US / 1000);
+        }
 
         // check the thread error code.
         if ((ret = trd->error_code()) != ERROR_SUCCESS) {

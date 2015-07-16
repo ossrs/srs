@@ -78,6 +78,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // we must use more smaller timeout, for the recv never know the status
 // of underlayer socket.
 #define SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US (int64_t)(3*1000*1000LL)
+// when no msg recevied for publisher, use larger timeout.
+#define SRS_CONSTS_RTMP_PUBLISHER_NO_MSG_RECV_TIMEOUT_US 10*SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
