@@ -42,6 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStreamCache : public ISrsEndlessThreadHandler
 {
 private:
+    double fast_cache;
+private:
     SrsMessageQueue* queue;
     SrsSource* source;
     SrsRequest* req;
