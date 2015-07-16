@@ -1210,15 +1210,6 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     srs_trace("hstrs: source url=%s, is_edge=%d, source_id=%d[%d]",
         r->get_stream_url().c_str(), vhost_is_edge, s->source_id(), s->source_id());
     
-    // TODO: FIXME: disconnect when all connection closed.
-    if (vhost_is_edge) {
-        // notice edge to start for the first client.
-        if ((ret = s->on_edge_start_play()) != ERROR_SUCCESS) {
-            srs_error("notice edge start play stream failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    
     return ret;
 }
 

@@ -537,14 +537,6 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
 
-    if (_srs_config->get_vhost_is_edge(req->vhost)) {
-        // notice edge to start for the first client.
-        if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
-            srs_error("notice edge start play stream failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    
     // use isolate thread to recv, 
     // @see: https://github.com/simple-rtmp-server/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
@@ -835,7 +827,6 @@ int SrsRtmpConn::acquire_publish(SrsSource* source, bool is_edge)
         if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
             srs_error("notice edge start publish stream failed. ret=%d", ret);
         }        
-        return ret;
     } else {
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
             srs_error("notify publish failed. ret=%d", ret);
