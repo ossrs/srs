@@ -63,6 +63,9 @@ SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
     source = s;
     queue = new SrsMessageQueue(true);
     pthread = new SrsEndlessThread("http-stream", this);
+    
+    // TODO: FIXME: support reload.
+    fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
 }
 
 SrsStreamCache::~SrsStreamCache()
@@ -81,8 +84,6 @@ int SrsStreamCache::start()
 int SrsStreamCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     int ret = ERROR_SUCCESS;
-
-    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
 
     if (fast_cache <= 0) {
         srs_info("http: ignore dump fast cache.");
@@ -104,6 +105,13 @@ int SrsStreamCache::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // TODO: FIXME: support reload.
+    if (fast_cache <= 0) {
+        return ret;
+    }
+    
+    // the stream cache will create consumer to cache stream,
+    // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
     if ((ret = source->create_consumer(consumer, false, false, true)) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
@@ -116,11 +124,9 @@ int SrsStreamCache::cycle()
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
 
+    // set the queue size, which used for max cache.
     // TODO: FIXME: support reload.
-    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
-    if (fast_cache > 0) {
-        queue->set_queue_size(fast_cache);
-    }
+    queue->set_queue_size(fast_cache);
     
     while (true) {
         pprint->elapse();
@@ -150,11 +156,7 @@ int SrsStreamCache::cycle()
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];
-            if (fast_cache > 0) {
-                queue->enqueue(msg);
-            } else {
-                srs_freep(msg);
-            }
+            queue->enqueue(msg);
         }
     }
     
