@@ -574,8 +574,6 @@ public:
     virtual SrsRtmpJitterAlgorithm jitter();
 // internal
 public:
-    // for edge, when play edge stream, check the state
-    virtual int on_edge_start_play();
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();
     // for edge, proxy the publish

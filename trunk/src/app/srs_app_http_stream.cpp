@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_stream.hpp>
 
+#define SRS_STREAM_CACHE_CYCLE_SECONDS 30
+
 #if defined(SRS_AUTO_HTTP_CORE)
 
 #include <sys/types.h>
@@ -63,6 +65,9 @@ SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
     source = s;
     queue = new SrsMessageQueue(true);
     pthread = new SrsEndlessThread("http-stream", this);
+    
+    // TODO: FIXME: support reload.
+    fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
 }
 
 SrsStreamCache::~SrsStreamCache()
@@ -81,8 +86,6 @@ int SrsStreamCache::start()
 int SrsStreamCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     int ret = ERROR_SUCCESS;
-
-    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
 
     if (fast_cache <= 0) {
         srs_info("http: ignore dump fast cache.");
@@ -104,6 +107,14 @@ int SrsStreamCache::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // TODO: FIXME: support reload.
+    if (fast_cache <= 0) {
+        st_sleep(SRS_STREAM_CACHE_CYCLE_SECONDS);
+        return ret;
+    }
+    
+    // the stream cache will create consumer to cache stream,
+    // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
     if ((ret = source->create_consumer(consumer, false, false, true)) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
@@ -116,11 +127,9 @@ int SrsStreamCache::cycle()
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
 
+    // set the queue size, which used for max cache.
     // TODO: FIXME: support reload.
-    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
-    if (fast_cache > 0) {
-        queue->set_queue_size(fast_cache);
-    }
+    queue->set_queue_size(fast_cache);
     
     while (true) {
         pprint->elapse();
@@ -150,11 +159,7 @@ int SrsStreamCache::cycle()
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];
-            if (fast_cache > 0) {
-                queue->enqueue(msg);
-            } else {
-                srs_freep(msg);
-            }
+            queue->enqueue(msg);
         }
     }
     
@@ -1137,8 +1142,10 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
         }
         
         // hstrs not enabled, ignore.
-        // for origin: generally set hstrs to 'off' and mount while stream is pushed to origin.
-        // for edge: must set hstrs to 'on' so that it could trigger rtmp stream before mount.
+        // for origin, the http stream will be mount already when publish,
+        //      so it must never enter this line for stream already mounted.
+        // for edge, the http stream is trigger by hstrs and mount by it,
+        //      so we only hijack when only edge and hstrs is on.
         entry = it->second;
         if (!entry->hstrs) {
             return ret;
@@ -1175,12 +1182,18 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     SrsAutoFree(SrsRequest, r);
 
     std::string sid = r->get_stream_url();
-    // check if the stream is enabled.
+    // check whether the http remux is enabled,
+    // for example, user disable the http flv then reload.
     if (sflvs.find(sid) != sflvs.end()) {
         SrsLiveEntry* s_entry = sflvs[sid];
         if (!s_entry->stream->entry->enabled) {
-            srs_error("stream is disabled, hijack failed. ret=%d", ret);
-            return ret;
+            // only when the http entry is disabled, check the config whether http flv disable,
+            // for the http flv edge use hijack to trigger the edge ingester, we always mount it
+            // eventhough the origin does not exists the specified stream.
+            if (!_srs_config->get_vhost_http_remux_enabled(r->vhost)) {
+                srs_error("stream is disabled, hijack failed. ret=%d", ret);
+                return ret;
+            }
         }
     }
 
@@ -1209,15 +1222,6 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
     srs_trace("hstrs: source url=%s, is_edge=%d, source_id=%d[%d]",
         r->get_stream_url().c_str(), vhost_is_edge, s->source_id(), s->source_id());
-    
-    // TODO: FIXME: disconnect when all connection closed.
-    if (vhost_is_edge) {
-        // notice edge to start for the first client.
-        if ((ret = s->on_edge_start_play()) != ERROR_SUCCESS) {
-            srs_error("notice edge start play stream failed. ret=%d", ret);
-            return ret;
-        }
-    }
     
     return ret;
 }

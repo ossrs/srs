@@ -765,7 +765,7 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
 SrsSource* SrsSource::fetch(std::string vhost, std::string app, std::string stream)
 {
     SrsSource* source = NULL;
-	string stream_url = srs_generate_stream_url(vhost, app, stream);
+    string stream_url = srs_generate_stream_url(vhost, app, stream);
     
     if (pool.find(stream_url) == pool.end()) {
         return NULL;
@@ -2135,6 +2135,15 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     } else {
         srs_trace("create consumer, ignore gop cache, jitter=%d", jitter_algorithm);
     }
+
+    // for edge, when play edge stream, check the state
+    if (_srs_config->get_vhost_is_edge(_req->vhost)) {
+        // notice edge to start for the first client.
+        if ((ret = play_edge->on_client_play()) != ERROR_SUCCESS) {
+            srs_error("notice edge start play stream failed. ret=%d", ret);
+            return ret;
+        }
+    }
     
     return ret;
 }
@@ -2161,11 +2170,6 @@ void SrsSource::set_cache(bool enabled)
 SrsRtmpJitterAlgorithm SrsSource::jitter()
 {
     return jitter_algorithm;
-}
-
-int SrsSource::on_edge_start_play()
-{
-    return play_edge->on_client_play();
 }
 
 int SrsSource::on_edge_start_publish()
