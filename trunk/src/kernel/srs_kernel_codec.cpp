@@ -423,6 +423,16 @@ SrsAvcAacCodec::~SrsAvcAacCodec()
     srs_freep(pictureParameterSetNALUnit);
 }
 
+bool SrsAvcAacCodec::is_avc_codec_ok()
+{
+    return avc_extra_size > 0 && avc_extra_data;
+}
+
+bool SrsAvcAacCodec::is_aac_codec_ok()
+{
+    return aac_extra_size > 0 && aac_extra_data;
+}
+
 int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
@@ -441,7 +451,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
     // audio decode
     if (!stream->require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("audio codec decode sound_format failed. ret=%d", ret);
+        srs_error("aac decode sound_format failed. ret=%d", ret);
         return ret;
     }
     
@@ -468,13 +478,13 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
     // only support aac
     if (audio_codec_id != SrsCodecAudioAAC) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("audio codec only support mp3/aac codec. actual=%d, ret=%d", audio_codec_id, ret);
+        srs_error("aac only support mp3/aac codec. actual=%d, ret=%d", audio_codec_id, ret);
         return ret;
     }
 
     if (!stream->require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("audio codec decode aac_packet_type failed. ret=%d", ret);
+        srs_error("aac decode aac_packet_type failed. ret=%d", ret);
         return ret;
     }
     
@@ -497,16 +507,15 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         }
     } else if (aac_packet_type == SrsCodecAudioTypeRawData) {
         // ensure the sequence header demuxed
-        if (aac_extra_size <= 0 || !aac_extra_data) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("audio codec decode aac failed, sequence header not found. ret=%d", ret);
+        if (!is_aac_codec_ok()) {
+            srs_warn("aac ignore type=%d for no sequence header. ret=%d", aac_packet_type, ret);
             return ret;
         }
         
         // Raw AAC frame data in UI8 []
         // 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
         if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), stream->size() - stream->pos())) != ERROR_SUCCESS) {
-            srs_error("audio codec add sample failed. ret=%d", ret);
+            srs_error("aac add sample failed. ret=%d", ret);
             return ret;
         }
     } else {
@@ -536,7 +545,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         };
     }
     
-    srs_info("audio decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d", 
+    srs_info("aac decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d",
         sound_type, audio_codec_id, sound_size, sound_rate, sound_format, size);
     
     return ret;
@@ -636,7 +645,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     // video decode
     if (!stream->require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("video codec decode frame_type failed. ret=%d", ret);
+        srs_error("avc decode frame_type failed. ret=%d", ret);
         return ret;
     }
     
@@ -650,21 +659,21 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     // ignore info frame without error,
     // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
-        srs_warn("video codec igone the info frame, ret=%d", ret);
+        srs_warn("avc igone the info frame, ret=%d", ret);
         return ret;
     }
     
     // only support h.264/avc
     if (codec_id != SrsCodecVideoAVC) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("video codec only support video h.264/avc codec. actual=%d, ret=%d", codec_id, ret);
+        srs_error("avc only support video h.264/avc codec. actual=%d, ret=%d", codec_id, ret);
         return ret;
     }
     video_codec_id = codec_id;
     
     if (!stream->require(4)) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("video codec decode avc_packet_type failed. ret=%d", ret);
+        srs_error("avc decode avc_packet_type failed. ret=%d", ret);
         return ret;
     }
     int8_t avc_packet_type = stream->read_1bytes();
@@ -680,9 +689,8 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         }
     } else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
         // ensure the sequence header demuxed
-        if (avc_extra_size <= 0 || !avc_extra_data) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("avc decode failed, sequence header not found. ret=%d", ret);
+        if (!is_avc_codec_ok()) {
+            srs_warn("avc ignore type=%d for no sequence header. ret=%d", avc_packet_type, ret);
             return ret;
         }
 
@@ -738,7 +746,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         // ignored.
     }
     
-    srs_info("video decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d", 
+    srs_info("avc decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d",
         frame_type, video_codec_id, avc_packet_type, composition_time, size);
     
     return ret;
