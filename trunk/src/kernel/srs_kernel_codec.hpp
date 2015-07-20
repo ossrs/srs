@@ -608,6 +608,10 @@ public:
 public:
     SrsAvcAacCodec();
     virtual ~SrsAvcAacCodec();
+public:
+    // whether avc or aac codec sequence header or extra data is decoded ok.
+    virtual bool is_avc_codec_ok();
+    virtual bool is_aac_codec_ok();
 // the following function used for hls to build the sample and codec.
 public:
     /**
