@@ -1270,6 +1270,7 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
         return ret;
     }
     
+    // TODO: FIXME: should handle the event in SrsHttpStaticServer
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1283,6 +1284,7 @@ int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
+    // TODO: FIXME: should handle the event in SrsHttpStaticServer
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1335,6 +1337,7 @@ int SrsServer::on_reload_http_stream_disabled()
     return ret;
 }
 
+// TODO: FIXME: rename to http_remux
 int SrsServer::on_reload_http_stream_updated()
 {
     int ret = ERROR_SUCCESS;
@@ -1344,6 +1347,7 @@ int SrsServer::on_reload_http_stream_updated()
         return ret;
     }
     
+    // TODO: FIXME: should handle the event in SrsHttpStaticServer
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }

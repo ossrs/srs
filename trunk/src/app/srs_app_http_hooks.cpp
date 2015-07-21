@@ -203,7 +203,8 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
         << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream)
+        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("pageUrl", req->pageUrl)
         << SRS_JOBJECT_END;
         
     std::string data = ss.str();

@@ -96,7 +96,8 @@ class RESTClients(object):
               {
                   "action": "on_close",
                   "client_id": 1985,
-                  "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live"
+                  "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+                  "send_bytes": 10240, "recv_bytes": 10240
               }
     if valid, the hook must return HTTP code 200(Stauts OK) and response
     an int value specifies the error code(0 corresponding to success):
@@ -145,8 +146,8 @@ class RESTClients(object):
     def __on_close(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, send_bytes=%s, recv_bytes=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["send_bytes"], req["recv_bytes"]
         ))
 
         # TODO: process the on_close event
@@ -450,7 +451,8 @@ class RESTSessions(object):
                   "action": "on_play",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream"
+                  "stream": "livestream",
+                  "pageUrl": "http://www.test.com/live.html"
               }
     on_stop:
         when client(encoder) stop publish to vhost/app/stream, call the hook,
@@ -497,8 +499,8 @@ class RESTSessions(object):
     def __on_play(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, pageUrl=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["pageUrl"]
         ))
 
         # TODO: process the on_play event
