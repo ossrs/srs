@@ -57,6 +57,7 @@ public:
     virtual int on_reload_http_stream_disabled();
     virtual int on_reload_http_stream_updated();
 public:
+    // TODO: FIXME: should rename to http_static
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_http_remux_updated(std::string vhost);
     virtual int on_reload_vhost_added(std::string vhost);
