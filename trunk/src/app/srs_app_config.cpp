@@ -2976,13 +2976,15 @@ string SrsConfig::get_engine_vcodec(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_vbitrate(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vbitrate");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -2990,13 +2992,15 @@ int SrsConfig::get_engine_vbitrate(SrsConfDirective* engine)
 
 double SrsConfig::get_engine_vfps(SrsConfDirective* engine)
 {
+    static double DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vfps");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atof(conf->arg0().c_str());
@@ -3004,13 +3008,15 @@ double SrsConfig::get_engine_vfps(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_vwidth(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vwidth");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -3018,13 +3024,15 @@ int SrsConfig::get_engine_vwidth(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_vheight(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vheight");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -3032,13 +3040,15 @@ int SrsConfig::get_engine_vheight(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_vthreads(SrsConfDirective* engine)
 {
+    static int DEFAULT = 1;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("vthreads");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -3116,13 +3126,15 @@ string SrsConfig::get_engine_acodec(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_abitrate(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("abitrate");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -3130,13 +3142,15 @@ int SrsConfig::get_engine_abitrate(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_asample_rate(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("asample_rate");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());
@@ -3144,13 +3158,15 @@ int SrsConfig::get_engine_asample_rate(SrsConfDirective* engine)
 
 int SrsConfig::get_engine_achannels(SrsConfDirective* engine)
 {
+    static int DEFAULT = 0;
+    
     if (!engine) {
-        return 0;
+        return DEFAULT;
     }
     
     SrsConfDirective* conf = engine->get("achannels");
-    if (!conf) {
-        return 0;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());

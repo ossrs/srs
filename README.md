@@ -344,6 +344,7 @@ Remark:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-07-21, for [#169](https://github.com/simple-rtmp-server/srs/issues/169) support default values for transcode. 2.0.180
 * v2.0, 2015-07-21, fix [#435](https://github.com/simple-rtmp-server/srs/issues/435) add pageUrl for HTTP callback on_play.
 * v2.0, 2015-07-20, refine the hls, ignore packet when no sequence header. 2.0.179
 * v2.0, 2015-07-16, for [#441](https://github.com/simple-rtmp-server/srs/issues/441) use 30s timeout for first msg. 2.0.178

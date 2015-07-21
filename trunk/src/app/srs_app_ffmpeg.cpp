@@ -137,22 +137,22 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
                 SRS_RTMP_ENCODER_VCODEC, vcodec.c_str(), ret);
             return ret;
         }
-        if (vbitrate <= 0) {
+        if (vbitrate < 0) {
             ret = ERROR_ENCODER_VBITRATE;
             srs_error("invalid vbitrate: %d, ret=%d", vbitrate, ret);
             return ret;
         }
-        if (vfps <= 0) {
+        if (vfps < 0) {
             ret = ERROR_ENCODER_VFPS;
             srs_error("invalid vfps: %.2f, ret=%d", vfps, ret);
             return ret;
         }
-        if (vwidth <= 0) {
+        if (vwidth < 0) {
             ret = ERROR_ENCODER_VWIDTH;
             srs_error("invalid vwidth: %d, ret=%d", vwidth, ret);
             return ret;
         }
-        if (vheight <= 0) {
+        if (vheight < 0) {
             ret = ERROR_ENCODER_VHEIGHT;
             srs_error("invalid vheight: %d, ret=%d", vheight, ret);
             return ret;
@@ -176,7 +176,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     
     // @see, https://github.com/simple-rtmp-server/srs/issues/145
     if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS && acodec != SRS_RTMP_ENCODER_LIBFDKAAC) {
-        if (abitrate < 16 || abitrate > 72) {
+        if (abitrate != 0 && (abitrate < 16 || abitrate > 72)) {
             ret = ERROR_ENCODER_ABITRATE;
             srs_error("invalid abitrate for aac: %d, must in [16, 72], ret=%d", abitrate, ret);
             return ret;
@@ -184,17 +184,17 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     }
     
     if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
-        if (abitrate <= 0) {
+        if (abitrate < 0) {
             ret = ERROR_ENCODER_ABITRATE;
             srs_error("invalid abitrate: %d, ret=%d", abitrate, ret);
             return ret;
         }
-        if (asample_rate <= 0) {
+        if (asample_rate < 0) {
             ret = ERROR_ENCODER_ASAMPLE_RATE;
             srs_error("invalid sample rate: %d, ret=%d", asample_rate, ret);
             return ret;
         }
-        if (achannels != 1 && achannels != 2) {
+        if (achannels != 0 && achannels != 1 && achannels != 2) {
             ret = ERROR_ENCODER_ACHANNELS;
             srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", achannels, ret);
             return ret;
@@ -285,26 +285,36 @@ int SrsFFMPEG::start()
     
     // the codec params is disabled when copy
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
-        params.push_back("-b:v");
-        snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
-        params.push_back(tmp);
+        if (vbitrate > 0) {
+            params.push_back("-b:v");
+            snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
+            params.push_back(tmp);
+        }
         
-        params.push_back("-r");
-        snprintf(tmp, sizeof(tmp), "%.2f", vfps);
-        params.push_back(tmp);
+        if (vfps > 0) {
+            params.push_back("-r");
+            snprintf(tmp, sizeof(tmp), "%.2f", vfps);
+            params.push_back(tmp);
+        }
         
-        params.push_back("-s");
-        snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
-        params.push_back(tmp);
+        if (vwidth > 0 && vheight > 0) {
+            params.push_back("-s");
+            snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
+            params.push_back(tmp);
+        }
         
         // TODO: add aspect if needed.
-        params.push_back("-aspect");
-        snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
-        params.push_back(tmp);
+        if (vwidth > 0 && vheight > 0) {
+            params.push_back("-aspect");
+            snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
+            params.push_back(tmp);
+        }
         
-        params.push_back("-threads");
-        snprintf(tmp, sizeof(tmp), "%d", vthreads);
-        params.push_back(tmp);
+        if (vthreads > 0) {
+            params.push_back("-threads");
+            snprintf(tmp, sizeof(tmp), "%d", vthreads);
+            params.push_back(tmp);
+        }
         
         params.push_back("-profile:v");
         params.push_back(vprofile);
@@ -335,17 +345,23 @@ int SrsFFMPEG::start()
     // the codec params is disabled when copy
     if (acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
         if (acodec != SRS_RTMP_ENCODER_COPY) {
-            params.push_back("-b:a");
-            snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
-            params.push_back(tmp);
+            if (abitrate > 0) {
+                params.push_back("-b:a");
+                snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
+                params.push_back(tmp);
+            }
             
-            params.push_back("-ar");
-            snprintf(tmp, sizeof(tmp), "%d", asample_rate);
-            params.push_back(tmp);
+            if (asample_rate > 0) {
+                params.push_back("-ar");
+                snprintf(tmp, sizeof(tmp), "%d", asample_rate);
+                params.push_back(tmp);
+            }
             
-            params.push_back("-ac");
-            snprintf(tmp, sizeof(tmp), "%d", achannels);
-            params.push_back(tmp);
+            if (achannels > 0) {
+                params.push_back("-ac");
+                snprintf(tmp, sizeof(tmp), "%d", achannels);
+                params.push_back(tmp);
+            }
             
             // aparams
             std::vector<std::string>::iterator it;
