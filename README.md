@@ -846,7 +846,7 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --push-+->-- Streamer ----(rtmp)-+-> SRS          |
+|   HTTP,HLS,   --push-+->-- Streamer(4) -(rtmp)-+-> SRS          |
 |   Device,            |                         |                |
 |   ......)            |                         |                |
 +----------------------+-------------------------+----------------+
