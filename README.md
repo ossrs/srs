@@ -829,7 +829,7 @@ SRS always use the most simple architecture to support complex transaction.
 
 <pre>
                    +---------+              +----------+
-                   + Publish +              +  Deliver |
+                   | Publish |              |  Deliver |
                    +---|-----+              +----|-----+
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
@@ -844,13 +844,13 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --pull-+->-- Ingester ----(rtmp)-+-> SRS          |
+|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)-+-> SRS          |
 |   Device,            |                         |                |
 |   ......)            |                         |                |
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --push-+->-- Streamer ----(rtmp)-+-> SRS          |
+|   HTTP,HLS,   --push-+->-- Streamer(4) -(rtmp)-+-> SRS          |
 |   Device,            |                         |                |
 |   ......)            |                         |                |
 +----------------------+-------------------------+----------------+
