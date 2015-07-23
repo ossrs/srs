@@ -114,8 +114,9 @@ char SrsFastBuffer::read_1byte()
 
 char* SrsFastBuffer::read_slice(int size)
 {
+    srs_assert(size >= 0);
     srs_assert(end - p >= size);
-    srs_assert(p + size > buffer);
+    srs_assert(p + size >= buffer);
     
     char* ptr = p;
     p += size;
@@ -126,7 +127,7 @@ char* SrsFastBuffer::read_slice(int size)
 void SrsFastBuffer::skip(int size)
 {
     srs_assert(end - p >= size);
-    srs_assert(p + size > buffer);
+    srs_assert(p + size >= buffer);
     p += size;
 }
 

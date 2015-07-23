@@ -133,7 +133,6 @@ using namespace _srs_internal;
 #define SRS_CONF_DEFAULT_TRANSCODE_IFORMAT "flv"
 #define SRS_CONF_DEFAULT_TRANSCODE_OFORMAT "flv"
 
-#define SRS_CONF_DEFAULT_EDGE_MODE false
 #define SRS_CONF_DEFAULT_EDGE_TOKEN_TRAVERSE false
 #define SRS_CONF_DEFAULT_EDGE_TRANSFORM_VHOST "[vhost]"
 
@@ -2743,17 +2742,18 @@ bool SrsConfig::get_vhost_is_edge(string vhost)
 
 bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
 {
+    static bool DEFAULT = false;
     SrsConfDirective* conf = vhost;
-    
+
     if (!conf) {
-        return SRS_CONF_DEFAULT_EDGE_MODE;
+        return DEFAULT;
     }
-    
+
     conf = conf->get("mode");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_EDGE_MODE;
+        return DEFAULT;
     }
-    
+
     return "remote" == conf->arg0();
 }
 
