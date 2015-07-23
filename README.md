@@ -825,7 +825,7 @@ SRS always use the most simple architecture to support complex transaction.
 
 <pre>
                    +---------+              +----------+
-                   + Publish +              +  Deliver |
+                   | Publish |              |  Deliver |
                    +---|-----+              +----|-----+
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
