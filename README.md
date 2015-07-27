@@ -342,8 +342,6 @@ Remark:
 
 ## History
 
-### SRS 2.0 history
-
 * v2.0, 2015-07-21, for [#169](https://github.com/simple-rtmp-server/srs/issues/169) support default values for transcode. 2.0.180
 * v2.0, 2015-07-21, fix [#435](https://github.com/simple-rtmp-server/srs/issues/435) add pageUrl for HTTP callback on_play.
 * v2.0, 2015-07-20, refine the hls, ignore packet when no sequence header. 2.0.179
@@ -468,33 +466,6 @@ Remark:
 * v2.0, 2014-10-19, fix [#184](https://github.com/simple-rtmp-server/srs/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
-
-### SRS 1.0 history
-
-* <strong>v1.0, 2015-05-23, [1.0r4 release(1.0.32)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4) released. 59509 lines.</strong>
-* v1.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 1.0.32
-* v1.0, 2015-03-26, fix hls aac adts bug, in aac mux. 1.0.31.
-* <strong>v1.0, 2015-03-19, [1.0r3 release(1.0.30)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3) released. 59511 lines.</strong>
-* v1.0, 2015-03-17, remove the osx for 1.0.30.
-* v1.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 1.0.28.
-* <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2) released. 59507 lines.</strong>
-* v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
-* v1.0, 2015-02-10, for [#310](https://github.com/simple-rtmp-server/srs/issues/310), the aac profile must be object plus one. 1.0.26
-* v1.0, 2015-01-25, hotfix [#268](https://github.com/simple-rtmp-server/srs/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
-* v1.0, 2015-01-25, hotfix [#151](https://github.com/simple-rtmp-server/srs/issues/151), refine pcr=dts-800ms and use dts/pts directly. 1.0.24
-* v1.0, 2015-01-23, hotfix [#151](https://github.com/simple-rtmp-server/srs/issues/151), use absolutely overflow to make jwplayer happy. 1.0.23
-* v1.0, 2015-01-17, hotfix [#290](https://github.com/simple-rtmp-server/srs/issues/290), use iformat only for rtmp input. 1.0.22
-* <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1) released. 59472 lines.</strong>
-* v1.0, 2015-01-08, hotfix [#281](https://github.com/simple-rtmp-server/srs/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
-* v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
-* v1.0, 2015-01-02, hotfix [#207](https://github.com/simple-rtmp-server/srs/issues/207), trim the last 0 of log. 1.0.18
-* v1.0, 2015-01-02, hotfix [#216](https://github.com/simple-rtmp-server/srs/issues/216), http-callback post in application/json content-type. 1.0.17
-* v1.0, 2015-01-01, hotfix [#270](https://github.com/simple-rtmp-server/srs/issues/270), memory leak for http client post. 1.0.16
-* v1.0, 2014-12-29, hotfix [#267](https://github.com/simple-rtmp-server/srs/issues/267), the forward dest ep should use server. 1.0.15
-* v1.0, 2014-12-29, hotfix [#268](https://github.com/simple-rtmp-server/srs/issues/268), the hls pcr is negative when startup. 1.0.14
-* v1.0, 2014-12-22, hotfix [#264](https://github.com/simple-rtmp-server/srs/issues/264), ignore NALU when sequence header to make HLS happy. 1.0.12
-* v1.0, 2014-12-20, hotfix [#264](https://github.com/simple-rtmp-server/srs/issues/264), support disconnect publish connect when hls error. 1.0.11
-* <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0) released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta) released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151](https://github.com/simple-rtmp-server/srs/issues/151), always reap ts whatever audio or video packet. 0.9.223.
 * v1.0, 2014-10-08, fix [#162](https://github.com/simple-rtmp-server/srs/issues/162), failed if no epoll. 0.9.222.
