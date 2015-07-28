@@ -252,7 +252,7 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     // TODO: FIXME: use st_read.
     if ((nread = ::read(fd, buf, count)) < 0) {
         ret = ERROR_SYSTEM_FILE_READ;
-        srs_error("read from file %s failed. ret=%d", _file.c_str(), ret);
+        srs_error("read from file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
     

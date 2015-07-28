@@ -40,7 +40,7 @@ using namespace std;
 
 SrsMp3Encoder::SrsMp3Encoder()
 {
-    _fs = NULL;
+    writer = NULL;
     tag_stream = new SrsStream();
 }
 
@@ -49,19 +49,19 @@ SrsMp3Encoder::~SrsMp3Encoder()
     srs_freep(tag_stream);
 }
 
-int SrsMp3Encoder::initialize(SrsFileWriter* fs)
+int SrsMp3Encoder::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(fs);
+    srs_assert(fw);
     
-    if (!fs->is_open()) {
+    if (!fw->is_open()) {
         ret = ERROR_KERNEL_MP3_STREAM_CLOSED;
         srs_warn("stream is not open for encoder. ret=%d", ret);
         return ret;
     }
     
-    _fs = fs;
+    writer = fw;
     
     return ret;
 }
@@ -78,7 +78,7 @@ int SrsMp3Encoder::write_header()
         (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameSize
         (char)0x00, (char)0x00 // Flags
     };
-    return _fs->write(id3, sizeof(id3), NULL);
+    return writer->write(id3, sizeof(id3), NULL);
 }
 
 int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
@@ -122,6 +122,6 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    return _fs->write(data + stream->pos(), size - stream->pos(), NULL);
+    return writer->write(data + stream->pos(), size - stream->pos(), NULL);
 }
 
