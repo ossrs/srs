@@ -42,20 +42,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsFileWriter
 {
 private:
-    std::string _file;
+    std::string path;
     int fd;
 public:
     SrsFileWriter();
     virtual ~SrsFileWriter();
 public:
     /**
-    * open file writer, can open then close then open...
-    */
-    virtual int open(std::string file);
+     * open file writer, in truncate mode.
+     * @param p a string indicates the path of file to open.
+     */
+    virtual int open(std::string p);
     /**
-    * open file writer in append mode.
-    */
-    virtual int open_append(std::string file);
+     * open file writer, in append mode.
+     * @param p a string indicates the path of file to open.
+     */
+    virtual int open_append(std::string p);
+    /**
+     * close current writer.
+     * @remark user can reopen again.
+     */
     virtual void close();
 public:
     virtual bool is_open();
@@ -80,16 +86,21 @@ public:
 class SrsFileReader
 {
 private:
-    std::string _file;
+    std::string path;
     int fd;
 public:
     SrsFileReader();
     virtual ~SrsFileReader();
 public:
     /**
-    * open file reader, can open then close then open...
-    */
-    virtual int open(std::string file);
+     * open file reader.
+     * @param p a string indicates the path of file to open.
+     */
+    virtual int open(std::string p);
+    /**
+     * close current reader.
+     * @remark user can reopen again.
+     */
     virtual void close();
 public:
     // TODO: FIXME: extract interface.
