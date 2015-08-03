@@ -863,6 +863,17 @@ void SrsHttpStreamServer::http_unmount(SrsSource* s, SrsRequest* r)
     entry->stream->entry->enabled = false;
 }
 
+int SrsHttpStreamServer::on_reload_vhost_added(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
+}
+
 int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
 {
     int ret = ERROR_SUCCESS;

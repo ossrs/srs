@@ -852,18 +852,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
             }
 
-            // TODO: reload new http_remux in on_vhost_add
-            // http_remux, only one per vhost.
-            if (get_vhost_http_remux_enabled(vhost)) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
-            }
             srs_trace("reload new vhost %s success.", vhost.c_str());
             continue;
         }
