@@ -51,8 +51,8 @@ public:
     /**
     * auto delete the ptr.
     */
-    impl__SrsAutoFree(T** _ptr) {
-        ptr = _ptr;
+    impl__SrsAutoFree(T** p) {
+        ptr = p;
     }
     
     virtual ~impl__SrsAutoFree() {

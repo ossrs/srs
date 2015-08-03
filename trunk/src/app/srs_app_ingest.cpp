@@ -293,7 +293,8 @@ int SrsIngester::parse()
     int ret = ERROR_SUCCESS;
     
     // parse ingesters
-    std::vector<SrsConfDirective*> vhosts = _srs_config->get_vhosts();
+    std::vector<SrsConfDirective*> vhosts;
+    _srs_config->get_vhosts(vhosts);
     
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];

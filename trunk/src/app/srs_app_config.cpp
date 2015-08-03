@@ -535,6 +535,290 @@ int SrsConfig::reload()
     return reload_conf(&conf);
 }
 
+int SrsConfig::reload_vhost(SrsConfDirective* old_root)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    // state graph
+    //      old_vhost       new_vhost
+    //      DISABLED    =>  ENABLED
+    //      ENABLED     =>  DISABLED
+    //      ENABLED     =>  ENABLED (modified)
+
+    // collect all vhost names
+    std::vector<std::string> vhosts;
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* vhost = root->at(i);
+        if (vhost->name != "vhost") {
+            continue;
+        }
+        vhosts.push_back(vhost->arg0());
+    }
+    for (int i = 0; i < (int)old_root->directives.size(); i++) {
+        SrsConfDirective* vhost = old_root->at(i);
+        if (vhost->name != "vhost") {
+            continue;
+        }
+        if (root->get("vhost", vhost->arg0())) {
+            continue;
+        }
+        vhosts.push_back(vhost->arg0());
+    }
+    
+    // process each vhost
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        std::string vhost = vhosts.at(i);
+
+        SrsConfDirective* old_vhost = old_root->get("vhost", vhost);
+        SrsConfDirective* new_vhost = root->get("vhost", vhost);
+        
+        //      DISABLED    =>  ENABLED
+        if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
+            srs_trace("vhost %s added, reload it.", vhost.c_str());
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes added "
+                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
+                    return ret;
+                }
+            }
+
+            srs_trace("reload new vhost %s success.", vhost.c_str());
+            continue;
+        }
+        
+        //      ENABLED     =>  DISABLED
+        if (get_vhost_enabled(old_vhost) && !get_vhost_enabled(new_vhost)) {
+            srs_trace("vhost %s removed, reload it.", vhost.c_str());
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes removed "
+                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
+                    return ret;
+                }
+            }
+            srs_trace("reload removed vhost %s success.", vhost.c_str());
+            continue;
+        }
+        
+        // mode, never supports reload.
+        // first, for the origin and edge role change is too complex.
+        // second, the vhosts in origin device group normally are all origin,
+        //      they never change to edge sometimes.
+        // third, the origin or upnode device can always be restart,
+        //      edge will retry and the users connected to edge are ok.
+        // it's ok to add or remove edge/origin vhost.
+        if (get_vhost_is_edge(old_vhost) != get_vhost_is_edge(new_vhost)) {
+            ret = ERROR_RTMP_EDGE_RELOAD;
+            srs_error("reload never supports mode changed. ret=%d", ret);
+            return ret;
+        }
+    
+        //      ENABLED     =>  ENABLED (modified)
+        if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+            srs_trace("vhost %s maybe modified, reload its detail.", vhost.c_str());
+            // atc, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_atc(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes atc failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload atc success.", vhost.c_str());
+            }
+            // gop_cache, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_gop_cache(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes gop_cache failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
+            }
+            // queue_length, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_queue_length(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes queue_length failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload queue_length success.", vhost.c_str());
+            }
+            // time_jitter, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("time_jitter"), old_vhost->get("time_jitter"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_time_jitter(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes time_jitter failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
+            }
+            // mix_correct, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("mix_correct"), old_vhost->get("mix_correct"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_mix_correct(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes mix_correct failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload mix_correct success.", vhost.c_str());
+            }
+            // forward, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_forward(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes forward failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload forward success.", vhost.c_str());
+            }
+            // hls, only one per vhost
+            // @remark, the hls_on_error directly support reload.
+            if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_hls(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes hls failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload hls success.", vhost.c_str());
+            }
+
+            // hds reload
+            if (!srs_directive_equals(new_vhost->get("hds"), old_vhost->get("hds"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_hds(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes hds failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload hds success.", vhost.c_str());
+            }
+
+            // dvr, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("dvr"), old_vhost->get("dvr"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_dvr(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes dvr failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload hlsdvrsuccess.", vhost.c_str());
+            }
+            // mr, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("mr"), old_vhost->get("mr"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_mr(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes mr failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload mr success.", vhost.c_str());
+            }
+            // chunk_size, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_chunk_size(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes chunk_size failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
+            }
+            // mw, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("mw_latency"), old_vhost->get("mw_latency"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_mw(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes mw failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload mw success.", vhost.c_str());
+            }
+            // min_latency, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_realtime(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes min_latency failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload min_latency success.", vhost.c_str());
+            }
+            // http, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http success.", vhost.c_str());
+            }
+            // http_static, only one per vhost.
+            // @remark, http_static introduced as alias of http.
+            if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http_static failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http_static success.", vhost.c_str());
+            }
+            // http_remux, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("http_remux"), old_vhost->get("http_remux"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
+            }
+            // transcode, many per vhost.
+            if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            // ingest, many per vhost.
+            if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            continue;
+        }
+        srs_trace("ignore reload vhost, enabled old: %d, new: %d",
+            get_vhost_enabled(old_vhost), get_vhost_enabled(new_vhost));
+    }
+    
+    return ret;
+}
+
 int SrsConfig::reload_conf(SrsConfig* conf)
 {
     int ret = ERROR_SUCCESS;
@@ -796,302 +1080,6 @@ int SrsConfig::reload_http_stream(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http_stream not changed success.");
-    
-    return ret;
-}
-
-int SrsConfig::reload_vhost(SrsConfDirective* old_root)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    // state graph
-    //      old_vhost       new_vhost
-    //      DISABLED    =>  ENABLED
-    //      ENABLED     =>  DISABLED
-    //      ENABLED     =>  ENABLED (modified)
-
-    // collect all vhost names
-    std::vector<std::string> vhosts;
-    for (int i = 0; i < (int)root->directives.size(); i++) {
-        SrsConfDirective* vhost = root->at(i);
-        if (vhost->name != "vhost") {
-            continue;
-        }
-        vhosts.push_back(vhost->arg0());
-    }
-    for (int i = 0; i < (int)old_root->directives.size(); i++) {
-        SrsConfDirective* vhost = old_root->at(i);
-        if (vhost->name != "vhost") {
-            continue;
-        }
-        if (root->get("vhost", vhost->arg0())) {
-            continue;
-        }
-        vhosts.push_back(vhost->arg0());
-    }
-    
-    // process each vhost
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        std::string vhost = vhosts.at(i);
-
-        SrsConfDirective* old_vhost = old_root->get("vhost", vhost);
-        SrsConfDirective* new_vhost = root->get("vhost", vhost);
-        
-        //      DISABLED    =>  ENABLED
-        if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
-            srs_trace("vhost %s added, reload it.", vhost.c_str());
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
-                    srs_error("notify subscribes added "
-                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
-                    return ret;
-                }
-            }
-
-            // TODO: reload new http_remux in on_vhost_add
-            // http_remux, only one per vhost.
-            if (get_vhost_http_remux_enabled(vhost)) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
-            }
-            srs_trace("reload new vhost %s success.", vhost.c_str());
-            continue;
-        }
-        
-        //      ENABLED     =>  DISABLED
-        if (get_vhost_enabled(old_vhost) && !get_vhost_enabled(new_vhost)) {
-            srs_trace("vhost %s removed, reload it.", vhost.c_str());
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
-                    srs_error("notify subscribes removed "
-                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
-                    return ret;
-                }
-            }
-            srs_trace("reload removed vhost %s success.", vhost.c_str());
-            continue;
-        }
-        
-        // mode, never supports reload.
-        // first, for the origin and edge role change is too complex.
-        // second, the vhosts in origin device group normally are all origin,
-        //      they never change to edge sometimes.
-        // third, the origin or upnode device can always be restart,
-        //      edge will retry and the users connected to edge are ok.
-        // it's ok to add or remove edge/origin vhost.
-        if (get_vhost_is_edge(old_vhost) != get_vhost_is_edge(new_vhost)) {
-            ret = ERROR_RTMP_EDGE_RELOAD;
-            srs_error("reload never supports mode changed. ret=%d", ret);
-            return ret;
-        }
-    
-        //      ENABLED     =>  ENABLED (modified)
-        if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
-            srs_trace("vhost %s maybe modified, reload its detail.", vhost.c_str());
-            // atc, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_atc(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes atc failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload atc success.", vhost.c_str());
-            }
-            // gop_cache, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_gop_cache(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes gop_cache failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
-            }
-            // queue_length, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_queue_length(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes queue_length failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload queue_length success.", vhost.c_str());
-            }
-            // time_jitter, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("time_jitter"), old_vhost->get("time_jitter"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_time_jitter(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes time_jitter failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
-            }
-            // mix_correct, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("mix_correct"), old_vhost->get("mix_correct"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_mix_correct(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes mix_correct failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload mix_correct success.", vhost.c_str());
-            }
-            // forward, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_forward(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes forward failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload forward success.", vhost.c_str());
-            }
-            // hls, only one per vhost
-            // @remark, the hls_on_error directly support reload.
-            if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_hls(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes hls failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload hls success.", vhost.c_str());
-            }
-
-            // hds reload
-            if (!srs_directive_equals(new_vhost->get("hds"), old_vhost->get("hds"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_hds(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes hds failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload hds success.", vhost.c_str());
-            }
-
-            // dvr, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("dvr"), old_vhost->get("dvr"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_dvr(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes dvr failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload hlsdvrsuccess.", vhost.c_str());
-            }
-            // mr, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("mr"), old_vhost->get("mr"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_mr(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes mr failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload mr success.", vhost.c_str());
-            }
-            // chunk_size, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_chunk_size(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes chunk_size failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
-            }
-            // mw, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("mw_latency"), old_vhost->get("mw_latency"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_mw(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes mw failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload mw success.", vhost.c_str());
-            }
-            // min_latency, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_realtime(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes min_latency failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload min_latency success.", vhost.c_str());
-            }
-            // http, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http success.", vhost.c_str());
-            }
-            // http_static, only one per vhost.
-            // @remark, http_static introduced as alias of http.
-            if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http_static failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http_static success.", vhost.c_str());
-            }
-            // http_remux, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("http_remux"), old_vhost->get("http_remux"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http_remux failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http_remux success.", vhost.c_str());
-            }
-            // transcode, many per vhost.
-            if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
-                return ret;
-            }
-            // ingest, many per vhost.
-            if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
-                return ret;
-            }
-            continue;
-        }
-        srs_trace("ignore reload vhost, enabled old: %d, new: %d",
-            get_vhost_enabled(old_vhost), get_vhost_enabled(new_vhost));
-    }
     
     return ret;
 }
@@ -1493,9 +1481,6 @@ int SrsConfig::check_config()
     int ret = ERROR_SUCCESS;
 
     srs_trace("srs checking config...");
-    
-    vector<SrsConfDirective*> vhosts = get_vhosts();
-    vector<SrsConfDirective*> stream_casters = get_stream_casters();
 
     ////////////////////////////////////////////////////////////////////////
     // check empty
@@ -1550,9 +1535,9 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = get_heartbeart();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "interval" && n != "url" 
+            if (n != "enabled" && n != "interval" && n != "url"
                 && n != "device_id" && n != "summaries"
-            ) {
+                ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported heartbeat directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -1570,200 +1555,7 @@ int SrsConfig::check_config()
             }
         }
     }
-    for (int n = 0; n < (int)stream_casters.size(); n++) {
-        SrsConfDirective* stream_caster = stream_casters[n];
-        for (int i = 0; stream_caster && i < (int)stream_caster->directives.size(); i++) {
-            SrsConfDirective* conf = stream_caster->at(i);
-            string n = conf->name;
-            if (n != "enabled" && n != "caster" && n != "output"
-                && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
-            ) {
-                ret = ERROR_SYSTEM_CONFIG_INVALID;
-                srs_error("unsupported stream_caster directive %s, ret=%d", n.c_str(), ret);
-                return ret;
-            }
-        }
-    }
-    for (int n = 0; n < (int)vhosts.size(); n++) {
-        SrsConfDirective* vhost = vhosts[n];
-        for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
-            SrsConfDirective* conf = vhost->at(i);
-            string n = conf->name;
-            if (n != "enabled" && n != "chunk_size"
-                && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
-                && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
-                && n != "gop_cache" && n != "queue_length"
-                && n != "refer" && n != "refer_publish" && n != "refer_play"
-                && n != "forward" && n != "transcode" && n != "bandcheck"
-                && n != "time_jitter" && n != "mix_correct"
-                && n != "atc" && n != "atc_auto"
-                && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency" && n != "min_latency"
-                && n != "security" && n != "http_remux"
-                && n != "http" && n != "http_static"
-                && n != "hds"
-            ) {
-                ret = ERROR_SYSTEM_CONFIG_INVALID;
-                srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
-                return ret;
-            }
-            // for each sub directives of vhost.
-            if (n == "dvr") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
-                        && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
-                    ) {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "mr") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "latency"
-                    ) {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost mr directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "ingest") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "input" && m != "ffmpeg"
-                        && m != "engine"
-                    ) {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "http" || n == "http_static") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "dir") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "http_remux") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "hstrs") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "hls") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
-                        && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
-                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
-                        && m != "hls_wait_keyframe" && m != "hls_dispose"
-                    ) {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "http_hooks") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
-                        && m != "on_unpublish" && m != "on_play" && m != "on_stop"
-                        && m != "on_dvr" && m != "on_hls" && m != "on_hls_notify"
-                    ) {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost http_hooks directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "forward") {
-                // TODO: FIXME: implements it.
-                /*for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "vhost" && m != "refer") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }*/
-            } else if (n == "security") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    SrsConfDirective* security = conf->at(j);
-                    string m = security->name.c_str();
-                    if (m != "enabled" && m != "deny" && m != "allow") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost security directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            } else if (n == "transcode") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    SrsConfDirective* trans = conf->at(j);
-                    string m = trans->name.c_str();
-                    if (m != "enabled" && m != "ffmpeg" && m != "engine") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                    if (m == "engine") {
-                        for (int k = 0; k < (int)trans->directives.size(); k++) {
-                            string e = trans->at(k)->name;
-                            if (e != "enabled" && e != "vfilter" && e != "vcodec"
-                                && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
-                                && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
-                                && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
-                                && e != "aparams" && e != "output"
-                                && e != "iformat" && e != "oformat"
-                            ) {
-                                ret = ERROR_SYSTEM_CONFIG_INVALID;
-                                srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
-                                return ret;
-                            }
-                        }
-                    }
-                }
-            } else if (n == "bandcheck") {
-                for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
-                        ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
-                        return ret;
-                    }
-                }
-            }
-        }
-    }
-    // check ingest id unique.
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        SrsConfDirective* vhost = vhosts[i];
-        std::vector<std::string> ids;
-        
-        for (int j = 0; j < (int)vhost->directives.size(); j++) {
-            SrsConfDirective* conf = vhost->at(j);
-            if (conf->name != "ingest") {
-                continue;
-            }
-            
-            std::string id = conf->arg0();
-            for (int k = 0; k < (int)ids.size(); k++) {
-                if (id == ids.at(k)) {
-                    ret = ERROR_SYSTEM_CONFIG_INVALID;
-                    srs_error("directive \"ingest\" id duplicated, vhost=%s, id=%s, ret=%d", 
-                        vhost->name.c_str(), id.c_str(), ret);
-                    return ret;
-                }
-            }
-            ids.push_back(id);
-        }
-    }
+    
     
     ////////////////////////////////////////////////////////////////////////
     // check listen for rtmp.
@@ -1893,32 +1685,6 @@ int SrsConfig::check_config()
             get_http_stream_listen().c_str(), ret);
         return ret;
     }
-    
-    ////////////////////////////////////////////////////////////////////////
-    // check chunk size
-    ////////////////////////////////////////////////////////////////////////
-    if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
-        || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
-    ) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
-            get_global_chunk_size(), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
-            SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
-        return ret;
-    }
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        SrsConfDirective* vhost = vhosts[i];
-        if (get_chunk_size(vhost->arg0()) < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
-            || get_chunk_size(vhost->arg0()) > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
-        ) {
-            ret = ERROR_SYSTEM_CONFIG_INVALID;
-            srs_error("directive vhost %s chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
-                vhost->arg0().c_str(), get_chunk_size(vhost->arg0()), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
-                SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
-            return ret;
-        }
-    }
-    
     ////////////////////////////////////////////////////////////////////////
     // check log name and level
     ////////////////////////////////////////////////////////////////////////
@@ -1951,6 +1717,230 @@ int SrsConfig::check_config()
         srs_warn("http_api is disabled by configure");
     }
 #endif
+
+    vector<SrsConfDirective*> stream_casters = get_stream_casters();
+    for (int n = 0; n < (int)stream_casters.size(); n++) {
+        SrsConfDirective* stream_caster = stream_casters[n];
+        for (int i = 0; stream_caster && i < (int)stream_caster->directives.size(); i++) {
+            SrsConfDirective* conf = stream_caster->at(i);
+            string n = conf->name;
+            if (n != "enabled" && n != "caster" && n != "output"
+                && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
+                ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported stream_caster directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+
+    vector<SrsConfDirective*> vhosts;
+    get_vhosts(vhosts);
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+        for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
+            SrsConfDirective* conf = vhost->at(i);
+            string n = conf->name;
+            if (n != "enabled" && n != "chunk_size"
+                && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
+                && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
+                && n != "gop_cache" && n != "queue_length"
+                && n != "refer" && n != "refer_publish" && n != "refer_play"
+                && n != "forward" && n != "transcode" && n != "bandcheck"
+                && n != "time_jitter" && n != "mix_correct"
+                && n != "atc" && n != "atc_auto"
+                && n != "debug_srs_upnode"
+                && n != "mr" && n != "mw_latency" && n != "min_latency"
+                && n != "security" && n != "http_remux"
+                && n != "http" && n != "http_static"
+                && n != "hds"
+            ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+            // for each sub directives of vhost.
+            if (n == "dvr") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
+                        && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
+                        ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "mr") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "latency"
+                        ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost mr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "ingest") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "input" && m != "ffmpeg"
+                        && m != "engine"
+                        ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "http" || n == "http_static") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "mount" && m != "dir") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "http_remux") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "hstrs") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "hls") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
+                        && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
+                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
+                        && m != "hls_wait_keyframe" && m != "hls_dispose"
+                        ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "http_hooks") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
+                        && m != "on_unpublish" && m != "on_play" && m != "on_stop"
+                        && m != "on_dvr" && m != "on_hls" && m != "on_hls_notify"
+                        ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http_hooks directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "forward") {
+                // TODO: FIXME: implements it.
+                /*for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "vhost" && m != "refer") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }*/
+            } else if (n == "security") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    SrsConfDirective* security = conf->at(j);
+                    string m = security->name.c_str();
+                    if (m != "enabled" && m != "deny" && m != "allow") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost security directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "transcode") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    SrsConfDirective* trans = conf->at(j);
+                    string m = trans->name.c_str();
+                    if (m != "enabled" && m != "ffmpeg" && m != "engine") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                    if (m == "engine") {
+                        for (int k = 0; k < (int)trans->directives.size(); k++) {
+                            string e = trans->at(k)->name;
+                            if (e != "enabled" && e != "vfilter" && e != "vcodec"
+                                && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
+                                && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
+                                && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
+                                && e != "aparams" && e != "output"
+                                && e != "iformat" && e != "oformat"
+                                ) {
+                                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                                srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
+                                return ret;
+                            }
+                        }
+                    }
+                }
+            } else if (n == "bandcheck") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            }
+        }
+    }
+    // check ingest id unique.
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        std::vector<std::string> ids;
+
+        for (int j = 0; j < (int)vhost->directives.size(); j++) {
+            SrsConfDirective* conf = vhost->at(j);
+            if (conf->name != "ingest") {
+                continue;
+            }
+
+            std::string id = conf->arg0();
+            for (int k = 0; k < (int)ids.size(); k++) {
+                if (id == ids.at(k)) {
+                    ret = ERROR_SYSTEM_CONFIG_INVALID;
+                    srs_error("directive \"ingest\" id duplicated, vhost=%s, id=%s, ret=%d",
+                              vhost->name.c_str(), id.c_str(), ret);
+                    return ret;
+                }
+            }
+            ids.push_back(id);
+        }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check chunk size
+    ////////////////////////////////////////////////////////////////////////
+    if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
+        || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
+    ) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
+            get_global_chunk_size(), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
+            SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
+        return ret;
+    }
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        if (get_chunk_size(vhost->arg0()) < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
+            || get_chunk_size(vhost->arg0()) > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
+        ) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("directive vhost %s chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
+                vhost->arg0().c_str(), get_chunk_size(vhost->arg0()), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
+                SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
+            return ret;
+        }
+    }
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
         srs_assert(vhost != NULL);
@@ -2219,23 +2209,19 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
     return NULL;
 }
 
-vector<SrsConfDirective*> SrsConfig::get_vhosts()
+void SrsConfig::get_vhosts(vector<SrsConfDirective*>& vhosts)
 {
     srs_assert(root);
-    
-    std::vector<SrsConfDirective*> vhosts;
-    
+
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
-        
+
         if (!conf->is_vhost()) {
             continue;
         }
-        
+
         vhosts.push_back(conf);
     }
-    
-    return vhosts;
 }
 
 bool SrsConfig::get_vhost_enabled(string vhost)

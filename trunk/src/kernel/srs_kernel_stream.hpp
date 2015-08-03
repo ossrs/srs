@@ -41,23 +41,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStream
 {
 private:
+    // current position at bytes.
     char* p;
-    char* pp;
-    char* _bytes;
-    int _size;
+    // the bytes data for stream to read or write.
+    char* bytes;
+    // the total number of bytes.
+    int nb_bytes;
 public:
     SrsStream();
     virtual ~SrsStream();
 public:
     /**
     * initialize the stream from bytes.
-    * @bytes, the bytes to convert from/to basic types.
-    * @size, the size of bytes.
+    * @b, the bytes to convert from/to basic types.
+    * @nb, the size of bytes, total number of bytes for stream.
     * @remark, stream never free the bytes, user must free it.
     * @remark, return error when bytes NULL.
     * @remark, return error when size is not positive.
     */
-    virtual int initialize(char* bytes, int size);
+    virtual int initialize(char* b, int nb);
 // get the status of stream
 public:
     /**

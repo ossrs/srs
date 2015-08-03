@@ -2697,11 +2697,11 @@ SrsTSMuxer::~SrsTSMuxer()
     close();
 }
 
-int SrsTSMuxer::open(string _path)
+int SrsTSMuxer::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
-    path = _path;
+    path = p;
     
     close();
     
@@ -3048,7 +3048,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 
 SrsTsEncoder::SrsTsEncoder()
 {
-    _fs = NULL;
+    writer = NULL;
     codec = new SrsAvcAacCodec();
     sample = new SrsCodecSample();
     cache = new SrsTsCache();
@@ -3065,22 +3065,22 @@ SrsTsEncoder::~SrsTsEncoder()
     srs_freep(context);
 }
 
-int SrsTsEncoder::initialize(SrsFileWriter* fs)
+int SrsTsEncoder::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(fs);
+    srs_assert(fw);
     
-    if (!fs->is_open()) {
+    if (!fw->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for encoder. ret=%d", ret);
         return ret;
     }
     
-    _fs = fs;
+    writer = fw;
 
     srs_freep(muxer);
-    muxer = new SrsTSMuxer(fs, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
+    muxer = new SrsTSMuxer(fw, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;

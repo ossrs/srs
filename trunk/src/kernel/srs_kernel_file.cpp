@@ -46,50 +46,50 @@ SrsFileWriter::~SrsFileWriter()
     close();
 }
 
-int SrsFileWriter::open(string file)
+int SrsFileWriter::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
     if (fd > 0) {
         ret = ERROR_SYSTEM_FILE_ALREADY_OPENED;
-        srs_error("file %s already opened. ret=%d", _file.c_str(), ret);
+        srs_error("file %s already opened. ret=%d", path.c_str(), ret);
         return ret;
     }
     
     int flags = O_CREAT|O_WRONLY|O_TRUNC;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
 
-    if ((fd = ::open(file.c_str(), flags, mode)) < 0) {
+    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
         ret = ERROR_SYSTEM_FILE_OPENE;
-        srs_error("open file %s failed. ret=%d", file.c_str(), ret);
+        srs_error("open file %s failed. ret=%d", p.c_str(), ret);
         return ret;
     }
     
-    _file = file;
+    path = p;
     
     return ret;
 }
 
-int SrsFileWriter::open_append(string file)
+int SrsFileWriter::open_append(string p)
 {
     int ret = ERROR_SUCCESS;
     
     if (fd > 0) {
         ret = ERROR_SYSTEM_FILE_ALREADY_OPENED;
-        srs_error("file %s already opened. ret=%d", _file.c_str(), ret);
+        srs_error("file %s already opened. ret=%d", path.c_str(), ret);
         return ret;
     }
     
     int flags = O_APPEND|O_WRONLY;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
 
-    if ((fd = ::open(file.c_str(), flags, mode)) < 0) {
+    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
         ret = ERROR_SYSTEM_FILE_OPENE;
-        srs_error("open file %s failed. ret=%d", file.c_str(), ret);
+        srs_error("open file %s failed. ret=%d", p.c_str(), ret);
         return ret;
     }
     
-    _file = file;
+    path = p;
     
     return ret;
 }
@@ -104,7 +104,7 @@ void SrsFileWriter::close()
     
     if (::close(fd) < 0) {
         ret = ERROR_SYSTEM_FILE_CLOSE;
-        srs_error("close file %s failed. ret=%d", _file.c_str(), ret);
+        srs_error("close file %s failed. ret=%d", path.c_str(), ret);
         return;
     }
     fd = -1;
@@ -135,7 +135,7 @@ int SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     // TODO: FIXME: use st_write.
     if ((nwrite = ::write(fd, buf, count)) < 0) {
         ret = ERROR_SYSTEM_FILE_WRITE;
-        srs_error("write to file %s failed. ret=%d", _file.c_str(), ret);
+        srs_error("write to file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
     
@@ -177,23 +177,23 @@ SrsFileReader::~SrsFileReader()
     close();
 }
 
-int SrsFileReader::open(string file)
+int SrsFileReader::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
     if (fd > 0) {
         ret = ERROR_SYSTEM_FILE_ALREADY_OPENED;
-        srs_error("file %s already opened. ret=%d", _file.c_str(), ret);
+        srs_error("file %s already opened. ret=%d", path.c_str(), ret);
         return ret;
     }
 
-    if ((fd = ::open(file.c_str(), O_RDONLY)) < 0) {
+    if ((fd = ::open(p.c_str(), O_RDONLY)) < 0) {
         ret = ERROR_SYSTEM_FILE_OPENE;
-        srs_error("open file %s failed. ret=%d", file.c_str(), ret);
+        srs_error("open file %s failed. ret=%d", p.c_str(), ret);
         return ret;
     }
     
-    _file = file;
+    path = p;
     
     return ret;
 }
@@ -208,7 +208,7 @@ void SrsFileReader::close()
     
     if (::close(fd) < 0) {
         ret = ERROR_SYSTEM_FILE_CLOSE;
-        srs_error("close file %s failed. ret=%d", _file.c_str(), ret);
+        srs_error("close file %s failed. ret=%d", path.c_str(), ret);
         return;
     }
     fd = -1;
@@ -252,7 +252,7 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     // TODO: FIXME: use st_read.
     if ((nread = ::read(fd, buf, count)) < 0) {
         ret = ERROR_SYSTEM_FILE_READ;
-        srs_error("read from file %s failed. ret=%d", _file.c_str(), ret);
+        srs_error("read from file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
     

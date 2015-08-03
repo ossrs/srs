@@ -1560,9 +1560,10 @@ public:
     virtual ~SrsTSMuxer();
 public:
     /**
-    * open the writer, donot write the PSI of ts.
-    */
-    virtual int open(std::string _path);
+     * open the writer, donot write the PSI of ts.
+     * @param p a string indicates the path of ts file to mux to.
+     */
+    virtual int open(std::string p);
     /**
     * when open ts, we donot write the header(PSI),
     * for user may need to update the acodec to mp3 or others,
@@ -1625,7 +1626,7 @@ private:
 class SrsTsEncoder
 {
 private:
-    SrsFileWriter* _fs;
+    SrsFileWriter* writer;
 private:
     SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
@@ -1637,9 +1638,10 @@ public:
     virtual ~SrsTsEncoder();
 public:
     /**
-    * initialize the underlayer file stream.
-    */
-    virtual int initialize(SrsFileWriter* fs);
+     * initialize the underlayer file stream.
+     * @param fw the writer to use for ts encoder, user must free it.
+     */
+    virtual int initialize(SrsFileWriter* fw);
 public:
     /**
     * write audio/video packet.

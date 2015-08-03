@@ -33,7 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsStream;
 class SrsFileWriter;
-class SrsFileReader;
 
 /**
 * encode data to aac file.
@@ -41,7 +40,7 @@ class SrsFileReader;
 class SrsMp3Encoder
 {
 private:
-    SrsFileWriter* _fs;
+    SrsFileWriter* writer;
 private:
     SrsStream* tag_stream;
 public:
@@ -51,9 +50,9 @@ public:
     /**
     * initialize the underlayer file stream.
     * @remark user can initialize multiple times to encode multiple mp3 files.
-    * @remark, user must free the fs, mp3 encoder never close/free it.
+    * @remark, user must free the @param fw, mp3 encoder never close/free it.
     */
-    virtual int initialize(SrsFileWriter* fs);
+    virtual int initialize(SrsFileWriter* fw);
 public:
     /**
     * write mp3 id3 v2.3 header.

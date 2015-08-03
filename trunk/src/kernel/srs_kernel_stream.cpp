@@ -31,8 +31,8 @@ using namespace std;
 
 SrsStream::SrsStream()
 {
-    p = _bytes = NULL;
-    _size = 0;
+    p = bytes = NULL;
+    nb_bytes = 0;
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -42,24 +42,24 @@ SrsStream::~SrsStream()
 {
 }
 
-int SrsStream::initialize(char* bytes, int size)
+int SrsStream::initialize(char* b, int nb)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!bytes) {
+    if (!b) {
         ret = ERROR_KERNEL_STREAM_INIT;
         srs_error("stream param bytes must not be NULL. ret=%d", ret);
         return ret;
     }
     
-    if (size <= 0) {
+    if (nb <= 0) {
         ret = ERROR_KERNEL_STREAM_INIT;
         srs_error("stream param size must be positive. ret=%d", ret);
         return ret;
     }
 
-    _size = size;
-    p = _bytes = bytes;
+    nb_bytes = nb;
+    p = bytes = b;
     srs_info("init stream ok, size=%d", size);
 
     return ret;
@@ -67,29 +67,29 @@ int SrsStream::initialize(char* bytes, int size)
 
 char* SrsStream::data()
 {
-    return _bytes;
+    return bytes;
 }
 
 int SrsStream::size()
 {
-    return _size;
+    return nb_bytes;
 }
 
 int SrsStream::pos()
 {
-    return p - _bytes;
+    return (int)(p - bytes);
 }
 
 bool SrsStream::empty()
 {
-    return !_bytes || (p >= _bytes + _size);
+    return !bytes || (p >= bytes + nb_bytes);
 }
 
 bool SrsStream::require(int required_size)
 {
     srs_assert(required_size > 0);
     
-    return required_size <= _size - (p - _bytes);
+    return required_size <= nb_bytes - (p - bytes);
 }
 
 void SrsStream::skip(int size)
@@ -111,7 +111,7 @@ int16_t SrsStream::read_2bytes()
     srs_assert(require(2));
     
     int16_t value;
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     pp[1] = *p++;
     pp[0] = *p++;
     
@@ -123,7 +123,7 @@ int32_t SrsStream::read_3bytes()
     srs_assert(require(3));
     
     int32_t value = 0x00;
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     pp[2] = *p++;
     pp[1] = *p++;
     pp[0] = *p++;
@@ -136,7 +136,7 @@ int32_t SrsStream::read_4bytes()
     srs_assert(require(4));
     
     int32_t value;
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     pp[3] = *p++;
     pp[2] = *p++;
     pp[1] = *p++;
@@ -150,7 +150,7 @@ int64_t SrsStream::read_8bytes()
     srs_assert(require(8));
     
     int64_t value;
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     pp[7] = *p++;
     pp[6] = *p++;
     pp[5] = *p++;
@@ -195,7 +195,7 @@ void SrsStream::write_2bytes(int16_t value)
 {
     srs_assert(require(2));
     
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     *p++ = pp[1];
     *p++ = pp[0];
 }
@@ -204,7 +204,7 @@ void SrsStream::write_4bytes(int32_t value)
 {
     srs_assert(require(4));
     
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     *p++ = pp[3];
     *p++ = pp[2];
     *p++ = pp[1];
@@ -215,7 +215,7 @@ void SrsStream::write_3bytes(int32_t value)
 {
     srs_assert(require(3));
     
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
@@ -225,7 +225,7 @@ void SrsStream::write_8bytes(int64_t value)
 {
     srs_assert(require(8));
     
-    pp = (char*)&value;
+    char* pp = (char*)&value;
     *p++ = pp[7];
     *p++ = pp[6];
     *p++ = pp[5];
@@ -238,7 +238,7 @@ void SrsStream::write_8bytes(int64_t value)
 
 void SrsStream::write_string(string value)
 {
-    srs_assert(require(value.length()));
+    srs_assert(require((int)value.length()));
     
     memcpy(p, value.data(), value.length());
     p += value.length();

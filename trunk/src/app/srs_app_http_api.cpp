@@ -543,20 +543,21 @@ int SrsHttpApi::do_cycle()
         // always free it in this scope.
         SrsAutoFree(ISrsHttpMessage, req);
         
-        // TODO: FIXME: use the post body.
-        std::string res;
-        
-        // get response body.
-        if ((ret = req->body_read_all(res)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
         // ok, handle http request.
         SrsHttpResponseWriter writer(&skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }
-        
+
+        // read all rest bytes in request body.
+        char buf[SRS_HTTP_READ_CACHE_BYTES];
+        ISrsHttpResponseReader* br = req->body_reader();
+        while (!br->eof()) {
+            if ((ret = br->read(buf, SRS_HTTP_READ_CACHE_BYTES, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+
         // donot keep alive, disconnect it.
         // @see https://github.com/simple-rtmp-server/srs/issues/399
         if (!req->is_keep_alive()) {
