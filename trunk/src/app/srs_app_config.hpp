@@ -253,6 +253,11 @@ public:
     * @remark, user can test the config before reload it.
     */
     virtual int reload();
+private:
+    /**
+    * reload the vhost section of config.
+    */
+    virtual int reload_vhost(SrsConfDirective* old_root);
 protected:
     /**
     * reload from the config.
@@ -268,10 +273,6 @@ private:
     * reload the http_stream section of config.
     */
     virtual int reload_http_stream(SrsConfDirective* old_root);
-    /**
-    * reload the vhost section of config.
-    */
-    virtual int reload_vhost(SrsConfDirective* old_root);
     /**
     * reload the transcode section of vhost of config.
     */
@@ -413,7 +414,7 @@ public:
     /**
     * get all vhosts in config file.
     */
-    virtual std::vector<SrsConfDirective*>  get_vhosts();
+    virtual void get_vhosts(std::vector<SrsConfDirective*>& vhosts);
     /**
     * whether vhost is enabled
     * @param vhost, the vhost name.
