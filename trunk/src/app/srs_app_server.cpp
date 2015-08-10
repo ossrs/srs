@@ -770,7 +770,7 @@ int SrsServer::http_handle()
     
 #ifdef SRS_AUTO_HTTP_API
     srs_assert(http_api_mux);
-    if ((ret = http_api_mux->handle("/", new SrsGoApiRoot())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = http_api_mux->handle("/api", new SrsGoApiApi())) != ERROR_SUCCESS) {
@@ -809,6 +809,19 @@ int SrsServer::http_handle()
     if ((ret = http_api_mux->handle("/api/v1/streams", new SrsGoApiStreams())) != ERROR_SUCCESS) {
         return ret;
     }
+    // for error test which always response error code 100.
+    if ((ret = http_api_mux->handle("/api/v1/errors", new SrsGoApiError())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // TODO: FIXME: for console.
+    // TODO: FIXME: support reload.
+    std::string dir = _srs_config->get_http_stream_dir() + "/srs-console";
+    if ((ret = http_api_mux->handle("/console/", new SrsHttpFileServer(dir))) != ERROR_SUCCESS) {
+        srs_error("http: mount console dir=%s failed. ret=%d", dir.c_str(), ret);
+        return ret;
+    }
+    srs_trace("http: console mount to %s", dir.c_str());
 #endif
 
     return ret;
