@@ -104,11 +104,11 @@ int SrsHttpResponseWriter::write(char* data, int size)
     
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
-        
-        if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
-            srs_error("http: send header failed. ret=%d", ret);
-            return ret;
-        }
+    }
+
+    if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
+        srs_error("http: send header failed. ret=%d", ret);
+        return ret;
     }
     
     // check the bytes send and content length.

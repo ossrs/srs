@@ -246,7 +246,17 @@ SrsHttpRedirectHandler::~SrsHttpRedirectHandler()
 int SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
-    // TODO: FIXME: implements it.
+    string msg = "Moved Permsanently";
+
+    w->header()->set_content_type("text/plain; charset=utf-8");
+    w->header()->set_content_length(msg.length());
+    w->header()->set("Location", url);
+    w->write_header(code);
+
+    w->write((char*)msg.data(), (int)msg.length());
+    w->final_request();
+
+    srs_info("redirect to %s.", url.c_str());
     return ret;
 }
 

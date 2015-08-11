@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_HTTP_API
 
 #include <sstream>
+#include <stdlib.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -39,6 +40,7 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_source.hpp>
 #include <srs_app_http_conn.hpp>
 
 SrsGoApiRoot::SrsGoApiRoot()
@@ -459,20 +461,66 @@ SrsGoApiStreams::~SrsGoApiStreams()
 
 int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream data;
+    int ret = ERROR_SUCCESS;
     SrsStatistic* stat = SrsStatistic::instance();
-    int ret = stat->dumps_streams(data);
-    
     std::stringstream ss;
-    
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("streams", data.str())
-        << SRS_JOBJECT_END;
-    
-    return srs_http_response_json(w, ss.str());
+
+    if (r->is_http_delete()) {
+        // path: {pattern}{stream_id}
+        // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
+        string sid = r->path().substr((int)entry->pattern.length());
+        if (sid.empty()) {
+            ret = ERROR_REQUEST_DATA;
+            srs_error("invalid param, stream_id=%s. ret=%d", sid.c_str(), ret);
+
+            ss << SRS_JOBJECT_START
+                   << SRS_JFIELD_ERROR(ret)
+               << SRS_JOBJECT_END;
+
+            return srs_http_response_json(w, ss.str());
+        }
+
+        int stream_id = ::atoi(sid.c_str());
+        SrsStatisticStream* stream = stat->find_stream(stream_id);
+        if (stream == NULL) {
+            ret = ERROR_RTMP_STREAM_NOT_FOUND;
+            srs_error("stream stream_id=%s not found. ret=%d", sid.c_str(), ret);
+
+            ss << SRS_JOBJECT_START
+                   << SRS_JFIELD_ERROR(ret)
+               << SRS_JOBJECT_END;
+
+            return srs_http_response_json(w, ss.str());
+        }
+
+        SrsSource* source = SrsSource::fetch(stream->vhost->vhost, stream->app, stream->stream);
+        if (source) {
+            source->set_expired();
+            srs_warn("disconnent stream=%d successfully. vhost=%s, app=%s, stream=%s.", 
+                stream_id, stream->vhost->vhost.c_str(), stream->app.c_str(), stream->stream.c_str());
+        } else {
+            ret = ERROR_SOURCE_NOT_FOUND;
+        }
+
+        ss << SRS_JOBJECT_START
+               << SRS_JFIELD_ERROR(ret)
+           << SRS_JOBJECT_END;
+
+        return srs_http_response_json(w, ss.str());
+    } else {
+        std::stringstream data;
+        int ret = stat->dumps_streams(data);
+        
+        ss << SRS_JOBJECT_START
+               << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+               << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+               << SRS_JFIELD_ORG("streams", data.str())
+           << SRS_JOBJECT_END;
+        
+        return srs_http_response_json(w, ss.str());
+    }
 }
+
 
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
     : SrsConnection(cm, fd)

@@ -773,6 +773,13 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     int64_t nb_msgs = 0;
     while (!disposed) {
         pprint->elapse();
+        
+        // when source is set to expired, disconnect it.
+        if (source->expired()) {
+            ret = ERROR_USER_DISCONNECT;
+            srs_error("source is expired. ret=%d", ret);
+            return ret;
+        }
 
         // cond wait for timeout.
         if (nb_msgs == 0) {

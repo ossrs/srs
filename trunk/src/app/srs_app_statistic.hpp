@@ -131,6 +131,7 @@ private:
 public:
     static SrsStatistic* instance();
 public:
+    virtual SrsStatisticStream* find_stream(int stream_id);
     /**
     * when got video info for stream.
     */

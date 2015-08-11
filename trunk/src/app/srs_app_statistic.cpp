@@ -134,6 +134,20 @@ SrsStatistic* SrsStatistic::instance()
     return _instance;
 }
 
+SrsStatisticStream* SrsStatistic::find_stream(int stream_id)
+{
+    std::map<int, SrsStatisticClient*>::iterator it;
+    for (it = clients.begin(); it != clients.end(); it++) {
+        SrsStatisticClient* client = it->second;
+        SrsStatisticStream* stream = client->stream;
+        
+        if (stream_id == stream->id) {
+            return stream;
+        }
+    }
+    return NULL;
+}
+
 int SrsStatistic::on_video_info(SrsRequest* req, 
     SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
 ) {

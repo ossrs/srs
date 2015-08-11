@@ -149,6 +149,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTP_TYPE96_CORRUPT            2045
 #define ERROR_RTP_TYPE97_CORRUPT            2046
 #define ERROR_RTSP_AUDIO_CONFIG             2047
+#define ERROR_RTMP_STREAM_NOT_FOUND         2048
 //                                           
 // system control message, 
 // not an error, but special control logic.
@@ -225,6 +226,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HLS_NO_STREAM                 3062
 #define ERROR_JSON_LOADS                    3063
 #define ERROR_RESPONSE_CODE                 3064
+#define ERROR_RESPONSE_DATA                 3065
+#define ERROR_REQUEST_DATA                  3066
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.

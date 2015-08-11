@@ -452,6 +452,8 @@ private:
     // whether use interlaced/mixed algorithm to correct timestamp.
     bool mix_correct;
     SrsMixQueue* mix_queue;
+    // the flag of source expired or not.
+    bool is_expired;
     // whether stream is monotonically increase.
     bool is_monotonically_increase;
     int64_t last_packet_time;
@@ -583,6 +585,12 @@ public:
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
+public:
+    virtual bool expired();
+    /**
+    * set source expired.
+    */
+    virtual void set_expired();
 };
 
 #endif
