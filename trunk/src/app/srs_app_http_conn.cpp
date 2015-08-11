@@ -263,7 +263,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     
     // status_line
     ss << "HTTP/1.1 " << status << " "
-    << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
+        << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
     
     // detect content type
     if (srs_go_http_body_allowd(status)) {
