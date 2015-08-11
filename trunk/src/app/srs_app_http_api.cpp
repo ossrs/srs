@@ -110,7 +110,12 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("streams", "dumps streams to json") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("errors", "always return an error 100.")
+            << SRS_JFIELD_ORG("test", SRS_JOBJECT_START)
+                << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("redirects", "always redirect to /api/v1/test/errors") << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR(".vhost.", "http vhost for error.srs.com/api/v1/test/errors")
+            << SRS_JOBJECT_END
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
@@ -442,9 +447,9 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("vhosts", data.str())
+            << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("vhosts", data.str())
         << SRS_JOBJECT_END;
     
     return srs_http_response_json(w, ss.str());
@@ -467,9 +472,9 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("streams", data.str())
+            << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("streams", data.str())
         << SRS_JOBJECT_END;
     
     return srs_http_response_json(w, ss.str());
@@ -488,8 +493,9 @@ int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(100) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("msg", "SRS demo error.")
+            << SRS_JFIELD_ERROR(100) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("msg", "SRS demo error.") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("path", r->path())
         << SRS_JOBJECT_END;
     
     return srs_http_response_json(w, ss.str());
