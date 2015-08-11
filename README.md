@@ -1,6 +1,6 @@
 #Simple-RTMP-Server
 
-SRS/3.0, [OuXuli][release3]
+SRS/2.0, [ZhouGuowen][release2]
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
 SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
