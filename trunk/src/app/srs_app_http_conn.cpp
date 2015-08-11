@@ -102,10 +102,12 @@ int SrsHttpResponseWriter::write(char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
+    // write the header data in memory.
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
     }
-
+    
+    // whatever header is wrote, we should try to send header.
     if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
         srs_error("http: send header failed. ret=%d", ret);
         return ret;
@@ -261,7 +263,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     
     // status_line
     ss << "HTTP/1.1 " << status << " "
-    << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
+        << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
     
     // detect content type
     if (srs_go_http_body_allowd(status)) {
