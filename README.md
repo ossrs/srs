@@ -342,6 +342,8 @@ Remark:
 
 ## History
 
+* v2.0, 2015-08-12, enable the SRS_PERF_TCP_NODELAY and add config tcp_nodelay. 2.0.182
+* v2.0, 2015-08-11, for [#442](https://github.com/simple-rtmp-server/srs/issues/442) support kickoff connected client. 2.0.181
 * v2.0, 2015-07-21, for [#169](https://github.com/simple-rtmp-server/srs/issues/169) support default values for transcode. 2.0.180
 * v2.0, 2015-07-21, fix [#435](https://github.com/simple-rtmp-server/srs/issues/435) add pageUrl for HTTP callback on_play.
 * v2.0, 2015-07-20, refine the hls, ignore packet when no sequence header. 2.0.179
