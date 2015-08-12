@@ -163,12 +163,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //#undef SRS_PERF_COMPLEX_SEND
 #define SRS_PERF_COMPLEX_SEND
 /**
-* whether enable the TCP_NODELAY
-* user maybe need send small tcp packet for some network.
-* @see https://github.com/simple-rtmp-server/srs/issues/320
-*/
-//#define SRS_PERF_TCP_NODELAY
+ * whether enable the TCP_NODELAY
+ * user maybe need send small tcp packet for some network.
+ * @see https://github.com/simple-rtmp-server/srs/issues/320
+ */
 #undef SRS_PERF_TCP_NODELAY
+#define SRS_PERF_TCP_NODELAY
 /**
 * set the socket send buffer,
 * to force the server to send smaller tcp packet.

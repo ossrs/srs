@@ -522,6 +522,10 @@ public:
     */
     // TODO: FIXME: add utest for min_latency.
     virtual bool                get_realtime_enabled(std::string vhost);
+    /**
+     * whether enable tcp nodelay for all clients of vhost.
+     */
+    virtual bool                get_tcp_nodelay(std::string vhost);
 private:
     /**
     * get the global chunk size.

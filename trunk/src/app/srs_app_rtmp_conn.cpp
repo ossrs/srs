@@ -591,7 +591,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
     
     // set the sock options.
-    play_set_sock_options();
+    set_sock_options();
     
     while (!disposed) {
         // collect elapse for pithy print.
@@ -769,6 +769,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
     }
+    
+    // set the sock options.
+    set_sock_options();
 
     int64_t nb_msgs = 0;
     while (!disposed) {
@@ -1093,10 +1096,10 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     mw_sleep = sleep_ms;
 }
 
-void SrsRtmpConn::play_set_sock_options()
+void SrsRtmpConn::set_sock_options()
 {
+    if (_srs_config->get_tcp_nodelay(req->vhost)) {
 #ifdef SRS_PERF_TCP_NODELAY
-    if (true) {
         int fd = st_netfd_fileno(stfd);
     
         socklen_t nb_v = sizeof(int);
@@ -1112,8 +1115,10 @@ void SrsRtmpConn::play_set_sock_options()
         getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, &nb_v);
         
         srs_trace("set TCP_NODELAY %d=>%d", ov, v);
-    }
+#else
+        srs_warn("SRS_PERF_TCP_NODELAY is disabled but tcp_nodelay configed.");
 #endif
+    }
 }
 
 int SrsRtmpConn::check_edge_token_traverse_auth()

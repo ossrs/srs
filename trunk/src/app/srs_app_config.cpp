@@ -1750,7 +1750,7 @@ int SrsConfig::check_config()
                 && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency" && n != "min_latency"
+                && n != "mr" && n != "mw_latency" && n != "min_latency" && n != "tcp_nodelay"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
                 && n != "hds"
@@ -2486,6 +2486,23 @@ bool SrsConfig::get_realtime_enabled(string vhost)
         return SRS_PERF_MIN_LATENCY_ENABLED;
     }
 
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_tcp_nodelay(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("tcp_nodelay");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
