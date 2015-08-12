@@ -826,12 +826,12 @@ int SrsServer::http_handle()
     
     // TODO: FIXME: for console.
     // TODO: FIXME: support reload.
-    std::string dir = _srs_config->get_http_stream_dir() + "/srs-console";
+    std::string dir = _srs_config->get_http_stream_dir() + "/console";
     if ((ret = http_api_mux->handle("/console/", new SrsHttpFileServer(dir))) != ERROR_SUCCESS) {
         srs_error("http: mount console dir=%s failed. ret=%d", dir.c_str(), ret);
         return ret;
     }
-    srs_trace("http: console mount to %s", dir.c_str());
+    srs_trace("http: api mount /console to %s", dir.c_str());
 #endif
 
     return ret;
