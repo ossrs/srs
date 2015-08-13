@@ -761,6 +761,7 @@ The HLS overhead is calc by: (HLS - FLV) / FLV * 100%
 The api provides bytes of vhost, stream and srs.
 
 | Connections | tcpdump     | srs         |  deviation |
+| ----------- |  ---------- | ----------  |  --------- |
 |      1      | 201687968   | 201687968   |   0%       |
 |     100     | 12456042662 | 12458284053 |   0.018%   |
 |     500     | 11623083989 | 11633158616 |   0.087%   |
