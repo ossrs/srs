@@ -175,9 +175,8 @@ public:
     /**
      * get packets in consumer queue.
      * @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
-     * @count the count in array, input and output param.
+     * @count the count in array, output param.
      * @max_count the max count to dequeue, must be positive.
-     * @remark user can specifies the count to get specified msgs; 0 to get all if possible.
      */
     virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     /**
