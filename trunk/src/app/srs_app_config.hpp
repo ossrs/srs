@@ -526,6 +526,10 @@ public:
      * whether enable tcp nodelay for all clients of vhost.
      */
     virtual bool                get_tcp_nodelay(std::string vhost);
+    /**
+     * the minimal send interval in ms.
+     */
+    virtual int                 get_send_min_interval(std::string vhost);
 private:
     /**
     * get the global chunk size.

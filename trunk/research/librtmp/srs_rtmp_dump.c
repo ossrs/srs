@@ -257,6 +257,7 @@ int main(int argc, char** argv)
     }
     
     u_int32_t pre_timestamp = 0;
+    int64_t pre_now = srs_utils_time_ms();
     for (;;) {
         int size;
         char type;
@@ -268,11 +269,12 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
-        if (srs_human_print_rtmp_packet2(type, timestamp, data, size, pre_timestamp) != 0) {
+        if (srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, pre_now) != 0) {
             srs_human_trace("print rtmp packet failed.");
             goto rtmp_destroy;
         }
         pre_timestamp = timestamp;
+        pre_now = srs_utils_time_ms();
         
         // we only write some types of messages to flv file.
         int is_flv_msg = type == SRS_RTMP_TYPE_AUDIO

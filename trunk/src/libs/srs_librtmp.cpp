@@ -1915,8 +1915,7 @@ void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
 
 int64_t srs_utils_time_ms()
 {
-    srs_update_system_time_ms();
-    return srs_get_system_time_ms();
+    return srs_update_system_time_ms();
 }
 
 int64_t srs_utils_send_bytes(srs_rtmp_t rtmp)
@@ -2321,6 +2320,11 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
 
 int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp)
 {
+    return srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, 0);
+}
+    
+int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now)
+{
     int ret = ERROR_SUCCESS;
     
     int diff = 0;
@@ -2328,24 +2332,29 @@ int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int
         diff = (int)timestamp - (int)pre_timestamp;
     }
     
+    int ndiff = 0;
+    if (pre_now > 0) {
+        ndiff = (int)(srs_utils_time_ms() - pre_now);
+    }
+    
     u_int32_t pts;
     if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
-        srs_human_trace("Rtmp packet type=%s, dts=%d, diff=%d, size=%d, DecodeError",
-            srs_human_flv_tag_type2string(type), timestamp, diff, size
+        srs_human_trace("Rtmp packet type=%s, dts=%d, diff=%d, ndiff=%d, size=%d, DecodeError",
+            srs_human_flv_tag_type2string(type), timestamp, diff, ndiff, size
         );
         return ret;
     }
     
     if (type == SRS_RTMP_TYPE_VIDEO) {
-        srs_human_trace("Video packet type=%s, dts=%d, pts=%d, diff=%d, size=%d, %s(%s,%s)",
-            srs_human_flv_tag_type2string(type), timestamp, pts, diff, size,
+        srs_human_trace("Video packet type=%s, dts=%d, pts=%d, diff=%d, ndiff=%d, size=%d, %s(%s,%s)",
+            srs_human_flv_tag_type2string(type), timestamp, pts, diff, ndiff, size,
             srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
             srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
             srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size))
         );
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, diff=%d, size=%d, %s(%s,%s,%s,%s)",
-            srs_human_flv_tag_type2string(type), timestamp, pts, diff, size,
+        srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, diff=%d, ndiff=%d, size=%d, %s(%s,%s,%s,%s)",
+            srs_human_flv_tag_type2string(type), timestamp, pts, diff, ndiff, size,
             srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
             srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
             srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
@@ -2353,8 +2362,8 @@ int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int
             srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size))
         );
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-        srs_human_verbose("Data packet type=%s, time=%d, diff=%d, size=%d",
-        srs_human_flv_tag_type2string(type), timestamp, diff, size);
+        srs_human_verbose("Data packet type=%s, time=%d, diff=%d, ndiff=%d, size=%d",
+        srs_human_flv_tag_type2string(type), timestamp, diff, ndiff, size);
         int nparsed = 0;
         while (nparsed < size) {
             int nb_parsed_this = 0;
@@ -2370,8 +2379,8 @@ int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int
             srs_freep(amf0_str);
         }
     } else {
-        srs_human_trace("Rtmp packet type=%#x, dts=%d, pts=%d, diff=%d, size=%d",
-            type, timestamp, pts, diff, size);
+        srs_human_trace("Rtmp packet type=%#x, dts=%d, pts=%d, diff=%d, ndiff=%d, size=%d",
+            type, timestamp, pts, diff, ndiff, size);
     }
     
     return ret;

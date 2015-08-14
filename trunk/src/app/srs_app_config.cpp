@@ -757,6 +757,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mw success.", vhost.c_str());
             }
+            // smi(send_min_interval), only one per vhost
+            if (!srs_directive_equals(new_vhost->get("send_min_interval"), old_vhost->get("send_min_interval"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_smi(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes smi failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload smi success.", vhost.c_str());
+            }
             // min_latency, only one per vhost
             if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1750,7 +1761,7 @@ int SrsConfig::check_config()
                 && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency" && n != "min_latency" && n != "tcp_nodelay"
+                && n != "mr" && n != "mw_latency" && n != "min_latency" && n != "tcp_nodelay" && n != "send_min_interval"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
                 && n != "hds"
@@ -2504,6 +2515,23 @@ bool SrsConfig::get_tcp_nodelay(string vhost)
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_send_min_interval(string vhost)
+{
+    static int DEFAULT = 0;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("send_min_interval");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_global_chunk_size()
