@@ -301,8 +301,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     }
     
     srs_assert(max_count > 0);
-    // when count is 0, dumps all; otherwise, dumps no more than count.
-    count = srs_min(max_count, count? count : nb_msgs);
+    count = srs_min(max_count, nb_msgs);
 
     SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < count; i++) {
@@ -312,7 +311,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     SrsSharedPtrMessage* last = omsgs[count - 1];
     av_start_time = last->timestamp;
     
-    if (count >= nb_msgs) {
+    if (count >= (int)msgs.size()) {
         // the pmsgs is big enough and clear msgs at most time.
         msgs.clear();
     } else {
@@ -502,7 +501,15 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 {
     int ret =ERROR_SUCCESS;
     
+    srs_assert(count >= 0);
     srs_assert(msgs->max > 0);
+    
+    // the count used as input to reset the max if positive.
+    int max = count? srs_min(count, msgs->max) : msgs->max;
+    
+    // the count specifies the max acceptable count,
+    // here maybe 1+, and we must set to 0 when got nothing.
+    count = 0;
     
     if (should_update_source_id) {
         srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
@@ -515,7 +522,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     }
 
     // pump msgs from queue.
-    if ((ret = queue->dump_packets(msgs->max, msgs->msgs, count)) != ERROR_SUCCESS) {
+    if ((ret = queue->dump_packets(max, msgs->msgs, count)) != ERROR_SUCCESS) {
         return ret;
     }
     
