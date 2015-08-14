@@ -93,6 +93,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
     mw_sleep = SRS_PERF_MW_SLEEP;
     mw_enabled = false;
     realtime = SRS_PERF_MIN_LATENCY_ENABLED;
+    send_min_interval = 0;
     
     _srs_config->subscribe(this);
 }
@@ -244,6 +245,23 @@ int SrsRtmpConn::on_reload_vhost_mw(string vhost)
     // when mw_sleep changed, resize the socket send buffer.
     change_mw_sleep(sleep_ms);
 
+    return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_smi(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    int smi = _srs_config->get_send_min_interval(vhost);
+    if (smi != send_min_interval) {
+        srs_trace("apply smi %d=>%d", send_min_interval, smi);
+        send_min_interval = smi;
+    }
+    
     return ret;
 }
 
@@ -589,9 +607,14 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
+    // initialize the send_min_interval
+    send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
     // set the sock options.
     set_sock_options();
+    
+    srs_trace("start play smi=%d, mw_sleep=%d, mw_enabled=%d, realtime=%d",
+        send_min_interval, mw_sleep, mw_enabled, realtime);
     
     while (!disposed) {
         // collect elapse for pithy print.
@@ -641,7 +664,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
-        int count = 0;
+        // @remark when enable send_min_interval, only fetch one message a time.
+        int count = send_min_interval? 1 : 0;
         if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
@@ -715,6 +739,11 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
                 srs_trace("stop live for duration exceed. ret=%d", ret);
                 return ret;
             }
+        }
+        
+        // apply the minimal interval for delivery stream in ms.
+        if (send_min_interval > 0) {
+            st_usleep(send_min_interval * 1000);
         }
     }
     

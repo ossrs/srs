@@ -85,6 +85,8 @@ private:
     // for realtime
     // @see https://github.com/simple-rtmp-server/srs/issues/257
     bool realtime;
+    // the minimal interval in ms for delivery stream.
+    int send_min_interval;
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c);
     virtual ~SrsRtmpConn();
@@ -96,6 +98,7 @@ protected:
 public:
     virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_vhost_mw(std::string vhost);
+    virtual int on_reload_vhost_smi(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
 // interface IKbpsDelta
 public:

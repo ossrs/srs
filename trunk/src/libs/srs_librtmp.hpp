@@ -904,6 +904,7 @@ extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_ty
  */
 extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
 extern int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp);
+extern int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();

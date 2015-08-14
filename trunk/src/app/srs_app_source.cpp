@@ -301,7 +301,8 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     }
     
     srs_assert(max_count > 0);
-    count = srs_min(max_count, nb_msgs);
+    // when count is 0, dumps all; otherwise, dumps no more than count.
+    count = srs_min(max_count, count? count : nb_msgs);
 
     SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < count; i++) {
