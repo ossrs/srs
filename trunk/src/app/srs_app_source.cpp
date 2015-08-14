@@ -311,7 +311,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     SrsSharedPtrMessage* last = omsgs[count - 1];
     av_start_time = last->timestamp;
     
-    if (count >= (int)msgs.size()) {
+    if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
         msgs.clear();
     } else {
