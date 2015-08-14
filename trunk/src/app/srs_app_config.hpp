@@ -530,6 +530,10 @@ public:
      * the minimal send interval in ms.
      */
     virtual int                 get_send_min_interval(std::string vhost);
+    /**
+     * whether reduce the sequence header.
+     */
+    virtual bool                get_reduce_sequence_header(std::string vhost);
 private:
     /**
     * get the global chunk size.
