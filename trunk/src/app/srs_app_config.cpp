@@ -1761,7 +1761,8 @@ int SrsConfig::check_config()
                 && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency" && n != "min_latency" && n != "tcp_nodelay" && n != "send_min_interval"
+                && n != "mr" && n != "mw_latency" && n != "min_latency"
+                && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
                 && n != "hds"
@@ -2532,6 +2533,23 @@ int SrsConfig::get_send_min_interval(string vhost)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_reduce_sequence_header(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("reduce_sequence_header");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 int SrsConfig::get_global_chunk_size()

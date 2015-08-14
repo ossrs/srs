@@ -1535,6 +1535,8 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     int ret = ERROR_SUCCESS;
     
     srs_info("Audio dts=%"PRId64", size=%d", msg->timestamp, msg->size);
+    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size);
+    bool is_sequence_header = is_aac_sequence_header;
     
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
@@ -1589,11 +1591,16 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 #endif
     
     // copy to all consumer
-    int nb_consumers = (int)consumers.size();
-    if (nb_consumers > 0) {
-        SrsConsumer** pconsumer = consumers.data();
-        for (int i = 0; i < nb_consumers; i++) {
-            SrsConsumer* consumer = pconsumer[i];
+    bool drop_for_reduce = false;
+    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        if (cache_sh_audio->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(cache_sh_audio->payload, msg->payload, msg->size);
+            srs_warn("drop for reduce sh audio, size=%d", msg->size);
+        }
+    }
+    if (!drop_for_reduce) {
+        for (int i = 0; i < (int)consumers.size(); i++) {
+            SrsConsumer* consumer = consumers.at(i);
             if ((ret = consumer->enqueue(msg, atc, jitter_algorithm)) != ERROR_SUCCESS) {
                 srs_error("dispatch the audio failed. ret=%d", ret);
                 return ret;
@@ -1617,7 +1624,6 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
     // TODO: FIXME: to refine the stream info system.
-    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size);
     if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
@@ -1740,6 +1746,8 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     srs_info("Video dts=%"PRId64", size=%d", msg->timestamp, msg->size);
     
+    bool is_sequence_header = SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size);
+    
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
@@ -1793,7 +1801,14 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 #endif
     
     // copy to all consumer
-    if (true) {
+    bool drop_for_reduce = false;
+    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        if (cache_sh_video->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(cache_sh_video->payload, msg->payload, msg->size);
+            srs_warn("drop for reduce sh video, size=%d", msg->size);
+        }
+    }
+    if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
             SrsConsumer* consumer = consumers.at(i);
             if ((ret = consumer->enqueue(msg, atc, jitter_algorithm)) != ERROR_SUCCESS) {
@@ -1818,7 +1833,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
-    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+    if (is_sequence_header) {
         srs_freep(cache_sh_video);
         cache_sh_video = msg->copy();
         
@@ -2062,13 +2077,12 @@ void SrsSource::on_unpublish()
     hds->on_unpublish();
 #endif
 
+    // only clear the gop cache metadata,
+    // donot clear the sequence header, for it maybe not changed.
     gop_cache->clear();
-
     srs_freep(cache_metadata);
-    srs_freep(cache_sh_video);
-    srs_freep(cache_sh_audio);
     
-    srs_info("clear cache/metadata/sequence-headers when unpublish.");
+    srs_info("clear cache/metadata when unpublish.");
     srs_trace("cleanup when unpublish");
     
     _can_publish = true;
