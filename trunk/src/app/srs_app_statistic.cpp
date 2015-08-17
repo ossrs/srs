@@ -299,9 +299,12 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
                 << SRS_JFIELD_ORG("send_bytes", vhost->kbps->get_send_bytes()) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("recv_bytes", vhost->kbps->get_recv_bytes()) << SRS_JFIELD_CONT
                 << SRS_JFIELD_NAME("hls") << SRS_JOBJECT_START
-                    << SRS_JFIELD_BOOL("enabled", hls_enabled) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("fragment", _srs_config->get_hls_fragment(vhost->vhost))
-                << SRS_JOBJECT_END
+                    << SRS_JFIELD_BOOL("enabled", hls_enabled);
+        if (hls_enabled) {
+            ss                                                  << SRS_JFIELD_CONT;
+            ss      << SRS_JFIELD_ORG("fragment", _srs_config->get_hls_fragment(vhost->vhost));
+        }
+        ss      << SRS_JOBJECT_END
             << SRS_JOBJECT_END;
     }
     ss << SRS_JARRAY_END;
