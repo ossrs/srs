@@ -337,6 +337,16 @@ int SrsRtmpConn::service_cycle()
         }
     }
     
+    // set chunk size to larger.
+    // set the chunk size before any larger response greater than 128,
+    // to make OBS happy, @see https://github.com/simple-rtmp-server/srs/issues/454
+    int chunk_size = _srs_config->get_chunk_size(req->vhost);
+    if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
+        srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
+        return ret;
+    }
+    srs_info("set chunk_size=%d success", chunk_size);
+    
     // response the client connect ok.
     if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
         srs_error("response connect app failed. ret=%d", ret);
@@ -423,14 +433,6 @@ int SrsRtmpConn::stream_service_cycle()
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
-    
-    // set chunk size to larger.
-    int chunk_size = _srs_config->get_chunk_size(req->vhost);
-    if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
-        srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
-        return ret;
-    }
-    srs_info("set chunk_size=%d success", chunk_size);
     
     // find a source to serve.
     SrsSource* source = SrsSource::fetch(req);
@@ -637,7 +639,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         
         // quit when recv thread error.
         if ((ret = trd->error_code()) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
+            if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
                 srs_error("recv thread failed. ret=%d", ret);
             }
             return ret;
@@ -824,7 +826,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 
         // check the thread error code.
         if ((ret = trd->error_code()) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
                 srs_error("recv thread failed. ret=%d", ret);
             }
             return ret;

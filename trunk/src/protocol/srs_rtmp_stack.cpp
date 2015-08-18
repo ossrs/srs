@@ -2924,7 +2924,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Stop publishing stream."));
         
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send onFCUnpublish(NetStream.unpublish.Success) message success.");
@@ -2933,7 +2935,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
     if (true) {
         SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(unpublish_tid);
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send FCUnpublish response message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send FCUnpublish response message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send FCUnpublish response message success.");
@@ -2948,7 +2952,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send onStatus(NetStream.Unpublish.Success) message success.");
