@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     typedef unsigned long long u_int64_t;
     typedef long long int64_t;
     typedef unsigned int u_int32_t;
+    typedef u_int32_t uint32_t;
     typedef int int32_t;
     typedef unsigned char u_int8_t;
     typedef char int8_t;
@@ -1025,20 +1026,31 @@ typedef void* srs_hijack_io_t;
 *************************************************************/
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifdef _WIN32
+    // for time.
     #define _CRT_SECURE_NO_WARNINGS
     #include <time.h>
     int gettimeofday(struct timeval* tv, struct timezone* tz);
     #define PRId64 "lld"
     
+    // for inet helpers.
     typedef int socklen_t;
     const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+    
+    // for mkdir().
+    #include<direct.h>
+    
+    // for open().
     typedef int mode_t;
     #define S_IRUSR 0
     #define S_IWUSR 0
+    #define S_IXUSR 0
     #define S_IRGRP 0
     #define S_IWGRP 0
+    #define S_IXGRP 0
     #define S_IROTH 0
+    #define S_IXOTH 0
     
+    // for file seek.
     #include <io.h>
     #include <fcntl.h>
     #define open _open
@@ -1047,14 +1059,19 @@ typedef void* srs_hijack_io_t;
     #define write _write
     #define read _read
     
+    // for pid.
     typedef int pid_t;
     pid_t getpid(void);
-    #define snprintf _snprintf
+    
+    // for socket.
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
     typedef int64_t useconds_t;
     int usleep(useconds_t usec);
     int socket_setup();
     int socket_cleanup();
+    
+    // others.
+    #define snprintf _snprintf
 #endif
 
 #ifdef __cplusplus

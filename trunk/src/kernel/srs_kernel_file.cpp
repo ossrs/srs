@@ -26,11 +26,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
+#include <sys/uio.h>
 #endif
 
 #include <fcntl.h>
 #include <sstream>
-#include <sys/uio.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
