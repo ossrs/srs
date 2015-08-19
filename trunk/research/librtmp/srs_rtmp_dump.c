@@ -258,8 +258,8 @@ int main(int argc, char** argv)
     
     int64_t nb_packets = 0;
     u_int32_t pre_timestamp = 0;
-    int64_t pre_now = srs_utils_time_ms();
-    int64_t start_time = pre_now;
+    int64_t pre_now = -1;
+    int64_t start_time = -1;
     for (;;) {
         int size;
         char type;
@@ -269,6 +269,13 @@ int main(int argc, char** argv)
         if (srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             srs_human_trace("read rtmp packet failed.");
             goto rtmp_destroy;
+        }
+        
+        if (pre_now == -1) {
+            pre_now = srs_utils_time_ms();
+        }
+        if (start_time == -1) {
+            start_time = srs_utils_time_ms();
         }
         
         if (srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++) != 0) {
