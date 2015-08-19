@@ -256,9 +256,9 @@ int SrsRtmpConn::on_reload_vhost_smi(string vhost)
         return ret;
     }
     
-    int smi = _srs_config->get_send_min_interval(vhost);
+    double smi = _srs_config->get_send_min_interval(vhost);
     if (smi != send_min_interval) {
-        srs_trace("apply smi %d=>%d", send_min_interval, smi);
+        srs_trace("apply smi %.2f=>%.2f", send_min_interval, smi);
         send_min_interval = smi;
     }
     
@@ -615,7 +615,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // set the sock options.
     set_sock_options();
     
-    srs_trace("start play smi=%d, mw_sleep=%d, mw_enabled=%d, realtime=%d",
+    srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d",
         send_min_interval, mw_sleep, mw_enabled, realtime);
     
     while (!disposed) {
@@ -667,7 +667,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         // @remark when enable send_min_interval, only fetch one message a time.
-        int count = send_min_interval? 1 : 0;
+        int count = (send_min_interval > 0)? 1 : 0;
         if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
@@ -745,7 +745,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         
         // apply the minimal interval for delivery stream in ms.
         if (send_min_interval > 0) {
-            st_usleep(send_min_interval * 1000);
+            st_usleep((int64_t)(send_min_interval * 1000));
         }
     }
     

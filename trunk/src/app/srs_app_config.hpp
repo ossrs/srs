@@ -529,7 +529,7 @@ public:
     /**
      * the minimal send interval in ms.
      */
-    virtual int                 get_send_min_interval(std::string vhost);
+    virtual double              get_send_min_interval(std::string vhost);
     /**
      * whether reduce the sequence header.
      */

@@ -904,8 +904,19 @@ extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_ty
 * @return an error code for parse the timetstamp to dts and pts.
  */
 extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+/**
+ * @param pre_timestamp the previous timestamp in ms to calc the diff.
+ */
 extern int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp);
+/**
+ * @param pre_now the previous system time in ms to calc the ndiff.
+ */
 extern int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now);
+/**
+ * @param starttime the rtmpdump starttime in ms.
+ * @param nb_packets the number of packets received, to calc the packets interval in ms.
+ */
+extern int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();

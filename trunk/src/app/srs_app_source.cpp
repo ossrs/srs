@@ -1450,6 +1450,13 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
         return ret;
     }
     
+    // when already got metadata, drop when reduce sequence header.
+    bool drop_for_reduce = false;
+    if (cache_metadata && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        drop_for_reduce = true;
+        srs_warn("drop for reduce sh metadata, size=%d", msg->size);
+    }
+    
     // create a shared ptr message.
     srs_freep(cache_metadata);
     cache_metadata = new SrsSharedPtrMessage();
@@ -1463,10 +1470,6 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     srs_verbose("initialize shared ptr metadata success.");
     
     // copy to all consumer
-    bool drop_for_reduce = false;
-    if (cache_metadata && _srs_config->get_reduce_sequence_header(_req->vhost)) {
-        drop_for_reduce = true;
-    }
     if (!drop_for_reduce) {
         std::vector<SrsConsumer*>::iterator it;
         for (it = consumers.begin(); it != consumers.end(); ++it) {

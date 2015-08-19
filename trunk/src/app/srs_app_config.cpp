@@ -2518,9 +2518,9 @@ bool SrsConfig::get_tcp_nodelay(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int SrsConfig::get_send_min_interval(string vhost)
+double SrsConfig::get_send_min_interval(string vhost)
 {
-    static int DEFAULT = 0;
+    static double DEFAULT = 0.0;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -2532,7 +2532,7 @@ int SrsConfig::get_send_min_interval(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return ::atof(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_reduce_sequence_header(string vhost)
