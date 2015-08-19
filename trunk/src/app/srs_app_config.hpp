@@ -534,6 +534,14 @@ public:
      * whether reduce the sequence header.
      */
     virtual bool                get_reduce_sequence_header(std::string vhost);
+    /**
+     * the 1st packet timeout in ms for encoder.
+     */
+    virtual int                 get_publish_1stpkt_timeout(std::string vhost);
+    /**
+     * the normal packet timeout in ms for encoder.
+     */
+    virtual int                 get_publish_normal_timeout(std::string vhost);
 private:
     /**
     * get the global chunk size.

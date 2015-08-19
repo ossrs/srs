@@ -759,18 +759,6 @@ About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS t
 
 The HLS overhead is calc by: (HLS - FLV) / FLV * 100%
 
-### Bytes Api
-
-The api provides bytes of vhost, stream and srs.
-
-| Connections | tcpdump     | srs         |  deviation |
-| ----------- |  ---------- | ----------  |  --------- |
-|      1      | 201687968   | 201687968   |   0%       |
-|     100     | 12456042662 | 12458284053 |   0.018%   |
-|     500     | 11623083989 | 11633158616 |   0.087%   |
-
-The tcpdump command is `tcpdump src 192.168.1.151 and port 1935 -i eth0 and tcp -ql`.
-
 ## Architecture
 
 SRS always use the most simple architecture to support complex transaction.

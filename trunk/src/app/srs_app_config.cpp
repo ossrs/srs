@@ -768,6 +768,28 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload smi success.", vhost.c_str());
             }
+            // publish_1stpkt_timeout, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("publish_1stpkt_timeout"), old_vhost->get("publish_1stpkt_timeout"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_p1stpt(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes p1stpt failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload p1stpt success.", vhost.c_str());
+            }
+            // publish_normal_timeout, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("publish_normal_timeout"), old_vhost->get("publish_normal_timeout"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_pnt(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes pnt failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload pnt success.", vhost.c_str());
+            }
             // min_latency, only one per vhost
             if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1763,6 +1785,7 @@ int SrsConfig::check_config()
                 && n != "debug_srs_upnode"
                 && n != "mr" && n != "mw_latency" && n != "min_latency"
                 && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
+                && n != "publish_1stpkt_timeout" && n != "publish_normal_timeout"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
                 && n != "hds"
@@ -2550,6 +2573,44 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_publish_1stpkt_timeout(string vhost)
+{
+    // when no msg recevied for publisher, use larger timeout.
+    static int DEFAULT = 20000;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish_1stpkt_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_publish_normal_timeout(string vhost)
+{
+    // the timeout for publish recv.
+    // we must use more smaller timeout, for the recv never know the status
+    // of underlayer socket.
+    static int DEFAULT = 5000;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish_normal_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_global_chunk_size()

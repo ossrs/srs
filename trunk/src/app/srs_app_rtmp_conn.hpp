@@ -87,6 +87,10 @@ private:
     bool realtime;
     // the minimal interval in ms for delivery stream.
     double send_min_interval;
+    // publish 1st packet timeout in ms
+    int publish_1stpkt_timeout;
+    // publish normal packet timeout in ms
+    int publish_normal_timeout;
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c);
     virtual ~SrsRtmpConn();
@@ -100,6 +104,8 @@ public:
     virtual int on_reload_vhost_mw(std::string vhost);
     virtual int on_reload_vhost_smi(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
+    virtual int on_reload_vhost_p1stpt(std::string vhost);
+    virtual int on_reload_vhost_pnt(std::string vhost);
 // interface IKbpsDelta
 public:
     virtual void resample();
