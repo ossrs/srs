@@ -256,8 +256,10 @@ int main(int argc, char** argv)
         }
     }
     
+    int64_t nb_packets = 0;
     u_int32_t pre_timestamp = 0;
     int64_t pre_now = srs_utils_time_ms();
+    int64_t start_time = pre_now;
     for (;;) {
         int size;
         char type;
@@ -269,7 +271,7 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
-        if (srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, pre_now) != 0) {
+        if (srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++) != 0) {
             srs_human_trace("print rtmp packet failed.");
             goto rtmp_destroy;
         }

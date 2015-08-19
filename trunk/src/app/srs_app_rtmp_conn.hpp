@@ -86,7 +86,7 @@ private:
     // @see https://github.com/simple-rtmp-server/srs/issues/257
     bool realtime;
     // the minimal interval in ms for delivery stream.
-    int send_min_interval;
+    double send_min_interval;
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c);
     virtual ~SrsRtmpConn();

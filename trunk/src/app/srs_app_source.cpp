@@ -1454,6 +1454,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     bool drop_for_reduce = false;
     if (cache_metadata && _srs_config->get_reduce_sequence_header(_req->vhost)) {
         drop_for_reduce = true;
+        srs_warn("drop for reduce sh metadata, size=%d", msg->size);
     }
     
     // create a shared ptr message.
