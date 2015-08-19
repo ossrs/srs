@@ -274,9 +274,45 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
     }
     
     bool realtime_enabled = _srs_config->get_realtime_enabled(req->vhost);
-    srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
-    realtime = realtime_enabled;
+    if (realtime_enabled != realtime) {
+        srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
+        realtime = realtime_enabled;
+    }
 
+    return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_p1stpt(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    int p1stpt = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+    if (p1stpt != publish_1stpkt_timeout) {
+        srs_trace("p1stpt changed %d=>%d", publish_1stpkt_timeout, p1stpt);
+        publish_1stpkt_timeout = p1stpt;
+    }
+    
+    return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_pnt(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    int pnt = _srs_config->get_publish_normal_timeout(req->vhost);
+    if (pnt != publish_normal_timeout) {
+        srs_trace("p1stpt changed %d=>%d", publish_normal_timeout, pnt);
+        publish_normal_timeout = pnt;
+    }
+    
     return ret;
 }
 
@@ -803,6 +839,14 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     
     // set the sock options.
     set_sock_options();
+    
+    if (true) {
+        bool mr = _srs_config->get_mr_enabled(req->vhost);
+        int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
+        publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+        publish_normal_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d", mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout);
+    }
 
     int64_t nb_msgs = 0;
     while (!disposed) {
@@ -819,9 +863,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             // @see https://github.com/simple-rtmp-server/srs/issues/441
-            trd->wait(SRS_CONSTS_RTMP_PUBLISHER_NO_MSG_RECV_TIMEOUT_US / 1000);
+            trd->wait(publish_1stpkt_timeout);
         } else {
-            trd->wait(SRS_CONSTS_RTMP_PUBLISHER_RECV_TIMEOUT_US / 1000);
+            trd->wait(publish_normal_timeout);
         }
 
         // check the thread error code.
@@ -847,10 +891,10 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
             srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d", pprint->age(),
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d", pprint->age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
-                mr, mr_sleep
+                mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout
             );
         }
     }

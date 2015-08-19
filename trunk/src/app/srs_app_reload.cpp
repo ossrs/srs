@@ -180,6 +180,16 @@ int ISrsReloadHandler::on_reload_vhost_realtime(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_p1stpt(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_vhost_pnt(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_chunk_size(string /*vhost*/)
 {
     return ERROR_SUCCESS;
