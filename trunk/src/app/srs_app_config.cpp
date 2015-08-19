@@ -2605,7 +2605,7 @@ int SrsConfig::get_publish_normal_timeout(string vhost)
         return DEFAULT;
     }
     
-    conf = conf->get("get_publish_normal_timeout");
+    conf = conf->get("publish_normal_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
