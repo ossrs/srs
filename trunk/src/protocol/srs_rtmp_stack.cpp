@@ -2924,7 +2924,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Stop publishing stream."));
         
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send onFCUnpublish(NetStream.unpublish.Success) message success.");
@@ -2933,7 +2935,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
     if (true) {
         SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(unpublish_tid);
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send FCUnpublish response message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send FCUnpublish response message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send FCUnpublish response message success.");
@@ -2948,7 +2952,9 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
+            if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_info("send onStatus(NetStream.Unpublish.Success) message success.");
@@ -4234,10 +4240,22 @@ int SrsPlayPacket::get_message_type()
 
 int SrsPlayPacket::get_size()
 {
-    return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
-        + SrsAmf0Size::null() + SrsAmf0Size::str(stream_name)
-        + SrsAmf0Size::number() + SrsAmf0Size::number()
-        + SrsAmf0Size::boolean();
+    int size = SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+        + SrsAmf0Size::null() + SrsAmf0Size::str(stream_name);
+    
+    if (start != -2 || duration != -1 || !reset) {
+        size += SrsAmf0Size::number();
+    }
+    
+    if (duration != -1 || !reset) {
+        size += SrsAmf0Size::number();
+    }
+    
+    if (!reset) {
+        size += SrsAmf0Size::boolean();
+    }
+    
+    return size;
 }
 
 int SrsPlayPacket::encode_packet(SrsStream* stream)
@@ -4268,19 +4286,19 @@ int SrsPlayPacket::encode_packet(SrsStream* stream)
     }
     srs_verbose("encode stream_name success.");
     
-    if ((ret = srs_amf0_write_number(stream, start)) != ERROR_SUCCESS) {
+    if ((start != -2 || duration != -1 || !reset) && (ret = srs_amf0_write_number(stream, start)) != ERROR_SUCCESS) {
         srs_error("encode start failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("encode start success.");
     
-    if ((ret = srs_amf0_write_number(stream, duration)) != ERROR_SUCCESS) {
+    if ((duration != -1 || !reset) && (ret = srs_amf0_write_number(stream, duration)) != ERROR_SUCCESS) {
         srs_error("encode duration failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("encode duration success.");
     
-    if ((ret = srs_amf0_write_boolean(stream, reset)) != ERROR_SUCCESS) {
+    if (!reset && (ret = srs_amf0_write_boolean(stream, reset)) != ERROR_SUCCESS) {
         srs_error("encode reset failed. ret=%d", ret);
         return ret;
     }
@@ -5111,14 +5129,29 @@ int SrsUserControlPacket::decode(SrsStream* stream)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!stream->require(6)) {
+    if (!stream->require(2)) {
         ret = ERROR_RTMP_MESSAGE_DECODE;
         srs_error("decode user control failed. ret=%d", ret);
         return ret;
     }
     
     event_type = stream->read_2bytes();
-    event_data = stream->read_4bytes();
+    
+    if (event_type == SrsPCUCFmsEvent0) {
+        if (!stream->require(1)) {
+            ret = ERROR_RTMP_MESSAGE_DECODE;
+            srs_error("decode user control failed. ret=%d", ret);
+            return ret;
+        }
+        event_data = stream->read_1bytes();
+    } else {
+        if (!stream->require(4)) {
+            ret = ERROR_RTMP_MESSAGE_DECODE;
+            srs_error("decode user control failed. ret=%d", ret);
+            return ret;
+        }
+        event_data = stream->read_4bytes();
+    }
     
     if (event_type == SrcPCUCSetBufferLength) {
         if (!stream->require(4)) {
@@ -5148,11 +5181,19 @@ int SrsUserControlPacket::get_message_type()
 
 int SrsUserControlPacket::get_size()
 {
-    if (event_type == SrcPCUCSetBufferLength) {
-        return 2 + 4 + 4;
+    int size = 2;
+    
+    if (event_type == SrsPCUCFmsEvent0) {
+        size += 1;
     } else {
-        return 2 + 4;
+        size += 4;
     }
+    
+    if (event_type == SrcPCUCSetBufferLength) {
+        size += 4;
+    }
+    
+    return size;
 }
 
 int SrsUserControlPacket::encode_packet(SrsStream* stream)
@@ -5166,7 +5207,12 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
     }
     
     stream->write_2bytes(event_type);
-    stream->write_4bytes(event_data);
+    
+    if (event_type == SrsPCUCFmsEvent0) {
+        stream->write_1bytes(event_data);
+    } else {
+        stream->write_4bytes(event_data);
+    }
 
     // when event type is set buffer length,
     // write the extra buffer length.

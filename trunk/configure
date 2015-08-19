@@ -508,10 +508,15 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${YELLOW}warning: without HLS support${BLACK}"
     fi
-    if [ $SRS_HDS = YES ]; then
-        echo -e "${GREEN}HDS is enabled${BLACK}"
+    if [ $SRS_STREAM_CASTER = YES ]; then
+        echo -e "${YELLOW}Experiment: StreamCaster is enabled${BLACK}"
     else
-        echo -e "${YELLOW}warning: without HDS support${BLACK}"
+        echo -e "${GREEN}note: without StreamCaster support${BLACK}"
+    fi
+    if [ $SRS_HDS = YES ]; then
+        echo -e "${YELLOW}Experiment: HDS is enabled${BLACK}"
+    else
+        echo -e "${GREEN}warning: without HDS support${BLACK}"
     fi
     if [ $SRS_NGINX = YES ]; then
         echo -e "${GREEN}Nginx http server is enabled${BLACK}"

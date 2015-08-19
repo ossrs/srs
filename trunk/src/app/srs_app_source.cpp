@@ -1463,7 +1463,11 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     srs_verbose("initialize shared ptr metadata success.");
     
     // copy to all consumer
-    if (true) {
+    bool drop_for_reduce = false;
+    if (cache_metadata && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        drop_for_reduce = true;
+    }
+    if (!drop_for_reduce) {
         std::vector<SrsConsumer*>::iterator it;
         for (it = consumers.begin(); it != consumers.end(); ++it) {
             SrsConsumer* consumer = *it;
@@ -2084,10 +2088,10 @@ void SrsSource::on_unpublish()
     hds->on_unpublish();
 #endif
 
-    // only clear the gop cache metadata,
-    // donot clear the sequence header, for it maybe not changed.
+    // only clear the gop cache,
+    // donot clear the sequence header, for it maybe not changed,
+    // when drop dup sequence header, drop the metadata also.
     gop_cache->clear();
-    srs_freep(cache_metadata);
     
     srs_info("clear cache/metadata when unpublish.");
     srs_trace("cleanup when unpublish");

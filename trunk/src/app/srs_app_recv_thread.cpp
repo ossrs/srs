@@ -96,7 +96,7 @@ int SrsRecvThread::cycle()
         }
     
         if (ret != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
+            if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
                 srs_error("thread process message failed. ret=%d", ret);
             }
     

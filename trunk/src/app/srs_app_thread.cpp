@@ -187,7 +187,7 @@ namespace internal {
             srs_info("thread %s on before cycle success");
             
             if ((ret = handler->cycle()) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
+                if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
                     srs_warn("thread %s cycle failed, ignored and retry, ret=%d", _name, ret);
                 }
                 goto failed;
