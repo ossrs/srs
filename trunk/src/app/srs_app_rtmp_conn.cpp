@@ -879,8 +879,8 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         // when not got any messages, timeout.
         if (trd->nb_msgs() <= nb_msgs) {
             ret = ERROR_SOCKET_TIMEOUT;
-            srs_warn("publish timeout %"PRId64"us, nb_msgs=%"PRId64", ret=%d",
-                     SRS_CONSTS_RTMP_RECV_TIMEOUT_US, nb_msgs, ret);
+            srs_warn("publish timeout %dms, nb_msgs=%"PRId64", ret=%d",
+                nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, nb_msgs, ret);
             break;
         }
         nb_msgs = trd->nb_msgs();
