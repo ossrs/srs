@@ -2598,7 +2598,7 @@ int SrsConfig::get_publish_normal_timeout(string vhost)
     // the timeout for publish recv.
     // we must use more smaller timeout, for the recv never know the status
     // of underlayer socket.
-    static int DEFAULT = 7000;
+    static int DEFAULT = 5000;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
