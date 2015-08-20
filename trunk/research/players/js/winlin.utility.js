@@ -213,7 +213,7 @@ function parse_query_string(){
 function parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
-    a.href = rtmp_url.replace("rtmp://", "http://");
+    a.href = rtmp_url.replace("rtmp://", "http://").replace("?", "...").replace("=", "...");
 
     var vhost = a.hostname;
     var port = (a.port == "")? "1935":a.port;
