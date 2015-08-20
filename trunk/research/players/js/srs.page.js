@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.23"; }
+function srs_get_version_code() { return "1.25"; }
 
 /**
 * player specified size.
@@ -135,9 +135,15 @@ function build_default_hls_url() {
 * @param hls_url the div id contains the hls stream url to play
 * @param modal_player the div id contains the modal player
 */
+function srs_init_rtmp(rtmp_url, modal_player) {
+    srs_init(rtmp_url, null, modal_player);
+}
+function srs_init_hls(hls_url, modal_player) {
+    srs_init(null, hls_url, modal_player);
+}
 function srs_init(rtmp_url, hls_url, modal_player) {
     update_nav();
-    
+
     if (rtmp_url) {
         $(rtmp_url).val(build_default_rtmp_url());
     }

@@ -4,15 +4,6 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/srs.page.js"></script>
-    <script type="text/javascript" src="js/srs.log.js"></script>
-    <script type="text/javascript" src="js/srs.player.js"></script>
-    <script type="text/javascript" src="js/srs.publisher.js"></script>
-    <script type="text/javascript" src="js/srs.utility.js"></script>
-    <script type="text/javascript" src="srs_bwt/src/srs.bandwidth.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -22,62 +13,6 @@
             margin-left: -350px;
         }
     </style>
-    <script type="text/javascript">
-        var bandwidth = null;
-        
-        $(function(){
-            srs_init_bwt("#txt_url");
-
-            $("#btn_play").click(on_click_play);
-            $("#main_modal").on("show", on_start_bandwidth_test);
-            $("#main_modal").on("hide", on_stop_bandwidth_test); 
-        });
-        
-        function on_click_play() {
-            $("#check_status").text("");
-            $("#check_info").text("");
-            $("#progress_bar").width("0%");
-            $("#main_modal").modal({show:true, keyboard:false});
-        }
-        function on_start_bandwidth_test() {
-            $("#div_container").remove();
-            $("#progress_bar").removeClass("bar-danger");
-
-            var div_container = $("<div/>");
-            $(div_container).attr("id", "div_container");
-            $("#player").append(div_container);
-
-            var player = $("<div/>");
-            $(player).attr("id", "player_id");
-            $(div_container).append(player);
-            
-            var url = $("#txt_url").val();
-            
-            bandwidth = new SrsBandwidth("player_id", 100, 1);
-            bandwidth.on_bandwidth_ready = function() {
-                this.check_bandwidth(url);
-            }
-            bandwidth.on_update_progress = function(percent) {
-                $("#progress_bar").width(percent + "%");
-            }
-            bandwidth.on_update_status = function(status) {
-                $("#check_status").text(status);
-            }
-            bandwidth.on_srs_info = function(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
-                $("#check_info").text(
-                    "server:" + srs_server + ", primary:" + srs_primary + ", authors:" + srs_authors +
-                    ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
-                );
-            }
-            bandwidth.on_error = function(code) {
-                $("#progress_bar").addClass("bar-danger");
-            }
-            bandwidth.render(url);
-        }
-        function on_stop_bandwidth_test() {
-            bandwidth.stop();
-        }
-    </script>
 </head>
 <body>
 <div class="navbar navbar-fixed-top">
@@ -139,4 +74,70 @@
     </div>
 </div>
 </body>
+<script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/swfobject.js"></script>
+<script type="text/javascript" src="js/srs.page.js"></script>
+<script type="text/javascript" src="js/srs.log.js"></script>
+<script type="text/javascript" src="js/srs.player.js"></script>
+<script type="text/javascript" src="js/srs.publisher.js"></script>
+<script type="text/javascript" src="js/srs.utility.js"></script>
+<script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript" src="srs_bwt/src/srs.bandwidth.js"></script>
+<script type="text/javascript">
+    var bandwidth = null;
 
+    $(function(){
+        srs_init_bwt("#txt_url");
+
+        $("#btn_play").click(on_click_play);
+        $("#main_modal").on("show", on_start_bandwidth_test);
+        $("#main_modal").on("hide", on_stop_bandwidth_test);
+    });
+
+    function on_click_play() {
+        $("#check_status").text("");
+        $("#check_info").text("");
+        $("#progress_bar").width("0%");
+        $("#main_modal").modal({show:true, keyboard:false});
+    }
+    function on_start_bandwidth_test() {
+        $("#div_container").remove();
+        $("#progress_bar").removeClass("bar-danger");
+
+        var div_container = $("<div/>");
+        $(div_container).attr("id", "div_container");
+        $("#player").append(div_container);
+
+        var player = $("<div/>");
+        $(player).attr("id", "player_id");
+        $(div_container).append(player);
+
+        var url = $("#txt_url").val();
+
+        bandwidth = new SrsBandwidth("player_id", 100, 1);
+        bandwidth.on_bandwidth_ready = function() {
+            this.check_bandwidth(url);
+        }
+        bandwidth.on_update_progress = function(percent) {
+            $("#progress_bar").width(percent + "%");
+        }
+        bandwidth.on_update_status = function(status) {
+            $("#check_status").text(status);
+        }
+        bandwidth.on_srs_info = function(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
+            $("#check_info").text(
+                    "server:" + srs_server + ", primary:" + srs_primary + ", authors:" + srs_authors +
+                    ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
+            );
+        }
+        bandwidth.on_error = function(code) {
+            $("#progress_bar").addClass("bar-danger");
+        }
+        bandwidth.render(url);
+    }
+    function on_stop_bandwidth_test() {
+        bandwidth.stop();
+    }
+</script>
+</html>

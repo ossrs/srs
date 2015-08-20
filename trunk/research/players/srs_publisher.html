@@ -4,213 +4,11 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/json2.js"></script>
-    <script type="text/javascript" src="js/srs.page.js"></script>
-    <script type="text/javascript" src="js/srs.log.js"></script>
-    <script type="text/javascript" src="js/srs.player.js"></script>
-    <script type="text/javascript" src="js/srs.publisher.js"></script>
-    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
         }
     </style>
-    <script type="text/javascript">
-        var srs_publisher = null;
-        var remote_player = null;
-        var realtime_player = null;
-        
-        var query = parse_query_string();
-        $(function(){
-            // get the vhost and port to set the default url.
-            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
-            // url set to: rtmp://demo:1935/live/livestream
-            srs_init("#txt_url", null, null);
-            
-            if (query.agent == "true") {
-                document.write(navigator.userAgent);
-                return;
-            }
-            
-            $("#btn_video_settings").click(function(){
-                $("#video_modal").modal({show:true});
-            });
-            $("#btn_audio_settings").click(function(){
-                $("#audio_modal").modal({show:true});
-            });
-            
-            $("#remote_tips").tooltip({
-                title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
-            });
-            $("#low_latecy_tips").tooltip({
-                title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
-            });
-            $("#realtime_player_url").tooltip({
-                title: "右键复制RTMP地址"
-            });
-            $("#remote_player_url").tooltip({
-                title: "右键复制RTMP地址"
-            });
-            
-            $("#btn_publish").click(on_user_publish);
-            
-            // for publish, we use randome stream name.
-            $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
-            
-            // start the publisher.
-            srs_publisher = new SrsPublisher("local_publisher", 430, 185);
-            srs_publisher.on_publisher_ready = function(cameras, microphones) {
-                srs_publisher_initialize_page(
-                    cameras, microphones,
-                    "#sl_cameras", "#sl_microphones", 
-                    "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
-                    "#sl_fps", "#sl_bitrate",
-                    "#sl_acodec"
-                );
-            };
-            srs_publisher.on_publisher_error = function(code, desc) {
-                if (!on_publish_stop()) {
-                    return;
-                }
-                error(code, desc + "请重试。");
-            };
-            srs_publisher.on_publisher_warn = function(code, desc) {
-                warn(code, desc);
-            };
-            srs_publisher.start();
-            
-            update_play_url();
-            
-            // if no play specified, donot show the player, for debug the publisher.
-            if (query.no_play != "true") {
-                // start the normal player with HLS supported.
-                remote_player = new SrsPlayer("remote_player", 430, 185);
-                remote_player.on_player_ready = function() {
-                    this.set_bt(0.8);
-                };
-                remote_player.on_player_metadata = function(metadata) {
-                    this.set_dar(0, 0);
-                    this.set_fs("screen", 100);
-                }
-                remote_player.start();
-                
-                // start the realtime player.
-                realtime_player = new SrsPlayer("realtime_player", 430, 185);
-                realtime_player.on_player_ready = function() {
-                    this.set_bt(0.8);
-                };
-                realtime_player.on_player_metadata = function(metadata) {
-                    this.set_dar(0, 0);
-                    this.set_fs("screen", 100);
-                }
-                realtime_player.start();
-            }
-        });
-        
-        function on_publish_stop() {
-            if (!srs_can_republish()) {
-                $("#btn_join").attr("disabled", true);
-                error(0, "您使用的浏览器很弱，请关闭页面后重新打开页面（刷新也不管用）。<br/>推荐使用Chrome/Firefox/Safari/Opera浏览器，支持重试");
-                
-                srs_log_disabled = true;
-                return false;
-            }
-            
-            return true;
-        }
-        
-        /**
-        * we generate the transcoded stream url for flash publish donot support HLS
-        * which requires aac, so the publish vhost maybe players for example, we
-        * use players_pub vhost(transcoded stream to which) for all clients,
-        * both players and players_pub are write HLS to the sample dir, 
-        * it's ok for the players vhost disabled the HLS, only the 
-        * players_pub enalbed HLS.
-        */
-        function update_play_url() {
-            var url = $("#txt_url").val();
-            var ret = srs_parse_rtmp_url(url);
-            
-            var remote_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app + "...vhost..." + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
-            $("#realtime_player_url").attr("href", url).attr("target", "_blank");
-            $("#remote_player_url").attr("href", remote_url).attr("target", "_blank");
-            
-            var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
-            srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            srs_player_url += "&autostart=true";
-            
-            var srs_player_rt_url = "http://" + query.host + query.dir + "/srs_player.html?";
-            srs_player_rt_url += "vhost=" + ret.vhost + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            srs_player_rt_url += "&autostart=true";
-            
-            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
-            jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            jwplayer_url += "&hls_autostart=true";
-            
-            var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
-            
-            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", srs_player_rt_url).attr("target", "_blank");
-            $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
-            $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
-            $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
-        }
-        function on_user_publish() {
-            if ($("#btn_publish").text() == "停止发布") {
-                srs_publisher.stop();
-                $("#btn_publish").text("发布视频");
-                //$("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
-                //$("#txt_play_realtime").attr("href", "#").attr("target", "_self");
-                //$("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
-                //$("#remote_player_url").attr("href", "#").attr("target", "_self");
-                //$("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
-                //$("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
-                
-                if (!on_publish_stop()) {
-                    return;
-                }
-                return;
-            }
-            
-            $("#btn_publish").text("停止发布");
-            
-            update_play_url();
-            
-            var url = $("#txt_url").val();
-            var vcodec = {};
-            var acodec = {};
-            srs_publiser_get_codec(
-                vcodec, acodec,
-                "#sl_cameras", "#sl_microphones", 
-                "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
-                "#sl_fps", "#sl_bitrate",
-                "#sl_acodec"
-            );
-            
-            info("开始推流到服务器");
-            srs_publisher.publish(url, vcodec, acodec);
-            
-            if (realtime_player) {
-                // directly play the url for the realtime player.
-                realtime_player.stop();
-                realtime_player.play(url);
-            }
-            
-            if (remote_player) {
-                // the normal player should play the transcoded stream in another vhost.
-                // for example, publish stream to vhost players,
-                // the realtime player play the vhost players, which may donot support HLS,
-                // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
-                var ret = srs_parse_rtmp_url(url);
-                var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
-                pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
-                remote_player.stop();
-                remote_player.play(pub_url);
-            }
-        }
-    </script>
 </head>
 <body>
 <div class="navbar navbar-fixed-top">
@@ -464,4 +262,208 @@
     </footer>
 </div>
 </body>
+<script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/swfobject.js"></script>
+<script type="text/javascript" src="js/json2.js"></script>
+<script type="text/javascript" src="js/srs.page.js"></script>
+<script type="text/javascript" src="js/srs.log.js"></script>
+<script type="text/javascript" src="js/srs.player.js"></script>
+<script type="text/javascript" src="js/srs.publisher.js"></script>
+<script type="text/javascript" src="js/srs.utility.js"></script>
+<script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript">
+    var srs_publisher = null;
+    var remote_player = null;
+    var realtime_player = null;
+
+    var query = parse_query_string();
+    $(function(){
+        // get the vhost and port to set the default url.
+        // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+        // url set to: rtmp://demo:1935/live/livestream
+        srs_init_rtmp("#txt_url", null);
+
+        if (query.agent == "true") {
+            document.write(navigator.userAgent);
+            return;
+        }
+
+        $("#btn_video_settings").click(function(){
+            $("#video_modal").modal({show:true});
+        });
+        $("#btn_audio_settings").click(function(){
+            $("#audio_modal").modal({show:true});
+        });
+
+        $("#remote_tips").tooltip({
+            title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
+        });
+        $("#low_latecy_tips").tooltip({
+            title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
+        });
+        $("#realtime_player_url").tooltip({
+            title: "右键复制RTMP地址"
+        });
+        $("#remote_player_url").tooltip({
+            title: "右键复制RTMP地址"
+        });
+
+        $("#btn_publish").click(on_user_publish);
+
+        // for publish, we use randome stream name.
+        $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
+
+        // start the publisher.
+        srs_publisher = new SrsPublisher("local_publisher", 430, 185);
+        srs_publisher.on_publisher_ready = function(cameras, microphones) {
+            srs_publisher_initialize_page(
+                    cameras, microphones,
+                    "#sl_cameras", "#sl_microphones",
+                    "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                    "#sl_fps", "#sl_bitrate",
+                    "#sl_acodec"
+            );
+        };
+        srs_publisher.on_publisher_error = function(code, desc) {
+            if (!on_publish_stop()) {
+                return;
+            }
+            error(code, desc + "请重试。");
+        };
+        srs_publisher.on_publisher_warn = function(code, desc) {
+            warn(code, desc);
+        };
+        srs_publisher.start();
+
+        update_play_url();
+
+        // if no play specified, donot show the player, for debug the publisher.
+        if (query.no_play != "true") {
+            // start the normal player with HLS supported.
+            remote_player = new SrsPlayer("remote_player", 430, 185);
+            remote_player.on_player_ready = function() {
+                this.set_bt(0.8);
+            };
+            remote_player.on_player_metadata = function(metadata) {
+                this.set_dar(0, 0);
+                this.set_fs("screen", 100);
+            }
+            remote_player.start();
+
+            // start the realtime player.
+            realtime_player = new SrsPlayer("realtime_player", 430, 185);
+            realtime_player.on_player_ready = function() {
+                this.set_bt(0.8);
+            };
+            realtime_player.on_player_metadata = function(metadata) {
+                this.set_dar(0, 0);
+                this.set_fs("screen", 100);
+            }
+            realtime_player.start();
+        }
+    });
+
+    function on_publish_stop() {
+        if (!srs_can_republish()) {
+            $("#btn_join").attr("disabled", true);
+            error(0, "您使用的浏览器很弱，请关闭页面后重新打开页面（刷新也不管用）。<br/>推荐使用Chrome/Firefox/Safari/Opera浏览器，支持重试");
+
+            srs_log_disabled = true;
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * we generate the transcoded stream url for flash publish donot support HLS
+     * which requires aac, so the publish vhost maybe players for example, we
+     * use players_pub vhost(transcoded stream to which) for all clients,
+     * both players and players_pub are write HLS to the sample dir,
+     * it's ok for the players vhost disabled the HLS, only the
+     * players_pub enalbed HLS.
+     */
+    function update_play_url() {
+        var url = $("#txt_url").val();
+        var ret = srs_parse_rtmp_url(url);
+
+        var remote_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app + "...vhost..." + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
+        $("#realtime_player_url").attr("href", url).attr("target", "_blank");
+        $("#remote_player_url").attr("href", remote_url).attr("target", "_blank");
+
+        var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
+        srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+        srs_player_url += "&autostart=true";
+
+        var srs_player_rt_url = "http://" + query.host + query.dir + "/srs_player.html?";
+        srs_player_rt_url += "vhost=" + ret.vhost + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+        srs_player_rt_url += "&autostart=true";
+
+        var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
+        jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+        jwplayer_url += "&hls_autostart=true";
+
+        var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
+
+        $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", srs_player_rt_url).attr("target", "_blank");
+        $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
+        $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
+        $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
+    }
+    function on_user_publish() {
+        if ($("#btn_publish").text() == "停止发布") {
+            srs_publisher.stop();
+            $("#btn_publish").text("发布视频");
+            //$("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
+            //$("#txt_play_realtime").attr("href", "#").attr("target", "_self");
+            //$("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
+            //$("#remote_player_url").attr("href", "#").attr("target", "_self");
+            //$("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
+            //$("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
+
+            if (!on_publish_stop()) {
+                return;
+            }
+            return;
+        }
+
+        $("#btn_publish").text("停止发布");
+
+        update_play_url();
+
+        var url = $("#txt_url").val();
+        var vcodec = {};
+        var acodec = {};
+        srs_publiser_get_codec(
+                vcodec, acodec,
+                "#sl_cameras", "#sl_microphones",
+                "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                "#sl_fps", "#sl_bitrate",
+                "#sl_acodec"
+        );
+
+        info("开始推流到服务器");
+        srs_publisher.publish(url, vcodec, acodec);
+
+        if (realtime_player) {
+            // directly play the url for the realtime player.
+            realtime_player.stop();
+            realtime_player.play(url);
+        }
+
+        if (remote_player) {
+            // the normal player should play the transcoded stream in another vhost.
+            // for example, publish stream to vhost players,
+            // the realtime player play the vhost players, which may donot support HLS,
+            // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
+            var ret = srs_parse_rtmp_url(url);
+            var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
+            pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
+            remote_player.stop();
+            remote_player.play(pub_url);
+        }
+    }
+</script>
+</html>
 

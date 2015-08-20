@@ -18,6 +18,7 @@ package
     import flash.ui.ContextMenu;
     import flash.ui.ContextMenuItem;
     import flash.utils.Timer;
+    import flash.utils.getTimer;
     import flash.utils.setTimeout;
     
     import flashx.textLayout.formats.Float;
@@ -30,7 +31,9 @@ package
         private var js_on_player_ready:String = null;
         private var js_on_player_metadata:String = null;
         private var js_on_player_timer:String = null;
-        
+        private var js_on_player_empty:String = null;
+		private var js_on_player_full:String = null;
+		
         // play param url.
         private var user_url:String = null;
         // play param, user set width and height
@@ -93,6 +96,8 @@ package
             this.js_on_player_ready = flashvars.on_player_ready;
             this.js_on_player_metadata = flashvars.on_player_metadata;
             this.js_on_player_timer = flashvars.on_player_timer;
+			this.js_on_player_empty = flashvars.on_player_empty;
+			this.js_on_player_full = flashvars.on_player_full;
             
             this.media_timer.addEventListener(TimerEvent.TIMER, this.system_on_timer);
             this.media_timer.start();
@@ -106,7 +111,7 @@ package
          */
         private function system_on_js_ready():void {
             if (!flash.external.ExternalInterface.available) {
-                trace("js not ready, try later.");
+                log("js not ready, try later.");
                 flash.utils.setTimeout(this.system_on_js_ready, 100);
                 return;
             }
@@ -114,7 +119,7 @@ package
             flash.external.ExternalInterface.addCallback("__play", this.js_call_play);
             flash.external.ExternalInterface.addCallback("__stop", this.js_call_stop);
             flash.external.ExternalInterface.addCallback("__pause", this.js_call_pause);
-            flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
+			flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
             flash.external.ExternalInterface.addCallback("__set_dar", this.js_call_set_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
@@ -126,15 +131,39 @@ package
         * system callack event, timer to do some regular tasks.
         */
         private function system_on_timer(evt:TimerEvent):void {
-            if (!this.media_stream) {
-                trace("stream is null, ignore timer event.");
+			var ms:NetStream = this.media_stream;
+			
+            if (!ms) {
+                log("stream is null, ignore timer event.");
                 return;
             }
-            
-            trace("notify js the timer event.");
+			
+			var rtime:Number = flash.utils.getTimer();
+			var bitrate:Number = Number((ms.info.videoBytesPerSecond + ms.info.audioBytesPerSecond) * 8 / 1000);
+            log("on timer, time=" + ms.time.toFixed(2) + "s, buffer=" + ms.bufferLength.toFixed(2) + "s" 
+				+ ", bitrate=" + bitrate.toFixed(1) + "kbps"
+				+ ", fps=" + ms.currentFPS.toFixed(1)
+				+ ", rtime=" + rtime.toFixed(0)
+			);
             flash.external.ExternalInterface.call(
-                this.js_on_player_timer, this.js_id, this.media_stream.time, this.media_stream.bufferLength);
+                this.js_on_player_timer, this.js_id, ms.time, ms.bufferLength,
+				bitrate, ms.currentFPS, rtime
+			);
         }
+		
+		/**
+		 * system callback event, when stream is empty.
+		 */
+		private function system_on_buffer_empty():void {
+			var time:Number = flash.utils.getTimer();
+			log("stream is empty at " + time + "ms");
+			flash.external.ExternalInterface.call(this.js_on_player_empty, this.js_id, time);
+		}
+		private function system_on_buffer_full():void {
+			var time:Number = flash.utils.getTimer();
+			log("stream is full at " + time + "ms");
+			flash.external.ExternalInterface.call(this.js_on_player_full, this.js_id, time);
+		}
         
         /**
          * system callack event, when got metadata from stream.
@@ -181,7 +210,7 @@ package
          */
         private function user_on_click_video(evt:MouseEvent):void {
             if (!this.stage.allowsFullScreen) {
-                trace("donot allow fullscreen.");
+                log("donot allow fullscreen.");
                 return;
             }
             
@@ -266,6 +295,7 @@ package
                 this.media_conn.close();
                 this.media_conn = null;
             }
+			log("player stopped");
         }
         
         // srs infos
@@ -311,7 +341,7 @@ package
             this.user_url = url;
             this.user_w = _width;
             this.user_h = _height;
-            trace("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h);
+            log("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h);
             
             js_call_stop();
             
@@ -358,7 +388,11 @@ package
                     
                     if (evt.info.code == "NetStream.Video.DimensionChange") {
                         system_on_metadata(media_metadata);
-                    }
+                    } else if (evt.info.code == "NetStream.Buffer.Empty") {
+						system_on_buffer_empty();
+					} else if (evt.info.code == "NetStream.Buffer.Full") {
+						system_on_buffer_full();
+					}
                     
                     // TODO: FIXME: failed event.
                 });
@@ -460,7 +494,11 @@ package
             }
             
             // rescale to fs
-            __update_video_size(num, den, obj.width * user_fs_percent / 100, obj.height * user_fs_percent / 100, this.stage.fullScreenWidth, this.stage.fullScreenHeight);
+            __update_video_size(num, den, 
+				obj.width * user_fs_percent / 100, 
+				obj.height * user_fs_percent / 100, 
+				this.stage.fullScreenWidth, this.stage.fullScreenHeight
+			);
         }
         
         /**
@@ -539,5 +577,18 @@ package
             this.control_fs_mask.graphics.drawRect(0, 0, _width, _height);
             this.control_fs_mask.graphics.endFill();
         }
+		
+		private function log(msg:String):void {
+			msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
+			
+			trace(msg);
+			
+			if (!flash.external.ExternalInterface.available) {
+				flash.utils.setTimeout(log, 300, msg);
+				return;
+			}
+			
+			ExternalInterface.call("console.log", msg);
+		}
     }
 }

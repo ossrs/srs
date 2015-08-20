@@ -4,15 +4,6 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/json2.js"></script>
-    <script type="text/javascript" src="js/srs.page.js"></script>
-    <script type="text/javascript" src="js/srs.log.js"></script>
-    <script type="text/javascript" src="js/srs.player.js"></script>
-    <script type="text/javascript" src="js/srs.publisher.js"></script>
-    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -21,7 +12,7 @@
             margin-top: -20px;
             padding-top: 3px;
         }
-        #div_play_time {
+        .div_play_time {
             margin-top: 10px;
         }
         #pb_buffer_bg {
@@ -29,250 +20,6 @@
             margin-bottom: 10px;
         }
     </style>
-    <script type="text/javascript">
-        var srs_player = null;
-        var url = null;
-        
-        var __active_dar = null;
-        function select_dar(dar_id, num, den) {
-            srs_player.set_dar(num, den);
-            
-            if (__active_dar) {
-                __active_dar.removeClass("active");
-            }
-            
-            __active_dar = $(dar_id).parent();
-            __active_dar.addClass("active");
-        }
-        
-        var __active_size = null;
-        function select_fs_size(size_id, refer, percent) {
-            srs_player.set_fs(refer, percent);
-            
-            if (__active_size) {
-                __active_size.removeClass("active");
-            }
-            
-            __active_size = $(size_id).parent();
-            __active_size.addClass("active");
-        }
-        
-        var __active_bt = null;
-        function select_buffer_time(bt_id, buffer_time) {
-            srs_player.set_bt(buffer_time);
-            
-            if (__active_bt) {
-                __active_bt.removeClass("active");
-            }
-            
-            __active_bt = $(bt_id).parent();
-            __active_bt.addClass("active");
-        }
-        
-        $(function(){
-            // get the vhost and port to set the default url.
-            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
-            // url set to: rtmp://demo:1935/live/livestream
-            srs_init("#txt_url", null, "#main_modal");
-            
-            $("#fs_tips").tooltip({
-                title: "点击视频进入或退出全屏"
-            });
-            
-            $("#main_modal").on("show", function(){
-                if (srs_player) {
-                    return;
-                }
-                
-                $("#div_container").remove();
-                
-                var div_container = $("<div/>");
-                $(div_container).attr("id", "div_container");
-                $("#player").append(div_container);
-                
-                var player = $("<div/>");
-                $(player).attr("id", "player_id");
-                $(div_container).append(player);
-                
-                srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
-                srs_player.on_player_ready = function() {
-                    select_buffer_time("#btn_bt_0_1", 0.1);
-                    this.play(url);
-                };
-                srs_player.on_player_metadata = function(metadata) {
-                    $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
-                    select_dar("#btn_dar_original", 0, 0);
-                    select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-                };
-                srs_player.on_player_timer = function(time, buffer_length) {
-                    var buffer = buffer_length / this.buffer_time * 100;
-                    $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
-                    
-                    $("#pb_buffer_bg").attr("title", 
-                        "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒(" 
-                        + Number(buffer).toFixed(1) + "%)");
-                    
-                    var time_str = "";
-                    // day
-                    time_str = padding(parseInt(time / 24 / 3600), 2, '0') + " ";
-                    // hour
-                    time = time % (24 * 3600);
-                    time_str += padding(parseInt(time / 3600), 2, '0') + ":";
-                    // minute
-                    time = time % (3600);
-                    time_str += padding(parseInt(time / 60), 2, '0') + ":";
-                    // seconds
-                    time = time % (60);
-                    time_str += padding(parseInt(time), 2, '0');
-                    // show
-                    $("#txt_time").val(time_str);
-                };
-                srs_player.start();
-            });
-            
-            $("#main_modal").on("hide", function(){
-                if ($("#main_modal").is(":visible")) {
-                    return;
-                }
-                
-                if (srs_player) {
-                    srs_player.stop();
-                    srs_player = null;
-                }
-            });
-            
-            $("#btn_play").click(function(){
-                url = $("#txt_url").val();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            
-            $("#btn_pause").click(function(){
-                if ($("#btn_pause").text() == "暂停") {
-                    $("#btn_pause").text("继续");
-                    srs_player.pause();
-                } else {
-                    $("#btn_pause").text("暂停");
-                    srs_player.resume();
-                }
-            });
-            
-            $("#srs_publish").click(function(){
-                url = $("#srs_publish").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            $("#srs_publish_ld").click(function(){
-                url = $("#srs_publish_ld").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            $("#srs_publish_sd").click(function(){
-                url = $("#srs_publish_sd").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            $("#srs_publish_fw").click(function(){
-                url = $("#srs_publish_fw").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            $("#srs_publish_fw_ld").click(function(){
-                url = $("#srs_publish_fw_ld").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            $("#srs_publish_fw_sd").click(function(){
-                url = $("#srs_publish_fw_sd").text();
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-            
-            var query = parse_query_string();
-            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=live&hls_autostart=true";
-            $("#srs_publish_hls").attr("href", jwplayer_url + "&stream=livestream");
-            $("#srs_publish_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
-            $("#srs_publish_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
-            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=forward/live&hls_autostart=true";
-            $("#srs_publish_fw_hls").attr("href", jwplayer_url + "&stream=livestream");
-            $("#srs_publish_fw_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
-            $("#srs_publish_fw_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
-            
-            if (true) {
-                $("#btn_dar_original").click(function(){
-                    select_dar("#btn_dar_original", 0, 0);
-                });
-                $("#btn_dar_21_9").click(function(){
-                    select_dar("#btn_dar_21_9", 21, 9);
-                });
-                $("#btn_dar_16_9").click(function(){
-                    select_dar("#btn_dar_16_9", 16, 9);
-                });
-                $("#btn_dar_4_3").click(function(){
-                    select_dar("#btn_dar_4_3", 4, 3);
-                });
-                $("#btn_dar_fill").click(function(){
-                    select_dar("#btn_dar_fill", -1, -1);
-                });
-            }
-            
-            if (true) {
-                $("#btn_fs_size_video_100").click(function(){
-                    select_fs_size("#btn_fs_size_video_100", "video", 100);
-                });
-                $("#btn_fs_size_video_75").click(function(){
-                    select_fs_size("#btn_fs_size_video_75", "video", 75);
-                });
-                $("#btn_fs_size_video_50").click(function(){
-                    select_fs_size("#btn_fs_size_video_50", "video", 50);
-                });
-                $("#btn_fs_size_screen_100").click(function(){
-                    select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-                });
-                $("#btn_fs_size_screen_75").click(function(){
-                    select_fs_size("#btn_fs_size_screen_75", "screen", 75);
-                });
-                $("#btn_fs_size_screen_50").click(function(){
-                    select_fs_size("#btn_fs_size_screen_50", "screen", 50);
-                });
-            }
-            
-            if (true) {
-                $("#btn_bt_0_1").click(function(){
-                    select_buffer_time("#btn_bt_0_1", 0.1);
-                });
-                $("#btn_bt_0_2").click(function(){
-                    select_buffer_time("#btn_bt_0_2", 0.2);
-                });
-                $("#btn_bt_0_3").click(function(){
-                    select_buffer_time("#btn_bt_0_3", 0.3);
-                });
-                $("#btn_bt_0_5").click(function(){
-                    select_buffer_time("#btn_bt_0_5", 0.5);
-                });
-                $("#btn_bt_0_8").click(function(){
-                    select_buffer_time("#btn_bt_0_8", 0.8);
-                });
-                $("#btn_bt_1").click(function(){
-                    select_buffer_time("#btn_bt_1", 1);
-                });
-                $("#btn_bt_2").click(function(){
-                    select_buffer_time("#btn_bt_2", 2);
-                });
-                $("#btn_bt_3").click(function(){
-                    select_buffer_time("#btn_bt_3", 3);
-                });
-                $("#btn_bt_5").click(function(){
-                    select_buffer_time("#btn_bt_5", 5);
-                });
-                $("#btn_bt_10").click(function(){
-                    select_buffer_time("#btn_bt_10", 10);
-                });
-                $("#btn_bt_30").click(function(){
-                    select_buffer_time("#btn_bt_30", 30);
-                });
-            }
-            
-            var query = parse_query_string();
-            if (query.autostart == "true") {
-                url = $("#txt_url").val();
-                $("#main_modal").modal({show:true, keyboard:false});
-            }
-        });
-    </script>
 </head>
 <body>
 <div class="navbar navbar-fixed-top">
@@ -300,8 +47,62 @@
     </div>
     <div class="form-inline">
         URL:
-        <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+        <input type="text" id="txt_url" class="input-xxlarge" value="">
         <button class="btn btn-primary" id="btn_play">播放视频</button>
+        <button class="btn" id="btn_generate_link">生成链接</button>
+    </div>
+    <div id="link_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3><a href="https://github.com/simple-rtmp-server/srs">SRS Link Generator</a></h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="link_server">服务器地址</label>
+                    <div class="controls">
+                        <span id="link_server" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_port">服务器端口</label>
+                    <div class="controls">
+                        <span id="link_port" class="span2 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_vhost">RTMP Vhost</label>
+                    <div class="controls">
+                        <span id="link_vhost" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_app">RTMP App</label>
+                    <div class="controls">
+                        <span id="link_app" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_stream">RTMP Stream</label>
+                    <div class="controls">
+                        <span id="link_stream" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_rtmp">RTMP地址</label>
+                    <div class="controls">
+                        <span id="link_rtmp" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_url">播放链接地址</label>
+                    <div class="controls">
+                        <div style="margin-top:5px;"><a href="#" id="link_url" target="_blank">请右键拷贝此链接地址.</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer"></div>
     </div>
     <div class="container">
         <hr/>
@@ -480,57 +281,82 @@
             </div>
         </div>
         <div class="modal-footer" id="my_modal_footer">
-            <div class="input-prepend" id="div_play_time">
-              <span class="add-on" title="播放时长">@T</span>
-              <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
+            <div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">
+                        设置全屏比例大小<span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
+                        <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
+                        <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
+                        <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
+                        <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
+                        <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">设置显示比例<span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
+                        <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
+                        <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
+                        <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
+                        <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">设置缓冲区大小<span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_bt_0_1" href="#">0.1秒(实时)</a></li>
+                        <li><a id="btn_bt_0_2" href="#">0.2秒(实时)</a></li>
+                        <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
+                        <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
+                        <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
+                        <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
+                        <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
+                        <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
+                        <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
+                        <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <a id="btn_fullscreen" class="btn">进入全屏</a>
+                </div>
+                <div class="btn-group dropup">
+                    <button id="btn_pause" class="btn">暂停播放</button>
+                    <button id="btn_resume" class="btn hide">继续播放</button>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭播放器</button>
+                </div>
             </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">
-                    <a id="fs_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
-                        <img src="img/tooltip.png"/>
-                    </a>
-                    全屏大小<span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
-                    <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
-                    <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
-                    <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
-                    <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
-                    <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
-                </ul>
+            <div class="hide" id="fullscreen_tips">
+                请<font color="red">点击视频</font>进入全屏模式~<br/>
+                由于安全原因，Flash全屏无法使用JS触发
             </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
-                    <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
-                    <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
-                    <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
-                    <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
-                </ul>
-            </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">缓冲区<span class="caret"></span></button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_bt_0_1" href="#">0.1秒(实时)</a></li>
-                    <li><a id="btn_bt_0_2" href="#">0.2秒(实时)</a></li>
-                    <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
-                    <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
-                    <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
-                    <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
-                    <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
-                    <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
-                    <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
-                    <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
-                    <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
-                </ul>
-            </div>
-            <div class="btn-group dropup">
-                <button id="btn_pause" class="btn">暂停</button>
-            </div>
-            <div class="btn-group dropup">
-                <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
+            <div>
+                <div class="input-prepend div_play_time" title="视频的播放流畅度">
+                    <span class="add-on">@F</span>
+                    <input class="span2" style="width:57px" id="txt_fluency" type="text" placeholder="100%">
+                </div>
+                <div class="input-prepend div_play_time" title="视频总共卡顿次数">
+                    <span class="add-on">@E</span>
+                    <input class="span2" style="width:85px" id="txt_empty_count" type="text" placeholder="0">
+                </div>
+                <div class="input-prepend div_play_time" title="视频当前的帧率FPS">
+                    <span class="add-on">@F</span>
+                    <input class="span2" style="width:85px" id="txt_fps" type="text" placeholder="fps">
+                </div>
+                <div class="input-prepend div_play_time" title="视频当前的码率(视频+音频)，单位：Kbps">
+                    <span class="add-on">@B</span>
+                    <input class="span2" style="width:85px" id="txt_bitrate" type="text" placeholder="kbps">
+                </div>
+                <div class="input-prepend div_play_time" title="播放时长，格式：天 时:分:秒">
+                    <span class="add-on">@T</span>
+                    <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
+                </div>
             </div>
         </div>
     </div>
@@ -539,3 +365,281 @@
     </footer>
 </div>
 </body>
+<script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/swfobject.js"></script>
+<script type="text/javascript" src="js/json2.js"></script>
+<script type="text/javascript" src="js/srs.page.js"></script>
+<script type="text/javascript" src="js/srs.log.js"></script>
+<script type="text/javascript" src="js/srs.player.js"></script>
+<script type="text/javascript" src="js/srs.publisher.js"></script>
+<script type="text/javascript" src="js/srs.utility.js"></script>
+<script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript">
+    var srs_player = null;
+    var url = null;
+
+    var __active_dar = null;
+    function select_dar(dar_id, num, den) {
+        srs_player.set_dar(num, den);
+
+        if (__active_dar) {
+            __active_dar.removeClass("active");
+        }
+
+        __active_dar = $(dar_id).parent();
+        __active_dar.addClass("active");
+    }
+
+    var __active_size = null;
+    function select_fs_size(size_id, refer, percent) {
+        srs_player.set_fs(refer, percent);
+
+        if (__active_size) {
+            __active_size.removeClass("active");
+        }
+
+        __active_size = $(size_id).parent();
+        __active_size.addClass("active");
+    }
+
+    var __active_bt = null;
+    function select_buffer_time(bt_id, buffer_time) {
+        srs_player.set_bt(buffer_time);
+
+        if (__active_bt) {
+            __active_bt.removeClass("active");
+        }
+
+        __active_bt = $(bt_id).parent();
+        __active_bt.addClass("active");
+    }
+
+    $(function(){
+        var query = parse_query_string();
+
+        // get the vhost and port to set the default url.
+        // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+        // url set to: rtmp://demo:1935/live/livestream
+        srs_init_rtmp("#txt_url", "#main_modal");
+
+        $("#main_modal").on("show", function(){
+            if (srs_player) {
+                return;
+            }
+
+            $("#div_container").remove();
+
+            var div_container = $("<div/>");
+            $(div_container).attr("id", "div_container");
+            $("#player").append(div_container);
+
+            var player = $("<div/>");
+            $(player).attr("id", "player_id");
+            $(div_container).append(player);
+
+            srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
+            srs_player.on_player_ready = function() {
+                select_buffer_time("#btn_bt_0_1", 0.1);
+                this.play(url);
+            };
+            srs_player.on_player_metadata = function(metadata) {
+                $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
+                select_dar("#btn_dar_original", 0, 0);
+                select_fs_size("#btn_fs_size_screen_100", "screen", 100);
+            };
+            srs_player.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
+                var buffer = buffer_length / this.buffer_time * 100;
+                $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
+
+                $("#pb_buffer_bg").attr("title",
+                        "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒("
+                        + Number(buffer).toFixed(1) + "%)");
+
+                $("#txt_bitrate").val(kbps.toFixed(1) + "kbps");
+                $("#txt_fps").val(fps.toFixed(1) + "fps");
+                $("#txt_empty_count").val(srs_player.empty_count() + "次卡顿");
+                $("#txt_fluency").val(srs_player.fluency().toFixed(2) + "%");
+
+                var time_str = "";
+                // day
+                time_str = padding(parseInt(time / 24 / 3600), 2, '0') + " ";
+                // hour
+                time = time % (24 * 3600);
+                time_str += padding(parseInt(time / 3600), 2, '0') + ":";
+                // minute
+                time = time % (3600);
+                time_str += padding(parseInt(time / 60), 2, '0') + ":";
+                // seconds
+                time = time % (60);
+                time_str += padding(parseInt(time), 2, '0');
+                // show
+                $("#txt_time").val(time_str);
+            };
+            srs_player.start();
+        });
+
+        $("#main_modal").on("hide", function(){
+            if (srs_player) {
+                srs_player.stop();
+                srs_player = null;
+            }
+        });
+
+        $("#btn_generate_link").click(function(){
+            var rtmp = parse_rtmp_url($("#txt_url").val());
+            var url = "http://" + query.host + query.pathname + "?"
+                    + "vhost=" + rtmp.vhost + "&app=" + rtmp.app + "&stream=" + rtmp.stream
+                    + "&server=" + rtmp.server + "&port=" + rtmp.port
+                    + "&autostart=true";
+            $("#link_server").text(rtmp.server);
+            $("#link_port").text(rtmp.port);
+            $("#link_vhost").text(rtmp.vhost);
+            $("#link_app").text(rtmp.app);
+            $("#link_stream").text(rtmp.stream);
+            $("#link_rtmp").text($("#txt_url").val());
+            $("#link_url").attr("href", url);
+            $("#link_modal").modal({show:true, keyboard:true});
+        });
+
+        $("#btn_play").click(function(){
+            url = $("#txt_url").val();
+            $("#main_modal").modal({show:true, keyboard:true});
+        });
+
+        $("#btn_fullscreen").click(function(){
+            $("#fullscreen_tips").toggle();
+        });
+
+        $("#btn_pause").click(function() {
+            $("#btn_resume").toggle();
+            $("#btn_pause").toggle();
+            srs_player.pause();
+        });
+        $("#btn_resume").click(function(){
+            $("#btn_resume").toggle();
+            $("#btn_pause").toggle();
+            srs_player.resume();
+        });
+
+        if (true) {
+            $("#srs_publish").click(function () {
+                url = $("#srs_publish").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+            $("#srs_publish_ld").click(function () {
+                url = $("#srs_publish_ld").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+            $("#srs_publish_sd").click(function () {
+                url = $("#srs_publish_sd").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+            $("#srs_publish_fw").click(function () {
+                url = $("#srs_publish_fw").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+            $("#srs_publish_fw_ld").click(function () {
+                url = $("#srs_publish_fw_ld").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+            $("#srs_publish_fw_sd").click(function () {
+                url = $("#srs_publish_fw_sd").text();
+                $("#main_modal").modal({show: true, keyboard: false});
+            });
+        }
+
+        var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=live&hls_autostart=true";
+        if (true) {
+            $("#srs_publish_hls").attr("href", jwplayer_url + "&stream=livestream");
+            $("#srs_publish_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
+            $("#srs_publish_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
+            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=forward/live&hls_autostart=true";
+            $("#srs_publish_fw_hls").attr("href", jwplayer_url + "&stream=livestream");
+            $("#srs_publish_fw_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
+            $("#srs_publish_fw_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
+        }
+
+        if (true) {
+            $("#btn_dar_original").click(function(){
+                select_dar("#btn_dar_original", 0, 0);
+            });
+            $("#btn_dar_21_9").click(function(){
+                select_dar("#btn_dar_21_9", 21, 9);
+            });
+            $("#btn_dar_16_9").click(function(){
+                select_dar("#btn_dar_16_9", 16, 9);
+            });
+            $("#btn_dar_4_3").click(function(){
+                select_dar("#btn_dar_4_3", 4, 3);
+            });
+            $("#btn_dar_fill").click(function(){
+                select_dar("#btn_dar_fill", -1, -1);
+            });
+        }
+
+        if (true) {
+            $("#btn_fs_size_video_100").click(function(){
+                select_fs_size("#btn_fs_size_video_100", "video", 100);
+            });
+            $("#btn_fs_size_video_75").click(function(){
+                select_fs_size("#btn_fs_size_video_75", "video", 75);
+            });
+            $("#btn_fs_size_video_50").click(function(){
+                select_fs_size("#btn_fs_size_video_50", "video", 50);
+            });
+            $("#btn_fs_size_screen_100").click(function(){
+                select_fs_size("#btn_fs_size_screen_100", "screen", 100);
+            });
+            $("#btn_fs_size_screen_75").click(function(){
+                select_fs_size("#btn_fs_size_screen_75", "screen", 75);
+            });
+            $("#btn_fs_size_screen_50").click(function(){
+                select_fs_size("#btn_fs_size_screen_50", "screen", 50);
+            });
+        }
+
+        if (true) {
+            $("#btn_bt_0_1").click(function(){
+                select_buffer_time("#btn_bt_0_1", 0.1);
+            });
+            $("#btn_bt_0_2").click(function(){
+                select_buffer_time("#btn_bt_0_2", 0.2);
+            });
+            $("#btn_bt_0_3").click(function(){
+                select_buffer_time("#btn_bt_0_3", 0.3);
+            });
+            $("#btn_bt_0_5").click(function(){
+                select_buffer_time("#btn_bt_0_5", 0.5);
+            });
+            $("#btn_bt_0_8").click(function(){
+                select_buffer_time("#btn_bt_0_8", 0.8);
+            });
+            $("#btn_bt_1").click(function(){
+                select_buffer_time("#btn_bt_1", 1);
+            });
+            $("#btn_bt_2").click(function(){
+                select_buffer_time("#btn_bt_2", 2);
+            });
+            $("#btn_bt_3").click(function(){
+                select_buffer_time("#btn_bt_3", 3);
+            });
+            $("#btn_bt_5").click(function(){
+                select_buffer_time("#btn_bt_5", 5);
+            });
+            $("#btn_bt_10").click(function(){
+                select_buffer_time("#btn_bt_10", 10);
+            });
+            $("#btn_bt_30").click(function(){
+                select_buffer_time("#btn_bt_30", 30);
+            });
+        }
+
+        var query = parse_query_string();
+        if (query.autostart == "true") {
+            url = $("#txt_url").val();
+            $("#main_modal").modal({show:true, keyboard:false});
+        }
+    });
+</script>
+</html>
