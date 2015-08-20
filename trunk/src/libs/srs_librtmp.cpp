@@ -1279,8 +1279,8 @@ int srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
-    // only send when both sps and pps changed.
-    if (!context->h264_sps_changed || !context->h264_pps_changed) {
+    // send when sps or pps changed.
+    if (!context->h264_sps_changed && !context->h264_pps_changed) {
         return ret;
     }
     
@@ -1330,7 +1330,7 @@ int srs_write_h264_raw_frame(Context* context,
         context->h264_sps_changed = true;
         context->h264_sps = sps;
         
-        return srs_write_h264_sps_pps(context, dts, pts);
+        return ret;
     }
 
     // for pps
@@ -1346,7 +1346,12 @@ int srs_write_h264_raw_frame(Context* context,
         context->h264_pps_changed = true;
         context->h264_pps = pps;
         
-        return srs_write_h264_sps_pps(context, dts, pts);
+        return ret;
+    }
+    
+    // send pps+sps before ipb frames when sps/pps changed.
+    if ((ret = srs_write_h264_sps_pps(context, dts, pts)) != ERROR_SUCCESS) {
+        return ret;
     }
 
     // ibp frame.
