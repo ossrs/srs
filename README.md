@@ -342,6 +342,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-08-20, fix [#380](https://github.com/simple-rtmp-server/srs/issues/380), srs-librtmp send sequence header when sps or pps changed.
 * v2.0, 2015-08-18, close [#454](https://github.com/simple-rtmp-server/srs/issues/454), support obs restart publish. 2.0.184
 * v2.0, 2015-08-14, use reduce_sequence_header for stream control.
 * v2.0, 2015-08-14, use send_min_interval for stream control. 2.0.183
