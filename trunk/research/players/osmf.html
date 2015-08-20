@@ -4,14 +4,6 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/srs.page.js"></script>
-    <script type="text/javascript" src="js/srs.log.js"></script>
-    <script type="text/javascript" src="js/srs.player.js"></script>
-    <script type="text/javascript" src="js/srs.publisher.js"></script>
-    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -21,58 +13,6 @@
             margin-left: -350px;
         }
     </style>
-    <script type="text/javascript">
-        function osmf_play(url) {
-            $("#div_container").remove();
-            
-            var div_container = $("<div/>");
-            $(div_container).attr("id", "div_container");
-            $("#player").append(div_container);
-            
-            var player = $("<div/>");
-            $(player).attr("id", "player_id");
-            $(div_container).append(player);
-            
-            var flashvars = {};
-            flashvars.src = url;
-            flashvars.streamType = "live"; // live or recorded
-            flashvars.autoPlay = true;
-            flashvars.controlBarAutoHide = false;
-            flashvars.scaleMode = "stretch";
-            flashvars.bufferTime = 0.8;
-            
-            var params = {};
-            params.allowFullScreen = true;
-            
-            var attributes = {};
-            
-            swfobject.embedSWF(
-                "js/StrobeMediaPlayback.swf", "player_id",
-                srs_get_player_width(), srs_get_player_height(),
-                "11.1", "js/AdobeFlashPlayerInstall.swf",
-                flashvars, params, attributes
-            );
-        }
-        $(function(){
-            // get the vhost and port to set the default url.
-            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
-            // url set to: rtmp://demo:1935/live/livestream
-            srs_init("#txt_url", null, "#main_modal");
-            
-            $("#main_modal").on("hide", function(){
-                osmf_play("http://localhost");
-                $("#div_container").remove();
-            });
-            $("#main_modal").on("show", function(){
-                var url = $("#txt_url").val();
-                osmf_play(url);
-            });
-            
-            $("#btn_play").click(function(){
-                $("#main_modal").modal({show:true, keyboard:false});
-            });
-        });
-    </script>
 </head>
 <body>
 <div class="navbar navbar-fixed-top">
@@ -120,3 +60,65 @@
     </footer>
 </div>
 </body>
+<script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/swfobject.js"></script>
+<script type="text/javascript" src="js/srs.page.js"></script>
+<script type="text/javascript" src="js/srs.log.js"></script>
+<script type="text/javascript" src="js/srs.player.js"></script>
+<script type="text/javascript" src="js/srs.publisher.js"></script>
+<script type="text/javascript" src="js/srs.utility.js"></script>
+<script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript">
+    function osmf_play(url) {
+        $("#div_container").remove();
+
+        var div_container = $("<div/>");
+        $(div_container).attr("id", "div_container");
+        $("#player").append(div_container);
+
+        var player = $("<div/>");
+        $(player).attr("id", "player_id");
+        $(div_container).append(player);
+
+        var flashvars = {};
+        flashvars.src = url;
+        flashvars.streamType = "live"; // live or recorded
+        flashvars.autoPlay = true;
+        flashvars.controlBarAutoHide = false;
+        flashvars.scaleMode = "stretch";
+        flashvars.bufferTime = 0.8;
+
+        var params = {};
+        params.allowFullScreen = true;
+
+        var attributes = {};
+
+        swfobject.embedSWF(
+                "js/StrobeMediaPlayback.swf", "player_id",
+                srs_get_player_width(), srs_get_player_height(),
+                "11.1", "js/AdobeFlashPlayerInstall.swf",
+                flashvars, params, attributes
+        );
+    }
+    $(function(){
+        // get the vhost and port to set the default url.
+        // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+        // url set to: rtmp://demo:1935/live/livestream
+        srs_init_rtmp("#txt_url", "#main_modal");
+
+        $("#main_modal").on("hide", function(){
+            osmf_play("http://localhost");
+            $("#div_container").remove();
+        });
+        $("#main_modal").on("show", function(){
+            var url = $("#txt_url").val();
+            osmf_play(url);
+        });
+
+        $("#btn_play").click(function(){
+            $("#main_modal").modal({show:true, keyboard:false});
+        });
+    });
+</script>
+</html>
