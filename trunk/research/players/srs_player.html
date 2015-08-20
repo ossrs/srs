@@ -49,6 +49,60 @@
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
         <button class="btn btn-primary" id="btn_play">播放视频</button>
+        <button class="btn" id="btn_generate_link">生成链接</button>
+    </div>
+    <div id="link_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3><a href="https://github.com/simple-rtmp-server/srs">SRS Link Generator</a></h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="link_server">服务器地址</label>
+                    <div class="controls">
+                        <span id="link_server" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_port">服务器端口</label>
+                    <div class="controls">
+                        <span id="link_port" class="span2 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_vhost">RTMP Vhost</label>
+                    <div class="controls">
+                        <span id="link_vhost" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_app">RTMP App</label>
+                    <div class="controls">
+                        <span id="link_app" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_stream">RTMP Stream</label>
+                    <div class="controls">
+                        <span id="link_stream" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_rtmp">RTMP地址</label>
+                    <div class="controls">
+                        <span id="link_rtmp" class="span4 uneditable-input"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="link_url">播放链接地址</label>
+                    <div class="controls">
+                        <div style="margin-top:5px;"><a href="#" id="link_url">请右键拷贝此链接地址.</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer"></div>
     </div>
     <div class="container">
         <hr/>
@@ -337,6 +391,8 @@
     }
 
     $(function(){
+        var query = parse_query_string();
+
         // get the vhost and port to set the default url.
         // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
         // url set to: rtmp://demo:1935/live/livestream
@@ -408,6 +464,22 @@
             }
         });
 
+        $("#btn_generate_link").click(function(){
+            var rtmp = parse_rtmp_url($("#txt_url").val());
+            var url = "http://" + query.host + query.pathname + "?"
+                    + "vhost=" + rtmp.vhost + "&app=" + rtmp.app + "&stream=" + rtmp.stream
+                    + "&server=" + rtmp.server + "&port=" + rtmp.port
+                    + "&autostart=true";
+            $("#link_server").text(rtmp.server);
+            $("#link_port").text(rtmp.port);
+            $("#link_vhost").text(rtmp.vhost);
+            $("#link_app").text(rtmp.app);
+            $("#link_stream").text(rtmp.stream);
+            $("#link_rtmp").text($("#txt_url").val());
+            $("#link_url").attr("href", url);
+            $("#link_modal").modal({show:true, keyboard:false});
+        });
+
         $("#btn_play").click(function(){
             url = $("#txt_url").val();
             $("#main_modal").modal({show:true, keyboard:false});
@@ -450,7 +522,6 @@
             });
         }
 
-        var query = parse_query_string();
         var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=live&hls_autostart=true";
         if (true) {
             $("#srs_publish_hls").attr("href", jwplayer_url + "&stream=livestream");

@@ -234,6 +234,15 @@ function parse_rtmp_url(rtmp_url) {
         }
     }
 
+    // when vhost equals to server, and server is ip,
+    // the vhost is __defaultVhost__
+    if (a.hostname == vhost) {
+        var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+        if (re.test(a.hostname)) {
+            vhost = "__defaultVhost__";
+        }
+    }
+
     var ret = {
         server: a.hostname, port: port,
         vhost: vhost, app: app, stream: stream
