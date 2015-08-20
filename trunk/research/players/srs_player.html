@@ -358,6 +358,13 @@
                     <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
                 </div>
             </div>
+            <div style="margin-top:-12px;">
+                URL: <a href="#" id="player_url"></a>
+                <div class="input-prepend div_play_time" title="当前时间：年-月-日 时:分:秒">
+                    <span class="add-on">@N</span>
+                    <input class="span2" style="width:135px" id="player_clock" type="text" placeholder="年-月-日 时:分:秒">
+                </div>
+            </div>
         </div>
     </div>
     <footer>
@@ -475,6 +482,9 @@
                 time_str += padding(parseInt(time), 2, '0');
                 // show
                 $("#txt_time").val(time_str);
+
+                var clock = new Date().getTime() / 1000;
+                $("#player_clock").val(absolute_seconds_to_YYYYmmdd(clock) + " " + absolute_seconds_to_HHMMSS(clock));
             };
             srs_player.start();
         });
@@ -486,12 +496,14 @@
             }
         });
 
-        $("#btn_generate_link").click(function(){
+        var apply_url_change = function() {
             var rtmp = parse_rtmp_url($("#txt_url").val());
             var url = "http://" + query.host + query.pathname + "?"
                     + "vhost=" + rtmp.vhost + "&app=" + rtmp.app + "&stream=" + rtmp.stream
                     + "&server=" + rtmp.server + "&port=" + rtmp.port
                     + "&autostart=true";
+            $("#player_url").text($("#txt_url").val()).attr("href", url);
+
             $("#link_server").text(rtmp.server);
             $("#link_port").text(rtmp.port);
             $("#link_vhost").text(rtmp.vhost);
@@ -499,6 +511,13 @@
             $("#link_stream").text(rtmp.stream);
             $("#link_rtmp").text($("#txt_url").val());
             $("#link_url").attr("href", url);
+        };
+
+        $("#txt_url").change(function(){
+            apply_url_change();
+        });
+
+        $("#btn_generate_link").click(function(){
             $("#link_modal").modal({show:true, keyboard:true});
         });
 
@@ -640,6 +659,8 @@
             url = $("#txt_url").val();
             $("#main_modal").modal({show:true, keyboard:false});
         }
+
+        apply_url_change();
     });
 </script>
 </html>
