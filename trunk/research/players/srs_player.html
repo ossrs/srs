@@ -12,7 +12,7 @@
             margin-top: -20px;
             padding-top: 3px;
         }
-        #div_play_time {
+        .div_play_time {
             margin-top: 10px;
         }
         #pb_buffer_bg {
@@ -47,7 +47,7 @@
     </div>
     <div class="form-inline">
         URL:
-        <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+        <input type="text" id="txt_url" class="input-xxlarge" value="">
         <button class="btn btn-primary" id="btn_play">播放视频</button>
         <button class="btn" id="btn_generate_link">生成链接</button>
     </div>
@@ -281,57 +281,82 @@
             </div>
         </div>
         <div class="modal-footer" id="my_modal_footer">
-            <div class="input-prepend" id="div_play_time">
-              <span class="add-on" title="播放时长">@T</span>
-              <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
+            <div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">
+                        设置全屏比例大小<span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
+                        <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
+                        <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
+                        <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
+                        <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
+                        <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">设置显示比例<span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
+                        <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
+                        <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
+                        <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
+                        <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">设置缓冲区大小<span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_bt_0_1" href="#">0.1秒(实时)</a></li>
+                        <li><a id="btn_bt_0_2" href="#">0.2秒(实时)</a></li>
+                        <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
+                        <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
+                        <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
+                        <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
+                        <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
+                        <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
+                        <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
+                        <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <a id="btn_fullscreen" class="btn">进入全屏</a>
+                </div>
+                <div class="btn-group dropup">
+                    <button id="btn_pause" class="btn">暂停播放</button>
+                    <button id="btn_resume" class="btn hide">继续播放</button>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭播放器</button>
+                </div>
             </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">
-                    <a id="fs_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
-                        <img src="img/tooltip.png"/>
-                    </a>
-                    全屏大小<span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
-                    <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
-                    <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
-                    <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
-                    <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
-                    <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
-                </ul>
+            <div class="hide" id="fullscreen_tips">
+                请<font color="red">点击视频</font>进入全屏模式~<br/>
+                由于安全原因，Flash全屏无法使用JS触发
             </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
-                    <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
-                    <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
-                    <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
-                    <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
-                </ul>
-            </div>
-            <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">缓冲区<span class="caret"></span></button>
-                <ul class="dropdown-menu">
-                    <li><a id="btn_bt_0_1" href="#">0.1秒(实时)</a></li>
-                    <li><a id="btn_bt_0_2" href="#">0.2秒(实时)</a></li>
-                    <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
-                    <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
-                    <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
-                    <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
-                    <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
-                    <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
-                    <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
-                    <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
-                    <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
-                </ul>
-            </div>
-            <div class="btn-group dropup">
-                <button id="btn_pause" class="btn">暂停</button>
-            </div>
-            <div class="btn-group dropup">
-                <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
+            <div>
+                <div class="input-prepend div_play_time" title="视频的播放流畅度">
+                    <span class="add-on">@F</span>
+                    <input class="span2" style="width:57px" id="txt_fluency" type="text" placeholder="100%">
+                </div>
+                <div class="input-prepend div_play_time" title="视频总共卡顿次数">
+                    <span class="add-on">@E</span>
+                    <input class="span2" style="width:85px" id="txt_empty_count" type="text" placeholder="0">
+                </div>
+                <div class="input-prepend div_play_time" title="视频当前的帧率FPS">
+                    <span class="add-on">@F</span>
+                    <input class="span2" style="width:85px" id="txt_fps" type="text" placeholder="fps">
+                </div>
+                <div class="input-prepend div_play_time" title="视频当前的码率(视频+音频)，单位：Kbps">
+                    <span class="add-on">@B</span>
+                    <input class="span2" style="width:85px" id="txt_bitrate" type="text" placeholder="kbps">
+                </div>
+                <div class="input-prepend div_play_time" title="播放时长，格式：天 时:分:秒">
+                    <span class="add-on">@T</span>
+                    <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
+                </div>
             </div>
         </div>
     </div>
@@ -398,10 +423,6 @@
         // url set to: rtmp://demo:1935/live/livestream
         srs_init_rtmp("#txt_url", "#main_modal");
 
-        $("#fs_tips").tooltip({
-            title: "点击视频进入或退出全屏"
-        });
-
         $("#main_modal").on("show", function(){
             if (srs_player) {
                 return;
@@ -427,13 +448,18 @@
                 select_dar("#btn_dar_original", 0, 0);
                 select_fs_size("#btn_fs_size_screen_100", "screen", 100);
             };
-            srs_player.on_player_timer = function(time, buffer_length) {
+            srs_player.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
                 var buffer = buffer_length / this.buffer_time * 100;
                 $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
 
                 $("#pb_buffer_bg").attr("title",
                         "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒("
                         + Number(buffer).toFixed(1) + "%)");
+
+                $("#txt_bitrate").val(kbps.toFixed(1) + "kbps");
+                $("#txt_fps").val(fps.toFixed(1) + "fps");
+                $("#txt_empty_count").val(srs_player.empty_count() + "次卡顿");
+                $("#txt_fluency").val(srs_player.fluency().toFixed(2) + "%");
 
                 var time_str = "";
                 // day
@@ -454,10 +480,6 @@
         });
 
         $("#main_modal").on("hide", function(){
-            if ($("#main_modal").is(":visible")) {
-                return;
-            }
-
             if (srs_player) {
                 srs_player.stop();
                 srs_player = null;
@@ -477,22 +499,27 @@
             $("#link_stream").text(rtmp.stream);
             $("#link_rtmp").text($("#txt_url").val());
             $("#link_url").attr("href", url);
-            $("#link_modal").modal({show:true, keyboard:false});
+            $("#link_modal").modal({show:true, keyboard:true});
         });
 
         $("#btn_play").click(function(){
             url = $("#txt_url").val();
-            $("#main_modal").modal({show:true, keyboard:false});
+            $("#main_modal").modal({show:true, keyboard:true});
         });
 
-        $("#btn_pause").click(function(){
-            if ($("#btn_pause").text() == "暂停") {
-                $("#btn_pause").text("继续");
-                srs_player.pause();
-            } else {
-                $("#btn_pause").text("暂停");
-                srs_player.resume();
-            }
+        $("#btn_fullscreen").click(function(){
+            $("#fullscreen_tips").toggle();
+        });
+
+        $("#btn_pause").click(function() {
+            $("#btn_resume").toggle();
+            $("#btn_pause").toggle();
+            srs_player.pause();
+        });
+        $("#btn_resume").click(function(){
+            $("#btn_resume").toggle();
+            $("#btn_pause").toggle();
+            srs_player.resume();
         });
 
         if (true) {
