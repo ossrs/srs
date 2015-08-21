@@ -78,6 +78,10 @@ class ISrsHttpResponseWriter;
 
 // helper function: response in json format.
 extern int srs_http_response_json(ISrsHttpResponseWriter* w, std::string data);
+/**
+ * response a typical code object, for example:
+ *      {code : 100}
+ */
 extern int srs_http_response_code(ISrsHttpResponseWriter* w, int code);
 
 // get the status text of code.

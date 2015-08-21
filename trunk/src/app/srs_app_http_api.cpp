@@ -509,31 +509,23 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("stream stream_id=%d not found. ret=%d", sid, ret);
-        
-        ss << SRS_JOBJECT_START
-                << SRS_JFIELD_ERROR(ret)
-            << SRS_JOBJECT_END;
-        
-        return srs_http_response_json(w, ss.str());
+        return srs_http_response_code(w, ret);
     }
 
     if (r->is_http_delete()) {
         srs_assert(stream);
         
         SrsSource* source = SrsSource::fetch(stream->vhost->vhost, stream->app, stream->stream);
-        if (source) {
-            source->set_expired();
-            srs_warn("disconnent stream=%d successfully. vhost=%s, app=%s, stream=%s.", 
-                sid, stream->vhost->vhost.c_str(), stream->app.c_str(), stream->stream.c_str());
-        } else {
+        if (!source) {
             ret = ERROR_SOURCE_NOT_FOUND;
+            srs_warn("source not found for sid=%d", sid);
+            return srs_http_response_code(w, ret);
         }
-
-        ss << SRS_JOBJECT_START
-               << SRS_JFIELD_ERROR(ret)
-           << SRS_JOBJECT_END;
-
-        return srs_http_response_json(w, ss.str());
+        
+        source->set_expired();
+        srs_warn("disconnent stream=%d successfully. vhost=%s, app=%s, stream=%s.",
+            sid, stream->vhost->vhost.c_str(), stream->app.c_str(), stream->stream.c_str());
+        return srs_http_response_code(w, ret);
     } else if (r->is_http_get()) {
         std::stringstream data;
         
@@ -584,10 +576,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("stream client_id=%d not found. ret=%d", cid, ret);
-        
-        ss << SRS_JOBJECT_START << SRS_JFIELD_ERROR(ret) << SRS_JOBJECT_END;
-        
-        return srs_http_response_json(w, ss.str());
+        return srs_http_response_code(w, ret);
         
     }
     
@@ -628,15 +617,7 @@ SrsGoApiError::~SrsGoApiError()
 
 int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream ss;
-    
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(100) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("msg", "SRS demo error.") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("path", r->path())
-        << SRS_JOBJECT_END;
-    
-    return srs_http_response_json(w, ss.str());
+    return srs_http_response_code(w, 100);
 }
 
 
