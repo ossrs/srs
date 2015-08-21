@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_protocol_json.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
@@ -146,8 +147,11 @@ int srs_http_response_json(ISrsHttpResponseWriter* w, string data)
 int srs_http_response_code(ISrsHttpResponseWriter* w, int code)
 {
     std::stringstream ss;
-    // TODO: FIXME: implements it.
-    //ss << SRS_JOBJECT_START << SRS_JFIELD_ERROR(code) << SRS_JOBJECT_END;
+    
+    ss << SRS_JOBJECT_START
+            << SRS_JFIELD_ERROR(code)
+        << SRS_JOBJECT_END;
+    
     return srs_http_response_json(w, ss.str());
 }
 

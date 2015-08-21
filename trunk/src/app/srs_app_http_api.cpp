@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_json.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
