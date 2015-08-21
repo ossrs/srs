@@ -175,6 +175,11 @@ int ISrsReloadHandler::on_reload_vhost_smi(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_tcp_nodelay(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_realtime(string /*vhost*/)
 {
     return ERROR_SUCCESS;
