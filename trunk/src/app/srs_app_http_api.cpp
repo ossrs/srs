@@ -443,17 +443,45 @@ SrsGoApiVhosts::~SrsGoApiVhosts()
 
 int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream data;
-    SrsStatistic* stat = SrsStatistic::instance();
-    int ret = stat->dumps_vhosts(data);
+    int ret = ERROR_SUCCESS;
     
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("vhosts", data.str())
-        << SRS_JOBJECT_END;
+    // path: {pattern}{vhost_id}
+    // e.g. /api/v1/vhosts/100     pattern= /api/v1/vhosts/, vhost_id=100
+    int vid = r->parse_rest_id(entry->pattern);
+    SrsStatisticVhost* vhost = NULL;
+    
+    if (vid > 0 && (vhost = stat->find_vhost(vid)) == NULL) {
+        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        srs_error("vhost id=%d not found. ret=%d", vid, ret);
+        return srs_http_response_code(w, ret);
+    }
+    
+    if (r->is_http_get()) {
+        std::stringstream data;
+        
+        if (!vhost) {
+            ret = stat->dumps_vhosts(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("vhosts", data.str())
+                << SRS_JOBJECT_END;
+        } else {
+            ret = vhost->dumps(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("vhost", data.str())
+                << SRS_JOBJECT_END;
+        }
+        
+        return srs_http_response_json(w, ss.str());
+    }
     
     return srs_http_response_json(w, ss.str());
 }
@@ -553,8 +581,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     int cid = r->parse_rest_id(entry->pattern);
     
     SrsStatisticClient* client = NULL;
-    // TODO: FIXME: implements it.
-    /*if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
+    if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("stream client_id=%d not found. ret=%d", cid, ret);
         
@@ -562,12 +589,32 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         return srs_http_response_json(w, ss.str());
         
-    }*/
-    
-    if (r->is_http_get()) {
-        
     }
     
+    if (r->is_http_get()) {
+        std::stringstream data;
+        
+        if (!client) {
+            ret = stat->dumps_clients(data, 0, 10);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("clients", data.str())
+                << SRS_JOBJECT_END;
+        } else {
+            ret = client->dumps(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("client", data.str())
+                << SRS_JOBJECT_END;
+        }
+        
+        return srs_http_response_json(w, ss.str());
+    }
+
     return ret;
 }
 

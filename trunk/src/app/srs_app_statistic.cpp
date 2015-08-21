@@ -62,11 +62,13 @@ int SrsStatisticVhost::dumps(stringstream& ss)
     
     // dumps the config of vhost.
     bool hls_enabled = _srs_config->get_hls_enabled(vhost);
+    bool enabled = _srs_config->get_vhost_enabled(vhost);
     
     ss << SRS_JOBJECT_START
             << SRS_JFIELD_ORG("id", id) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("name", vhost) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cleints", nb_clients) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("enabled", enabled) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_NAME("hls") << SRS_JOBJECT_START
@@ -163,6 +165,26 @@ void SrsStatisticStream::close()
     status = STATISTIC_STREAM_STATUS_IDLING;
 }
 
+SrsStatisticClient::SrsStatisticClient()
+{
+    id = 0;
+}
+
+SrsStatisticClient::~SrsStatisticClient()
+{
+}
+
+int SrsStatisticClient::dumps(stringstream& ss)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ss << SRS_JOBJECT_START
+            << SRS_JFIELD_ORG("id", id)
+        << SRS_JOBJECT_END;
+    
+    return ret;
+}
+
 SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
 SrsStatistic::SrsStatistic()
@@ -178,14 +200,14 @@ SrsStatistic::~SrsStatistic()
     srs_freep(kbps);
     
     if (true) {
-        std::map<std::string, SrsStatisticVhost*>::iterator it;
+        std::map<int64_t, SrsStatisticVhost*>::iterator it;
         for (it = vhosts.begin(); it != vhosts.end(); it++) {
             SrsStatisticVhost* vhost = it->second;
             srs_freep(vhost);
         }
     }
     if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
+        std::map<int64_t, SrsStatisticStream*>::iterator it;
         for (it = streams.begin(); it != streams.end(); it++) {
             SrsStatisticStream* stream = it->second;
             srs_freep(stream);
@@ -198,6 +220,11 @@ SrsStatistic::~SrsStatistic()
             srs_freep(client);
         }
     }
+    
+    vhosts.clear();
+    rvhosts.clear();
+    streams.clear();
+    rstreams.clear();
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -205,16 +232,29 @@ SrsStatistic* SrsStatistic::instance()
     return _instance;
 }
 
-SrsStatisticStream* SrsStatistic::find_stream(int stream_id)
+SrsStatisticVhost* SrsStatistic::find_vhost(int vid)
+{
+    std::map<int64_t, SrsStatisticVhost*>::iterator it;
+    if ((it = vhosts.find(vid)) != vhosts.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+SrsStatisticStream* SrsStatistic::find_stream(int sid)
+{
+    std::map<int64_t, SrsStatisticStream*>::iterator it;
+    if ((it = streams.find(sid)) != streams.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+SrsStatisticClient* SrsStatistic::find_client(int cid)
 {
     std::map<int, SrsStatisticClient*>::iterator it;
-    for (it = clients.begin(); it != clients.end(); it++) {
-        SrsStatisticClient* client = it->second;
-        SrsStatisticStream* stream = client->stream;
-        
-        if (stream_id == stream->id) {
-            return stream;
-        }
+    if ((it = clients.find(cid)) != clients.end()) {
+        return it->second;
     }
     return NULL;
 }
@@ -338,14 +378,14 @@ SrsKbps* SrsStatistic::kbps_sample()
 {
     kbps->sample();
     if (true) {
-        std::map<std::string, SrsStatisticVhost*>::iterator it;
+        std::map<int64_t, SrsStatisticVhost*>::iterator it;
         for (it = vhosts.begin(); it != vhosts.end(); it++) {
             SrsStatisticVhost* vhost = it->second;
             vhost->kbps->sample();
         }
     }
     if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
+        std::map<int64_t, SrsStatisticStream*>::iterator it;
         for (it = streams.begin(); it != streams.end(); it++) {
             SrsStatisticStream* stream = it->second;
             stream->kbps->sample();
@@ -365,7 +405,7 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
     int ret = ERROR_SUCCESS;
 
     ss << SRS_JARRAY_START;
-    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    std::map<int64_t, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
         
@@ -387,7 +427,7 @@ int SrsStatistic::dumps_streams(stringstream& ss)
     int ret = ERROR_SUCCESS;
     
     ss << SRS_JARRAY_START;
-    std::map<std::string, SrsStatisticStream*>::iterator it;
+    std::map<int64_t, SrsStatisticStream*>::iterator it;
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
         
@@ -404,19 +444,47 @@ int SrsStatistic::dumps_streams(stringstream& ss)
     return ret;
 }
 
+int SrsStatistic::dumps_clients(stringstream& ss, int start, int count)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ss << SRS_JARRAY_START;
+    std::map<int, SrsStatisticClient*>::iterator it = clients.begin();
+    for (int i = 0; i < count && it != clients.end(); it++) {
+        if (i < start) {
+            continue;
+        }
+        
+        SrsStatisticClient* client = it->second;
+        
+        if (i != start) {
+            ss << SRS_JFIELD_CONT;
+        }
+        
+        if ((ret = client->dumps(ss)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    ss << SRS_JARRAY_END;
+    
+    
+    return ret;
+}
+
 SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
 {
     SrsStatisticVhost* vhost = NULL;
     
     // create vhost if not exists.
-    if (vhosts.find(req->vhost) == vhosts.end()) {
+    if (rvhosts.find(req->vhost) == rvhosts.end()) {
         vhost = new SrsStatisticVhost();
         vhost->vhost = req->vhost;
-        vhosts[req->vhost] = vhost;
+        rvhosts[req->vhost] = vhost;
+        vhosts[vhost->id] = vhost;
         return vhost;
     }
 
-    vhost = vhosts[req->vhost];
+    vhost = rvhosts[req->vhost];
     
     return vhost;
 }
@@ -428,17 +496,18 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
     SrsStatisticStream* stream = NULL;
     
     // create stream if not exists.
-    if (streams.find(url) == streams.end()) {
+    if (rstreams.find(url) == rstreams.end()) {
         stream = new SrsStatisticStream();
         stream->vhost = vhost;
         stream->stream = req->stream;
         stream->app = req->app;
         stream->url = url;
-        streams[url] = stream;
+        rstreams[url] = stream;
+        streams[stream->id] = stream;
         return stream;
     }
     
-    stream = streams[url];
+    stream = rstreams[url];
     
     return stream;
 }
