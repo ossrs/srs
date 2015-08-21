@@ -773,10 +773,10 @@ int SrsServer::http_handle()
     if ((ret = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = http_api_mux->handle("/api", new SrsGoApiApi())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/", new SrsGoApiApi())) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = http_api_mux->handle("/api/v1", new SrsGoApiV1())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/v1/", new SrsGoApiV1())) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = http_api_mux->handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
@@ -800,10 +800,13 @@ int SrsServer::http_handle()
     if ((ret = http_api_mux->handle("/api/v1/authors", new SrsGoApiAuthors())) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = http_api_mux->handle("/api/v1/vhosts", new SrsGoApiVhosts())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/v1/vhosts/", new SrsGoApiVhosts())) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = http_api_mux->handle("/api/v1/streams/", new SrsGoApiStreams())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != ERROR_SUCCESS) {
         return ret;
     }
     

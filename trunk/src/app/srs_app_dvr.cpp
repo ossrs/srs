@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_kernel_stream.hpp>
-#include <srs_app_json.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_app_utility.hpp>
 
 // update the flv duration and filesize every this interval in ms.

@@ -47,6 +47,7 @@ struct SrsStatisticVhost
 public:
     int64_t id;
     std::string vhost;
+    int nb_clients;
 public:
     /**
     * vhost total kbps.
@@ -55,6 +56,8 @@ public:
 public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
+public:
+    virtual int dumps(std::stringstream& ss);
 };
 
 struct SrsStatisticStream
@@ -66,6 +69,7 @@ public:
     std::string stream;
     std::string url;
     std::string status;
+    int nb_clients;
 public:
     /**
     * stream total kbps.
@@ -94,6 +98,8 @@ public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
+    virtual int dumps(std::stringstream& ss);
+public:
     /**
     * publish the stream.
     */
@@ -109,6 +115,11 @@ struct SrsStatisticClient
 public:
     SrsStatisticStream* stream;
     int id;
+public:
+    SrsStatisticClient();
+    virtual ~SrsStatisticClient();
+public:
+    virtual int dumps(std::stringstream& ss);
 };
 
 class SrsStatistic
@@ -117,10 +128,19 @@ private:
     static SrsStatistic *_instance;
     // the id to identify the sever.
     int64_t _server_id;
-    // key: vhost name, value: vhost object.
-    std::map<std::string, SrsStatisticVhost*> vhosts;
-    // key: stream url, value: stream object.
-    std::map<std::string, SrsStatisticStream*> streams;
+private:
+    // key: vhost id, value: vhost object.
+    std::map<int64_t, SrsStatisticVhost*> vhosts;
+    // key: vhost url, value: vhost Object.
+    // @remark a fast index for vhosts.
+    std::map<std::string, SrsStatisticVhost*> rvhosts;
+private:
+    // key: stream id, value: stream Object.
+    std::map<int64_t, SrsStatisticStream*> streams;
+    // key: stream url, value: stream Object.
+    // @remark a fast index for streams.
+    std::map<std::string, SrsStatisticStream*> rstreams;
+private:
     // key: client id, value: stream object.
     std::map<int, SrsStatisticClient*> clients;
     // server total kbps.
@@ -131,7 +151,10 @@ private:
 public:
     static SrsStatistic* instance();
 public:
-    virtual SrsStatisticStream* find_stream(int stream_id);
+    virtual SrsStatisticVhost* find_vhost(int vid);
+    virtual SrsStatisticStream* find_stream(int sid);
+    virtual SrsStatisticClient* find_client(int cid);
+public:
     /**
     * when got video info for stream.
     */
@@ -192,6 +215,12 @@ public:
     * dumps the streams to sstream in json.
     */
     virtual int dumps_streams(std::stringstream& ss);
+    /**
+     * dumps the clients to sstream in json.
+     * @param start the start index, from 0.
+     * @param count the max count of clients to dump.
+     */
+    virtual int dumps_clients(std::stringstream& ss, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

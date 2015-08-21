@@ -654,6 +654,7 @@ string SrsHttpMessage::uri()
     
     uri += host();
     uri += path();
+    
     return uri;
 }
 
@@ -675,6 +676,21 @@ string SrsHttpMessage::path()
 string SrsHttpMessage::ext()
 {
     return _ext;
+}
+
+int SrsHttpMessage::parse_rest_id(string pattern)
+{
+    string p = _uri->get_path();
+    if (p.length() <= pattern.length()) {
+        return -1;
+    }
+    
+    string id = p.substr((int)pattern.length());
+    if (!id.empty()) {
+        return ::atoi(id.c_str());
+    }
+    
+    return -1;
 }
 
 int SrsHttpMessage::body_read_all(string& body)

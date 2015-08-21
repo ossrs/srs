@@ -32,7 +32,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_http_client.hpp>
-#include <srs_app_json.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_http_conn.hpp>

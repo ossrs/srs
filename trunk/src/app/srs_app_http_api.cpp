@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_json.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
@@ -112,6 +112,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("streams", "dumps streams to json") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("clients", "dumps clients to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("test", SRS_JOBJECT_START)
                 << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
@@ -442,17 +443,45 @@ SrsGoApiVhosts::~SrsGoApiVhosts()
 
 int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream data;
-    SrsStatistic* stat = SrsStatistic::instance();
-    int ret = stat->dumps_vhosts(data);
+    int ret = ERROR_SUCCESS;
     
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("vhosts", data.str())
-        << SRS_JOBJECT_END;
+    // path: {pattern}{vhost_id}
+    // e.g. /api/v1/vhosts/100     pattern= /api/v1/vhosts/, vhost_id=100
+    int vid = r->parse_rest_id(entry->pattern);
+    SrsStatisticVhost* vhost = NULL;
+    
+    if (vid > 0 && (vhost = stat->find_vhost(vid)) == NULL) {
+        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        srs_error("vhost id=%d not found. ret=%d", vid, ret);
+        return srs_http_response_code(w, ret);
+    }
+    
+    if (r->is_http_get()) {
+        std::stringstream data;
+        
+        if (!vhost) {
+            ret = stat->dumps_vhosts(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("vhosts", data.str())
+                << SRS_JOBJECT_END;
+        } else {
+            ret = vhost->dumps(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("vhost", data.str())
+                << SRS_JOBJECT_END;
+        }
+        
+        return srs_http_response_json(w, ss.str());
+    }
     
     return srs_http_response_json(w, ss.str());
 }
@@ -468,63 +497,114 @@ SrsGoApiStreams::~SrsGoApiStreams()
 int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
+    
     SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
+    
+    // path: {pattern}{stream_id}
+    // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
+    int sid = r->parse_rest_id(entry->pattern);
+    
+    SrsStatisticStream* stream = NULL;
+    if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
+        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        srs_error("stream stream_id=%d not found. ret=%d", sid, ret);
+        return srs_http_response_code(w, ret);
+    }
 
     if (r->is_http_delete()) {
-        // path: {pattern}{stream_id}
-        // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
-        string sid = r->path().substr((int)entry->pattern.length());
-        if (sid.empty()) {
-            ret = ERROR_REQUEST_DATA;
-            srs_error("invalid param, stream_id=%s. ret=%d", sid.c_str(), ret);
-
-            ss << SRS_JOBJECT_START
-                   << SRS_JFIELD_ERROR(ret)
-               << SRS_JOBJECT_END;
-
-            return srs_http_response_json(w, ss.str());
-        }
-
-        int stream_id = ::atoi(sid.c_str());
-        SrsStatisticStream* stream = stat->find_stream(stream_id);
-        if (stream == NULL) {
-            ret = ERROR_RTMP_STREAM_NOT_FOUND;
-            srs_error("stream stream_id=%s not found. ret=%d", sid.c_str(), ret);
-
-            ss << SRS_JOBJECT_START
-                   << SRS_JFIELD_ERROR(ret)
-               << SRS_JOBJECT_END;
-
-            return srs_http_response_json(w, ss.str());
-        }
-
-        SrsSource* source = SrsSource::fetch(stream->vhost->vhost, stream->app, stream->stream);
-        if (source) {
-            source->set_expired();
-            srs_warn("disconnent stream=%d successfully. vhost=%s, app=%s, stream=%s.", 
-                stream_id, stream->vhost->vhost.c_str(), stream->app.c_str(), stream->stream.c_str());
-        } else {
-            ret = ERROR_SOURCE_NOT_FOUND;
-        }
-
-        ss << SRS_JOBJECT_START
-               << SRS_JFIELD_ERROR(ret)
-           << SRS_JOBJECT_END;
-
-        return srs_http_response_json(w, ss.str());
-    } else {
-        std::stringstream data;
-        int ret = stat->dumps_streams(data);
+        srs_assert(stream);
         
-        ss << SRS_JOBJECT_START
-               << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-               << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-               << SRS_JFIELD_ORG("streams", data.str())
-           << SRS_JOBJECT_END;
+        SrsSource* source = SrsSource::fetch(stream->vhost->vhost, stream->app, stream->stream);
+        if (!source) {
+            ret = ERROR_SOURCE_NOT_FOUND;
+            srs_warn("source not found for sid=%d", sid);
+            return srs_http_response_code(w, ret);
+        }
+        
+        source->set_expired();
+        srs_warn("disconnent stream=%d successfully. vhost=%s, app=%s, stream=%s.",
+            sid, stream->vhost->vhost.c_str(), stream->app.c_str(), stream->stream.c_str());
+        return srs_http_response_code(w, ret);
+    } else if (r->is_http_get()) {
+        std::stringstream data;
+        
+        if (!stream) {
+            ret = stat->dumps_streams(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("streams", data.str())
+                << SRS_JOBJECT_END;
+        } else {
+            ret = stream->dumps(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("stream", data.str())
+                << SRS_JOBJECT_END;
+        }
         
         return srs_http_response_json(w, ss.str());
     }
+    
+    return ret;
+}
+
+SrsGoApiClients::SrsGoApiClients()
+{
+}
+
+SrsGoApiClients::~SrsGoApiClients()
+{
+}
+
+int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsStatistic* stat = SrsStatistic::instance();
+    std::stringstream ss;
+    
+    // path: {pattern}{client_id}
+    // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
+    int cid = r->parse_rest_id(entry->pattern);
+    
+    SrsStatisticClient* client = NULL;
+    if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
+        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        srs_error("stream client_id=%d not found. ret=%d", cid, ret);
+        return srs_http_response_code(w, ret);
+        
+    }
+    
+    if (r->is_http_get()) {
+        std::stringstream data;
+        
+        if (!client) {
+            ret = stat->dumps_clients(data, 0, 10);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("clients", data.str())
+                << SRS_JOBJECT_END;
+        } else {
+            ret = client->dumps(data);
+            
+            ss << SRS_JOBJECT_START
+                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("client", data.str())
+                << SRS_JOBJECT_END;
+        }
+        
+        return srs_http_response_json(w, ss.str());
+    }
+
+    return ret;
 }
 
 SrsGoApiError::SrsGoApiError()
@@ -537,15 +617,7 @@ SrsGoApiError::~SrsGoApiError()
 
 int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream ss;
-    
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(100) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("msg", "SRS demo error.") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("path", r->path())
-        << SRS_JOBJECT_END;
-    
-    return srs_http_response_json(w, ss.str());
+    return srs_http_response_code(w, 100);
 }
 
 

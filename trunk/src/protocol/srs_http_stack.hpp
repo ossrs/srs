@@ -78,6 +78,11 @@ class ISrsHttpResponseWriter;
 
 // helper function: response in json format.
 extern int srs_http_response_json(ISrsHttpResponseWriter* w, std::string data);
+/**
+ * response a typical code object, for example:
+ *      {code : 100}
+ */
+extern int srs_http_response_code(ISrsHttpResponseWriter* w, int code);
 
 // get the status text of code.
 extern std::string srs_generate_http_status_text(int status);
@@ -488,6 +493,14 @@ public:
     virtual std::string host() = 0;
     virtual std::string path() = 0;
     virtual std::string ext() = 0;
+    /**
+     * get the RESTful id,
+     * for example, pattern is /api/v1/streams, path is /api/v1/streams/100,
+     * then the rest id is 100.
+     * @param pattern the handler pattern which will serve the request.
+     * @return the REST id; -1 if not matched.
+     */
+    virtual int parse_rest_id(std::string pattern) = 0;
 public:
     /**
      * read body to string.
