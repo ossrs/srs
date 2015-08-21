@@ -851,6 +851,11 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         return ret;
     }
     
+    // change the isolate recv thread context id,
+    // merge its log to current thread.
+    int receive_thread_cid = trd->get_cid();
+    trd->set_cid(_srs_context->get_id());
+    
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
@@ -861,8 +866,8 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
-        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d",
-                  mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
+                  mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay, receive_thread_cid);
     }
 
     int64_t nb_msgs = 0;
@@ -1109,7 +1114,9 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
             res->command_object = SrsAmf0Any::null();
             res->response = SrsAmf0Any::null();
             if ((ret = rtmp->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
-                srs_warn("response call failed. ret=%d", ret);
+                if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                    srs_warn("response call failed. ret=%d", ret);
+                }
                 return ret;
             }
         }

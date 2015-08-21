@@ -1415,6 +1415,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
         ss << ", acodec=" << (int)prop->to_number();
     }
+    srs_trace("got metadata%s", ss.str().c_str());
     
     // add server info to metadata
     metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
@@ -1479,7 +1480,6 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
                 return ret;
             }
         }
-        srs_trace("got metadata%s", ss.str().c_str());
     }
     
     // copy to all forwarders

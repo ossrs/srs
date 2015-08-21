@@ -76,4 +76,9 @@ int ISrsThreadContext::get_id()
     return 0;
 }
 
+int ISrsThreadContext::set_id(int /*v*/)
+{
+    return 0;
+}
+
 

@@ -57,6 +57,20 @@ int SrsThreadContext::get_id()
     return cache[st_thread_self()];
 }
 
+int SrsThreadContext::set_id(int v)
+{
+    st_thread_t self = st_thread_self();
+    
+    int ov = 0;
+    if (cache.find(self) != cache.end()) {
+        ov = cache[self];
+    }
+    
+    cache[self] = v;
+    
+    return ov;
+}
+
 // the max size of a line of log.
 #define LOG_MAX_SIZE 4096
 

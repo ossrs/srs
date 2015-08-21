@@ -2633,7 +2633,9 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             res->command_object = SrsAmf0Any::null();
             res->response = SrsAmf0Any::null();
             if ((ret = protocol->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
-                srs_warn("response call failed. ret=%d", ret);
+                if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
+                    srs_warn("response call failed. ret=%d", ret);
+                }
                 return ret;
             }
             continue;
