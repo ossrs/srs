@@ -800,10 +800,6 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
 
         // remove the default vhost mount
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
-        // TODO: FIXME: check match
-        if (mount.at(0) != '/') {
-            mount = "/" + mount;
-        }
         
         entry = new SrsLiveEntry(mount, tmpl->hstrs);
     
