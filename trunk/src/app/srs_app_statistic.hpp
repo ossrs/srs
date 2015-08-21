@@ -47,6 +47,7 @@ struct SrsStatisticVhost
 public:
     int64_t id;
     std::string vhost;
+    int nb_clients;
 public:
     /**
     * vhost total kbps.
@@ -55,6 +56,8 @@ public:
 public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
+public:
+    virtual int dumps(std::stringstream& ss);
 };
 
 struct SrsStatisticStream
@@ -66,6 +69,7 @@ public:
     std::string stream;
     std::string url;
     std::string status;
+    int nb_clients;
 public:
     /**
     * stream total kbps.
@@ -93,6 +97,8 @@ public:
 public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
+public:
+    virtual int dumps(std::stringstream& ss);
 public:
     /**
     * publish the stream.
