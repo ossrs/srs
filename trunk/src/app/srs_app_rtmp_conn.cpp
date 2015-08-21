@@ -94,6 +94,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
     mw_enabled = false;
     realtime = SRS_PERF_MIN_LATENCY_ENABLED;
     send_min_interval = 0;
+    tcp_nodelay = false;
     
     _srs_config->subscribe(this);
 }
@@ -261,6 +262,19 @@ int SrsRtmpConn::on_reload_vhost_smi(string vhost)
         srs_trace("apply smi %.2f=>%.2f", send_min_interval, smi);
         send_min_interval = smi;
     }
+    
+    return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_tcp_nodelay(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    set_sock_options();
     
     return ret;
 }
@@ -651,8 +665,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // set the sock options.
     set_sock_options();
     
-    srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d",
-        send_min_interval, mw_sleep, mw_enabled, realtime);
+    srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
+        send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
     
     while (!disposed) {
         // collect elapse for pithy print.
@@ -837,15 +851,18 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         return ret;
     }
     
+    // initialize the publish timeout.
+    publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+    publish_normal_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+    
     // set the sock options.
     set_sock_options();
     
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
-        publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
-        publish_normal_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
-        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d", mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d",
+                  mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay);
     }
 
     int64_t nb_msgs = 0;
@@ -1173,22 +1190,24 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
 
 void SrsRtmpConn::set_sock_options()
 {
-    if (_srs_config->get_tcp_nodelay(req->vhost)) {
+    bool nvalue = _srs_config->get_tcp_nodelay(req->vhost);
+    if (nvalue != tcp_nodelay) {
+        tcp_nodelay = nvalue;
 #ifdef SRS_PERF_TCP_NODELAY
         int fd = st_netfd_fileno(stfd);
-    
+
         socklen_t nb_v = sizeof(int);
-        
+
         int ov = 0;
         getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v);
-        
-        int v = 1;
+
+        int v = tcp_nodelay;
         // set the socket send buffer when required larger buffer
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, nb_v) < 0) {
             srs_warn("set sock TCP_NODELAY=%d failed.", v);
         }
         getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, &nb_v);
-        
+
         srs_trace("set TCP_NODELAY %d=>%d", ov, v);
 #else
         srs_warn("SRS_PERF_TCP_NODELAY is disabled but tcp_nodelay configed.");

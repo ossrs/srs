@@ -768,6 +768,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload smi success.", vhost.c_str());
             }
+            // tcp_nodelay, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("tcp_nodelay"), old_vhost->get("tcp_nodelay"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_tcp_nodelay(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes tcp_nodelay failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload tcp_nodelay success.", vhost.c_str());
+            }
             // publish_1stpkt_timeout, only one per vhost
             if (!srs_directive_equals(new_vhost->get("publish_1stpkt_timeout"), old_vhost->get("publish_1stpkt_timeout"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
