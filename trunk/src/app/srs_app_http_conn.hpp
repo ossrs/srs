@@ -246,6 +246,10 @@ public:
     virtual std::string host();
     virtual std::string path();
     virtual std::string ext();
+    /**
+     * get the RESTful matched id.
+     */
+    virtual int parse_rest_id(std::string pattern);
 public:
     /**
      * read body to string.

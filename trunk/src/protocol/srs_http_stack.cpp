@@ -143,6 +143,14 @@ int srs_http_response_json(ISrsHttpResponseWriter* w, string data)
     return w->write((char*)data.data(), (int)data.length());
 }
 
+int srs_http_response_code(ISrsHttpResponseWriter* w, int code)
+{
+    std::stringstream ss;
+    // TODO: FIXME: implements it.
+    //ss << SRS_JOBJECT_START << SRS_JFIELD_ERROR(code) << SRS_JOBJECT_END;
+    return srs_http_response_json(w, ss.str());
+}
+
 SrsHttpHeader::SrsHttpHeader()
 {
 }

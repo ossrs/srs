@@ -112,6 +112,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("streams", "dumps streams to json") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("clients", "dumps clients to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("test", SRS_JOBJECT_START)
                 << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
@@ -468,18 +469,13 @@ SrsGoApiStreams::~SrsGoApiStreams()
 int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
+    
     SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     // path: {pattern}{stream_id}
     // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
-    int sid = -1;
-    if (true) {
-        string stream_id = r->path().substr((int)entry->pattern.length());
-        if (!stream_id.empty()) {
-            sid = ::atoi(stream_id.c_str());
-        }
-    }
+    int sid = r->parse_rest_id(entry->pattern);
     
     SrsStatisticStream* stream = NULL;
     if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
@@ -532,6 +528,44 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         
         return srs_http_response_json(w, ss.str());
+    }
+    
+    return ret;
+}
+
+SrsGoApiClients::SrsGoApiClients()
+{
+}
+
+SrsGoApiClients::~SrsGoApiClients()
+{
+}
+
+int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsStatistic* stat = SrsStatistic::instance();
+    std::stringstream ss;
+    
+    // path: {pattern}{client_id}
+    // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
+    int cid = r->parse_rest_id(entry->pattern);
+    
+    SrsStatisticClient* client = NULL;
+    // TODO: FIXME: implements it.
+    /*if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
+        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        srs_error("stream client_id=%d not found. ret=%d", cid, ret);
+        
+        ss << SRS_JOBJECT_START << SRS_JFIELD_ERROR(ret) << SRS_JOBJECT_END;
+        
+        return srs_http_response_json(w, ss.str());
+        
+    }*/
+    
+    if (r->is_http_get()) {
+        
     }
     
     return ret;

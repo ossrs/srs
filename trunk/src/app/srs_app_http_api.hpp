@@ -159,6 +159,15 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+class SrsGoApiClients : public ISrsHttpHandler
+{
+public:
+    SrsGoApiClients();
+    virtual ~SrsGoApiClients();
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 class SrsGoApiError : public ISrsHttpHandler
 {
 public:
