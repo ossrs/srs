@@ -62,6 +62,11 @@ SrsRecvThread::~SrsRecvThread()
     srs_freep(trd);
 }
 
+int SrsRecvThread::cid()
+{
+    return trd->cid();
+}
+
 int SrsRecvThread::start()
 {
     return trd->start();
@@ -253,6 +258,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
     error = st_cond_new();
+    ncid = cid = 0;
     
     req = _req;
     mr_fd = mr_sock_fd;
@@ -297,9 +303,21 @@ int SrsPublishRecvThread::error_code()
     return recv_error_code;
 }
 
+void SrsPublishRecvThread::set_cid(int v)
+{
+    ncid = v;
+}
+
+int SrsPublishRecvThread::get_cid()
+{
+    return ncid;
+}
+
 int SrsPublishRecvThread::start()
 {
-    return trd.start();
+    int ret = trd.start();
+    ncid = cid = trd.cid();
+    return ret;
 }
 
 void SrsPublishRecvThread::stop()
@@ -351,6 +369,12 @@ bool SrsPublishRecvThread::can_handle()
 int SrsPublishRecvThread::handle(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    
+    // when cid changed, change it.
+    if (ncid != cid) {
+        _srs_context->set_id(ncid);
+        cid = ncid;
+    }
 
     _nb_msgs++;
     

@@ -91,6 +91,8 @@ public:
     SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsRecvThread();
 public:
+    virtual int cid();
+public:
     virtual int start();
     virtual void stop();
     virtual void stop_loop();
@@ -170,6 +172,9 @@ private:
     // the error timeout cond
     // @see https://github.com/simple-rtmp-server/srs/issues/244
     st_cond_t error;
+    // merged context id.
+    int cid;
+    int ncid;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, 
         SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
@@ -182,6 +187,8 @@ public:
     virtual int wait(int timeout_ms);
     virtual int64_t nb_msgs();
     virtual int error_code();
+    virtual void set_cid(int v);
+    virtual int get_cid();
 public:
     virtual int start();
     virtual void stop();

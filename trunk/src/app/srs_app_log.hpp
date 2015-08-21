@@ -53,6 +53,7 @@ public:
 public:
     virtual int generate_id();
     virtual int get_id();
+    virtual int set_id(int v);
 };
 
 /**
