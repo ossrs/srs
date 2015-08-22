@@ -181,6 +181,11 @@ void SrsStatisticStream::close()
 SrsStatisticClient::SrsStatisticClient()
 {
     id = 0;
+    stream = NULL;
+    conn = NULL;
+    req = NULL;
+    type = SrsRtmpConnUnknown;
+    create = srs_get_system_time_ms();
 }
 
 SrsStatisticClient::~SrsStatisticClient()
@@ -192,7 +197,17 @@ int SrsStatisticClient::dumps(stringstream& ss)
     int ret = ERROR_SUCCESS;
     
     ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ORG("id", id)
+            << SRS_JFIELD_ORG("id", id) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("vhost", stream->vhost->id) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("stream", stream->id) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("pageUrl", req->pageUrl) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("swfUrl", req->swfUrl) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("url", req->get_stream_url()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("type", srs_client_type_string(type)) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("publish", srs_client_type_is_publish(type)) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("alive", srs_get_system_time_ms() - create)
         << SRS_JOBJECT_END;
     
     return ret;
@@ -322,7 +337,7 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     stream->close();
 }
 
-int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn)
+int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
 {
     int ret = ERROR_SUCCESS;
     
@@ -342,6 +357,8 @@ int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn)
     
     // got client.
     client->conn = conn;
+    client->req = req;
+    client->type = type;
     stream->nb_clients++;
     vhost->nb_clients++;
 
@@ -464,7 +481,7 @@ int SrsStatistic::dumps_clients(stringstream& ss, int start, int count)
     
     ss << SRS_JARRAY_START;
     std::map<int, SrsStatisticClient*>::iterator it = clients.begin();
-    for (int i = 0; i < count && it != clients.end(); it++) {
+    for (int i = 0; i < start + count && it != clients.end(); it++, i++) {
         if (i < start) {
             continue;
         }

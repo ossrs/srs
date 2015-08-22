@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_rtmp_stack.hpp>
 
 class SrsKbps;
 class SrsRequest;
@@ -113,7 +114,10 @@ struct SrsStatisticClient
 public:
     SrsStatisticStream* stream;
     SrsConnection* conn;
+    SrsRequest* req;
+    SrsRtmpConnType type;
     int id;
+    int64_t create;
 public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
@@ -183,8 +187,9 @@ public:
      * @param id, the client srs id.
      * @param req, the client request object.
      * @param conn, the physical absract connection object.
+     * @param type, the type of connection.
      */
-    virtual int on_client(int id, SrsRequest* req, SrsConnection* conn);
+    virtual int on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
     /**
      * client disconnect
      * @remark the on_disconnect always call, while the on_client is call when

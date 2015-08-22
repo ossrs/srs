@@ -495,7 +495,7 @@ int SrsRtmpConn::stream_service_cycle()
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->on_client(_srs_context->get_id(), req, this)) != ERROR_SUCCESS) {
+    if ((ret = stat->on_client(_srs_context->get_id(), req, this, type)) != ERROR_SUCCESS) {
         srs_error("stat client failed. ret=%d", ret);
         return ret;
     }

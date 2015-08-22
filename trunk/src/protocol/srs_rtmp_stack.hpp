@@ -622,6 +622,7 @@ enum SrsRtmpConnType
     SrsRtmpConnFlashPublish,
 };
 std::string srs_client_type_string(SrsRtmpConnType type);
+bool srs_client_type_is_publish(SrsRtmpConnType type);
 
 /**
  * store the handshake bytes,
