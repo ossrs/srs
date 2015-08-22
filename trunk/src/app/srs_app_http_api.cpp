@@ -106,29 +106,25 @@ int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
 
 int srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json)
 {
-    string callback = r->query_get("callback");
-    bool jsonp = !callback.empty();
-    
     // no jsonp, directly response.
-    if (!jsonp) {
+    if (!r->is_jsonp()) {
         return srs_api_response_json(w, json);
     }
     
     // jsonp, get function name from query("callback")
+    string callback = r->query_get("callback");
     return srs_api_response_jsonp(w, callback, json);
 }
 
 int srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int code)
 {
-    string callback = r->query_get("callback");
-    bool jsonp = !callback.empty();
-    
     // no jsonp, directly response.
-    if (!jsonp) {
+    if (!r->is_jsonp()) {
         return srs_api_response_json_code(w, code);
     }
     
     // jsonp, get function name from query("callback")
+    string callback = r->query_get("callback");
     return srs_api_response_jsonp_code(w, callback, code);
 }
 

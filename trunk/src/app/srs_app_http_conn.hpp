@@ -203,6 +203,10 @@ private:
     std::map<std::string, std::string> _query;
     // the transport connection, can be NULL.
     SrsConnection* conn;
+    // whether request is jsonp.
+    bool jsonp;
+    // the method in QueryString will override the HTTP method.
+    std::string jsonp_method;
 public:
     SrsHttpMessage(SrsStSocket* io, SrsConnection* c);
     virtual ~SrsHttpMessage();
@@ -285,6 +289,8 @@ public:
      * @remark user must free the return request.
      */
     virtual SrsRequest* to_request(std::string vhost);
+public:
+    virtual bool is_jsonp();
 };
 
 /**

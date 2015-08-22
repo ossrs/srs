@@ -527,6 +527,12 @@ public:
     virtual int request_header_count() = 0;
     virtual std::string request_header_key_at(int index) = 0;
     virtual std::string request_header_value_at(int index) = 0;
+public:
+    /**
+     * whether the current request is JSONP,
+     * which has a "callback=xxx" in QueryString.
+     */
+    virtual bool is_jsonp() = 0;
 };
 
 #endif

@@ -494,6 +494,7 @@ SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c) : ISrsHttpMess
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
     _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
+    jsonp = false;
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -570,6 +571,14 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
         _ext = "";
     }
     
+    // parse jsonp request message.
+    if (!query_get("callback").empty()) {
+        jsonp = true;
+    }
+    if (jsonp) {
+        jsonp_method = query_get("method");
+    }
+    
     return ret;
 }
 
@@ -580,6 +589,18 @@ SrsConnection* SrsHttpMessage::connection()
 
 u_int8_t SrsHttpMessage::method()
 {
+    if (jsonp && !jsonp_method.empty()) {
+        if (jsonp_method == "GET") {
+            return SRS_CONSTS_HTTP_GET;
+        } else if (jsonp_method == "PUT") {
+            return SRS_CONSTS_HTTP_PUT;
+        } else if (jsonp_method == "POST") {
+            return SRS_CONSTS_HTTP_POST;
+        } else if (jsonp_method == "DELETE") {
+            return SRS_CONSTS_HTTP_DELETE;
+        }
+    }
+    
     return (u_int8_t)_header.method;
 }
 
@@ -590,6 +611,10 @@ u_int16_t SrsHttpMessage::status_code()
 
 string SrsHttpMessage::method_str()
 {
+    if (jsonp && !jsonp_method.empty()) {
+        return jsonp_method;
+    }
+    
     if (is_http_get()) {
         return "GET";
     }
@@ -611,22 +636,22 @@ string SrsHttpMessage::method_str()
 
 bool SrsHttpMessage::is_http_get()
 {
-    return _header.method == SRS_CONSTS_HTTP_GET;
+    return method() == SRS_CONSTS_HTTP_GET;
 }
 
 bool SrsHttpMessage::is_http_put()
 {
-    return _header.method == SRS_CONSTS_HTTP_PUT;
+    return method() == SRS_CONSTS_HTTP_PUT;
 }
 
 bool SrsHttpMessage::is_http_post()
 {
-    return _header.method == SRS_CONSTS_HTTP_POST;
+    return method() == SRS_CONSTS_HTTP_POST;
 }
 
 bool SrsHttpMessage::is_http_delete()
 {
-    return _header.method == SRS_CONSTS_HTTP_DELETE;
+    return method() == SRS_CONSTS_HTTP_DELETE;
 }
 
 bool SrsHttpMessage::is_http_options()
@@ -801,6 +826,11 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     req->strip();
     
     return req;
+}
+
+bool SrsHttpMessage::is_jsonp()
+{
+    return jsonp;
 }
 
 SrsHttpParser::SrsHttpParser()
