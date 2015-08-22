@@ -91,7 +91,8 @@ SrsStatisticStream::SrsStatisticStream()
 {
     id = srs_generate_id();
     vhost = NULL;
-    status = STATISTIC_STREAM_STATUS_IDLING;
+    active = false;
+    connection_cid = -1;
     
     has_video = false;
     vcodec = SrsCodecVideoReserved;
@@ -124,6 +125,7 @@ int SrsStatisticStream::dumps(stringstream& ss)
             << SRS_JFIELD_STR("name", stream) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("vhost", vhost->id) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("app", app) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
@@ -131,8 +133,10 @@ int SrsStatisticStream::dumps(stringstream& ss)
                 << SRS_JFIELD_ORG("recv_30s", kbps->get_recv_kbps_30s()) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("send_30s", kbps->get_send_kbps_30s())
             << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("status", status) << SRS_JFIELD_CONT;
+            << SRS_JFIELD_OBJ("publish")
+                << SRS_JFIELD_BOOL("active", active) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("cid", connection_cid)
+            << SRS_JOBJECT_END << SRS_JFIELD_CONT;
     
     if (!has_video) {
         ss  << SRS_JFIELD_NULL("video") << SRS_JFIELD_CONT;
@@ -161,16 +165,17 @@ int SrsStatisticStream::dumps(stringstream& ss)
     return ret;
 }
 
-void SrsStatisticStream::publish()
+void SrsStatisticStream::publish(int cid)
 {
-    status = STATISTIC_STREAM_STATUS_PUBLISHING;
+    connection_cid = cid;
+    active = true;
 }
 
 void SrsStatisticStream::close()
 {
     has_video = false;
     has_audio = false;
-    status = STATISTIC_STREAM_STATUS_IDLING;
+    active = false;
 }
 
 SrsStatisticClient::SrsStatisticClient()
@@ -301,12 +306,12 @@ int SrsStatistic::on_audio_info(SrsRequest* req,
     return ret;
 }
 
-void SrsStatistic::on_stream_publish(SrsRequest* req)
+void SrsStatistic::on_stream_publish(SrsRequest* req, int cid)
 {
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
 
-    stream->publish();
+    stream->publish(cid);
 }
 
 void SrsStatistic::on_stream_close(SrsRequest* req)

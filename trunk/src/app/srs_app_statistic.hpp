@@ -35,9 +35,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-#define STATISTIC_STREAM_STATUS_PUBLISHING    "publishing"
-#define STATISTIC_STREAM_STATUS_IDLING        "idling"
-
 class SrsKbps;
 class SrsRequest;
 class SrsConnection;
@@ -68,7 +65,8 @@ public:
     std::string app;
     std::string stream;
     std::string url;
-    std::string status;
+    bool active;
+    int connection_cid;
     int nb_clients;
 public:
     /**
@@ -103,7 +101,7 @@ public:
     /**
     * publish the stream.
     */
-    virtual void publish();
+    virtual void publish(int cid);
     /**
     * close the stream.
     */
@@ -169,9 +167,11 @@ public:
         SrsAacObjectType aac_object
     );
     /**
-    * when publish stream.
-    */
-    virtual void on_stream_publish(SrsRequest* req);
+     * when publish stream.
+     * @param req the request object of publish connection.
+     * @param cid the cid of publish connection.
+     */
+    virtual void on_stream_publish(SrsRequest* req, int cid);
     /**
     * when close stream.
     */

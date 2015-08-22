@@ -2066,7 +2066,7 @@ int SrsSource::on_publish()
         return ret;
     }
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(_req);
+    stat->on_stream_publish(_req, _source_id);
     return ret;
 }
 
