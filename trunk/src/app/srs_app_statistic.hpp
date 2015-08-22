@@ -112,6 +112,7 @@ struct SrsStatisticClient
 {
 public:
     SrsStatisticStream* stream;
+    SrsConnection* conn;
     int id;
 public:
     SrsStatisticClient();
@@ -181,8 +182,9 @@ public:
      * when got a client to publish/play stream,
      * @param id, the client srs id.
      * @param req, the client request object.
+     * @param conn, the physical absract connection object.
      */
-    virtual int on_client(int id, SrsRequest* req);
+    virtual int on_client(int id, SrsRequest* req, SrsConnection* conn);
     /**
      * client disconnect
      * @remark the on_disconnect always call, while the on_client is call when

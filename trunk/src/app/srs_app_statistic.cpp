@@ -322,7 +322,7 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     stream->close();
 }
 
-int SrsStatistic::on_client(int id, SrsRequest* req)
+int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn)
 {
     int ret = ERROR_SUCCESS;
     
@@ -341,6 +341,7 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     }
     
     // got client.
+    client->conn = conn;
     stream->nb_clients++;
     vhost->nb_clients++;
 

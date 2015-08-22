@@ -495,7 +495,7 @@ int SrsRtmpConn::stream_service_cycle()
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->on_client(_srs_context->get_id(), req)) != ERROR_SUCCESS) {
+    if ((ret = stat->on_client(_srs_context->get_id(), req, this)) != ERROR_SUCCESS) {
         srs_error("stat client failed. ret=%d", ret);
         return ret;
     }
@@ -671,6 +671,13 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     while (!disposed) {
         // collect elapse for pithy print.
         pprint->elapse();
+        
+        // when source is set to expired, disconnect it.
+        if (expired) {
+            ret = ERROR_USER_DISCONNECT;
+            srs_error("connection expired. ret=%d", ret);
+            return ret;
+        }
 
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/simple-rtmp-server/srs/issues/196
@@ -875,9 +882,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         pprint->elapse();
         
         // when source is set to expired, disconnect it.
-        if (source->expired()) {
+        if (expired) {
             ret = ERROR_USER_DISCONNECT;
-            srs_error("source is expired. ret=%d", ret);
+            srs_error("connection expired. ret=%d", ret);
             return ret;
         }
 
