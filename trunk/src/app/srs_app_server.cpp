@@ -800,6 +800,9 @@ int SrsServer::http_handle()
     if ((ret = http_api_mux->handle("/api/v1/authors", new SrsGoApiAuthors())) != ERROR_SUCCESS) {
         return ret;
     }
+    if ((ret = http_api_mux->handle("/api/v1/features", new SrsGoApiFeatures())) != ERROR_SUCCESS) {
+        return ret;
+    }
     if ((ret = http_api_mux->handle("/api/v1/vhosts/", new SrsGoApiVhosts())) != ERROR_SUCCESS) {
         return ret;
     }
@@ -811,19 +814,19 @@ int SrsServer::http_handle()
     }
     
     // test the request info.
-    if ((ret = http_api_mux->handle("/api/v1/test/requests", new SrsGoApiRequests())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != ERROR_SUCCESS) {
         return ret;
     }
     // test the error code response.
-    if ((ret = http_api_mux->handle("/api/v1/test/errors", new SrsGoApiError())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/v1/tests/errors", new SrsGoApiError())) != ERROR_SUCCESS) {
         return ret;
     }
     // test the redirect mechenism.
-    if ((ret = http_api_mux->handle("/api/v1/test/redirects", new SrsHttpRedirectHandler("/api/v1/test/errors", SRS_CONSTS_HTTP_MovedPermanently))) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("/api/v1/tests/redirects", new SrsHttpRedirectHandler("/api/v1/tests/errors", SRS_CONSTS_HTTP_MovedPermanently))) != ERROR_SUCCESS) {
         return ret;
     }
     // test the http vhost.
-    if ((ret = http_api_mux->handle("error.srs.com/api/v1/test/errors", new SrsGoApiError())) != ERROR_SUCCESS) {
+    if ((ret = http_api_mux->handle("error.srs.com/api/v1/tests/errors", new SrsGoApiError())) != ERROR_SUCCESS) {
         return ret;
     }
     

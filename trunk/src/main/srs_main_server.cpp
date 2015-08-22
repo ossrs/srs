@@ -162,7 +162,7 @@ void show_macro_features()
 #endif
 
 #ifdef SRS_PERF_TCP_NODELAY
-    srs_warn("TCP_NODELAY enabled, hurts performance.");
+    srs_warn("TCP_NODELAY enabled, may hurts performance.");
 #else
     srs_trace("TCP_NODELAY disabled.");
 #endif
@@ -276,8 +276,8 @@ int main(int argc, char** argv)
     }
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
-    srs_trace("license: "RTMP_SIG_SRS_LICENSE);
-    srs_trace("primary: "RTMP_SIG_SRS_PRIMARY);
+    srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
+    srs_trace("primary/master: "RTMP_SIG_SRS_PRIMARY);
     srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);
     srs_trace("contributors: "SRS_AUTO_CONSTRIBUTORS);
     srs_trace("uname: "SRS_AUTO_UNAME);

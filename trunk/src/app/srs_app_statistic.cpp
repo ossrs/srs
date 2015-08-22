@@ -71,6 +71,10 @@ int SrsStatisticVhost::dumps(stringstream& ss)
             << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_OBJ("kbps")
+                << SRS_JFIELD_ORG("r30s", kbps->get_recv_kbps_30s()) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("s30s", kbps->get_send_kbps_30s())
+            << SRS_JOBJECT_END << SRS_JFIELD_CONT
             << SRS_JFIELD_NAME("hls") << SRS_JOBJECT_START
                 << SRS_JFIELD_BOOL("enabled", hls_enabled);
     if (hls_enabled) {
@@ -123,6 +127,10 @@ int SrsStatisticStream::dumps(stringstream& ss)
             << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_OBJ("kbps")
+                << SRS_JFIELD_ORG("r30s", kbps->get_recv_kbps_30s()) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("s30s", kbps->get_send_kbps_30s())
+            << SRS_JOBJECT_END << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("status", status) << SRS_JFIELD_CONT;
     
