@@ -137,27 +137,6 @@ int srs_go_http_error(ISrsHttpResponseWriter* w, int code, string error)
     return ret;
 }
 
-int srs_http_response_json(ISrsHttpResponseWriter* w, string data)
-{
-    SrsHttpHeader* h = w->header();
-    
-    h->set_content_length(data.length());
-    h->set_content_type("application/json");
-    
-    return w->write((char*)data.data(), (int)data.length());
-}
-
-int srs_http_response_code(ISrsHttpResponseWriter* w, int code)
-{
-    std::stringstream ss;
-    
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(code)
-        << SRS_JOBJECT_END;
-    
-    return srs_http_response_json(w, ss.str());
-}
-
 SrsHttpHeader::SrsHttpHeader()
 {
 }
@@ -261,17 +240,23 @@ SrsHttpRedirectHandler::~SrsHttpRedirectHandler()
 int SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
-    string msg = "Moved Permsanently";
+    
+    string location = url;
+    if (!r->query().empty()) {
+        location += "?" + r->query();
+    }
+    
+    string msg = "Redirect to" + location;
 
     w->header()->set_content_type("text/plain; charset=utf-8");
     w->header()->set_content_length(msg.length());
-    w->header()->set("Location", url);
+    w->header()->set("Location", location);
     w->write_header(code);
 
     w->write((char*)msg.data(), (int)msg.length());
     w->final_request();
 
-    srs_info("redirect to %s.", url.c_str());
+    srs_info("redirect to %s.", location.c_str());
     return ret;
 }
 
@@ -636,7 +621,7 @@ int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
             
             entry = new SrsHttpMuxEntry();
             entry->explicit_match = false;
-            entry->handler = new SrsHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_MovedPermanently);
+            entry->handler = new SrsHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_Found);
             entry->pattern = pattern;
             entry->handler->entry = entry;
             
