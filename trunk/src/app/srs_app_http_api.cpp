@@ -53,10 +53,12 @@ SrsGoApiRoot::~SrsGoApiRoot()
 
 int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
             << SRS_JFIELD_STR("api", "the api root")
         << SRS_JOBJECT_END
@@ -75,10 +77,12 @@ SrsGoApiApi::~SrsGoApiApi()
 
 int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
             << SRS_JFIELD_STR("v1", "the api version 1.0")
         << SRS_JOBJECT_END
@@ -97,10 +101,12 @@ SrsGoApiV1::~SrsGoApiV1()
 
 int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
             << SRS_JFIELD_STR("versions", "the version of SRS") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("summaries", "the summary(pid, argv, pwd, cpu, mem) of SRS") << SRS_JFIELD_CONT
@@ -108,11 +114,12 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("self_proc_stats", "the self process stats") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("system_proc_stats", "the system process stats") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("meminfos", "the meminfo of system") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("authors", "the primary authors and contributors") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("authors", "the license, copyright, authors and contributors") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("features", "the supported features of SRS") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("streams", "dumps streams to json") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("clients", "dumps clients to json") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("vhosts", "manage all vhosts or specified vhost") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("streams", "manage all streams or specified stream") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("clients", "manage all clients or specified client, default query top 10 clients") << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("tests", SRS_JOBJECT_START)
                 << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
@@ -135,10 +142,12 @@ SrsGoApiVersion::~SrsGoApiVersion()
 
 int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_ORG("major", VERSION_MAJOR) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("minor", VERSION_MINOR) << SRS_JFIELD_CONT
@@ -175,12 +184,14 @@ SrsGoApiRusages::~SrsGoApiRusages()
 
 int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* req)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     SrsRusage* r = srs_get_system_rusage();
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_ORG("ok", (r->ok? "true":"false")) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("sample_time", r->sample_time) << SRS_JFIELD_CONT
@@ -216,12 +227,14 @@ SrsGoApiSelfProcStats::~SrsGoApiSelfProcStats()
 
 int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_ORG("ok", (u->ok? "true":"false")) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("sample_time", u->sample_time) << SRS_JFIELD_CONT
@@ -286,12 +299,14 @@ SrsGoApiSystemProcStats::~SrsGoApiSystemProcStats()
 
 int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     SrsProcSystemStat* s = srs_get_system_proc_stat();
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_ORG("ok", (s->ok? "true":"false")) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("sample_time", s->sample_time) << SRS_JFIELD_CONT
@@ -321,12 +336,14 @@ SrsGoApiMemInfos::~SrsGoApiMemInfos()
 
 int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     SrsMemInfo* m = srs_get_meminfo();
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_ORG("ok", (m->ok? "true":"false")) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("sample_time", m->sample_time) << SRS_JFIELD_CONT
@@ -357,15 +374,145 @@ SrsGoApiAuthors::~SrsGoApiAuthors()
 
 int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_STR("primary", RTMP_SIG_SRS_PRIMARY) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("license", RTMP_SIG_SRS_LICENSE) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("copyright", RTMP_SIG_SRS_COPYRIGHT) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("authors", RTMP_SIG_SRS_AUTHROS) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
+    
+    return srs_http_response_json(w, ss.str());
+}
+
+SrsGoApiFeatures::SrsGoApiFeatures()
+{
+}
+
+SrsGoApiFeatures::~SrsGoApiFeatures()
+{
+}
+
+int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    SrsStatistic* stat = SrsStatistic::instance();
+    std::stringstream ss;
+    
+#ifdef SRS_AUTO_SSL
+    bool ssl = true;
+#else
+    bool ssl = false;
+#endif
+#ifdef SRS_AUTO_HLS
+    bool hls = true;
+#else
+    bool hls = false;
+#endif
+#ifdef SRS_AUTO_HDS
+    bool hds = true;
+#else
+    bool hds = false;
+#endif
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    bool callback = true;
+#else
+    bool callback = false;
+#endif
+#ifdef SRS_AUTO_HTTP_API
+    bool api = true;
+#else
+    bool api = false;
+#endif
+#ifdef SRS_AUTO_HTTP_SERVER
+    bool httpd = true;
+#else
+    bool httpd = false;
+#endif
+#ifdef SRS_AUTO_DVR
+    bool dvr = true;
+#else
+    bool dvr = false;
+#endif
+#ifdef SRS_AUTO_TRANSCODE
+    bool transcode = true;
+#else
+    bool transcode = false;
+#endif
+#ifdef SRS_AUTO_INGEST
+    bool ingest = true;
+#else
+    bool ingest = false;
+#endif
+#ifdef SRS_AUTO_STAT
+    bool _stat = true;
+#else
+    bool _stat = false;
+#endif
+#ifdef SRS_AUTO_NGINX
+    bool nginx = true;
+#else
+    bool nginx = false;
+#endif
+#ifdef SRS_AUTO_FFMPEG_TOOL
+    bool ffmpeg = true;
+#else
+    bool ffmpeg = false;
+#endif
+#ifdef SRS_AUTO_STREAM_CASTER
+    bool caster = true;
+#else
+    bool caster = false;
+#endif
+#ifdef SRS_PERF_COMPLEX_SEND
+    bool complex_send = true;
+#else
+    bool complex_send = false;
+#endif
+#ifdef SRS_PERF_TCP_NODELAY
+    bool tcp_nodelay = true;
+#else
+    bool tcp_nodelay = false;
+#endif
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
+    bool so_sendbuf = true;
+#else
+    bool so_sendbuf = false;
+#endif
+#ifdef SRS_PERF_MERGED_READ
+    bool mr = true;
+#else
+    bool mr = false;
+#endif
+    
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_BOOL("ssl", ssl) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("hls", hls) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("hds", hds) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("callback", callback) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("api", api) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("httpd", httpd) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("dvr", dvr) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("transcode", transcode) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("ingest", ingest) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("stat", _stat) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("nginx", nginx) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("ffmpeg", ffmpeg) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("stream_caster", caster) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("complex_send", complex_send) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("tcp_nodelay", tcp_nodelay) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("so_sendbuf", so_sendbuf) << SRS_JFIELD_CONT
+            << SRS_JFIELD_BOOL("mr", mr)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
@@ -384,10 +531,12 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     ISrsHttpMessage* req = r;
     
+    SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
             << SRS_JFIELD_STR("uri", req->uri()) << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("path", req->path()) << SRS_JFIELD_CONT;
