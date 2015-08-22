@@ -245,6 +245,7 @@ public:
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
+    virtual std::string query();
     virtual std::string ext();
     /**
      * get the RESTful matched id.

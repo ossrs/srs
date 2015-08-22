@@ -43,6 +43,95 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_http_conn.hpp>
 
+int srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpHeader* h = w->header();
+    
+    h->set_content_length(data.length() + callback.length() + 2);
+    h->set_content_type("text/javascript");
+    
+    if (!callback.empty() && (ret = w->write((char*)callback.data(), (int)callback.length())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    static char* c0 = (char*)"(";
+    if ((ret = w->write(c0, 1)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = w->write((char*)data.data(), (int)data.length())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    static char* c1 = (char*)")";
+    if ((ret = w->write(c1, 1)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, int code)
+{
+    std::stringstream ss;
+    
+    ss << SRS_JOBJECT_START
+            << SRS_JFIELD_ERROR(code)
+        << SRS_JOBJECT_END;
+    
+    return srs_api_response_jsonp(w, callback, ss.str());
+}
+
+int srs_api_response_json(ISrsHttpResponseWriter* w, string data)
+{
+    SrsHttpHeader* h = w->header();
+    
+    h->set_content_length(data.length());
+    h->set_content_type("application/json");
+    
+    return w->write((char*)data.data(), (int)data.length());
+}
+
+int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
+{
+    std::stringstream ss;
+    
+    ss << SRS_JOBJECT_START
+            << SRS_JFIELD_ERROR(code)
+        << SRS_JOBJECT_END;
+    
+    return srs_api_response_json(w, ss.str());
+}
+
+int srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json)
+{
+    string callback = r->query_get("callback");
+    bool jsonp = !callback.empty();
+    
+    // no jsonp, directly response.
+    if (!jsonp) {
+        return srs_api_response_json(w, json);
+    }
+    
+    // jsonp, get function name from query("callback")
+    return srs_api_response_jsonp(w, callback, json);
+}
+
+int srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int code)
+{
+    string callback = r->query_get("callback");
+    bool jsonp = !callback.empty();
+    
+    // no jsonp, directly response.
+    if (!jsonp) {
+        return srs_api_response_json_code(w, code);
+    }
+    
+    // jsonp, get function name from query("callback")
+    return srs_api_response_jsonp_code(w, callback, code);
+}
+
 SrsGoApiRoot::SrsGoApiRoot()
 {
 }
@@ -64,7 +153,7 @@ int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
         
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiApi::SrsGoApiApi()
@@ -88,7 +177,7 @@ int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
         
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiV1::SrsGoApiV1()
@@ -129,7 +218,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiVersion::SrsGoApiVersion()
@@ -156,7 +245,7 @@ int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiSummaries::SrsGoApiSummaries()
@@ -171,7 +260,7 @@ int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     srs_api_dump_summaries(ss);
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiRusages::SrsGoApiRusages()
@@ -182,39 +271,39 @@ SrsGoApiRusages::~SrsGoApiRusages()
 {
 }
 
-int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* req)
+int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
     std::stringstream ss;
     
-    SrsRusage* r = srs_get_system_rusage();
+    SrsRusage* ru = srs_get_system_rusage();
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (r->ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sample_time", r->sample_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_utime", r->r.ru_utime.tv_sec) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_stime", r->r.ru_stime.tv_sec) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_maxrss", r->r.ru_maxrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_ixrss", r->r.ru_ixrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_idrss", r->r.ru_idrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_isrss", r->r.ru_isrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_minflt", r->r.ru_minflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_majflt", r->r.ru_majflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nswap", r->r.ru_nswap) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_inblock", r->r.ru_inblock) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_oublock", r->r.ru_oublock) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_msgsnd", r->r.ru_msgsnd) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_msgrcv", r->r.ru_msgrcv) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nsignals", r->r.ru_nsignals) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nvcsw", r->r.ru_nvcsw) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nivcsw", r->r.ru_nivcsw)
+            << SRS_JFIELD_ORG("ok", (ru->ok? "true":"false")) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sample_time", ru->sample_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_utime", ru->r.ru_utime.tv_sec) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_stime", ru->r.ru_stime.tv_sec) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_maxrss", ru->r.ru_maxrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_ixrss", ru->r.ru_ixrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_idrss", ru->r.ru_idrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_isrss", ru->r.ru_isrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_minflt", ru->r.ru_minflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_majflt", ru->r.ru_majflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nswap", ru->r.ru_nswap) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_inblock", ru->r.ru_inblock) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_oublock", ru->r.ru_oublock) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_msgsnd", ru->r.ru_msgsnd) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_msgrcv", ru->r.ru_msgrcv) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nsignals", ru->r.ru_nsignals) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nvcsw", ru->r.ru_nvcsw) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nivcsw", ru->r.ru_nivcsw)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiSelfProcStats::SrsGoApiSelfProcStats()
@@ -286,7 +375,7 @@ int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiSystemProcStats::SrsGoApiSystemProcStats()
@@ -323,7 +412,7 @@ int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiMemInfos::SrsGoApiMemInfos()
@@ -361,7 +450,7 @@ int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiAuthors::SrsGoApiAuthors()
@@ -390,7 +479,7 @@ int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiFeatures::SrsGoApiFeatures()
@@ -516,7 +605,7 @@ int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiRequests::SrsGoApiRequests()
@@ -579,7 +668,7 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiVhosts::SrsGoApiVhosts()
@@ -605,7 +694,7 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (vid > 0 && (vhost = stat->find_vhost(vid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("vhost id=%d not found. ret=%d", vid, ret);
-        return srs_http_response_code(w, ret);
+        return srs_api_response_code(w, r, ret);
     }
     
     if (r->is_http_get()) {
@@ -629,10 +718,10 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 << SRS_JOBJECT_END;
         }
         
-        return srs_http_response_json(w, ss.str());
+        return srs_api_response(w, r, ss.str());
     }
     
-    return srs_http_response_json(w, ss.str());
+    return srs_api_response(w, r, ss.str());
 }
 
 SrsGoApiStreams::SrsGoApiStreams()
@@ -658,7 +747,7 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("stream stream_id=%d not found. ret=%d", sid, ret);
-        return srs_http_response_code(w, ret);
+        return srs_api_response_code(w, r, ret);
     }
     
     if (r->is_http_get()) {
@@ -682,7 +771,7 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 << SRS_JOBJECT_END;
         }
         
-        return srs_http_response_json(w, ss.str());
+        return srs_api_response(w, r, ss.str());
     }
     
     return ret;
@@ -711,7 +800,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
         srs_error("stream client_id=%d not found. ret=%d", cid, ret);
-        return srs_http_response_code(w, ret);
+        return srs_api_response_code(w, r, ret);
     }
     
     if (r->is_http_delete()) {
@@ -719,7 +808,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         client->conn->expire();
         srs_warn("delete client=%d ok", cid);
-        return srs_http_response_code(w, ret);
+        return srs_api_response_code(w, r, ret);
     } else if (r->is_http_get()) {
         std::stringstream data;
         
@@ -741,7 +830,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 << SRS_JOBJECT_END;
         }
         
-        return srs_http_response_json(w, ss.str());
+        return srs_api_response(w, r, ss.str());
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
@@ -759,7 +848,7 @@ SrsGoApiError::~SrsGoApiError()
 
 int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    return srs_http_response_code(w, 100);
+    return srs_api_response_code(w, r, 100);
 }
 
 

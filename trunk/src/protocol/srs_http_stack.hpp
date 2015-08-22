@@ -81,14 +81,6 @@ class ISrsHttpResponseWriter;
 extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code);
 extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code, std::string error);
 
-// helper function: response in json format.
-extern int srs_http_response_json(ISrsHttpResponseWriter* w, std::string data);
-/**
- * response a typical code object, for example:
- *      {code : 100}
- */
-extern int srs_http_response_code(ISrsHttpResponseWriter* w, int code);
-
 // get the status text of code.
 extern std::string srs_generate_http_status_text(int status);
 
@@ -497,6 +489,7 @@ public:
     virtual std::string url() = 0;
     virtual std::string host() = 0;
     virtual std::string path() = 0;
+    virtual std::string query() = 0;
     virtual std::string ext() = 0;
     /**
      * get the RESTful id,

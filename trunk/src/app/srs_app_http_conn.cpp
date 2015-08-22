@@ -673,6 +673,11 @@ string SrsHttpMessage::path()
     return _uri->get_path();
 }
 
+string SrsHttpMessage::query()
+{
+    return _uri->get_query();
+}
+
 string SrsHttpMessage::ext()
 {
     return _ext;
