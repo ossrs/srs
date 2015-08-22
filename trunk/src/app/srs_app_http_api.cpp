@@ -113,11 +113,11 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("streams", "dumps streams to json") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("clients", "dumps clients to json") << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("test", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("tests", SRS_JOBJECT_START)
                 << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("redirects", "always redirect to /api/v1/test/errors") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR(".vhost.", "http vhost for error.srs.com/api/v1/test/errors")
+                << SRS_JFIELD_STR("[vhost]", "http vhost for http://error.srs.com:1985/api/v1/tests/errors")
             << SRS_JOBJECT_END
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;

@@ -215,10 +215,11 @@ that is:
 ////////////////////////////////////////////////////////////////////////
 #define SRS_JOBJECT_START "{"
 #define SRS_JFIELD_NAME(k) "\"" << k << "\":"
-#define SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
-#define SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
+#define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
+#define SRS_JFIELD_STR(k, v) SRS_JFIELD_NAME(k) << "\"" << v << "\""
+#define SRS_JFIELD_ORG(k, v) SRS_JFIELD_NAME(k) << std::dec << v
 #define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
-#define SRS_JFIELD_NULL(k) "\"" << k << "\":null"
+#define SRS_JFIELD_NULL(k) SRS_JFIELD_NAME(k) << "null"
 #define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
 #define SRS_JFIELD_CONT ","
 #define SRS_JOBJECT_END "}"
