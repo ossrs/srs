@@ -45,6 +45,7 @@ struct SrsStatisticVhost
 public:
     int64_t id;
     std::string vhost;
+    int nb_streams;
     int nb_clients;
 public:
     /**

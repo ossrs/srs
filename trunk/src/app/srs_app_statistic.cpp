@@ -49,6 +49,7 @@ SrsStatisticVhost::SrsStatisticVhost()
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
+    nb_streams = 0;
 }
 
 SrsStatisticVhost::~SrsStatisticVhost()
@@ -69,6 +70,7 @@ int SrsStatisticVhost::dumps(stringstream& ss)
             << SRS_JFIELD_STR("name", vhost) << SRS_JFIELD_CONT
             << SRS_JFIELD_BOOL("enabled", enabled) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("streams", nb_streams) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
             << SRS_JFIELD_OBJ("kbps")
@@ -169,6 +171,8 @@ void SrsStatisticStream::publish(int cid)
 {
     connection_cid = cid;
     active = true;
+    
+    vhost->nb_streams++;
 }
 
 void SrsStatisticStream::close()
@@ -176,6 +180,8 @@ void SrsStatisticStream::close()
     has_video = false;
     has_audio = false;
     active = false;
+    
+    vhost->nb_streams--;
 }
 
 SrsStatisticClient::SrsStatisticClient()
