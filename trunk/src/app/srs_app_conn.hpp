@@ -88,6 +88,11 @@ protected:
      * when disposed, connection should stop cycle and cleanup itself.
      */
     bool disposed;
+    /**
+     * whether connection is expired, application definition.
+     * when expired, the connection must never be served and quit ASAP.
+     */
+    bool expired;
 public:
     SrsConnection(IConnectionManager* cm, st_netfd_t c);
     virtual ~SrsConnection();
@@ -125,6 +130,10 @@ public:
     * get the srs id which identify the client.
     */
     virtual int srs_id();
+    /**
+     * set connection to expired.
+     */
+    virtual void expire();
 protected:
     /**
     * for concrete connection to do the cycle.

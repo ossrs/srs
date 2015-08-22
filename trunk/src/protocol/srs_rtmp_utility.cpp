@@ -247,7 +247,7 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
     // for linux, generally it's 1024.
-    static int limits = sysconf(_SC_IOV_MAX);
+    static int limits = (int)sysconf(_SC_IOV_MAX);
 #else
     static int limits = 1024;
 #endif

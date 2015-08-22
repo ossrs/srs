@@ -120,8 +120,11 @@ string srs_go_http_detect(char* data, int size)
     return "application/octet-stream"; // fallback
 }
 
-// Error replies to the request with the specified error message and HTTP code.
-// The error message should be plain text.
+int srs_go_http_error(ISrsHttpResponseWriter* w, int code)
+{
+    return srs_go_http_error(w, code, srs_generate_http_status_text(code));
+}
+
 int srs_go_http_error(ISrsHttpResponseWriter* w, int code, string error)
 {
     int ret = ERROR_SUCCESS;
@@ -287,7 +290,7 @@ bool SrsHttpNotFoundHandler::is_not_found()
 
 int SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound, SRS_CONSTS_HTTP_NotFound_str);
+    return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
 }
 
 SrsHttpFileServer::SrsHttpFileServer(string root_dir)

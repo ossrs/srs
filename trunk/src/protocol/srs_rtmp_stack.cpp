@@ -1747,10 +1747,15 @@ string srs_client_type_string(SrsRtmpConnType type)
 {
     switch (type) {
         case SrsRtmpConnPlay: return "Play";
-        case SrsRtmpConnFlashPublish: return "publish(FlashPublish)";
-        case SrsRtmpConnFMLEPublish: return "publish(FMLEPublish)";
+        case SrsRtmpConnFlashPublish: return "flash-publish)";
+        case SrsRtmpConnFMLEPublish: return "fmle-publish";
         default: return "Unknown";
     }
+}
+
+bool srs_client_type_is_publish(SrsRtmpConnType type)
+{
+    return type != SrsRtmpConnPlay;
 }
 
 SrsHandshakeBytes::SrsHandshakeBytes()

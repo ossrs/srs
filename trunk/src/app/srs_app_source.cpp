@@ -898,7 +898,6 @@ SrsSource::SrsSource()
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     mix_correct = false;
     mix_queue = new SrsMixQueue();
-    is_expired = false;
     
 #ifdef SRS_AUTO_HLS
     hls = new SrsHls();
@@ -2066,7 +2065,7 @@ int SrsSource::on_publish()
         return ret;
     }
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(_req);
+    stat->on_stream_publish(_req, _source_id);
     return ret;
 }
 
@@ -2101,7 +2100,6 @@ void SrsSource::on_unpublish()
     
     _can_publish = true;
     _source_id = -1;
-    is_expired = false;
 
     // notify the handler.
     srs_assert(handler);
@@ -2258,15 +2256,5 @@ void SrsSource::destroy_forwarders()
         srs_freep(forwarder);
     }
     forwarders.clear();
-}
-
-bool SrsSource::expired()
-{
-    return is_expired;
-}
-
-void SrsSource::set_expired()
-{
-    is_expired = true;
 }
 

@@ -41,6 +41,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
     manager = cm;
     stfd = c;
     disposed = false;
+    expired = false;
     
     // the client thread should reap itself, 
     // so we never use joinable.
@@ -114,6 +115,11 @@ void SrsConnection::on_thread_stop()
 int SrsConnection::srs_id()
 {
     return id;
+}
+
+void SrsConnection::expire()
+{
+    expired = true;
 }
 
 

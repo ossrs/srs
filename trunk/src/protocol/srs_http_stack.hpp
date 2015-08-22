@@ -76,6 +76,11 @@ class ISrsHttpResponseWriter;
 #define SRS_CONSTS_HTTP_PUT HTTP_PUT
 #define SRS_CONSTS_HTTP_DELETE HTTP_DELETE
 
+// Error replies to the request with the specified error message and HTTP code.
+// The error message should be plain text.
+extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code);
+extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code, std::string error);
+
 // helper function: response in json format.
 extern int srs_http_response_json(ISrsHttpResponseWriter* w, std::string data);
 /**

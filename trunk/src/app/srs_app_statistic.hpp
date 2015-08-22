@@ -34,9 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 #include <srs_kernel_codec.hpp>
-
-#define STATISTIC_STREAM_STATUS_PUBLISHING    "publishing"
-#define STATISTIC_STREAM_STATUS_IDLING        "idling"
+#include <srs_rtmp_stack.hpp>
 
 class SrsKbps;
 class SrsRequest;
@@ -68,7 +66,8 @@ public:
     std::string app;
     std::string stream;
     std::string url;
-    std::string status;
+    bool active;
+    int connection_cid;
     int nb_clients;
 public:
     /**
@@ -103,7 +102,7 @@ public:
     /**
     * publish the stream.
     */
-    virtual void publish();
+    virtual void publish(int cid);
     /**
     * close the stream.
     */
@@ -114,7 +113,11 @@ struct SrsStatisticClient
 {
 public:
     SrsStatisticStream* stream;
+    SrsConnection* conn;
+    SrsRequest* req;
+    SrsRtmpConnType type;
     int id;
+    int64_t create;
 public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
@@ -169,9 +172,11 @@ public:
         SrsAacObjectType aac_object
     );
     /**
-    * when publish stream.
-    */
-    virtual void on_stream_publish(SrsRequest* req);
+     * when publish stream.
+     * @param req the request object of publish connection.
+     * @param cid the cid of publish connection.
+     */
+    virtual void on_stream_publish(SrsRequest* req, int cid);
     /**
     * when close stream.
     */
@@ -181,8 +186,10 @@ public:
      * when got a client to publish/play stream,
      * @param id, the client srs id.
      * @param req, the client request object.
+     * @param conn, the physical absract connection object.
+     * @param type, the type of connection.
      */
-    virtual int on_client(int id, SrsRequest* req);
+    virtual int on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
     /**
      * client disconnect
      * @remark the on_disconnect always call, while the on_client is call when
