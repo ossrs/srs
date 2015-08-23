@@ -218,6 +218,7 @@ Supported operating systems and hardware:
 1. [experiment] Support push RTSP to SRS, read [bug #133][bug #133].
 1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
+1. [experiment] Support [remote console](http://ossrs.net:1985/console), read [srs-ngb](srs-ngb).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -879,6 +880,7 @@ Winlin
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
 [oschina]: http://git.oschina.net/winlinvip/srs.oschina
 [srs-dolphin]: https://github.com/simple-rtmp-server/srs-dolphin
+[srs-ngb]: https://github.com/simple-rtmp-server/srs-ngb
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
