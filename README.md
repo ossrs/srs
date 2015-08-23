@@ -316,6 +316,7 @@ Remark:
 
 ## Releases
 
+* 2015-08-23, [Release v2.0a0](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0), 2.0 alpha0, 2.0.185, 89022 lines.<br/>
 * 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
 * 2015-03-19, [Release v1.0r3](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3), bug fixed, 1.0.30, 59511 lines.<br/>
 * 2015-02-12, [Release v1.0r2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
@@ -342,6 +343,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0) released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380](https://github.com/simple-rtmp-server/srs/issues/380), srs-librtmp send sequence header when sps or pps changed.
 * v2.0, 2015-08-18, close [#454](https://github.com/simple-rtmp-server/srs/issues/454), support obs restart publish. 2.0.184
