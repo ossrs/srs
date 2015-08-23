@@ -475,6 +475,7 @@ Remark:
 * v2.0, 2014-10-19, fix [#184](https://github.com/simple-rtmp-server/srs/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
+* <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0) released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta) released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151](https://github.com/simple-rtmp-server/srs/issues/151), always reap ts whatever audio or video packet. 0.9.223.
 * v1.0, 2014-10-08, fix [#162](https://github.com/simple-rtmp-server/srs/issues/162), failed if no epoll. 0.9.222.
