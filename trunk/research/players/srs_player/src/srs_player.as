@@ -123,6 +123,7 @@ package
             flash.external.ExternalInterface.addCallback("__set_dar", this.js_call_set_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
+			flash.external.ExternalInterface.addCallback("__set_mbt", this.js_call_set_mbt);
             
             flash.external.ExternalInterface.call(this.js_on_player_ready, this.js_id);
         }
@@ -228,6 +229,7 @@ package
         private function js_call_pause():void {
             if (this.media_stream) {
                 this.media_stream.pause();
+				log("user pause play");
             }
         }
         
@@ -237,6 +239,7 @@ package
         private function js_call_resume():void {
             if (this.media_stream) {
                 this.media_stream.resume();
+				log("user resume play");
             }
         }
         
@@ -254,6 +257,7 @@ package
             user_dar_den = den;
             
             flash.utils.setTimeout(__execute_user_set_dar, 0);
+			log("user set dar to " + num + "/" + den);
         }
         
         /**
@@ -267,6 +271,7 @@ package
         private function js_call_set_fs_size(refer:String, percent:int):void {
             user_fs_refer = refer;
             user_fs_percent = percent;
+			log("user set refer to " + refer + ", percent to" + percent);
         }
         
         /**
@@ -276,8 +281,21 @@ package
         private function js_call_set_bt(buffer_time:Number):void {
             if (this.media_stream) {
                 this.media_stream.bufferTime = buffer_time;
+				log("user set bufferTime to " + buffer_time.toFixed(2) + "s");
             }
         }
+		
+		/**
+		 * set the max stream buffer time in seconds.
+		 * @max_buffer_time the max buffer time in seconds.
+		 * @remark this is the key feature for realtime communication by flash.
+		 */
+		private function js_call_set_mbt(max_buffer_time:Number):void {
+			if (this.media_stream) {
+				this.media_stream.bufferTimeMax = max_buffer_time;
+				log("user set bufferTimeMax to " + max_buffer_time.toFixed(2) + "s");
+			}
+		}
         
         /**
          * function for js to call: to stop the stream. ignore if not play.
@@ -335,13 +353,16 @@ package
          * @param _width, the player width.
          * @param _height, the player height.
          * @param buffer_time, the buffer time in seconds. recommend to >=0.5
+		 * @param max_buffer_time, the max buffer time in seconds. recommend to 3 x buffer_time.
          * @param volume, the volume, 0 is mute, 1 is 100%, 2 is 200%.
          */
-        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, volume:Number):void {
+        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, max_buffer_time:Number, volume:Number):void {
             this.user_url = url;
             this.user_w = _width;
             this.user_h = _height;
-            log("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h);
+            log("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h
+				+ ", buffer=" + buffer_time.toFixed(2) + "s, max_buffer=" + max_buffer_time.toFixed(2) + "s, volume=" + volume.toFixed(2)
+			);
             
             js_call_stop();
             
@@ -349,7 +370,7 @@ package
             this.media_conn.client = {};
             this.media_conn.client.onBWDone = function():void {};
             this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                trace ("NetConnection: code=" + evt.info.code);
+                log("NetConnection: code=" + evt.info.code);
                 
                 if (evt.info.hasOwnProperty("data") && evt.info.data) {
                     if (evt.info.data.hasOwnProperty("srs_server")) {
@@ -381,10 +402,11 @@ package
                 media_stream = new NetStream(media_conn);
                 media_stream.soundTransform = new SoundTransform(volume);
                 media_stream.bufferTime = buffer_time;
+				media_stream.bufferTimeMax = max_buffer_time;
                 media_stream.client = {};
                 media_stream.client.onMetaData = system_on_metadata;
                 media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                    trace ("NetStream: code=" + evt.info.code);
+                    log("NetStream: code=" + evt.info.code);
                     
                     if (evt.info.code == "NetStream.Video.DimensionChange") {
                         system_on_metadata(media_metadata);

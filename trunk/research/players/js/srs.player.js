@@ -23,6 +23,7 @@ function SrsPlayer(container, width, height, private_object) {
     this.id = SrsPlayer.__id++;
     this.stream_url = null;
     this.buffer_time = 0.3; // default to 0.3
+    this.max_buffer_time = this.buffer_time * 3; // default to 3 x bufferTime.
     this.volume = 1.0; // default to 100%
     this.callbackObj = null;
     
@@ -118,8 +119,11 @@ SrsPlayer.prototype.play = function(url, volume) {
         this.volume = volume;
     }
     
-    this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time, this.volume);
+    this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time, this.max_buffer_time, this.volume);
 }
+/**
+ * stop play stream.
+ */
 SrsPlayer.prototype.stop = function() {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
@@ -134,9 +138,15 @@ SrsPlayer.prototype.stop = function() {
     
     this.callbackObj.ref.__stop();
 }
+/**
+ * pause the play.
+ */
 SrsPlayer.prototype.pause = function() {
     this.callbackObj.ref.__pause();
 }
+/**
+ * resume the play.
+ */
 SrsPlayer.prototype.resume = function() {
     this.callbackObj.ref.__resume();
 }
@@ -180,23 +190,75 @@ SrsPlayer.prototype.set_fs = function(refer, percent) {
 * @buffer_time the buffer time in seconds.
 */
 SrsPlayer.prototype.set_bt = function(buffer_time) {
+    if (this.buffer_time == buffer_time) {
+        return;
+    }
+
     this.buffer_time = buffer_time;
     this.callbackObj.ref.__set_bt(buffer_time);
+
+    // reset the max buffer time to 3 x buffer_time.
+    this.set_mbt(buffer_time * 3);
 }
+/**
+ * set the stream max buffer time in seconds.
+ * @param max_buffer_time the max buffer time in seconds.
+ * @remark this is the key feature for realtime communication by flash.
+ */
+SrsPlayer.prototype.set_mbt = function(max_buffer_time) {
+    // we must atleast set the max buffer time to 0.6s.
+    max_buffer_time = Math.max(0.6, max_buffer_time);
+    // max buffer time always greater than buffer time.
+    max_buffer_time = Math.max(this.buffer_time, max_buffer_time);
+
+    if (parseInt(this.max_buffer_time * 10) == parseInt(max_buffer_time * 10)) {
+        return;
+    }
+
+    this.max_buffer_time = max_buffer_time;
+    this.callbackObj.ref.__set_mbt(max_buffer_time);
+}
+/**
+ * the callback when player is ready.
+ */
 SrsPlayer.prototype.on_player_ready = function() {
 }
+/**
+ * the callback when player got metadata.
+ * @param metadata the metadata which player got.
+ */
 SrsPlayer.prototype.on_player_metadata = function(metadata) {
     // ignore.
 }
+/**
+ * the callback when player timer event.
+ * @param time current stream time.
+ * @param buffer_length current buffer length.
+ * @param kbps current video plus audio bitrate in kbps.
+ * @param fps current video fps.
+ * @param rtime current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
     // ignore.
 }
+/**
+ * the callback when player got NetStream.Buffer.Empty
+ * @param time current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_empty = function(time) {
     // ignore.
 }
+/**
+ * the callback when player got NetStream.Buffer.Full
+ * @param time current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_full = function(time) {
     // ignore.
 }
+
+/**
+ * helpers.
+ */
 function __srs_find_player(id) {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
