@@ -23,8 +23,10 @@ work_dir=`(cd ${work_dir}/.. && pwd)`
 product_dir=$work_dir
 
 # allow start script from any dir
-cd $work_dir && work_branch=`git branch -a|grep "*"|awk '{print $2}'` && git checkout 2.0release
+cd $work_dir && work_branch=`git branch -a|grep "*"|awk '{print $2}'` && commit_branch=2.0release && git checkout $commit_branch
 ret=$"; if [[ $ret -ne 0 ]]; then echo "switch branch failed. ret=$ret"; exit $ret; fi
+echo "work branch is $work_branch"
+echo "commit branch is $commit_branch"
 
 . ${product_dir}/scripts/_log.sh
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
