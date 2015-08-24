@@ -117,6 +117,8 @@ file
 	../../src/app/srs_app_log.cpp,
 	../../src/app/srs_app_mpegts_udp.hpp,
 	../../src/app/srs_app_mpegts_udp.cpp,
+        ../../src/app/srs_app_process.hpp,
+        ../../src/app/srs_app_process.cpp,
 	../../src/app/srs_app_recv_thread.hpp,
 	../../src/app/srs_app_recv_thread.cpp,
 	../../src/app/srs_app_refer.hpp,

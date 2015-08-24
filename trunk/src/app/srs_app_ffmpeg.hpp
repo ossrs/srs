@@ -31,11 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
-#include <string>
 #include <vector>
+#include <string>
 
 class SrsConfDirective;
 class SrsPithyPrint;
+class SrsProcess;
 
 /**
 * a transcode engine: ffmepg,
@@ -44,11 +45,8 @@ class SrsPithyPrint;
 class SrsFFMPEG
 {
 private:
-    bool started;
-    // whether SIGTERM send but need to wait or SIGKILL.
-    bool fast_stopped;
-    pid_t pid;
-private:
+    SrsProcess* process;
+    std::vector<std::string> params;
     std::string log_file;
 private:
     std::string                 ffmpeg;
@@ -83,26 +81,11 @@ public:
     virtual int initialize(std::string in, std::string out, std::string log);
     virtual int initialize_transcode(SrsConfDirective* engine);
     virtual int initialize_copy();
+public:
     virtual int start();
     virtual int cycle();
-    /**
-     * send SIGTERM then SIGKILL to ensure the process stopped.
-     * the stop will wait [0, SRS_PROCESS_QUIT_TIMEOUT_MS] depends on the 
-     * process quit timeout.
-     * @remark use fast_stop before stop one by one, when got lots of process to quit.
-     */
     virtual void stop();
 public:
-    /**
-     * the fast stop is to send a SIGTERM.
-     * for example, the ingesters owner lots of FFMPEG, it will take a long time
-     * to stop one by one, instead the ingesters can fast_stop all FFMPEG, then
-     * wait one by one to stop, it's more faster.
-     * @remark user must use stop() to ensure the ffmpeg to stopped.
-     * @remark we got N processes to stop, compare the time we spend,
-     *      when use stop without fast_stop, we spend maybe [0, SRS_PROCESS_QUIT_TIMEOUT_MS * N]
-     *      but use fast_stop then stop, the time is almost [0, SRS_PROCESS_QUIT_TIMEOUT_MS].
-     */
     virtual void fast_stop();
 };
 

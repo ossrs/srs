@@ -920,7 +920,11 @@ extern int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* da
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
-
+    
+#ifndef _WIN32
+    // for getpid.
+    #include <unistd.h>
+#endif
 // when disabled log, donot compile it.
 #ifdef SRS_DISABLE_LOG
     #define srs_human_trace(msg, ...) (void)0
@@ -936,15 +940,13 @@ extern const char* srs_human_format_time();
 **************************************************************
 * IO hijack, use your specified io functions.
 **************************************************************
-*************************************************************/
+ *************************************************************/
 // the void* will convert to your handler for io hijack.
 typedef void* srs_hijack_io_t;
 #ifdef SRS_HIJACK_IO
     #ifndef _WIN32
         // for iovec.
         #include <sys/uio.h>
-        // for getpid.
-        #include <unistd.h>
     #endif
     /**
     * get the hijack io object in rtmp protocol sdk.

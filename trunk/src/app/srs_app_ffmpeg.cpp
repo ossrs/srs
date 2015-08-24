@@ -30,12 +30,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <signal.h>
 #include <sys/types.h>
 
+#include <vector>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_process.hpp>
+#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
@@ -52,9 +55,6 @@ using namespace std;
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
-    started            = false;
-    fast_stopped       = false;
-    pid                = -1;
     ffmpeg             = ffmpeg_bin;
     
     vbitrate         = 0;
@@ -65,11 +65,15 @@ SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
     abitrate         = 0;
     asample_rate     = 0;
     achannels         = 0;
+    
+    process = new SrsProcess();
 }
 
 SrsFFMPEG::~SrsFFMPEG()
 {
     stop();
+    
+    srs_freep(process);
 }
 
 void SrsFFMPEG::set_iparams(string iparams)
@@ -236,17 +240,22 @@ int SrsFFMPEG::start()
 {
     int ret = ERROR_SUCCESS;
     
-    if (started) {
+    if (process->started()) {
         return ret;
     }
     
     // prepare exec params
-    char tmp[256];
-    std::vector<std::string> params;
+    // @remark we should never use stack variable, use heap to alloc to make lldb happy.
+    #define SRS_TMP_SIZE 512
+    char* tmp = new char[SRS_TMP_SIZE];
+    SrsAutoFree(char, tmp);
+    
+    // the argv for process.
+    params.clear();
     
     // argv[0], set to ffmpeg bin.
     // The  execv()  and  execvp() functions ....
-    // The first argument, by convention, should point to 
+    // The first argument, by convention, should point to
     // the filename associated  with  the file being executed.
     params.push_back(ffmpeg);
     
@@ -287,32 +296,32 @@ int SrsFFMPEG::start()
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
         if (vbitrate > 0) {
             params.push_back("-b:v");
-            snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
+            snprintf(tmp, SRS_TMP_SIZE, "%d", vbitrate * 1000);
             params.push_back(tmp);
         }
         
         if (vfps > 0) {
             params.push_back("-r");
-            snprintf(tmp, sizeof(tmp), "%.2f", vfps);
+            snprintf(tmp, SRS_TMP_SIZE, "%.2f", vfps);
             params.push_back(tmp);
         }
         
         if (vwidth > 0 && vheight > 0) {
             params.push_back("-s");
-            snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
+            snprintf(tmp, SRS_TMP_SIZE, "%dx%d", vwidth, vheight);
             params.push_back(tmp);
         }
         
         // TODO: add aspect if needed.
         if (vwidth > 0 && vheight > 0) {
             params.push_back("-aspect");
-            snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
+            snprintf(tmp, SRS_TMP_SIZE, "%d:%d", vwidth, vheight);
             params.push_back(tmp);
         }
         
         if (vthreads > 0) {
             params.push_back("-threads");
-            snprintf(tmp, sizeof(tmp), "%d", vthreads);
+            snprintf(tmp, SRS_TMP_SIZE, "%d", vthreads);
             params.push_back(tmp);
         }
         
@@ -347,19 +356,19 @@ int SrsFFMPEG::start()
         if (acodec != SRS_RTMP_ENCODER_COPY) {
             if (abitrate > 0) {
                 params.push_back("-b:a");
-                snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
+                snprintf(tmp, SRS_TMP_SIZE, "%d", abitrate * 1000);
                 params.push_back(tmp);
             }
             
             if (asample_rate > 0) {
                 params.push_back("-ar");
-                snprintf(tmp, sizeof(tmp), "%d", asample_rate);
+                snprintf(tmp, SRS_TMP_SIZE, "%d", asample_rate);
                 params.push_back(tmp);
             }
             
             if (achannels > 0) {
                 params.push_back("-ac");
-                snprintf(tmp, sizeof(tmp), "%d", achannels);
+                snprintf(tmp, SRS_TMP_SIZE, "%d", achannels);
                 params.push_back(tmp);
             }
             
@@ -387,7 +396,7 @@ int SrsFFMPEG::start()
             }
         }
     }
-
+    
     // output
     if (oformat != "off" && !oformat.empty()) {
         params.push_back("-f");
@@ -396,176 +405,40 @@ int SrsFFMPEG::start()
     
     params.push_back("-y");
     params.push_back(_output);
-
-    std::string cli;
-    if (true) {
-        for (int i = 0; i < (int)params.size(); i++) {
-            std::string ffp = params[i];
-            cli += ffp;
-            if (i < (int)params.size() - 1) {
-                cli += " ";
-            }
-        }
-        srs_trace("start ffmpeg, log: %s, params: %s", log_file.c_str(), cli.c_str());
+    
+    // when specified the log file.
+    if (false && !log_file.empty()) {
+        // stdout
+        params.push_back("1");
+        params.push_back(">");
+        params.push_back(log_file);
+        // stderr
+        params.push_back("2");
+        params.push_back(">");
+        params.push_back(log_file);
     }
     
-    // for log
-    int cid = _srs_context->get_id();
-    
-    // TODO: fork or vfork?
-    if ((pid = fork()) < 0) {
-        ret = ERROR_ENCODER_FORK;
-        srs_error("vfork process failed. ret=%d", ret);
+    // initialize the process.
+    if ((ret = process->initialize(ffmpeg, params)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // child process: ffmpeg encoder engine.
-    if (pid == 0) {
-        // ignore the SIGINT and SIGTERM
-        signal(SIGINT, SIG_IGN);
-        signal(SIGTERM, SIG_IGN);
-        
-        // redirect logs to file.
-        int log_fd = -1;
-        int flags = O_CREAT|O_WRONLY|O_APPEND;
-        mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-        if ((log_fd = ::open(log_file.c_str(), flags, mode)) < 0) {
-            ret = ERROR_ENCODER_OPEN;
-            srs_error("open encoder file %s failed. ret=%d", log_file.c_str(), ret);
-            return ret;
-        }
-        
-        // log basic info
-        if (true) {
-            char buf[4096];
-            int pos = 0;
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "\n");
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "ffmpeg cid=%d\n", cid);
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "log=%s\n", log_file.c_str());
-            pos += snprintf(buf + pos, sizeof(buf) - pos, "params: %s\n", cli.c_str());
-            ::write(log_fd, buf, pos);
-        }
-        
-        // dup to stdout and stderr.
-        if (dup2(log_fd, STDOUT_FILENO) < 0) {
-            ret = ERROR_ENCODER_DUP2;
-            srs_error("dup2 encoder file failed. ret=%d", ret);
-            return ret;
-        }
-        if (dup2(log_fd, STDERR_FILENO) < 0) {
-            ret = ERROR_ENCODER_DUP2;
-            srs_error("dup2 encoder file failed. ret=%d", ret);
-            return ret;
-        }
-        
-        // close log fd
-        ::close(log_fd);
-        // close other fds
-        // TODO: do in right way.
-        for (int i = 3; i < 1024; i++) {
-            ::close(i);
-        }
-        
-        // memory leak in child process, it's ok.
-        char** charpv_params = new char*[params.size() + 1];
-        for (int i = 0; i < (int)params.size(); i++) {
-            std::string& p = params[i];
-            charpv_params[i] = (char*)p.data();
-        }
-        // EOF: NULL
-        charpv_params[params.size()] = NULL;
-        
-        // TODO: execv or execvp
-        ret = execv(ffmpeg.c_str(), charpv_params);
-        if (ret < 0) {
-            fprintf(stderr, "fork ffmpeg failed, errno=%d(%s)", 
-                errno, strerror(errno));
-        }
-        exit(ret);
-    }
-
-    // parent.
-    if (pid > 0) {
-        started = true;
-        srs_trace("vfored ffmpeg encoder engine, pid=%d", pid);
-        return ret;
-    }
-    
-    return ret;
+    return process->start();
 }
 
 int SrsFFMPEG::cycle()
 {
-    int ret = ERROR_SUCCESS;
-    
-    if (!started) {
-        return ret;
-    }
-    
-    // ffmpeg is prepare to stop, donot cycle.
-    if (fast_stopped) {
-        return ret;
-    }
-    
-    int status = 0;
-    pid_t p = waitpid(pid, &status, WNOHANG);
-    
-    if (p < 0) {
-        ret = ERROR_SYSTEM_WAITPID;
-        srs_error("transcode waitpid failed, pid=%d, ret=%d", pid, ret);
-        return ret;
-    }
-    
-    if (p == 0) {
-        srs_info("transcode process pid=%d is running.", pid);
-        return ret;
-    }
-    
-    srs_trace("transcode process pid=%d terminate, restart it.", pid);
-    started = false;
-    
-    return ret;
+    return process->cycle();
 }
 
 void SrsFFMPEG::stop()
 {
-    if (!started) {
-        return;
-    }
-    
-    // kill the ffmpeg,
-    // when rewind, upstream will stop publish(unpublish),
-    // unpublish event will stop all ffmpeg encoders,
-    // then publish will start all ffmpeg encoders.
-    int ret = srs_kill_forced(pid);
-    if (ret != ERROR_SUCCESS) {
-        srs_warn("ignore kill the encoder failed, pid=%d. ret=%d", pid, ret);
-        return;
-    }
-    
-    // terminated, set started to false to stop the cycle.
-    started = false;
+    process->stop();
 }
 
 void SrsFFMPEG::fast_stop()
 {
-    int ret = ERROR_SUCCESS;
-    
-    if (!started) {
-        return;
-    }
-    
-    if (pid <= 0) {
-        return;
-    }
-    
-    if (kill(pid, SIGTERM) < 0) {
-        ret = ERROR_SYSTEM_KILL;
-        srs_warn("ignore fast stop ffmpeg failed, pid=%d. ret=%d", pid, ret);
-        return;
-    }
-    
-    return;
+    process->fast_stop();
 }
 
 #endif
