@@ -927,8 +927,8 @@ extern const char* srs_human_format_time();
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) (void)0
 #else
-    #define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_trace(msg, ...) printf("[%s][%d] ", srs_human_format_time(), getpid());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_verbose(msg, ...) printf("[%s][%d] ", srs_human_format_time(), getpid());printf(msg, ##__VA_ARGS__);printf("\n")
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 #endif
 
@@ -943,6 +943,8 @@ typedef void* srs_hijack_io_t;
     #ifndef _WIN32
         // for iovec.
         #include <sys/uio.h>
+        // for getpid.
+        #include <unistd.h>
     #endif
     /**
     * get the hijack io object in rtmp protocol sdk.
