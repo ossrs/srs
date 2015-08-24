@@ -30,6 +30,11 @@
 #include <signal.h>
 #include <sys/types.h>
 
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -57,8 +62,34 @@ int SrsProcess::initialize(string binary, vector<string> argv)
 {
     int ret = ERROR_SUCCESS;
     
-    bin = binary;
-    params = argv;
+    cli = bin = binary;
+    
+    for (int i = 0; i < (int)argv.size(); i++) {
+        std::string ffp = argv[i];
+        cli += " " + ffp;
+    }
+    
+    for (int i = 0; i < (int)argv.size(); i++) {
+        std::string ffp = argv[i];
+        
+        // remove the stdout and stderr.
+        if (ffp == "1") {
+            if (i + 2 < (int)argv.size()) {
+                stdout_file = argv[i + 2];
+                i += 2;
+            }
+            continue;
+        } else if (ffp == "2") {
+            if (i + 2 < (int)argv.size()) {
+                stderr_file = argv[i + 2];
+                i += 2;
+            }
+            continue;
+        }
+        
+        // startup params.
+        params.push_back(ffp);
+    }
     
     return ret;
 }
@@ -71,20 +102,12 @@ int SrsProcess::start()
         return ret;
     }
     
-    std::string cli;
-    if (true) {
-        for (int i = 0; i < (int)params.size(); i++) {
-            std::string ffp = params[i];
-            cli += ffp;
-            if (i < (int)params.size() - 1) {
-                cli += " ";
-            }
-        }
-        srs_trace("fork process: %s %s", bin.c_str(), cli.c_str());
-    }
+    // generate the argv of process.
+    srs_trace("fork process: %s", cli.c_str());
     
     // for log
     int cid = _srs_context->get_id();
+    int ppid = getpid();
     
     // TODO: fork or vfork?
     if ((pid = fork()) < 0) {
@@ -99,12 +122,51 @@ int SrsProcess::start()
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
         
+        // redirect stdout to file.
+        if (!stdout_file.empty()) {
+            int stdout_fd = -1;
+            int flags = O_CREAT|O_WRONLY|O_APPEND;
+            mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+            
+            if ((stdout_fd = ::open(stdout_file.c_str(), flags, mode)) < 0) {
+                ret = ERROR_ENCODER_OPEN;
+                fprintf(stderr, "open process stdout %s failed. ret=%d", stdout_file.c_str(), ret);
+                return ret;
+            }
+            
+            if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
+                ret = ERROR_ENCODER_DUP2;
+                srs_error("dup2 process stdout failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        
+        // redirect stderr to file.
+        if (!stderr_file.empty()) {
+            int stderr_fd = -1;
+            int flags = O_CREAT|O_WRONLY|O_APPEND;
+            mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+            
+            if ((stderr_fd = ::open(stderr_file.c_str(), flags, mode)) < 0) {
+                ret = ERROR_ENCODER_OPEN;
+                fprintf(stderr, "open process stderr %s failed. ret=%d", stderr_file.c_str(), ret);
+                return ret;
+            }
+            
+            if (dup2(stderr_fd, STDERR_FILENO) < 0) {
+                ret = ERROR_ENCODER_DUP2;
+                srs_error("dup2 process stderr failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        
         // log basic info
         if (true) {
             fprintf(stderr, "\n");
-            fprintf(stderr, "process parent cid=%d", cid);
-            fprintf(stderr, "process binary=%s", bin.c_str());
-            fprintf(stderr, "process params: %s %s", bin.c_str(), cli.c_str());
+            fprintf(stderr, "process parent pid=%d\n", ppid);
+            fprintf(stderr, "process parent cid=%d\n", cid);
+            fprintf(stderr, "process binary=%s\n", bin.c_str());
+            fprintf(stderr, "process cli: %s\n", cli.c_str());
         }
         
         // close other fds
@@ -133,7 +195,7 @@ int SrsProcess::start()
     // parent.
     if (pid > 0) {
         is_started = true;
-        srs_trace("vfored process, pid=%d, cli=%s", pid, bin.c_str());
+        srs_trace("vfored process, pid=%d, bin=%s", pid, bin.c_str());
         return ret;
     }
     

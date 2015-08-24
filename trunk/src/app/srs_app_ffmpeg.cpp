@@ -24,11 +24,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_ffmpeg.hpp>
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
+
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include <vector>
 using namespace std;
@@ -407,7 +411,7 @@ int SrsFFMPEG::start()
     params.push_back(_output);
     
     // when specified the log file.
-    if (false && !log_file.empty()) {
+    if (!log_file.empty()) {
         // stdout
         params.push_back("1");
         params.push_back(">");

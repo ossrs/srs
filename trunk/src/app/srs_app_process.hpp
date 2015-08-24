@@ -51,7 +51,11 @@ private:
     pid_t pid;
 private:
     std::string bin;
+    std::string stdout_file;
+    std::string stderr_file;
     std::vector<std::string> params;
+    // the cli to fork process.
+    std::string cli;
 public:
     SrsProcess();
     virtual ~SrsProcess();
