@@ -35,6 +35,11 @@
 /**
  * to start and stop a process, cycle to restart the process when terminated.
  * the usage:
+ *      // the binary is the process to fork.
+ *      binary = "./objs/ffmpeg/bin/ffmpeg";
+ *      // where argv is a array contains each params.
+ *      argv = ["-i", "in.flv", "1", ">", "/dev/null", "2", ">", "/dev/null"];
+ *
  *      process = new SrsProcess();
  *      if ((ret = process->initialize(binary, argv)) != ERROR_SUCCESS) { return ret; }
  *      if ((ret = process->start()) != ERROR_SUCCESS) { return ret; }
