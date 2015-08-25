@@ -896,6 +896,7 @@ void SrsServer::remove(SrsConnection* conn)
     
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(conn);
+    stat->on_disconnect(conn->srs_id());
     
     // all connections are created by server,
     // so we free it here.
