@@ -1160,6 +1160,8 @@ int SrsSource::on_reload_vhost_forward(string vhost)
     if (_req->vhost != vhost) {
         return ret;
     }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
 
     // forwarders
     destroy_forwarders();
@@ -1181,6 +1183,8 @@ int SrsSource::on_reload_vhost_hls(string vhost)
         return ret;
     }
     
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
     if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
@@ -1200,6 +1204,8 @@ int SrsSource::on_reload_vhost_hds(string vhost)
     if (_req->vhost != vhost) {
         return ret;
     }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
 
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
@@ -1220,6 +1226,8 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     if (_req->vhost != vhost) {
         return ret;
     }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
     
 #ifdef SRS_AUTO_DVR
     // cleanup dvr
@@ -1250,6 +1258,8 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
         return ret;
     }
     
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
     if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
@@ -1269,6 +1279,8 @@ int SrsSource::on_reload_vhost_exec(string vhost)
     if (_req->vhost != vhost) {
         return ret;
     }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
     
     ng_exec->on_unpublish();
     if ((ret = ng_exec->on_publish(_req)) != ERROR_SUCCESS) {
