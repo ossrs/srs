@@ -793,6 +793,21 @@ public:
     * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
     */
     virtual std::string         get_engine_output(SrsConfDirective* engine);
+// vhost exec secion
+private:
+    /**
+     * get the exec directive of vhost.
+     */
+    virtual SrsConfDirective*   get_exec(std::string vhost);
+public:
+    /**
+     * whether the exec is enabled of vhost.
+     */
+    virtual bool                get_exec_enabled(std::string vhost);
+    /**
+     * get all exec publish directives of vhost.
+     */
+    virtual std::vector<SrsConfDirective*>      get_exec_publishs(std::string vhost);
 // vhost ingest section
 public:
     /**

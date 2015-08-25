@@ -633,6 +633,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload atc success.", vhost.c_str());
             }
+            
             // gop_cache, only one per vhost
             if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -644,6 +645,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
             }
+            
             // queue_length, only one per vhost
             if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -655,6 +657,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload queue_length success.", vhost.c_str());
             }
+            
             // time_jitter, only one per vhost
             if (!srs_directive_equals(new_vhost->get("time_jitter"), old_vhost->get("time_jitter"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -666,6 +669,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
             }
+            
             // mix_correct, only one per vhost
             if (!srs_directive_equals(new_vhost->get("mix_correct"), old_vhost->get("mix_correct"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -677,6 +681,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mix_correct success.", vhost.c_str());
             }
+            
             // forward, only one per vhost
             if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -688,6 +693,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload forward success.", vhost.c_str());
             }
+            
             // hls, only one per vhost
             // @remark, the hls_on_error directly support reload.
             if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
@@ -722,8 +728,21 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                         return ret;
                     }
                 }
-                srs_trace("vhost %s reload hlsdvrsuccess.", vhost.c_str());
+                srs_trace("vhost %s reload dvr success.", vhost.c_str());
             }
+            
+            // exec, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("exec"), old_vhost->get("exec"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_exec(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes exec failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload exec success.", vhost.c_str());
+            }
+            
             // mr, only one per vhost
             if (!srs_directive_equals(new_vhost->get("mr"), old_vhost->get("mr"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -735,6 +754,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mr success.", vhost.c_str());
             }
+            
             // chunk_size, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -746,6 +766,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
             }
+            
             // mw, only one per vhost
             if (!srs_directive_equals(new_vhost->get("mw_latency"), old_vhost->get("mw_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -757,6 +778,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mw success.", vhost.c_str());
             }
+            
             // smi(send_min_interval), only one per vhost
             if (!srs_directive_equals(new_vhost->get("send_min_interval"), old_vhost->get("send_min_interval"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -768,6 +790,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload smi success.", vhost.c_str());
             }
+            
             // tcp_nodelay, only one per vhost
             if (!srs_directive_equals(new_vhost->get("tcp_nodelay"), old_vhost->get("tcp_nodelay"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -779,6 +802,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload tcp_nodelay success.", vhost.c_str());
             }
+            
             // publish_1stpkt_timeout, only one per vhost
             if (!srs_directive_equals(new_vhost->get("publish_1stpkt_timeout"), old_vhost->get("publish_1stpkt_timeout"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -790,6 +814,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload p1stpt success.", vhost.c_str());
             }
+            
             // publish_normal_timeout, only one per vhost
             if (!srs_directive_equals(new_vhost->get("publish_normal_timeout"), old_vhost->get("publish_normal_timeout"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -801,6 +826,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload pnt success.", vhost.c_str());
             }
+            
             // min_latency, only one per vhost
             if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -812,6 +838,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload min_latency success.", vhost.c_str());
             }
+            
             // http, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -823,6 +850,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload http success.", vhost.c_str());
             }
+            
             // http_static, only one per vhost.
             // @remark, http_static introduced as alias of http.
             if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
@@ -835,6 +863,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload http_static success.", vhost.c_str());
             }
+            
             // http_remux, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http_remux"), old_vhost->get("http_remux"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -846,10 +875,12 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload http_remux success.", vhost.c_str());
             }
+            
             // transcode, many per vhost.
             if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
             }
+            
             // ingest, many per vhost.
             if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
@@ -1799,7 +1830,7 @@ int SrsConfig::check_config()
                 && n != "publish_1stpkt_timeout" && n != "publish_normal_timeout"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
-                && n != "hds"
+                && n != "hds" && n != "exec"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -1811,17 +1842,25 @@ int SrsConfig::check_config()
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
                         && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
-                        ) {
+                    ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "exec") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "publish") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost exec directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
             } else if (n == "mr") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "latency"
-                        ) {
+                    if (m != "enabled" && m != "latency") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost mr directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -1830,9 +1869,7 @@ int SrsConfig::check_config()
             } else if (n == "ingest") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "input" && m != "ffmpeg"
-                        && m != "engine"
-                        ) {
+                    if (m != "enabled" && m != "input" && m != "ffmpeg" && m != "engine") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3345,6 +3382,52 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     }
     
     return conf->arg0();
+}
+
+SrsConfDirective* SrsConfig::get_exec(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("exec");
+}
+
+bool SrsConfig::get_exec_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_exec(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+vector<SrsConfDirective*> SrsConfig::get_exec_publishs(string vhost)
+{
+    vector<SrsConfDirective*> eps;
+    
+    SrsConfDirective* conf = get_exec(vhost);
+    if (!conf) {
+        return eps;
+    }
+    
+    for (int i = 0; i < (int)conf->directives.size(); i++) {
+        SrsConfDirective* ep = conf->at(i);
+        if (ep->name == "publish") {
+            eps.push_back(ep);
+        }
+    }
+    
+    return eps;
 }
 
 vector<SrsConfDirective*> SrsConfig::get_ingesters(string vhost)

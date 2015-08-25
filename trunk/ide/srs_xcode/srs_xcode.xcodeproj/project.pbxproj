@@ -79,6 +79,7 @@
 		3C36DB5B1ABD1CB90066CCAF /* srs_lib_bandwidth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C36DB551ABD1CB90066CCAF /* srs_lib_bandwidth.cpp */; };
 		3C36DB5C1ABD1CB90066CCAF /* srs_lib_simple_socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C36DB571ABD1CB90066CCAF /* srs_lib_simple_socket.cpp */; };
 		3C36DB5D1ABD1CB90066CCAF /* srs_librtmp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C36DB591ABD1CB90066CCAF /* srs_librtmp.cpp */; };
+		3C4AB9331B8C9148006627D3 /* srs_app_ng_exec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C4AB9311B8C9148006627D3 /* srs_app_ng_exec.cpp */; };
 		3C4F97121B8B466D00FF0E46 /* srs_app_process.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C4F97101B8B466D00FF0E46 /* srs_app_process.cpp */; };
 		3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C5265B21B241BF0009CA186 /* srs_core_mem_watch.cpp */; };
 		3C663F0F1AB0155100286D8B /* srs_aac_raw_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */; };
@@ -329,6 +330,9 @@
 		3C36DB581ABD1CB90066CCAF /* srs_lib_simple_socket.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_lib_simple_socket.hpp; path = ../../../src/libs/srs_lib_simple_socket.hpp; sourceTree = "<group>"; };
 		3C36DB591ABD1CB90066CCAF /* srs_librtmp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_librtmp.cpp; path = ../../../src/libs/srs_librtmp.cpp; sourceTree = "<group>"; };
 		3C36DB5A1ABD1CB90066CCAF /* srs_librtmp.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_librtmp.hpp; path = ../../../src/libs/srs_librtmp.hpp; sourceTree = "<group>"; };
+		3C4AB9311B8C9148006627D3 /* srs_app_ng_exec.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_ng_exec.cpp; path = ../../../src/app/srs_app_ng_exec.cpp; sourceTree = "<group>"; };
+		3C4AB9321B8C9148006627D3 /* srs_app_ng_exec.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_ng_exec.hpp; path = ../../../src/app/srs_app_ng_exec.hpp; sourceTree = "<group>"; };
+		3C4AB9341B8C9FF9006627D3 /* exec.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = exec.conf; path = ../../../conf/exec.conf; sourceTree = "<group>"; };
 		3C4F97101B8B466D00FF0E46 /* srs_app_process.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_process.cpp; path = ../../../src/app/srs_app_process.cpp; sourceTree = "<group>"; };
 		3C4F97111B8B466D00FF0E46 /* srs_app_process.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_process.hpp; path = ../../../src/app/srs_app_process.hpp; sourceTree = "<group>"; };
 		3C5265B21B241BF0009CA186 /* srs_core_mem_watch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_core_mem_watch.cpp; path = ../../../src/core/srs_core_mem_watch.cpp; sourceTree = "<group>"; };
@@ -574,6 +578,8 @@
 				3C1232751AAE81D900CE8F6C /* srs_app_log.hpp */,
 				3C1232761AAE81D900CE8F6C /* srs_app_mpegts_udp.cpp */,
 				3C1232771AAE81D900CE8F6C /* srs_app_mpegts_udp.hpp */,
+				3C4AB9311B8C9148006627D3 /* srs_app_ng_exec.cpp */,
+				3C4AB9321B8C9148006627D3 /* srs_app_ng_exec.hpp */,
 				3C1232781AAE81D900CE8F6C /* srs_app_pithy_print.cpp */,
 				3C1232791AAE81D900CE8F6C /* srs_app_pithy_print.hpp */,
 				3C4F97101B8B466D00FF0E46 /* srs_app_process.cpp */,
@@ -676,6 +682,7 @@
 		3C1EE6AF1AB107EE00576EE9 /* conf */ = {
 			isa = PBXGroup;
 			children = (
+				3C4AB9341B8C9FF9006627D3 /* exec.conf */,
 				3C1EE6B01AB1080900576EE9 /* bandwidth.conf */,
 				3C1EE6B11AB1080900576EE9 /* console.conf */,
 				3C1EE6B21AB1080900576EE9 /* demo.19350.conf */,
@@ -902,6 +909,7 @@
 				3C689F981AB6AAAC00C9CEEE /* key.c in Sources */,
 				3C12329B1AAE81D900CE8F6C /* srs_app_ffmpeg.cpp in Sources */,
 				3C1232421AAE81A400CE8F6C /* srs_rtmp_amf0.cpp in Sources */,
+				3C4AB9331B8C9148006627D3 /* srs_app_ng_exec.cpp in Sources */,
 				3C1232AA1AAE81D900CE8F6C /* srs_app_pithy_print.cpp in Sources */,
 				3C12329C1AAE81D900CE8F6C /* srs_app_forward.cpp in Sources */,
 				3C1232251AAE814D00CE8F6C /* srs_kernel_file.cpp in Sources */,

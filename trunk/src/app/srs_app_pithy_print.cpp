@@ -108,6 +108,8 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_HTTP_STREAM 9
 // the pithy stage for all http stream cache.
 #define SRS_CONSTS_STAGE_HTTP_STREAM_CACHE 10
+// for the ng-exec stage.
+#define SRS_CONSTS_STAGE_EXEC 11
 
 SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
 {
@@ -132,6 +134,11 @@ SrsPithyPrint* SrsPithyPrint::create_forwarder()
 SrsPithyPrint* SrsPithyPrint::create_encoder()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_ENCODER);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_exec()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_EXEC);
 }
 
 SrsPithyPrint* SrsPithyPrint::create_ingester()

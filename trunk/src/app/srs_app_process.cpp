@@ -62,7 +62,7 @@ int SrsProcess::initialize(string binary, vector<string> argv)
 {
     int ret = ERROR_SUCCESS;
     
-    cli = bin = binary;
+    bin = binary;
     
     for (int i = 0; i < (int)argv.size(); i++) {
         std::string ffp = argv[i];

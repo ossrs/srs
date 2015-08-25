@@ -219,6 +219,7 @@ Supported operating systems and hardware:
 1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 1. [experiment] Support [remote console](http://ossrs.net:1985/console), read [srs-ngb][srs-ngb].
+1. Support nginx-rtmp style exec, read [bug #367][bug #367].
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -344,6 +345,7 @@ Remark:
 
 ## History
 
+* v3.0, 2015-08-25, fix [#367](https://github.com/simple-rtmp-server/srs/issues/367), support nginx-rtmp exec. 3.0.1
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0) released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380](https://github.com/simple-rtmp-server/srs/issues/380), srs-librtmp send sequence header when sps or pps changed.
@@ -998,6 +1000,7 @@ Winlin
 [bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
+[bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
 
 
 [contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact

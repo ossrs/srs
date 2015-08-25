@@ -208,8 +208,7 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     
     // enabled
     if (!_srs_config->get_transcode_enabled(conf)) {
-        srs_trace("ignore the disabled transcode: %s", 
-            conf->arg0().c_str());
+        srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
         return ret;
     }
     

@@ -51,6 +51,7 @@ class SrsStSocket;
 class SrsRtmpServer;
 class SrsEdgeProxyContext;
 class SrsMessageArray;
+class SrsNgExec;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -469,8 +470,11 @@ private:
     SrsEncoder* encoder;
 #endif
 #ifdef SRS_AUTO_HDS
+    // adobe hds(http dynamic streaming).
     SrsHds *hds;
 #endif
+    // nginx-rtmp exec feature.
+    SrsNgExec* ng_exec;
     // edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -524,6 +528,7 @@ public:
     virtual int on_reload_vhost_hds(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);
     virtual int on_reload_vhost_transcode(std::string vhost);
+    virtual int on_reload_vhost_exec(std::string vhost);
 // for the tools callback
 public:
     // for the SrsForwarder to callback to request the sequence headers.

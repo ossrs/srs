@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <vector>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -282,6 +283,25 @@ bool srs_string_starts_with(string str, string flag)
 bool srs_string_contains(string str, string flag)
 {
     return str.find(flag) != string::npos;
+}
+
+vector<string> srs_string_split(string str, string flag)
+{
+    vector<string> arr;
+    
+    size_t pos;
+    string s = str;
+    
+    while ((pos = s.find(flag)) != string::npos) {
+        arr.push_back(s.substr(0, pos));
+        s = s.substr(pos + 1);
+    }
+    
+    if (!s.empty()) {
+        arr.push_back(s);
+    }
+    
+    return arr;
 }
 
 int srs_do_create_dir_recursively(string dir)

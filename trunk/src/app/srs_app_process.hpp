@@ -38,7 +38,7 @@
  *      // the binary is the process to fork.
  *      binary = "./objs/ffmpeg/bin/ffmpeg";
  *      // where argv is a array contains each params.
- *      argv = ["-i", "in.flv", "1", ">", "/dev/null", "2", ">", "/dev/null"];
+ *      argv = ["./objs/ffmpeg/bin/ffmpeg", "-i", "in.flv", "1", ">", "/dev/null", "2", ">", "/dev/null"];
  *
  *      process = new SrsProcess();
  *      if ((ret = process->initialize(binary, argv)) != ERROR_SUCCESS) { return ret; }
@@ -71,6 +71,8 @@ public:
     virtual bool started();
     /**
      * initialize the process with binary and argv.
+     * @param binary the binary path to exec.
+     * @param argv the argv for binary path, the argv[0] generally is the binary.
      */
     virtual int initialize(std::string binary, std::vector<std::string> argv);
 public:

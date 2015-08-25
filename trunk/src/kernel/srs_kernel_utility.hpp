@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 class SrsStream;
 class SrsBitStream;
@@ -69,6 +70,8 @@ extern bool srs_string_ends_with(std::string str, std::string flag);
 extern bool srs_string_starts_with(std::string str, std::string flag);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
+// split the string by flag to array.
+extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);

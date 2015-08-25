@@ -168,6 +168,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_LOG_HTTP_STREAM_CACHE "HTC"
 // stream caster log id.
 #define SRS_CONSTS_LOG_STREAM_CASTER "SCS"
+// the nginx exec log id.
+#define SRS_CONSTS_LOG_EXEC "EXE"
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////

@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_utility.hpp>
+#include <srs_app_ng_exec.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -921,6 +922,7 @@ SrsSource::SrsSource()
     publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
     aggregate_stream = new SrsStream();
+    ng_exec = new SrsNgExec();
     
     is_monotonically_increase = false;
     last_packet_time = 0;
@@ -955,6 +957,7 @@ SrsSource::~SrsSource()
     srs_freep(publish_edge);
     srs_freep(gop_cache);
     srs_freep(aggregate_stream);
+    srs_freep(ng_exec);
     
 #ifdef SRS_AUTO_HLS
     srs_freep(hls);
@@ -1255,6 +1258,24 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
     }
     srs_trace("vhost %s transcode reload success", vhost.c_str());
 #endif
+    
+    return ret;
+}
+
+int SrsSource::on_reload_vhost_exec(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (_req->vhost != vhost) {
+        return ret;
+    }
+    
+    ng_exec->on_unpublish();
+    if ((ret = ng_exec->on_publish(_req)) != ERROR_SUCCESS) {
+        srs_error("start exec failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s exec reload success", vhost.c_str());
     
     return ret;
 }
@@ -2057,6 +2078,12 @@ int SrsSource::on_publish()
         return ret;
     }
 #endif
+    
+    // TODO: FIXME: use initialize to set req.
+    if ((ret = ng_exec->on_publish(_req)) != ERROR_SUCCESS) {
+        srs_error("start exec failed. ret=%d", ret);
+        return ret;
+    }
 
     // notify the handler.
     srs_assert(handler);
@@ -2089,6 +2116,8 @@ void SrsSource::on_unpublish()
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
 #endif
+    
+    ng_exec->on_unpublish();
 
     // only clear the gop cache,
     // donot clear the sequence header, for it maybe not changed,

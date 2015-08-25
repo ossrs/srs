@@ -90,6 +90,7 @@ public:
     static SrsPithyPrint* create_hls();
     static SrsPithyPrint* create_forwarder();
     static SrsPithyPrint* create_encoder();
+    static SrsPithyPrint* create_exec();
     static SrsPithyPrint* create_ingester();
     static SrsPithyPrint* create_edge();
     static SrsPithyPrint* create_caster();

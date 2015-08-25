@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <stdlib.h>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -237,6 +238,22 @@ std::string srs_generate_stream_url(std::string vhost, std::string app, std::str
     url += stream;
 
     return url;
+}
+
+string srs_generate_rtmp_url(string server, int port, string vhost, string app, string stream)
+{
+    std::stringstream ss;
+    
+    ss << "rtmp://" << server << ":" << std::dec << port << "/" << app;
+    
+    // when default or server is vhost, donot specifies the vhost in params.
+    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost && server != vhost) {
+        ss << "...vhost..." << vhost;
+    }
+    
+    ss << "/" << stream;
+    
+    return ss.str();
 }
 
 int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
