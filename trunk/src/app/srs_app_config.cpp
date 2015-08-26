@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_kernel_file.hpp>
 
 using namespace _srs_internal;
 
@@ -238,6 +239,97 @@ bool SrsConfDirective::is_stream_caster()
 int SrsConfDirective::parse(SrsConfigBuffer* buffer)
 {
     return parse_conf(buffer, parse_file);
+}
+
+int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
+{
+    int ret = ERROR_SUCCESS;
+    
+    static char SPACE = SRS_CONSTS_SP;
+    static char SEMICOLON = SRS_CONSTS_SE;
+    static char LF = SRS_CONSTS_LF;
+    static char LB = SRS_CONSTS_LB;
+    static char RB = SRS_CONSTS_RB;
+    static const char* INDENT = "    ";
+    
+    // for level0 directive, only contains sub directives.
+    if (level > 0) {
+        // indent by (level - 1) * 4 space.
+        for (int i = 0; i < level - 1; i++) {
+            if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        // directive name.
+        if ((ret = writer->write((char*)name.c_str(), (int)name.length(), NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (!args.empty() && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // directive args.
+        for (int i = 0; i < (int)args.size(); i++) {
+            std::string& arg = args.at(i);
+            if ((ret = writer->write((char*)arg.c_str(), (int)arg.length(), NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            if (i < (int)args.size() - 1 && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        // native directive, without sub directives.
+        if (directives.empty()) {
+            if ((ret = writer->write((char*)&SEMICOLON, 1, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+    }
+    
+    // persistence all sub directives.
+    if (level > 0) {
+        if (!directives.empty()) {
+            if ((ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            if ((ret = writer->write((char*)&LB, 1, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    for (int i = 0; i < (int)directives.size(); i++) {
+        SrsConfDirective* dir = directives.at(i);
+        if ((ret = dir->persistence(writer, level + 1)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    if (level > 0 && !directives.empty()) {
+        // indent by (level - 1) * 4 space.
+        for (int i = 0; i < level - 1; i++) {
+            if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        if ((ret = writer->write((char*)&RB, 1, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    
+    return ret;
 }
 
 // see: ngx_conf_parse
@@ -1424,7 +1516,31 @@ int SrsConfig::parse_options(int argc, char** argv)
 int SrsConfig::persistence()
 {
     int ret = ERROR_SUCCESS;
-    // TODO: FIXME: implements it.
+    
+    // write to a tmp file, then mv to the config.
+    std::string path = config_file + ".tmp";
+    
+    // open the tmp file for persistence
+    SrsFileWriter fw;
+    if ((ret = fw.open(path)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // persistence root directive to writer.
+    if ((ret = root->persistence(&fw, 0)) != ERROR_SUCCESS) {
+        ::unlink(path.c_str());
+        return ret;
+    }
+    
+    // rename the config file.
+    if (::rename(path.c_str(), config_file.c_str()) < 0) {
+        ::unlink(path.c_str());
+        
+        ret = ERROR_SYSTEM_CONFIG_PERSISTENCE;
+        srs_error("rename config from %s to %s failed. ret=%d", path.c_str(), config_file.c_str(), ret);
+        return ret;
+    }
+    
     return ret;
 }
 

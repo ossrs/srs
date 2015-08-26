@@ -194,6 +194,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_CR '\r' // 0x0D
 // LF             = <US-ASCII LF, linefeed (10)>
 #define SRS_CONSTS_LF '\n' // 0x0A
+// SP             = <US-ASCII SP, space>
+#define SRS_CONSTS_SP ' ' // 0x20
+// SE             = <US-ASCII SE, semicolon>
+#define SRS_CONSTS_SE ';' // 0x3b
+// LB             = <US-ASCII SE, left-brace>
+#define SRS_CONSTS_LB '{' // 0x7b
+// RB             = <US-ASCII SE, right-brace>
+#define SRS_CONSTS_RB '}' // 0x7d
 
 ///////////////////////////////////////////////////////////
 // HTTP consts values

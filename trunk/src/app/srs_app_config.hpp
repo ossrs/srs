@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
+class SrsFileWriter;
+
 namespace _srs_internal
 {
     class SrsConfigBuffer;
@@ -136,6 +138,11 @@ public:
     * parse config directive from file buffer.
     */
     virtual int parse(_srs_internal::SrsConfigBuffer* buffer);
+    /**
+     * persistence the directive to writer.
+     * @param level, the root is level0, all its directives are level1, and so on.
+     */
+    virtual int persistence(SrsFileWriter* writer, int level);
 // private parse.
 private:
     /**
