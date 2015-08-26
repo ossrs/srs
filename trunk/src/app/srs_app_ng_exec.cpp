@@ -177,6 +177,7 @@ void SrsNgExec::clear_exec_publish()
         SrsProcess* ep = *it;
         srs_freep(ep);
     }
+    exec_publishs.clear();
 }
 
 void SrsNgExec::show_exec_log_message()
