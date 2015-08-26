@@ -274,8 +274,11 @@ int srs_kill_forced(int& pid)
     // other signals, directly exit(123), for example:
     //        9) SIGKILL    15) SIGTERM
     int status = 0;
-    if (waitpid(pid, &status, 0) < 0) {
-        return ERROR_SYSTEM_KILL;
+    // @remark when we use SIGKILL to kill process, it must be killed,
+    //      so we always wait it to quit by infinite loop.
+    while (waitpid(pid, &status, 0) < 0) {
+        st_usleep(10 * 1000);
+        continue;
     }
     
     srs_trace("SIGKILL stop process pid=%d ok.", pid);
