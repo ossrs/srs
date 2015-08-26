@@ -1421,6 +1421,13 @@ int SrsConfig::parse_options(int argc, char** argv)
     return ret;
 }
 
+int SrsConfig::persistence()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
 string SrsConfig::config()
 {
     return config_file;

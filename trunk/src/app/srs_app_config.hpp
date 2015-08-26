@@ -284,12 +284,16 @@ private:
 // parse options and file
 public:
     /**
-    * parse the cli, the main(argc,argv) function.
-    */
+     * parse the cli, the main(argc,argv) function.
+     */
     virtual int parse_options(int argc, char** argv);
     /**
-    * get the config file path.
-    */
+     * persistence current config to file.
+     */
+    virtual int persistence();
+    /**
+     * get the config file path.
+     */
     virtual std::string config();
 private:
     /**

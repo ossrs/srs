@@ -50,7 +50,13 @@ using namespace std;
 #include <srs_core_mem_watch.hpp>
 
 // signal defines.
-#define SIGNAL_RELOAD SIGHUP
+// reload the config file and apply new config.
+#define SRS_SIGNAL_RELOAD SIGHUP
+// terminate the srs with dispose to detect memory leak for gmp.
+#define SRS_SIGNAL_DISPOSE SIGUSR2
+// persistence the config in memory to config file.
+// @see https://github.com/simple-rtmp-server/srs/issues/319#issuecomment-134993922
+#define SRS_SIGNAL_PERSISTENCE_CONFIG SIGUSR1
 
 // system interval in ms,
 // all resolution times should be times togother,
@@ -419,7 +425,7 @@ int SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SIGNAL_RELOAD, &sa, NULL);
+    sigaction(SRS_SIGNAL_RELOAD, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
@@ -434,7 +440,12 @@ int SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SIGUSR2, &sa, NULL);
+    sigaction(SRS_SIGNAL_DISPOSE, &sa, NULL);
+    
+    sa.sa_handler = SrsSignalManager::sig_catcher;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SRS_SIGNAL_PERSISTENCE_CONFIG, &sa, NULL);
     
     srs_trace("signal installed");
     
@@ -481,6 +492,7 @@ ISrsServerCycle::~ISrsServerCycle()
 SrsServer::SrsServer()
 {
     signal_reload = false;
+    signal_persistence_config = false;
     signal_gmc_stop = false;
     signal_gracefully_quit = false;
     pid_fd = -1;
@@ -905,8 +917,13 @@ void SrsServer::remove(SrsConnection* conn)
 
 void SrsServer::on_signal(int signo)
 {
-    if (signo == SIGNAL_RELOAD) {
+    if (signo == SRS_SIGNAL_RELOAD) {
         signal_reload = true;
+        return;
+    }
+    
+    if (signo == SRS_SIGNAL_PERSISTENCE_CONFIG) {
+        signal_persistence_config = true;
         return;
     }
     
@@ -986,13 +1003,25 @@ int SrsServer::do_cycle()
             // do reload the config.
             if (signal_reload) {
                 signal_reload = false;
-                srs_info("get signal reload, to reload the config.");
+                srs_info("get signal to reload the config.");
                 
                 if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
                     srs_error("reload config failed. ret=%d", ret);
                     return ret;
                 }
                 srs_trace("reload config success.");
+            }
+            
+            // do persistence config to file.
+            if (signal_persistence_config) {
+                signal_persistence_config = false;
+                srs_info("get signal to persistence config to file.");
+                
+                if ((ret = _srs_config->persistence()) != ERROR_SUCCESS) {
+                    srs_error("persistence config to file failed. ret=%d", ret);
+                    return ret;
+                }
+                srs_trace("persistence config to file success.");
             }
             
             // notice the stream sources to cycle.
