@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sstream>
 #include <stdlib.h>
+#include <signal.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
