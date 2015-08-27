@@ -23,6 +23,7 @@
 
 #include <srs_app_ng_exec.hpp>
 
+#include <stdlib.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
