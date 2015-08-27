@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_protocol_json.hpp>
 
 using namespace _srs_internal;
 
@@ -275,10 +276,56 @@ char* SrsAmf0Any::human_print(char** pdata, int* psize)
         *pdata = data;
     }
     if (psize) {
-        *psize = str.length();
+        *psize = (int)str.length();
     }
     
     return data;
+}
+
+string SrsAmf0Any::to_json()
+{
+    switch (marker) {
+        case RTMP_AMF0_String: {
+            return "\"" + to_str() + "\"";
+        }
+        case RTMP_AMF0_Boolean: {
+            return to_boolean()? "true":"false";
+        }
+        case RTMP_AMF0_Number: {
+            // len(max int64_t) is 20, plus one "+-."
+            char tmp[22];
+            snprintf(tmp, 22, "%f", to_number());
+            return tmp;
+        }
+        case RTMP_AMF0_Null: {
+            return "null";
+        }
+        case RTMP_AMF0_Undefined: {
+            return "null";
+        }
+        case RTMP_AMF0_Object: {
+            SrsAmf0Object* obj = to_object();
+            return obj->to_json();
+        }
+        case RTMP_AMF0_EcmaArray: {
+            SrsAmf0EcmaArray* arr = to_ecma_array();
+            return arr->to_json();
+        }
+        case RTMP_AMF0_StrictArray: {
+            SrsAmf0StrictArray* arr = to_strict_array();
+            return arr->to_json();
+        }
+        case RTMP_AMF0_Date: {
+            // TODO: FIXME: support amf0 data to json.
+            return "null";
+        }
+        case RTMP_AMF0_Invalid:
+        default: {
+            break;
+        }
+    }
+    
+    return "null";
 }
 
 SrsAmf0Any* SrsAmf0Any::str(const char* value)
@@ -742,6 +789,27 @@ SrsAmf0Any* SrsAmf0Object::copy()
     return copy;
 }
 
+string SrsAmf0Object::to_json()
+{
+    stringstream ss;
+    
+    ss << SRS_JOBJECT_START;
+    
+    for (int i = 0; i < properties->count(); i++) {
+        std::string name = this->key_at(i);
+        SrsAmf0Any* any = this->value_at(i);
+        
+        ss << SRS_JFIELD_NAME(name) << any->to_json();
+        if (i < properties->count() - 1) {
+            ss << SRS_JFIELD_CONT;
+        }
+    }
+    
+    ss << SRS_JOBJECT_END;
+    
+    return ss.str();
+}
+
 void SrsAmf0Object::clear()
 {
     properties->clear();
@@ -943,6 +1011,27 @@ SrsAmf0Any* SrsAmf0EcmaArray::copy()
     return copy;
 }
 
+string SrsAmf0EcmaArray::to_json()
+{
+    stringstream ss;
+    
+    ss << SRS_JOBJECT_START;
+    
+    for (int i = 0; i < properties->count(); i++) {
+        std::string name = this->key_at(i);
+        SrsAmf0Any* any = this->value_at(i);
+        
+        ss << SRS_JFIELD_NAME(name) << any->to_json();
+        if (i < properties->count() - 1) {
+            ss << SRS_JFIELD_CONT;
+        }
+    }
+    
+    ss << SRS_JOBJECT_END;
+    
+    return ss.str();
+}
+
 void SrsAmf0EcmaArray::clear()
 {
     properties->clear();
@@ -1118,6 +1207,27 @@ SrsAmf0Any* SrsAmf0StrictArray::copy()
     return copy;
 }
 
+string SrsAmf0StrictArray::to_json()
+{
+    stringstream ss;
+    
+    ss << SRS_JARRAY_START;
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsAmf0Any* any = properties[i];
+        
+        ss << any->to_json();
+        
+        if (i < (int)properties.size() - 1) {
+            ss << SRS_JFIELD_CONT;
+        }
+    }
+    
+    ss << SRS_JARRAY_END;
+    
+    return ss.str();
+}
+
 void SrsAmf0StrictArray::clear()
 {
     properties.clear();
@@ -1125,7 +1235,7 @@ void SrsAmf0StrictArray::clear()
 
 int SrsAmf0StrictArray::count()
 {
-    return properties.size();
+    return (int)properties.size();
 }
 
 SrsAmf0Any* SrsAmf0StrictArray::at(int index)

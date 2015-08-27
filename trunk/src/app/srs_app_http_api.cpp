@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_app_server.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 int srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -870,6 +871,63 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         srs_trace("raw api trigger reload. ret=%d", ret);
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ret);
+    }
+    
+    // for rpc=config_query, to get the configs of server.
+    //      @param scope the scope to query for config, it can be:
+    //              global, the configs belongs to the root, donot includes any sub directives.
+    //              vhost, the configs for specified vhost by @param vhost.
+    //      @param vhost the vhost name for @param scope is vhost to query config.
+    //              for the default vhost, must be __defaultVhost__
+    if (rpc == "config_query") {
+        std::string scope = r->query_get("scope");
+        std::string vhost = r->query_get("vhost");
+        if (scope.empty() || (scope != "global" && scope != "vhost")) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+            srs_error("raw api config_query invalid scope=%s. ret=%d", scope.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        // config query.
+        SrsAmf0Object* obj = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, obj);
+        
+        obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+        
+        if (scope == "vhost") {
+            // query vhost scope.
+            if (vhost.empty()) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api config_query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
+                return ret;
+            }
+            
+            SrsConfDirective* root = _srs_config->get_root();
+            SrsConfDirective* conf = root->get("vhost", vhost);
+            if (!conf) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api config_query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
+                return ret;
+            }
+            
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("vhost", data);
+            if ((ret = _srs_config->vhost_to_json(conf, data)) != ERROR_SUCCESS) {
+                srs_error("raw api config_query vhost failed. ret=%d", ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else {
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("global", data);
+            
+            // query global scope.
+            if ((ret = _srs_config->global_to_json(data)) != ERROR_SUCCESS) {
+                srs_error("raw api config_query global failed. ret=%d", ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        }
+        
+        return srs_api_response(w, r, obj->to_json());
     }
     
     return ret;

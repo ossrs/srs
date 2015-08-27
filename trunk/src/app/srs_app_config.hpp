@@ -31,10 +31,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 #include <string>
+#include <sstream>
 
 #include <srs_app_reload.hpp>
 
 class SrsFileWriter;
+class SrsAmf0Object;
+class SrsAmf0StrictArray;
+class SrsAmf0Any;
 
 namespace _srs_internal
 {
@@ -143,6 +147,16 @@ public:
      * @param level, the root is level0, all its directives are level1, and so on.
      */
     virtual int persistence(SrsFileWriter* writer, int level);
+    /**
+     * dumps the args[0-N] to array(string).
+     */
+    virtual SrsAmf0StrictArray* dumps_args();
+    /**
+     * dumps arg0 to str, number or boolean.
+     */
+    virtual SrsAmf0Any* dumps_arg0_to_str();
+    virtual SrsAmf0Any* dumps_arg0_to_number();
+    virtual SrsAmf0Any* dumps_arg0_to_boolean();
 // private parse.
 private:
     /**
@@ -298,6 +312,14 @@ public:
      * persistence current config to file.
      */
     virtual int persistence();
+    /**
+     * dumps the global sections to json.
+     */
+    virtual int global_to_json(SrsAmf0Object* obj);
+    /**
+     * dumps the vhost section to json.
+     */
+    virtual int vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj);
     /**
      * get the config file path.
      */

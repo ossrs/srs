@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 using namespace _srs_internal;
 
@@ -330,6 +331,31 @@ int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     
     
     return ret;
+}
+
+SrsAmf0StrictArray* SrsConfDirective::dumps_args()
+{
+    SrsAmf0StrictArray* arr = SrsAmf0Any::strict_array();
+    for (int i = 0; i < (int)args.size(); i++) {
+        string arg = args.at(i);
+        arr->append(SrsAmf0Any::str(arg.c_str()));
+    }
+    return arr;
+}
+
+SrsAmf0Any* SrsConfDirective::dumps_arg0_to_str()
+{
+    return SrsAmf0Any::str(arg0().c_str());
+}
+
+SrsAmf0Any* SrsConfDirective::dumps_arg0_to_number()
+{
+    return SrsAmf0Any::number(::atof(arg0().c_str()));
+}
+
+SrsAmf0Any* SrsConfDirective::dumps_arg0_to_boolean()
+{
+    return SrsAmf0Any::boolean(arg0() == "on");
 }
 
 // see: ngx_conf_parse
@@ -1543,6 +1569,208 @@ int SrsConfig::persistence()
         srs_error("rename config from %s to %s failed. ret=%d", path.c_str(), config_file.c_str(), ret);
         return ret;
     }
+    
+    return ret;
+}
+
+int SrsConfig::global_to_json(SrsAmf0Object* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* dir = root->directives.at(i);
+        if (dir->is_vhost()) {
+            continue;
+        }
+        
+        if (dir->name == "listen") {
+            obj->set(dir->name, dir->dumps_args());
+        } else if (dir->name == "pid") {
+            obj->set(dir->name, dir->dumps_arg0_to_str());
+        } else if (dir->name == "chunk_size") {
+            obj->set(dir->name, dir->dumps_arg0_to_number());
+        } else if (dir->name == "ff_log_dir") {
+            obj->set(dir->name, dir->dumps_arg0_to_str());
+        } else if (dir->name == "srs_log_tank") {
+            obj->set(dir->name, dir->dumps_arg0_to_str());
+        } else if (dir->name == "srs_log_level") {
+            obj->set(dir->name, dir->dumps_arg0_to_str());
+        } else if (dir->name == "srs_log_file") {
+            obj->set(dir->name, dir->dumps_arg0_to_str());
+        } else if (dir->name == "max_connections") {
+            obj->set(dir->name, dir->dumps_arg0_to_number());
+        } else if (dir->name == "daemon") {
+            obj->set(dir->name, dir->dumps_arg0_to_boolean());
+        } else if (dir->name == "utc_time") {
+            obj->set(dir->name, dir->dumps_arg0_to_boolean());
+        } else if (dir->name == "pithy_print_ms") {
+            obj->set(dir->name, dir->dumps_arg0_to_number());
+        } else if (dir->name == "heartbeat") {
+            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            for (int j = 0; j < (int)dir->directives.size(); j++) {
+                SrsConfDirective* sdir = dir->directives.at(j);
+                if (sdir->name == "enabled") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "interval") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                } else if (sdir->name == "url") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "device_id") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "summaries") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                }
+            }
+            obj->set(dir->name, sobj);
+        } else if (dir->name == "stats") {
+            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            for (int j = 0; j < (int)dir->directives.size(); j++) {
+                SrsConfDirective* sdir = dir->directives.at(j);
+                if (sdir->name == "network") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                } else if (sdir->name == "disk") {
+                    sobj->set(sdir->name, sdir->dumps_args());
+                }
+            }
+            obj->set(dir->name, sobj);
+        } else if (dir->name == "http_api") {
+            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            for (int j = 0; j < (int)dir->directives.size(); j++) {
+                SrsConfDirective* sdir = dir->directives.at(j);
+                if (sdir->name == "enabled") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "listen") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "crossdomain") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "raw_api") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                }
+            }
+            obj->set(dir->name, sobj);
+        } else if (dir->name == "http_server") {
+            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            for (int j = 0; j < (int)dir->directives.size(); j++) {
+                SrsConfDirective* sdir = dir->directives.at(j);
+                if (sdir->name == "enabled") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "listen") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "dir") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                }
+            }
+            obj->set(dir->name, sobj);
+        } else if (dir->name == "stream_caster") {
+            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            for (int j = 0; j < (int)dir->directives.size(); j++) {
+                SrsConfDirective* sdir = dir->directives.at(j);
+                if (sdir->name == "enabled") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "caster") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "output") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "listen") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "rtp_port_min") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                } else if (sdir->name == "rtp_port_max") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                }
+            }
+            obj->set(dir->name, sobj);
+        } else {
+            continue;
+        }
+    }
+    
+    SrsAmf0Object* sobjs = SrsAmf0Any::object();
+    int nb_vhosts = 0;
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* dir = root->directives.at(i);
+        if (!dir->is_vhost()) {
+            continue;
+        }
+        
+        nb_vhosts++;
+        SrsAmf0Object* sobj = SrsAmf0Any::object();
+        sobjs->set(dir->arg0(), sobj);
+        
+        sobj->set("enabled", SrsAmf0Any::boolean(get_vhost_enabled(dir->name)));
+        sobj->set("dvr", SrsAmf0Any::boolean(get_dvr_enabled(dir->name)));
+        sobj->set("http_static", SrsAmf0Any::boolean(get_vhost_http_enabled(dir->name)));
+        sobj->set("http_remux", SrsAmf0Any::boolean(get_vhost_http_remux_enabled(dir->name)));
+        sobj->set("hls", SrsAmf0Any::boolean(get_hls_enabled(dir->name)));
+        sobj->set("hds", SrsAmf0Any::boolean(get_hds_enabled(dir->name)));
+        sobj->set("http_hooks", SrsAmf0Any::boolean(get_vhost_http_hooks(dir->name)));
+        sobj->set("exec", SrsAmf0Any::boolean(get_exec_enabled(dir->name)));
+        sobj->set("bandcheck", SrsAmf0Any::boolean(get_bw_check_enabled(dir->name)));
+        sobj->set("origin", SrsAmf0Any::boolean(!get_vhost_is_edge(dir->name)));
+        sobj->set("forward", SrsAmf0Any::boolean(get_forward(dir->name)));
+        
+        sobj->set("security", SrsAmf0Any::boolean(get_security_enabled(dir->name)));
+        sobj->set("refer", SrsAmf0Any::boolean(get_refer(dir->name) || get_refer_play(dir->name) || get_refer_publish(dir->name)));
+        
+        sobj->set("mr", SrsAmf0Any::boolean(get_mr_enabled(dir->name)));
+        sobj->set("min_latency", SrsAmf0Any::boolean(get_realtime_enabled(dir->name)));
+        sobj->set("gop_cache", SrsAmf0Any::boolean(get_gop_cache(dir->name)));
+        sobj->set("tcp_nodelay", SrsAmf0Any::boolean(get_tcp_nodelay(dir->name)));
+        
+        sobj->set("mix_correct", SrsAmf0Any::boolean(get_mix_correct(dir->name)));
+        sobj->set("time_jitter", SrsAmf0Any::boolean(get_time_jitter(dir->name) != SrsRtmpJitterAlgorithmOFF));
+        sobj->set("atc", SrsAmf0Any::boolean(get_atc(dir->name)));
+        
+        bool has_transcode = false;
+        for (int j = 0; !has_transcode && j < (int)dir->directives.size(); j++) {
+            SrsConfDirective* sdir = dir->directives.at(j);
+            if (sdir->name != "transcode") {
+                continue;
+            }
+            
+            if (!get_transcode_enabled(sdir)) {
+                continue;
+            }
+            
+            for (int k = 0; !has_transcode && k < (int)sdir->directives.size(); k++) {
+                SrsConfDirective* ssdir = sdir->directives.at(k);
+                if (ssdir->name != "engine") {
+                    continue;
+                }
+                
+                if (get_engine_enabled(ssdir)) {
+                    has_transcode = true;
+                    break;
+                }
+            }
+        }
+        sobj->set("transcode", SrsAmf0Any::boolean(has_transcode));
+        
+        bool has_ingest = false;
+        for (int j = 0; !has_ingest && j < (int)dir->directives.size(); j++) {
+            SrsConfDirective* sdir = dir->directives.at(j);
+            if (sdir->name != "ingest") {
+                continue;
+            }
+            
+            if (get_ingest_enabled(sdir)) {
+                has_ingest = true;
+                break;
+            }
+        }
+        sobj->set("ingest", SrsAmf0Any::boolean(has_ingest));
+    }
+    
+    obj->set("nb_vhosts", SrsAmf0Any::number(nb_vhosts));
+    obj->set("vhosts", sobjs);
+    
+    return ret;
+}
+
+int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
+{
+    int ret = ERROR_SUCCESS;
     
     return ret;
 }
