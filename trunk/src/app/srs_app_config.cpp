@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_amf0.hpp>
+#include <srs_app_statistic.hpp>
 
 using namespace _srs_internal;
 
@@ -1688,6 +1689,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
     SrsAmf0Object* sobjs = SrsAmf0Any::object();
     int nb_vhosts = 0;
     
+    SrsStatistic* stat = SrsStatistic::instance();
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* dir = root->directives.at(i);
         if (!dir->is_vhost()) {
@@ -1697,6 +1699,9 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         nb_vhosts++;
         SrsAmf0Object* sobj = SrsAmf0Any::object();
         sobjs->set(dir->arg0(), sobj);
+        
+        SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
+        sobj->set("id", SrsAmf0Any::number(svhost? (double)svhost->id : 0));
         
         sobj->set("enabled", SrsAmf0Any::boolean(get_vhost_enabled(dir->name)));
         sobj->set("dvr", SrsAmf0Any::boolean(get_dvr_enabled(dir->name)));

@@ -156,6 +156,7 @@ public:
     static SrsStatistic* instance();
 public:
     virtual SrsStatisticVhost* find_vhost(int vid);
+    virtual SrsStatisticVhost* find_vhost(std::string name);
     virtual SrsStatisticStream* find_stream(int sid);
     virtual SrsStatisticClient* find_client(int cid);
 public:

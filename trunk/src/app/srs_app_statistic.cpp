@@ -275,6 +275,15 @@ SrsStatisticVhost* SrsStatistic::find_vhost(int vid)
     return NULL;
 }
 
+SrsStatisticVhost* SrsStatistic::find_vhost(string name)
+{
+    std::map<string, SrsStatisticVhost*>::iterator it;
+    if ((it = rvhosts.find(name)) != rvhosts.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
 SrsStatisticStream* SrsStatistic::find_stream(int sid)
 {
     std::map<int64_t, SrsStatisticStream*>::iterator it;
