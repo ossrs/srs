@@ -36,6 +36,7 @@ class SrsStSocket;
 class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
+class SrsServer;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
@@ -173,6 +174,17 @@ class SrsGoApiClients : public ISrsHttpHandler
 public:
     SrsGoApiClients();
     virtual ~SrsGoApiClients();
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
+class SrsGoApiRaw : public ISrsHttpHandler
+{
+private:
+    SrsServer* server;
+public:
+    SrsGoApiRaw(SrsServer* svr);
+    virtual ~SrsGoApiRaw();
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };

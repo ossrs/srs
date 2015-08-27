@@ -319,15 +319,19 @@ public:
 // server utilities.
 public:
     /**
-    * callback for signal manager got a signal.
-    * the signal manager convert signal to io message,
-    * whatever, we will got the signo like the orignal signal(int signo) handler.
-    * @remark, direclty exit for SIGTERM.
-    * @remark, do reload for SIGNAL_RELOAD.
-    * @remark, for SIGINT and SIGUSR2:
-    *       no gmc, directly exit.
-    *       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
-    */
+     * callback for signal manager got a signal.
+     * the signal manager convert signal to io message,
+     * whatever, we will got the signo like the orignal signal(int signo) handler.
+     * @param signo the signal number from user, where:
+     *      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGTERM, dispose then quit.
+     *      SRS_SIGNAL_DISPOSE, the SIGUSR2, dispose for gmc.
+     *      SRS_SIGNAL_PERSISTENCE_CONFIG, the SIGUSR1, persistence config to file.
+     *      SRS_SIGNAL_RELOAD, the SIGHUP, reload the config.
+     * @remark, for SIGINT and SRS_SIGNAL_DISPOSE:
+     *       no gmc, directly exit.
+     *       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
+     * @remark, maybe the HTTP RAW API will trigger the on_signal() also.
+     */
     virtual void on_signal(int signo);
 private:
     /**

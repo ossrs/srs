@@ -48,15 +48,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
-
-// signal defines.
-// reload the config file and apply new config.
-#define SRS_SIGNAL_RELOAD SIGHUP
-// terminate the srs with dispose to detect memory leak for gmp.
-#define SRS_SIGNAL_DISPOSE SIGUSR2
-// persistence the config in memory to config file.
-// @see https://github.com/simple-rtmp-server/srs/issues/319#issuecomment-134993922
-#define SRS_SIGNAL_PERSISTENCE_CONFIG SIGUSR1
+#include <srs_kernel_consts.hpp>
 
 // system interval in ms,
 // all resolution times should be times togother,
@@ -430,7 +422,7 @@ int SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
@@ -824,6 +816,9 @@ int SrsServer::http_handle()
     if ((ret = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != ERROR_SUCCESS) {
         return ret;
     }
+    if ((ret = http_api_mux->handle("/api/v1/raw", new SrsGoApiRaw(this))) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // test the request info.
     if ((ret = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != ERROR_SUCCESS) {
@@ -927,7 +922,7 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-    if (signo == SIGINT || signo == SIGUSR2) {
+    if (signo == SIGINT || signo == SRS_SIGNAL_DISPOSE) {
 #ifdef SRS_AUTO_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally.");
         signal_gmc_stop = true;
@@ -941,7 +936,7 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-    if (signo == SIGTERM && !signal_gracefully_quit) {
+    if (signo == SRS_SIGNAL_GRACEFULLY_QUIT && !signal_gracefully_quit) {
         srs_trace("user terminate program, gracefully quit.");
         signal_gracefully_quit = true;
         return;
@@ -982,7 +977,7 @@ int SrsServer::do_cycle()
         for (int i = 0; i < temp_max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
             
-            // gracefully quit for SIGINT or SIGTERM.
+            // gracefully quit for SIGINT or SIGTERM(SRS_SIGNAL_GRACEFULLY_QUIT).
             if (signal_gracefully_quit) {
                 srs_trace("cleanup for gracefully terminate.");
                 return ret;

@@ -42,6 +42,8 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_kernel_consts.hpp>
+#include <srs_app_server.hpp>
 
 int srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -205,6 +207,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             << SRS_JFIELD_STR("vhosts", "manage all vhosts or specified vhost") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("streams", "manage all streams or specified stream") << SRS_JFIELD_CONT
             << SRS_JFIELD_STR("clients", "manage all clients or specified client, default query top 10 clients") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("raw", "raw api for srs, support CUID srs for instance the config") << SRS_JFIELD_CONT
             << SRS_JFIELD_ORG("tests", SRS_JOBJECT_START)
                 << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
@@ -831,6 +834,44 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
 
+    return ret;
+}
+
+SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
+{
+    server = svr;
+}
+
+SrsGoApiRaw::~SrsGoApiRaw()
+{
+}
+
+int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // whether enabled the HTTP RAW API.
+    if (!_srs_config->get_http_api_raw_api()) {
+        ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
+        srs_warn("raw api disabled. ret=%d", ret);
+        return srs_api_response_code(w, r, ret);
+    }
+    
+    // the rpc is required.
+    std::string rpc = r->query_get("rpc");
+    if (rpc.empty() || (rpc != "reload" && rpc != "config_query")) {
+        ret = ERROR_SYSTEM_CONFIG_RAW;
+        srs_error("raw api invalid rpc=%s. ret=%d", rpc.c_str(), ret);
+        return srs_api_response_code(w, r, ret);
+    }
+    
+    // for rpc=reload, trigger the server to reload the config.
+    if (rpc == "reload") {
+        srs_trace("raw api trigger reload. ret=%d", ret);
+        server->on_signal(SRS_SIGNAL_RELOAD);
+        return srs_api_response_code(w, r, ret);
+    }
+    
     return ret;
 }
 

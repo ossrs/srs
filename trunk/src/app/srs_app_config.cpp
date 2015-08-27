@@ -1116,6 +1116,9 @@ int SrsConfig::reload_http_api(SrsConfDirective* old_root)
 {
     int ret = ERROR_SUCCESS;
     
+    // always support reload without additional code:
+    //      crossdomain, raw_api
+    
     // merge config.
     std::vector<ISrsReloadHandler*>::iterator it;
     
@@ -1711,7 +1714,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = get_http_api();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "crossdomain") {
+            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported http_api directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -4291,6 +4294,23 @@ bool SrsConfig::get_http_api_crossdomain()
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_http_api_raw_api()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_http_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("raw_api");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::get_http_stream_enabled()

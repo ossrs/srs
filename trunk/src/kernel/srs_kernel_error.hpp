@@ -98,6 +98,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_CREATE_DIR             1057
 #define ERROR_SYSTEM_KILL                   1058
 #define ERROR_SYSTEM_CONFIG_PERSISTENCE     1059
+#define ERROR_SYSTEM_CONFIG_RAW             1060
+#define ERROR_SYSTEM_CONFIG_RAW_DISABLED    1061
+#define ERROR_SYSTEM_CONFIG_RAW_PARAMS      1062
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

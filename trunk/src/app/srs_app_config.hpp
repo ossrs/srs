@@ -1036,6 +1036,10 @@ public:
     * whether enable crossdomain for http api.
     */
     virtual bool                get_http_api_crossdomain();
+    /**
+     * whether enable the HTTP RAW API.
+     */
+    virtual bool                get_http_api_raw_api();
 // http stream section
 private:
     /**
