@@ -859,6 +859,24 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
+    std::string rpc = r->query_get("rpc");
+    
+    // the object to return for request.
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    
+    // for rpc=raw, to query the raw api config for http api.
+    if (rpc == "raw") {
+        // query global scope.
+        if ((ret = _srs_config->raw_to_json(obj)) != ERROR_SUCCESS) {
+            srs_error("raw api rpc raw failed. ret=%d", ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        return srs_api_response(w, r, obj->to_json());
+    }
+    
     // whether enabled the HTTP RAW API.
     if (!raw_api) {
         ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -867,7 +885,6 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     
     // the rpc is required.
-    std::string rpc = r->query_get("rpc");
     if (rpc.empty() || (rpc != "reload" && rpc != "query" && rpc != "raw")) {
         ret = ERROR_SYSTEM_CONFIG_RAW;
         srs_error("raw api invalid rpc=%s. ret=%d", rpc.c_str(), ret);
@@ -885,22 +902,6 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         srs_trace("raw api trigger reload. ret=%d", ret);
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ret);
-    }
-    
-    // the object to return for request.
-    SrsAmf0Object* obj = SrsAmf0Any::object();
-    SrsAutoFree(SrsAmf0Object, obj);
-    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
-    
-    // for rpc=raw, to query the raw api config for http api.
-    if (rpc == "raw") {
-        // query global scope.
-        if ((ret = _srs_config->raw_to_json(obj)) != ERROR_SUCCESS) {
-            srs_error("raw api rpc raw failed. ret=%d", ret);
-            return srs_api_response_code(w, r, ret);
-        }
-        
-        return srs_api_response(w, r, obj->to_json());
     }
 
     // for rpc=query, to get the configs of server.

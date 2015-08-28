@@ -1806,38 +1806,16 @@ int SrsConfig::raw_to_json(SrsAmf0Object* obj)
     SrsAmf0Object* sobj = SrsAmf0Any::object();
     obj->set("http_api", sobj);
     
-    for (int i = 0; i < (int)root->directives.size(); i++) {
-        SrsConfDirective* dir = root->directives.at(i);
-        
-        if (dir->name != "http_api") {
-            continue;
-        }
-        
-        for (int j = 0; j < (int)dir->directives.size(); j++) {
-            SrsConfDirective* sdir = dir->directives.at(j);
-            if (sdir->name == "enabled") {
-                sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "listen") {
-                sobj->set(sdir->name, sdir->dumps_arg0_to_str());
-            } else if (sdir->name == "crossdomain") {
-                sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "raw_api") {
-                SrsAmf0Object* ssobj = SrsAmf0Any::object();
-                sobj->set(sdir->name, ssobj);
-                
-                for (int k = 0; k < (int)sdir->directives.size(); k++) {
-                    SrsConfDirective* ssdir = sdir->directives.at(k);
-                    if (ssdir->name == "enabled") {
-                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
-                    } else if (ssdir->name == "allow_reload") {
-                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
-                    } else if (ssdir->name == "allow_query") {
-                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
-                    }
-                }
-            }
-        }
-    }
+    sobj->set("enabled", SrsAmf0Any::boolean(get_http_api_enabled()));
+    sobj->set("listen", SrsAmf0Any::str(get_http_api_listen().c_str()));
+    sobj->set("crossdomain", SrsAmf0Any::boolean(get_http_api_crossdomain()));
+    
+    SrsAmf0Object* ssobj = SrsAmf0Any::object();
+    sobj->set("raw_api", ssobj);
+    
+    ssobj->set("enabled", SrsAmf0Any::boolean(get_raw_api()));
+    ssobj->set("allow_reload", SrsAmf0Any::boolean(get_raw_api_allow_reload()));
+    ssobj->set("allow_query", SrsAmf0Any::boolean(get_raw_api_allow_query()));
     
     return ret;
 }
