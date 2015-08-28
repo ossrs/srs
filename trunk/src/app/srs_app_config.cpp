@@ -1197,19 +1197,23 @@ int SrsConfig::reload_http_api(SrsConfDirective* old_root)
         srs_trace("reload enabled modified http_api success.");
         
         if (!srs_directive_equals(old_http_api->get("crossdomain"), new_http_api->get("crossdomain"))) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_http_api_crossdomain()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes http_api crossdomain modified failed. ret=%d", ret);
-                return ret;
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_http_api_crossdomain()) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes http_api crossdomain modified failed. ret=%d", ret);
+                    return ret;
+                }
             }
         }
         srs_trace("reload crossdomain modified http_api success.");
         
         if (!srs_directive_equals(old_http_api->get("raw_api"), new_http_api->get("raw_api"))) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_http_api_raw_api()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes http_api raw_api modified failed. ret=%d", ret);
-                return ret;
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_http_api_raw_api()) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes http_api raw_api modified failed. ret=%d", ret);
+                    return ret;
+                }
             }
         }
         srs_trace("reload raw_api modified http_api success.");
