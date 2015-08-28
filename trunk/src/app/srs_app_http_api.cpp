@@ -78,13 +78,12 @@ int srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string da
 
 int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, int code)
 {
-    std::stringstream ss;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(code)
-        << SRS_JOBJECT_END;
+    obj->set("code", SrsAmf0Any::number(code));
     
-    return srs_api_response_jsonp(w, callback, ss.str());
+    return srs_api_response_jsonp(w, callback, obj->to_json());
 }
 
 int srs_api_response_json(ISrsHttpResponseWriter* w, string data)
@@ -99,13 +98,12 @@ int srs_api_response_json(ISrsHttpResponseWriter* w, string data)
 
 int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
 {
-    std::stringstream ss;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ERROR(code)
-        << SRS_JOBJECT_END;
+    obj->set("code", SrsAmf0Any::number(code));
     
-    return srs_api_response_json(w, ss.str());
+    return srs_api_response_json(w, obj->to_json());
 }
 
 int srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json)
@@ -143,17 +141,19 @@ SrsGoApiRoot::~SrsGoApiRoot()
 int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
-            << SRS_JFIELD_STR("api", "the api root")
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* urls = SrsAmf0Any::object();
+    obj->set("urls", urls);
+    
+    urls->set("api", SrsAmf0Any::str("the api root"));
         
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiApi::SrsGoApiApi()
@@ -167,17 +167,19 @@ SrsGoApiApi::~SrsGoApiApi()
 int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
-            << SRS_JFIELD_STR("v1", "the api version 1.0")
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
-        
-    return srs_api_response(w, r, ss.str());
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* urls = SrsAmf0Any::object();
+    obj->set("urls", urls);
+    
+    urls->set("v1", SrsAmf0Any::str("the api version 1.0"));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiV1::SrsGoApiV1()
@@ -191,35 +193,39 @@ SrsGoApiV1::~SrsGoApiV1()
 int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
-            << SRS_JFIELD_STR("versions", "the version of SRS") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("summaries", "the summary(pid, argv, pwd, cpu, mem) of SRS") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("rusages", "the rusage of SRS") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("self_proc_stats", "the self process stats") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("system_proc_stats", "the system process stats") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("meminfos", "the meminfo of system") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("authors", "the license, copyright, authors and contributors") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("features", "the supported features of SRS") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("vhosts", "manage all vhosts or specified vhost") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("streams", "manage all streams or specified stream") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("clients", "manage all clients or specified client, default query top 10 clients") << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("raw", "raw api for srs, support CUID srs for instance the config") << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("tests", SRS_JOBJECT_START)
-                << SRS_JFIELD_STR("requests", "show the request info") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("errors", "always return an error 100") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("redirects", "always redirect to /api/v1/test/errors") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("[vhost]", "http vhost for http://error.srs.com:1985/api/v1/tests/errors")
-            << SRS_JOBJECT_END
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    return srs_api_response(w, r, ss.str());
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* urls = SrsAmf0Any::object();
+    obj->set("urls", urls);
+    
+    urls->set("versions", SrsAmf0Any::str("the version of SRS"));
+    urls->set("summaries", SrsAmf0Any::str("the summary(pid, argv, pwd, cpu, mem) of SRS"));
+    urls->set("rusages", SrsAmf0Any::str("the rusage of SRS"));
+    urls->set("self_proc_stats", SrsAmf0Any::str("the self process stats"));
+    urls->set("system_proc_stats", SrsAmf0Any::str("the system process stats"));
+    urls->set("meminfos", SrsAmf0Any::str("the meminfo of system"));
+    urls->set("authors", SrsAmf0Any::str("the license, copyright, authors and contributors"));
+    urls->set("features", SrsAmf0Any::str("the supported features of SRS"));
+    urls->set("requests", SrsAmf0Any::str("the request itself, for http debug"));
+    urls->set("vhosts", SrsAmf0Any::str("manage all vhosts or specified vhost"));
+    urls->set("streams", SrsAmf0Any::str("manage all streams or specified stream"));
+    urls->set("clients", SrsAmf0Any::str("manage all clients or specified client, default query top 10 clients"));
+    urls->set("raw", SrsAmf0Any::str("raw api for srs, support CUID srs for instance the config"));
+    
+    SrsAmf0Object* tests = SrsAmf0Any::object();
+    obj->set("tests", tests);
+    
+    tests->set("requests", SrsAmf0Any::str("show the request info"));
+    tests->set("errors", SrsAmf0Any::str("always return an error 100"));
+    tests->set("redirects", SrsAmf0Any::str("always redirect to /api/v1/test/errors"));
+    tests->set("[vhost]", SrsAmf0Any::str("http vhost for http://error.srs.com:1985/api/v1/tests/errors"));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiVersion::SrsGoApiVersion()
@@ -233,20 +239,22 @@ SrsGoApiVersion::~SrsGoApiVersion()
 int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("major", VERSION_MAJOR) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("minor", VERSION_MINOR) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("revision", VERSION_REVISION) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    return srs_api_response(w, r, ss.str());
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
+    
+    data->set("major", SrsAmf0Any::number(VERSION_MAJOR));
+    data->set("minor", SrsAmf0Any::number(VERSION_MINOR));
+    data->set("revision", SrsAmf0Any::number(VERSION_REVISION));
+    data->set("version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiSummaries::SrsGoApiSummaries()
@@ -275,36 +283,38 @@ SrsGoApiRusages::~SrsGoApiRusages()
 int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
+    
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
     
     SrsRusage* ru = srs_get_system_rusage();
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (ru->ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sample_time", ru->sample_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_utime", ru->r.ru_utime.tv_sec) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_stime", ru->r.ru_stime.tv_sec) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_maxrss", ru->r.ru_maxrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_ixrss", ru->r.ru_ixrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_idrss", ru->r.ru_idrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_isrss", ru->r.ru_isrss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_minflt", ru->r.ru_minflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_majflt", ru->r.ru_majflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nswap", ru->r.ru_nswap) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_inblock", ru->r.ru_inblock) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_oublock", ru->r.ru_oublock) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_msgsnd", ru->r.ru_msgsnd) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_msgrcv", ru->r.ru_msgrcv) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nsignals", ru->r.ru_nsignals) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nvcsw", ru->r.ru_nvcsw) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ru_nivcsw", ru->r.ru_nivcsw)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    data->set("ok", SrsAmf0Any::boolean(ru->ok? "true":"false"));
+    data->set("sample_time", SrsAmf0Any::number(ru->sample_time));
+    data->set("ru_utime", SrsAmf0Any::number(ru->r.ru_utime.tv_sec));
+    data->set("ru_stime", SrsAmf0Any::number(ru->r.ru_stime.tv_sec));
+    data->set("ru_maxrss", SrsAmf0Any::number(ru->r.ru_maxrss));
+    data->set("ru_ixrss", SrsAmf0Any::number(ru->r.ru_ixrss));
+    data->set("ru_idrss", SrsAmf0Any::number(ru->r.ru_idrss));
+    data->set("ru_isrss", SrsAmf0Any::number(ru->r.ru_isrss));
+    data->set("ru_minflt", SrsAmf0Any::number(ru->r.ru_minflt));
+    data->set("ru_majflt", SrsAmf0Any::number(ru->r.ru_majflt));
+    data->set("ru_nswap", SrsAmf0Any::number(ru->r.ru_nswap));
+    data->set("ru_inblock", SrsAmf0Any::number(ru->r.ru_inblock));
+    data->set("ru_oublock", SrsAmf0Any::number(ru->r.ru_oublock));
+    data->set("ru_msgsnd", SrsAmf0Any::number(ru->r.ru_msgsnd));
+    data->set("ru_msgrcv", SrsAmf0Any::number(ru->r.ru_msgrcv));
+    data->set("ru_nsignals", SrsAmf0Any::number(ru->r.ru_nsignals));
+    data->set("ru_nvcsw", SrsAmf0Any::number(ru->r.ru_nvcsw));
+    data->set("ru_nivcsw", SrsAmf0Any::number(ru->r.ru_nivcsw));
     
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiSelfProcStats::SrsGoApiSelfProcStats()
@@ -318,65 +328,70 @@ SrsGoApiSelfProcStats::~SrsGoApiSelfProcStats()
 int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
+    
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
     
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (u->ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sample_time", u->sample_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("percent", u->percent) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("pid", u->pid) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("comm", u->comm) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("state", u->state) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("ppid", u->ppid) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("pgrp", u->pgrp) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("session", u->session) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("tty_nr", u->tty_nr) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("tpgid", u->tpgid) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("flags", u->flags) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("minflt", u->minflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cminflt", u->cminflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("majflt", u->majflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cmajflt", u->cmajflt) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("utime", u->utime) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("stime", u->stime) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cutime", u->cutime) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cstime", u->cstime) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("priority", u->priority) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("nice", u->nice) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("num_threads", u->num_threads) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("itrealvalue", u->itrealvalue) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("starttime", u->starttime) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("vsize", u->vsize) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("rss", u->rss) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("rsslim", u->rsslim) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("startcode", u->startcode) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("endcode", u->endcode) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("startstack", u->startstack) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("kstkesp", u->kstkesp) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("kstkeip", u->kstkeip) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("signal", u->signal) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("blocked", u->blocked) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sigignore", u->sigignore) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sigcatch", u->sigcatch) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("wchan", u->wchan) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("nswap", u->nswap) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cnswap", u->cnswap) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("exit_signal", u->exit_signal) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("processor", u->processor) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("rt_priority", u->rt_priority) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("policy", u->policy) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("delayacct_blkio_ticks", u->delayacct_blkio_ticks) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("guest_time", u->guest_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("cguest_time", u->cguest_time)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    string state;
+    state += (char)u->state;
     
-    return srs_api_response(w, r, ss.str());
+    data->set("ok", SrsAmf0Any::boolean(u->ok? "true":"false"));
+    data->set("sample_time", SrsAmf0Any::number(u->sample_time));
+    data->set("percent", SrsAmf0Any::number(u->percent));
+    data->set("pid", SrsAmf0Any::number(u->pid));
+    data->set("comm", SrsAmf0Any::str(u->comm));
+    data->set("state", SrsAmf0Any::str(state.c_str()));
+    data->set("ppid", SrsAmf0Any::number(u->ppid));
+    data->set("pgrp", SrsAmf0Any::number(u->pgrp));
+    data->set("session", SrsAmf0Any::number(u->session));
+    data->set("tty_nr", SrsAmf0Any::number(u->tty_nr));
+    data->set("tpgid", SrsAmf0Any::number(u->tpgid));
+    data->set("flags", SrsAmf0Any::number(u->flags));
+    data->set("minflt", SrsAmf0Any::number(u->minflt));
+    data->set("cminflt", SrsAmf0Any::number(u->cminflt));
+    data->set("majflt", SrsAmf0Any::number(u->majflt));
+    data->set("cmajflt", SrsAmf0Any::number(u->cmajflt));
+    data->set("utime", SrsAmf0Any::number(u->utime));
+    data->set("stime", SrsAmf0Any::number(u->stime));
+    data->set("cutime", SrsAmf0Any::number(u->cutime));
+    data->set("cstime", SrsAmf0Any::number(u->cstime));
+    data->set("priority", SrsAmf0Any::number(u->priority));
+    data->set("nice", SrsAmf0Any::number(u->nice));
+    data->set("num_threads", SrsAmf0Any::number(u->num_threads));
+    data->set("itrealvalue", SrsAmf0Any::number(u->itrealvalue));
+    data->set("starttime", SrsAmf0Any::number(u->starttime));
+    data->set("vsize", SrsAmf0Any::number(u->vsize));
+    data->set("rss", SrsAmf0Any::number(u->rss));
+    data->set("rsslim", SrsAmf0Any::number(u->rsslim));
+    data->set("startcode", SrsAmf0Any::number(u->startcode));
+    data->set("endcode", SrsAmf0Any::number(u->endcode));
+    data->set("startstack", SrsAmf0Any::number(u->startstack));
+    data->set("kstkesp", SrsAmf0Any::number(u->kstkesp));
+    data->set("kstkeip", SrsAmf0Any::number(u->kstkeip));
+    data->set("signal", SrsAmf0Any::number(u->signal));
+    data->set("blocked", SrsAmf0Any::number(u->blocked));
+    data->set("sigignore", SrsAmf0Any::number(u->sigignore));
+    data->set("sigcatch", SrsAmf0Any::number(u->sigcatch));
+    data->set("wchan", SrsAmf0Any::number(u->wchan));
+    data->set("nswap", SrsAmf0Any::number(u->nswap));
+    data->set("cnswap", SrsAmf0Any::number(u->cnswap));
+    data->set("exit_signal", SrsAmf0Any::number(u->exit_signal));
+    data->set("processor", SrsAmf0Any::number(u->processor));
+    data->set("rt_priority", SrsAmf0Any::number(u->rt_priority));
+    data->set("policy", SrsAmf0Any::number(u->policy));
+    data->set("delayacct_blkio_ticks", SrsAmf0Any::number(u->delayacct_blkio_ticks));
+    data->set("guest_time", SrsAmf0Any::number(u->guest_time));
+    data->set("cguest_time", SrsAmf0Any::number(u->cguest_time));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiSystemProcStats::SrsGoApiSystemProcStats()
@@ -390,30 +405,32 @@ SrsGoApiSystemProcStats::~SrsGoApiSystemProcStats()
 int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
+    
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
     
     SrsProcSystemStat* s = srs_get_system_proc_stat();
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (s->ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sample_time", s->sample_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("percent", s->percent) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("user", s->user) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("nice", s->nice) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sys", s->sys) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("idle", s->idle) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("iowait", s->iowait) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("irq", s->irq) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("softirq", s->softirq) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("steal", s->steal) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("guest", s->guest)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    data->set("ok", SrsAmf0Any::boolean(s->ok? "true":"false"));
+    data->set("sample_time", SrsAmf0Any::number(s->sample_time));
+    data->set("percent", SrsAmf0Any::number(s->percent));
+    data->set("user", SrsAmf0Any::number(s->user));
+    data->set("nice", SrsAmf0Any::number(s->nice));
+    data->set("sys", SrsAmf0Any::number(s->sys));
+    data->set("idle", SrsAmf0Any::number(s->idle));
+    data->set("iowait", SrsAmf0Any::number(s->iowait));
+    data->set("irq", SrsAmf0Any::number(s->irq));
+    data->set("softirq", SrsAmf0Any::number(s->softirq));
+    data->set("steal", SrsAmf0Any::number(s->steal));
+    data->set("guest", SrsAmf0Any::number(s->guest));
     
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiMemInfos::SrsGoApiMemInfos()
@@ -427,31 +444,33 @@ SrsGoApiMemInfos::~SrsGoApiMemInfos()
 int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
+    
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
     
     SrsMemInfo* m = srs_get_meminfo();
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (m->ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("sample_time", m->sample_time) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("percent_ram", m->percent_ram) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("percent_swap", m->percent_swap) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("MemActive", m->MemActive) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("RealInUse", m->RealInUse) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("NotInUse", m->NotInUse) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("MemTotal", m->MemTotal) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("MemFree", m->MemFree) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("Buffers", m->Buffers) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("Cached", m->Cached) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("SwapTotal", m->SwapTotal) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("SwapFree", m->SwapFree)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    data->set("ok", SrsAmf0Any::boolean(m->ok? "true":"false"));
+    data->set("sample_time", SrsAmf0Any::number(m->sample_time));
+    data->set("percent_ram", SrsAmf0Any::number(m->percent_ram));
+    data->set("percent_swap", SrsAmf0Any::number(m->percent_swap));
+    data->set("MemActive", SrsAmf0Any::number(m->MemActive));
+    data->set("RealInUse", SrsAmf0Any::number(m->RealInUse));
+    data->set("NotInUse", SrsAmf0Any::number(m->NotInUse));
+    data->set("MemTotal", SrsAmf0Any::number(m->MemTotal));
+    data->set("MemFree", SrsAmf0Any::number(m->MemFree));
+    data->set("Buffers", SrsAmf0Any::number(m->Buffers));
+    data->set("Cached", SrsAmf0Any::number(m->Cached));
+    data->set("SwapTotal", SrsAmf0Any::number(m->SwapTotal));
+    data->set("SwapFree", SrsAmf0Any::number(m->SwapFree));
     
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiAuthors::SrsGoApiAuthors()
@@ -465,22 +484,24 @@ SrsGoApiAuthors::~SrsGoApiAuthors()
 int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_STR("primary", RTMP_SIG_SRS_PRIMARY) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("license", RTMP_SIG_SRS_LICENSE) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("copyright", RTMP_SIG_SRS_COPYRIGHT) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("authors", RTMP_SIG_SRS_AUTHROS) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    return srs_api_response(w, r, ss.str());
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
+    
+    data->set("primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
+    data->set("contributors_link", SrsAmf0Any::str(RTMP_SIG_SRS_CONTRIBUTORS_URL));
+    data->set("contributors", SrsAmf0Any::str(SRS_AUTO_CONSTRIBUTORS));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiFeatures::SrsGoApiFeatures()
@@ -494,119 +515,111 @@ SrsGoApiFeatures::~SrsGoApiFeatures()
 int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
+    
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
+    
+    data->set("options", SrsAmf0Any::str(SRS_AUTO_USER_CONFIGURE));
+    data->set("options2", SrsAmf0Any::str(SRS_AUTO_CONFIGURE));
+    data->set("build", SrsAmf0Any::str(SRS_AUTO_BUILD_DATE));
+    data->set("build2", SrsAmf0Any::str(SRS_AUTO_BUILD_TS));
+    
+    SrsAmf0Object* features = SrsAmf0Any::object();
+    data->set("features", features);
     
 #ifdef SRS_AUTO_SSL
-    bool ssl = true;
+    features->set("ssl", SrsAmf0Any::boolean(true));
 #else
-    bool ssl = false;
+    features->set("ssl", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_HLS
-    bool hls = true;
+    features->set("hls", SrsAmf0Any::boolean(true));
 #else
-    bool hls = false;
+    features->set("hls", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_HDS
-    bool hds = true;
+    features->set("hds", SrsAmf0Any::boolean(true));
 #else
-    bool hds = false;
+    features->set("hds", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    bool callback = true;
+    features->set("callback", SrsAmf0Any::boolean(true));
 #else
-    bool callback = false;
+    features->set("callback", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_HTTP_API
-    bool api = true;
+    features->set("api", SrsAmf0Any::boolean(true));
 #else
-    bool api = false;
+    features->set("api", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    bool httpd = true;
+    features->set("httpd", SrsAmf0Any::boolean(true));
 #else
-    bool httpd = false;
+    features->set("httpd", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_DVR
-    bool dvr = true;
+    features->set("dvr", SrsAmf0Any::boolean(true));
 #else
-    bool dvr = false;
+    features->set("dvr", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_TRANSCODE
-    bool transcode = true;
+    features->set("transcode", SrsAmf0Any::boolean(true));
 #else
-    bool transcode = false;
+    features->set("transcode", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_INGEST
-    bool ingest = true;
+    features->set("ingest", SrsAmf0Any::boolean(true));
 #else
-    bool ingest = false;
+    features->set("ingest", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_STAT
-    bool _stat = true;
+    features->set("stat", SrsAmf0Any::boolean(true));
 #else
-    bool _stat = false;
+    features->set("stat", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_NGINX
-    bool nginx = true;
+    features->set("nginx", SrsAmf0Any::boolean(true));
 #else
-    bool nginx = false;
+    features->set("nginx", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_FFMPEG_TOOL
-    bool ffmpeg = true;
+    features->set("ffmpeg", SrsAmf0Any::boolean(true));
 #else
-    bool ffmpeg = false;
+    features->set("ffmpeg", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_AUTO_STREAM_CASTER
-    bool caster = true;
+    features->set("caster", SrsAmf0Any::boolean(true));
 #else
-    bool caster = false;
+    features->set("caster", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_PERF_COMPLEX_SEND
-    bool complex_send = true;
+    features->set("complex_send", SrsAmf0Any::boolean(true));
 #else
-    bool complex_send = false;
+    features->set("complex_send", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_PERF_TCP_NODELAY
-    bool tcp_nodelay = true;
+    features->set("tcp_nodelay", SrsAmf0Any::boolean(true));
 #else
-    bool tcp_nodelay = false;
+    features->set("tcp_nodelay", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_PERF_SO_SNDBUF_SIZE
-    bool so_sendbuf = true;
+    features->set("so_sendbuf", SrsAmf0Any::boolean(true));
 #else
-    bool so_sendbuf = false;
+    features->set("so_sendbuf", SrsAmf0Any::boolean(false));
 #endif
 #ifdef SRS_PERF_MERGED_READ
-    bool mr = true;
+    features->set("mr", SrsAmf0Any::boolean(true));
 #else
-    bool mr = false;
+    features->set("mr", SrsAmf0Any::boolean(false));
 #endif
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_BOOL("ssl", ssl) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("hls", hls) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("hds", hds) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("callback", callback) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("api", api) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("httpd", httpd) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("dvr", dvr) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("transcode", transcode) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("ingest", ingest) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("stat", _stat) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("nginx", nginx) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("ffmpeg", ffmpeg) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("stream_caster", caster) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("complex_send", complex_send) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("tcp_nodelay", tcp_nodelay) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("so_sendbuf", so_sendbuf) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("mr", mr)
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
-    
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiRequests::SrsGoApiRequests()
@@ -619,57 +632,44 @@ SrsGoApiRequests::~SrsGoApiRequests()
 
 int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    ISrsHttpMessage* req = r;
-    
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_STR("uri", req->uri()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("path", req->path()) << SRS_JFIELD_CONT;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
+    
+    data->set("uri", SrsAmf0Any::str(r->uri().c_str()));
+    data->set("path", SrsAmf0Any::str(r->path().c_str()));
     
     // method
-    if (req->is_http_get()) {
-        ss  << SRS_JFIELD_STR("METHOD", "GET");
-    } else if (req->is_http_post()) {
-        ss  << SRS_JFIELD_STR("METHOD", "POST");
-    } else if (req->is_http_put()) {
-        ss  << SRS_JFIELD_STR("METHOD", "PUT");
-    } else if (req->is_http_delete()) {
-        ss  << SRS_JFIELD_STR("METHOD", "DELETE");
-    } else {
-        ss  << SRS_JFIELD_ORG("METHOD", req->method());
-    }
-    ss << SRS_JFIELD_CONT;
+    data->set("METHOD", SrsAmf0Any::str(r->method_str().c_str()));
     
     // request headers
-    ss      << SRS_JFIELD_NAME("headers") << SRS_JOBJECT_START;
-    for (int i = 0; i < req->request_header_count(); i++) {
-        std::string key = req->request_header_key_at(i);
-        std::string value = req->request_header_value_at(i);
-        if ( i < req->request_header_count() - 1) {
-            ss      << SRS_JFIELD_STR(key, value) << SRS_JFIELD_CONT;
-        } else {
-            ss      << SRS_JFIELD_STR(key, value);
-        }
+    SrsAmf0Object* headers = SrsAmf0Any::object();
+    data->set("headers", headers);
+    
+    for (int i = 0; i < r->request_header_count(); i++) {
+        std::string key = r->request_header_key_at(i);
+        std::string value = r->request_header_value_at(i);
+        headers->set(key, SrsAmf0Any::str(value.c_str()));
     }
-    ss      << SRS_JOBJECT_END << SRS_JFIELD_CONT;
     
     // server informations
-    ss      << SRS_JFIELD_NAME("server") << SRS_JOBJECT_START
-                << SRS_JFIELD_STR("sigature", RTMP_SIG_SRS_KEY) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("name", RTMP_SIG_SRS_NAME) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("link", RTMP_SIG_SRS_URL) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("time", srs_get_system_time_ms())
-            << SRS_JOBJECT_END
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* server = SrsAmf0Any::object();
+    data->set("headers", server);
     
-    return srs_api_response(w, r, ss.str());
+    server->set("sigature", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    server->set("name", SrsAmf0Any::str(RTMP_SIG_SRS_NAME));
+    server->set("version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    server->set("link", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    server->set("time", SrsAmf0Any::number(srs_get_system_time_ms()));
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiVhosts::SrsGoApiVhosts()
@@ -685,7 +685,6 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     int ret = ERROR_SUCCESS;
     
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
     // path: {pattern}{vhost_id}
     // e.g. /api/v1/vhosts/100     pattern= /api/v1/vhosts/, vhost_id=100
@@ -698,31 +697,33 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response_code(w, r, ret);
     }
     
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
     if (r->is_http_get()) {
-        std::stringstream data;
-        
         if (!vhost) {
-            ret = stat->dumps_vhosts(data);
+            SrsAmf0StrictArray* data = SrsAmf0Any::strict_array();
+            obj->set("vhosts", data);
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("vhosts", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = stat->dumps_vhosts(data)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         } else {
-            ret = vhost->dumps(data);
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("vhost", data);;
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("vhost", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = vhost->dumps(data)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         }
-        
-        return srs_api_response(w, r, ss.str());
+    } else {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
     
-    return srs_api_response(w, r, ss.str());
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiStreams::SrsGoApiStreams()
@@ -738,7 +739,6 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     int ret = ERROR_SUCCESS;
     
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
     // path: {pattern}{stream_id}
     // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
@@ -751,31 +751,33 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response_code(w, r, ret);
     }
     
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
     if (r->is_http_get()) {
-        std::stringstream data;
-        
         if (!stream) {
-            ret = stat->dumps_streams(data);
+            SrsAmf0StrictArray* data = SrsAmf0Any::strict_array();
+            obj->set("streams", data);
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("streams", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = stat->dumps_streams(data)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         } else {
-            ret = stream->dumps(data);
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("stream", data);;
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("stream", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = stream->dumps(data)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         }
-        
-        return srs_api_response(w, r, ss.str());
+    } else {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
     
-    return ret;
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiClients::SrsGoApiClients()
@@ -791,7 +793,6 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     int ret = ERROR_SUCCESS;
     
     SrsStatistic* stat = SrsStatistic::instance();
-    std::stringstream ss;
     
     // path: {pattern}{client_id}
     // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
@@ -804,39 +805,33 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response_code(w, r, ret);
     }
     
-    if (r->is_http_delete()) {
-        srs_assert(client);
-        
-        client->conn->expire();
-        srs_warn("delete client=%d ok", cid);
-        return srs_api_response_code(w, r, ret);
-    } else if (r->is_http_get()) {
-        std::stringstream data;
-        
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    obj->set("server", SrsAmf0Any::number(stat->server_id()));
+    
+    if (r->is_http_get()) {
         if (!client) {
-            ret = stat->dumps_clients(data, 0, 10);
+            SrsAmf0StrictArray* data = SrsAmf0Any::strict_array();
+            obj->set("clients", data);
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("clients", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = stat->dumps_clients(data, 0, 10)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         } else {
-            ret = client->dumps(data);
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("client", data);;
             
-            ss << SRS_JOBJECT_START
-                    << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
-                    << SRS_JFIELD_ORG("client", data.str())
-                << SRS_JOBJECT_END;
+            if ((ret = client->dumps(data)) != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, ret);
+            }
         }
-        
-        return srs_api_response(w, r, ss.str());
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
-
-    return ret;
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)

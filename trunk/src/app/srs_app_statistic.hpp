@@ -39,6 +39,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsKbps;
 class SrsRequest;
 class SrsConnection;
+class SrsAmf0Object;
+class SrsAmf0StrictArray;
 
 struct SrsStatisticVhost
 {
@@ -56,7 +58,7 @@ public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
 public:
-    virtual int dumps(std::stringstream& ss);
+    virtual int dumps(SrsAmf0Object* obj);
 };
 
 struct SrsStatisticStream
@@ -98,7 +100,7 @@ public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
-    virtual int dumps(std::stringstream& ss);
+    virtual int dumps(SrsAmf0Object* obj);
 public:
     /**
     * publish the stream.
@@ -123,7 +125,7 @@ public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
 public:
-    virtual int dumps(std::stringstream& ss);
+    virtual int dumps(SrsAmf0Object* obj);
 };
 
 class SrsStatistic
@@ -217,19 +219,19 @@ public:
     */
     virtual int64_t server_id();
     /**
-    * dumps the vhosts to sstream in json.
+    * dumps the vhosts to amf0 array.
     */
-    virtual int dumps_vhosts(std::stringstream& ss);
+    virtual int dumps_vhosts(SrsAmf0StrictArray* arr);
     /**
-    * dumps the streams to sstream in json.
+    * dumps the streams to amf0 array.
     */
-    virtual int dumps_streams(std::stringstream& ss);
+    virtual int dumps_streams(SrsAmf0StrictArray* arr);
     /**
-     * dumps the clients to sstream in json.
+     * dumps the clients to amf0 array
      * @param start the start index, from 0.
      * @param count the max count of clients to dump.
      */
-    virtual int dumps_clients(std::stringstream& ss, int start, int count);
+    virtual int dumps_clients(SrsAmf0StrictArray* arr, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

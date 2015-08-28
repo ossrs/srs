@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 int64_t srs_gvid = getpid();
 
@@ -57,7 +58,7 @@ SrsStatisticVhost::~SrsStatisticVhost()
     srs_freep(kbps);
 }
 
-int SrsStatisticVhost::dumps(stringstream& ss)
+int SrsStatisticVhost::dumps(SrsAmf0Object* obj)
 {
     int ret = ERROR_SUCCESS;
     
@@ -65,26 +66,27 @@ int SrsStatisticVhost::dumps(stringstream& ss)
     bool hls_enabled = _srs_config->get_hls_enabled(vhost);
     bool enabled = _srs_config->get_vhost_enabled(vhost);
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ORG("id", id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("name", vhost) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("enabled", enabled) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("streams", nb_streams) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_OBJ("kbps")
-                << SRS_JFIELD_ORG("recv_30s", kbps->get_recv_kbps_30s()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("send_30s", kbps->get_send_kbps_30s())
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_NAME("hls") << SRS_JOBJECT_START
-                << SRS_JFIELD_BOOL("enabled", hls_enabled);
+    obj->set("id", SrsAmf0Any::number(id));
+    obj->set("name", SrsAmf0Any::str(vhost.c_str()));
+    obj->set("enabled", SrsAmf0Any::boolean(enabled));
+    obj->set("clients", SrsAmf0Any::number(nb_clients));
+    obj->set("streams", SrsAmf0Any::number(nb_streams));
+    obj->set("send_bytes", SrsAmf0Any::number(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsAmf0Any::number(kbps->get_recv_bytes()));
+    
+    SrsAmf0Object* okbps = SrsAmf0Any::object();
+    obj->set("kbps", okbps);
+    
+    okbps->set("recv_30s", SrsAmf0Any::number(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsAmf0Any::number(kbps->get_send_kbps_30s()));
+    
+    SrsAmf0Object* hls = SrsAmf0Any::object();
+    obj->set("hls", hls);
+    
+    hls->set("enabled", SrsAmf0Any::boolean(hls_enabled));
     if (hls_enabled) {
-        ss                                                  << SRS_JFIELD_CONT;
-        ss      << SRS_JFIELD_ORG("fragment", _srs_config->get_hls_fragment(vhost));
+        hls->set("fragment", SrsAmf0Any::number(_srs_config->get_hls_fragment(vhost)));
     }
-    ss      << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
     
     return ret;
 }
@@ -118,51 +120,53 @@ SrsStatisticStream::~SrsStatisticStream()
     srs_freep(kbps);
 }
 
-int SrsStatisticStream::dumps(stringstream& ss)
+int SrsStatisticStream::dumps(SrsAmf0Object* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ORG("id", id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("name", stream) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("vhost", vhost->id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("app", app) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("clients", nb_clients) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("send_bytes", kbps->get_send_bytes()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("recv_bytes", kbps->get_recv_bytes()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_OBJ("kbps")
-                << SRS_JFIELD_ORG("recv_30s", kbps->get_recv_kbps_30s()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("send_30s", kbps->get_send_kbps_30s())
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_OBJ("publish")
-                << SRS_JFIELD_BOOL("active", active) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cid", connection_cid)
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT;
+    obj->set("id", SrsAmf0Any::number(id));
+    obj->set("name", SrsAmf0Any::str(stream.c_str()));
+    obj->set("vhost", SrsAmf0Any::number(vhost->id));
+    obj->set("app", SrsAmf0Any::str(app.c_str()));
+    obj->set("live_ms", SrsAmf0Any::number(srs_get_system_time_ms()));
+    obj->set("clients", SrsAmf0Any::number(nb_clients));
+    obj->set("send_bytes", SrsAmf0Any::number(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsAmf0Any::number(kbps->get_recv_bytes()));
+    
+    SrsAmf0Object* okbps = SrsAmf0Any::object();
+    obj->set("kbps", okbps);
+    
+    okbps->set("recv_30s", SrsAmf0Any::number(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsAmf0Any::number(kbps->get_send_kbps_30s()));
+    
+    SrsAmf0Object* publish = SrsAmf0Any::object();
+    obj->set("publish", publish);
+    
+    publish->set("active", SrsAmf0Any::boolean(active));
+    publish->set("cid", SrsAmf0Any::number(connection_cid));
     
     if (!has_video) {
-        ss  << SRS_JFIELD_NULL("video") << SRS_JFIELD_CONT;
+        obj->set("video", SrsAmf0Any::null());
     } else {
-        ss  << SRS_JFIELD_NAME("video") << SRS_JOBJECT_START
-                << SRS_JFIELD_STR("codec", srs_codec_video2str(vcodec)) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("profile", srs_codec_avc_profile2str(avc_profile)) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("level", srs_codec_avc_level2str(avc_level))
-                << SRS_JOBJECT_END
-            << SRS_JFIELD_CONT;
+        SrsAmf0Object* video = SrsAmf0Any::object();
+        obj->set("video", video);
+        
+        video->set("codec", SrsAmf0Any::str(srs_codec_video2str(vcodec).c_str()));
+        video->set("profile", SrsAmf0Any::str(srs_codec_avc_profile2str(avc_profile).c_str()));
+        video->set("level", SrsAmf0Any::str(srs_codec_avc_level2str(avc_level).c_str()));
     }
     
     if (!has_audio) {
-        ss  << SRS_JFIELD_NULL("audio");
+        obj->set("audio", SrsAmf0Any::null());
     } else {
-        ss  << SRS_JFIELD_NAME("audio") << SRS_JOBJECT_START
-                << SRS_JFIELD_STR("codec", srs_codec_audio2str(acodec)) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("sample_rate", (int)flv_sample_rates[asample_rate]) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("channel", (int)asound_type + 1) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("profile", srs_codec_aac_object2str(aac_object))
-            << SRS_JOBJECT_END;
+        SrsAmf0Object* audio = SrsAmf0Any::object();
+        obj->set("audio", audio);
+        
+        audio->set("codec", SrsAmf0Any::str(srs_codec_audio2str(acodec).c_str()));
+        audio->set("sample_rate", SrsAmf0Any::number(flv_sample_rates[asample_rate]));
+        audio->set("channel", SrsAmf0Any::number(asound_type + 1));
+        audio->set("profile", SrsAmf0Any::str(srs_codec_aac_object2str(aac_object).c_str()));
     }
-    
-    ss << SRS_JOBJECT_END;
     
     return ret;
 }
@@ -198,23 +202,21 @@ SrsStatisticClient::~SrsStatisticClient()
 {
 }
 
-int SrsStatisticClient::dumps(stringstream& ss)
+int SrsStatisticClient::dumps(SrsAmf0Object* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    ss << SRS_JOBJECT_START
-            << SRS_JFIELD_ORG("id", id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("vhost", stream->vhost->id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("stream", stream->id) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("pageUrl", req->pageUrl) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("swfUrl", req->swfUrl) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("url", req->get_stream_url()) << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("type", srs_client_type_string(type)) << SRS_JFIELD_CONT
-            << SRS_JFIELD_BOOL("publish", srs_client_type_is_publish(type)) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("alive", srs_get_system_time_ms() - create)
-        << SRS_JOBJECT_END;
+    obj->set("id", SrsAmf0Any::number(id));
+    obj->set("vhost", SrsAmf0Any::number(stream->vhost->id));
+    obj->set("stream", SrsAmf0Any::number(stream->id));
+    obj->set("ip", SrsAmf0Any::str(req->ip.c_str()));
+    obj->set("pageUrl", SrsAmf0Any::str(req->pageUrl.c_str()));
+    obj->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
+    obj->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+    obj->set("url", SrsAmf0Any::str(req->get_stream_url().c_str()));
+    obj->set("type", SrsAmf0Any::str(srs_client_type_string(type).c_str()));
+    obj->set("publish", SrsAmf0Any::boolean(srs_client_type_is_publish(type)));
+    obj->set("alive", SrsAmf0Any::number(srs_get_system_time_ms() - create));
     
     return ret;
 }
@@ -446,55 +448,48 @@ int64_t SrsStatistic::server_id()
     return _server_id;
 }
 
-int SrsStatistic::dumps_vhosts(stringstream& ss)
+int SrsStatistic::dumps_vhosts(SrsAmf0StrictArray* arr)
 {
     int ret = ERROR_SUCCESS;
 
-    ss << SRS_JARRAY_START;
     std::map<int64_t, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
         
-        if (it != vhosts.begin()) {
-            ss << SRS_JFIELD_CONT;
-        }
+        SrsAmf0Object* obj = SrsAmf0Any::object();
+        arr->append(obj);
         
-        if ((ret = vhost->dumps(ss)) != ERROR_SUCCESS) {
+        if ((ret = vhost->dumps(obj)) != ERROR_SUCCESS) {
             return ret;
         }
     }
-    ss << SRS_JARRAY_END;
 
     return ret;
 }
 
-int SrsStatistic::dumps_streams(stringstream& ss)
+int SrsStatistic::dumps_streams(SrsAmf0StrictArray* arr)
 {
     int ret = ERROR_SUCCESS;
     
-    ss << SRS_JARRAY_START;
     std::map<int64_t, SrsStatisticStream*>::iterator it;
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
         
-        if (it != streams.begin()) {
-            ss << SRS_JFIELD_CONT;
-        }
+        SrsAmf0Object* obj = SrsAmf0Any::object();
+        arr->append(obj);
 
-        if ((ret = stream->dumps(ss)) != ERROR_SUCCESS) {
+        if ((ret = stream->dumps(obj)) != ERROR_SUCCESS) {
             return ret;
         }
     }
-    ss << SRS_JARRAY_END;
     
     return ret;
 }
 
-int SrsStatistic::dumps_clients(stringstream& ss, int start, int count)
+int SrsStatistic::dumps_clients(SrsAmf0StrictArray* arr, int start, int count)
 {
     int ret = ERROR_SUCCESS;
     
-    ss << SRS_JARRAY_START;
     std::map<int, SrsStatisticClient*>::iterator it = clients.begin();
     for (int i = 0; i < start + count && it != clients.end(); it++, i++) {
         if (i < start) {
@@ -503,16 +498,13 @@ int SrsStatistic::dumps_clients(stringstream& ss, int start, int count)
         
         SrsStatisticClient* client = it->second;
         
-        if (i != start) {
-            ss << SRS_JFIELD_CONT;
-        }
+        SrsAmf0Object* obj = SrsAmf0Any::object();
+        arr->append(obj);
         
-        if ((ret = client->dumps(ss)) != ERROR_SUCCESS) {
+        if ((ret = client->dumps(obj)) != ERROR_SUCCESS) {
             return ret;
         }
     }
-    ss << SRS_JARRAY_END;
-    
     
     return ret;
 }
