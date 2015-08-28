@@ -731,7 +731,7 @@ The latency between encoder and player with realtime config([CN][v2_CN_LowLatenc
 
 We use FMLE as encoder for benchmark. The latency of server is 0.1s+, 
 and the bottleneck is the encoder. For more information, read 
-[bug #257][bug #257#issuecomment-66864413].
+[bug #257][bug #257-c0].
 
 ### HLS overhead
 
@@ -1177,7 +1177,6 @@ Winlin
 [bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
-[bug #257#issuecomment-66864413]: https://github.com/simple-rtmp-server/srs/issues/257#issuecomment-66864413
 
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
