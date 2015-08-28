@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
@@ -1354,7 +1355,7 @@ string srs_get_peer_ip(int fd)
     return ip;
 }
 
-void srs_api_dump_summaries(std::stringstream& ss)
+void srs_api_dump_summaries(SrsAmf0Object* obj)
 {
     SrsRusage* r = srs_get_system_rusage();
     SrsProcSelfStat* u = srs_get_self_proc_stat();
@@ -1407,57 +1408,61 @@ void srs_api_dump_summaries(std::stringstream& ss)
     bool ok = (r->ok && u->ok && s->ok && c->ok 
         && d->ok && m->ok && p->ok && nrs->ok);
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("now_ms", now) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("self", SRS_JOBJECT_START)
-                << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("pid", getpid()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ppid", u->ppid) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("argv", _srs_config->argv()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("cwd", _srs_config->cwd()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_percent", self_mem_percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpu_percent", u->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_uptime", srs_uptime)
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("system", SRS_JOBJECT_START)
-                << SRS_JFIELD_ORG("cpu_percent", s->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_read_KBps", d->in_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_write_KBps", d->out_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_busy_percent", d->busy) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_percent", m->percent_swap) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus", c->nb_processors) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus_online", c->nb_processors_online) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("uptime", p->os_uptime) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ilde_time", p->os_ilde_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << SRS_JFIELD_CONT
-                // system network bytes stat.
-                << SRS_JFIELD_ORG("net_sample_time", n_sample_time) << SRS_JFIELD_CONT
-                // internet public address network device bytes.
-                << SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << SRS_JFIELD_CONT
-                // intranet private address network device bytes.
-                << SRS_JFIELD_ORG("net_recvi_bytes", nri_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_sendi_bytes", nsi_bytes) << SRS_JFIELD_CONT
-                // srs network bytes stat.
-                << SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_udp", nrs->nb_conn_sys_udp) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
-            << SRS_JOBJECT_END
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    obj->set("data", data);
+    
+    data->set("ok", SrsAmf0Any::boolean(ok));
+    data->set("now_ms", SrsAmf0Any::number(now));
+    
+    // self
+    SrsAmf0Object* self = SrsAmf0Any::object();
+    data->set("self", self);
+    
+    self->set("version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    self->set("pid", SrsAmf0Any::number(getpid()));
+    self->set("ppid", SrsAmf0Any::number(u->ppid));
+    self->set("argv", SrsAmf0Any::str(_srs_config->argv().c_str()));
+    self->set("cwd", SrsAmf0Any::str(_srs_config->cwd().c_str()));
+    self->set("mem_kbyte", SrsAmf0Any::number(r->r.ru_maxrss));
+    self->set("mem_percent", SrsAmf0Any::number(self_mem_percent));
+    self->set("cpu_percent", SrsAmf0Any::number(u->percent));
+    self->set("srs_uptime", SrsAmf0Any::number(srs_uptime));
+    
+    // system
+    SrsAmf0Object* sys = SrsAmf0Any::object();
+    data->set("system", sys);
+    
+    sys->set("cpu_percent", SrsAmf0Any::number(s->percent));
+    sys->set("disk_read_KBps", SrsAmf0Any::number(d->in_KBps));
+    sys->set("disk_write_KBps", SrsAmf0Any::number(d->out_KBps));
+    sys->set("disk_busy_percent", SrsAmf0Any::number(d->busy));
+    sys->set("mem_ram_kbyte", SrsAmf0Any::number(m->MemTotal));
+    sys->set("mem_ram_percent", SrsAmf0Any::number(m->percent_ram));
+    sys->set("mem_swap_kbyte", SrsAmf0Any::number(m->SwapTotal));
+    sys->set("mem_swap_percent", SrsAmf0Any::number(m->percent_swap));
+    sys->set("cpus", SrsAmf0Any::number(c->nb_processors));
+    sys->set("cpus_online", SrsAmf0Any::number(c->nb_processors_online));
+    sys->set("uptime", SrsAmf0Any::number(p->os_uptime));
+    sys->set("ilde_time", SrsAmf0Any::number(p->os_ilde_time));
+    sys->set("load_1m", SrsAmf0Any::number(p->load_one_minutes));
+    sys->set("load_5m", SrsAmf0Any::number(p->load_five_minutes));
+    sys->set("load_15m", SrsAmf0Any::number(p->load_fifteen_minutes));
+    // system network bytes stat.
+    sys->set("net_sample_time", SrsAmf0Any::number(n_sample_time));
+    // internet public address network device bytes.
+    sys->set("net_recv_bytes", SrsAmf0Any::number(nr_bytes));
+    sys->set("net_send_bytes", SrsAmf0Any::number(ns_bytes));
+    // intranet private address network device bytes.
+    sys->set("net_recvi_bytes", SrsAmf0Any::number(nri_bytes));
+    sys->set("net_sendi_bytes", SrsAmf0Any::number(nsi_bytes));
+    // srs network bytes stat.
+    sys->set("srs_sample_time", SrsAmf0Any::number(nrs->sample_time));
+    sys->set("srs_recv_bytes", SrsAmf0Any::number(nrs->rbytes));
+    sys->set("srs_send_bytes", SrsAmf0Any::number(nrs->sbytes));
+    sys->set("conn_sys", SrsAmf0Any::number(nrs->nb_conn_sys));
+    sys->set("conn_sys_et", SrsAmf0Any::number(nrs->nb_conn_sys_et));
+    sys->set("conn_sys_tw", SrsAmf0Any::number(nrs->nb_conn_sys_tw));
+    sys->set("conn_sys_udp", SrsAmf0Any::number(nrs->nb_conn_sys_udp));
+    sys->set("conn_srs", SrsAmf0Any::number(nrs->nb_conn_srs));
 }
 

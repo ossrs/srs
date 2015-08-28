@@ -35,6 +35,55 @@ using namespace std;
 
 using namespace _srs_internal;
 
+/* json encode
+     cout<< SRS_JOBJECT_START
+         << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
+         << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
+         << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
+             << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
+             << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
+             << SRS_JFIELD_STR("dash", "plan")
+         << SRS_JOBJECT_END << SRS_JFIELD_CONT
+         << SRS_JFIELD_STR("author", "srs team")
+     << SRS_JOBJECT_END
+ it's:
+     cont<< "{"
+         << "name:" << "srs" << ","
+         << "version:" << 100 << ","
+         << "features:" << "{"
+             << "rtmp:" << "released" << ","
+             << "hls:" << "released" << ","
+             << "dash:" << "plan"
+         << "}" << ","
+         << "author:" << "srs team"
+     << "}"
+ that is:
+     """
+     {
+         "name": "srs",
+         "version": 100,
+         "features": {
+             "rtmp": "released",
+             "hls": "released",
+             "dash": "plan"
+         },
+         "author": "srs team"
+     }
+     """
+ */
+#define SRS_JOBJECT_START "{"
+#define SRS_JFIELD_NAME(k) "\"" << k << "\":"
+#define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
+#define SRS_JFIELD_STR(k, v) SRS_JFIELD_NAME(k) << "\"" << v << "\""
+#define SRS_JFIELD_ORG(k, v) SRS_JFIELD_NAME(k) << std::dec << v
+#define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
+#define SRS_JFIELD_NULL(k) SRS_JFIELD_NAME(k) << "null"
+#define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
+#define SRS_JFIELD_CONT ","
+#define SRS_JOBJECT_END "}"
+#define SRS_JARRAY_START "["
+#define SRS_JARRAY_END "]"
+
 // AMF0 marker
 #define RTMP_AMF0_Number                     0x00
 #define RTMP_AMF0_Boolean                     0x01

@@ -267,9 +267,12 @@ SrsGoApiSummaries::~SrsGoApiSummaries()
 
 int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    std::stringstream ss;
-    srs_api_dump_summaries(ss);
-    return srs_api_response(w, r, ss.str());
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    
+    srs_api_dump_summaries(obj);
+    
+    return srs_api_response(w, r, obj->to_json());
 }
 
 SrsGoApiRusages::SrsGoApiRusages()
@@ -295,7 +298,7 @@ int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     SrsRusage* ru = srs_get_system_rusage();
     
-    data->set("ok", SrsAmf0Any::boolean(ru->ok? "true":"false"));
+    data->set("ok", SrsAmf0Any::boolean(ru->ok));
     data->set("sample_time", SrsAmf0Any::number(ru->sample_time));
     data->set("ru_utime", SrsAmf0Any::number(ru->r.ru_utime.tv_sec));
     data->set("ru_stime", SrsAmf0Any::number(ru->r.ru_stime.tv_sec));
@@ -343,7 +346,7 @@ int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     string state;
     state += (char)u->state;
     
-    data->set("ok", SrsAmf0Any::boolean(u->ok? "true":"false"));
+    data->set("ok", SrsAmf0Any::boolean(u->ok));
     data->set("sample_time", SrsAmf0Any::number(u->sample_time));
     data->set("percent", SrsAmf0Any::number(u->percent));
     data->set("pid", SrsAmf0Any::number(u->pid));
@@ -417,7 +420,7 @@ int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     SrsProcSystemStat* s = srs_get_system_proc_stat();
     
-    data->set("ok", SrsAmf0Any::boolean(s->ok? "true":"false"));
+    data->set("ok", SrsAmf0Any::boolean(s->ok));
     data->set("sample_time", SrsAmf0Any::number(s->sample_time));
     data->set("percent", SrsAmf0Any::number(s->percent));
     data->set("user", SrsAmf0Any::number(s->user));
@@ -456,7 +459,7 @@ int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     SrsMemInfo* m = srs_get_meminfo();
     
-    data->set("ok", SrsAmf0Any::boolean(m->ok? "true":"false"));
+    data->set("ok", SrsAmf0Any::boolean(m->ok));
     data->set("sample_time", SrsAmf0Any::number(m->sample_time));
     data->set("percent_ram", SrsAmf0Any::number(m->percent_ram));
     data->set("percent_swap", SrsAmf0Any::number(m->percent_swap));

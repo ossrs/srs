@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
@@ -65,23 +66,25 @@ void SrsHttpHeartbeat::heartbeat()
         ip = ips[_srs_config->get_stats_network() % (int)ips.size()];
     }
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("device_id", device_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", ip);
-    if (_srs_config->get_heartbeat_summaries()) {
-        ss << SRS_JFIELD_CONT << SRS_JFIELD_ORG("summaries", "");
-        srs_api_dump_summaries(ss);
-    }
-    ss << SRS_JOBJECT_END;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
     
-    std::string req = ss.str();
+    obj->set("device_id", SrsAmf0Any::str(device_id.c_str()));
+    obj->set("ip", SrsAmf0Any::str(ip.c_str()));
+    
+    if (_srs_config->get_heartbeat_summaries()) {
+        SrsAmf0Object* summaries = SrsAmf0Any::object();
+        obj->set("summaries", summaries);
+        
+        srs_api_dump_summaries(summaries);
+    }
     
     SrsHttpClient http;
     if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
         return;
     }
     
+    std::string req = obj->to_json();
     ISrsHttpMessage* msg = NULL;
     if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. url=%s, request=%s, ret=%d",

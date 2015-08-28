@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsKbps;
 class SrsStream;
+class SrsAmf0Object;
 
 // client open socket and connect to server.
 extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
@@ -669,7 +670,7 @@ extern int srs_get_local_port(int fd);
 extern std::string srs_get_peer_ip(int fd);
 
 // dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(std::stringstream& ss);
+extern void srs_api_dump_summaries(SrsAmf0Object* obj);
 
 #endif
 
