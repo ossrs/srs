@@ -1831,7 +1831,7 @@ int SrsConfig::raw_to_json(SrsAmf0Object* obj)
                         ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
                     } else if (ssdir->name == "allow_reload") {
                         ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
-                    } else if (ssdir->name == "allow_config_query") {
+                    } else if (ssdir->name == "allow_query") {
                         ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
                     }
                 }
@@ -2019,7 +2019,7 @@ int SrsConfig::check_config()
             if (n == "raw_api") {
                 for (int j = 0; j < (int)obj->directives.size(); j++) {
                     string m = obj->at(j)->name;
-                    if (m != "enabled" && m != "allow_reload" && m != "allow_config_query") {
+                    if (m != "enabled" && m != "allow_reload" && m != "allow_query") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported http_api.raw_api directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -4647,7 +4647,7 @@ bool SrsConfig::get_raw_api_allow_reload()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_raw_api_allow_config_query()
+bool SrsConfig::get_raw_api_allow_query()
 {
     static bool DEFAULT = false;
     
@@ -4661,7 +4661,7 @@ bool SrsConfig::get_raw_api_allow_config_query()
         return DEFAULT;
     }
     
-    conf = conf->get("allow_config_query");
+    conf = conf->get("allow_query");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

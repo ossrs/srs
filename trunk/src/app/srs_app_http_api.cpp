@@ -845,7 +845,7 @@ SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
     
     raw_api = _srs_config->get_raw_api();
     allow_reload = _srs_config->get_raw_api_allow_reload();
-    allow_config_query = _srs_config->get_raw_api_allow_config_query();
+    allow_query = _srs_config->get_raw_api_allow_query();
     
     _srs_config->subscribe(this);
 }
@@ -868,7 +868,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // the rpc is required.
     std::string rpc = r->query_get("rpc");
-    if (rpc.empty() || (rpc != "reload" && rpc != "config_query" && rpc != "raw")) {
+    if (rpc.empty() || (rpc != "reload" && rpc != "query" && rpc != "raw")) {
         ret = ERROR_SYSTEM_CONFIG_RAW;
         srs_error("raw api invalid rpc=%s. ret=%d", rpc.c_str(), ret);
         return srs_api_response_code(w, r, ret);
@@ -903,16 +903,16 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response(w, r, obj->to_json());
     }
 
-    // for rpc=config_query, to get the configs of server.
+    // for rpc=query, to get the configs of server.
     //      @param scope the scope to query for config, it can be:
     //              global, the configs belongs to the root, donot includes any sub directives.
     //              vhost, the configs for specified vhost by @param vhost.
     //      @param vhost the vhost name for @param scope is vhost to query config.
     //              for the default vhost, must be __defaultVhost__
-    if (rpc == "config_query") {
-        if (!allow_config_query) {
+    if (rpc == "query") {
+        if (!allow_query) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
-            srs_error("raw api allow_config_query disabled rpc=%s. ret=%d", rpc.c_str(), ret);
+            srs_error("raw api allow_query disabled rpc=%s. ret=%d", rpc.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
         
@@ -920,7 +920,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         std::string vhost = r->query_get("vhost");
         if (scope.empty() || (scope != "global" && scope != "vhost")) {
             ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-            srs_error("raw api config_query invalid scope=%s. ret=%d", scope.c_str(), ret);
+            srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
         
@@ -928,7 +928,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             // query vhost scope.
             if (vhost.empty()) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api config_query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
+                srs_error("raw api query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
                 return ret;
             }
             
@@ -936,14 +936,14 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             SrsConfDirective* conf = root->get("vhost", vhost);
             if (!conf) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api config_query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
+                srs_error("raw api query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
                 return ret;
             }
             
             SrsAmf0Object* data = SrsAmf0Any::object();
             obj->set("vhost", data);
             if ((ret = _srs_config->vhost_to_json(conf, data)) != ERROR_SUCCESS) {
-                srs_error("raw api config_query vhost failed. ret=%d", ret);
+                srs_error("raw api query vhost failed. ret=%d", ret);
                 return srs_api_response_code(w, r, ret);
             }
         } else {
@@ -952,7 +952,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             
             // query global scope.
             if ((ret = _srs_config->global_to_json(data)) != ERROR_SUCCESS) {
-                srs_error("raw api config_query global failed. ret=%d", ret);
+                srs_error("raw api query global failed. ret=%d", ret);
                 return srs_api_response_code(w, r, ret);
             }
         }
@@ -967,7 +967,7 @@ int SrsGoApiRaw::on_reload_http_api_raw_api()
 {
     raw_api = _srs_config->get_raw_api();
     allow_reload = _srs_config->get_raw_api_allow_reload();
-    allow_config_query = _srs_config->get_raw_api_allow_config_query();
+    allow_query = _srs_config->get_raw_api_allow_query();
     
     return ERROR_SUCCESS;
 }

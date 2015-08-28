@@ -1071,9 +1071,9 @@ public:
      */
     virtual bool                get_raw_api_allow_reload();
     /**
-     * whether allow rpc config_query.
+     * whether allow rpc query.
      */
-    virtual bool                get_raw_api_allow_config_query();
+    virtual bool                get_raw_api_allow_query();
 // http stream section
 private:
     /**
