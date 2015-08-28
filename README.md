@@ -99,10 +99,7 @@ cd srs/trunk
 </pre>
 
 <strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Build),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Build)
-).</strong>
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
 
 <pre>
 ./configure && make
@@ -317,34 +314,34 @@ Remark:
 
 ## Releases
 
-* 2015-08-23, [Release v2.0a0](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0), 2.0 alpha0, 2.0.185, 89022 lines.<br/>
-* 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
-* 2015-03-19, [Release v1.0r3](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3), bug fixed, 1.0.30, 59511 lines.<br/>
-* 2015-02-12, [Release v1.0r2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
-* 2015-01-15, [Release v1.0r1](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
-* 2014-12-05, [Release v1.0r0](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r0), all bug fixed, 1.0.10, 59391 lines.<br/>
-* 2014-10-09, [Release v1.0-beta](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
-* 2014-08-03, [Release v1.0-mainline7](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
-* 2014-07-13, [Release v1.0-mainline6](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
-* 2014-06-27, [Release v1.0-mainline5](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline5), refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
-* 2014-05-28, [Release v1.0-mainline4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline4), support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
-* 2014-05-18, [Release v1.0-mainline3](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline3), support mips, fms origin, json(http-api). 37594 lines.<br/>
-* 2014-04-28, [Release v1.0-mainline2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline2), support [dvr](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR), android, [edge](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge). 35255 lines.<br/>
-* 2014-04-07, [Release v1.0-mainline](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline), support [arm](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm), [init.d](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService), http [server](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPServer)/[api](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi), [ingest](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest). 30000 lines.<br/>
-* 2013-12-25, [Release v0.9](https://github.com/simple-rtmp-server/srs/releases/tag/0.9), support bandwidth test, player/encoder/chat [demos](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo). 20926 lines.<br/>
-* 2013-12-08, [Release v0.8](https://github.com/simple-rtmp-server/srs/releases/tag/0.8), support [http hooks callback](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback), update [SB](https://github.com/simple-rtmp-server/srs-bench). 19186 lines.<br/>
-* 2013-12-03, [Release v0.7](https://github.com/simple-rtmp-server/srs/releases/tag/0.7), support [live stream transcoding](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG). 17605 lines.<br/>
-* 2013-11-29, [Release v0.6](https://github.com/simple-rtmp-server/srs/releases/tag/0.6), support [forward](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward) stream to origin/edge. 16094 lines.<br/>
-* 2013-11-26, [Release v0.5](https://github.com/simple-rtmp-server/srs/releases/tag/0.5), support [HLS(m3u8)](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS), fragment and window. 14449 lines.<br/>
-* 2013-11-10, [Release v0.4](https://github.com/simple-rtmp-server/srs/releases/tag/0.4), support [reload](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Reload) config, pause, longtime publish/play. 12500 lines.<br/>
-* 2013-11-04, [Release v0.3](https://github.com/simple-rtmp-server/srs/releases/tag/0.3), support [vhost](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost), refer, gop cache, listen multiple ports. 11773 lines.<br/>
-* 2013-10-25, [Release v0.2](https://github.com/simple-rtmp-server/srs/releases/tag/0.2), support [rtmp](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMPHandshake) flash publish, h264, time jitter correct. 10125 lines.<br/>
-* 2013-10-23, [Release v0.1](https://github.com/simple-rtmp-server/srs/releases/tag/0.1), support [rtmp FMLE/FFMPEG publish](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP), vp6. 8287 lines.<br/>
+* 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
+* 2015-05-23, [Release v1.0r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.<br/>
+* 2015-03-19, [Release v1.0r3][r1.0r3], bug fixed, 1.0.30, 59511 lines.<br/>
+* 2015-02-12, [Release v1.0r2][r1.0r2], bug fixed, 1.0.27, 59507 lines.<br/>
+* 2015-01-15, [Release v1.0r1][r1.0r1], bug fixed, 1.0.21, 59472 lines.<br/>
+* 2014-12-05, [Release v1.0r0][r1.0r0], all bug fixed, 1.0.10, 59391 lines.<br/>
+* 2014-10-09, [Release v1.0-beta][r1.0b0], all bug fixed, 1.0.0, 59316 lines.<br/>
+* 2014-08-03, [Release v1.0-mainline7][r1.0a7], config utest, all bug fixed. 57432 lines.<br/>
+* 2014-07-13, [Release v1.0-mainline6][r1.0a6], core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
+* 2014-06-27, [Release v1.0-mainline5][r1.0a5], refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
+* 2014-05-28, [Release v1.0-mainline4][r1.0a4], support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
+* 2014-05-18, [Release v1.0-mainline3][r1.0a3], support mips, fms origin, json(http-api). 37594 lines.<br/>
+* 2014-04-28, [Release v1.0-mainline2][r1.0a2], support [dvr][v1_CN_DVR], android, [edge][v1_CN_Edge]. 35255 lines.<br/>
+* 2014-04-07, [Release v1.0-mainline][r1.0a0], support [arm][v1_CN_SrsLinuxArm], [init.d][v1_CN_LinuxService], http [server][v1_CN_HTTPServer]/[api][v1_CN_HTTPApi], [ingest][v1_CN_SampleIngest]. 30000 lines.<br/>
+* 2013-12-25, [Release v0.9][r0.9], support bandwidth test, player/encoder/chat [demos][v1_CN_SampleDemo]. 20926 lines.<br/>
+* 2013-12-08, [Release v0.8][r0.8], support [http hooks callback][v1_CN_HTTPCallback], update [SB][srs-bench]. 19186 lines.<br/>
+* 2013-12-03, [Release v0.7][r0.7], support [live stream transcoding][v1_CN_FFMPEG]. 17605 lines.<br/>
+* 2013-11-29, [Release v0.6][r0.6], support [forward][v1_CN_Forward] stream to origin/edge. 16094 lines.<br/>
+* 2013-11-26, [Release v0.5][r0.5], support [HLS(m3u8)][v1_CN_DeliveryHLS], fragment and window. 14449 lines.<br/>
+* 2013-11-10, [Release v0.4][r0.4], support [reload][v1_CN_Reload] config, pause, longtime publish/play. 12500 lines.<br/>
+* 2013-11-04, [Release v0.3][r0.3], support [vhost][v1_CN_RtmpUrlVhost], refer, gop cache, listen multiple ports. 11773 lines.<br/>
+* 2013-10-25, [Release v0.2][r0.2], support [rtmp][v1_CN_RTMPHandshake] flash publish, h264, time jitter correct. 10125 lines.<br/>
+* 2013-10-23, [Release v0.1][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
 
 ## History
 
-* <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0) released. 89022 lines.</strong>
+* <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380](https://github.com/simple-rtmp-server/srs/issues/380), srs-librtmp send sequence header when sps or pps changed.
 * v2.0, 2015-08-18, close [#454](https://github.com/simple-rtmp-server/srs/issues/454), support obs restart publish. 2.0.184
@@ -477,7 +474,7 @@ Remark:
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0) released. 59391 lines.</strong>
-* <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta) released. 59316 lines.</strong>
+* <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)][r1.0b0] released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151](https://github.com/simple-rtmp-server/srs/issues/151), always reap ts whatever audio or video packet. 0.9.223.
 * v1.0, 2014-10-08, fix [#162](https://github.com/simple-rtmp-server/srs/issues/162), failed if no epoll. 0.9.222.
 * v1.0, 2014-09-30, fix [#180](https://github.com/simple-rtmp-server/srs/issues/180), crash for multiple edge publishing the same stream. 0.9.220.
@@ -491,7 +488,7 @@ Remark:
 * v1.0, 2014-08-17, for [#155](https://github.com/simple-rtmp-server/srs/issues/155), refine for osx, with ssl/http, disable statistics. 0.9.198.
 * v1.0, 2014-08-06, fix [#148](https://github.com/simple-rtmp-server/srs/issues/148), simplify the RTMP handshake key generation. 0.9.191.
 * v1.0, 2014-08-06, fix [#147](https://github.com/simple-rtmp-server/srs/issues/147), support identify the srs edge. 0.9.190.
-* <strong>v1.0, 2014-08-03, [1.0 mainline7(0.9.189)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline7) released. 57432 lines.</strong>
+* <strong>v1.0, 2014-08-03, [1.0 mainline7(0.9.189)][r1.0a7] released. 57432 lines.</strong>
 * v1.0, 2014-08-03, fix [#79](https://github.com/simple-rtmp-server/srs/issues/79), fix the reload remove edge assert bug. 0.9.189.
 * v1.0, 2014-08-03, fix [#57](https://github.com/simple-rtmp-server/srs/issues/57), use lock(acquire/release publish) to avoid duplicated publishing. 0.9.188.
 * v1.0, 2014-08-03, fix [#85](https://github.com/simple-rtmp-server/srs/issues/85), fix the segment-dvr sequence header missing. 0.9.187.
@@ -506,7 +503,7 @@ Remark:
 * v1.0, 2014-07-26, fix [#124](https://github.com/simple-rtmp-server/srs/issues/124), gop cache support disable video in publishing. 0.9.171.
 * v1.0, 2014-07-23, fix [#121](https://github.com/simple-rtmp-server/srs/issues/121), srs_info detail log compile failed. 0.9.168.
 * v1.0, 2014-07-19, fix [#119](https://github.com/simple-rtmp-server/srs/issues/119), use iformat and oformat for ffmpeg transcode. 0.9.163.
-* <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline6) released. 50029 lines.</strong>
+* <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)][r1.0a6] released. 50029 lines.</strong>
 * v1.0, 2014-07-13, refine the bandwidth check/test, add as/js library, use srs-librtmp for linux tool. 0.9.159
 * v1.0, 2014-07-12, complete rtmp stack utest. 0.9.156
 * v1.0, 2014-07-06, fix [#81](https://github.com/simple-rtmp-server/srs/issues/81), fix HLS codec info, IOS ok. 0.9.153.
@@ -516,7 +513,7 @@ Remark:
 * v1.0, 2014-06-28, response the call message with null. 0.9.137
 * v1.0, 2014-06-28, fix [#110](https://github.com/simple-rtmp-server/srs/issues/110), thread start segment fault, thread cycle stop destroy thread. 0.9.136
 * v1.0, 2014-06-27, fix [#109](https://github.com/simple-rtmp-server/srs/issues/109), fix the system jump time, adjust system startup time. 0.9.135
-* <strong>v1.0, 2014-06-27, [1.0 mainline5(0.9.134)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline5) released. 41573 lines.</strong>
+* <strong>v1.0, 2014-06-27, [1.0 mainline5(0.9.134)][r1.0a5] released. 41573 lines.</strong>
 * v1.0, 2014-06-27, SRS online 30days with RTMP/HLS.
 * v1.0, 2014-06-25, fix [#108](https://github.com/simple-rtmp-server/srs/issues/108), support config time jitter for encoder non-monotonical stream. 0.9.133
 * v1.0, 2014-06-23, support report summaries in heartbeat. 0.9.132
@@ -527,7 +524,7 @@ Remark:
 * v1.0, 2014-06-18, add network bytes to api summaries. 0.9.125
 * v1.0, 2014-06-14, fix [#98](https://github.com/simple-rtmp-server/srs/issues/98), workaround for librtmp ping(fmt=1,cid=2 fresh stream). 0.9.124
 * v1.0, 2014-05-29, support flv inject and flv http streaming with start=bytes. 0.9.122
-* <strong>v1.0, 2014-05-28, [1.0 mainline4(0.9.120)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline4) released. 39200 lines.</strong>
+* <strong>v1.0, 2014-05-28, [1.0 mainline4(0.9.120)][r1.0a4] released. 39200 lines.</strong>
 * v1.0, 2014-05-27, fix [#87](https://github.com/simple-rtmp-server/srs/issues/87), add source id for full trackable log. 0.9.120
 * v1.0, 2014-05-27, fix [#84](https://github.com/simple-rtmp-server/srs/issues/84), unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89](https://github.com/simple-rtmp-server/srs/issues/89), config to /dev/null to disable ffmpeg log. 0.9.117
@@ -538,7 +535,7 @@ Remark:
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
 * v1.0, 2014-05-22, fix [#74](https://github.com/simple-rtmp-server/srs/issues/74), add tcUrl for http callback on_connect, 0.9.109
 * v1.0, 2014-05-19, support http heartbeat, 0.9.107
-* <strong>v1.0, 2014-05-18, [1.0 mainline3(0.9.105)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline3) released. 37594 lines.</strong>
+* <strong>v1.0, 2014-05-18, [1.0 mainline3(0.9.105)][r1.0a3] released. 37594 lines.</strong>
 * v1.0, 2014-05-18, support http api json, to PUT/POST. 0.9.105
 * v1.0, 2014-05-17, fix [#72](https://github.com/simple-rtmp-server/srs/issues/72), also need stream_id for send_and_free_message. 0.9.101
 * v1.0, 2014-05-17, rename struct to class. 0.9.100
@@ -553,7 +550,7 @@ Remark:
 * v1.0, 2014-05-04, support mips linux.
 * v1.0, 2014-04-30, fix bug [#34](https://github.com/simple-rtmp-server/srs/issues/34): convert signal to io thread. 0.9.85
 * v1.0, 2014-04-29, refine RTMP protocol completed, to 0.9.81
-* <strong>v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline2) released. 35255 lines.</strong>
+* <strong>v1.0, 2014-04-28, [1.0 mainline2(0.9.79)][r1.0a2] released. 35255 lines.</strong>
 * v1.0, 2014-04-28, support full edge RTMP server. 0.9.79
 * v1.0, 2014-04-27, support basic edge(play/publish) RTMP server. 0.9.78
 * v1.0, 2014-04-25, add donation page. 0.9.76
@@ -562,9 +559,9 @@ Remark:
 * v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69
 * v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. 0.9.58
 * v1.0, 2014-04-10, support reload ingesters(add/remov/update). 0.9.57
-* <strong>v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline) released. 30000 lines.</strong>
-* v1.0, 2014-04-07, support [ingest](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest) file/stream/device.
-* v1.0, 2014-04-05, support [http api](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi) and [http server](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPServer).
+* <strong>v1.0, 2014-04-07, [1.0 mainline(0.9.55)][r1.0a0] released. 30000 lines.</strong>
+* v1.0, 2014-04-07, support [ingest][v1_CN_SampleIngest] file/stream/device.
+* v1.0, 2014-04-05, support [http api][v1_CN_HTTPApi] and [http server][v1_CN_HTTPServer].
 * v1.0, 2014-04-03, implements http framework and api/v1/version.
 * v1.0, 2014-03-30, fix bug for st detecting epoll failed, force st to use epoll.
 * v1.0, 2014-03-29, add wiki [Performance for RaspberryPi](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RaspberryPi).
@@ -578,23 +575,23 @@ Remark:
 * v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
 * v1.0, 2014-03-19, refine handshake, client support complex handshake, add utest.
 * v1.0, 2014-03-16, fix bug on arm of st, the sp change from 20 to 8, for respberry-pi, @see [commit](https://github.com/simple-rtmp-server/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa)
-* v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
+* v1.0, 2014-03-16, support ARM([debian armhf, v7cpu][v1_CN_SrsLinuxArm]) with rtmp/ssl/hls/librtmp.
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
-* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp), [SRS for arm](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm), [product](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product)
+* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp), [SRS for arm][v1_CN_SrsLinuxArm], [product](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product)
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
-* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build), [FFMPEG](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG), [Reload](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Reload)
-* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency), [HTTPCallback](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback), [ServerSideScript](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_ServerSideScript), [IDE](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_IDE)
-* v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS)
-* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HowToAskQuestion), [RtmpUrlVhost](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost)
+* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build), [FFMPEG][v1_CN_FFMPEG], [Reload][v1_CN_Reload]
+* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency), [HTTPCallback][v1_CN_HTTPCallback], [ServerSideScript](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_ServerSideScript), [IDE](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_IDE)
+* v1.0, 2014-01-19, add wiki [DeliveryHLS][v1_CN_DeliveryHLS]
+* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HowToAskQuestion), [RtmpUrlVhost][v1_CN_RtmpUrlVhost]
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
-* v1.0, 2014-01-05, add wiki [Build](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build), [Performance](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance), [Forward](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward)
+* v1.0, 2014-01-05, add wiki [Build](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build), [Performance](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance), [Forward][v1_CN_Forward]
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
-* <strong>v0.9, 2013-12-25, [v0.9](https://github.com/simple-rtmp-server/srs/releases/tag/0.9) released. 20926 lines.</strong>
+* <strong>v0.9, 2013-12-25, [v0.9][r0.9] released. 20926 lines.</strong>
 * v0.9, 2013-12-25, fix the bitrate bug(in Bps), use enhanced microphone.
 * v0.9, 2013-12-22, demo video meeting or chat(SRS+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
@@ -608,41 +605,41 @@ Remark:
 * v0.9, 2013-12-15, support reload the hls/forwarder/transcoder.
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
-* <strong>v0.8, 2013-12-08, [v0.8](https://github.com/simple-rtmp-server/srs/releases/tag/0.8) released. 19186 lines.</strong>
-* v0.8, 2013-12-08, support [http hooks](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback): on_connect/close/publish/unpublish/play/stop.
+* <strong>v0.8, 2013-12-08, [v0.8][r0.8] released. 19186 lines.</strong>
+* v0.8, 2013-12-08, support [http hooks][v1_CN_HTTPCallback]: on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
-* v0.8, 2013-12-07, update http/hls/rtmp load test tool [SB](https://github.com/simple-rtmp-server/srs-bench), use SRS rtmp sdk.
+* v0.8, 2013-12-07, update http/hls/rtmp load test tool [SB][srs-bench], use SRS rtmp sdk.
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
 * v0.8, 2013-12-05, fix the forward/hls/encoder bug.
-* <strong>v0.7, 2013-12-03, [v0.7](https://github.com/simple-rtmp-server/srs/releases/tag/0.7) released. 17605 lines.</strong>
+* <strong>v0.7, 2013-12-03, [v0.7][r0.7] released. 17605 lines.</strong>
 * v0.7, 2013-12-01, support dead-loop detect for forwarder and transcoder.
 * v0.7, 2013-12-01, support all ffmpeg filters and params.
 * v0.7, 2013-11-30, support live stream transcoder by ffmpeg.
 * v0.7, 2013-11-30, support --with/without -ffmpeg, build ffmpeg-2.1.
 * v0.7, 2013-11-30, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
-* <strong>v0.6, 2013-11-29, [v0.6](https://github.com/simple-rtmp-server/srs/releases/tag/0.6) released. 16094 lines.</strong>
+* <strong>v0.6, 2013-11-29, [v0.6][r0.6] released. 16094 lines.</strong>
 * v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
 * v0.6, 2013-11-29, support forward stream to other edge server.
 * v0.6, 2013-11-29, support forward stream to other origin server.
 * v0.6, 2013-11-28, fix memory leak bug, aac decode bug.
 * v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
 * v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
-* <strong>v0.5, 2013-11-26, [v0.5](https://github.com/simple-rtmp-server/srs/releases/tag/0.5) released. 14449 lines.</strong>
+* <strong>v0.5, 2013-11-26, [v0.5][r0.5] released. 14449 lines.</strong>
 * v0.5, 2013-11-24, support HLS(m3u8), fragment and window.
 * v0.5, 2013-11-24, support record to ts file for HLS.
 * v0.5, 2013-11-21, add ts_info tool to demux ts file.
 * v0.5, 2013-11-16, add rtmp players(OSMF/jwplayer5/jwplayer6).
-* <strong>v0.4, 2013-11-10, [v0.4](https://github.com/simple-rtmp-server/srs/releases/tag/0.4) released. 12500 lines.</strong>
+* <strong>v0.4, 2013-11-10, [v0.4][r0.4] released. 12500 lines.</strong>
 * v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
 * v0.4, 2013-11-09, support reload config(listen and chunk_size) by SIGHUP(1).
 * v0.4, 2013-11-09, support longtime(>4.6hours) publish/play.
 * v0.4, 2013-11-09, support config the chunk_size.
 * v0.4, 2013-11-09, support pause for live stream.
-* <strong>v0.3, 2013-11-04, [v0.3](https://github.com/simple-rtmp-server/srs/releases/tag/0.3) released. 11773 lines.</strong>
+* <strong>v0.3, 2013-11-04, [v0.3][r0.3] released. 11773 lines.</strong>
 * v0.3, 2013-11-04, support refer/play-refer/publish-refer.
 * v0.3, 2013-11-04, support vhosts specified config.
 * v0.3, 2013-11-02, support listen multiple ports.
@@ -650,12 +647,12 @@ Remark:
 * v0.3, 2013-10-29, support pithy print log message specified by stage.
 * v0.3, 2013-10-28, support librtmp without extended-timestamp in 0xCX chunk packet.
 * v0.3, 2013-10-27, support cache last gop for client fast startup.
-* <strong>v0.2, 2013-10-25, [v0.2](https://github.com/simple-rtmp-server/srs/releases/tag/0.2) released. 10125 lines.</strong>
+* <strong>v0.2, 2013-10-25, [v0.2][r0.2] released. 10125 lines.</strong>
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake.
 * v0.2, 2013-10-24, support time jitter detect and correct algorithm
 * v0.2, 2013-10-24, support decode codec type to cache the h264/avc sequence header.
-* <strong>v0.1, 2013-10-23, [v0.1](https://github.com/simple-rtmp-server/srs/releases/tag/0.1) released. 8287 lines.</strong>
+* <strong>v0.1, 2013-10-23, [v0.1][r0.1] released. 8287 lines.</strong>
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
 * v0.1, 2013-10-23, support shared ptr msg for zero memory copy.
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
@@ -674,7 +671,7 @@ Performance benchmark history, on virtual box.
 
 ### Play RTMP benchmark
 
-The play RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
+The play RTMP benchmark by [SB][srs-bench]:
 
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
@@ -694,7 +691,7 @@ The play RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench)
 
 ### Publish RTMP benchmark
 
-The publish RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
+The publish RTMP benchmark by [SB][srs-bench]:
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
@@ -710,7 +707,7 @@ The publish RTMP benchmark by [SB](https://github.com/simple-rtmp-server/srs-ben
 
 ### Play HTTP FLV benchmark
 
-The play HTTP FLV benchmark by [SB](https://github.com/simple-rtmp-server/srs-bench):
+The play HTTP FLV benchmark by [SB][srs-bench]:
 
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
@@ -880,6 +877,7 @@ Winlin
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
 [oschina]: http://git.oschina.net/winlinvip/srs.oschina
 [srs-dolphin]: https://github.com/simple-rtmp-server/srs-dolphin
+[srs-bench]: https://github.com/simple-rtmp-server/srs-bench
 [srs-ngb]: https://github.com/simple-rtmp-server/srs-ngb
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
@@ -920,6 +918,8 @@ Winlin
 [donation1]: http://www.ossrs.net/srs.release/donation/index.html
 [donations]: https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
 
+[v2_CN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Build
+[v2_EN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Build
 [v1_CN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance
 [v1_EN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance
 [v1_CN_DeliveryRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP
@@ -998,6 +998,30 @@ Winlin
 [bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
+
+[r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
+[r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
+[r1.0r3]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3
+[r1.0r2]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2
+[r1.0r1]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1
+[r1.0r0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r0
+[r1.0b0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta
+[r1.0a7]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline7
+[r1.0a6]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline6
+[r1.0a5]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline5
+[r1.0a4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline4
+[r1.0a3]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline3
+[r1.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline2
+[r1.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline
+[r0.9]: https://github.com/simple-rtmp-server/srs/releases/tag/0.9
+[r0.8]: https://github.com/simple-rtmp-server/srs/releases/tag/0.8
+[r0.7]: https://github.com/simple-rtmp-server/srs/releases/tag/0.7
+[r0.6]: https://github.com/simple-rtmp-server/srs/releases/tag/0.6
+[r0.5]: https://github.com/simple-rtmp-server/srs/releases/tag/0.5
+[r0.4]: https://github.com/simple-rtmp-server/srs/releases/tag/0.4
+[r0.3]: https://github.com/simple-rtmp-server/srs/releases/tag/0.3
+[r0.2]: https://github.com/simple-rtmp-server/srs/releases/tag/0.2
+[r0.1]: https://github.com/simple-rtmp-server/srs/releases/tag/0.1
 
 
 [contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
