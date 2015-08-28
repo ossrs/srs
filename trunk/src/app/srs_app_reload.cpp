@@ -80,6 +80,16 @@ int ISrsReloadHandler::on_reload_http_api_disabled()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_http_api_crossdomain()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_http_api_raw_api()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_http_stream_enabled()
 {
     return ERROR_SUCCESS;

@@ -321,6 +321,10 @@ public:
      */
     virtual int vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj);
     /**
+     * dumps the http_api sections to json for raw api info.
+     */
+    virtual int raw_to_json(SrsAmf0Object* obj);
+    /**
      * get the config file path.
      */
     virtual std::string config();
@@ -1061,7 +1065,15 @@ public:
     /**
      * whether enable the HTTP RAW API.
      */
-    virtual bool                get_http_api_raw_api();
+    virtual bool                get_raw_api();
+    /**
+     * whether allow rpc reload.
+     */
+    virtual bool                get_raw_api_allow_reload();
+    /**
+     * whether allow rpc config_query.
+     */
+    virtual bool                get_raw_api_allow_config_query();
 // http stream section
 private:
     /**

@@ -1143,9 +1143,6 @@ int SrsConfig::reload_http_api(SrsConfDirective* old_root)
 {
     int ret = ERROR_SUCCESS;
     
-    // always support reload without additional code:
-    //      crossdomain, raw_api
-    
     // merge config.
     std::vector<ISrsReloadHandler*>::iterator it;
     
@@ -1198,6 +1195,24 @@ int SrsConfig::reload_http_api(SrsConfDirective* old_root)
             }
         }
         srs_trace("reload enabled modified http_api success.");
+        
+        if (!srs_directive_equals(old_http_api->get("crossdomain"), new_http_api->get("crossdomain"))) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_api_crossdomain()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_api crossdomain modified failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload crossdomain modified http_api success.");
+        
+        if (!srs_directive_equals(old_http_api->get("raw_api"), new_http_api->get("raw_api"))) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_api_raw_api()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_api raw_api modified failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload raw_api modified http_api success.");
         
         return ret;
     }
@@ -1645,7 +1660,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
                 } else if (sdir->name == "crossdomain") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "raw_api") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                    sobj->set(sdir->name, SrsAmf0Any::boolean(get_raw_api()));
                 }
             }
             obj->set(dir->name, sobj);
@@ -1776,6 +1791,49 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
 int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
 {
     int ret = ERROR_SUCCESS;
+    
+    return ret;
+}
+
+int SrsConfig::raw_to_json(SrsAmf0Object* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsAmf0Object* sobj = SrsAmf0Any::object();
+    obj->set("http_api", sobj);
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* dir = root->directives.at(i);
+        
+        if (dir->name != "http_api") {
+            continue;
+        }
+        
+        for (int j = 0; j < (int)dir->directives.size(); j++) {
+            SrsConfDirective* sdir = dir->directives.at(j);
+            if (sdir->name == "enabled") {
+                sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "listen") {
+                sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "crossdomain") {
+                sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "raw_api") {
+                SrsAmf0Object* ssobj = SrsAmf0Any::object();
+                sobj->set(sdir->name, ssobj);
+                
+                for (int k = 0; k < (int)sdir->directives.size(); k++) {
+                    SrsConfDirective* ssdir = sdir->directives.at(k);
+                    if (ssdir->name == "enabled") {
+                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                    } else if (ssdir->name == "allow_reload") {
+                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                    } else if (ssdir->name == "allow_config_query") {
+                        ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                    }
+                }
+            }
+        }
+    }
     
     return ret;
 }
@@ -1946,11 +2004,23 @@ int SrsConfig::check_config()
     if (true) {
         SrsConfDirective* conf = get_http_api();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
-            string n = conf->at(i)->name;
+            SrsConfDirective* obj = conf->at(i);
+            string n = obj->name;
             if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported http_api directive %s, ret=%d", n.c_str(), ret);
                 return ret;
+            }
+            
+            if (n == "raw_api") {
+                for (int j = 0; j < (int)obj->directives.size(); j++) {
+                    string m = obj->at(j)->name;
+                    if (m != "enabled" && m != "allow_reload" && m != "allow_config_query") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported http_api.raw_api directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
             }
         }
     }
@@ -4529,7 +4599,7 @@ bool SrsConfig::get_http_api_crossdomain()
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-bool SrsConfig::get_http_api_raw_api()
+bool SrsConfig::get_raw_api()
 {
     static bool DEFAULT = false;
     
@@ -4539,6 +4609,55 @@ bool SrsConfig::get_http_api_raw_api()
     }
     
     conf = conf->get("raw_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_raw_api_allow_reload()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_http_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("raw_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("allow_reload");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_raw_api_allow_config_query()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_http_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("raw_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("allow_config_query");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

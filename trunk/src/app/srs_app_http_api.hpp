@@ -41,6 +41,7 @@ class SrsServer;
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_http_stack.hpp>
+#include <srs_app_reload.hpp>
 
 // for http root.
 class SrsGoApiRoot : public ISrsHttpHandler
@@ -178,15 +179,22 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-class SrsGoApiRaw : public ISrsHttpHandler
+class SrsGoApiRaw : virtual public ISrsHttpHandler, virtual public ISrsReloadHandler
 {
 private:
     SrsServer* server;
+private:
+    bool raw_api;
+    bool allow_reload;
+    bool allow_config_query;
 public:
     SrsGoApiRaw(SrsServer* svr);
     virtual ~SrsGoApiRaw();
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_api_raw_api();
 };
 
 class SrsGoApiError : public ISrsHttpHandler
@@ -198,12 +206,13 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-class SrsHttpApi : public SrsConnection
+class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
 {
 private:
     SrsHttpParser* parser;
     SrsHttpServeMux* mux;
     bool crossdomain_required;
+    bool crossdomain_enabled;
 public:
     SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsHttpApi();
@@ -217,6 +226,9 @@ protected:
     virtual int do_cycle();
 private:
     virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_api_crossdomain();
 };
 
 #endif

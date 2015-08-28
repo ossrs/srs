@@ -53,6 +53,8 @@ public:
     virtual int on_reload_pithy_print();
     virtual int on_reload_http_api_enabled();
     virtual int on_reload_http_api_disabled();
+    virtual int on_reload_http_api_crossdomain();
+    virtual int on_reload_http_api_raw_api();
     virtual int on_reload_http_stream_enabled();
     virtual int on_reload_http_stream_disabled();
     virtual int on_reload_http_stream_updated();

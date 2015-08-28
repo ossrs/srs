@@ -842,10 +842,17 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
 {
     server = svr;
+    
+    raw_api = _srs_config->get_raw_api();
+    allow_reload = _srs_config->get_raw_api_allow_reload();
+    allow_config_query = _srs_config->get_raw_api_allow_config_query();
+    
+    _srs_config->subscribe(this);
 }
 
 SrsGoApiRaw::~SrsGoApiRaw()
 {
+    _srs_config->unsubscribe(this);
 }
 
 int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -853,7 +860,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     int ret = ERROR_SUCCESS;
     
     // whether enabled the HTTP RAW API.
-    if (!_srs_config->get_http_api_raw_api()) {
+    if (!raw_api) {
         ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
         srs_warn("raw api disabled. ret=%d", ret);
         return srs_api_response_code(w, r, ret);
@@ -861,7 +868,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // the rpc is required.
     std::string rpc = r->query_get("rpc");
-    if (rpc.empty() || (rpc != "reload" && rpc != "config_query")) {
+    if (rpc.empty() || (rpc != "reload" && rpc != "config_query" && rpc != "raw")) {
         ret = ERROR_SYSTEM_CONFIG_RAW;
         srs_error("raw api invalid rpc=%s. ret=%d", rpc.c_str(), ret);
         return srs_api_response_code(w, r, ret);
@@ -869,11 +876,33 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // for rpc=reload, trigger the server to reload the config.
     if (rpc == "reload") {
+        if (!allow_reload) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
+            srs_error("raw api reload disabled rpc=%s. ret=%d", rpc.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
         srs_trace("raw api trigger reload. ret=%d", ret);
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ret);
     }
     
+    // the object to return for request.
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
+    
+    // for rpc=raw, to query the raw api config for http api.
+    if (rpc == "raw") {
+        // query global scope.
+        if ((ret = _srs_config->raw_to_json(obj)) != ERROR_SUCCESS) {
+            srs_error("raw api rpc raw failed. ret=%d", ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        return srs_api_response(w, r, obj->to_json());
+    }
+
     // for rpc=config_query, to get the configs of server.
     //      @param scope the scope to query for config, it can be:
     //              global, the configs belongs to the root, donot includes any sub directives.
@@ -881,6 +910,12 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      @param vhost the vhost name for @param scope is vhost to query config.
     //              for the default vhost, must be __defaultVhost__
     if (rpc == "config_query") {
+        if (!allow_config_query) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
+            srs_error("raw api allow_config_query disabled rpc=%s. ret=%d", rpc.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
         std::string scope = r->query_get("scope");
         std::string vhost = r->query_get("vhost");
         if (scope.empty() || (scope != "global" && scope != "vhost")) {
@@ -888,12 +923,6 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             srs_error("raw api config_query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
-        
-        // config query.
-        SrsAmf0Object* obj = SrsAmf0Any::object();
-        SrsAutoFree(SrsAmf0Object, obj);
-        
-        obj->set("code", SrsAmf0Any::number(ERROR_SUCCESS));
         
         if (scope == "vhost") {
             // query vhost scope.
@@ -934,6 +963,15 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return ret;
 }
 
+int SrsGoApiRaw::on_reload_http_api_raw_api()
+{
+    raw_api = _srs_config->get_raw_api();
+    allow_reload = _srs_config->get_raw_api_allow_reload();
+    allow_config_query = _srs_config->get_raw_api_allow_config_query();
+    
+    return ERROR_SUCCESS;
+}
+
 SrsGoApiError::SrsGoApiError()
 {
 }
@@ -954,11 +992,15 @@ SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m
     mux = m;
     parser = new SrsHttpParser();
     crossdomain_required = false;
+    
+    _srs_config->subscribe(this);
 }
 
 SrsHttpApi::~SrsHttpApi()
 {
     srs_freep(parser);
+    
+    _srs_config->unsubscribe(this);
 }
 
 void SrsHttpApi::resample()
@@ -1001,6 +1043,9 @@ int SrsHttpApi::do_cycle()
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/simple-rtmp-server/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
+    
+    // initialize the crossdomain
+    crossdomain_enabled = _srs_config->get_http_api_crossdomain();
     
     // process http messages.
     while(!disposed) {
@@ -1081,6 +1126,13 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     
     return ret;
+}
+
+int SrsHttpApi::on_reload_http_api_crossdomain()
+{
+    crossdomain_enabled = _srs_config->get_http_api_crossdomain();
+    
+    return ERROR_SUCCESS;
 }
 
 #endif
