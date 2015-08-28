@@ -937,7 +937,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             if (vhost.empty()) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
                 srs_error("raw api query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
-                return ret;
+                return srs_api_response_code(w, r, ret);
             }
             
             SrsConfDirective* root = _srs_config->get_root();
@@ -945,7 +945,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             if (!conf) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
                 srs_error("raw api query vhost invalid vhost=%s. ret=%d", vhost.c_str(), ret);
-                return ret;
+                return srs_api_response_code(w, r, ret);
             }
             
             SrsAmf0Object* data = SrsAmf0Any::object();

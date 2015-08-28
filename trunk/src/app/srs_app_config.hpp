@@ -324,6 +324,12 @@ public:
      * dumps the http_api sections to json for raw api info.
      */
     virtual int raw_to_json(SrsAmf0Object* obj);
+private:
+    /**
+     * dumps the engine section to amf0 object.
+     */
+    virtual int dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine);
+public:
     /**
      * get the config file path.
      */
