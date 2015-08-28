@@ -343,7 +343,7 @@ Remark:
 ## History
 
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
-* v3.0, 2015-08-25, fix [#367](https://github.com/simple-rtmp-server/srs/issues/367), support nginx-rtmp exec. 3.0.1
+* v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380][bug #380], srs-librtmp send sequence header when sps or pps changed.
@@ -459,7 +459,7 @@ Remark:
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
 * v2.0, 2014-11-21, refine examples of srs-librtmp, add srs_print_rtmp_packet. 2.0.28.
 * v2.0, 2014-11-20, fix [#212][bug #212], support publish audio raw frames. 2.0.27
-* v2.0, 2014-11-19, fix [#213][bug #213], support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213][bug #213]. 2.0.26
+* v2.0, 2014-11-19, fix [#213][bug #213], support compile [srs-librtmp on windows][srs-librtmp], [bug #213][bug #213]. 2.0.26
 * v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
 * v2.0, 2014-11-15, fix [#204][bug #204], srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
 * v2.0, 2014-11-15, fix [#203][bug #203], srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.
@@ -599,7 +599,7 @@ Remark:
 * v0.9, 2013-12-22, demo video meeting or chat(SRS+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
 * v0.9, 2013-12-22, merge from wenjie: support set chunk size at vhost level
-* v0.9, 2013-12-21, add [players](http://demo.srs.com/players) for play and publish.
+* v0.9, 2013-12-21, add [players][player] for play and publish.
 * v0.9, 2013-12-15, ensure the HLS(ts) is continous when republish stream.
 * v0.9, 2013-12-15, fix the hls reload bug, feed it the sequence header.
 * v0.9, 2013-12-15, refine protocol, use int64_t timestamp for ts and jitter.
@@ -885,6 +885,7 @@ Winlin
 [srs-librtmp]: https://github.com/simple-rtmp-server/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
+[player]: http://ossrs.net/players/srs_player.html
 
 [v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
@@ -1182,6 +1183,7 @@ Winlin
 [bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
+[bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
 
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
