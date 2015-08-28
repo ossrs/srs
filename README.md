@@ -343,21 +343,21 @@ Remark:
 
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
-* v2.0, 2015-08-20, fix [#380](https://github.com/simple-rtmp-server/srs/issues/380), srs-librtmp send sequence header when sps or pps changed.
-* v2.0, 2015-08-18, close [#454](https://github.com/simple-rtmp-server/srs/issues/454), support obs restart publish. 2.0.184
+* v2.0, 2015-08-20, fix [#380][bug #380], srs-librtmp send sequence header when sps or pps changed.
+* v2.0, 2015-08-18, close [#454][bug #454], support obs restart publish. 2.0.184
 * v2.0, 2015-08-14, use reduce_sequence_header for stream control.
 * v2.0, 2015-08-14, use send_min_interval for stream control. 2.0.183
 * v2.0, 2015-08-12, enable the SRS_PERF_TCP_NODELAY and add config tcp_nodelay. 2.0.182
-* v2.0, 2015-08-11, for [#442](https://github.com/simple-rtmp-server/srs/issues/442) support kickoff connected client. 2.0.181
-* v2.0, 2015-07-21, for [#169](https://github.com/simple-rtmp-server/srs/issues/169) support default values for transcode. 2.0.180
+* v2.0, 2015-08-11, for [#442][bug #442] support kickoff connected client. 2.0.181
+* v2.0, 2015-07-21, for [#169][bug #169] support default values for transcode. 2.0.180
 * v2.0, 2015-07-21, fix [#435](https://github.com/simple-rtmp-server/srs/issues/435) add pageUrl for HTTP callback on_play.
 * v2.0, 2015-07-20, refine the hls, ignore packet when no sequence header. 2.0.179
-* v2.0, 2015-07-16, for [#441](https://github.com/simple-rtmp-server/srs/issues/441) use 30s timeout for first msg. 2.0.178
+* v2.0, 2015-07-16, for [#441][bug #441] use 30s timeout for first msg. 2.0.178
 * v2.0, 2015-07-14, refine hls disable the time jitter, support not mix monotonically increase. 2.0.177
-* v2.0, 2015-07-01, fix [#433](https://github.com/simple-rtmp-server/srs/issues/433) fix the sps parse bug. 2.0.176
-* v2.0, 2015-06-10, fix [#425](https://github.com/simple-rtmp-server/srs/issues/425) refine the time jitter, correct (-inf,-250)+(250,+inf) to 10ms. 2.0.175
-* v2.0, 2015-06-10, fix [#424](https://github.com/simple-rtmp-server/srs/issues/424) fix aggregate timestamp bug. 2.0.174
-* v2.0, 2015-06-06, fix [#421](https://github.com/simple-rtmp-server/srs/issues/421) drop video for unkown RTMP header.
+* v2.0, 2015-07-01, fix [#433][bug #433] fix the sps parse bug. 2.0.176
+* v2.0, 2015-06-10, fix [#425][bug #425] refine the time jitter, correct (-inf,-250)+(250,+inf) to 10ms. 2.0.175
+* v2.0, 2015-06-10, fix [#424][bug #424] fix aggregate timestamp bug. 2.0.174
+* v2.0, 2015-06-06, fix [#421][bug #421] drop video for unkown RTMP header.
 * v2.0, 2015-06-05, fix [#420](https://github.com/simple-rtmp-server/srs/issues/420) remove ts for hls ram mode.
 * v2.0, 2015-05-30, fix [#209](https://github.com/simple-rtmp-server/srs/issues/209) cleanup hls when stop and timeout. 2.0.173.
 * v2.0, 2015-05-29, fix [#409](https://github.com/simple-rtmp-server/srs/issues/409) support pure video hls. 2.0.172.
@@ -998,6 +998,15 @@ Winlin
 [bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
+[bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
+[bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
+[bug #442]: https://github.com/simple-rtmp-server/srs/issues/442
+[bug #169]: https://github.com/simple-rtmp-server/srs/issues/169
+[bug #441]: https://github.com/simple-rtmp-server/srs/issues/441
+[bug #433]: https://github.com/simple-rtmp-server/srs/issues/433
+[bug #425]: https://github.com/simple-rtmp-server/srs/issues/425
+[bug #424]: https://github.com/simple-rtmp-server/srs/issues/424
+[bug #421]: https://github.com/simple-rtmp-server/srs/issues/421
 
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
