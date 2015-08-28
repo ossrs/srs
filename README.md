@@ -350,7 +350,7 @@ Remark:
 * v2.0, 2015-08-12, enable the SRS_PERF_TCP_NODELAY and add config tcp_nodelay. 2.0.182
 * v2.0, 2015-08-11, for [#442][bug #442] support kickoff connected client. 2.0.181
 * v2.0, 2015-07-21, for [#169][bug #169] support default values for transcode. 2.0.180
-* v2.0, 2015-07-21, fix [#435](https://github.com/simple-rtmp-server/srs/issues/435) add pageUrl for HTTP callback on_play.
+* v2.0, 2015-07-21, fix [#435][bug #435] add pageUrl for HTTP callback on_play.
 * v2.0, 2015-07-20, refine the hls, ignore packet when no sequence header. 2.0.179
 * v2.0, 2015-07-16, for [#441][bug #441] use 30s timeout for first msg. 2.0.178
 * v2.0, 2015-07-14, refine hls disable the time jitter, support not mix monotonically increase. 2.0.177
@@ -358,158 +358,158 @@ Remark:
 * v2.0, 2015-06-10, fix [#425][bug #425] refine the time jitter, correct (-inf,-250)+(250,+inf) to 10ms. 2.0.175
 * v2.0, 2015-06-10, fix [#424][bug #424] fix aggregate timestamp bug. 2.0.174
 * v2.0, 2015-06-06, fix [#421][bug #421] drop video for unkown RTMP header.
-* v2.0, 2015-06-05, fix [#420](https://github.com/simple-rtmp-server/srs/issues/420) remove ts for hls ram mode.
-* v2.0, 2015-05-30, fix [#209](https://github.com/simple-rtmp-server/srs/issues/209) cleanup hls when stop and timeout. 2.0.173.
-* v2.0, 2015-05-29, fix [#409](https://github.com/simple-rtmp-server/srs/issues/409) support pure video hls. 2.0.172.
+* v2.0, 2015-06-05, fix [#420][bug #420] remove ts for hls ram mode.
+* v2.0, 2015-05-30, fix [#209][bug #209] cleanup hls when stop and timeout. 2.0.173.
+* v2.0, 2015-05-29, fix [#409][bug #409] support pure video hls. 2.0.172.
 * v2.0, 2015-05-28, support [srs-dolphin][srs-dolphin], the multiple-process SRS.
-* v2.0, 2015-05-24, fix [#404](https://github.com/simple-rtmp-server/srs/issues/404) register handler then start http thread. 2.0.167.
+* v2.0, 2015-05-24, fix [#404][bug #404] register handler then start http thread. 2.0.167.
 * v2.0, 2015-05-23, refine the thread, protocol, kbps code. 2.0.166
-* v2.0, 2015-05-23, fix [#391](https://github.com/simple-rtmp-server/srs/issues/391) copy request for async call.
-* v2.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 2.0.165
-* v2.0, 2015-05-22, for [#400](https://github.com/simple-rtmp-server/srs/issues/400), parse when got entire http header, by feilong. 2.0.164.
+* v2.0, 2015-05-23, fix [#391][bug #391] copy request for async call.
+* v2.0, 2015-05-22, fix [#397][bug #397] the USER_HZ maybe not 100. 2.0.165
+* v2.0, 2015-05-22, for [#400][bug #400], parse when got entire http header, by feilong. 2.0.164.
 * v2.0, 2015-05-19, merge from bravo system, add the rtmfp to bms(commercial srs). 2.0.163.
 * v2.0, 2015-05-10, support push flv stream over HTTP POST to SRS.
 * v2.0, 2015-04-20, support ingest hls live stream to RTMP.
-* v2.0, 2015-04-15, for [#383](https://github.com/simple-rtmp-server/srs/issues/383), support mix_correct algorithm. 2.0.161.
-* v2.0, 2015-04-13, for [#381](https://github.com/simple-rtmp-server/srs/issues/381), support reap hls/ts by gop or not. 2.0.160.
+* v2.0, 2015-04-15, for [#383][bug #383], support mix_correct algorithm. 2.0.161.
+* v2.0, 2015-04-13, for [#381][bug #381], support reap hls/ts by gop or not. 2.0.160.
 * v2.0, 2015-04-10, enhanced on_hls_notify, support HTTP GET when reap ts.
 * v2.0, 2015-04-10, refine the hls deviation for floor algorithm.
-* v2.0, 2015-04-08, for [#375](https://github.com/simple-rtmp-server/srs/issues/375), fix hls bug, keep cc continous between ts files. 2.0.159.
-* v2.0, 2015-04-04, for [#304](https://github.com/simple-rtmp-server/srs/issues/304), rewrite annexb mux for ts, refer to apple sample. 2.0.157.
+* v2.0, 2015-04-08, for [#375][bug #375], fix hls bug, keep cc continous between ts files. 2.0.159.
+* v2.0, 2015-04-04, for [#304][bug #304], rewrite annexb mux for ts, refer to apple sample. 2.0.157.
 * v2.0, 2015-04-03, enhanced avc decode, parse the sps get width+height. 2.0.156.
-* v2.0, 2015-04-03, for [#372](https://github.com/simple-rtmp-server/srs/issues/372), support transform vhost of edge 2.0.155.
-* v2.0, 2015-03-30, for [#366](https://github.com/simple-rtmp-server/srs/issues/366), config hls to disable cleanup of ts. 2.0.154.
+* v2.0, 2015-04-03, for [#372][bug #372], support transform vhost of edge 2.0.155.
+* v2.0, 2015-03-30, for [#366][bug #366], config hls to disable cleanup of ts. 2.0.154.
 * v2.0, 2015-03-31, support server cycle handler. 2.0.153.
 * v2.0, 2015-03-31, support on_hls for http hooks. 2.0.152.
 * v2.0, 2015-03-31, enhanced hls, support deviation for duration. 2.0.151.
-* v2.0, 2015-03-30, for [#351](https://github.com/simple-rtmp-server/srs/issues/351), support config the m3u8/ts path for hls. 2.0.149.
-* v2.0, 2015-03-17, for [#155](https://github.com/simple-rtmp-server/srs/issues/155), osx(darwin) support demo with nginx and ffmpeg. 2.0.143.
+* v2.0, 2015-03-30, for [#351][bug #351], support config the m3u8/ts path for hls. 2.0.149.
+* v2.0, 2015-03-17, for [#155][bug #155], osx(darwin) support demo with nginx and ffmpeg. 2.0.143.
 * v2.0, 2015-03-15, start [2.0release branch](https://github.com/simple-rtmp-server/srs/tree/2.0release), 80773 lines.
-* v2.0, 2015-03-14, fix [#324](https://github.com/simple-rtmp-server/srs/issues/324), support hstrs(http stream trigger rtmp source) edge mode. 2.0.140.
-* v2.0, 2015-03-14, for [#324](https://github.com/simple-rtmp-server/srs/issues/324), support hstrs(http stream trigger rtmp source) origin mode. 2.0.139.
-* v2.0, 2015-03-12, fix [#328](https://github.com/simple-rtmp-server/srs/issues/328), support adobe hds. 2.0.138.
-* v2.0, 2015-03-10, fix [#155](https://github.com/simple-rtmp-server/srs/issues/155), support osx(darwin) for mac pro. 2.0.137.
-* v2.0, 2015-03-08, fix [#316](https://github.com/simple-rtmp-server/srs/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
-* v2.0, 2015-03-08, fix [#310](https://github.com/simple-rtmp-server/srs/issues/310), refine aac LC, support aac HE/HEv2. 2.0.134.
-* v2.0, 2015-03-06, for [#322](https://github.com/simple-rtmp-server/srs/issues/322), fix http-flv stream bug, support multiple streams. 2.0.133.
+* v2.0, 2015-03-14, fix [#324][bug #324], support hstrs(http stream trigger rtmp source) edge mode. 2.0.140.
+* v2.0, 2015-03-14, for [#324][bug #324], support hstrs(http stream trigger rtmp source) origin mode. 2.0.139.
+* v2.0, 2015-03-12, fix [#328][bug #328], support adobe hds. 2.0.138.
+* v2.0, 2015-03-10, fix [#155][bug #155], support osx(darwin) for mac pro. 2.0.137.
+* v2.0, 2015-03-08, fix [#316][bug #316], http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
+* v2.0, 2015-03-08, fix [#310][bug #310], refine aac LC, support aac HE/HEv2. 2.0.134.
+* v2.0, 2015-03-06, for [#322][bug #322], fix http-flv stream bug, support multiple streams. 2.0.133.
 * v2.0, 2015-03-06, refine http request parse. 2.0.132.
-* v2.0, 2015-03-01, for [#179](https://github.com/simple-rtmp-server/srs/issues/179), revert dvr http api. 2.0.128.
-* v2.0, 2015-02-24, for [#304](https://github.com/simple-rtmp-server/srs/issues/304), fix hls bug, write pts/dts error. 2.0.124
+* v2.0, 2015-03-01, for [#179][bug #179], revert dvr http api. 2.0.128.
+* v2.0, 2015-02-24, for [#304][bug #304], fix hls bug, write pts/dts error. 2.0.124
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.
 * v2.0, 2015-02-19, refine pithy print to more easyer to use. 2.0.121.
-* v2.0, 2015-02-18, fix [#133](https://github.com/simple-rtmp-server/srs/issues/133), support push rtsp to srs. 2.0.120.
+* v2.0, 2015-02-18, fix [#133][bug #133], support push rtsp to srs. 2.0.120.
 * v2.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 2.0.119.
-* v2.0, 2015-02-15, for [#304](https://github.com/simple-rtmp-server/srs/issues/304), support config default acodec/vcodec. 2.0.118.
-* v2.0, 2015-02-15, for [#304](https://github.com/simple-rtmp-server/srs/issues/304), rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.
-* v2.0, 2015-02-12, for [#304](https://github.com/simple-rtmp-server/srs/issues/304), use stringstream to generate m3u8, add hls_td_ratio. 2.0.116.
+* v2.0, 2015-02-15, for [#304][bug #304], support config default acodec/vcodec. 2.0.118.
+* v2.0, 2015-02-15, for [#304][bug #304], rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.
+* v2.0, 2015-02-12, for [#304][bug #304], use stringstream to generate m3u8, add hls_td_ratio. 2.0.116.
 * v2.0, 2015-02-11, dev code ZhouGuowen for 2.0.115.
-* v2.0, 2015-02-10, for [#311](https://github.com/simple-rtmp-server/srs/issues/311), set pcr_base to dts. 2.0.114.
+* v2.0, 2015-02-10, for [#311][bug #311], set pcr_base to dts. 2.0.114.
 * v2.0, 2015-02-10, fix [the bug](https://github.com/simple-rtmp-server/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c) of ibmf format which decoded in annexb.
-* v2.0, 2015-02-10, for [#310](https://github.com/simple-rtmp-server/srs/issues/310), downcast aac SSR to LC. 2.0.113
-* v2.0, 2015-02-03, fix [#136](https://github.com/simple-rtmp-server/srs/issues/136), support hls without io(in ram). 2.0.112
-* v2.0, 2015-01-31, for [#250](https://github.com/simple-rtmp-server/srs/issues/250), support push MPEGTS over UDP to SRS. 2.0.111
+* v2.0, 2015-02-10, for [#310][bug #310], downcast aac SSR to LC. 2.0.113
+* v2.0, 2015-02-03, fix [#136][bug #136], support hls without io(in ram). 2.0.112
+* v2.0, 2015-01-31, for [#250][bug #250], support push MPEGTS over UDP to SRS. 2.0.111
 * v2.0, 2015-01-29, build libfdk-aac in ffmpeg. 2.0.108
-* v2.0, 2015-01-25, for [#301](https://github.com/simple-rtmp-server/srs/issues/301), hls support h.264+mp3, ok for vlc. 2.0.107
-* v2.0, 2015-01-25, for [#301](https://github.com/simple-rtmp-server/srs/issues/301), http ts stream support h.264+mp3. 2.0.106
-* v2.0, 2015-01-25, hotfix [#268](https://github.com/simple-rtmp-server/srs/issues/268), refine the pcr start at 0, dts/pts plus delay. 2.0.105
-* v2.0, 2015-01-25, hotfix [#151](https://github.com/simple-rtmp-server/srs/issues/151), refine pcr=dts-800ms and use dts/pts directly. 2.0.104
-* v2.0, 2015-01-23, hotfix [#151](https://github.com/simple-rtmp-server/srs/issues/151), use absolutely overflow to make jwplayer happy. 2.0.103
-* v2.0, 2015-01-22, for [#293](https://github.com/simple-rtmp-server/srs/issues/293), support http live ts stream. 2.0.101.
-* v2.0, 2015-01-19, for [#293](https://github.com/simple-rtmp-server/srs/issues/293), support http live flv/aac/mp3 stream with fast cache. 2.0.100.
-* v2.0, 2015-01-18, for [#293](https://github.com/simple-rtmp-server/srs/issues/293), support rtmp remux to http flv live stream. 2.0.99.
-* v2.0, 2015-01-17, fix [#277](https://github.com/simple-rtmp-server/srs/issues/277), refine http server refer to go http-framework. 2.0.98
-* v2.0, 2015-01-17, for [#277](https://github.com/simple-rtmp-server/srs/issues/277), refine http api refer to go http-framework. 2.0.97
-* v2.0, 2015-01-17, hotfix [#290](https://github.com/simple-rtmp-server/srs/issues/290), use iformat only for rtmp input. 2.0.95
-* v2.0, 2015-01-08, hotfix [#281](https://github.com/simple-rtmp-server/srs/issues/281), fix hls bug ignore type-9 send aud. 2.0.93
-* v2.0, 2015-01-03, fix [#274](https://github.com/simple-rtmp-server/srs/issues/274), http-callback support on_dvr when reap a dvr file. 2.0.89
+* v2.0, 2015-01-25, for [#301][bug #301], hls support h.264+mp3, ok for vlc. 2.0.107
+* v2.0, 2015-01-25, for [#301][bug #301], http ts stream support h.264+mp3. 2.0.106
+* v2.0, 2015-01-25, hotfix [#268][bug #268], refine the pcr start at 0, dts/pts plus delay. 2.0.105
+* v2.0, 2015-01-25, hotfix [#151][bug #151], refine pcr=dts-800ms and use dts/pts directly. 2.0.104
+* v2.0, 2015-01-23, hotfix [#151][bug #151], use absolutely overflow to make jwplayer happy. 2.0.103
+* v2.0, 2015-01-22, for [#293][bug #293], support http live ts stream. 2.0.101.
+* v2.0, 2015-01-19, for [#293][bug #293], support http live flv/aac/mp3 stream with fast cache. 2.0.100.
+* v2.0, 2015-01-18, for [#293][bug #293], support rtmp remux to http flv live stream. 2.0.99.
+* v2.0, 2015-01-17, fix [#277][bug #277], refine http server refer to go http-framework. 2.0.98
+* v2.0, 2015-01-17, for [#277][bug #277], refine http api refer to go http-framework. 2.0.97
+* v2.0, 2015-01-17, hotfix [#290][bug #290], use iformat only for rtmp input. 2.0.95
+* v2.0, 2015-01-08, hotfix [#281][bug #281], fix hls bug ignore type-9 send aud. 2.0.93
+* v2.0, 2015-01-03, fix [#274][bug #274], http-callback support on_dvr when reap a dvr file. 2.0.89
 * v2.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 2.0.88
-* v2.0, 2015-01-03, fix [#179](https://github.com/simple-rtmp-server/srs/issues/179), dvr support custom filepath by variables. 2.0.87
-* v2.0, 2015-01-02, fix [#211](https://github.com/simple-rtmp-server/srs/issues/211), support security allow/deny publish/play all/ip. 2.0.86
-* v2.0, 2015-01-02, hotfix [#207](https://github.com/simple-rtmp-server/srs/issues/207), trim the last 0 of log. 2.0.85
-* v2.0, 2014-01-02, fix [#158](https://github.com/simple-rtmp-server/srs/issues/158), http-callback check http status code ok(200). 2.0.84
-* v2.0, 2015-01-02, hotfix [#216](https://github.com/simple-rtmp-server/srs/issues/216), http-callback post in application/json content-type. 2.0.83
-* v2.0, 2014-01-02, fix [#263](https://github.com/simple-rtmp-server/srs/issues/263), srs-librtmp flv read tag should init size. 2.0.82
-* v2.0, 2015-01-01, hotfix [#270](https://github.com/simple-rtmp-server/srs/issues/270), memory leak for http client post. 2.0.81
-* v2.0, 2014-12-12, fix [#266](https://github.com/simple-rtmp-server/srs/issues/266), aac profile is object id plus one. 2.0.80
-* v2.0, 2014-12-29, hotfix [#267](https://github.com/simple-rtmp-server/srs/issues/267), the forward dest ep should use server. 2.0.79
-* v2.0, 2014-12-29, hotfix [#268](https://github.com/simple-rtmp-server/srs/issues/268), the hls pcr is negative when startup. 2.0.78
-* v2.0, 2014-12-22, hotfix [#264](https://github.com/simple-rtmp-server/srs/issues/264), ignore NALU when sequence header to make HLS happy. 2.0.76
-* v2.0, 2014-12-20, hotfix [#264](https://github.com/simple-rtmp-server/srs/issues/264), support disconnect publish connect when hls error. 2.0.75
-* v2.0, 2014-12-12, fix [#257](https://github.com/simple-rtmp-server/srs/issues/257), support 0.1s+ latency. 2.0.70
+* v2.0, 2015-01-03, fix [#179][bug #179], dvr support custom filepath by variables. 2.0.87
+* v2.0, 2015-01-02, fix [#211][bug #211], support security allow/deny publish/play all/ip. 2.0.86
+* v2.0, 2015-01-02, hotfix [#207][bug #207], trim the last 0 of log. 2.0.85
+* v2.0, 2014-01-02, fix [#158][bug #158], http-callback check http status code ok(200). 2.0.84
+* v2.0, 2015-01-02, hotfix [#216][bug #216], http-callback post in application/json content-type. 2.0.83
+* v2.0, 2014-01-02, fix [#263][bug #263], srs-librtmp flv read tag should init size. 2.0.82
+* v2.0, 2015-01-01, hotfix [#270][bug #270], memory leak for http client post. 2.0.81
+* v2.0, 2014-12-12, fix [#266][bug #266], aac profile is object id plus one. 2.0.80
+* v2.0, 2014-12-29, hotfix [#267][bug #267], the forward dest ep should use server. 2.0.79
+* v2.0, 2014-12-29, hotfix [#268][bug #268], the hls pcr is negative when startup. 2.0.78
+* v2.0, 2014-12-22, hotfix [#264][bug #264], ignore NALU when sequence header to make HLS happy. 2.0.76
+* v2.0, 2014-12-20, hotfix [#264][bug #264], support disconnect publish connect when hls error. 2.0.75
+* v2.0, 2014-12-12, fix [#257][bug #257], support 0.1s+ latency. 2.0.70
 * v2.0, 2014-12-08, update wiki for mr([EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency#merged-read), [CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency#merged-read)) and mw([EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency#merged-write), [CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency#merged-write)).
-* v2.0, 2014-12-07, fix [#251](https://github.com/simple-rtmp-server/srs/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
-* v2.0, 2014-12-05, fix [#251](https://github.com/simple-rtmp-server/srs/issues/251), 9k+ clients, use fast cache for msgs queue. 2.0.57
-* v2.0, 2014-12-04, fix [#241](https://github.com/simple-rtmp-server/srs/issues/241), add mw(merged-write) config. 2.0.53
-* v2.0, 2014-12-04, for [#241](https://github.com/simple-rtmp-server/srs/issues/241), support mr(merged-read) config and reload. 2.0.52.
-* v2.0, 2014-12-04, enable [#241](https://github.com/simple-rtmp-server/srs/issues/241) and [#248](https://github.com/simple-rtmp-server/srs/issues/248), +25% performance, 2.5k publisher. 2.0.50
-* v2.0, 2014-12-04, fix [#248](https://github.com/simple-rtmp-server/srs/issues/248), improve about 15% performance for fast buffer. 2.0.49
-* v2.0, 2014-12-03, fix [#244](https://github.com/simple-rtmp-server/srs/issues/244), conn thread use cond to wait for recv thread error. 2.0.47.
+* v2.0, 2014-12-07, fix [#251][bug #251], 10k+ clients, use queue cond wait and fast vector. 2.0.67
+* v2.0, 2014-12-05, fix [#251][bug #251], 9k+ clients, use fast cache for msgs queue. 2.0.57
+* v2.0, 2014-12-04, fix [#241][bug #241], add mw(merged-write) config. 2.0.53
+* v2.0, 2014-12-04, for [#241][bug #241], support mr(merged-read) config and reload. 2.0.52.
+* v2.0, 2014-12-04, enable [#241][bug #241] and [#248][bug #248], +25% performance, 2.5k publisher. 2.0.50
+* v2.0, 2014-12-04, fix [#248][bug #248], improve about 15% performance for fast buffer. 2.0.49
+* v2.0, 2014-12-03, fix [#244][bug #244], conn thread use cond to wait for recv thread error. 2.0.47.
 * v2.0, 2014-12-02, merge [#239](https://github.com/simple-rtmp-server/srs/pull/239), traverse the token before response connect. 2.0.45.
 * v2.0, 2014-12-02, srs-librtmp support hijack io apis for st-load. 2.0.42.
-* v2.0, 2014-12-01, for [#237](https://github.com/simple-rtmp-server/srs/issues/237), refine syscall for recv, supports 1.5k clients. 2.0.41.
+* v2.0, 2014-12-01, for [#237][bug #237], refine syscall for recv, supports 1.5k clients. 2.0.41.
 * v2.0, 2014-11-30, add qtcreate project file trunk/src/qt/srs/srs-qt.pro. 2.0.39.
-* v2.0, 2014-11-29, fix [#235](https://github.com/simple-rtmp-server/srs/issues/235), refine handshake, replace union with template method. 2.0.38.
-* v2.0, 2014-11-28, fix [#215](https://github.com/simple-rtmp-server/srs/issues/215), add srs_rtmp_dump tool. 2.0.37.
+* v2.0, 2014-11-29, fix [#235][bug #235], refine handshake, replace union with template method. 2.0.38.
+* v2.0, 2014-11-28, fix [#215][bug #215], add srs_rtmp_dump tool. 2.0.37.
 * v2.0, 2014-11-25, update PRIMARY, AUTHORS, CONTRIBUTORS rule. 2.0.32.
-* v2.0, 2014-11-24, fix [#212](https://github.com/simple-rtmp-server/srs/issues/212), support publish aac adts raw stream. 2.0.31.
-* v2.0, 2014-11-22, fix [#217](https://github.com/simple-rtmp-server/srs/issues/217), remove timeout recv, support 7.5k+ 250kbps clients. 2.0.30.
+* v2.0, 2014-11-24, fix [#212][bug #212], support publish aac adts raw stream. 2.0.31.
+* v2.0, 2014-11-22, fix [#217][bug #217], remove timeout recv, support 7.5k+ 250kbps clients. 2.0.30.
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
 * v2.0, 2014-11-21, refine examples of srs-librtmp, add srs_print_rtmp_packet. 2.0.28.
-* v2.0, 2014-11-20, fix [#212](https://github.com/simple-rtmp-server/srs/issues/212), support publish audio raw frames. 2.0.27
-* v2.0, 2014-11-19, fix [#213](https://github.com/simple-rtmp-server/srs/issues/213), support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213](https://github.com/simple-rtmp-server/srs/issues/213). 2.0.26
+* v2.0, 2014-11-20, fix [#212][bug #212], support publish audio raw frames. 2.0.27
+* v2.0, 2014-11-19, fix [#213][bug #213], support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213][bug #213]. 2.0.26
 * v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
-* v2.0, 2014-11-15, fix [#204](https://github.com/simple-rtmp-server/srs/issues/204), srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
-* v2.0, 2014-11-15, fix [#203](https://github.com/simple-rtmp-server/srs/issues/203), srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.
-* v2.0, 2014-11-15, fix [#202](https://github.com/simple-rtmp-server/srs/issues/202), fix memory leak of h.264 raw packet send in srs-librtmp. 2.0.20.
-* v2.0, 2014-11-13, fix [#200](https://github.com/simple-rtmp-server/srs/issues/200), deadloop when read/write 0 and ETIME. 2.0.16.
-* v2.0, 2014-11-13, fix [#194](https://github.com/simple-rtmp-server/srs/issues/194), writev multiple msgs, support 6k+ 250kbps clients. 2.0.15.
-* v2.0, 2014-11-12, fix [#194](https://github.com/simple-rtmp-server/srs/issues/194), optmized st for timeout recv. pulse to 500ms. 2.0.14.
-* v2.0, 2014-11-11, fix [#195](https://github.com/simple-rtmp-server/srs/issues/195), remove the confuse code st_usleep(0). 2.0.13.
-* v2.0, 2014-11-08, fix [#191](https://github.com/simple-rtmp-server/srs/issues/191), configure --export-librtmp-project and --export-librtmp-single. 2.0.11.
-* v2.0, 2014-11-08, fix [#66](https://github.com/simple-rtmp-server/srs/issues/66), srs-librtmp support write h264 raw packet. 2.0.9.
-* v2.0, 2014-10-25, fix [#185](https://github.com/simple-rtmp-server/srs/issues/185), AMF0 support 0x0B the date type codec. 2.0.7.
-* v2.0, 2014-10-24, fix [#186](https://github.com/simple-rtmp-server/srs/issues/186), hotfix for bug #186, drop connect args when not object. 2.0.6.
+* v2.0, 2014-11-15, fix [#204][bug #204], srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
+* v2.0, 2014-11-15, fix [#203][bug #203], srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.
+* v2.0, 2014-11-15, fix [#202][bug #202], fix memory leak of h.264 raw packet send in srs-librtmp. 2.0.20.
+* v2.0, 2014-11-13, fix [#200][bug #200], deadloop when read/write 0 and ETIME. 2.0.16.
+* v2.0, 2014-11-13, fix [#194][bug #194], writev multiple msgs, support 6k+ 250kbps clients. 2.0.15.
+* v2.0, 2014-11-12, fix [#194][bug #194], optmized st for timeout recv. pulse to 500ms. 2.0.14.
+* v2.0, 2014-11-11, fix [#195][bug #195], remove the confuse code st_usleep(0). 2.0.13.
+* v2.0, 2014-11-08, fix [#191][bug #191], configure --export-librtmp-project and --export-librtmp-single. 2.0.11.
+* v2.0, 2014-11-08, fix [#66][bug #66], srs-librtmp support write h264 raw packet. 2.0.9.
+* v2.0, 2014-10-25, fix [#185][bug #185], AMF0 support 0x0B the date type codec. 2.0.7.
+* v2.0, 2014-10-24, fix [#186][bug #186], hotfix for bug #186, drop connect args when not object. 2.0.6.
 * v2.0, 2014-10-24, rename wiki/xxx to wiki/v1_CN_xxx. 2.0.3.
-* v2.0, 2014-10-19, fix [#184](https://github.com/simple-rtmp-server/srs/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
+* v2.0, 2014-10-19, fix [#184][bug #184], support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0) released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)][r1.0b0] released. 59316 lines.</strong>
-* v1.0, 2014-10-08, fix [#151](https://github.com/simple-rtmp-server/srs/issues/151), always reap ts whatever audio or video packet. 0.9.223.
-* v1.0, 2014-10-08, fix [#162](https://github.com/simple-rtmp-server/srs/issues/162), failed if no epoll. 0.9.222.
-* v1.0, 2014-09-30, fix [#180](https://github.com/simple-rtmp-server/srs/issues/180), crash for multiple edge publishing the same stream. 0.9.220.
+* v1.0, 2014-10-08, fix [#151][bug #151], always reap ts whatever audio or video packet. 0.9.223.
+* v1.0, 2014-10-08, fix [#162][bug #162], failed if no epoll. 0.9.222.
+* v1.0, 2014-09-30, fix [#180][bug #180], crash for multiple edge publishing the same stream. 0.9.220.
 * v1.0, 2014-09-26, fix hls bug, refine config and log, according to clion of jetbrains. 0.9.216. 
-* v1.0, 2014-09-25, fix [#177](https://github.com/simple-rtmp-server/srs/issues/177), dvr segment add config dvr_wait_keyframe. 0.9.213.
-* v1.0, 2014-08-28, fix [#167](https://github.com/simple-rtmp-server/srs/issues/167), add openssl includes to utest. 0.9.209.
+* v1.0, 2014-09-25, fix [#177][bug #177], dvr segment add config dvr_wait_keyframe. 0.9.213.
+* v1.0, 2014-08-28, fix [#167][bug #167], add openssl includes to utest. 0.9.209.
 * v1.0, 2014-08-27, max connections is 32756, for st use mmap default. 0.9.209
-* v1.0, 2014-08-24, fix [#150](https://github.com/simple-rtmp-server/srs/issues/150), forward should forward the sequence header when retry. 0.9.208.
-* v1.0, 2014-08-22, for [#165](https://github.com/simple-rtmp-server/srs/issues/165), refine dh wrapper, ensure public key is 128bytes. 0.9.206.
-* v1.0, 2014-08-19, for [#160](https://github.com/simple-rtmp-server/srs/issues/160), support forward/edge to flussonic, disable debug_srs_upnode to make flussonic happy. 0.9.201.
-* v1.0, 2014-08-17, for [#155](https://github.com/simple-rtmp-server/srs/issues/155), refine for osx, with ssl/http, disable statistics. 0.9.198.
-* v1.0, 2014-08-06, fix [#148](https://github.com/simple-rtmp-server/srs/issues/148), simplify the RTMP handshake key generation. 0.9.191.
-* v1.0, 2014-08-06, fix [#147](https://github.com/simple-rtmp-server/srs/issues/147), support identify the srs edge. 0.9.190.
+* v1.0, 2014-08-24, fix [#150][bug #150], forward should forward the sequence header when retry. 0.9.208.
+* v1.0, 2014-08-22, for [#165][bug #165], refine dh wrapper, ensure public key is 128bytes. 0.9.206.
+* v1.0, 2014-08-19, for [#160][bug #160], support forward/edge to flussonic, disable debug_srs_upnode to make flussonic happy. 0.9.201.
+* v1.0, 2014-08-17, for [#155][bug #155], refine for osx, with ssl/http, disable statistics. 0.9.198.
+* v1.0, 2014-08-06, fix [#148][bug #148], simplify the RTMP handshake key generation. 0.9.191.
+* v1.0, 2014-08-06, fix [#147][bug #147], support identify the srs edge. 0.9.190.
 * <strong>v1.0, 2014-08-03, [1.0 mainline7(0.9.189)][r1.0a7] released. 57432 lines.</strong>
-* v1.0, 2014-08-03, fix [#79](https://github.com/simple-rtmp-server/srs/issues/79), fix the reload remove edge assert bug. 0.9.189.
-* v1.0, 2014-08-03, fix [#57](https://github.com/simple-rtmp-server/srs/issues/57), use lock(acquire/release publish) to avoid duplicated publishing. 0.9.188.
-* v1.0, 2014-08-03, fix [#85](https://github.com/simple-rtmp-server/srs/issues/85), fix the segment-dvr sequence header missing. 0.9.187.
-* v1.0, 2014-08-03, fix [#145](https://github.com/simple-rtmp-server/srs/issues/145), refine ffmpeg log, check abitrate for libaacplus. 0.9.186.
-* v1.0, 2014-08-03, fix [#143](https://github.com/simple-rtmp-server/srs/issues/143), fix retrieve sys stat bug for all linux. 0.9.185.
-* v1.0, 2014-08-02, fix [#138](https://github.com/simple-rtmp-server/srs/issues/138), fix http hooks bug, regression bug. 0.9.184.
-* v1.0, 2014-08-02, fix [#142](https://github.com/simple-rtmp-server/srs/issues/142), fix tcp stat slow bug, use /proc/net/sockstat instead, refer to 'ss -s'. 0.9.183.
-* v1.0, 2014-07-31, fix [#141](https://github.com/simple-rtmp-server/srs/issues/141), support tun0(vpn network device) ip retrieve. 0.9.179.
+* v1.0, 2014-08-03, fix [#79][bug #79], fix the reload remove edge assert bug. 0.9.189.
+* v1.0, 2014-08-03, fix [#57][bug #57], use lock(acquire/release publish) to avoid duplicated publishing. 0.9.188.
+* v1.0, 2014-08-03, fix [#85][bug #85], fix the segment-dvr sequence header missing. 0.9.187.
+* v1.0, 2014-08-03, fix [#145][bug #145], refine ffmpeg log, check abitrate for libaacplus. 0.9.186.
+* v1.0, 2014-08-03, fix [#143][bug #143], fix retrieve sys stat bug for all linux. 0.9.185.
+* v1.0, 2014-08-02, fix [#138][bug #138], fix http hooks bug, regression bug. 0.9.184.
+* v1.0, 2014-08-02, fix [#142][bug #142], fix tcp stat slow bug, use /proc/net/sockstat instead, refer to 'ss -s'. 0.9.183.
+* v1.0, 2014-07-31, fix [#141][bug #141], support tun0(vpn network device) ip retrieve. 0.9.179.
 * v1.0, 2014-07-27, support partially build on OSX(Darwin). 0.9.177
 * v1.0, 2014-07-27, api connections add udp, add disk iops. 0.9.176
 * v1.0, 2014-07-26, complete config utest. 0.9.173
-* v1.0, 2014-07-26, fix [#124](https://github.com/simple-rtmp-server/srs/issues/124), gop cache support disable video in publishing. 0.9.171.
-* v1.0, 2014-07-23, fix [#121](https://github.com/simple-rtmp-server/srs/issues/121), srs_info detail log compile failed. 0.9.168.
-* v1.0, 2014-07-19, fix [#119](https://github.com/simple-rtmp-server/srs/issues/119), use iformat and oformat for ffmpeg transcode. 0.9.163.
+* v1.0, 2014-07-26, fix [#124][bug #124], gop cache support disable video in publishing. 0.9.171.
+* v1.0, 2014-07-23, fix [#121][bug #121], srs_info detail log compile failed. 0.9.168.
+* v1.0, 2014-07-19, fix [#119][bug #119], use iformat and oformat for ffmpeg transcode. 0.9.163.
 * <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)][r1.0a6] released. 50029 lines.</strong>
 * v1.0, 2014-07-13, refine the bandwidth check/test, add as/js library, use srs-librtmp for linux tool. 0.9.159
 * v1.0, 2014-07-12, complete rtmp stack utest. 0.9.156
-* v1.0, 2014-07-06, fix [#81](https://github.com/simple-rtmp-server/srs/issues/81), fix HLS codec info, IOS ok. 0.9.153.
-* v1.0, 2014-07-06, fix [#103](https://github.com/simple-rtmp-server/srs/issues/103), support all aac sample rate. 0.9.150.
+* v1.0, 2014-07-06, fix [#81][bug #81], fix HLS codec info, IOS ok. 0.9.153.
+* v1.0, 2014-07-06, fix [#103][bug #103], support all aac sample rate. 0.9.150.
 * v1.0, 2014-07-05, complete kernel utest. 0.9.149
-* v1.0, 2014-06-30, fix [#111](https://github.com/simple-rtmp-server/srs/issues/111), always use 31bits timestamp. 0.9.143.
+* v1.0, 2014-06-30, fix [#111][bug #111], always use 31bits timestamp. 0.9.143.
 * v1.0, 2014-06-28, response the call message with null. 0.9.137
 * v1.0, 2014-06-28, fix [#110](https://github.com/simple-rtmp-server/srs/issues/110), thread start segment fault, thread cycle stop destroy thread. 0.9.136
 * v1.0, 2014-06-27, fix [#109](https://github.com/simple-rtmp-server/srs/issues/109), fix the system jump time, adjust system startup time. 0.9.135
@@ -1007,6 +1007,135 @@ Winlin
 [bug #425]: https://github.com/simple-rtmp-server/srs/issues/425
 [bug #424]: https://github.com/simple-rtmp-server/srs/issues/424
 [bug #421]: https://github.com/simple-rtmp-server/srs/issues/421
+[bug #435]: https://github.com/simple-rtmp-server/srs/issues/435
+[bug #420]: https://github.com/simple-rtmp-server/srs/issues/420
+[bug #209]: https://github.com/simple-rtmp-server/srs/issues/209
+[bug #409]: https://github.com/simple-rtmp-server/srs/issues/409
+[bug #404]: https://github.com/simple-rtmp-server/srs/issues/404
+[bug #391]: https://github.com/simple-rtmp-server/srs/issues/391
+[bug #397]: https://github.com/simple-rtmp-server/srs/issues/397
+[bug #400]: https://github.com/simple-rtmp-server/srs/issues/400
+[bug #383]: https://github.com/simple-rtmp-server/srs/issues/383
+[bug #381]: https://github.com/simple-rtmp-server/srs/issues/381
+[bug #375]: https://github.com/simple-rtmp-server/srs/issues/375
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #372]: https://github.com/simple-rtmp-server/srs/issues/372
+[bug #366]: https://github.com/simple-rtmp-server/srs/issues/366
+[bug #351]: https://github.com/simple-rtmp-server/srs/issues/351
+[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
+[bug #324]: https://github.com/simple-rtmp-server/srs/issues/324
+[bug #324]: https://github.com/simple-rtmp-server/srs/issues/324
+[bug #328]: https://github.com/simple-rtmp-server/srs/issues/328
+[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
+[bug #316]: https://github.com/simple-rtmp-server/srs/issues/316
+[bug #310]: https://github.com/simple-rtmp-server/srs/issues/310
+[bug #322]: https://github.com/simple-rtmp-server/srs/issues/322
+[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #311]: https://github.com/simple-rtmp-server/srs/issues/311
+[bug #310]: https://github.com/simple-rtmp-server/srs/issues/310
+[bug #136]: https://github.com/simple-rtmp-server/srs/issues/136
+[bug #250]: https://github.com/simple-rtmp-server/srs/issues/250
+[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
+[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
+[bug #268]: https://github.com/simple-rtmp-server/srs/issues/268
+[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
+[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
+[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
+[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
+[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
+[bug #277]: https://github.com/simple-rtmp-server/srs/issues/277
+[bug #277]: https://github.com/simple-rtmp-server/srs/issues/277
+[bug #290]: https://github.com/simple-rtmp-server/srs/issues/290
+[bug #281]: https://github.com/simple-rtmp-server/srs/issues/281
+[bug #274]: https://github.com/simple-rtmp-server/srs/issues/274
+[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
+[bug #211]: https://github.com/simple-rtmp-server/srs/issues/211
+[bug #207]: https://github.com/simple-rtmp-server/srs/issues/207
+[bug #158]: https://github.com/simple-rtmp-server/srs/issues/158
+[bug #216]: https://github.com/simple-rtmp-server/srs/issues/216
+[bug #263]: https://github.com/simple-rtmp-server/srs/issues/263
+[bug #270]: https://github.com/simple-rtmp-server/srs/issues/270
+[bug #266]: https://github.com/simple-rtmp-server/srs/issues/266
+[bug #267]: https://github.com/simple-rtmp-server/srs/issues/267
+[bug #268]: https://github.com/simple-rtmp-server/srs/issues/268
+[bug #264]: https://github.com/simple-rtmp-server/srs/issues/264
+[bug #264]: https://github.com/simple-rtmp-server/srs/issues/264
+[bug #257]: https://github.com/simple-rtmp-server/srs/issues/257
+[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
+[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
+[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
+[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
+[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
+[bug #248]: https://github.com/simple-rtmp-server/srs/issues/248
+[bug #244]: https://github.com/simple-rtmp-server/srs/issues/244
+[bug #237]: https://github.com/simple-rtmp-server/srs/issues/237
+[bug #235]: https://github.com/simple-rtmp-server/srs/issues/235
+[bug #215]: https://github.com/simple-rtmp-server/srs/issues/215
+[bug #212]: https://github.com/simple-rtmp-server/srs/issues/212
+[bug #217]: https://github.com/simple-rtmp-server/srs/issues/217
+[bug #212]: https://github.com/simple-rtmp-server/srs/issues/212
+[bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
+[bug #204]: https://github.com/simple-rtmp-server/srs/issues/204
+[bug #203]: https://github.com/simple-rtmp-server/srs/issues/203
+[bug #202]: https://github.com/simple-rtmp-server/srs/issues/202
+[bug #200]: https://github.com/simple-rtmp-server/srs/issues/200
+[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
+[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
+[bug #195]: https://github.com/simple-rtmp-server/srs/issues/195
+[bug #191]: https://github.com/simple-rtmp-server/srs/issues/191
+[bug #66]: https://github.com/simple-rtmp-server/srs/issues/66
+[bug #185]: https://github.com/simple-rtmp-server/srs/issues/185
+[bug #186]: https://github.com/simple-rtmp-server/srs/issues/186
+[bug #184]: https://github.com/simple-rtmp-server/srs/issues/184
+[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
+[bug #162]: https://github.com/simple-rtmp-server/srs/issues/162
+[bug #180]: https://github.com/simple-rtmp-server/srs/issues/180
+[bug #177]: https://github.com/simple-rtmp-server/srs/issues/177
+[bug #167]: https://github.com/simple-rtmp-server/srs/issues/167
+[bug #150]: https://github.com/simple-rtmp-server/srs/issues/150
+[bug #165]: https://github.com/simple-rtmp-server/srs/issues/165
+[bug #160]: https://github.com/simple-rtmp-server/srs/issues/160
+[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
+[bug #148]: https://github.com/simple-rtmp-server/srs/issues/148
+[bug #147]: https://github.com/simple-rtmp-server/srs/issues/147
+[bug #79]: https://github.com/simple-rtmp-server/srs/issues/79
+[bug #57]: https://github.com/simple-rtmp-server/srs/issues/57
+[bug #85]: https://github.com/simple-rtmp-server/srs/issues/85
+[bug #145]: https://github.com/simple-rtmp-server/srs/issues/145
+[bug #143]: https://github.com/simple-rtmp-server/srs/issues/143
+[bug #138]: https://github.com/simple-rtmp-server/srs/issues/138
+[bug #142]: https://github.com/simple-rtmp-server/srs/issues/142
+[bug #141]: https://github.com/simple-rtmp-server/srs/issues/141
+[bug #124]: https://github.com/simple-rtmp-server/srs/issues/124
+[bug #121]: https://github.com/simple-rtmp-server/srs/issues/121
+[bug #119]: https://github.com/simple-rtmp-server/srs/issues/119
+[bug #81]: https://github.com/simple-rtmp-server/srs/issues/81
+[bug #103]: https://github.com/simple-rtmp-server/srs/issues/103
+[bug #111]: https://github.com/simple-rtmp-server/srs/issues/111
+[bug #110]: https://github.com/simple-rtmp-server/srs/issues/110
+[bug #109]: https://github.com/simple-rtmp-server/srs/issues/109
+[bug #108]: https://github.com/simple-rtmp-server/srs/issues/108
+[bug #98]: https://github.com/simple-rtmp-server/srs/issues/98
+[bug #87]: https://github.com/simple-rtmp-server/srs/issues/87
+[bug #84]: https://github.com/simple-rtmp-server/srs/issues/84
+[bug #89]: https://github.com/simple-rtmp-server/srs/issues/89
+[bug #76]: https://github.com/simple-rtmp-server/srs/issues/76
+[bug #78]: https://github.com/simple-rtmp-server/srs/issues/78
+[bug #74]: https://github.com/simple-rtmp-server/srs/issues/74
+[bug #72]: https://github.com/simple-rtmp-server/srs/issues/72
+[bug #67]: https://github.com/simple-rtmp-server/srs/issues/67
+[bug #64]: https://github.com/simple-rtmp-server/srs/issues/64
+[bug #36]: https://github.com/simple-rtmp-server/srs/issues/36
+[bug #60]: https://github.com/simple-rtmp-server/srs/issues/60
+[bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
+[bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
+[bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
+[bug #257-c0]: https://github.com/simple-rtmp-server/srs/issues/257#issuecomment-66864413
 
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
