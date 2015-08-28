@@ -84,6 +84,9 @@ public:
     SrsAvcProfile avc_profile;
     // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
     SrsAvcLevel avc_level;
+    // the width and height in codec info.
+    int width;
+    int height;
 public:
     bool has_audio;
     SrsCodecAudio acodec;
@@ -166,7 +169,8 @@ public:
     * when got video info for stream.
     */
     virtual int on_video_info(SrsRequest* req, 
-        SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
+        SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
+        int width, int height
     );
     /**
     * when got audio info for stream.

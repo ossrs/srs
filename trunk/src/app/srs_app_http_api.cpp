@@ -695,7 +695,7 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsStatisticVhost* vhost = NULL;
     
     if (vid > 0 && (vhost = stat->find_vhost(vid)) == NULL) {
-        ret = ERROR_RTMP_STREAM_NOT_FOUND;
+        ret = ERROR_RTMP_VHOST_NOT_FOUND;
         srs_error("vhost id=%d not found. ret=%d", vid, ret);
         return srs_api_response_code(w, r, ret);
     }
@@ -750,7 +750,7 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsStatisticStream* stream = NULL;
     if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
         ret = ERROR_RTMP_STREAM_NOT_FOUND;
-        srs_error("stream stream_id=%d not found. ret=%d", sid, ret);
+        srs_error("stream id=%d not found. ret=%d", sid, ret);
         return srs_api_response_code(w, r, ret);
     }
     
@@ -803,8 +803,8 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     SrsStatisticClient* client = NULL;
     if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
-        ret = ERROR_RTMP_STREAM_NOT_FOUND;
-        srs_error("stream client_id=%d not found. ret=%d", cid, ret);
+        ret = ERROR_RTMP_CLIENT_NOT_FOUND;
+        srs_error("client id=%d not found. ret=%d", cid, ret);
         return srs_api_response_code(w, r, ret);
     }
     
@@ -830,6 +830,15 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 return srs_api_response_code(w, r, ret);
             }
         }
+    } else if (r->is_http_delete()) {
+        if (!client) {
+            ret = ERROR_RTMP_CLIENT_NOT_FOUND;
+            srs_error("client id=%d not found. ret=%d", cid, ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        client->conn->expire();
+        srs_warn("kickoff client id=%d", cid);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

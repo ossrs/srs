@@ -1893,7 +1893,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
             return ret;
         }
         

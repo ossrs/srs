@@ -108,6 +108,8 @@ SrsStatisticStream::SrsStatisticStream()
     asample_rate = SrsCodecAudioSampleRateReserved;
     asound_type = SrsCodecAudioSoundTypeReserved;
     aac_object = SrsAacObjectTypeReserved;
+    width = 0;
+    height = 0;
     
     kbps = new SrsKbps();
     kbps->set_io(NULL, NULL);
@@ -154,6 +156,8 @@ int SrsStatisticStream::dumps(SrsAmf0Object* obj)
         video->set("codec", SrsAmf0Any::str(srs_codec_video2str(vcodec).c_str()));
         video->set("profile", SrsAmf0Any::str(srs_codec_avc_profile2str(avc_profile).c_str()));
         video->set("level", SrsAmf0Any::str(srs_codec_avc_level2str(avc_level).c_str()));
+        video->set("width", SrsAmf0Any::number(width));
+        video->set("height", SrsAmf0Any::number(height));
     }
     
     if (!has_audio) {
@@ -216,7 +220,7 @@ int SrsStatisticClient::dumps(SrsAmf0Object* obj)
     obj->set("url", SrsAmf0Any::str(req->get_stream_url().c_str()));
     obj->set("type", SrsAmf0Any::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsAmf0Any::boolean(srs_client_type_is_publish(type)));
-    obj->set("alive", SrsAmf0Any::number(srs_get_system_time_ms() - create));
+    obj->set("alive", SrsAmf0Any::number((srs_get_system_time_ms() - create) / 1000.0));
     
     return ret;
 }
@@ -305,7 +309,8 @@ SrsStatisticClient* SrsStatistic::find_client(int cid)
 }
 
 int SrsStatistic::on_video_info(SrsRequest* req, 
-    SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
+    SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
+    int width, int height
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -316,6 +321,9 @@ int SrsStatistic::on_video_info(SrsRequest* req,
     stream->vcodec = vcodec;
     stream->avc_profile = avc_profile;
     stream->avc_level = avc_level;
+    
+    stream->width = width;
+    stream->height = height;
     
     return ret;
 }

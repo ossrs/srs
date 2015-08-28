@@ -154,6 +154,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTP_TYPE97_CORRUPT            2046
 #define ERROR_RTSP_AUDIO_CONFIG             2047
 #define ERROR_RTMP_STREAM_NOT_FOUND         2048
+#define ERROR_RTMP_CLIENT_NOT_FOUND         2049
 //                                           
 // system control message, 
 // not an error, but special control logic.

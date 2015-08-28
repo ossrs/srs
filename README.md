@@ -345,6 +345,7 @@ Remark:
 
 ## History
 
+* v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367](https://github.com/simple-rtmp-server/srs/issues/367), support nginx-rtmp exec. 3.0.1
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)](https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0) released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
@@ -1001,6 +1002,7 @@ Winlin
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
 [bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
+[bug #471]: https://github.com/simple-rtmp-server/srs/issues/471
 
 
 [contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
