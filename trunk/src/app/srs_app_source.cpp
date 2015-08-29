@@ -594,17 +594,22 @@ void SrsGopCache::dispose()
     clear();
 }
 
-void SrsGopCache::set(bool enabled)
+void SrsGopCache::set(bool v)
 {
-    enable_gop_cache = enabled;
+    enable_gop_cache = v;
     
-    if (!enabled) {
+    if (!v) {
         srs_info("disable gop cache, clear %d packets.", (int)gop_cache.size());
         clear();
         return;
     }
     
     srs_info("enable gop cache");
+}
+
+bool SrsGopCache::enabled()
+{
+    return enable_gop_cache;
 }
 
 int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
@@ -1043,65 +1048,6 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
     return ret;
 }
 
-int SrsSource::on_reload_vhost_gop_cache(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_req->vhost != vhost) {
-        return ret;
-    }
-    
-    // gop cache changed.
-    bool enabled_cache = _srs_config->get_gop_cache(vhost);
-    
-    srs_trace("vhost %s gop_cache changed to %d, source url=%s", 
-        vhost.c_str(), enabled_cache, _req->get_stream_url().c_str());
-    
-    set_cache(enabled_cache);
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_queue_length(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_req->vhost != vhost) {
-        return ret;
-    }
-
-    double queue_size = _srs_config->get_queue_length(_req->vhost);
-    
-    if (true) {
-        std::vector<SrsConsumer*>::iterator it;
-        
-        for (it = consumers.begin(); it != consumers.end(); ++it) {
-            SrsConsumer* consumer = *it;
-            consumer->set_queue_size(queue_size);
-        }
-
-        srs_trace("consumers reload queue size success.");
-    }
-    
-    if (true) {
-        std::vector<SrsForwarder*>::iterator it;
-        
-        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-            SrsForwarder* forwarder = *it;
-            forwarder->set_queue_size(queue_size);
-        }
-
-        srs_trace("forwarders reload queue size success.");
-    }
-    
-    if (true) {
-        publish_edge->set_queue_size(queue_size);
-        srs_trace("publish_edge reload queue size success.");
-    }
-    
-    return ret;
-}
-
 int SrsSource::on_reload_vhost_play(string vhost)
 {
     int ret = ERROR_SUCCESS;
@@ -1133,6 +1079,49 @@ int SrsSource::on_reload_vhost_play(string vhost)
             gop_cache->clear();
         }
         atc = v;
+    }
+    
+    // gop cache changed.
+    if (true) {
+        bool v = _srs_config->get_gop_cache(vhost);
+        
+        if (v != gop_cache->enabled()) {
+            string url = _req->get_stream_url();
+            srs_trace("vhost %s gop_cache changed to %d, source url=%s", vhost.c_str(), v, url.c_str());
+            gop_cache->set(v);
+        }
+    }
+    
+    // queue length
+    if (true) {
+        double v = _srs_config->get_queue_length(_req->vhost);
+        
+        if (true) {
+            std::vector<SrsConsumer*>::iterator it;
+            
+            for (it = consumers.begin(); it != consumers.end(); ++it) {
+                SrsConsumer* consumer = *it;
+                consumer->set_queue_size(v);
+            }
+            
+            srs_trace("consumers reload queue size success.");
+        }
+        
+        if (true) {
+            std::vector<SrsForwarder*>::iterator it;
+            
+            for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+                SrsForwarder* forwarder = *it;
+                forwarder->set_queue_size(v);
+            }
+            
+            srs_trace("forwarders reload queue size success.");
+        }
+        
+        if (true) {
+            publish_edge->set_queue_size(v);
+            srs_trace("publish_edge reload queue size success.");
+        }
     }
     
     return ret;

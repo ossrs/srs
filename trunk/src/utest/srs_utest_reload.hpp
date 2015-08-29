@@ -85,8 +85,6 @@ public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_vhost_gop_cache(std::string vhost);
-    virtual int on_reload_vhost_queue_length(std::string vhost);
     virtual int on_reload_vhost_play(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);

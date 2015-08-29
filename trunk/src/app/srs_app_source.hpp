@@ -331,7 +331,8 @@ public:
     /**
     * to enable or disable the gop cache.
     */
-    virtual void set(bool enabled);
+    virtual void set(bool v);
+    virtual bool enabled();
     /**
     * only for h264 codec
     * 1. cache the gop when got h264 video packet.
@@ -520,8 +521,6 @@ public:
     virtual int initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_gop_cache(std::string vhost);
-    virtual int on_reload_vhost_queue_length(std::string vhost);
     virtual int on_reload_vhost_play(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);

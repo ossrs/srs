@@ -230,18 +230,6 @@ int MockReloadHandler::on_reload_vhost_removed(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
-int MockReloadHandler::on_reload_vhost_gop_cache(string /*vhost*/)
-{
-    vhost_gop_cache_reloaded = true;
-    return ERROR_SUCCESS;
-}
-
-int MockReloadHandler::on_reload_vhost_queue_length(string /*vhost*/)
-{
-    vhost_queue_length_reloaded = true;
-    return ERROR_SUCCESS;
-}
-
 int MockReloadHandler::on_reload_vhost_play(string /*vhost*/)
 {
     vhost_time_jitter_reloaded = true;
