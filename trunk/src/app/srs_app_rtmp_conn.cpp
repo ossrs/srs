@@ -294,7 +294,7 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
     return ret;
 }
 
-int SrsRtmpConn::on_reload_vhost_p1stpt(string vhost)
+int SrsRtmpConn::on_reload_vhost_publish(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
@@ -308,20 +308,9 @@ int SrsRtmpConn::on_reload_vhost_p1stpt(string vhost)
         publish_1stpkt_timeout = p1stpt;
     }
     
-    return ret;
-}
-
-int SrsRtmpConn::on_reload_vhost_pnt(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
     int pnt = _srs_config->get_publish_normal_timeout(req->vhost);
     if (pnt != publish_normal_timeout) {
-        srs_trace("p1stpt changed %d=>%d", publish_normal_timeout, pnt);
+        srs_trace("pnt changed %d=>%d", publish_normal_timeout, pnt);
         publish_normal_timeout = pnt;
     }
     

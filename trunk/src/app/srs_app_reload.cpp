@@ -170,7 +170,7 @@ int ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_vhost_mr(string /*vhost*/)
+int ISrsReloadHandler::on_reload_vhost_publish(string /*vhost*/)
 {
     return ERROR_SUCCESS;
 }
@@ -191,16 +191,6 @@ int ISrsReloadHandler::on_reload_vhost_tcp_nodelay(string /*vhost*/)
 }
 
 int ISrsReloadHandler::on_reload_vhost_realtime(string /*vhost*/)
-{
-    return ERROR_SUCCESS;
-}
-
-int ISrsReloadHandler::on_reload_vhost_p1stpt(string /*vhost*/)
-{
-    return ERROR_SUCCESS;
-}
-
-int ISrsReloadHandler::on_reload_vhost_pnt(string /*vhost*/)
 {
     return ERROR_SUCCESS;
 }

@@ -424,7 +424,7 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 }
 #endif
 
-int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
+int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
 {
     int ret = ERROR_SUCCESS;
     

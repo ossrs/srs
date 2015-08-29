@@ -816,16 +816,16 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload exec success.", vhost.c_str());
             }
             
-            // mr, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("mr"), old_vhost->get("mr"))) {
+            // publish, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("publish"), old_vhost->get("publish"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_mr(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes mr failed. ret=%d", vhost.c_str(), ret);
+                    if ((ret = subscribe->on_reload_vhost_publish(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes publish failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
                 }
-                srs_trace("vhost %s reload mr success.", vhost.c_str());
+                srs_trace("vhost %s reload publish success.", vhost.c_str());
             }
             
             // chunk_size, only one per vhost.
@@ -874,30 +874,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                     }
                 }
                 srs_trace("vhost %s reload tcp_nodelay success.", vhost.c_str());
-            }
-            
-            // publish_1stpkt_timeout, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("publish_1stpkt_timeout"), old_vhost->get("publish_1stpkt_timeout"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_p1stpt(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes p1stpt failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload p1stpt success.", vhost.c_str());
-            }
-            
-            // publish_normal_timeout, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("publish_normal_timeout"), old_vhost->get("publish_normal_timeout"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_pnt(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes pnt failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload pnt success.", vhost.c_str());
             }
             
             // min_latency, only one per vhost
@@ -1798,20 +1774,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     if ((dir = vhost->get("min_latency")) != NULL) {
         obj->set("min_latency", dir->dumps_arg0_to_boolean());
     }
-    if ((dir = vhost->get("mr")) != NULL) {
-        SrsAmf0Object* mr = SrsAmf0Any::object();
-        obj->set("mr", mr);
-        
-        for (int i = 0; i < (int)dir->directives.size(); i++) {
-            SrsConfDirective* sdir = dir->directives.at(i);
-            
-            if (sdir->name == "enabled") {
-                mr->set("enabled", sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "latency") {
-                mr->set("latency", sdir->dumps_arg0_to_number());
-            }
-        }
-    }
     if ((dir = vhost->get("mw_latency")) != NULL) {
         obj->set("mw_latency", dir->dumps_arg0_to_number());
     }
@@ -1834,11 +1796,25 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     if ((dir = vhost->get("reduce_sequence_header")) != NULL) {
         obj->set("reduce_sequence_header", dir->dumps_arg0_to_boolean());
     }
-    if ((dir = vhost->get("publish_1stpkt_timeout")) != NULL) {
-        obj->set("publish_1stpkt_timeout", dir->dumps_arg0_to_number());
-    }
-    if ((dir = vhost->get("publish_normal_timeout")) != NULL) {
-        obj->set("publish_normal_timeout", dir->dumps_arg0_to_number());
+    
+    // publish
+    if ((dir = vhost->get("publish")) != NULL) {
+        SrsAmf0Object* publish = SrsAmf0Any::object();
+        obj->set("publish", publish);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "mr") {
+                publish->set("mr", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "mr_latency") {
+                publish->set("mr_latency", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "firstpkt_timeout") {
+                publish->set("firstpkt_timeout", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "normal_timeout") {
+                publish->set("normal_timeout", sdir->dumps_arg0_to_number());
+            }
+        }
     }
     
     // refer
@@ -2702,9 +2678,8 @@ int SrsConfig::check_config()
                 && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency" && n != "min_latency"
+                && n != "publish" && n != "mw_latency" && n != "min_latency"
                 && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
-                && n != "publish_1stpkt_timeout" && n != "publish_normal_timeout"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
             ) {
@@ -2742,12 +2717,12 @@ int SrsConfig::check_config()
                         return ret;
                     }
                 }
-            } else if (n == "mr") {
+            } else if (n == "publish") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "latency") {
+                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
-                        srs_error("unsupported vhost mr directive %s, ret=%d", m.c_str(), ret);
+                        srs_error("unsupported vhost publish directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -3463,12 +3438,12 @@ bool SrsConfig::get_mr_enabled(string vhost)
         return SRS_PERF_MR_ENABLED;
     }
 
-    conf = conf->get("mr");
+    conf = conf->get("publish");
     if (!conf) {
         return SRS_PERF_MR_ENABLED;
     }
 
-    conf = conf->get("enabled");
+    conf = conf->get("mr");
     if (!conf || conf->arg0().empty()) {
         return SRS_PERF_MR_ENABLED;
     }
@@ -3483,12 +3458,12 @@ int SrsConfig::get_mr_sleep_ms(string vhost)
         return SRS_PERF_MR_SLEEP;
     }
 
-    conf = conf->get("mr");
+    conf = conf->get("publish");
     if (!conf) {
         return SRS_PERF_MR_SLEEP;
     }
 
-    conf = conf->get("latency");
+    conf = conf->get("mr_latency");
     if (!conf || conf->arg0().empty()) {
         return SRS_PERF_MR_SLEEP;
     }
@@ -3587,7 +3562,12 @@ int SrsConfig::get_publish_1stpkt_timeout(string vhost)
         return DEFAULT;
     }
     
-    conf = conf->get("publish_1stpkt_timeout");
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("firstpkt_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -3607,7 +3587,12 @@ int SrsConfig::get_publish_normal_timeout(string vhost)
         return DEFAULT;
     }
     
-    conf = conf->get("publish_normal_timeout");
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("normal_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -5677,7 +5662,7 @@ int srs_config_transform_vhost(SrsConfDirective* root)
 {
     int ret = ERROR_SUCCESS;
     
-    for (int i = 0; i < root->directives.size(); i++) {
+    for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* dir = root->directives.at(i);
         
         // SRS2.0, rename global http_stream to http_server.
@@ -5694,6 +5679,7 @@ int srs_config_transform_vhost(SrsConfDirective* root)
             continue;
         }
         
+        // for each directive of vhost.
         std::vector<SrsConfDirective*>::iterator it;
         for (it = dir->directives.begin(); it != dir->directives.end();) {
             SrsConfDirective* conf = *it;
@@ -5732,6 +5718,66 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 }
                 
                 // remove the old directive.
+                srs_freep(conf);
+                continue;
+            }
+            
+            // SRS3.0, change the mr style
+            //  SRS2:
+            //      vhost { mr { enabled; latency; } }
+            //  SRS3+:
+            //      vhost { publish { mr; mr_latency; } }
+            if (conf->name == "mr") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* publish = dir->get_or_create("publish");
+                
+                SrsConfDirective* enabled = conf->get("enabled");
+                if (enabled) {
+                    SrsConfDirective* mr = publish->get_or_create("mr");
+                    mr->args = enabled->args;
+                }
+                
+                SrsConfDirective* latency = conf->get("latency");
+                if (latency) {
+                    SrsConfDirective* mr_latency = publish->get_or_create("mr_latency");
+                    mr_latency->args = latency->args;
+                }
+                
+                srs_freep(conf);
+                continue;
+            }
+            
+            // SRS3.0, change the publish_1stpkt_timeout
+            //  SRS2:
+            //      vhost { publish_1stpkt_timeout; }
+            //  SRS3+:
+            //      vhost { publish { firstpkt_timeout; } }
+            if (conf->name == "publish_1stpkt_timeout") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* publish = dir->get_or_create("publish");
+                
+                SrsConfDirective* firstpkt_timeout = publish->get_or_create("firstpkt_timeout");
+                firstpkt_timeout->args = conf->args;
+                
+                srs_freep(conf);
+                continue;
+            }
+            
+            // SRS3.0, change the publish_normal_timeout
+            //  SRS2:
+            //      vhost { publish_normal_timeout; }
+            //  SRS3+:
+            //      vhost { publish { normal_timeout; } }
+            if (conf->name == "publish_normal_timeout") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* publish = dir->get_or_create("publish");
+                
+                SrsConfDirective* normal_timeout = publish->get_or_create("normal_timeout");
+                normal_timeout->args = conf->args;
+                
                 srs_freep(conf);
                 continue;
             }

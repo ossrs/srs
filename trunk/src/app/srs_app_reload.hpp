@@ -73,13 +73,11 @@ public:
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);
-    virtual int on_reload_vhost_mr(std::string vhost);
+    virtual int on_reload_vhost_publish(std::string vhost);
     virtual int on_reload_vhost_mw(std::string vhost);
     virtual int on_reload_vhost_smi(std::string vhost);
     virtual int on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
-    virtual int on_reload_vhost_p1stpt(std::string vhost);
-    virtual int on_reload_vhost_pnt(std::string vhost);
     virtual int on_reload_vhost_chunk_size(std::string vhost);
     virtual int on_reload_vhost_transcode(std::string vhost);
     virtual int on_reload_vhost_exec(std::string vhost);

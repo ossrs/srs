@@ -206,7 +206,7 @@ public:
 #endif
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_mr(std::string vhost);
+    virtual int on_reload_vhost_publish(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
 private:
     virtual void set_socket_buffer(int sleep_ms);
