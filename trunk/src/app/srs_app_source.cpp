@@ -2235,7 +2235,11 @@ int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);
+    if (_srs_config->get_forward_enabled(_req->vhost)) {
+        return ret;
+    }
+    
+    SrsConfDirective* conf = _srs_config->get_forwards(_req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
         

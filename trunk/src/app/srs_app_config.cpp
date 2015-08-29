@@ -1575,7 +1575,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         sobj->set("exec", SrsAmf0Any::boolean(get_exec_enabled(dir->name)));
         sobj->set("bandcheck", SrsAmf0Any::boolean(get_bw_check_enabled(dir->name)));
         sobj->set("origin", SrsAmf0Any::boolean(!get_vhost_is_edge(dir->name)));
-        sobj->set("forward", SrsAmf0Any::boolean(get_forward(dir->name)));
+        sobj->set("forward", SrsAmf0Any::boolean(get_forward_enabled(dir->name)));
         
         sobj->set("security", SrsAmf0Any::boolean(get_security_enabled(dir->name)));
         sobj->set("refer", SrsAmf0Any::boolean(get_refer_enabled(dir->name)));
@@ -1679,7 +1679,18 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // forward
     if ((dir = vhost->get("forward")) != NULL) {
-        obj->set("forward", dir->dumps_args());
+        SrsAmf0Object* forward = SrsAmf0Any::object();
+        obj->set("forward", forward);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                forward->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "destination") {
+                forward->set("destination", sdir->dumps_args());
+            }
+        }
     }
     
     // debug_srs_upnode
@@ -2705,15 +2716,14 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "forward") {
-                // TODO: FIXME: implements it.
-                /*for (int j = 0; j < (int)conf->directives.size(); j++) {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "vhost" && m != "refer") {
+                    if (m != "enabled" && m != "destination") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
-                }*/
+                }
             } else if (n == "security") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     SrsConfDirective* security = conf->at(j);
@@ -3581,14 +3591,41 @@ int SrsConfig::get_global_chunk_size()
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_forward(string vhost)
+bool SrsConfig::get_forward_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("forward");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+SrsConfDirective* SrsConfig::get_forwards(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
     }
     
-    return conf->get("forward");
+    conf = conf->get("forward");
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("destination");
 }
 
 SrsConfDirective* SrsConfig::get_vhost_http_hooks(string vhost)
@@ -5771,6 +5808,22 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 shadow->args = conf->args;
                 
                 srs_freep(conf);
+                continue;
+            }
+            
+            // SRS3.0, change the forward.
+            //  SRS1/2:
+            //      vhost { forward; }
+            //  SRS3+:
+            //      vhost { forward { enabled; destination; } }
+            if (n == "forward") {
+                conf->get_or_create("enabled", "on");
+                
+                SrsConfDirective* destination = conf->get_or_create("destination");
+                destination->args = conf->args;
+                conf->args.clear();
+                
+                ++it;
                 continue;
             }
             

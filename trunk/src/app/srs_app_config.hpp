@@ -599,9 +599,13 @@ private:
 // forward section
 public:
     /**
+     * whether the forwarder enabled.
+     */
+    virtual bool                get_forward_enabled(std::string vhost);
+    /**
     * get the forward directive of vhost.
     */
-    virtual SrsConfDirective*   get_forward(std::string vhost);
+    virtual SrsConfDirective*   get_forwards(std::string vhost);
 // http_hooks section
 private:
     /**
