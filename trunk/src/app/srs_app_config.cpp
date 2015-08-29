@@ -1798,27 +1798,62 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     SrsConfDirective* dir = NULL;
     
-    // security
-    if ((dir = vhost->get("security")) != NULL) {
-        SrsAmf0Object* security = SrsAmf0Any::object();
-        obj->set("security", security);
-        
-        SrsAmf0StrictArray* allows = SrsAmf0Any::strict_array();
-        security->set("allows", allows);
-        
-        for (int i = 0; i < (int)dir->directives.size(); i++) {
-            SrsConfDirective* sdir = dir->directives.at(i);
-            
-            if (sdir->name == "enabled") {
-                security->set("enabled", sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "allow") {
-                SrsAmf0Object* allow = SrsAmf0Any::object();
-                allow->set("action", SrsAmf0Any::str(sdir->name.c_str()));
-                allow->set("method", SrsAmf0Any::str(sdir->arg0().c_str()));
-                allow->set("entry", SrsAmf0Any::str(sdir->arg1().c_str()));
-                allows->append(allow);
-            }
-        }
+    // stat id and name.
+    SrsStatistic* stat = SrsStatistic::instance();
+    
+    SrsStatisticVhost* svhost = stat->find_vhost(vhost->arg0());
+    obj->set("id", SrsAmf0Any::number(svhost? (double)svhost->id : 0));
+    
+    obj->set("name", vhost->dumps_arg0_to_str());
+    
+    // enabled
+    if ((dir = vhost->get("enabled")) != NULL) {
+        obj->set("enabled", dir->dumps_arg0_to_boolean());
+    }
+    
+    // edge.
+    if ((dir = vhost->get("mode")) != NULL) {
+        obj->set("mode", dir->dumps_arg0_to_str());
+    }
+    if ((dir = vhost->get("origin")) != NULL) {
+        obj->set("origin", dir->dumps_args());
+    }
+    if ((dir = vhost->get("token_traverse")) != NULL) {
+        obj->set("token_traverse", dir->dumps_arg0_to_boolean());
+    }
+    if ((dir = vhost->get("vhost")) != NULL) {
+        obj->set("vhost", dir->dumps_arg0_to_str());
+    }
+    
+    // forward
+    if ((dir = vhost->get("forward")) != NULL) {
+        obj->set("forward", dir->dumps_args());
+    }
+    
+    // debug_srs_upnode
+    if ((dir = vhost->get("debug_srs_upnode")) != NULL) {
+        obj->set("debug_srs_upnode", dir->dumps_arg0_to_boolean());
+    }
+    
+    // chunk_size
+    if ((dir = vhost->get("chunk_size")) != NULL) {
+        obj->set("chunk_size", dir->dumps_arg0_to_number());
+    }
+    
+    // time_jitter
+    if ((dir = vhost->get("time_jitter")) != NULL) {
+        obj->set("time_jitter", dir->dumps_arg0_to_str());
+    }
+    if ((dir = vhost->get("mix_correct")) != NULL) {
+        obj->set("mix_correct", dir->dumps_arg0_to_boolean());
+    }
+    
+    // atc
+    if ((dir = vhost->get("atc")) != NULL) {
+        obj->set("atc", dir->dumps_arg0_to_boolean());
+    }
+    if ((dir = vhost->get("atc_auto")) != NULL) {
+        obj->set("atc_auto", dir->dumps_arg0_to_boolean());
     }
     
     // mrw
@@ -1843,18 +1878,223 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         obj->set("mw_latency", dir->dumps_arg0_to_number());
     }
     
-    // edge.
-    if ((dir = vhost->get("mode")) != NULL) {
-        obj->set("mode", dir->dumps_arg0_to_str());
+    // realtime latency
+    if ((dir = vhost->get("gop_cache")) != NULL) {
+        obj->set("gop_cache", dir->dumps_arg0_to_boolean());
     }
-    if ((dir = vhost->get("origin")) != NULL) {
-        obj->set("origin", dir->dumps_args());
+    if ((dir = vhost->get("queue_length")) != NULL) {
+        obj->set("queue_length", dir->dumps_arg0_to_number());
     }
-    if ((dir = vhost->get("token_traverse")) != NULL) {
-        obj->set("token_traverse", dir->dumps_arg0_to_boolean());
+    if ((dir = vhost->get("tcp_nodelay")) != NULL) {
+        obj->set("tcp_nodelay", dir->dumps_arg0_to_boolean());
     }
-    if ((dir = vhost->get("vhost")) != NULL) {
-        obj->set("vhost", dir->dumps_arg0_to_str());
+    
+    // stream control
+    if ((dir = vhost->get("send_min_interval")) != NULL) {
+        obj->set("send_min_interval", dir->dumps_arg0_to_number());
+    }
+    if ((dir = vhost->get("reduce_sequence_header")) != NULL) {
+        obj->set("reduce_sequence_header", dir->dumps_arg0_to_boolean());
+    }
+    if ((dir = vhost->get("publish_1stpkt_timeout")) != NULL) {
+        obj->set("publish_1stpkt_timeout", dir->dumps_arg0_to_number());
+    }
+    if ((dir = vhost->get("publish_normal_timeout")) != NULL) {
+        obj->set("publish_normal_timeout", dir->dumps_arg0_to_number());
+    }
+    
+    // refer
+    if ((dir = vhost->get("refer")) != NULL) {
+        obj->set("refer", dir->dumps_args());
+    }
+    if ((dir = vhost->get("refer_publish")) != NULL) {
+        obj->set("refer_publish", dir->dumps_args());
+    }
+    if ((dir = vhost->get("refer_play")) != NULL) {
+        obj->set("refer_play", dir->dumps_args());
+    }
+    
+    // bandcheck
+    if ((dir = vhost->get("bandcheck")) != NULL) {
+        SrsAmf0Object* bandcheck = SrsAmf0Any::object();
+        obj->set("bandcheck", bandcheck);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                bandcheck->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "key") {
+                bandcheck->set("key", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "interval") {
+                bandcheck->set("interval", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "limit_kbps") {
+                bandcheck->set("limit_kbps", sdir->dumps_arg0_to_number());
+            }
+        }
+    }
+    
+    // security
+    if ((dir = vhost->get("security")) != NULL) {
+        SrsAmf0Object* security = SrsAmf0Any::object();
+        obj->set("security", security);
+        
+        SrsAmf0StrictArray* allows = SrsAmf0Any::strict_array();
+        security->set("allows", allows);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                security->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "allow") {
+                SrsAmf0Object* allow = SrsAmf0Any::object();
+                allow->set("action", SrsAmf0Any::str(sdir->name.c_str()));
+                allow->set("method", SrsAmf0Any::str(sdir->arg0().c_str()));
+                allow->set("entry", SrsAmf0Any::str(sdir->arg1().c_str()));
+                allows->append(allow);
+            }
+        }
+    }
+    
+    // http_static
+    if ((dir = vhost->get("http_static")) != NULL) {
+        SrsAmf0Object* http_static = SrsAmf0Any::object();
+        obj->set("http_static", http_static);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                http_static->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "mount") {
+                http_static->set("mount", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "dir") {
+                http_static->set("dir", sdir->dumps_arg0_to_str());
+            }
+        }
+    }
+    
+    // http_remux
+    if ((dir = vhost->get("http_remux")) != NULL) {
+        SrsAmf0Object* http_remux = SrsAmf0Any::object();
+        obj->set("http_remux", http_remux);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                http_remux->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "fast_cache") {
+                http_remux->set("fast_cache", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "mount") {
+                http_remux->set("mount", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hstrs") {
+                http_remux->set("hstrs", sdir->dumps_arg0_to_boolean());
+            }
+        }
+    }
+    
+    // http_hooks
+    if ((dir = vhost->get("http_hooks")) != NULL) {
+        SrsAmf0Object* http_hooks = SrsAmf0Any::object();
+        obj->set("http_hooks", http_hooks);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                http_hooks->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "on_connect") {
+                http_hooks->set("on_connect", sdir->dumps_args());
+            } else if (sdir->name == "on_close") {
+                http_hooks->set("on_close", sdir->dumps_args());
+            } else if (sdir->name == "on_publish") {
+                http_hooks->set("on_publish", sdir->dumps_args());
+            } else if (sdir->name == "on_unpublish") {
+                http_hooks->set("on_unpublish", sdir->dumps_args());
+            } else if (sdir->name == "on_play") {
+                http_hooks->set("on_play", sdir->dumps_args());
+            } else if (sdir->name == "on_stop") {
+                http_hooks->set("on_stop", sdir->dumps_args());
+            } else if (sdir->name == "on_dvr") {
+                http_hooks->set("on_dvr", sdir->dumps_args());
+            } else if (sdir->name == "on_hls") {
+                http_hooks->set("on_hls", sdir->dumps_args());
+            } else if (sdir->name == "on_hls_notify") {
+                http_hooks->set("on_hls_notify", sdir->dumps_arg0_to_str());
+            }
+        }
+    }
+    
+    // hls
+    if ((dir = vhost->get("hls")) != NULL) {
+        SrsAmf0Object* hls = SrsAmf0Any::object();
+        obj->set("hls", hls);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                hls->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hls_fragment") {
+                hls->set("hls_fragment", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_td_ratio") {
+                hls->set("hls_td_ratio", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_aof_ratio") {
+                hls->set("hls_aof_ratio", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_window") {
+                hls->set("hls_window", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_on_error") {
+                hls->set("hls_on_error", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_storage") {
+                hls->set("hls_storage", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_path") {
+                hls->set("hls_path", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_m3u8_file") {
+                hls->set("hls_m3u8_file", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_ts_file") {
+                hls->set("hls_ts_file", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_ts_floor") {
+                hls->set("hls_ts_floor", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hls_entry_prefix") {
+                hls->set("hls_entry_prefix", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_mount") {
+                hls->set("hls_mount", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_acodec") {
+                hls->set("hls_acodec", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_vcodec") {
+                hls->set("hls_vcodec", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_cleanup") {
+                hls->set("hls_cleanup", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hls_dispose") {
+                hls->set("hls_dispose", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_nb_notify") {
+                hls->set("hls_nb_notify", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_wait_keyframe") {
+                hls->set("hls_wait_keyframe", sdir->dumps_arg0_to_boolean());
+            }
+        }
+    }
+    
+    // hds
+    if ((dir = vhost->get("hds")) != NULL) {
+        SrsAmf0Object* hds = SrsAmf0Any::object();
+        obj->set("hds", hds);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                hds->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hds_fragment") {
+                hds->set("hds_fragment", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hds_window") {
+                hds->set("hds_window", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hds_path") {
+                hds->set("hds_path", sdir->dumps_arg0_to_str());
+            }
+        }
     }
     
     // dvr
@@ -1877,6 +2117,22 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
                 dvr->set("dvr_wait_keyframe", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "time_jitter") {
                 dvr->set("time_jitter", sdir->dumps_arg0_to_str());
+            }
+        }
+    }
+    
+    // exec
+    if ((dir = vhost->get("exec")) != NULL) {
+        SrsAmf0Object* ng_exec = SrsAmf0Any::object();
+        obj->set("exec", ng_exec);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                ng_exec->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "publish") {
+                ng_exec->set("publish", sdir->dumps_args());
             }
         }
     }
@@ -1929,40 +2185,28 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         }
     }
     
-    // http_static
-    if ((dir = vhost->get("http_static")) != NULL) {
-        SrsAmf0Object* http_static = SrsAmf0Any::object();
-        obj->set("http_static", http_static);
+    // transcode
+    if ((dir = vhost->get("transcode")) != NULL) {
+        SrsAmf0Object* transcode = SrsAmf0Any::object();
+        obj->set("transcode", transcode);
+        
+        SrsAmf0StrictArray* engines = SrsAmf0Any::strict_array();
+        obj->set("engines", engines);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
             
             if (sdir->name == "enabled") {
-                http_static->set("enabled", sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "mount") {
-                http_static->set("mount", sdir->dumps_arg0_to_str());
-            } else if (sdir->name == "dir") {
-                http_static->set("dir", sdir->dumps_arg0_to_str());
-            }
-        }
-    }
-    
-    // http_remux
-    if ((dir = vhost->get("http_remux")) != NULL) {
-        SrsAmf0Object* http_remux = SrsAmf0Any::object();
-        obj->set("http_remux", http_remux);
-        
-        for (int i = 0; i < (int)dir->directives.size(); i++) {
-            SrsConfDirective* sdir = dir->directives.at(i);
-            
-            if (sdir->name == "enabled") {
-                http_remux->set("enabled", sdir->dumps_arg0_to_boolean());
-            } else if (sdir->name == "fast_cache") {
-                http_remux->set("fast_cache", sdir->dumps_arg0_to_number());
-            } else if (sdir->name == "mount") {
-                http_remux->set("mount", sdir->dumps_arg0_to_str());
-            } else if (sdir->name == "hstrs") {
-                http_remux->set("hstrs", sdir->dumps_arg0_to_boolean());
+                transcode->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "ffmpeg") {
+                transcode->set("ffmpeg", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "engine") {
+                SrsAmf0Object* engine = SrsAmf0Any::object();
+                engines->append(engine);
+                
+                if ((ret = dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
+                    return ret;
+                }
             }
         }
     }
@@ -1996,6 +2240,8 @@ int SrsConfig::dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
     int ret = ERROR_SUCCESS;
     
     SrsConfDirective* conf = NULL;
+    
+    engine->set("name", dir->dumps_arg0_to_str());
     
     if ((conf = dir->get("enabled")) != NULL) {
         engine->set("enabled", conf->dumps_arg0_to_boolean());
