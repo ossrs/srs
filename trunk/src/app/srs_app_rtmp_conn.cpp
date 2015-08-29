@@ -238,24 +238,16 @@ int SrsRtmpConn::on_reload_vhost_play(string vhost)
     if (req->vhost != vhost) {
         return ret;
     }
-
-    return ret;
-}
-
-int SrsRtmpConn::on_reload_vhost_smi(string vhost)
-{
-    int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
-        return ret;
+    // send_min_interval
+    if (true) {
+        double v = _srs_config->get_send_min_interval(vhost);
+        if (v != send_min_interval) {
+            srs_trace("apply smi %.2f=>%.2f", send_min_interval, v);
+            send_min_interval = v;
+        }
     }
-    
-    double smi = _srs_config->get_send_min_interval(vhost);
-    if (smi != send_min_interval) {
-        srs_trace("apply smi %.2f=>%.2f", send_min_interval, smi);
-        send_min_interval = smi;
-    }
-    
+
     return ret;
 }
 

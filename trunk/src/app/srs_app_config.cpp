@@ -817,18 +817,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload publish success.", vhost.c_str());
             }
             
-            // smi(send_min_interval), only one per vhost
-            if (!srs_directive_equals(new_vhost->get("send_min_interval"), old_vhost->get("send_min_interval"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_smi(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes smi failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload smi success.", vhost.c_str());
-            }
-            
             // http_static, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1699,14 +1687,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         obj->set("debug_srs_upnode", dir->dumps_arg0_to_boolean());
     }
     
-    // stream control
-    if ((dir = vhost->get("send_min_interval")) != NULL) {
-        obj->set("send_min_interval", dir->dumps_arg0_to_number());
-    }
-    if ((dir = vhost->get("reduce_sequence_header")) != NULL) {
-        obj->set("reduce_sequence_header", dir->dumps_arg0_to_boolean());
-    }
-    
     // play
     if ((dir = vhost->get("play")) != NULL) {
         SrsAmf0Object* play = SrsAmf0Any::object();
@@ -1729,6 +1709,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
                 play->set("gop_cache", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "queue_length") {
                 play->set("queue_length", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "reduce_sequence_header") {
+                play->set("reduce_sequence_header", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "send_min_interval") {
+                play->set("send_min_interval", sdir->dumps_arg0_to_number());
             }
         }
     }
@@ -2611,7 +2595,6 @@ int SrsConfig::check_config()
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "debug_srs_upnode" && n != "play" && n != "publish"
-                && n != "send_min_interval" && n != "reduce_sequence_header"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
             ) {
@@ -2652,8 +2635,8 @@ int SrsConfig::check_config()
             } else if (n == "play") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto"
-                        && m != "mw_latency" && m != "gop_cache" && m != "queue_length"
+                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency"
+                        && m != "gop_cache" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost play directive %s, ret=%d", m.c_str(), ret);
@@ -3505,6 +3488,11 @@ double SrsConfig::get_send_min_interval(string vhost)
         return DEFAULT;
     }
     
+    conf = conf->get("play");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
     conf = conf->get("send_min_interval");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
@@ -3519,6 +3507,11 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("play");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
@@ -5768,7 +5761,8 @@ int srs_config_transform_vhost(SrsConfDirective* root)
             //  SRS3+:
             //      vhost { play { shadow; } }
             if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "atc_auto"
-                || n == "mw_latency" || n == "gop_cache" || n == "queue_length"
+                || n == "mw_latency" || n == "gop_cache" || n == "queue_length" || n == "send_min_interval"
+                || n == "reduce_sequence_header"
             ) {
                 it = dir->directives.erase(it);
                 

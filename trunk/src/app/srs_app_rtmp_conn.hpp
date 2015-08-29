@@ -104,7 +104,6 @@ protected:
 public:
     virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_vhost_play(std::string vhost);
-    virtual int on_reload_vhost_smi(std::string vhost);
     virtual int on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
     virtual int on_reload_vhost_publish(std::string vhost);
