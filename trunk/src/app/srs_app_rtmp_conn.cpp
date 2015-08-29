@@ -580,7 +580,7 @@ int SrsRtmpConn::check_vhost()
     }
     
     if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer(req->vhost))) != ERROR_SUCCESS) {
+        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_all(req->vhost))) != ERROR_SUCCESS) {
             srs_error("check refer failed. ret=%d", ret);
             return ret;
         }
