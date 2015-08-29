@@ -695,6 +695,43 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         //      ENABLED     =>  ENABLED (modified)
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
             srs_trace("vhost %s maybe modified, reload its detail.", vhost.c_str());
+            
+            // chunk_size, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_chunk_size(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes chunk_size failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
+            }
+            
+            // tcp_nodelay, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("tcp_nodelay"), old_vhost->get("tcp_nodelay"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_tcp_nodelay(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes tcp_nodelay failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload tcp_nodelay success.", vhost.c_str());
+            }
+            
+            // min_latency, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_realtime(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes min_latency failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload min_latency success.", vhost.c_str());
+            }
+            
             // gop_cache, only one per vhost
             if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -804,18 +841,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload publish success.", vhost.c_str());
             }
             
-            // chunk_size, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_chunk_size(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes chunk_size failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
-            }
-            
             // mw, only one per vhost
             if (!srs_directive_equals(new_vhost->get("mw_latency"), old_vhost->get("mw_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -838,30 +863,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                     }
                 }
                 srs_trace("vhost %s reload smi success.", vhost.c_str());
-            }
-            
-            // tcp_nodelay, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("tcp_nodelay"), old_vhost->get("tcp_nodelay"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_tcp_nodelay(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes tcp_nodelay failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload tcp_nodelay success.", vhost.c_str());
-            }
-            
-            // min_latency, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_realtime(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes min_latency failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload min_latency success.", vhost.c_str());
             }
             
             // http_static, only one per vhost.
@@ -1696,9 +1697,18 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     obj->set("name", vhost->dumps_arg0_to_str());
     
-    // enabled
+    // vhost scope configs.
     if ((dir = vhost->get("enabled")) != NULL) {
         obj->set("enabled", dir->dumps_arg0_to_boolean());
+    }
+    if ((dir = vhost->get("chunk_size")) != NULL) {
+        obj->set("chunk_size", dir->dumps_arg0_to_number());
+    }
+    if ((dir = vhost->get("min_latency")) != NULL) {
+        obj->set("min_latency", dir->dumps_arg0_to_boolean());
+    }
+    if ((dir = vhost->get("tcp_nodelay")) != NULL) {
+        obj->set("tcp_nodelay", dir->dumps_arg0_to_boolean());
     }
     
     // edge.
@@ -1725,15 +1735,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         obj->set("debug_srs_upnode", dir->dumps_arg0_to_boolean());
     }
     
-    // chunk_size
-    if ((dir = vhost->get("chunk_size")) != NULL) {
-        obj->set("chunk_size", dir->dumps_arg0_to_number());
-    }
-    
     // mrw
-    if ((dir = vhost->get("min_latency")) != NULL) {
-        obj->set("min_latency", dir->dumps_arg0_to_boolean());
-    }
     if ((dir = vhost->get("mw_latency")) != NULL) {
         obj->set("mw_latency", dir->dumps_arg0_to_number());
     }
@@ -1744,9 +1746,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     }
     if ((dir = vhost->get("queue_length")) != NULL) {
         obj->set("queue_length", dir->dumps_arg0_to_number());
-    }
-    if ((dir = vhost->get("tcp_nodelay")) != NULL) {
-        obj->set("tcp_nodelay", dir->dumps_arg0_to_boolean());
     }
     
     // stream control
@@ -2650,13 +2649,13 @@ int SrsConfig::check_config()
         for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;
-            if (n != "enabled" && n != "chunk_size"
+            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay"
                 && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "gop_cache" && n != "queue_length"
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
-                && n != "debug_srs_upnode" && n != "play" && n != "publish" && n != "mw_latency" && n != "min_latency"
-                && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
+                && n != "debug_srs_upnode" && n != "play" && n != "publish" && n != "mw_latency"
+                && n != "send_min_interval" && n != "reduce_sequence_header"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
             ) {
