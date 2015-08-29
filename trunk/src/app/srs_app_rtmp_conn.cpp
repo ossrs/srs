@@ -579,11 +579,13 @@ int SrsRtmpConn::check_vhost()
         req->vhost = vhost->arg0();
     }
     
-    if ((ret = refer->check(req->pageUrl, _srs_config->get_refer(req->vhost))) != ERROR_SUCCESS) {
-        srs_error("check refer failed. ret=%d", ret);
-        return ret;
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer(req->vhost))) != ERROR_SUCCESS) {
+            srs_error("check refer failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("check refer success.");
     }
-    srs_verbose("check refer success.");
     
     if ((ret = http_hooks_on_connect()) != ERROR_SUCCESS) {
         return ret;
@@ -637,11 +639,13 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     
     srs_assert(consumer != NULL);
     
-    if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
-        srs_error("check play_refer failed. ret=%d", ret);
-        return ret;
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
+            srs_error("check play_refer failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("check play_refer success.");
     }
-    srs_verbose("check play_refer success.");
     
     // initialize other components
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
@@ -810,12 +814,14 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
 int SrsRtmpConn::publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
-
-    if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
-        srs_error("check publish_refer failed. ret=%d", ret);
-        return ret;
+    
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
+            srs_error("check publish_refer failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("check publish_refer success.");
     }
-    srs_verbose("check publish_refer success.");
 
     if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
         srs_error("http hook on_publish failed. ret=%d", ret);

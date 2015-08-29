@@ -126,6 +126,10 @@ public:
     * get the directive by name and its arg0, return the first match.
     */
     virtual SrsConfDirective* get(std::string _name, std::string _arg0);
+// raw
+public:
+    virtual SrsConfDirective* get_or_create(std::string n);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
 // help utilities
 public:
     /**
@@ -293,6 +297,7 @@ private:
     /**
     * reload the http_stream section of config.
     */
+    // TODO: FIXME: rename to http_server.
     virtual int reload_http_stream(SrsConfDirective* old_root);
     /**
     * reload the transcode section of vhost of config.
@@ -518,22 +523,24 @@ public:
     */
     virtual double              get_queue_length(std::string vhost);
     /**
-    * get the refer antisuck directive.
-    * each args of directive is a refer config.
-    * when the client refer(pageUrl) not match the refer config,
-    * SRS will reject the connection.
-    * @remark, default NULL.
-    */
+     * whether the refer hotlink-denial enabled.
+     */
+    virtual bool                get_refer_enabled(std::string vhost);
+    /**
+     * get the refer hotlink-denial for all type.
+     * @return the refer, NULL for not configed.
+     */
+    // TODO: FIXME: rename to get_refer_all
     virtual SrsConfDirective*   get_refer(std::string vhost);
     /**
-    * get the play refer, refer for play clients.
-    * @remark, default NULL.
-    */
+     * get the refer hotlink-denial for play.
+     * @return the refer, NULL for not configed.
+     */
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
     /**
-    * get the publish refer, refer for publish clients.
-    * @remark, default NULL.
-    */
+     * get the refer hotlink-denial for publish.
+     * @return the refer, NULL for not configed.
+     */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
     /**
     * get the chunk size of vhost.
@@ -1048,10 +1055,6 @@ public:
 // http api section
 private:
     /**
-    * get the http api directive.
-    */
-    virtual SrsConfDirective*   get_http_api();
-    /**
     * whether http api enabled
     */
     virtual bool                get_http_api_enabled(SrsConfDirective* conf);
@@ -1083,10 +1086,6 @@ public:
 // http stream section
 private:
     /**
-    * get the http stream directive.
-    */
-    virtual SrsConfDirective*   get_http_stream();
-    /**
     * whether http stream enabled.
     */
     virtual bool                get_http_stream_enabled(SrsConfDirective* conf);
@@ -1094,6 +1093,7 @@ public:
     /**
     * whether http stream enabled.
     */
+    // TODO: FIXME: rename to http_static.
     virtual bool                get_http_stream_enabled();
     /**
     * get the http stream listen port.
@@ -1237,6 +1237,20 @@ extern bool srs_config_dvr_is_plan_append(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
 extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
+
+/**
+ * parse loaded vhost directives to compatible mode.
+ * for exmaple, SRS1/2 use the follow refer style:
+ *          refer   a.domain.com b.domain.com;
+ * while SRS3 use the following:
+ *          refer {
+ *              enabled on;
+ *              all a.domain.com b.domain.com;
+ *          }
+ * so we must transform the vhost directive anytime load the config.
+ * @param root the root directive to transform, in and out parameter.
+ */
+extern int srs_config_transform_vhost(SrsConfDirective* root);
 
 // global config
 extern SrsConfig* _srs_config;

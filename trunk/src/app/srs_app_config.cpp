@@ -105,14 +105,9 @@ using namespace _srs_internal;
 // the interval in seconds for bandwidth check
 #define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
 
-#define SRS_CONF_DEFAULT_HTTP_MOUNT "[vhost]/"
 #define SRS_CONF_DEFAULT_HTTP_REMUX_MOUNT "[vhost]/[app]/[stream].flv"
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
 #define SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE 0
-
-#define SRS_CONF_DEFAULT_HTTP_STREAM_PORT "8080"
-#define SRS_CONF_DEFAULT_HTTP_API_PORT "1985"
-#define SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN true
 
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
@@ -226,6 +221,37 @@ SrsConfDirective* SrsConfDirective::get(string _name, string _arg0)
     }
     
     return NULL;
+}
+
+SrsConfDirective* SrsConfDirective::get_or_create(string n)
+{
+    SrsConfDirective* conf = get(n);
+    
+    if (!conf) {
+        conf = new SrsConfDirective();
+        conf->name = n;
+        directives.push_back(conf);
+    }
+    
+    return conf;
+}
+
+SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0)
+{
+    SrsConfDirective* conf = get_or_create(n);
+    
+    if (conf->arg0() == a0) {
+        return conf;
+    }
+    
+    // update a0.
+    if (!conf->args.empty()) {
+        conf->args.erase(conf->args.begin());
+    }
+    
+    conf->args.insert(conf->args.begin(), a0);
+    
+    return conf;
 }
 
 bool SrsConfDirective::is_vhost()
@@ -644,6 +670,12 @@ int SrsConfig::reload()
         return ret;
     }
     srs_info("config reloader parse file success.");
+    
+    // transform config to compatible with previous style of config.
+    if ((ret = srs_config_transform_vhost(conf.root)) != ERROR_SUCCESS) {
+        srs_error("transform config failed. ret=%d", ret);
+        return ret;
+    }
 
     if ((ret = conf.check_config()) != ERROR_SUCCESS) {
         srs_error("ignore config reloader check config failed. ret=%d", ret);
@@ -958,20 +990,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload min_latency success.", vhost.c_str());
             }
             
-            // http, only one per vhost.
-            if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes http failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload http success.", vhost.c_str());
-            }
-            
             // http_static, only one per vhost.
-            // @remark, http_static introduced as alias of http.
             if (!srs_directive_equals(new_vhost->get("http_static"), old_vhost->get("http_static"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -1239,17 +1258,8 @@ int SrsConfig::reload_http_stream(SrsConfDirective* old_root)
     //      ENABLED     =>      DISABLED
     //      ENABLED     =>      ENABLED (modified)
     
-    SrsConfDirective* new_http_stream = root->get("http_stream");
-    // http_stream rename to http_server in SRS2.
-    if (!new_http_stream) {
-        new_http_stream = root->get("http_server");
-    }
-
-    SrsConfDirective* old_http_stream = old_root->get("http_stream");
-    // http_stream rename to http_server in SRS2.
-    if (!old_http_stream) {
-        old_http_stream = root->get("http_server");
-    }
+    SrsConfDirective* new_http_stream = root->get("http_server");
+    SrsConfDirective* old_http_stream = old_root->get("http_server");
 
     // DISABLED    =>      ENABLED
     if (!get_http_stream_enabled(old_http_stream) && get_http_stream_enabled(new_http_stream)) {
@@ -1524,6 +1534,12 @@ int SrsConfig::parse_options(int argc, char** argv)
 
     ret = parse_file(config_file.c_str());
     
+    // transform config to compatible with previous style of config.
+    if ((ret = srs_config_transform_vhost(root)) != ERROR_SUCCESS) {
+        srs_error("transform config failed. ret=%d", ret);
+        return ret;
+    }
+    
     if (test_conf) {
         // the parse_file never check the config,
         // we check it when user requires check config file.
@@ -1735,7 +1751,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         sobj->set("forward", SrsAmf0Any::boolean(get_forward(dir->name)));
         
         sobj->set("security", SrsAmf0Any::boolean(get_security_enabled(dir->name)));
-        sobj->set("refer", SrsAmf0Any::boolean(get_refer(dir->name) || get_refer_play(dir->name) || get_refer_publish(dir->name)));
+        sobj->set("refer", SrsAmf0Any::boolean(get_refer_enabled(dir->name)));
         
         sobj->set("mr", SrsAmf0Any::boolean(get_mr_enabled(dir->name)));
         sobj->set("min_latency", SrsAmf0Any::boolean(get_realtime_enabled(dir->name)));
@@ -1905,13 +1921,22 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // refer
     if ((dir = vhost->get("refer")) != NULL) {
-        obj->set("refer", dir->dumps_args());
-    }
-    if ((dir = vhost->get("refer_publish")) != NULL) {
-        obj->set("refer_publish", dir->dumps_args());
-    }
-    if ((dir = vhost->get("refer_play")) != NULL) {
-        obj->set("refer_play", dir->dumps_args());
+        SrsAmf0Object* refer = SrsAmf0Any::object();
+        obj->set("refer", refer);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "enabled") {
+                refer->set("enabled", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "all") {
+                refer->set("all", sdir->dumps_args());
+            } else if (sdir->name == "publish") {
+                refer->set("publish", sdir->dumps_args());
+            } else if (sdir->name == "play") {
+                refer->set("play", sdir->dumps_args());
+            }
+        }
     }
     
     // bandcheck
@@ -2495,7 +2520,7 @@ int SrsConfig::check_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_stream" && n != "http_server" && n != "stream_caster"
+            && n != "http_server" && n != "stream_caster"
             && n != "utc_time"
         ) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -2504,7 +2529,7 @@ int SrsConfig::check_config()
         }
     }
     if (true) {
-        SrsConfDirective* conf = get_http_api();
+        SrsConfDirective* conf = root->get("http_api");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             SrsConfDirective* obj = conf->at(i);
             string n = obj->name;
@@ -2527,7 +2552,7 @@ int SrsConfig::check_config()
         }
     }
     if (true) {
-        SrsConfDirective* conf = get_http_stream();
+        SrsConfDirective* conf = root->get("http_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir") {
@@ -2751,8 +2776,7 @@ int SrsConfig::check_config()
                 && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "gop_cache" && n != "queue_length"
-                && n != "refer" && n != "refer_publish" && n != "refer_play"
-                && n != "forward" && n != "transcode" && n != "bandcheck"
+                && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
@@ -2760,8 +2784,7 @@ int SrsConfig::check_config()
                 && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
                 && n != "publish_1stpkt_timeout" && n != "publish_normal_timeout"
                 && n != "security" && n != "http_remux"
-                && n != "http" && n != "http_static"
-                && n != "hds" && n != "exec"
+                && n != "http_static" && n != "hds" && n != "exec"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -2776,6 +2799,15 @@ int SrsConfig::check_config()
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "refer") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "all" && m != "publish" && m != "play") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost refer directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -2806,7 +2838,7 @@ int SrsConfig::check_config()
                         return ret;
                     }
                 }
-            } else if (n == "http" || n == "http_static") {
+            } else if (n == "http_static") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "mount" && m != "dir") {
@@ -3372,37 +3404,77 @@ double SrsConfig::get_queue_length(string vhost)
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_refer(string vhost)
+bool SrsConfig::get_refer_enabled(string vhost)
 {
+    static bool DEFAULT = false;
+    
     SrsConfDirective* conf = get_vhost(vhost);
-
     if (!conf) {
-        return NULL;
+        return DEFAULT;
     }
     
-    return conf->get("refer");
+    conf = conf->get("refer");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+SrsConfDirective* SrsConfig::get_refer(string vhost)
+{
+    static SrsConfDirective* DEFAULT = NULL;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("refer");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    return conf->get("all");
 }
 
 SrsConfDirective* SrsConfig::get_refer_play(string vhost)
 {
+    static SrsConfDirective* DEFAULT = NULL;
+    
     SrsConfDirective* conf = get_vhost(vhost);
-
     if (!conf) {
-        return NULL;
+        return DEFAULT;
     }
     
-    return conf->get("refer_play");
+    conf = conf->get("refer");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    return conf->get("play");
 }
 
 SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
 {
+    static SrsConfDirective* DEFAULT = NULL;
+    
     SrsConfDirective* conf = get_vhost(vhost);
-
     if (!conf) {
-        return NULL;
+        return DEFAULT;
     }
     
-    return conf->get("refer_publish");
+    conf = conf->get("refer");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    return conf->get("publish");
 }
 
 int SrsConfig::get_chunk_size(string vhost)
@@ -5046,24 +5118,21 @@ int SrsConfig::get_dvr_time_jitter(string vhost)
 
 bool SrsConfig::get_http_api_enabled()
 {
-    SrsConfDirective* conf = get_http_api();
+    SrsConfDirective* conf = root->get("http_api");
     return get_http_api_enabled(conf);
-}
-
-SrsConfDirective* SrsConfig::get_http_api()
-{
-    return root->get("http_api");
 }
 
 bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 {
+    static bool DEFAULT = false;
+    
     if (!conf) {
-        return false;
+        return DEFAULT;
     }
     
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
-        return false;
+        return DEFAULT;
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
@@ -5071,15 +5140,17 @@ bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_api_listen()
 {
-    SrsConfDirective* conf = get_http_api();
+    static string DEFAULT = "1985";
+    
+    SrsConfDirective* conf = root->get("http_api");
     
     if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_API_PORT;
+        return DEFAULT;
     }
     
     conf = conf->get("listen");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_API_PORT;
+        return DEFAULT;
     }
 
     return conf->arg0();
@@ -5087,15 +5158,17 @@ string SrsConfig::get_http_api_listen()
 
 bool SrsConfig::get_http_api_crossdomain()
 {
-    SrsConfDirective* conf = get_http_api();
+    static bool DEFAULT = true;
+    
+    SrsConfDirective* conf = root->get("http_api");
     
     if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN;
+        return DEFAULT;
     }
     
     conf = conf->get("crossdomain");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN;
+        return DEFAULT;
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
@@ -5105,7 +5178,7 @@ bool SrsConfig::get_raw_api()
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_http_api();
+    SrsConfDirective* conf = root->get("http_api");
     if (!conf) {
         return DEFAULT;
     }
@@ -5127,7 +5200,7 @@ bool SrsConfig::get_raw_api_allow_reload()
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_http_api();
+    SrsConfDirective* conf = root->get("http_api");
     if (!conf) {
         return DEFAULT;
     }
@@ -5149,7 +5222,7 @@ bool SrsConfig::get_raw_api_allow_query()
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_http_api();
+    SrsConfDirective* conf = root->get("http_api");
     if (!conf) {
         return DEFAULT;
     }
@@ -5169,30 +5242,21 @@ bool SrsConfig::get_raw_api_allow_query()
 
 bool SrsConfig::get_http_stream_enabled()
 {
-    SrsConfDirective* conf = get_http_stream();
+    SrsConfDirective* conf = root->get("http_server");
     return get_http_stream_enabled(conf);
-}
-
-SrsConfDirective* SrsConfig::get_http_stream()
-{
-    SrsConfDirective* conf = root->get("http_stream");
-    // http_stream renamed to http_server in SRS2.
-    if (!conf) {
-        conf = root->get("http_server");
-    }
-
-    return conf;
 }
 
 bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 {
+    static bool DEFAULT = false;
+    
     if (!conf) {
-        return false;
+        return DEFAULT;
     }
     
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
-        return false;
+        return DEFAULT;
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
@@ -5200,15 +5264,17 @@ bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
 
 string SrsConfig::get_http_stream_listen()
 {
-    SrsConfDirective* conf = get_http_stream();
+    static string DEFAULT = "8080";
+    
+    SrsConfDirective* conf = root->get("http_server");
     
     if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_STREAM_PORT;
+        return DEFAULT;
     }
     
     conf = conf->get("listen");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_STREAM_PORT;
+        return DEFAULT;
     }
     
     return conf->arg0();
@@ -5216,18 +5282,16 @@ string SrsConfig::get_http_stream_listen()
 
 string SrsConfig::get_http_stream_dir()
 {
-    SrsConfDirective* conf = get_http_stream();
+    static string DEFAULT = "./objs/nginx/html";
+    
+    SrsConfDirective* conf = root->get("http_server");
     if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_DIR;
+        return DEFAULT;
     }
     
     conf = conf->get("dir");
-    if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_DIR;
-    }
-    
-    if (conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_DIR;
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return conf->arg0();
@@ -5235,23 +5299,21 @@ string SrsConfig::get_http_stream_dir()
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)
 {
-    SrsConfDirective* vconf = get_vhost(vhost);
-    if (!vconf) {
-        return false;
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
     }
     
-    SrsConfDirective* conf = vconf->get("http");
+    conf = conf->get("http_static");
     if (!conf) {
-        conf = vconf->get("http_static");
-    }
-    
-    if (!conf) {
-        return false;
+        return DEFAULT;
     }
     
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
-        return false;
+        return DEFAULT;
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
@@ -5259,22 +5321,21 @@ bool SrsConfig::get_vhost_http_enabled(string vhost)
 
 string SrsConfig::get_vhost_http_mount(string vhost)
 {
-    SrsConfDirective* vconf = get_vhost(vhost);
-    if (!vconf) {
-        return SRS_CONF_DEFAULT_HTTP_MOUNT;
+    static string DEFAULT = "[vhost]/";
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
     }
     
-    SrsConfDirective* conf = vconf->get("http");
+    conf = conf->get("http_static");
     if (!conf) {
-        conf = vconf->get("http_static");
-        if (!conf) {
-            return SRS_CONF_DEFAULT_HTTP_MOUNT;
-        }
+        return DEFAULT;
     }
     
     conf = conf->get("mount");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_MOUNT;
+        return DEFAULT;
     }
     
     return conf->arg0();
@@ -5282,22 +5343,21 @@ string SrsConfig::get_vhost_http_mount(string vhost)
 
 string SrsConfig::get_vhost_http_dir(string vhost)
 {
-    SrsConfDirective* vconf = get_vhost(vhost);
-    if (!vconf) {
-        return SRS_CONF_DEFAULT_HTTP_DIR;
+    static string DEFAULT = "./objs/nginx/html";
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
     }
     
-    SrsConfDirective* conf = vconf->get("http");
+    conf = conf->get("http_static");
     if (!conf) {
-        conf = vconf->get("http_static");
-        if (!conf) {
-            return SRS_CONF_DEFAULT_HTTP_DIR;
-        }
+        return DEFAULT;
     }
     
     conf = conf->get("dir");
     if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_DIR;
+        return DEFAULT;
     }
     
     return conf->arg0();
@@ -5649,4 +5709,74 @@ bool srs_stream_caster_is_rtsp(string caster)
 bool srs_stream_caster_is_flv(string caster)
 {
     return caster == SRS_CONF_DEFAULT_STREAM_CASTER_FLV;
+}
+
+int srs_config_transform_vhost(SrsConfDirective* root)
+{
+    int ret = ERROR_SUCCESS;
+    
+    for (int i = 0; i < root->directives.size(); i++) {
+        SrsConfDirective* dir = root->directives.at(i);
+        
+        // SRS2.0, rename global http_stream to http_server.
+        //  SRS1:
+        //      http_stream {}
+        //  SRS2+:
+        //      http_server {}
+        if (dir->name == "http_stream") {
+            dir->name = "http_server";
+            continue;
+        }
+        
+        if (!dir->is_vhost()) {
+            continue;
+        }
+        
+        std::vector<SrsConfDirective*>::iterator it;
+        for (it = dir->directives.begin(); it != dir->directives.end();) {
+            SrsConfDirective* conf = *it;
+            
+            // SRS2.0, rename vhost http to http_static
+            //  SRS1:
+            //      vhost { http {} }
+            //  SRS2+:
+            //      vhost { http_static {} }
+            if (conf->name == "http") {
+                conf->name = "http_static";
+                ++it;
+                continue;
+            }
+            
+            // SRS3.0, change the refer style
+            //  SRS1/2:
+            //      vhost { refer; refer_play; refer_publish; }
+            //  SRS3+:
+            //      vhost { refer { enabled; all; play; publish; } }
+            if ((conf->name == "refer" && conf->directives.empty()) || conf->name == "refer_play" || conf->name == "refer_publish") {
+                // remove the old one first, for name duplicated.
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* refer = dir->get_or_create("refer");
+                refer->get_or_create("enabled", "on");
+                if (conf->name == "refer") {
+                    SrsConfDirective* all = refer->get_or_create("all");
+                    all->args = conf->args;
+                } else if (conf->name == "play") {
+                    SrsConfDirective* play = refer->get_or_create("play");
+                    play->args = conf->args;
+                } else if (conf->name == "publish") {
+                    SrsConfDirective* publish = refer->get_or_create("publish");
+                    publish->args = conf->args;
+                }
+                
+                // remove the old directive.
+                srs_freep(conf);
+                continue;
+            }
+            
+            ++it;
+        }
+    }
+    
+    return ret;
 }
