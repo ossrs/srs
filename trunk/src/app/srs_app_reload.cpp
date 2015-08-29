@@ -125,11 +125,6 @@ int ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_vhost_atc(string /*vhost*/)
-{
-    return ERROR_SUCCESS;
-}
-
 int ISrsReloadHandler::on_reload_vhost_gop_cache(string /*vhost*/)
 {
     return ERROR_SUCCESS;

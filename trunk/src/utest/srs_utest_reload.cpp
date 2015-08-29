@@ -230,12 +230,6 @@ int MockReloadHandler::on_reload_vhost_removed(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
-int MockReloadHandler::on_reload_vhost_atc(string /*vhost*/)
-{
-    vhost_atc_reloaded = true;
-    return ERROR_SUCCESS;
-}
-
 int MockReloadHandler::on_reload_vhost_gop_cache(string /*vhost*/)
 {
     vhost_gop_cache_reloaded = true;

@@ -451,11 +451,20 @@ private:
     std::vector<SrsConsumer*> consumers;
     // the time jitter algorithm for vhost.
     SrsRtmpJitterAlgorithm jitter_algorithm;
-    // whether use interlaced/mixed algorithm to correct timestamp.
+    // for play, whether use interlaced/mixed algorithm to correct timestamp.
     bool mix_correct;
+    // the mix queue to implements the mix correct algorithm.
     SrsMixQueue* mix_queue;
+    /**
+     * for play, whether enabled atc.
+     * atc whether atc(use absolute time and donot adjust time),
+     * directly use msg time and donot adjust if atc is true,
+     * otherwise, adjust msg time to start from 0 to make flash happy.
+     */
+    bool atc;
     // whether stream is monotonically increase.
     bool is_monotonically_increase;
+    // the time of the packet we just got.
     int64_t last_packet_time;
     // hls handler.
 #ifdef SRS_AUTO_HLS
@@ -491,13 +500,6 @@ private:
     * can publish, true when is not streaming
     */
     bool _can_publish;
-    /**
-    * atc whether atc(use absolute time and donot adjust time),
-    * directly use msg time and donot adjust if atc is true,
-    * otherwise, adjust msg time to start from 0 to make flash happy.
-    */
-    // TODO: FIXME: to support reload atc.
-    bool atc;
 private:
     SrsSharedPtrMessage* cache_metadata;
     // the cached video sequence header.
@@ -518,7 +520,6 @@ public:
     virtual int initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_atc(std::string vhost);
     virtual int on_reload_vhost_gop_cache(std::string vhost);
     virtual int on_reload_vhost_queue_length(std::string vhost);
     virtual int on_reload_vhost_play(std::string vhost);

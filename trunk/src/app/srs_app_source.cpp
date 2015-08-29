@@ -1043,25 +1043,6 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
     return ret;
 }
 
-int SrsSource::on_reload_vhost_atc(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_req->vhost != vhost) {
-        return ret;
-    }
-    
-    // atc changed.
-    bool enabled_atc = _srs_config->get_atc(vhost);
-    
-    srs_warn("vhost %s atc changed to %d, connected client may corrupt.", 
-        vhost.c_str(), enabled_atc);
-    
-    gop_cache->clear();
-    
-    return ret;
-}
-
 int SrsSource::on_reload_vhost_gop_cache(string vhost)
 {
     int ret = ERROR_SUCCESS;
@@ -1133,13 +1114,26 @@ int SrsSource::on_reload_vhost_play(string vhost)
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
     
     // mix_correct
-    bool v = _srs_config->get_mix_correct(_req->vhost);
-    
-    // when changed, clear the mix queue.
-    if (v != mix_correct) {
-        mix_queue->clear();
+    if (true) {
+        bool v = _srs_config->get_mix_correct(_req->vhost);
+        
+        // when changed, clear the mix queue.
+        if (v != mix_correct) {
+            mix_queue->clear();
+        }
+        mix_correct = v;
     }
-    mix_correct = v;
+    
+    // atc changed.
+    if (true) {
+        bool v = _srs_config->get_atc(vhost);
+        
+        if (v != atc) {
+            srs_warn("vhost %s atc changed to %d, connected client may corrupt.", vhost.c_str(), v);
+            gop_cache->clear();
+        }
+        atc = v;
+    }
     
     return ret;
 }
