@@ -1121,7 +1121,7 @@ int SrsSource::on_reload_vhost_queue_length(string vhost)
     return ret;
 }
 
-int SrsSource::on_reload_vhost_time_jitter(string vhost)
+int SrsSource::on_reload_vhost_play(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1129,19 +1129,10 @@ int SrsSource::on_reload_vhost_time_jitter(string vhost)
         return ret;
     }
     
+    // time_jitter
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
     
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_mix_correct(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_req->vhost != vhost) {
-        return ret;
-    }
-    
+    // mix_correct
     bool v = _srs_config->get_mix_correct(_req->vhost);
     
     // when changed, clear the mix queue.

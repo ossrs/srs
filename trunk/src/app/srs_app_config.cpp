@@ -731,28 +731,16 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload queue_length success.", vhost.c_str());
             }
             
-            // time_jitter, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("time_jitter"), old_vhost->get("time_jitter"))) {
+            // play, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("play"), old_vhost->get("play"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_time_jitter(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes time_jitter failed. ret=%d", vhost.c_str(), ret);
+                    if ((ret = subscribe->on_reload_vhost_play(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes play failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
                 }
-                srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
-            }
-            
-            // mix_correct, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("mix_correct"), old_vhost->get("mix_correct"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_vhost_mix_correct(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes mix_correct failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload mix_correct success.", vhost.c_str());
+                srs_trace("vhost %s reload play success.", vhost.c_str());
             }
             
             // forward, only one per vhost
@@ -1754,14 +1742,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         obj->set("chunk_size", dir->dumps_arg0_to_number());
     }
     
-    // time_jitter
-    if ((dir = vhost->get("time_jitter")) != NULL) {
-        obj->set("time_jitter", dir->dumps_arg0_to_str());
-    }
-    if ((dir = vhost->get("mix_correct")) != NULL) {
-        obj->set("mix_correct", dir->dumps_arg0_to_boolean());
-    }
-    
     // atc
     if ((dir = vhost->get("atc")) != NULL) {
         obj->set("atc", dir->dumps_arg0_to_boolean());
@@ -1795,6 +1775,22 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     }
     if ((dir = vhost->get("reduce_sequence_header")) != NULL) {
         obj->set("reduce_sequence_header", dir->dumps_arg0_to_boolean());
+    }
+    
+    // play
+    if ((dir = vhost->get("play")) != NULL) {
+        SrsAmf0Object* play = SrsAmf0Any::object();
+        obj->set("play", play);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "time_jitter") {
+                play->set("time_jitter", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "mix_correct") {
+                play->set("mix_correct", sdir->dumps_arg0_to_boolean());
+            }
+        }
     }
     
     // publish
@@ -2675,10 +2671,8 @@ int SrsConfig::check_config()
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "gop_cache" && n != "queue_length"
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
-                && n != "time_jitter" && n != "mix_correct"
-                && n != "atc" && n != "atc_auto"
-                && n != "debug_srs_upnode"
-                && n != "publish" && n != "mw_latency" && n != "min_latency"
+                && n != "atc" && n != "atc_auto" && n != "debug_srs_upnode"
+                && n != "play" && n != "publish" && n != "mw_latency" && n != "min_latency"
                 && n != "tcp_nodelay" && n != "send_min_interval" && n != "reduce_sequence_header"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
@@ -2714,6 +2708,15 @@ int SrsConfig::check_config()
                     if (m != "enabled" && m != "publish") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost exec directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "play") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "time_jitter" && m != "mix_correct") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost play directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -3295,6 +3298,11 @@ int SrsConfig::get_time_jitter(string vhost)
         return _srs_time_jitter_string2int(DEFAULT);
     }
     
+    conf = conf->get("play");
+    if (!conf || conf->arg0().empty()) {
+        return _srs_time_jitter_string2int(DEFAULT);
+    }
+    
     conf = conf->get("time_jitter");
     if (!conf || conf->arg0().empty()) {
         return _srs_time_jitter_string2int(DEFAULT);
@@ -3309,6 +3317,11 @@ bool SrsConfig::get_mix_correct(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("play");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
@@ -5777,6 +5790,23 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 
                 SrsConfDirective* normal_timeout = publish->get_or_create("normal_timeout");
                 normal_timeout->args = conf->args;
+                
+                srs_freep(conf);
+                continue;
+            }
+            
+            // SRS3.0, change the folowing like a shadow:
+            //      time_jitter, mix_correct
+            //  SRS1/2:
+            //      vhost { shadow; }
+            //  SRS3+:
+            //      vhost { play { shadow; } }
+            if (conf->name == "time_jitter" || conf->name == "mix_correct") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* play = dir->get_or_create("play");
+                SrsConfDirective* shadow = play->get_or_create(conf->name);
+                shadow->args = conf->args;
                 
                 srs_freep(conf);
                 continue;
