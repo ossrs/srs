@@ -231,18 +231,13 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     return ret;
 }
 
-int SrsRtmpConn::on_reload_vhost_mw(string vhost)
+int SrsRtmpConn::on_reload_vhost_play(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
     if (req->vhost != vhost) {
         return ret;
     }
-    
-    int sleep_ms = _srs_config->get_mw_sleep_ms(req->vhost);
-    
-    // when mw_sleep changed, resize the socket send buffer.
-    change_mw_sleep(sleep_ms);
 
     return ret;
 }
