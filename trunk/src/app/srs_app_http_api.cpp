@@ -1016,7 +1016,6 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
         }
         
-        server->on_signal(SRS_SIGNAL_RELOAD);
         server->on_signal(SRS_SIGNAL_PERSISTENCE_CONFIG);
         srs_trace("raw api update %s=%s ok.", scope.c_str(), value.c_str());
         

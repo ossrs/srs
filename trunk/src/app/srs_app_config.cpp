@@ -2182,6 +2182,17 @@ int SrsConfig::raw_set_listen(const vector<string>& eps)
     SrsConfDirective* listen = root->get("listen");
     listen->args = eps;
     
+    // force to reload the memory server.
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_listen()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload listen failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload listen success.");
+    
     return ret;
 }
 
