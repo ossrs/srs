@@ -187,6 +187,7 @@ private:
     bool raw_api;
     bool allow_reload;
     bool allow_query;
+    bool allow_update;
 public:
     SrsGoApiRaw(SrsServer* svr);
     virtual ~SrsGoApiRaw();

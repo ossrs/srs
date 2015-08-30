@@ -67,6 +67,9 @@ using namespace _srs_internal;
 // '\r'
 #define SRS_CR (char)SRS_CONSTS_CR
 
+// dumps the engine to amf0 object.
+int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine);
+
 bool is_common_space(char ch)
 {
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
@@ -1520,6 +1523,8 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
                             ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
                         } else if (ssdir->name == "allow_query") {
                             ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "allow_update") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
                         }
                     }
                 }
@@ -2100,7 +2105,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
                 SrsAmf0Object* engine = SrsAmf0Any::object();
                 ingest->set("engine", engine);
                 
-                if ((ret = dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
+                if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
                     return ret;
                 }
             }
@@ -2138,7 +2143,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
                 SrsAmf0Object* engine = SrsAmf0Any::object();
                 engines->append(engine);
                 
-                if ((ret = dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
+                if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
                     return ret;
                 }
             }
@@ -2165,108 +2170,7 @@ int SrsConfig::raw_to_json(SrsAmf0Object* obj)
     ssobj->set("enabled", SrsAmf0Any::boolean(get_raw_api()));
     ssobj->set("allow_reload", SrsAmf0Any::boolean(get_raw_api_allow_reload()));
     ssobj->set("allow_query", SrsAmf0Any::boolean(get_raw_api_allow_query()));
-    
-    return ret;
-}
-
-int SrsConfig::dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsConfDirective* conf = NULL;
-    
-    engine->set("id", dir->dumps_arg0_to_str());
-    engine->set("enabled", SrsAmf0Any::boolean(get_engine_enabled(dir)));
-    
-    if ((conf = dir->get("iformat")) != NULL) {
-        engine->set("iformat", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("vfilter")) != NULL) {
-        SrsAmf0Object* vfilter = SrsAmf0Any::object();
-        engine->set("vfilter", vfilter);
-        
-        for (int i = 0; i < (int)conf->directives.size(); i++) {
-            SrsConfDirective* sdir = conf->directives.at(i);
-            vfilter->set(sdir->name, sdir->dumps_arg0_to_str());
-        }
-    }
-    
-    if ((conf = dir->get("vcodec")) != NULL) {
-        engine->set("vcodec", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("vbitrate")) != NULL) {
-        engine->set("vbitrate", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("vfps")) != NULL) {
-        engine->set("vfps", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("vwidth")) != NULL) {
-        engine->set("vwidth", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("vheight")) != NULL) {
-        engine->set("vheight", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("vthreads")) != NULL) {
-        engine->set("vthreads", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("vprofile")) != NULL) {
-        engine->set("vprofile", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("vpreset")) != NULL) {
-        engine->set("vpreset", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("vparams")) != NULL) {
-        SrsAmf0Object* vparams = SrsAmf0Any::object();
-        engine->set("vparams", vparams);
-        
-        for (int i = 0; i < (int)conf->directives.size(); i++) {
-            SrsConfDirective* sdir = conf->directives.at(i);
-            vparams->set(sdir->name, sdir->dumps_arg0_to_str());
-        }
-    }
-    
-    if ((conf = dir->get("acodec")) != NULL) {
-        engine->set("acodec", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("abitrate")) != NULL) {
-        engine->set("abitrate", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("asample_rate")) != NULL) {
-        engine->set("asample_rate", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("achannels")) != NULL) {
-        engine->set("achannels", conf->dumps_arg0_to_number());
-    }
-    
-    if ((conf = dir->get("aparams")) != NULL) {
-        SrsAmf0Object* aparams = SrsAmf0Any::object();
-        engine->set("aparams", aparams);
-        
-        for (int i = 0; i < (int)conf->directives.size(); i++) {
-            SrsConfDirective* sdir = conf->directives.at(i);
-            aparams->set(sdir->name, sdir->dumps_arg0_to_str());
-        }
-    }
-    
-    if ((conf = dir->get("oformat")) != NULL) {
-        engine->set("oformat", conf->dumps_arg0_to_str());
-    }
-    
-    if ((conf = dir->get("output")) != NULL) {
-        engine->set("output", conf->dumps_arg0_to_str());
-    }
+    ssobj->set("allow_update", SrsAmf0Any::boolean(get_raw_api_allow_update()));
     
     return ret;
 }
@@ -2448,7 +2352,7 @@ int SrsConfig::check_config()
             if (n == "raw_api") {
                 for (int j = 0; j < (int)obj->directives.size(); j++) {
                     string m = obj->at(j)->name;
-                    if (m != "enabled" && m != "allow_reload" && m != "allow_query") {
+                    if (m != "enabled" && m != "allow_reload" && m != "allow_query" && m != "allow_update") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported http_api.raw_api directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -5296,6 +5200,28 @@ bool SrsConfig::get_raw_api_allow_query()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::get_raw_api_allow_update()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("raw_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("allow_update");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
 bool SrsConfig::get_http_stream_enabled()
 {
     SrsConfDirective* conf = root->get("http_server");
@@ -5961,3 +5887,106 @@ int srs_config_transform_vhost(SrsConfDirective* root)
     
     return ret;
 }
+
+int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* conf = NULL;
+    
+    engine->set("id", dir->dumps_arg0_to_str());
+    engine->set("enabled", SrsAmf0Any::boolean(_srs_config->get_engine_enabled(dir)));
+    
+    if ((conf = dir->get("iformat")) != NULL) {
+        engine->set("iformat", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("vfilter")) != NULL) {
+        SrsAmf0Object* vfilter = SrsAmf0Any::object();
+        engine->set("vfilter", vfilter);
+        
+        for (int i = 0; i < (int)conf->directives.size(); i++) {
+            SrsConfDirective* sdir = conf->directives.at(i);
+            vfilter->set(sdir->name, sdir->dumps_arg0_to_str());
+        }
+    }
+    
+    if ((conf = dir->get("vcodec")) != NULL) {
+        engine->set("vcodec", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("vbitrate")) != NULL) {
+        engine->set("vbitrate", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("vfps")) != NULL) {
+        engine->set("vfps", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("vwidth")) != NULL) {
+        engine->set("vwidth", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("vheight")) != NULL) {
+        engine->set("vheight", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("vthreads")) != NULL) {
+        engine->set("vthreads", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("vprofile")) != NULL) {
+        engine->set("vprofile", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("vpreset")) != NULL) {
+        engine->set("vpreset", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("vparams")) != NULL) {
+        SrsAmf0Object* vparams = SrsAmf0Any::object();
+        engine->set("vparams", vparams);
+        
+        for (int i = 0; i < (int)conf->directives.size(); i++) {
+            SrsConfDirective* sdir = conf->directives.at(i);
+            vparams->set(sdir->name, sdir->dumps_arg0_to_str());
+        }
+    }
+    
+    if ((conf = dir->get("acodec")) != NULL) {
+        engine->set("acodec", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("abitrate")) != NULL) {
+        engine->set("abitrate", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("asample_rate")) != NULL) {
+        engine->set("asample_rate", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("achannels")) != NULL) {
+        engine->set("achannels", conf->dumps_arg0_to_number());
+    }
+    
+    if ((conf = dir->get("aparams")) != NULL) {
+        SrsAmf0Object* aparams = SrsAmf0Any::object();
+        engine->set("aparams", aparams);
+        
+        for (int i = 0; i < (int)conf->directives.size(); i++) {
+            SrsConfDirective* sdir = conf->directives.at(i);
+            aparams->set(sdir->name, sdir->dumps_arg0_to_str());
+        }
+    }
+    
+    if ((conf = dir->get("oformat")) != NULL) {
+        engine->set("oformat", conf->dumps_arg0_to_str());
+    }
+    
+    if ((conf = dir->get("output")) != NULL) {
+        engine->set("output", conf->dumps_arg0_to_str());
+    }
+    
+    return ret;
+}
+

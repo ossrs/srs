@@ -853,6 +853,7 @@ SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
     raw_api = _srs_config->get_raw_api();
     allow_reload = _srs_config->get_raw_api_allow_reload();
     allow_query = _srs_config->get_raw_api_allow_query();
+    allow_update = _srs_config->get_raw_api_allow_update();
     
     _srs_config->subscribe(this);
 }
@@ -891,8 +892,10 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response_code(w, r, ret);
     }
     
+    //////////////////////////////////////////////////////////////////////////
     // the rpc is required.
-    if (rpc.empty() || (rpc != "reload" && rpc != "query" && rpc != "raw")) {
+    // the allowd rpc method check.
+    if (rpc.empty() || (rpc != "reload" && rpc != "query" && rpc != "raw" && rpc != "update")) {
         ret = ERROR_SYSTEM_CONFIG_RAW;
         srs_error("raw api invalid rpc=%s. ret=%d", rpc.c_str(), ret);
         return srs_api_response_code(w, r, ret);
@@ -968,6 +971,49 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_api_response(w, r, obj->to_json());
     }
     
+    // for rpc=update, to update the configs of server.
+    //      @param scope the scope to update for config.
+    //      @param value the updated value for scope.
+    // possible updates:
+    //      @param scope            @param value                value-description
+    //      global.listen           1935,1936                   the port list.
+    if (rpc == "update") {
+        if (!allow_update) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
+            srs_error("raw api allow_update disabled rpc=%s. ret=%d", rpc.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        std::string scope = r->query_get("scope");
+        std::string value = r->query_get("value");
+        if (scope.empty() || (scope != "global.listen")) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+            srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        
+        if (scope == "global.listen") {
+            vector<string> eps = srs_string_split(value, ",");
+            
+            bool invalid = eps.empty();
+            for (int i = 0; i < (int)eps.size(); i++) {
+                string ep = eps.at(i);
+                int port = ::atoi(ep.c_str());
+                if (port <= 2 || port >= 65535) {
+                    invalid = true;
+                    break;
+                }
+            }
+            if (invalid) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update global.listen invalid eps=%s. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        }
+        
+        return srs_api_response(w, r, obj->to_json());
+    }
+    
     return ret;
 }
 
@@ -976,6 +1022,7 @@ int SrsGoApiRaw::on_reload_http_api_raw_api()
     raw_api = _srs_config->get_raw_api();
     allow_reload = _srs_config->get_raw_api_allow_reload();
     allow_query = _srs_config->get_raw_api_allow_query();
+    allow_update = _srs_config->get_raw_api_allow_update();
     
     return ERROR_SUCCESS;
 }
