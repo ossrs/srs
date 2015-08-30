@@ -688,7 +688,7 @@ public:
     * @remark this is used to protect the service bandwidth.
     */
     virtual int                 get_bw_check_limit_kbps(std::string vhost);
-// vhost edge section
+// vhost cluster section
 public:
     /**
     * whether vhost is edge mode.

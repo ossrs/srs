@@ -615,6 +615,9 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
     // merge config.
     std::vector<ISrsReloadHandler*>::iterator it;
     
+    // following directly support reload.
+    //      origin, token_traverse, vhost, debug_srs_upnode
+    
     // state graph
     //      old_vhost       new_vhost
     //      DISABLED    =>  ENABLED
@@ -679,7 +682,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             continue;
         }
         
-        // mode, never supports reload.
+        // cluster.mode, never supports reload.
         // first, for the origin and edge role change is too complex.
         // second, the vhosts in origin device group normally are all origin,
         //      they never change to edge sometimes.
@@ -877,8 +880,7 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     //
     // always support reload without additional code:
     //      chunk_size, ff_log_dir,
-    //      bandcheck, http_hooks, heartbeat, 
-    //      token_traverse, debug_srs_upnode,
+    //      bandcheck, http_hooks, heartbeat,
     //      security
     
     // merge config: max_connections
@@ -1663,18 +1665,26 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         obj->set("tcp_nodelay", dir->dumps_arg0_to_boolean());
     }
     
-    // edge.
-    if ((dir = vhost->get("mode")) != NULL) {
-        obj->set("mode", dir->dumps_arg0_to_str());
-    }
-    if ((dir = vhost->get("origin")) != NULL) {
-        obj->set("origin", dir->dumps_args());
-    }
-    if ((dir = vhost->get("token_traverse")) != NULL) {
-        obj->set("token_traverse", dir->dumps_arg0_to_boolean());
-    }
-    if ((dir = vhost->get("vhost")) != NULL) {
-        obj->set("vhost", dir->dumps_arg0_to_str());
+    // cluster.
+    if ((dir = vhost->get("cluster")) != NULL) {
+        SrsAmf0Object* cluster = SrsAmf0Any::object();
+        obj->set("cluster", cluster);
+        
+        for (int i = 0; i < (int)dir->directives.size(); i++) {
+            SrsConfDirective* sdir = dir->directives.at(i);
+            
+            if (sdir->name == "mode") {
+                cluster->set("mode", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "origin") {
+                cluster->set("origin", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "token_traverse") {
+                cluster->set("token_traverse", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "vhost") {
+                cluster->set("vhost", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "debug_srs_upnode") {
+                cluster->set("debug_srs_upnode", sdir->dumps_arg0_to_boolean());
+            }
+        }
     }
     
     // forward
@@ -1691,11 +1701,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
                 forward->set("destination", sdir->dumps_args());
             }
         }
-    }
-    
-    // debug_srs_upnode
-    if ((dir = vhost->get("debug_srs_upnode")) != NULL) {
-        obj->set("debug_srs_upnode", dir->dumps_arg0_to_boolean());
     }
     
     // play
@@ -2602,10 +2607,9 @@ int SrsConfig::check_config()
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;
             if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay"
-                && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
-                && n != "debug_srs_upnode" && n != "play" && n != "publish"
+                && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
             ) {
@@ -2651,6 +2655,15 @@ int SrsConfig::check_config()
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost play directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "cluster") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost cluster directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -3182,6 +3195,11 @@ bool SrsConfig::get_debug_srs_upnode(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("cluster");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
@@ -3847,6 +3865,11 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
     if (!conf) {
         return DEFAULT;
     }
+    
+    conf = conf->get("cluster");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
 
     conf = conf->get("mode");
     if (!conf || conf->arg0().empty()) {
@@ -3863,6 +3886,11 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
         return NULL;
     }
     
+    conf = conf->get("cluster");
+    if (!conf || conf->arg0().empty()) {
+        return NULL;
+    }
+    
     return conf->get("origin");
 }
 
@@ -3872,6 +3900,11 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("cluster");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
@@ -3889,6 +3922,11 @@ string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("cluster");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
@@ -5824,6 +5862,23 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 conf->args.clear();
                 
                 ++it;
+                continue;
+            }
+            
+            // SRS3.0, change the folowing like a shadow:
+            //      mode, origin, token_traverse, vhost, debug_srs_upnode
+            //  SRS1/2:
+            //      vhost { shadow; }
+            //  SRS3+:
+            //      vhost { cluster { shadow; } }
+            if (n == "mode" || n == "origin" || n == "token_traverse" || n == "vhost" || n == "debug_srs_upnode") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* cluster = dir->get_or_create("cluster");
+                SrsConfDirective* shadow = cluster->get_or_create(conf->name);
+                shadow->args = conf->args;
+                
+                srs_freep(conf);
                 continue;
             }
             
