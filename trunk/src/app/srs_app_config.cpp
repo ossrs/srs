@@ -2175,6 +2175,16 @@ int SrsConfig::raw_to_json(SrsAmf0Object* obj)
     return ret;
 }
 
+int SrsConfig::raw_set_listen(const vector<string>& eps)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* listen = root->get("listen");
+    listen->args = eps;
+    
+    return ret;
+}
+
 string SrsConfig::config()
 {
     return config_file;

@@ -994,18 +994,6 @@ int SrsServer::do_cycle()
                 return ret;
             }
 #endif
-        
-            // do reload the config.
-            if (signal_reload) {
-                signal_reload = false;
-                srs_info("get signal to reload the config.");
-                
-                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
-                    srs_error("reload config failed. ret=%d", ret);
-                    return ret;
-                }
-                srs_trace("reload config success.");
-            }
             
             // do persistence config to file.
             if (signal_persistence_config) {
@@ -1017,6 +1005,18 @@ int SrsServer::do_cycle()
                     return ret;
                 }
                 srs_trace("persistence config to file success.");
+            }
+        
+            // do reload the config.
+            if (signal_reload) {
+                signal_reload = false;
+                srs_info("get signal to reload the config.");
+                
+                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
+                    srs_error("reload config failed. ret=%d", ret);
+                    return ret;
+                }
+                srs_trace("reload config success.");
             }
             
             // notice the stream sources to cycle.

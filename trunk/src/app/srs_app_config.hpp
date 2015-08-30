@@ -329,6 +329,10 @@ public:
      * dumps the http_api sections to json for raw api info.
      */
     virtual int raw_to_json(SrsAmf0Object* obj);
+    /**
+     * raw set the global listen.
+     */
+    virtual int raw_set_listen(const std::vector<std::string>& eps);
 public:
     /**
      * get the config file path.

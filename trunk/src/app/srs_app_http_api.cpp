@@ -1006,10 +1006,19 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
             if (invalid) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api update global.listen invalid eps=%s. ret=%d", value.c_str(), ret);
+                srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_listen(eps)) != ERROR_SUCCESS) {
+                srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
         }
+        
+        server->on_signal(SRS_SIGNAL_RELOAD);
+        server->on_signal(SRS_SIGNAL_PERSISTENCE_CONFIG);
+        srs_trace("raw api update %s=%s ok.", scope.c_str(), value.c_str());
         
         return srs_api_response(w, r, obj->to_json());
     }
