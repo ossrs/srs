@@ -1509,7 +1509,19 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
                 } else if (sdir->name == "crossdomain") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "raw_api") {
-                    sobj->set(sdir->name, SrsAmf0Any::boolean(get_raw_api()));
+                    SrsAmf0Object* ssobj = SrsAmf0Any::object();
+                    sobj->set(sdir->name, ssobj);
+                    
+                    for (int j = 0; j < (int)sdir->directives.size(); j++) {
+                        SrsConfDirective* ssdir = sdir->directives.at(j);
+                        if (ssdir->name == "enabled") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "allow_reload") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "allow_query") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        }
+                    }
                 }
             }
             obj->set(dir->name, sobj);
