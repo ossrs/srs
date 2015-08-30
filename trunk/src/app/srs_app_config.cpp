@@ -2096,14 +2096,26 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     }
     
     // transcode
-    if ((dir = vhost->get("transcode")) != NULL) {
-        SrsAmf0Object* transcode = SrsAmf0Any::object();
-        obj->set("transcode", transcode);
+    SrsAmf0StrictArray* transcodes = NULL;
+    for (int i = 0; i < (int)vhost->directives.size(); i++) {
+        dir = vhost->directives.at(i);
+        if (dir->name != "transcode") {
+            continue;
+        }
         
+        if (!transcodes) {
+            transcodes = SrsAmf0Any::strict_array();
+            obj->set("transcodes", transcodes);
+        }
+        
+        SrsAmf0Object* transcode = SrsAmf0Any::object();
+        transcodes->append(transcode);
+        
+        transcode->set("apply", dir->dumps_arg0_to_str());
         transcode->set("enabled", SrsAmf0Any::boolean(get_transcode_enabled(dir)));
         
         SrsAmf0StrictArray* engines = SrsAmf0Any::strict_array();
-        obj->set("engines", engines);
+        transcode->set("engines", engines);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2151,7 +2163,7 @@ int SrsConfig::dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
     
     SrsConfDirective* conf = NULL;
     
-    engine->set("name", dir->dumps_arg0_to_str());
+    engine->set("id", dir->dumps_arg0_to_str());
     engine->set("enabled", SrsAmf0Any::boolean(get_engine_enabled(dir)));
     
     if ((conf = dir->get("iformat")) != NULL) {
