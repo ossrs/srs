@@ -944,14 +944,9 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     
     // merge config: pid
     if (!srs_directive_equals(root->get("pid"), old_root->get("pid"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_pid()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload pid failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_pid()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload pid success.");
     }
     
     // merge config: srs_log_tank
@@ -2213,21 +2208,47 @@ int SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
     
     applied = false;
     
-    SrsConfDirective* listen = root->get("listen");
+    SrsConfDirective* conf = root->get("listen");
     
     // not changed, ignore.
-    if (srs_vector_actual_equals(listen->args, eps)) {
+    if (srs_vector_actual_equals(conf->args, eps)) {
         return ret;
     }
     
     // changed, apply and reload.
-    listen->args = eps;
+    conf->args = eps;
     
     if ((ret = do_reload_listen()) != ERROR_SUCCESS) {
         return ret;
     }
     
     applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_set_pid(string pid, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("pid");
+    
+    if (conf->arg0() == pid) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(pid);
+    
+    if ((ret = do_reload_pid()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
     return ret;
 }
 
@@ -2235,7 +2256,6 @@ int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;
     
-    // force to reload the memory server.
     vector<ISrsReloadHandler*>::iterator it;
     for (it = subscribes.begin(); it != subscribes.end(); ++it) {
         ISrsReloadHandler* subscribe = *it;
@@ -2245,6 +2265,23 @@ int SrsConfig::do_reload_listen()
         }
     }
     srs_trace("reload listen success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_pid()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_pid()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload pid failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload pid success.");
     
     return ret;
 }

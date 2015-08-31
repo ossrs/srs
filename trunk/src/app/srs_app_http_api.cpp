@@ -977,6 +977,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     // possible updates:
     //      @param scope            @param value                value-description
     //      global.listen           1935,1936                   the port list.
+    //      global.pid              ./objs/srs.pid              the pid file of srs.
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -986,7 +987,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
-        if (scope.empty() || (scope != "global.listen")) {
+        if (scope.empty() || (scope != "global.listen" && scope != "global.pid")) {
             ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
@@ -1007,12 +1008,32 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
             if (invalid) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
+                srs_error("raw api update check global.listen=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
             
             if ((ret = _srs_config->raw_set_listen(eps, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "global.pid") {
+            bool invalid = value.empty();
+            if (!invalid) {
+                invalid = !srs_string_starts_with(value, "./")
+                    && !srs_string_starts_with(value, "/tmp")
+                    && !srs_string_starts_with(value, "/var");
+            }
+            if (!invalid) {
+                invalid = !srs_string_ends_with(value, ".pid");
+            }
+            if (invalid) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check global.pid=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_pid(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update global.pid=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
         }
