@@ -331,8 +331,14 @@ public:
     virtual int raw_to_json(SrsAmf0Object* obj);
     /**
      * raw set the global listen.
+     * @param applied whether the config is applied.
      */
-    virtual int raw_set_listen(const std::vector<std::string>& eps);
+    virtual int raw_set_listen(const std::vector<std::string>& eps, bool& applied);
+private:
+    /**
+     * do reload listen, for reload from signal or raw api.
+     */
+    virtual int do_reload_listen();
 public:
     /**
      * get the config file path.

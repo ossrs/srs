@@ -992,6 +992,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             return srs_api_response_code(w, r, ret);
         }
         
+        bool applied = false;
         if (scope == "global.listen") {
             vector<string> eps = srs_string_split(value, ",");
             
@@ -1010,14 +1011,19 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 return srs_api_response_code(w, r, ret);
             }
             
-            if ((ret = _srs_config->raw_set_listen(eps)) != ERROR_SUCCESS) {
+            if ((ret = _srs_config->raw_set_listen(eps, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
         }
         
-        server->on_signal(SRS_SIGNAL_PERSISTENCE_CONFIG);
-        srs_trace("raw api update %s=%s ok.", scope.c_str(), value.c_str());
+        // whether the config applied.
+        if (applied) {
+            server->on_signal(SRS_SIGNAL_PERSISTENCE_CONFIG);
+            srs_trace("raw api update %s=%s ok.", scope.c_str(), value.c_str());
+        } else {
+            srs_warn("raw api update not applied %s=%s.", scope.c_str(), value.c_str());
+        }
         
         return srs_api_response(w, r, obj->to_json());
     }

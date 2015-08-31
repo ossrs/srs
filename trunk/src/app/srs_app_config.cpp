@@ -67,9 +67,46 @@ using namespace _srs_internal;
 // '\r'
 #define SRS_CR (char)SRS_CONSTS_CR
 
-// dumps the engine to amf0 object.
+/**
+ * dumps the ingest/transcode-engine in @param dir to amf0 object @param engine.
+ * @param dir the transcode or ingest config directive.
+ * @param engine the amf0 object to dumps to.
+ */
 int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine);
 
+/**
+ * whether the two vector actual equals, for instance,
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
+ *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
+ */
+template<typename T>
+bool srs_vector_actual_equals(const vector<T>& a, const vector<T>& b)
+{
+    // all elements of a in b.
+    for (int i = 0; i < (int)a.size(); i++) {
+        const T& e = a.at(i);
+        if (::find(b.begin(), b.end(), e) == b.end()) {
+            return false;
+        }
+    }
+    
+    // all elements of b in a.
+    for (int i = 0; i < (int)b.size(); i++) {
+        const T& e = b.at(i);
+        if (::find(a.begin(), a.end(), e) == a.end()) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * whether the ch is common space.
+ */
 bool is_common_space(char ch)
 {
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
@@ -900,14 +937,9 @@ int SrsConfig::reload_conf(SrsConfig* conf)
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_listen()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload listen failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_listen()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload listen success.");
     }
     
     // merge config: pid
@@ -2175,12 +2207,33 @@ int SrsConfig::raw_to_json(SrsAmf0Object* obj)
     return ret;
 }
 
-int SrsConfig::raw_set_listen(const vector<string>& eps)
+int SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
 {
     int ret = ERROR_SUCCESS;
     
+    applied = false;
+    
     SrsConfDirective* listen = root->get("listen");
+    
+    // not changed, ignore.
+    if (srs_vector_actual_equals(listen->args, eps)) {
+        return ret;
+    }
+    
+    // changed, apply and reload.
     listen->args = eps;
+    
+    if ((ret = do_reload_listen()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    return ret;
+}
+
+int SrsConfig::do_reload_listen()
+{
+    int ret = ERROR_SUCCESS;
     
     // force to reload the memory server.
     vector<ISrsReloadHandler*>::iterator it;
