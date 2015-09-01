@@ -1677,6 +1677,7 @@ SrsRequest* SrsRequest::copy()
     SrsRequest* cp = new SrsRequest();
     
     cp->ip = ip;
+    cp->vhost = vhost;
     cp->app = app;
     cp->objectEncoding = objectEncoding;
     cp->pageUrl = pageUrl;
@@ -1687,7 +1688,6 @@ SrsRequest* SrsRequest::copy()
     cp->stream = stream;
     cp->swfUrl = swfUrl;
     cp->tcUrl = tcUrl;
-    cp->vhost = vhost;
     cp->duration = duration;
     if (args) {
         cp->args = args->copy()->to_object();
@@ -1701,6 +1701,16 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    
+    ip = req->ip;
+    vhost = req->vhost;
+    app = req->app;
+    objectEncoding = req->objectEncoding;
+    host = req->host;
+    port = req->port;
+    param = req->param;
+    schema = req->schema;
+    duration = req->duration;
     
     if (args) {
         srs_freep(args);
