@@ -120,6 +120,15 @@ SrsIngester::~SrsIngester()
     clear_engines();
 }
 
+void SrsIngester::dispose()
+{
+    // first, use fast stop to notice all FFMPEG to quit gracefully.
+    fast_stop();
+    
+    // then, use stop to wait FFMPEG quit one by one and send SIGKILL if needed.
+    stop();
+}
+
 int SrsIngester::start()
 {
     int ret = ERROR_SUCCESS;
@@ -143,85 +152,10 @@ int SrsIngester::start()
     return ret;
 }
 
-int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
+void SrsIngester::stop()
 {
-    int ret = ERROR_SUCCESS;
-    
-    std::vector<SrsConfDirective*> ingesters = _srs_config->get_ingesters(vhost->arg0());
-    
-    // create engine
-    for (int i = 0; i < (int)ingesters.size(); i++) {
-        SrsConfDirective* ingest = ingesters[i];
-        if ((ret = parse_engines(vhost, ingest)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-    
-    return ret;
-}
-
-int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest)
-{
-    int ret = ERROR_SUCCESS;
-
-    if (!_srs_config->get_ingest_enabled(ingest)) {
-        return ret;
-    }
-    
-    std::string ffmpeg_bin = _srs_config->get_ingest_ffmpeg(ingest);
-    if (ffmpeg_bin.empty()) {
-        ret = ERROR_ENCODER_PARSE;
-        srs_trace("empty ffmpeg ret=%d", ret);
-        return ret;
-    }
-    
-    // get all engines.
-    std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(ingest);
-    
-    // create ingesters without engines.
-    if (engines.empty()) {
-        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, NULL)) != ERROR_SUCCESS) {
-            srs_freep(ffmpeg);
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("invalid ingest engine. ret=%d", ret);
-            }
-            return ret;
-        }
-
-        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG();
-        if ((ret = ingester->initialize(ffmpeg, vhost->arg0(), ingest->arg0())) != ERROR_SUCCESS) {
-            srs_freep(ingester);
-            return ret;
-        }
-        
-        ingesters.push_back(ingester);
-        return ret;
-    }
-
-    // create ingesters with engine
-    for (int i = 0; i < (int)engines.size(); i++) {
-        SrsConfDirective* engine = engines[i];
-        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, engine)) != ERROR_SUCCESS) {
-            srs_freep(ffmpeg);
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("invalid ingest engine: %s %s, ret=%d", 
-                    ingest->arg0().c_str(), engine->arg0().c_str(), ret);
-            }
-            return ret;
-        }
-        
-        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG();
-        if ((ret = ingester->initialize(ffmpeg, vhost->arg0(), ingest->arg0())) != ERROR_SUCCESS) {
-            srs_freep(ingester);
-            return ret;
-        }
-
-        ingesters.push_back(ingester);
-    }
-    
-    return ret;
+    pthread->stop();
+    clear_engines();
 }
 
 void SrsIngester::fast_stop()
@@ -235,21 +169,6 @@ void SrsIngester::fast_stop()
     if (!ingesters.empty()) {
         srs_trace("fast stop all ingesters ok.");
     }
-}
-
-void SrsIngester::dispose()
-{
-    // first, use fast stop to notice all FFMPEG to quit gracefully.
-    fast_stop();
-    
-    // then, use stop to wait FFMPEG quit one by one and send SIGKILL if needed.
-    stop();
-}
-
-void SrsIngester::stop()
-{
-    pthread->stop();
-    clear_engines();
 }
 
 int SrsIngester::cycle()
@@ -323,6 +242,87 @@ int SrsIngester::parse()
         if ((ret = parse_ingesters(vhost)) != ERROR_SUCCESS) {
             return ret;
         }
+    }
+    
+    return ret;
+}
+
+int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsConfDirective*> ingesters = _srs_config->get_ingesters(vhost->arg0());
+    
+    // create engine
+    for (int i = 0; i < (int)ingesters.size(); i++) {
+        SrsConfDirective* ingest = ingesters[i];
+        if ((ret = parse_engines(vhost, ingest)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!_srs_config->get_ingest_enabled(ingest)) {
+        return ret;
+    }
+    
+    std::string ffmpeg_bin = _srs_config->get_ingest_ffmpeg(ingest);
+    if (ffmpeg_bin.empty()) {
+        ret = ERROR_ENCODER_PARSE;
+        srs_trace("empty ffmpeg ret=%d", ret);
+        return ret;
+    }
+    
+    // get all engines.
+    std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(ingest);
+    
+    // create ingesters without engines.
+    if (engines.empty()) {
+        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, NULL)) != ERROR_SUCCESS) {
+            srs_freep(ffmpeg);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("invalid ingest engine. ret=%d", ret);
+            }
+            return ret;
+        }
+        
+        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG();
+        if ((ret = ingester->initialize(ffmpeg, vhost->arg0(), ingest->arg0())) != ERROR_SUCCESS) {
+            srs_freep(ingester);
+            return ret;
+        }
+        
+        ingesters.push_back(ingester);
+        return ret;
+    }
+    
+    // create ingesters with engine
+    for (int i = 0; i < (int)engines.size(); i++) {
+        SrsConfDirective* engine = engines[i];
+        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, engine)) != ERROR_SUCCESS) {
+            srs_freep(ffmpeg);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("invalid ingest engine: %s %s, ret=%d",
+                          ingest->arg0().c_str(), engine->arg0().c_str(), ret);
+            }
+            return ret;
+        }
+        
+        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG();
+        if ((ret = ingester->initialize(ffmpeg, vhost->arg0(), ingest->arg0())) != ERROR_SUCCESS) {
+            srs_freep(ingester);
+            return ret;
+        }
+        
+        ingesters.push_back(ingester);
     }
     
     return ret;
@@ -468,20 +468,6 @@ void SrsIngester::show_ingest_log_message()
     }
 }
 
-int SrsIngester::on_reload_vhost_added(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
-    if ((ret = parse_ingesters(_vhost)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    srs_trace("reload add vhost ingesters, vhost=%s", vhost.c_str());
-
-    return ret;
-}
-
 int SrsIngester::on_reload_vhost_removed(string vhost)
 {
     int ret = ERROR_SUCCESS;
@@ -507,6 +493,20 @@ int SrsIngester::on_reload_vhost_removed(string vhost)
         it = ingesters.erase(it);
     }
 
+    return ret;
+}
+
+int SrsIngester::on_reload_vhost_added(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
+    if ((ret = parse_ingesters(_vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_trace("reload add vhost ingesters, vhost=%s", vhost.c_str());
+    
     return ret;
 }
 
