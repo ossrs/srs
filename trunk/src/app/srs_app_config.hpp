@@ -341,6 +341,10 @@ public:
      * raw set the global pid.
      */
     virtual int raw_set_pid(std::string pid, bool& applied);
+    /**
+     * raw set the global chunk size.
+     */
+    virtual int raw_set_chunk_size(std::string chunk_size, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();

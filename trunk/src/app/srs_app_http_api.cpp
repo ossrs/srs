@@ -986,8 +986,9 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      @param value the updated value for scope.
     // possible updates:
     //      @param scope            @param value                value-description
-    //      global.listen           1935,1936                   the port list.
-    //      global.pid              ./objs/srs.pid              the pid file of srs.
+    //      listen                  1935,1936                   the port list.
+    //      pid                     ./objs/srs.pid              the pid file of srs.
+    //      chunk_size              60000                       the global RTMP chunk_size.
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -997,14 +998,14 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
-        if (scope.empty() || (scope != "global.listen" && scope != "global.pid")) {
+        if (scope.empty() || (scope != "listen" && scope != "pid" && scope != "chunk_size")) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
         
         bool applied = false;
-        if (scope == "global.listen") {
+        if (scope == "listen") {
             vector<string> eps = srs_string_split(value, ",");
             
             bool invalid = eps.empty();
@@ -1018,15 +1019,15 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
             if (invalid) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api update check global.listen=%s failed. ret=%d", value.c_str(), ret);
+                srs_error("raw api update check listen=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
             
             if ((ret = _srs_config->raw_set_listen(eps, applied)) != ERROR_SUCCESS) {
-                srs_error("raw api update global.listen=%s failed. ret=%d", value.c_str(), ret);
+                srs_error("raw api update listen=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
-        } else if (scope == "global.pid") {
+        } else if (scope == "pid") {
             bool invalid = value.empty();
             if (!invalid) {
                 invalid = !srs_string_starts_with(value, "./")
@@ -1038,12 +1039,24 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
             if (invalid) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
-                srs_error("raw api update check global.pid=%s failed. ret=%d", value.c_str(), ret);
+                srs_error("raw api update check pid=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
             
             if ((ret = _srs_config->raw_set_pid(value, applied)) != ERROR_SUCCESS) {
-                srs_error("raw api update global.pid=%s failed. ret=%d", value.c_str(), ret);
+                srs_error("raw api update pid=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "chunk_size") {
+            int csv = ::atoi(value.c_str());
+            if (csv < 128 || csv > 65535 || !srs_is_digit_number(value)) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check chunk_size=%s/%d failed. ret=%d", value.c_str(), csv, ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_chunk_size(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update chunk_size=%s/%d failed. ret=%d", value.c_str(), csv, ret);
                 return srs_api_response_code(w, r, ret);
             }
         }

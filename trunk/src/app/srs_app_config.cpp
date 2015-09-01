@@ -2270,6 +2270,29 @@ int SrsConfig::raw_set_pid(string pid, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("chunk_size");
+    
+    if (conf->arg0() == chunk_size) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(chunk_size);
+    
+    // directly supported reload for chunk_size change.
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;

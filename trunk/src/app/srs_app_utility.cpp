@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 #include <map>
 using namespace std;
 
@@ -1353,6 +1354,17 @@ string srs_get_peer_ip(int fd)
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
     
     return ip;
+}
+
+bool srs_is_digit_number(const string& str)
+{
+    if (str.empty()) {
+        return false;
+    }
+    
+    int v = ::atoi(str.c_str());
+    int powv = (int)pow(10, str.length() - 1);
+    return  v / powv >= 1 && v / powv <= 9;
 }
 
 void srs_api_dump_summaries(SrsAmf0Object* obj)
