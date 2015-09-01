@@ -930,7 +930,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         std::string scope = r->query_get("scope");
         std::string vhost = r->query_get("vhost");
         if (scope.empty() || (scope != "global" && scope != "vhost")) {
-            ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+            ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
@@ -988,7 +988,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
         if (scope.empty() || (scope != "global.listen" && scope != "global.pid")) {
-            ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+            ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
