@@ -1468,6 +1468,24 @@ int SrsConfig::persistence()
     return ret;
 }
 
+int SrsConfig::minimal_to_json(SrsAmf0Object* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* dir = root->directives.at(i);
+        if (dir->is_vhost()) {
+            continue;
+        }
+        
+        if (dir->name == "listen") {
+            obj->set(dir->name, dir->dumps_args());
+        }
+    }
+    
+    return ret;
+}
+
 int SrsConfig::global_to_json(SrsAmf0Object* obj)
 {
     int ret = ERROR_SUCCESS;

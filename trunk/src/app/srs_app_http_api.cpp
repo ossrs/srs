@@ -917,6 +917,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     // for rpc=query, to get the configs of server.
     //      @param scope the scope to query for config, it can be:
     //              global, the configs belongs to the root, donot includes any sub directives.
+    //              minimal, the minimal summary of server, for preview stream to got the port serving.
     //              vhost, the configs for specified vhost by @param vhost.
     //      @param vhost the vhost name for @param scope is vhost to query config.
     //              for the default vhost, must be __defaultVhost__
@@ -929,7 +930,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string vhost = r->query_get("vhost");
-        if (scope.empty() || (scope != "global" && scope != "vhost")) {
+        if (scope.empty() || (scope != "global" && scope != "vhost" && scope != "minimal")) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
@@ -955,6 +956,15 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             obj->set("vhost", data);
             if ((ret = _srs_config->vhost_to_json(conf, data)) != ERROR_SUCCESS) {
                 srs_error("raw api query vhost failed. ret=%d", ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "minimal") {
+            SrsAmf0Object* data = SrsAmf0Any::object();
+            obj->set("minimal", data);
+            
+            // query minimal scope.
+            if ((ret = _srs_config->minimal_to_json(data)) != ERROR_SUCCESS) {
+                srs_error("raw api query global failed. ret=%d", ret);
                 return srs_api_response_code(w, r, ret);
             }
         } else {

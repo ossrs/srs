@@ -322,6 +322,10 @@ public:
      */
     virtual int global_to_json(SrsAmf0Object* obj);
     /**
+     * dumps the minimal sections to json.
+     */
+    virtual int minimal_to_json(SrsAmf0Object* obj);
+    /**
      * dumps the vhost section to json.
      */
     virtual int vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj);
