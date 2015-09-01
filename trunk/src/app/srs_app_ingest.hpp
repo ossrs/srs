@@ -81,6 +81,10 @@ private:
 private:
     SrsReusableThread* pthread;
     SrsPithyPrint* pprint;
+    // whether the ingesters are expired,
+    // for example, the listen port changed,
+    // all ingesters must be restart.
+    bool expired;
 public:
     SrsIngester();
     virtual ~SrsIngester();
@@ -89,6 +93,8 @@ public:
 public:
     virtual int start();
     virtual void stop();
+private:
+    virtual void fast_stop();
 // interface ISrsReusableThreadHandler.
 public:
     virtual int cycle();
@@ -107,6 +113,7 @@ public:
     virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);
+    virtual int on_reload_listen();
 };
 
 #endif

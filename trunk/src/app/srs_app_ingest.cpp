@@ -106,6 +106,8 @@ SrsIngester::SrsIngester()
 {
     _srs_config->subscribe(this);
     
+    expired = false;
+    
     pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US);
     pprint = SrsPithyPrint::create_ingester();
 }
@@ -222,9 +224,8 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
     return ret;
 }
 
-void SrsIngester::dispose()
+void SrsIngester::fast_stop()
 {
-    // first, use fast stop to notice all FFMPEG to quit gracefully.
     std::vector<SrsIngesterFFMPEG*>::iterator it;
     for (it = ingesters.begin(); it != ingesters.end(); ++it) {
         SrsIngesterFFMPEG* ingester = *it;
@@ -234,6 +235,12 @@ void SrsIngester::dispose()
     if (!ingesters.empty()) {
         srs_trace("fast stop all ingesters ok.");
     }
+}
+
+void SrsIngester::dispose()
+{
+    // first, use fast stop to notice all FFMPEG to quit gracefully.
+    fast_stop();
     
     // then, use stop to wait FFMPEG quit one by one and send SIGKILL if needed.
     stop();
@@ -249,6 +256,21 @@ int SrsIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // when expired, restart all ingesters.
+    if (expired) {
+        expired = false;
+        
+        // stop current ingesters.
+        fast_stop();
+        clear_engines();
+        
+        // re-prase the ingesters.
+        if ((ret = parse()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    // cycle exists ingesters.
     std::vector<SrsIngesterFFMPEG*>::iterator it;
     for (it = ingesters.begin(); it != ingesters.end(); ++it) {
         SrsIngesterFFMPEG* ingester = *it;
@@ -549,6 +571,12 @@ int SrsIngester::on_reload_ingest_updated(string vhost, string ingest_id)
         "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
     
     return ret;
+}
+
+int SrsIngester::on_reload_listen()
+{
+    expired = true;
+    return ERROR_SUCCESS;
 }
 
 #endif
