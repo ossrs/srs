@@ -957,12 +957,24 @@ int SrsConfig::reload_conf(SrsConfig* conf)
         srs_trace("reload srs_log_file success.");
     }
     
+    // merge config: utc_time
+    if (!srs_directive_equals(root->get("utc_time"), old_root->get("utc_time"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_utc_time()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload utc_time failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload utc_time success.");
+    }
+    
     // merge config: pithy_print_ms
     if (!srs_directive_equals(root->get("pithy_print_ms"), old_root->get("pithy_print_ms"))) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {
             ISrsReloadHandler* subscribe = *it;
             if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes pithy_print_ms listen failed. ret=%d", ret);
+                srs_error("notify subscribes pithy_print_ms failed. ret=%d", ret);
                 return ret;
             }
         }

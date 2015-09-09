@@ -44,6 +44,7 @@ public:
     ISrsReloadHandler();
     virtual ~ISrsReloadHandler();
 public:
+    virtual int on_reload_utc_time();
     virtual int on_reload_max_conns();
     virtual int on_reload_listen();
     virtual int on_reload_pid();

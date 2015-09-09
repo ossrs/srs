@@ -341,6 +341,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-09, support reload utc_time. 2.0.186
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380][bug #380], srs-librtmp send sequence header when sps or pps changed.
