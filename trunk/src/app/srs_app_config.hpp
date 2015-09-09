@@ -349,9 +349,24 @@ public:
      * raw set the global ffmpeg log dir.
      */
     virtual int raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
+    /**
+     * raw set the global log tank.
+     */
+    virtual int raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
+    /**
+     * raw set the global log level.
+     */
+    virtual int raw_set_srs_log_level(std::string srs_log_level, bool& applied);
+    /**
+     * raw set the global log file path for file tank.
+     */
+    virtual int raw_set_srs_log_file(std::string srs_log_file, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();
+    virtual int do_reload_srs_log_tank();
+    virtual int do_reload_srs_log_level();
+    virtual int do_reload_srs_log_file();
 public:
     /**
      * get the config file path.

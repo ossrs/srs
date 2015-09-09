@@ -989,6 +989,10 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      listen                  1935,1936                   the port list.
     //      pid                     ./objs/srs.pid              the pid file of srs.
     //      chunk_size              60000                       the global RTMP chunk_size.
+    //      ff_log_dir              ./objs                      the dir for ffmpeg log.
+    //      srs_log_tank            file                        the tank to log, file or console.
+    //      srs_log_level           trace                       the level of log, verbose, info, trace, warn, error.
+    //      srs_log_file            ./objs/srs.log              the log file when tank is file.
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -1004,7 +1008,8 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             return srs_api_response_code(w, r, ret);
         }
         if (scope != "listen" && scope != "pid" && scope != "chunk_size"
-            && scope != "ff_log_dir"
+            && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
+            && scope != "srs_log_file"
         ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
@@ -1066,6 +1071,39 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             
             if ((ret = _srs_config->raw_set_ff_log_dir(value, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update ff_log_dir=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "srs_log_tank") {
+            if (value.empty() || (value != "file" && value != "console")) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check srs_log_tank=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_srs_log_tank(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update srs_log_tank=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "srs_log_level") {
+            if (value != "verbose" && value != "info" && value != "trace" && value != "warn" && value != "error") {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check srs_log_level=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_srs_log_level(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update srs_log_level=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "srs_log_file") {
+            if (value.empty() || !srs_string_starts_with(value, "./", "/tmp/", "/var/") || !srs_string_ends_with(value, ".log")) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check srs_log_file=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_srs_log_file(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update srs_log_file=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
         }

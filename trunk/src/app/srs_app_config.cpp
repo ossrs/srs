@@ -951,38 +951,23 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     
     // merge config: srs_log_tank
     if (!srs_directive_equals(root->get("srs_log_tank"), old_root->get("srs_log_tank"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_log_tank()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload srs_log_tank failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_srs_log_tank()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload srs_log_tank success.");
     }
     
     // merge config: srs_log_level
     if (!srs_directive_equals(root->get("srs_log_level"), old_root->get("srs_log_level"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_log_level()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload srs_log_level failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_srs_log_level()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload srs_log_level success.");
     }
     
     // merge config: srs_log_file
     if (!srs_directive_equals(root->get("srs_log_file"), old_root->get("srs_log_file"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_log_file()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload srs_log_file failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_srs_log_file()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload srs_log_file success.");
     }
     
     // merge config: pithy_print_ms
@@ -2316,6 +2301,81 @@ int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("srs_log_tank");
+    
+    if (conf->arg0() == srs_log_tank) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(srs_log_tank);
+    
+    if ((ret = do_reload_srs_log_tank()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("srs_log_level");
+    
+    if (conf->arg0() == srs_log_level) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(srs_log_level);
+    
+    if ((ret = do_reload_srs_log_level()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("srs_log_file");
+    
+    if (conf->arg0() == srs_log_file) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(srs_log_file);
+    
+    if ((ret = do_reload_srs_log_file()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;
@@ -2346,6 +2406,57 @@ int SrsConfig::do_reload_pid()
         }
     }
     srs_trace("reload pid success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_srs_log_tank()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_log_tank()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload srs_log_tank failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload srs_log_tank success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_srs_log_level()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_log_level()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload srs_log_level failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload srs_log_level success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_srs_log_file()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_log_file()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload srs_log_file failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload srs_log_file success.");
     
     return ret;
 }
