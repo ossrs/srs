@@ -345,6 +345,10 @@ public:
      * raw set the global chunk size.
      */
     virtual int raw_set_chunk_size(std::string chunk_size, bool& applied);
+    /**
+     * raw set the global ffmpeg log dir.
+     */
+    virtual int raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();

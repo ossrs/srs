@@ -68,6 +68,9 @@ extern std::string srs_string_remove(std::string str, std::string remove_chars);
 extern bool srs_string_ends_with(std::string str, std::string flag);
 // whether string starts with
 extern bool srs_string_starts_with(std::string str, std::string flag);
+extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1);
+extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2);
+extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
 // split the string by flag to array.

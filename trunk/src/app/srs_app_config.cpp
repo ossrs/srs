@@ -2293,6 +2293,29 @@ int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("ff_log_dir");
+    
+    if (conf->arg0() == ff_log_dir) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(ff_log_dir);
+    
+    // directly supported reload for ff_log_dir change.
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;

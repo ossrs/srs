@@ -998,7 +998,14 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
-        if (scope.empty() || (scope != "listen" && scope != "pid" && scope != "chunk_size")) {
+        if (scope.empty()) {
+            ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
+            srs_error("raw api query invalid empty scope. ret=%d", ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        if (scope != "listen" && scope != "pid" && scope != "chunk_size"
+            && scope != "ff_log_dir"
+        ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
@@ -1028,16 +1035,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 return srs_api_response_code(w, r, ret);
             }
         } else if (scope == "pid") {
-            bool invalid = value.empty();
-            if (!invalid) {
-                invalid = !srs_string_starts_with(value, "./")
-                    && !srs_string_starts_with(value, "/tmp")
-                    && !srs_string_starts_with(value, "/var");
-            }
-            if (!invalid) {
-                invalid = !srs_string_ends_with(value, ".pid");
-            }
-            if (invalid) {
+            if (value.empty() || !srs_string_starts_with(value, "./", "/tmp/", "/var/") || !srs_string_ends_with(value, ".pid")) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
                 srs_error("raw api update check pid=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
@@ -1057,6 +1055,17 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             
             if ((ret = _srs_config->raw_set_chunk_size(value, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update chunk_size=%s/%d failed. ret=%d", value.c_str(), csv, ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "ff_log_dir") {
+            if (value.empty() || (value != "/dev/null" && !srs_string_starts_with(value, "./", "/tmp/", "/var/"))) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check ff_log_dir=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_ff_log_dir(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update ff_log_dir=%s failed. ret=%d", value.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
             }
         }

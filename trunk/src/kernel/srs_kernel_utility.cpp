@@ -280,6 +280,21 @@ bool srs_string_starts_with(string str, string flag)
     return str.find(flag) == 0;
 }
 
+bool srs_string_starts_with(string str, string flag0, string flag1)
+{
+    return srs_string_starts_with(str, flag0) || srs_string_starts_with(str, flag1);
+}
+
+bool srs_string_starts_with(string str, string flag0, string flag1, string flag2)
+{
+    return srs_string_starts_with(str, flag0, flag1) || srs_string_starts_with(str, flag2);
+}
+
+bool srs_string_starts_with(string str, string flag0, string flag1, string flag2, string flag3)
+{
+    return srs_string_starts_with(str, flag0, flag1, flag2) || srs_string_starts_with(str, flag3);
+}
+
 bool srs_string_contains(string str, string flag)
 {
     return str.find(flag) != string::npos;
