@@ -361,12 +361,27 @@ public:
      * raw set the global log file path for file tank.
      */
     virtual int raw_set_srs_log_file(std::string srs_log_file, bool& applied);
+    /**
+     * raw set the global max connections of srs.
+     */
+    virtual int raw_set_max_connections(std::string max_connections, bool& applied);
+    /**
+     * raw set the global whether use utc time.
+     */
+    virtual int raw_set_utc_time(std::string utc_time, bool& applied);
+    /**
+     * raw set the global pithy print interval in ms.
+     */
+    virtual int raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();
     virtual int do_reload_srs_log_tank();
     virtual int do_reload_srs_log_level();
     virtual int do_reload_srs_log_file();
+    virtual int do_reload_max_connections();
+    virtual int do_reload_utc_time();
+    virtual int do_reload_pithy_print_ms();
 public:
     /**
      * get the config file path.
@@ -1277,6 +1292,11 @@ extern bool srs_config_dvr_is_plan_append(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
 extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
+
+/**
+ * convert bool in str to on/off
+ */
+extern std::string srs_config_bool2switch(const std::string& sbool);
 
 /**
  * parse loaded vhost directives to compatible mode.

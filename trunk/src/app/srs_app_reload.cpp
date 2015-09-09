@@ -45,6 +45,11 @@ int ISrsReloadHandler::on_reload_max_conns()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_utc_time()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_pid()
 {
     return ERROR_SUCCESS;

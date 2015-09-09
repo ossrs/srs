@@ -993,6 +993,9 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      srs_log_tank            file                        the tank to log, file or console.
     //      srs_log_level           trace                       the level of log, verbose, info, trace, warn, error.
     //      srs_log_file            ./objs/srs.log              the log file when tank is file.
+    //      max_connections         1000                        the max connections of srs.
+    //      utc_time                false                       whether enable utc time.
+    //      pithy_print_ms          10000                       the pithy print interval in ms.
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -1009,7 +1012,8 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         if (scope != "listen" && scope != "pid" && scope != "chunk_size"
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
-            && scope != "srs_log_file"
+            && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
+            && scope != "pithy_print_ms"
         ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
@@ -1104,6 +1108,41 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             
             if ((ret = _srs_config->raw_set_srs_log_file(value, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update srs_log_file=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "max_connections") {
+            int mcv = ::atoi(value.c_str());
+            if (mcv < 10 || mcv > 65535 || !srs_is_digit_number(value)) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check max_connections=%s/%d failed. ret=%d", value.c_str(), mcv, ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_max_connections(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update max_connections=%s/%d failed. ret=%d", value.c_str(), mcv, ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "utc_time") {
+            if (!srs_is_boolean(value)) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check utc_time=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_utc_time(srs_config_bool2switch(value), applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update utc_time=%s failed. ret=%d", value.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "pithy_print_ms") {
+            int ppmv = ::atoi(value.c_str());
+            if (ppmv < 100 || ppmv > 300000 || !srs_is_digit_number(value)) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                srs_error("raw api update check pithy_print_ms=%s/%d failed. ret=%d", value.c_str(), ppmv, ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if ((ret = _srs_config->raw_set_pithy_print_ms(value, applied)) != ERROR_SUCCESS) {
+                srs_error("raw api update pithy_print_ms=%s/%d failed. ret=%d", value.c_str(), ppmv, ret);
                 return srs_api_response_code(w, r, ret);
             }
         }

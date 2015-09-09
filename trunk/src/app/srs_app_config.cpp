@@ -922,18 +922,6 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     //      chunk_size, ff_log_dir,
     //      bandcheck, http_hooks, heartbeat,
     //      security
-    
-    // merge config: max_connections
-    if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_max_conns()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes reload max_connections failed. ret=%d", ret);
-                return ret;
-            }
-        }
-        srs_trace("reload max_connections success.");
-    }
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
@@ -970,16 +958,25 @@ int SrsConfig::reload_conf(SrsConfig* conf)
         }
     }
     
+    // merge config: max_connections
+    if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
+        if ((ret = do_reload_max_connections()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    // merge config: utc_time
+    if (!srs_directive_equals(root->get("utc_time"), old_root->get("utc_time"))) {
+        if ((ret = do_reload_utc_time()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
     // merge config: pithy_print_ms
     if (!srs_directive_equals(root->get("pithy_print_ms"), old_root->get("pithy_print_ms"))) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes pithy_print_ms listen failed. ret=%d", ret);
-                return ret;
-            }
+        if ((ret = do_reload_pithy_print_ms()) != ERROR_SUCCESS) {
+            return ret;
         }
-        srs_trace("reload pithy_print_ms success.");
     }
     
     // merge config: http_api
@@ -2376,6 +2373,81 @@ int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("max_connections");
+    
+    if (conf->arg0() == max_connections) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(max_connections);
+    
+    if ((ret = do_reload_max_connections()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("utc_time");
+    
+    if (conf->arg0() == utc_time) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(utc_time);
+    
+    if ((ret = do_reload_utc_time()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("pithy_print_ms");
+    
+    if (conf->arg0() == pithy_print_ms) {
+        return ret;
+    }
+    
+    conf->args.clear();
+    conf->args.push_back(pithy_print_ms);
+    
+    if ((ret = do_reload_pithy_print_ms()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;
@@ -2457,6 +2529,57 @@ int SrsConfig::do_reload_srs_log_file()
         }
     }
     srs_trace("reload srs_log_file success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_max_connections()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_max_conns()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes reload max_connections failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload max_connections success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_utc_time()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_utc_time()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes utc_time failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload utc_time success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_pithy_print_ms()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
+            srs_error("notify subscribes pithy_print_ms failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    srs_trace("reload pithy_print_ms success.");
     
     return ret;
 }
@@ -5987,6 +6110,11 @@ bool srs_stream_caster_is_rtsp(string caster)
 bool srs_stream_caster_is_flv(string caster)
 {
     return caster == "flv";
+}
+
+string srs_config_bool2switch(const string& sbool)
+{
+    return sbool == "true"? "on":"off";
 }
 
 int srs_config_transform_vhost(SrsConfDirective* root)

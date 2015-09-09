@@ -675,6 +675,11 @@ extern std::string srs_get_peer_ip(int fd);
 //      is_digit("1234567890a") === false
 //      is_digit("a1234567890") === false
 extern bool srs_is_digit_number(const std::string& str);
+// whether string is boolean
+//      is_bool("true") == true
+//      is_bool("false") == true
+//      otherwise, false.
+extern bool srs_is_boolean(const std::string& str);
 
 // dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsAmf0Object* obj);

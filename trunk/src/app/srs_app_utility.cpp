@@ -1367,6 +1367,11 @@ bool srs_is_digit_number(const string& str)
     return  v / powv >= 1 && v / powv <= 9;
 }
 
+bool srs_is_boolean(const string& str)
+{
+    return str == "true" || str == "false";
+}
+
 void srs_api_dump_summaries(SrsAmf0Object* obj)
 {
     SrsRusage* r = srs_get_system_rusage();
