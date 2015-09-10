@@ -832,11 +832,11 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+-------------------------+----------------+
 
 Remark:
-(1) Encoder: encoder must push RTMP stream to SRS server.
-(2) MediaSource: any media source, which can be ingest by ffmpeg.
-(3) Ingester: SRS will fork a process to run ffmpeg(or your application) 
-to ingest any input to rtmp, push to SRS. Read [Ingest][v1_CN_Ingest].
-(4) Streamer: SRS will listen for some protocol and accept stream push 
+
+* Encoder: encoder must push RTMP stream to SRS server.
+* MediaSource: any media source, which can be ingest by ffmpeg.
+* Ingester: SRS will fork a process to run ffmpeg(or your application) to ingest any input to rtmp, push to SRS. Read [Ingest][v1_CN_Ingest].
+* Streamer: SRS will listen for some protocol and accept stream push 
 over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer">Streamer</a>.
 </pre>
 
