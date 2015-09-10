@@ -815,6 +815,7 @@ SRS always use the most simple architecture to support complex transaction.
 |  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
 |  ......)             |   +-> Fowarder ---------+-> RTMP server  |
 |                      |   +-> Transcoder -------+-> RTMP server  |
+|                      |   +-> EXEC(5) ----------+-> External app |
 |                      |   +-> DVR --------------+-> Flv file     |
 |                      |   +-> BandwidthTest ----+-> flash        |
 +----------------------+                         |                |
@@ -834,12 +835,11 @@ SRS always use the most simple architecture to support complex transaction.
 </pre>
 
 Remark:
-
-* Encoder: encoder must push RTMP stream to SRS server.
-* MediaSource: any media source, which can be ingest by ffmpeg.
-* Ingester: SRS will fork a process to run ffmpeg(or your application) to ingest any input to rtmp, push to SRS. Read [Ingest][v1_CN_Ingest].
-* Streamer: SRS will listen for some protocol and accept stream push 
-over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer">Streamer</a>.
+1. Encoder: Encoder must push RTMP stream to SRS server.
+1. MediaSource: Any media source, which can be ingest by ffmpeg.
+1. Ingester: SRS fork a ffmpeg(or application) to ingest something to rtmp to SRS. Read [Ingest][v1_CN_Ingest].
+1. Streamer: SRS listen to remux some protocol to rtmp to SRS. Read [Streamer][v2_CN_Streamer].
+1. EXEC: SRS exec external application when got event, read [ng-exec][v3_CN_NgExec].
 
 Beijing, 2013.10<br/>
 Winlin
@@ -987,6 +987,8 @@ Winlin
 [v2_EN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_DeliveryHttpStream
 [v1_CN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS
 [v1_EN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS
+[v2_CN_Streamer]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer
+[v2_EN_Streamer]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer
 [v2_CN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
 [v2_EN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
 [v2_CN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlv
@@ -1012,6 +1014,8 @@ Winlin
 [v2_EN_LowLatency#merged-write]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency#merged-write
 [v1_CN_IDE]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_IDE
 [v2_CN_LowLatency#merged-write]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency#merged-write
+[v3_CN_NgExec]:https://github.com/simple-rtmp-server/srs/wiki/v3_CN_NgExec
+[v3_EN_NgExec]:https://github.com/simple-rtmp-server/srs/wiki/v3_EN_NgExec
 
 [bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
 [bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
