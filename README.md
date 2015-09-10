@@ -835,6 +835,7 @@ SRS always use the most simple architecture to support complex transaction.
 </pre>
 
 Remark:
+
 1. Encoder: Encoder must push RTMP stream to SRS server.
 1. MediaSource: Any media source, which can be ingest by ffmpeg.
 1. Ingester: SRS fork a ffmpeg(or application) to ingest something to rtmp to SRS. Read [Ingest][v1_CN_Ingest].
