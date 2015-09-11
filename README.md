@@ -774,9 +774,12 @@ SRS always use the most simple architecture to support complex transaction.
 
 <pre>
 +------------------------------------------------------+
-|             SRS(Simple RTMP Server)                  |
+|                    Application                       |
+|            Origin/Edge/HTTP-FLV/StreamCaster         |
 +---------------+---------------+-----------+----------+
-|   API/hook    |   Transcoder  |  HLS/HDS  | RTMP/FLV |
+|   RAW API/    |     EXEC/     |    DVR/   | FLV/TS/  |
+|   API/hook    |   Transcoder  |  HLS/HDS  | AMF0/JSON|
++---------------+---------------+-----------+ RTMP/RTSP|
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
 +---------------+---------------+-----------+----------+
 |              Network(state-threads)                  |
@@ -791,15 +794,21 @@ SRS always use the most simple architecture to support complex transaction.
 +------------------------------------------------------+
 |             Main(srs/ingest-hls/librtmp)             |
 +------------------------------------------------------+
+|          Modules(1)(User defined modularity)         |
++------------------------------------------------------+
 |           App(Server/Client application)             |
 +------------------------------------------------------+
-|         RTMP/HTTP/RawStream(Protocol stack)          |
+|         RTMP/HTTP/RTSP/RawStream(Protocol stack)     |
 +------------------------------------------------------+
 |      Kernel(depends on Core, provides error/log)     |
 +------------------------------------------------------+
 |         Core(depends only on system apis)            |
 +------------------------------------------------------+
 </pre>
+
+Remark:
+
+1. Modules: SRS support embeded modularity, read [modules][modules].
 
 ### Stream Architecture
 
@@ -889,6 +898,7 @@ Winlin
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net/players/srs_player.html
+[modules]: https://github.com/simple-rtmp-server/srs/blob/develop/trunk/modules/readme.txt
 
 [v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
