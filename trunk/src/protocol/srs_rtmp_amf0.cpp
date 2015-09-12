@@ -341,9 +341,17 @@ string SrsAmf0Any::to_json()
             return to_boolean()? "true":"false";
         }
         case RTMP_AMF0_Number: {
+            double v = to_number();
+            int64_t iv = (int64_t)v;
+            
             // len(max int64_t) is 20, plus one "+-."
             char tmp[22];
-            snprintf(tmp, 22, "%f", to_number());
+            if (v == iv) {
+                snprintf(tmp, 22, "%"PRId64, iv);
+            } else {
+                snprintf(tmp, 22, "%.6f", to_number());
+            }
+            
             return tmp;
         }
         case RTMP_AMF0_Null: {
