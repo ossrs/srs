@@ -982,10 +982,11 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     
     // for rpc=update, to update the configs of server.
-    //      @param scope the scope to update for config.
-    //      @param value the updated value for scope.
+    //      @scope the scope to update for config.
+    //      @value the updated value for scope.
+    //      @param the extra param for scope.
     // possible updates:
-    //      @param scope            @param value                value-description
+    //      @scope                  @value                value-description
     //      listen                  1935,1936                   the port list.
     //      pid                     ./objs/srs.pid              the pid file of srs.
     //      chunk_size              60000                       the global RTMP chunk_size.
@@ -996,6 +997,9 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      max_connections         1000                        the max connections of srs.
     //      utc_time                false                       whether enable utc time.
     //      pithy_print_ms          10000                       the pithy print interval in ms.
+    // vhost specified updates:
+    //      @scope                  @value                  @param                  description
+    //      vhost                   ossrs.net               create                  create vhost ossrs.net
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -1005,6 +1009,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
+        std::string param = r->query_get("param");
         if (scope.empty()) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid empty scope. ret=%d", ret);
@@ -1013,10 +1018,15 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         if (scope != "listen" && scope != "pid" && scope != "chunk_size"
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
             && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
-            && scope != "pithy_print_ms"
+            && scope != "pithy_print_ms" && scope != "vhost"
         ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
+            return srs_api_response_code(w, r, ret);
+        }
+        if (scope == "vhost" && param != "create") {
+            ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
+            srs_error("raw api query invalid scope=%s, param=%s. ret=%d", scope.c_str(), param.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
         
@@ -1144,6 +1154,20 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             if ((ret = _srs_config->raw_set_pithy_print_ms(value, applied)) != ERROR_SUCCESS) {
                 srs_error("raw api update pithy_print_ms=%s/%d failed. ret=%d", value.c_str(), ppmv, ret);
                 return srs_api_response_code(w, r, ret);
+            }
+        } else if (scope == "vhost") {
+            if (param == "create") {
+                // when create, the vhost must not exists.
+                if (param.empty() || _srs_config->get_vhost(value, false)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+                
+                if ((ret = _srs_config->raw_create_vhost(value, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
             }
         }
         

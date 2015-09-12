@@ -200,20 +200,32 @@ SrsConfDirective* SrsConfDirective::get_or_create(string n)
 
 SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0)
 {
-    SrsConfDirective* conf = get_or_create(n);
+    SrsConfDirective* conf = get(n, a0);
     
-    if (conf->arg0() == a0) {
-        return conf;
+    if (!conf) {
+        conf = new SrsConfDirective();
+        conf->name = n;
+        conf->set_arg0(a0);
+        directives.push_back(conf);
+    }
+    
+    return conf;
+}
+
+SrsConfDirective* SrsConfDirective::set_arg0(string a0)
+{
+    if (arg0() == a0) {
+        return this;
     }
     
     // update a0.
-    if (!conf->args.empty()) {
-        conf->args.erase(conf->args.begin());
+    if (!args.empty()) {
+        args.erase(args.begin());
     }
     
-    conf->args.insert(conf->args.begin(), a0);
+    args.insert(args.begin(), a0);
     
-    return conf;
+    return this;
 }
 
 bool SrsConfDirective::is_vhost()
@@ -693,17 +705,9 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         
         //      DISABLED    =>  ENABLED
         if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
-            srs_trace("vhost %s added, reload it.", vhost.c_str());
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
-                    srs_error("notify subscribes added "
-                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
-                    return ret;
-                }
+            if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+                return ret;
             }
-
-            srs_trace("reload new vhost %s success.", vhost.c_str());
             continue;
         }
         
@@ -2448,6 +2452,25 @@ int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_create_vhost(string vhost, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    
+    SrsConfDirective* conf = root->get_or_create("vhost", vhost);
+    conf->get_or_create("enabled")->set_arg0("on");
+    
+    if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;
@@ -2580,6 +2603,26 @@ int SrsConfig::do_reload_pithy_print_ms()
         }
     }
     srs_trace("reload pithy_print_ms success.");
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_vhost_added(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_trace("vhost %s added, reload it.", vhost.c_str());
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+            srs_error("notify subscribes added vhost %s failed. ret=%d", vhost.c_str(), ret);
+            return ret;
+        }
+    }
+    
+    srs_trace("reload new vhost %s success.", vhost.c_str());
     
     return ret;
 }
@@ -3491,7 +3534,7 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_vhost(string vhost)
+SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
     
@@ -3507,7 +3550,7 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
         }
     }
     
-    if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+    if (try_default_vhost && vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         return get_vhost(SRS_CONSTS_RTMP_DEFAULT_VHOST);
     }
     
@@ -6268,7 +6311,7 @@ int srs_config_transform_vhost(SrsConfDirective* root)
             //  SRS3+:
             //      vhost { forward { enabled; destination; } }
             if (n == "forward" && conf->directives.empty()) {
-                conf->get_or_create("enabled", "on");
+                conf->get_or_create("enabled")->set_arg0("on");
                 
                 SrsConfDirective* destination = conf->get_or_create("destination");
                 destination->args = conf->args;

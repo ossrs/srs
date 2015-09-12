@@ -130,6 +130,7 @@ public:
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* set_arg0(std::string a0);
 // help utilities
 public:
     /**
@@ -373,6 +374,10 @@ public:
      * raw set the global pithy print interval in ms.
      */
     virtual int raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
+    /**
+     * raw create the new vhost.
+     */
+    virtual int raw_create_vhost(std::string vhost, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();
@@ -382,6 +387,7 @@ private:
     virtual int do_reload_max_connections();
     virtual int do_reload_utc_time();
     virtual int do_reload_pithy_print_ms();
+    virtual int do_reload_vhost_added(std::string vhost);
 public:
     /**
      * get the config file path.
@@ -503,13 +509,14 @@ public:
 // vhost specified section
 public:
     /**
-    * get the vhost directive by vhost name.
-    * @param vhost, the name of vhost to get.
-    */
-    virtual SrsConfDirective*   get_vhost(std::string vhost);
+     * get the vhost directive by vhost name.
+     * @param vhost, the name of vhost to get.
+     * @param try_default_vhost whether try default when get specified vhost failed.
+     */
+    virtual SrsConfDirective*   get_vhost(std::string vhost, bool try_default_vhost = true);
     /**
-    * get all vhosts in config file.
-    */
+     * get all vhosts in config file.
+     */
     virtual void get_vhosts(std::vector<SrsConfDirective*>& vhosts);
     /**
     * whether vhost is enabled
