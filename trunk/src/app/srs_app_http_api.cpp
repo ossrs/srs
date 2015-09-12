@@ -1255,7 +1255,7 @@ int SrsHttpApi::do_cycle()
     srs_trace("api get peer ip success. ip=%s", ip.c_str());
     
     // initialize parser
-    if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {
+    if ((ret = parser->initialize(HTTP_REQUEST, true)) != ERROR_SUCCESS) {
         srs_error("api initialize http parser failed. ret=%d", ret);
         return ret;
     }

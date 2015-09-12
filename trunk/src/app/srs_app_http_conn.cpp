@@ -504,7 +504,7 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
-int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
+int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
 {
     int ret = ERROR_SUCCESS;
     
@@ -572,11 +572,13 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
     }
     
     // parse jsonp request message.
-    if (!query_get("callback").empty()) {
-        jsonp = true;
-    }
-    if (jsonp) {
-        jsonp_method = query_get("method");
+    if (allow_jsonp) {
+        if (!query_get("callback").empty()) {
+            jsonp = true;
+        }
+        if (jsonp) {
+            jsonp_method = query_get("method");
+        }
     }
     
     return ret;
@@ -843,9 +845,11 @@ SrsHttpParser::~SrsHttpParser()
     srs_freep(buffer);
 }
 
-int SrsHttpParser::initialize(enum http_parser_type type)
+int SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
 {
     int ret = ERROR_SUCCESS;
+    
+    jsonp = allow_jsonp;
     
     memset(&settings, 0, sizeof(settings));
     settings.on_message_begin = on_message_begin;
@@ -891,7 +895,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     SrsHttpMessage* msg = new SrsHttpMessage(skt, conn);
     
     // initalize http msg, parse url.
-    if ((ret = msg->update(url, &header, buffer, headers)) != ERROR_SUCCESS) {
+    if ((ret = msg->update(url, jsonp, &header, buffer, headers)) != ERROR_SUCCESS) {
         srs_error("initialize http msg failed. ret=%d", ret);
         srs_freep(msg);
         return ret;
@@ -1191,7 +1195,7 @@ int SrsHttpConn::do_cycle()
     srs_trace("HTTP client ip=%s", ip.c_str());
     
     // initialize parser
-    if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {
+    if ((ret = parser->initialize(HTTP_REQUEST, false)) != ERROR_SUCCESS) {
         srs_error("http initialize http parser failed. ret=%d", ret);
         return ret;
     }

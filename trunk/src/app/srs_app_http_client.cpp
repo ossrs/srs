@@ -59,7 +59,7 @@ int SrsHttpClient::initialize(string h, int p, int64_t t_us)
     srs_freep(parser);
     parser = new SrsHttpParser();
     
-    if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
+    if ((ret = parser->initialize(HTTP_RESPONSE, false)) != ERROR_SUCCESS) {
         srs_error("initialize parser failed. ret=%d", ret);
         return ret;
     }

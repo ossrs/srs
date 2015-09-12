@@ -214,7 +214,7 @@ public:
     /**
      * set the original messages, then update the message.
      */
-    virtual int update(std::string url, http_parser* header,
+    virtual int update(std::string url, bool allow_jsonp, http_parser* header,
         SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
     );
 public:
@@ -304,6 +304,8 @@ private:
     http_parser parser;
     // the global parse buffer.
     SrsFastBuffer* buffer;
+    // whether allow jsonp parse.
+    bool jsonp;
 private:
     // http parse data, reset before parse message.
     bool expect_field_name;
@@ -321,8 +323,9 @@ public:
     /**
      * initialize the http parser with specified type,
      * one parser can only parse request or response messages.
+     * @param allow_jsonp whether allow jsonp parser, which indicates the method in query string.
      */
-    virtual int initialize(enum http_parser_type type);
+    virtual int initialize(enum http_parser_type type, bool allow_jsonp);
     /**
      * always parse a http message,
      * that is, the *ppmsg always NOT-NULL when return success.

@@ -1615,68 +1615,66 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
         sobj->set("id", SrsAmf0Any::number(svhost? (double)svhost->id : 0));
         sobj->set("name", dir->dumps_arg0_to_str());
+        sobj->set("enabled", SrsAmf0Any::boolean(get_vhost_enabled(dir->arg0())));
         
-        if (get_vhost_enabled(dir->name)) {
-            sobj->set("enabled", SrsAmf0Any::boolean(true));
-        }
-        if (get_dvr_enabled(dir->name)) {
+        if (get_dvr_enabled(dir->arg0())) {
             sobj->set("dvr", SrsAmf0Any::boolean(true));
         }
-        if (get_vhost_http_enabled(dir->name)) {
+        if (get_vhost_http_enabled(dir->arg0())) {
             sobj->set("http_static", SrsAmf0Any::boolean(true));
         }
-        if (get_vhost_http_remux_enabled(dir->name)) {
+        if (get_vhost_http_remux_enabled(dir->arg0())) {
             sobj->set("http_remux", SrsAmf0Any::boolean(true));
         }
-        if (get_hls_enabled(dir->name)) {
+        if (get_hls_enabled(dir->arg0())) {
             sobj->set("hls", SrsAmf0Any::boolean(true));
         }
-        if (get_hds_enabled(dir->name)) {
+        if (get_hds_enabled(dir->arg0())) {
             sobj->set("hds", SrsAmf0Any::boolean(true));
         }
-        if (get_vhost_http_hooks(dir->name)) {
+        if (get_vhost_http_hooks(dir->arg0())) {
             sobj->set("http_hooks", SrsAmf0Any::boolean(true));
         }
-        if (get_exec_enabled(dir->name)) {
+        if (get_exec_enabled(dir->arg0())) {
             sobj->set("exec", SrsAmf0Any::boolean(true));
         }
-        if (get_bw_check_enabled(dir->name)) {
+        if (get_bw_check_enabled(dir->arg0())) {
             sobj->set("bandcheck", SrsAmf0Any::boolean(true));
         }
-        if (!get_vhost_is_edge(dir->name)) {
+        if (!get_vhost_is_edge(dir->arg0())) {
             sobj->set("origin", SrsAmf0Any::boolean(true));
         }
-        if (get_forward_enabled(dir->name)) {
+        if (get_forward_enabled(dir->arg0())) {
             sobj->set("forward", SrsAmf0Any::boolean(true));
         }
         
-        if (get_security_enabled(dir->name)) {
+        if (get_security_enabled(dir->arg0())) {
             sobj->set("security", SrsAmf0Any::boolean(true));
         }
-        if (get_refer_enabled(dir->name)) {
+        if (get_refer_enabled(dir->arg0())) {
             sobj->set("refer", SrsAmf0Any::boolean(true));
         }
         
-        if (get_mr_enabled(dir->name)) {
+        if (get_mr_enabled(dir->arg0())) {
             sobj->set("mr", SrsAmf0Any::boolean(true));
         }
-        if (get_realtime_enabled(dir->name)) {
+        if (get_realtime_enabled(dir->arg0())) {
             sobj->set("min_latency", SrsAmf0Any::boolean(true));
         }
-        if (get_gop_cache(dir->name)) {
+        if (get_gop_cache(dir->arg0())) {
             sobj->set("gop_cache", SrsAmf0Any::boolean(true));
         }
-        if (get_tcp_nodelay(dir->name)) {
+        if (get_tcp_nodelay(dir->arg0())) {
             sobj->set("tcp_nodelay", SrsAmf0Any::boolean(true));
         }
         
-        if (get_mix_correct(dir->name)) {
+        if (get_mix_correct(dir->arg0())) {
             sobj->set("mix_correct", SrsAmf0Any::boolean(true));
         }
-        if (get_time_jitter(dir->name) != SrsRtmpJitterAlgorithmOFF) {
+        if (get_time_jitter(dir->arg0()) != SrsRtmpJitterAlgorithmOFF) {
             sobj->set("time_jitter", SrsAmf0Any::boolean(true));
         }
-        if (get_atc(dir->name)) {
+        if (get_atc(dir->arg0())) {
             sobj->set("atc", SrsAmf0Any::boolean(true));
         }
         
