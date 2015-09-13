@@ -168,7 +168,6 @@ Please select your language:
 ## Donation
 
 Donation:<br/>
-[http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) OR <br/>
 [http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
@@ -244,6 +243,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v1.0, 2015-07-14, use time jitter off for hls and forward. 1.0.33
 * <strong>v1.0, 2015-05-23, [1.0r4 release(1.0.32)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4) released. 59509 lines.</strong>
 * v1.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 1.0.32
 * v1.0, 2015-03-26, fix hls aac adts bug, in aac mux. 1.0.31.

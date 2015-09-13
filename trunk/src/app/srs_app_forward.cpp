@@ -160,7 +160,7 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = jitter->correct(metadata, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(metadata, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(metadata);
         return ret;
     }
@@ -176,7 +176,7 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
     }
@@ -197,7 +197,7 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
     }
