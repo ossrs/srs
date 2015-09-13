@@ -145,14 +145,12 @@ Please select your language:
 
 ## Donation
 
-Donation:<br/>
-[http://winlinvip.github.io/srs.release/donation/index.html][donation0] OR <br/>
-[http://www.ossrs.net/srs.release/donation/index.html][donation1]
+Donation: [http://www.ossrs.net/srs.release/donation/index.html][donation1]
 
-Donations:<br/>
-[https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt][donations]
+Donations: [https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt][donations]
 
 ## System Requirements
+
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
 * Apple OSX(Darwin), both 32 and 64bits.
