@@ -146,7 +146,6 @@ Please select your language:
 ## Donation
 
 Donation:<br/>
-[http://winlinvip.github.io/srs.release/donation/index.html][donation0] OR <br/>
 [http://www.ossrs.net/srs.release/donation/index.html][donation1]
 
 Donations:<br/>
