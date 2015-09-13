@@ -9,6 +9,8 @@ Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 
+[![Donation](https://www.paypal.com/en_US/i/btn/btn_donate_LG.gif)](http://www.ossrs.net/srs.release/donation/index.html)
+
 ## Why SRS?
 
 1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
