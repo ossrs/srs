@@ -9,6 +9,20 @@ Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 
+<blockquote>
+    Paypal: winlin@vip.126.com <br/>
+    <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+        <input type="hidden" name="cmd" value="_donations">
+        <input type="hidden" name="business" value="HD9QFFYA6SG2Q">
+        <input type="hidden" name="item_name" value="Donate SRS">
+        <input type="hidden" name="lc" value="US">
+        <input type="hidden" name="bn" value="PP-SubscriptionsBF">
+        <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif"
+               border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+        <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+    </form>
+</blockquote>
+
 ## Why SRS?
 
 1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
