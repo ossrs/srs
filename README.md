@@ -347,7 +347,7 @@ Remark:
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost. 3.0.3
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
-* <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
+* <strong>v2.0, 2015-08-23, [2.0 alpha0(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380][bug #380], srs-librtmp send sequence header when sps or pps changed.
 * v2.0, 2015-08-18, close [#454][bug #454], support obs restart publish. 2.0.184
