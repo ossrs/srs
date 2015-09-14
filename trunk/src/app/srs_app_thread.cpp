@@ -218,7 +218,8 @@ namespace internal {
         handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
         
-        // TODO: FIXME: when thread terminated normally, set the tid to NULL.
+        // when thread terminated normally, set the tid to NULL.
+        tid = NULL;
     }
     
     void* SrsThread::thread_fun(void* arg)
