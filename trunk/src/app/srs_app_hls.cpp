@@ -198,23 +198,31 @@ int SrsDvrAsyncCallOnHls::call()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // http callback for on_hls in config.
-    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        // HTTP: on_hls
-        SrsConfDirective* on_hls = _srs_config->get_vhost_on_hls(req->vhost);
-        if (!on_hls) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    vector<string> hooks;
+    
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_hls(req->vhost);
+        
+        if (!conf) {
             srs_info("ignore the empty http callback: on_hls");
             return ret;
         }
         
-        std::string file = path;
-        int sn = seq_no;
-        for (int i = 0; i < (int)on_hls->args.size(); i++) {
-            std::string url = on_hls->args.at(i);
-            if ((ret = SrsHttpHooks::on_hls(url, req, file, ts_url, m3u8, m3u8_url, sn, duration)) != ERROR_SUCCESS) {
-                srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
-                return ret;
-            }
+        hooks = conf->args;
+    }
+    
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((ret = SrsHttpHooks::on_hls(url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != ERROR_SUCCESS) {
+            srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
+            return ret;
         }
     }
 #endif
@@ -243,25 +251,31 @@ int SrsDvrAsyncCallOnHlsNotify::call()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // http callback for on_hls_notify in config.
-    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        // HTTP: on_hls
-        SrsConfDirective* on_hls = _srs_config->get_vhost_on_hls_notify(req->vhost);
-        if (!on_hls) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    vector<string> hooks;
+    
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_hls_notify(req->vhost);
+        
+        if (!conf) {
             srs_info("ignore the empty http callback: on_hls_notify");
             return ret;
         }
         
-        std::string url;
-        if (true) {
-            static u_int32_t nb_call = 0;
-            int index = nb_call++ % on_hls->args.size();
-            url = on_hls->args.at(index);
-        }
-        
-        int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
+        hooks = conf->args;
+    }
+    
+    int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
         if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
-            srs_error("hook client on_hls_notify failed. url=%s, ts=%s, ret=%d", url.c_str(), ts_url.c_str(), ret);
+            srs_error("hook client on_hls_notify failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
     }

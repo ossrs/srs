@@ -512,22 +512,31 @@ int SrsDvrAsyncCallOnDvr::call()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // http callback for on_dvr in config.
-    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        // HTTP: on_dvr 
-        SrsConfDirective* on_dvr = _srs_config->get_vhost_on_dvr(req->vhost);
-        if (!on_dvr) {
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    vector<string> hooks;
+    
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_dvr(req->vhost);
+        
+        if (!conf) {
             srs_info("ignore the empty http callback: on_dvr");
             return ret;
         }
         
-        std::string file = path;
-        for (int i = 0; i < (int)on_dvr->args.size(); i++) {
-            std::string url = on_dvr->args.at(i);
-            if ((ret = SrsHttpHooks::on_dvr(url, req, file)) != ERROR_SUCCESS) {
-                srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
-                return ret;
-            }
+        hooks = conf->args;
+    }
+    
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((ret = SrsHttpHooks::on_dvr(url, req, path)) != ERROR_SUCCESS) {
+            srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
+            return ret;
         }
     }
 #endif
