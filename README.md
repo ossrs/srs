@@ -316,6 +316,7 @@ Remark:
 
 ## Releases
 
+* 2015-09-14, [Release v2.0a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
 * 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
 * 2015-05-23, [Release v1.0r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.<br/>
 * 2015-03-19, [Release v1.0r3][r1.0r3], bug fixed, 1.0.30, 59511 lines.<br/>
@@ -1207,6 +1208,7 @@ Winlin
 [bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
 [bug #319]: https://github.com/simple-rtmp-server/srs/issues/319
 
+[r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
 [r1.0r3]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3
@@ -1240,8 +1242,8 @@ Winlin
 [branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
 [release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.185.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.185.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
 
 [srs2_CN]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
 [srs2_EN]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
