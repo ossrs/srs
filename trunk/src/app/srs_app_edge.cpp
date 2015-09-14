@@ -476,6 +476,8 @@ void SrsEdgeForwarder::stop()
     
     close_underlayer_socket();
     
+    queue->clear();
+    
     srs_freep(client);
     srs_freep(io);
     kbps->set_io(NULL, NULL);
