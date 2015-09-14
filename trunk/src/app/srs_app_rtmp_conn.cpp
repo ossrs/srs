@@ -840,7 +840,10 @@ int SrsRtmpConn::publishing(SrsSource* source)
     // when the acquire error in the midlle-way, the publish state changed,
     // but failed, so we must cleanup it.
     // @see https://github.com/simple-rtmp-server/srs/issues/474
-    release_publish(source, vhost_is_edge);
+    // @remark when stream is busy, should never release it.
+    if (ret != ERROR_SYSTEM_STREAM_BUSY) {
+        release_publish(source, vhost_is_edge);
+    }
 
     http_hooks_on_unpublish();
 
