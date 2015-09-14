@@ -66,6 +66,7 @@ namespace internal {
         really_terminated = true;
         _cid = -1;
         _joinable = joinable;
+        disposed = false;
         
         // in start(), the thread cycle method maybe stop and remove the thread itself,
         // and the thread start() is waiting for the _cid, and segment fault then.
@@ -115,38 +116,15 @@ namespace internal {
     
     void SrsThread::stop()
     {
-        if (tid) {
-            loop = false;
-            
-            // the interrupt will cause the socket to read/write error,
-            // which will terminate the cycle thread.
-            st_thread_interrupt(tid);
-            
-            // when joinable, wait util quit.
-            if (_joinable) {
-                // wait the thread to exit.
-                int ret = st_thread_join(tid, NULL);
-                if (ret) {
-                    srs_warn("core: ignore join thread failed.");
-                }
-            }
-            
-            // wait the thread actually terminated.
-            // sometimes the thread join return -1, for example,
-            // when thread use st_recvfrom, the thread join return -1.
-            // so here, we use a variable to ensure the thread stopped.
-            // @remark even the thread not joinable, we must ensure the thread stopped when stop.
-            while (!really_terminated) {
-                st_usleep(10 * 1000);
-                
-                if (really_terminated) {
-                    break;
-                }
-                srs_warn("core: wait thread to actually terminated");
-            }
-            
-            tid = NULL;
+        if (!tid) {
+            return;
         }
+        
+        loop = false;
+        
+        dispose();
+        
+        tid = NULL;
     }
     
     bool SrsThread::can_loop()
@@ -157,6 +135,42 @@ namespace internal {
     void SrsThread::stop_loop()
     {
         loop = false;
+    }
+    
+    void SrsThread::dispose()
+    {
+        if (disposed) {
+            return;
+        }
+        
+        // the interrupt will cause the socket to read/write error,
+        // which will terminate the cycle thread.
+        st_thread_interrupt(tid);
+        
+        // when joinable, wait util quit.
+        if (_joinable) {
+            // wait the thread to exit.
+            int ret = st_thread_join(tid, NULL);
+            if (ret) {
+                srs_warn("core: ignore join thread failed.");
+            }
+        }
+        
+        // wait the thread actually terminated.
+        // sometimes the thread join return -1, for example,
+        // when thread use st_recvfrom, the thread join return -1.
+        // so here, we use a variable to ensure the thread stopped.
+        // @remark even the thread not joinable, we must ensure the thread stopped when stop.
+        while (!really_terminated) {
+            st_usleep(10 * 1000);
+            
+            if (really_terminated) {
+                break;
+            }
+            srs_warn("core: wait thread to actually terminated");
+        }
+        
+        disposed = true;
     }
     
     void SrsThread::thread_cycle()
@@ -218,8 +232,8 @@ namespace internal {
         handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
         
-        // when thread terminated normally, set the tid to NULL.
-        tid = NULL;
+        // when thread terminated normally, also disposed.
+        disposed = true;
     }
     
     void* SrsThread::thread_fun(void* arg)

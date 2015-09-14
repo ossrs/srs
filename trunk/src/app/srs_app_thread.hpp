@@ -100,6 +100,7 @@ namespace internal {
         bool really_terminated;
         bool _joinable;
         const char* _name;
+        bool disposed;
     private:
         ISrsThreadHandler* handler;
         int64_t cycle_interval_us;
@@ -154,6 +155,7 @@ namespace internal {
          */
         virtual void stop_loop();
     private:
+        virtual void dispose();
         virtual void thread_cycle();
         static void* thread_fun(void* arg);
     };

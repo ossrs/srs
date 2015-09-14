@@ -905,7 +905,7 @@ namespace _srs_internal
         }
         
         // client c1 time and version
-        time = ::time(NULL);
+        time = (int32_t)::time(NULL);
         version = 0x80000702; // client c1 version
 
         // generate signature by schema
