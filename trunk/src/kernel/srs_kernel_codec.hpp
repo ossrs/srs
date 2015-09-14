@@ -606,6 +606,9 @@ public:
     int             aac_extra_size;
     char*           aac_extra_data;
 public:
+    // for sequence header, whether parse the h.264 sps.
+    bool            avc_parse_sps;
+public:
     SrsAvcAacCodec();
     virtual ~SrsAvcAacCodec();
 public:

@@ -738,6 +738,9 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             srs_error("reload never supports mode changed. ret=%d", ret);
             return ret;
         }
+        
+        // the auto reload configs:
+        //      publish.parse_sps
     
         //      ENABLED     =>  ENABLED (modified)
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
@@ -3096,7 +3099,7 @@ int SrsConfig::check_config()
             } else if (n == "publish") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout") {
+                    if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout" && m != "parse_sps") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost publish directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3839,6 +3842,29 @@ int SrsConfig::get_chunk_size(string vhost)
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_parse_sps(string vhost)
+{
+    static bool DEFAULT = true;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("publish");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("parse_sps");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_mr_enabled(string vhost)

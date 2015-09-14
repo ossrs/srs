@@ -191,6 +191,10 @@ private:
     * if no iframe found, clear it.
     */
     virtual void shrink();
+public:
+    /**
+     * clear all messages in queue.
+     */
     virtual void clear();
 };
 

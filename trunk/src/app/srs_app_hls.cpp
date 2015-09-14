@@ -1252,7 +1252,7 @@ int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
     return ret;
 }
 
-int SrsHls::on_publish(SrsRequest* req)
+int SrsHls::on_publish(SrsRequest* req, bool fetch_sequence_header)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1282,12 +1282,16 @@ int SrsHls::on_publish(SrsRequest* req)
     // ok, the hls can be dispose, or need to be dispose.
     hls_can_dispose = true;
     
-    // notice the source to get the cached sequence header.
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsSource.on_hls_start to push the sequence header to HLS.
-    if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
-        srs_error("callback source hls start failed. ret=%d", ret);
-        return ret;
+    // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
+    // when reload, we must fetch the sequence header from source cache.
+    if (fetch_sequence_header) {
+        // notice the source to get the cached sequence header.
+        // when reload to start hls, hls will never get the sequence header in stream,
+        // use the SrsSource.on_hls_start to push the sequence header to HLS.
+        if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
+            srs_error("callback source hls start failed. ret=%d", ret);
+            return ret;
+        }
     }
 
     return ret;
@@ -1391,7 +1395,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
+int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1404,6 +1408,12 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
 
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
+    
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    if (is_sps_pps) {
+        codec->avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+    }
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {

@@ -1161,7 +1161,7 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
-    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req, true)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
     }
@@ -1297,7 +1297,7 @@ int SrsSource::on_hls_start()
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
     // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
         srs_error("hls process video sequence header message failed. ret=%d", ret);
         return ret;
     }
@@ -1558,6 +1558,44 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size);
     bool is_sequence_header = is_aac_sequence_header;
     
+    // whether consumer should drop for the duplicated sequence header.
+    bool drop_for_reduce = false;
+    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        if (cache_sh_audio->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(cache_sh_audio->payload, msg->payload, msg->size);
+            srs_warn("drop for reduce sh audio, size=%d", msg->size);
+        }
+    }
+    
+    // cache the sequence header if aac
+    // donot cache the sequence header to gop_cache, return here.
+    if (is_aac_sequence_header) {
+        // parse detail audio codec
+        SrsAvcAacCodec codec;
+        SrsCodecSample sample;
+        if ((ret = codec.audio_aac_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
+            srs_error("source codec demux audio failed. ret=%d", ret);
+            return ret;
+        }
+        
+        static int flv_sample_sizes[] = {8, 16, 0};
+        static int flv_sound_types[] = {1, 2, 0};
+        
+        // when got audio stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
+            "flv(%dbits, %dchannels, %dHZ)",
+            msg->size, codec.audio_codec_id,
+            srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels,
+            codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate],
+            flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type],
+            flv_sample_rates[sample.sound_rate]);
+    }
+    
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
@@ -1611,13 +1649,6 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 #endif
     
     // copy to all consumer
-    bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(_req->vhost)) {
-        if (cache_sh_audio->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(cache_sh_audio->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh audio, size=%d", msg->size);
-        }
-    }
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
             SrsConsumer* consumer = consumers.at(i);
@@ -1648,35 +1679,9 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
     }
-
-    // cache the sequence header if aac
-    // donot cache the sequence header to gop_cache, return here.
-    if (is_aac_sequence_header) {
-        // parse detail audio codec
-        SrsAvcAacCodec codec;
-        SrsCodecSample sample;
-        if ((ret = codec.audio_aac_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
-            srs_error("source codec demux audio failed. ret=%d", ret);
-            return ret;
-        }
-        
-        static int flv_sample_sizes[] = {8, 16, 0};
-        static int flv_sound_types[] = {1, 2, 0};
-        
-        // when got audio stream info.
-        SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        srs_trace("%dB audio sh, "
-            "codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
-            "flv(%dbits, %dchannels, %dHZ)", 
-            msg->size, codec.audio_codec_id,
-            srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels, 
-            codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
-            flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
-            flv_sample_rates[sample.sound_rate]);
+    
+    // when sequence header, donot push to gop cache and adjust the timestamp.
+    if (is_sequence_header) {
         return ret;
     }
     
@@ -1768,8 +1773,49 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     bool is_sequence_header = SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size);
     
+    // whether consumer should drop for the duplicated sequence header.
+    bool drop_for_reduce = false;
+    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+        if (cache_sh_video->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(cache_sh_video->payload, msg->payload, msg->size);
+            srs_warn("drop for reduce sh video, size=%d", msg->size);
+        }
+    }
+    
+    // cache the sequence header if h264
+    // donot cache the sequence header to gop_cache, return here.
+    if (is_sequence_header) {
+        srs_freep(cache_sh_video);
+        cache_sh_video = msg->copy();
+        
+        // parse detail audio codec
+        SrsAvcAacCodec codec;
+        
+        // user can disable the sps parse to workaround when parse sps failed.
+        // @see https://github.com/simple-rtmp-server/srs/issues/474
+        codec.avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+        
+        SrsCodecSample sample;
+        if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
+            srs_error("source codec demux video failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // when got video stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
+            msg->size, codec.video_codec_id,
+            srs_codec_avc_profile2str(codec.avc_profile).c_str(),
+            srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
+            codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
+    }
+    
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
@@ -1821,13 +1867,6 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 #endif
     
     // copy to all consumer
-    bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(_req->vhost)) {
-        if (cache_sh_video->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(cache_sh_video->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh video, size=%d", msg->size);
-        }
-    }
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
             SrsConsumer* consumer = consumers.at(i);
@@ -1850,33 +1889,9 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             }
         }
     }
-
-    // cache the sequence header if h264
-    // donot cache the sequence header to gop_cache, return here.
+    
+    // when sequence header, donot push to gop cache and adjust the timestamp.
     if (is_sequence_header) {
-        srs_freep(cache_sh_video);
-        cache_sh_video = msg->copy();
-        
-        // parse detail audio codec
-        SrsAvcAacCodec codec;
-        SrsCodecSample sample;
-        if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
-            srs_error("source codec demux video failed. ret=%d", ret);
-            return ret;
-        }
-        
-        // when got video stream info.
-        SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        srs_trace("%dB video sh, "
-            "codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
-            msg->size, codec.video_codec_id,
-            srs_codec_avc_profile2str(codec.avc_profile).c_str(), 
-            srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
-            codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
         return ret;
     }
 
@@ -2044,7 +2059,7 @@ int SrsSource::on_publish()
     
     // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req, false)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
@@ -2079,6 +2094,7 @@ int SrsSource::on_publish()
     }
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(_req, _source_id);
+    
     return ret;
 }
 

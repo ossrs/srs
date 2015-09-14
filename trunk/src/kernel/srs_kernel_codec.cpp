@@ -382,6 +382,8 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
 
 SrsAvcAacCodec::SrsAvcAacCodec()
 {
+    avc_parse_sps               = true;
+    
     width                       = 0;
     height                      = 0;
     duration                    = 0;
@@ -938,6 +940,12 @@ int SrsAvcAacCodec::avc_demux_sps()
 int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 {
     int ret = ERROR_SUCCESS;
+    
+    // we donot parse the detail of sps.
+    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    if (!avc_parse_sps) {
+        return ret;
+    }
     
     // reparse the rbsp.
     SrsStream stream;

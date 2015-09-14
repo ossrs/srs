@@ -816,7 +816,14 @@ int SrsRtmpConn::publishing(SrsSource* source)
 
         // stop isolate recv thread
         trd.stop();
-
+    }
+    
+    // whatever the acquire publish, always release publish.
+    // when the acquire error in the midlle-way, the publish state changed,
+    // but failed, so we must cleanup it.
+    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    // @remark when stream is busy, should never release it.
+    if (ret != ERROR_SYSTEM_STREAM_BUSY) {
         release_publish(source, vhost_is_edge);
     }
 
@@ -926,10 +933,12 @@ int SrsRtmpConn::acquire_publish(SrsSource* source, bool is_edge)
     if (is_edge) {
         if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
             srs_error("notice edge start publish stream failed. ret=%d", ret);
+            return ret;
         }        
     } else {
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
             srs_error("notify publish failed. ret=%d", ret);
+            return ret;
         }
     }
 

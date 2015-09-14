@@ -604,6 +604,10 @@ public:
     */
     virtual int                 get_chunk_size(std::string vhost);
     /**
+     * whether parse the sps when publish stream to SRS.
+     */
+    virtual bool                get_parse_sps(std::string vhost);
+    /**
     * whether mr is enabled for vhost.
     * @param vhost, the vhost to get the mr.
     */
