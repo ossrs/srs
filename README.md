@@ -343,6 +343,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-14, for [#474][bug #474] always release publish for source.
 * v2.0, 2015-09-14, for [#458][bug #458] http hooks use source thread cid. 2.0.188
 * v2.0, 2015-09-14, for [#475][bug #475] fix http hooks crash for st context switch. 2.0.187
 * v2.0, 2015-09-09, support reload utc_time. 2.0.186
@@ -1026,6 +1027,7 @@ Winlin
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
 [bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
+[bug #474]: https://github.com/simple-rtmp-server/srs/issues/474
 [bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
