@@ -1180,7 +1180,7 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
-    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req, true)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
     }
@@ -2039,7 +2039,7 @@ int SrsSource::on_publish()
     
     // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req, false)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }

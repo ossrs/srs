@@ -424,10 +424,11 @@ public:
     */
     virtual int initialize(SrsSource* s, ISrsHlsHandler* h);
     /**
-    * publish stream event, continue to write the m3u8,
-    * for the muxer object not destroyed.
-    */
-    virtual int on_publish(SrsRequest* req);
+     * publish stream event, continue to write the m3u8,
+     * for the muxer object not destroyed.
+     * @param fetch_sequence_header whether fetch sequence from source.
+     */
+    virtual int on_publish(SrsRequest* req, bool fetch_sequence_header);
     /**
     * the unpublish event, only close the muxer, donot destroy the 
     * muxer, for when we continue to publish, the m3u8 will continue.
