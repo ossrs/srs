@@ -181,10 +181,11 @@ public:
 class SrsDvrAsyncCallOnDvr : public ISrsAsyncCallTask
 {
 private:
+    int cid;
     std::string path;
     SrsRequest* req;
 public:
-    SrsDvrAsyncCallOnDvr(SrsRequest* r, std::string p);
+    SrsDvrAsyncCallOnDvr(int c, SrsRequest* r, std::string p);
     virtual ~SrsDvrAsyncCallOnDvr();
 public:
     virtual int call();

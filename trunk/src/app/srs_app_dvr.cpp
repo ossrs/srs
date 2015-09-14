@@ -496,8 +496,9 @@ int SrsFlvSegment::on_reload_vhost_dvr(std::string /*vhost*/)
     return ret;
 }
 
-SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsRequest* r, string p)
+SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(int c, SrsRequest* r, string p)
 {
+    cid = c;
     req = r->copy();
     path = p;
 }
@@ -534,7 +535,7 @@ int SrsDvrAsyncCallOnDvr::call()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_dvr(url, req, path)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_dvr(cid, url, req, path)) != ERROR_SUCCESS) {
             srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -638,7 +639,8 @@ int SrsDvrPlan::on_reap_segment()
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(req, segment->get_path()))) != ERROR_SUCCESS) {
+    int cid = _srs_context->get_id();
+    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, segment->get_path()))) != ERROR_SUCCESS) {
         return ret;
     }
 

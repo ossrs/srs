@@ -257,11 +257,11 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     return;
 }
 
-int SrsHttpHooks::on_dvr(string url, SrsRequest* req, string file)
+int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
 {
     int ret = ERROR_SUCCESS;
     
-    int client_id = _srs_context->get_id();
+    int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
     std::stringstream ss;
@@ -293,11 +293,11 @@ int SrsHttpHooks::on_dvr(string url, SrsRequest* req, string file)
     return ret;
 }
 
-int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, double duration)
+int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, double duration)
 {
     int ret = ERROR_SUCCESS;
     
-    int client_id = _srs_context->get_id();
+    int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
     std::stringstream ss;
@@ -334,11 +334,11 @@ int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, string ts_url
     return ret;
 }
 
-int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
+int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
     int ret = ERROR_SUCCESS;
     
-    int client_id = _srs_context->get_id();
+    int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
     if (srs_string_starts_with(ts_url, "http://") || srs_string_starts_with(ts_url, "https://")) {

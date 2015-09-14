@@ -90,32 +90,35 @@ public:
     */
     static void on_stop(std::string url, SrsRequest* req);
     /**
-    * on_dvr hook, when reap a dvr file.
-    * @param url the api server url, to process the event. 
-    *         ignore if empty.
-    * @param file the file path, can be relative or absolute path.
-    */
-    static int on_dvr(std::string url, SrsRequest* req, std::string file);
+     * on_dvr hook, when reap a dvr file.
+     * @param url the api server url, to process the event.
+     *         ignore if empty.
+     * @param file the file path, can be relative or absolute path.
+     * @param cid the source connection cid, for the on_dvr is async call.
+     */
+    static int on_dvr(int cid, std::string url, SrsRequest* req, std::string file);
     /**
-    * when hls reap segment, callback.
-    * @param url the api server url, to process the event. 
-    *         ignore if empty.
-    * @param file the ts file path, can be relative or absolute path.
-    * @param ts_url the ts url, which used for m3u8.
-    * @param m3u8 the m3u8 file path, can be relative or absolute path.
-    * @param m3u8_url the m3u8 url, which is used for the http mount path.
-    * @param sn the seq_no, the sequence number of ts in hls/m3u8.
-    * @param duration the segment duration in seconds.
-    */
-    static int on_hls(std::string url, SrsRequest* req, std::string file, std::string ts_url, std::string m3u8, std::string m3u8_url, int sn, double duration);
+     * when hls reap segment, callback.
+     * @param url the api server url, to process the event.
+     *         ignore if empty.
+     * @param file the ts file path, can be relative or absolute path.
+     * @param ts_url the ts url, which used for m3u8.
+     * @param m3u8 the m3u8 file path, can be relative or absolute path.
+     * @param m3u8_url the m3u8 url, which is used for the http mount path.
+     * @param sn the seq_no, the sequence number of ts in hls/m3u8.
+     * @param duration the segment duration in seconds.
+     * @param cid the source connection cid, for the on_dvr is async call.
+     */
+    static int on_hls(int cid, std::string url, SrsRequest* req, std::string file, std::string ts_url, std::string m3u8, std::string m3u8_url, int sn, double duration);
     /**
      * when hls reap segment, callback.
      * @param url the api server url, to process the event.
      *         ignore if empty.
      * @param ts_url the ts uri, used to replace the variable [ts_url] in url.
      * @param nb_notify the max bytes to read from notify server.
+     * @param cid the source connection cid, for the on_dvr is async call.
      */
-    static int on_hls_notify(std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
+    static int on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };

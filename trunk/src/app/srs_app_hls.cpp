@@ -177,9 +177,10 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, string t, string m, string mu, int s, double d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
 {
     req = r->copy();
+    cid = c;
     path = p;
     ts_url = t;
     m3u8 = m;
@@ -220,7 +221,7 @@ int SrsDvrAsyncCallOnHls::call()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_hls(url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_hls(cid, url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != ERROR_SUCCESS) {
             srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -235,8 +236,9 @@ string SrsDvrAsyncCallOnHls::to_string()
     return "on_hls: " + path;
 }
 
-SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(SrsRequest* r, string u)
+SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(int c, SrsRequest* r, string u)
 {
+    cid = c;
     req = r->copy();
     ts_url = u;
 }
@@ -274,7 +276,7 @@ int SrsDvrAsyncCallOnHlsNotify::call()
     int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_hls_notify(cid, url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
             srs_error("hook client on_hls_notify failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -724,7 +726,8 @@ int SrsHlsMuxer::segment_close(string log_desc)
         segments.push_back(current);
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->execute(new SrsDvrAsyncCallOnHls(req,
+        if ((ret = async->execute(new SrsDvrAsyncCallOnHls(
+            _srs_context->get_id(), req,
             current->full_path, current->uri, m3u8, m3u8_url,
             current->sequence_no, current->duration))) != ERROR_SUCCESS)
         {
@@ -732,7 +735,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         }
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(req, current->uri))) != ERROR_SUCCESS) {
+        if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
     
