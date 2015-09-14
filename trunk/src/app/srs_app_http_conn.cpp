@@ -81,6 +81,11 @@ SrsHttpResponseWriter::~SrsHttpResponseWriter()
 
 int SrsHttpResponseWriter::final_request()
 {
+    // write the header data in memory.
+    if (!header_wrote) {
+        write_header(SRS_CONSTS_HTTP_OK);
+    }
+
     // complete the chunked encoding.
     if (content_length == -1) {
         std::stringstream ss;
