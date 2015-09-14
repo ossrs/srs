@@ -167,6 +167,7 @@ public:
 class SrsDvrAsyncCallOnHls : public ISrsAsyncCallTask
 {
 private:
+    int cid;
     std::string path;
     std::string ts_url;
     std::string m3u8;
@@ -175,7 +176,7 @@ private:
     SrsRequest* req;
     double duration;
 public:
-    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
+    SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual int call();
@@ -188,10 +189,11 @@ public:
 class SrsDvrAsyncCallOnHlsNotify : public ISrsAsyncCallTask
 {
 private:
+    int cid;
     std::string ts_url;
     SrsRequest* req;
 public:
-    SrsDvrAsyncCallOnHlsNotify(SrsRequest* r, std::string u);
+    SrsDvrAsyncCallOnHlsNotify(int c, SrsRequest* r, std::string u);
     virtual ~SrsDvrAsyncCallOnHlsNotify();
 public:
     virtual int call();
