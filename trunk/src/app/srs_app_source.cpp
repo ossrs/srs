@@ -1290,7 +1290,7 @@ int SrsSource::on_hls_start()
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
     // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
         srs_error("hls process video sequence header message failed. ret=%d", ret);
         return ret;
     }
@@ -1587,7 +1587,6 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
             codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate],
             flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type],
             flv_sample_rates[sample.sound_rate]);
-        return ret;
     }
     
 #ifdef SRS_AUTO_HLS
@@ -1672,6 +1671,11 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
+    }
+    
+    // when sequence header, donot push to gop cache and adjust the timestamp.
+    if (is_sequence_header) {
+        return ret;
     }
     
     // cache the last gop packets
@@ -1779,6 +1783,11 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         
         // parse detail audio codec
         SrsAvcAacCodec codec;
+        
+        // user can disable the sps parse to workaround when parse sps failed.
+        // @see https://github.com/simple-rtmp-server/srs/issues/474
+        codec.avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+        
         SrsCodecSample sample;
         if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
             srs_error("source codec demux video failed. ret=%d", ret);
@@ -1796,11 +1805,10 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             srs_codec_avc_profile2str(codec.avc_profile).c_str(),
             srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
-        return ret;
     }
     
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
@@ -1873,6 +1881,11 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
                 return ret;
             }
         }
+    }
+    
+    // when sequence header, donot push to gop cache and adjust the timestamp.
+    if (is_sequence_header) {
+        return ret;
     }
 
     // cache the last gop packets

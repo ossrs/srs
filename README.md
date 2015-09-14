@@ -343,6 +343,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-14, fix [#474][bug #474] config to donot parse width/height from sps. 2.0.189
 * v2.0, 2015-09-14, for [#474][bug #474] always release publish for source.
 * v2.0, 2015-09-14, for [#458][bug #458] http hooks use source thread cid. 2.0.188
 * v2.0, 2015-09-14, for [#475][bug #475] fix http hooks crash for st context switch. 2.0.187

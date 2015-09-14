@@ -444,10 +444,11 @@ public:
     */
     virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     /**
-    * mux the video packets to ts.
-    * @param shared_video, directly ptr, copy it if need to save it.
-    */
-    virtual int on_video(SrsSharedPtrMessage* shared_video);
+     * mux the video packets to ts.
+     * @param shared_video, directly ptr, copy it if need to save it.
+     * @param is_sps_pps whether the video is h.264 sps/pps.
+     */
+    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps);
 private:
     virtual void hls_show_mux_log();
 };

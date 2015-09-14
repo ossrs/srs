@@ -1395,7 +1395,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
+int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1408,6 +1408,12 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
 
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
+    
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    if (is_sps_pps) {
+        codec->avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+    }
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
