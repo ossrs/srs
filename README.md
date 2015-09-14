@@ -343,6 +343,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-14, for [#475][bug #475] fix http hooks crash for st context switch. 2.0.187
 * v2.0, 2015-09-09, support reload utc_time. 2.0.186
 * <strong>v2.0, 2015-08-23, [2.0 alpha(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
@@ -1024,6 +1025,7 @@ Winlin
 [bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
 [bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
 [bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
+[bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
 [bug #442]: https://github.com/simple-rtmp-server/srs/issues/442
 [bug #169]: https://github.com/simple-rtmp-server/srs/issues/169
