@@ -390,6 +390,14 @@ public:
      * raw delete the disabled vhost.
      */
     virtual int raw_delete_vhost(std::string vhost, bool& applied);
+    /**
+     * raw disable the enabled vhost.
+     */
+    virtual int raw_disable_vhost(std::string vhost, bool& applied);
+    /**
+     * raw enable the disabled vhost.
+     */
+    virtual int raw_enable_vhost(std::string vhost, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();
@@ -400,6 +408,7 @@ private:
     virtual int do_reload_utc_time();
     virtual int do_reload_pithy_print_ms();
     virtual int do_reload_vhost_added(std::string vhost);
+    virtual int do_reload_vhost_removed(std::string vhost);
 public:
     /**
      * get the config file path.

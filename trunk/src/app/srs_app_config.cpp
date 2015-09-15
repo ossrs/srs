@@ -721,16 +721,9 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         
         //      ENABLED     =>  DISABLED
         if (get_vhost_enabled(old_vhost) && !get_vhost_enabled(new_vhost)) {
-            srs_trace("vhost %s removed, reload it.", vhost.c_str());
-            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                ISrsReloadHandler* subscribe = *it;
-                if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
-                    srs_error("notify subscribes removed "
-                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
-                    return ret;
-                }
+            if ((ret = do_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+                return ret;
             }
-            srs_trace("reload removed vhost %s success.", vhost.c_str());
             continue;
         }
         
@@ -2514,6 +2507,42 @@ int SrsConfig::raw_delete_vhost(string vhost, bool& applied)
     return ret;
 }
 
+int SrsConfig::raw_disable_vhost(string vhost, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    conf->get_or_create("enabled")->set_arg0("off");
+    
+    if ((ret = do_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_enable_vhost(string vhost, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    conf->get_or_create("enabled")->set_arg0("on");
+    
+    if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    applied = true;
+    
+    return ret;
+}
+
 int SrsConfig::do_reload_listen()
 {
     int ret = ERROR_SUCCESS;
@@ -2666,6 +2695,26 @@ int SrsConfig::do_reload_vhost_added(string vhost)
     }
     
     srs_trace("reload new vhost %s success.", vhost.c_str());
+    
+    return ret;
+}
+
+int SrsConfig::do_reload_vhost_removed(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_trace("vhost %s removed, reload it.", vhost.c_str());
+    
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+            srs_error("notify subscribes removed "
+                      "vhost %s failed. ret=%d", vhost.c_str(), ret);
+            return ret;
+        }
+    }
+    srs_trace("reload removed vhost %s success.", vhost.c_str());
     
     return ret;
 }
