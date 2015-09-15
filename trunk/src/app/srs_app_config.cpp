@@ -832,8 +832,8 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload hds success.", vhost.c_str());
             }
 
-            // dvr, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("dvr"), old_vhost->get("dvr"))) {
+            // dvr, only one per vhost, except the dvr_apply
+            if (!srs_directive_equals(new_vhost->get("dvr"), old_vhost->get("dvr"), "dvr_apply")) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
                     if ((ret = subscribe->on_reload_vhost_dvr(vhost)) != ERROR_SUCCESS) {
@@ -842,6 +842,24 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                     }
                 }
                 srs_trace("vhost %s reload dvr success.", vhost.c_str());
+            }
+            // dvr_apply, the dynamic dvr filter.
+            if (true) {
+                // we must reload the dvr_apply, for it's apply to specified stream,
+                // and we donot want one stream reload take effect on another one.
+                // @see https://github.com/simple-rtmp-server/srs/issues/459#issuecomment-140296597
+                SrsConfDirective* nda = new_vhost->get("dvr")? new_vhost->get("dvr")->get("dvr_apply") : NULL;
+                SrsConfDirective* oda = old_vhost->get("dvr")? old_vhost->get("dvr")->get("dvr_apply") : NULL;
+                if (!srs_directive_equals(nda, oda)) {
+                    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                        ISrsReloadHandler* subscribe = *it;
+                        if ((ret = subscribe->on_reload_vhost_dvr_apply(vhost)) != ERROR_SUCCESS) {
+                            srs_error("vhost %s notify subscribes dvr_apply failed. ret=%d", vhost.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                    srs_trace("vhost %s reload dvr_apply success.", vhost.c_str());
+                }
             }
             
             // exec, only one per vhost
@@ -2070,6 +2088,8 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
             
             if (sdir->name == "dvr_plan") {
                 dvr->set("dvr_plan", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "dvr_apply") {
+                dvr->set("dvr_apply", sdir->dumps_args());
             } else if (sdir->name == "dvr_path") {
                 dvr->set("dvr_path", sdir->dumps_arg0_to_str());
             } else if (sdir->name == "dvr_duration") {
@@ -3141,7 +3161,7 @@ int SrsConfig::check_config()
             if (n == "dvr") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
+                    if (m != "enabled"  && m != "dvr_apply" && m != "dvr_path" && m != "dvr_plan"
                         && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -5558,6 +5578,22 @@ bool SrsConfig::get_dvr_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+SrsConfDirective* SrsConfig::get_dvr_apply(string vhost)
+{
+    SrsConfDirective* conf = get_dvr(vhost);
+    if (!conf) {
+        return NULL;
+    }
+    
+    conf = conf->get("dvr_apply");
+    if (!conf || conf->arg0().empty()) {
+        return NULL;
+    }
+    
+    return conf;
+    
+}
+
 string SrsConfig::get_dvr_path(string vhost)
 {
     static string DEFAULT = "./objs/nginx/html/[app]/[stream].[timestamp].flv";
@@ -6179,7 +6215,7 @@ namespace _srs_internal
     }
 };
 
-bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
+bool srs_directive_equals_self(SrsConfDirective* a, SrsConfDirective* b)
 {
     // both NULL, equal.
     if (!a && !b) {
@@ -6208,11 +6244,53 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
         return false;
     }
     
+    return true;
+}
+
+bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
+{
+    // both NULL, equal.
+    if (!a && !b) {
+        return true;
+    }
+    
+    if (!srs_directive_equals_self(a, b)) {
+        return false;
+    }
+    
     for (int i = 0; i < (int)a->directives.size(); i++) {
         SrsConfDirective* a0 = a->at(i);
         SrsConfDirective* b0 = b->at(i);
         
         if (!srs_directive_equals(a0, b0)) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, string except)
+{
+    // both NULL, equal.
+    if (!a && !b) {
+        return true;
+    }
+    
+    if (!srs_directive_equals_self(a, b)) {
+        return false;
+    }
+    
+    for (int i = 0; i < (int)a->directives.size(); i++) {
+        SrsConfDirective* a0 = a->at(i);
+        SrsConfDirective* b0 = b->at(i);
+        
+        // donot compare the except child directive.
+        if (a0->name == except) {
+            continue;
+        }
+        
+        if (!srs_directive_equals(a0, b0, except)) {
             return false;
         }
     }
@@ -6268,6 +6346,27 @@ bool srs_stream_caster_is_rtsp(string caster)
 bool srs_stream_caster_is_flv(string caster)
 {
     return caster == "flv";
+}
+
+bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
+{
+    static bool DEFAULT = true;
+    
+    if (!dvr_apply || dvr_apply->args.empty()) {
+        return DEFAULT;
+    }
+    
+    vector<string>& args = dvr_apply->args;
+    if (args.size() == 1 && dvr_apply->arg0() == "all") {
+        return true;
+    }
+    
+    string id = req->app + "/" + req->stream;
+    if (::find(args.begin(), args.end(), id) != args.end()) {
+        return true;
+    }
+    
+    return false;
 }
 
 string srs_config_bool2switch(const string& sbool)

@@ -70,6 +70,7 @@ public:
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual int on_reload_vhost_dvr_apply(std::string vhost);
     virtual int on_reload_vhost_publish(std::string vhost);
     virtual int on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);

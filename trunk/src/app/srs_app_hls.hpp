@@ -388,7 +388,7 @@ private:
     SrsHlsCache* hls_cache;
     ISrsHlsHandler* handler;
 private:
-    SrsRequest* _req;
+    SrsRequest* req;
     bool hls_enabled;
     bool hls_can_dispose;
     int64_t last_update_time;
@@ -422,13 +422,13 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsSource* s, ISrsHlsHandler* h);
+    virtual int initialize(SrsSource* s, ISrsHlsHandler* h, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.
      * @param fetch_sequence_header whether fetch sequence from source.
      */
-    virtual int on_publish(SrsRequest* req, bool fetch_sequence_header);
+    virtual int on_publish(bool fetch_sequence_header);
     /**
     * the unpublish event, only close the muxer, donot destroy the 
     * muxer, for when we continue to publish, the m3u8 will continue.

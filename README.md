@@ -344,8 +344,9 @@ Remark:
 
 ## History
 
-* v3.0, 2015-09-14, fix [#319][bug #319], http raw api support update global and vhost. 3.0.4
-* v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost. 3.0.3
+* v3.0, 2015-09-14, fix [#459][bug #459], dvr support apply filter for ng-control dvr module.
+* v3.0, 2015-09-14, fix [#319][bug #319], http raw api support update global and vhost. 3.0.3
+* v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
 * <strong>v2.0, 2015-08-23, [2.0 alpha0(2.0.185)][r2.0a0] released. 89022 lines.</strong>

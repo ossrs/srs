@@ -972,10 +972,16 @@ SrsDvr::SrsDvr()
 {
     source = NULL;
     plan = NULL;
+    req = NULL;
+    actived = false;
+    
+    _srs_config->subscribe(this);
 }
 
 SrsDvr::~SrsDvr()
 {
+    _srs_config->unsubscribe(this);
+    
     srs_freep(plan);
 }
 
@@ -983,7 +989,11 @@ int SrsDvr::initialize(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
+    req = r;
     source = s;
+    
+    SrsConfDirective* conf = _srs_config->get_dvr_apply(r->vhost);
+    actived = srs_config_apply_filter(conf, r);
     
     srs_freep(plan);
     plan = SrsDvrPlan::create_plan(r->vhost);
@@ -991,19 +1001,24 @@ int SrsDvr::initialize(SrsSource* s, SrsRequest* r)
     if ((ret = plan->initialize(r)) != ERROR_SUCCESS) {
         return ret;
     }
-
-    if ((ret = source->on_dvr_request_sh()) != ERROR_SUCCESS) {
-        return ret;
-    }
     
     return ret;
 }
 
-int SrsDvr::on_publish(SrsRequest* /*r*/)
+int SrsDvr::on_publish(bool fetch_sequence_header)
 {
     int ret = ERROR_SUCCESS;
     
+    // the dvr for this stream is not actived.
+    if (!actived) {
+        return ret;
+    }
+    
     if ((ret = plan->on_publish()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (fetch_sequence_header && (ret = source->on_dvr_request_sh()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1019,6 +1034,11 @@ void SrsDvr::on_unpublish()
 int SrsDvr::on_meta_data(SrsOnMetaDataPacket* m)
 {
     int ret = ERROR_SUCCESS;
+    
+    // the dvr for this stream is not actived.
+    if (!actived) {
+        return ret;
+    }
 
     int size = 0;
     char* payload = NULL;
@@ -1040,12 +1060,40 @@ int SrsDvr::on_meta_data(SrsOnMetaDataPacket* m)
 
 int SrsDvr::on_audio(SrsSharedPtrMessage* shared_audio)
 {
+    // the dvr for this stream is not actived.
+    if (!actived) {
+        return ERROR_SUCCESS;
+    }
+    
     return plan->on_audio(shared_audio);
 }
 
 int SrsDvr::on_video(SrsSharedPtrMessage* shared_video)
 {
+    // the dvr for this stream is not actived.
+    if (!actived) {
+        return ERROR_SUCCESS;
+    }
+    
     return plan->on_video(shared_video);
+}
+
+int SrsDvr::on_reload_vhost_dvr_apply(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* conf = _srs_config->get_dvr_apply(req->vhost);
+    bool v = srs_config_apply_filter(conf, req);
+    
+    // the apply changed, republish the dvr.
+    if (v != actived) {
+        actived = v;
+        
+        on_unpublish();
+        return on_publish(true);
+    }
+    
+    return ret;
 }
 
 #endif

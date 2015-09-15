@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
+class SrsRequest;
 class SrsFileWriter;
 class SrsAmf0Object;
 class SrsAmf0StrictArray;
@@ -1116,6 +1117,11 @@ public:
     */
     virtual bool                get_dvr_enabled(std::string vhost);
     /**
+     * get the filter of dvr to apply to.
+     * @remark user can use srs_config_apply_filter(conf, req):bool to check it.
+     */
+    virtual SrsConfDirective*   get_dvr_apply(std::string vhost);
+    /**
     * get the dvr path, the flv file to save in.
     */
     virtual std::string         get_dvr_path(std::string vhost);
@@ -1308,8 +1314,9 @@ namespace _srs_internal
 
 /**
 * deep compare directive.
-*/
+ */
 extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, std::string except);
 
 /**
  * helper utilities, used for compare the consts values.
@@ -1324,6 +1331,8 @@ extern bool srs_config_dvr_is_plan_append(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
 extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
+// whether the dvr_apply active the stream specified by req.
+extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
 
 /**
  * convert bool in str to on/off

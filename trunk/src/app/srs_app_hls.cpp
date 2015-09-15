@@ -1163,7 +1163,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
 
 SrsHls::SrsHls()
 {
-    _req = NULL;
+    req = NULL;
     source = NULL;
     handler = NULL;
     
@@ -1184,7 +1184,6 @@ SrsHls::SrsHls()
 
 SrsHls::~SrsHls()
 {
-    srs_freep(_req);
     srs_freep(codec);
     srs_freep(sample);
     srs_freep(jitter);
@@ -1214,11 +1213,11 @@ int SrsHls::cycle()
         last_update_time = srs_get_system_time_ms();
     }
     
-    if (!_req) {
+    if (!req) {
         return ret;
     }
     
-    int hls_dispose = _srs_config->get_hls_dispose(_req->vhost) * 1000;
+    int hls_dispose = _srs_config->get_hls_dispose(req->vhost) * 1000;
     if (hls_dispose <= 0) {
         return ret;
     }
@@ -1232,18 +1231,19 @@ int SrsHls::cycle()
     }
     hls_can_dispose = false;
     
-    srs_trace("hls cycle to dispose hls %s, timeout=%dms", _req->get_stream_url().c_str(), hls_dispose);
+    srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
     return ret;
 }
 
-int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
+int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
     source = s;
     handler = h;
+    req = r;
 
     if ((ret = muxer->initialize(h)) != ERROR_SUCCESS) {
         return ret;
@@ -1252,12 +1252,9 @@ int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
     return ret;
 }
 
-int SrsHls::on_publish(SrsRequest* req, bool fetch_sequence_header)
+int SrsHls::on_publish(bool fetch_sequence_header)
 {
     int ret = ERROR_SUCCESS;
-    
-    srs_freep(_req);
-    _req = req->copy();
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time_ms();
@@ -1412,7 +1409,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     // user can disable the sps parse to workaround when parse sps failed.
     // @see https://github.com/simple-rtmp-server/srs/issues/474
     if (is_sps_pps) {
-        codec->avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+        codec->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
     }
     
     sample->clear();

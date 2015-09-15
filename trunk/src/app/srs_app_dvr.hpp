@@ -297,27 +297,33 @@ private:
 * dvr(digital video recorder) to record RTMP stream to flv file.
 * TODO: FIXME: add utest for it.
 */
-class SrsDvr
+class SrsDvr : public ISrsReloadHandler
 {
 private:
     SrsSource* source;
-private:
     SrsDvrPlan* plan;
+    SrsRequest* req;
+private:
+    // whether the dvr is actived by filter, which is specified by dvr_apply.
+    // we always initialize the dvr, which crote plan and segment object,
+    // but they never create actual piece of file util the apply active it.
+    bool actived;
 public:
     SrsDvr();
     virtual ~SrsDvr();
 public:
     /**
-    * initialize dvr, create dvr plan.
-    * when system initialize(encoder publish at first time, or reload),
-    * initialize the dvr will reinitialize the plan, the whole dvr framework.
-    */
+     * initialize dvr, create dvr plan.
+     * when system initialize(encoder publish at first time, or reload),
+     * initialize the dvr will reinitialize the plan, the whole dvr framework.
+     */
     virtual int initialize(SrsSource* s, SrsRequest* r);
     /**
-    * publish stream event, 
-    * when encoder start to publish RTMP stream.
-    */
-    virtual int on_publish(SrsRequest* r);
+     * publish stream event,
+     * when encoder start to publish RTMP stream.
+     * @param fetch_sequence_header whether fetch sequence from source.
+     */
+    virtual int on_publish(bool fetch_sequence_header);
     /**
     * the unpublish event.,
     * when encoder stop(unpublish) to publish RTMP stream.
@@ -337,6 +343,9 @@ public:
     * @param shared_video, directly ptr, copy it if need to save it.
     */
     virtual int on_video(SrsSharedPtrMessage* shared_video);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_vhost_dvr_apply(std::string vhost);
 };
 
 #endif

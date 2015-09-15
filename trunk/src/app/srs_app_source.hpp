@@ -451,7 +451,7 @@ private:
     // invoke the on_source_id_changed() to let all clients know.
     int _source_id;
     // deep copy of client request.
-    SrsRequest* _req;
+    SrsRequest* req;
     // to delivery stream to clients.
     std::vector<SrsConsumer*> consumers;
     // the time jitter algorithm for vhost.

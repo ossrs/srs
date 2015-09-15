@@ -771,7 +771,7 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // we always update the request of resource, 
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
-    source->_req->update_auth(r);
+    source->req->update_auth(r);
 
     return source;
 }
@@ -900,7 +900,7 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
 
 SrsSource::SrsSource()
 {
-    _req = NULL;
+    req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     mix_correct = false;
     mix_queue = new SrsMixQueue();
@@ -977,7 +977,7 @@ SrsSource::~SrsSource()
     srs_freep(hds);
 #endif
 
-    srs_freep(_req);
+    srs_freep(req);
 }
 
 void SrsSource::dispose()
@@ -1014,36 +1014,36 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
     
     srs_assert(h);
     srs_assert(hh);
-    srs_assert(!_req);
+    srs_assert(!req);
 
     handler = h;
-    _req = r->copy();
-    atc = _srs_config->get_atc(_req->vhost);
+    req = r->copy();
+    atc = _srs_config->get_atc(req->vhost);
 
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->initialize(this, hh)) != ERROR_SUCCESS) {
+    if ((ret = hls->initialize(this, hh, req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
 
-    if ((ret = play_edge->initialize(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = play_edge->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = publish_edge->initialize(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = publish_edge->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    double queue_size = _srs_config->get_queue_length(_req->vhost);
+    double queue_size = _srs_config->get_queue_length(req->vhost);
     publish_edge->set_queue_size(queue_size);
     
-    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
-    mix_correct = _srs_config->get_mix_correct(_req->vhost);
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
+    mix_correct = _srs_config->get_mix_correct(req->vhost);
     
     return ret;
 }
@@ -1052,16 +1052,16 @@ int SrsSource::on_reload_vhost_play(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
     // time_jitter
-    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
     
     // mix_correct
     if (true) {
-        bool v = _srs_config->get_mix_correct(_req->vhost);
+        bool v = _srs_config->get_mix_correct(req->vhost);
         
         // when changed, clear the mix queue.
         if (v != mix_correct) {
@@ -1086,7 +1086,7 @@ int SrsSource::on_reload_vhost_play(string vhost)
         bool v = _srs_config->get_gop_cache(vhost);
         
         if (v != gop_cache->enabled()) {
-            string url = _req->get_stream_url();
+            string url = req->get_stream_url();
             srs_trace("vhost %s gop_cache changed to %d, source url=%s", vhost.c_str(), v, url.c_str());
             gop_cache->set(v);
         }
@@ -1094,7 +1094,7 @@ int SrsSource::on_reload_vhost_play(string vhost)
     
     // queue length
     if (true) {
-        double v = _srs_config->get_queue_length(_req->vhost);
+        double v = _srs_config->get_queue_length(req->vhost);
         
         if (true) {
             std::vector<SrsConsumer*>::iterator it;
@@ -1131,7 +1131,7 @@ int SrsSource::on_reload_vhost_forward(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
@@ -1153,7 +1153,7 @@ int SrsSource::on_reload_vhost_hls(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
@@ -1161,7 +1161,7 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
-    if ((ret = hls->on_publish(_req, true)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(true)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
     }
@@ -1175,7 +1175,7 @@ int SrsSource::on_reload_vhost_hds(string vhost)
 {
     int ret = ERROR_SUCCESS;
 
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
@@ -1183,7 +1183,7 @@ int SrsSource::on_reload_vhost_hds(string vhost)
 
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
-    if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("hds publish failed. ret=%d", ret);
         return ret;
     }
@@ -1197,7 +1197,7 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
@@ -1208,12 +1208,12 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     dvr->on_unpublish();
 
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
 
     // start to publish by new plan.
-    if ((ret = dvr->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_publish(true)) != ERROR_SUCCESS) {
         srs_error("dvr publish failed. ret=%d", ret);
         return ret;
     }
@@ -1228,7 +1228,7 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
@@ -1236,7 +1236,7 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
     
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
-    if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
     }
@@ -1250,14 +1250,14 @@ int SrsSource::on_reload_vhost_exec(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (_req->vhost != vhost) {
+    if (req->vhost != vhost) {
         return ret;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
     ng_exec->on_unpublish();
-    if ((ret = ng_exec->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start exec failed. ret=%d", ret);
         return ret;
     }
@@ -1433,8 +1433,8 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     metadata->metadata->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
     
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
-    atc = _srs_config->get_atc(_req->vhost);
-    if (_srs_config->get_atc_auto(_req->vhost)) {
+    atc = _srs_config->get_atc(req->vhost);
+    if (_srs_config->get_atc_auto(req->vhost)) {
         if ((prop = metadata->metadata->get_property("bravo_atc")) != NULL) {
             if (prop->is_string() && prop->to_str() == "true") {
                 atc = true;
@@ -1459,7 +1459,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     
     // when already got metadata, drop when reduce sequence header.
     bool drop_for_reduce = false;
-    if (cache_metadata && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+    if (cache_metadata && _srs_config->get_reduce_sequence_header(req->vhost)) {
         drop_for_reduce = true;
         srs_warn("drop for reduce sh metadata, size=%d", msg->size);
     }
@@ -1560,7 +1560,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(req->vhost)) {
         if (cache_sh_audio->size == msg->size) {
             drop_for_reduce = srs_bytes_equals(cache_sh_audio->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh audio, size=%d", msg->size);
@@ -1583,7 +1583,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         
         // when got audio stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_audio_info(req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -1600,7 +1600,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
             
@@ -1775,7 +1775,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(_req->vhost)) {
+    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(req->vhost)) {
         if (cache_sh_video->size == msg->size) {
             drop_for_reduce = srs_bytes_equals(cache_sh_video->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh video, size=%d", msg->size);
@@ -1793,7 +1793,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         
         // user can disable the sps parse to workaround when parse sps failed.
         // @see https://github.com/simple-rtmp-server/srs/issues/474
-        codec.avc_parse_sps = _srs_config->get_parse_sps(_req->vhost);
+        codec.avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
         
         SrsCodecSample sample;
         if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
@@ -1803,7 +1803,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_video_info(req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -1818,7 +1818,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/simple-rtmp-server/srs/issues/264
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
             
@@ -2028,7 +2028,7 @@ int SrsSource::on_publish()
     int ret = ERROR_SUCCESS;
     
     // update the request object.
-    srs_assert(_req);
+    srs_assert(req);
     
     _can_publish = false;
     
@@ -2051,49 +2051,48 @@ int SrsSource::on_publish()
     
     // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_TRANSCODE
-    if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
     }
 #endif
     
-    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_publish(_req, false)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(false)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
 #endif
     
-    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
         srs_error("start dvr failed. ret=%d", ret);
         return ret;
     }
 #endif
-
+    
+    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start hds failed. ret=%d", ret);
         return ret;
     }
 #endif
     
     // TODO: FIXME: use initialize to set req.
-    if ((ret = ng_exec->on_publish(_req)) != ERROR_SUCCESS) {
+    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start exec failed. ret=%d", ret);
         return ret;
     }
 
     // notify the handler.
     srs_assert(handler);
-    if ((ret = handler->on_publish(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = handler->on_publish(this, req)) != ERROR_SUCCESS) {
         srs_error("handle on publish failed. ret=%d", ret);
         return ret;
     }
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(_req, _source_id);
+    stat->on_stream_publish(req, _source_id);
     
     return ret;
 }
@@ -2135,8 +2134,8 @@ void SrsSource::on_unpublish()
     // notify the handler.
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_close(_req);
-    handler->on_unpublish(this, _req);
+    stat->on_stream_close(req);
+    handler->on_unpublish(this, req);
 }
 
 int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg)
@@ -2146,7 +2145,7 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     consumer = new SrsConsumer(this);
     consumers.push_back(consumer);
     
-    double queue_size = _srs_config->get_queue_length(_req->vhost);
+    double queue_size = _srs_config->get_queue_length(req->vhost);
     consumer->set_queue_size(queue_size);
     
     // if atc, update the sequence header to gop cache time.
@@ -2197,7 +2196,7 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     }
 
     // for edge, when play edge stream, check the state
-    if (_srs_config->get_vhost_is_edge(_req->vhost)) {
+    if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.
         if ((ret = play_edge->on_client_play()) != ERROR_SUCCESS) {
             srs_error("notice edge start play stream failed. ret=%d", ret);
@@ -2251,11 +2250,11 @@ int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    if (_srs_config->get_forward_enabled(_req->vhost)) {
+    if (_srs_config->get_forward_enabled(req->vhost)) {
         return ret;
     }
     
-    SrsConfDirective* conf = _srs_config->get_forwards(_req->vhost);
+    SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
         
@@ -2263,17 +2262,17 @@ int SrsSource::create_forwarders()
         forwarders.push_back(forwarder);
         
         // initialize the forwarder with request.
-        if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
+        if ((ret = forwarder->initialize(req, forward_server)) != ERROR_SUCCESS) {
             return ret;
         }
     
-        double queue_size = _srs_config->get_queue_length(_req->vhost);
+        double queue_size = _srs_config->get_queue_length(req->vhost);
         forwarder->set_queue_size(queue_size);
         
         if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
             srs_error("start forwarder failed. "
                 "vhost=%s, app=%s, stream=%s, forward-to=%s",
-                _req->vhost.c_str(), _req->app.c_str(), _req->stream.c_str(),
+                req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
                 forward_server.c_str());
             return ret;
         }

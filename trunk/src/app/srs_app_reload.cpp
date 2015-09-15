@@ -155,6 +155,11 @@ int ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_dvr_apply(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_publish(string /*vhost*/)
 {
     return ERROR_SUCCESS;
