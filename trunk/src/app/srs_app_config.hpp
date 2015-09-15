@@ -399,6 +399,14 @@ public:
      * raw enable the disabled vhost.
      */
     virtual int raw_enable_vhost(std::string vhost, bool& applied);
+    /**
+     * raw enable the dvr of stream of vhost.
+     */
+    virtual int raw_enable_dvr(std::string vhost, std::string stream, bool& applied);
+    /**
+     * raw disable the dvr of stream of vhost.
+     */
+    virtual int raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();
@@ -410,6 +418,7 @@ private:
     virtual int do_reload_pithy_print_ms();
     virtual int do_reload_vhost_added(std::string vhost);
     virtual int do_reload_vhost_removed(std::string vhost);
+    virtual int do_reload_vhost_dvr_apply(std::string vhost);
 public:
     /**
      * get the config file path.

@@ -1002,6 +1002,10 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      @scope          @value              @param              @data               description
     //      vhost           ossrs.net           create              -                   create vhost ossrs.net
     //      vhost           ossrs.net           update              new.ossrs.net       the new name to update vhost
+    // dvr specified updates:
+    //      @scope          @value              @param              @data               description
+    //      dvr             ossrs.net           enable              live/livestream     enable the dvr of stream
+    //      dvr             ossrs.net           disable             live/livestream     disable the dvr of stream
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -1019,7 +1023,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         if (scope != "listen" && scope != "pid" && scope != "chunk_size"
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
             && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
-            && scope != "pithy_print_ms" && scope != "vhost"
+            && scope != "pithy_print_ms" && scope != "vhost" && scope != "dvr"
         ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
@@ -1230,6 +1234,34 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 }
             } else {
                 // TODO: support other param.
+            }
+        } else if (scope == "dvr") {
+            std::string action = r->query_get("param");
+            std::string stream = r->query_get("data");
+            extra += "/" + stream + " to " + action;
+            
+            if (action != "enable" && action != "disable") {
+                ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
+                srs_error("raw api query invalid scope=%s, param=%s. ret=%d", scope.c_str(), action.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if (!_srs_config->get_dvr_enabled(value)) {
+                ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
+                srs_error("raw api query invalid scope=%s, value=%s, param=%s. ret=%d", scope.c_str(), value.c_str(), action.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            
+            if (action == "enable") {
+                if ((ret = _srs_config->raw_enable_dvr(value, stream, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update dvr=%s/%s, param=%s failed. ret=%d", value.c_str(), stream.c_str(), action.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+            } else {
+                if ((ret = _srs_config->raw_disable_dvr(value, stream, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update dvr=%s/%s, param=%s failed. ret=%d", value.c_str(), stream.c_str(), action.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
             }
         } else {
             // TODO: support other scope.
