@@ -985,21 +985,23 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     //      @scope the scope to update for config.
     //      @value the updated value for scope.
     //      @param the extra param for scope.
+    //      @data the extra data for scope.
     // possible updates:
-    //      @scope                  @value                value-description
-    //      listen                  1935,1936                   the port list.
-    //      pid                     ./objs/srs.pid              the pid file of srs.
-    //      chunk_size              60000                       the global RTMP chunk_size.
-    //      ff_log_dir              ./objs                      the dir for ffmpeg log.
-    //      srs_log_tank            file                        the tank to log, file or console.
-    //      srs_log_level           trace                       the level of log, verbose, info, trace, warn, error.
-    //      srs_log_file            ./objs/srs.log              the log file when tank is file.
-    //      max_connections         1000                        the max connections of srs.
-    //      utc_time                false                       whether enable utc time.
-    //      pithy_print_ms          10000                       the pithy print interval in ms.
+    //      @scope          @value              value-description
+    //      listen          1935,1936           the port list.
+    //      pid             ./objs/srs.pid      the pid file of srs.
+    //      chunk_size      60000               the global RTMP chunk_size.
+    //      ff_log_dir      ./objs              the dir for ffmpeg log.
+    //      srs_log_tank    file                the tank to log, file or console.
+    //      srs_log_level   trace               the level of log, verbose, info, trace, warn, error.
+    //      srs_log_file    ./objs/srs.log      the log file when tank is file.
+    //      max_connections 1000                the max connections of srs.
+    //      utc_time        false               whether enable utc time.
+    //      pithy_print_ms  10000               the pithy print interval in ms.
     // vhost specified updates:
-    //      @scope                  @value                  @param                  description
-    //      vhost                   ossrs.net               create                  create vhost ossrs.net
+    //      @scope          @value              @param              @data               description
+    //      vhost           ossrs.net           create              -                   create vhost ossrs.net
+    //      vhost           ossrs.net           update              new.ossrs.net       the new name to update vhost
     if (rpc == "update") {
         if (!allow_update) {
             ret = ERROR_SYSTEM_CONFIG_RAW_DISABLED;
@@ -1009,7 +1011,6 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         
         std::string scope = r->query_get("scope");
         std::string value = r->query_get("value");
-        std::string param = r->query_get("param");
         if (scope.empty()) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid empty scope. ret=%d", ret);
@@ -1024,13 +1025,9 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
         }
-        if (scope == "vhost" && param != "create") {
-            ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
-            srs_error("raw api query invalid scope=%s, param=%s. ret=%d", scope.c_str(), param.c_str(), ret);
-            return srs_api_response_code(w, r, ret);
-        }
         
         bool applied = false;
+        string extra = "";
         if (scope == "listen") {
             vector<string> eps = srs_string_split(value, ",");
             
@@ -1156,6 +1153,15 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 return srs_api_response_code(w, r, ret);
             }
         } else if (scope == "vhost") {
+            std::string param = r->query_get("param");
+            std::string data = r->query_get("data");
+            if (param != "create" && param != "update" && param != "delete") {
+                ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
+                srs_error("raw api query invalid scope=%s, param=%s. ret=%d", scope.c_str(), param.c_str(), ret);
+                return srs_api_response_code(w, r, ret);
+            }
+            extra += " " + param;
+            
             if (param == "create") {
                 // when create, the vhost must not exists.
                 if (param.empty() || _srs_config->get_vhost(value, false)) {
@@ -1168,15 +1174,44 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                     srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
                     return srs_api_response_code(w, r, ret);
                 }
+            } else if (param == "update") {
+                extra += " to " + data;
+                
+                // when update, the vhost must exists and disabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || data == value || param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+                
+                if ((ret = _srs_config->raw_update_vhost(value, data, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+            } else if (param == "delete") {
+                // when delete, the vhost must exists and disabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+                
+                if ((ret = _srs_config->raw_delete_vhost(value, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+                
             }
         }
         
         // whether the config applied.
         if (applied) {
             server->on_signal(SRS_SIGNAL_PERSISTENCE_CONFIG);
-            srs_trace("raw api update %s=%s ok.", scope.c_str(), value.c_str());
+            srs_trace("raw api update %s=%s%s ok.", scope.c_str(), value.c_str(), extra.c_str());
         } else {
-            srs_warn("raw api update not applied %s=%s.", scope.c_str(), value.c_str());
+            srs_warn("raw api update not applied %s=%s%s.", scope.c_str(), value.c_str(), extra.c_str());
         }
         
         return srs_api_response(w, r, obj->to_json());

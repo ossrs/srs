@@ -131,6 +131,10 @@ public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
     virtual SrsConfDirective* set_arg0(std::string a0);
+    /**
+     * remove the v from sub directives, user must free the v.
+     */
+    virtual void remove(SrsConfDirective* v);
 // help utilities
 public:
     /**
@@ -378,6 +382,14 @@ public:
      * raw create the new vhost.
      */
     virtual int raw_create_vhost(std::string vhost, bool& applied);
+    /**
+     * raw update the disabled vhost name.
+     */
+    virtual int raw_update_vhost(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw delete the disabled vhost.
+     */
+    virtual int raw_delete_vhost(std::string vhost, bool& applied);
 private:
     virtual int do_reload_listen();
     virtual int do_reload_pid();

@@ -228,6 +228,14 @@ SrsConfDirective* SrsConfDirective::set_arg0(string a0)
     return this;
 }
 
+void SrsConfDirective::remove(SrsConfDirective* v)
+{
+    std::vector<SrsConfDirective*>::iterator it;
+    if ((it = ::find(directives.begin(), directives.end(), v)) != directives.end()) {
+        directives.erase(it);
+    }
+}
+
 bool SrsConfDirective::is_vhost()
 {
     return name == "vhost";
@@ -2466,6 +2474,40 @@ int SrsConfig::raw_create_vhost(string vhost, bool& applied)
     if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_update_vhost(string vhost, string name, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    // the vhost must be disabled, so we donot need to reload.
+    SrsConfDirective* conf = root->get_or_create("vhost", vhost);
+    conf->set_arg0(name);
+    
+    applied = true;
+    
+    return ret;
+}
+
+int SrsConfig::raw_delete_vhost(string vhost, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+    
+    applied = false;
+    
+    // the vhost must be disabled, so we donot need to reload.
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+    
+    // remove the directive.
+    root->remove(conf);
+    srs_freep(conf);
     
     applied = true;
     
