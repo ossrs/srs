@@ -344,6 +344,7 @@ Remark:
 
 ## History
 
+* v3.0, 2015-09-14, fix [#319][bug #319], http raw api support update global and vhost. 3.0.4
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost. 3.0.3
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1

@@ -1228,7 +1228,11 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                     srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
                     return srs_api_response_code(w, r, ret);
                 }
+            } else {
+                // TODO: support other param.
             }
+        } else {
+            // TODO: support other scope.
         }
         
         // whether the config applied.
