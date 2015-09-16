@@ -66,5 +66,9 @@ arpa-internet-text-messages-rfc822.txt
 mp3规范：
 mp3.id3v2.3.0.pdf
     http://id3.org/id3v2.3.0
+    
+kafka协议:
+KAFKA-AGuideToTheKafkaProtocol-160915-0553-82964.pdf
+    https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol
 
 Winlin
