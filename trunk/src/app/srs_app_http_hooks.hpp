@@ -40,6 +40,7 @@ class SrsStSocket;
 class SrsRequest;
 class SrsHttpParser;
 class SrsFlvSegment;
+class SrsHttpClient;
 
 /**
 * the http hooks, http callback api,
@@ -120,7 +121,7 @@ public:
      */
     static int on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
 private:
-    static int do_post(std::string url, std::string req, int& code, std::string& res);
+    static int do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };
 
 #endif

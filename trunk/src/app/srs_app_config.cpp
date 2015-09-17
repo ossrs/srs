@@ -429,6 +429,23 @@ int SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
     return ret;
 }
 
+SrsConfDirective* SrsConfDirective::copy()
+{
+    SrsConfDirective* cp = new SrsConfDirective();
+
+    cp->conf_line = conf_line;
+    cp->name = name;
+    cp->args = args;
+    cp->create_time = create_time;
+
+    for (int i = 0; i < (int)directives.size(); i++) {
+        SrsConfDirective* directive = directives.at(i);
+        cp->directives.push_back(directive->copy());
+    }
+
+    return cp;
+}
+
 // see: ngx_conf_read_token
 int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
 {
@@ -527,7 +544,7 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
                     continue;
             }
         } else {
-        // last charecter is not space
+            // last charecter is not space
             if (line_start == 0) {
                 line_start = buffer->line;
             }
@@ -746,7 +763,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         //      ENABLED     =>  ENABLED (modified)
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
             srs_trace("vhost %s maybe modified, reload its detail.", vhost.c_str());
-            
             // chunk_size, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -3024,8 +3040,7 @@ int SrsConfig::check_config()
             }
         }
     }
-    
-    
+
     ////////////////////////////////////////////////////////////////////////
     // check listen for rtmp.
     ////////////////////////////////////////////////////////////////////////

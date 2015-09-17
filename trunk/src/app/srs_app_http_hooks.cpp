@@ -77,7 +77,9 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_connect uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -111,7 +113,9 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_close uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -144,7 +148,9 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_publish uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -177,7 +183,9 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_unpublish uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -211,7 +219,9 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_play uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -244,7 +254,9 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_stop uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -280,7 +292,9 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_dvr uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -321,7 +335,9 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     std::string data = obj->to_json();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_hls uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -403,7 +419,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     return ret;
 }
 
-int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& res)
+int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
     int ret = ERROR_SUCCESS;
     
@@ -413,13 +429,12 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         return ret;
     }
     
-    SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+    if ((ret = hc->initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
         return ret;
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
+    if ((ret = hc->post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
