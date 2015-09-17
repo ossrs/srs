@@ -42,6 +42,7 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
     pthread = new SrsReusableThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US);
+    wait = st_cond_new();
 }
 
 SrsAsyncCallWorker::~SrsAsyncCallWorker()
@@ -54,6 +55,8 @@ SrsAsyncCallWorker::~SrsAsyncCallWorker()
         srs_freep(task);
     }
     tasks.clear();
+
+    st_cond_destroy(wait);
 }
 
 int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
@@ -61,8 +64,14 @@ int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
     int ret = ERROR_SUCCESS;
 
     tasks.push_back(t);
+    st_cond_signal(wait);
 
     return ret;
+}
+
+int SrsAsyncCallWorker::count()
+{
+    return (int)tasks.size();
 }
 
 int SrsAsyncCallWorker::start()
@@ -72,23 +81,30 @@ int SrsAsyncCallWorker::start()
 
 void SrsAsyncCallWorker::stop()
 {
+    st_cond_signal(wait);
     pthread->stop();
 }
 
 int SrsAsyncCallWorker::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
-    std::vector<ISrsAsyncCallTask*> copies = tasks;
-    tasks.clear();
 
-    std::vector<ISrsAsyncCallTask*>::iterator it;
-    for (it = copies.begin(); it != copies.end(); ++it) {
-        ISrsAsyncCallTask* task = *it;
-        if ((ret = task->call()) != ERROR_SUCCESS) {
-            srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);
+    while (pthread->can_loop()) {
+        if (tasks.empty()) {
+            st_cond_wait(wait);
         }
-        srs_freep(task);
+
+        std::vector<ISrsAsyncCallTask*> copies = tasks;
+        tasks.clear();
+
+        std::vector<ISrsAsyncCallTask*>::iterator it;
+        for (it = copies.begin(); it != copies.end(); ++it) {
+            ISrsAsyncCallTask* task = *it;
+            if ((ret = task->call()) != ERROR_SUCCESS) {
+                srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);
+            }
+            srs_freep(task);
+        }
     }
 
     return ret;

@@ -70,12 +70,15 @@ class SrsAsyncCallWorker : public ISrsReusableThreadHandler
 {
 private:
     SrsReusableThread* pthread;
+protected:
     std::vector<ISrsAsyncCallTask*> tasks;
+    st_cond_t wait;
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
 public:
     virtual int execute(ISrsAsyncCallTask* t);
+    virtual int count();
 public:
     virtual int start();
     virtual void stop();

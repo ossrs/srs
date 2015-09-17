@@ -257,7 +257,9 @@ echo "\"" >> $SRS_AUTO_HEADERS_H
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H
 
+#####################################################################################
 # auto header EOF.
+#####################################################################################
 echo "#endif" >> $SRS_AUTO_HEADERS_H
 echo "" >> $SRS_AUTO_HEADERS_H
 
