@@ -190,6 +190,10 @@ private:
     */
     virtual int parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
     /**
+     * deep copy the directive.
+     */
+    virtual SrsConfDirective* copy();
+    /**
     * read a token from buffer.
     * a token, is the directive args and a flag indicates whether has child-directives.
     * @param args, the output directive args, the first is the directive name, left is the args.

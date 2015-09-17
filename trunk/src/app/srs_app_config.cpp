@@ -436,7 +436,6 @@ SrsConfDirective* SrsConfDirective::copy()
     cp->conf_line = conf_line;
     cp->name = name;
     cp->args = args;
-    cp->create_time = create_time;
 
     for (int i = 0; i < (int)directives.size(); i++) {
         SrsConfDirective* directive = directives.at(i);

@@ -605,7 +605,7 @@ function apply_user_presets() {
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=NO
+        SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
         SRS_GPERF_MP=NO
