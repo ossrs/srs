@@ -670,6 +670,15 @@ string SrsConfDirective::arg2()
     return "";
 }
 
+string SrsConfDirective::arg3()
+{
+    if (args.size() > 3) {
+        return args.at(3);
+    }
+    
+    return "";
+}
+
 SrsConfDirective* SrsConfDirective::at(int index)
 {
     srs_assert(index < (int)directives.size());

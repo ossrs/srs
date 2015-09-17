@@ -155,20 +155,20 @@ class SrsConfDirective
 {
 public:
     /**
-    * the line of config file in which the directive from
-    */
+     * the line of config file in which the directive from
+     */
     int conf_line;
     /**
-    * the name of directive, for example, the following config text:
-    *       enabled     on;
-    * will be parsed to a directive, its name is "enalbed"
-    */
+     * the name of directive, for example, the following config text:
+     *       enabled     on;
+     * will be parsed to a directive, its name is "enalbed"
+     */
     std::string name;
     /**
-    * the args of directive, for example, the following config text:
-    *       listen      1935 1936;
-    * will be parsed to a directive, its args is ["1935", "1936"].
-    */
+     * the args of directive, for example, the following config text:
+     *       listen      1935 1936;
+     * will be parsed to a directive, its args is ["1935", "1936"].
+     */
     std::vector<std::string> args;
     /**
     * the child directives, for example, the following config text:
@@ -201,6 +201,7 @@ public:
     virtual std::string arg0();
     virtual std::string arg1();
     virtual std::string arg2();
+    virtual std::string arg3();
 // directives
 public:
     /**
