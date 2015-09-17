@@ -79,6 +79,8 @@ package
             
             this.stage.addEventListener(FullScreenEvent.FULL_SCREEN, this.user_on_stage_fullscreen);
             
+            Security.allowDomain("*");
+            
             this.addChild(this.control_fs_mask);
             this.control_fs_mask.buttonMode = true;
             this.control_fs_mask.addEventListener(MouseEvent.CLICK, user_on_click_video);
