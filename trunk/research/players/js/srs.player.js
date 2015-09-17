@@ -26,6 +26,7 @@ function SrsPlayer(container, width, height, private_object) {
     this.max_buffer_time = this.buffer_time * 3; // default to 3 x bufferTime.
     this.volume = 1.0; // default to 100%
     this.callbackObj = null;
+    this.srs_player_url = "srs_player/release/srs_player.swf?_version="+srs_get_version_code();
     
     // callback set the following values.
     this.meatadata = {}; // for on_player_metadata
@@ -89,7 +90,7 @@ SrsPlayer.prototype.start = function(url) {
     var self = this;
     
     swfobject.embedSWF(
-        "srs_player/release/srs_player.swf?_version="+srs_get_version_code(), 
+        this.srs_player_url, 
         this.container,
         this.width, this.height,
         "11.1.0", "js/AdobeFlashPlayerInstall.swf",
@@ -219,8 +220,27 @@ SrsPlayer.prototype.set_mbt = function(max_buffer_time) {
     this.callbackObj.ref.__set_mbt(max_buffer_time);
 }
 /**
- * the callback when player is ready.
+ * set the srs_player.swf url
+ * @param url, srs_player.swf's url.
+ * @param params, object.
  */
+ SrsPlayer.prototype.set_srs_player_url = function(url, params) {
+    var query_array = [], 
+        query_string = "", 
+        p;
+    params = params || {}; 
+    params._version = srs_get_version_code();
+    for (p in params) {
+        if (params.hasOwnProperty(p)) {
+            query_array.push(p + "=" + encodeURIComponent(params[p]));
+        }
+    }   
+    query_string = query_array.join("&");
+    this.srs_player_url = url + "?" + query_string;
+}
+ /**
+  * the callback when player is ready.
+  */
 SrsPlayer.prototype.on_player_ready = function() {
 }
 /**
