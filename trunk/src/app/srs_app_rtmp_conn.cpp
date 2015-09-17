@@ -53,6 +53,8 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_json.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -89,13 +91,13 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
     wakable = NULL;
-    
+
     mw_sleep = SRS_PERF_MW_SLEEP;
     mw_enabled = false;
     realtime = SRS_PERF_MIN_LATENCY_ENABLED;
     send_min_interval = 0;
     tcp_nodelay = false;
-    
+
     _srs_config->subscribe(this);
 }
 
@@ -208,8 +210,11 @@ int SrsRtmpConn::do_cycle()
     }
     
     ret = service_cycle();
-    
-    http_hooks_on_close();
+
+    int disc_ret = ERROR_SUCCESS;
+    if ((disc_ret = on_disconnect()) != ERROR_SUCCESS) {
+        srs_warn("connection on disconnect peer failed, but ignore this error. disc_ret=%d, ret=%d", disc_ret, ret);
+    }
 
     return ret;
 }
@@ -1305,6 +1310,17 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl.c_str());
     
+    return ret;
+}
+
+int SrsRtmpConn::on_disconnect()
+{
+    int ret = ERROR_SUCCESS;
+
+    http_hooks_on_close();
+
+    // TODO: implements it.
+
     return ret;
 }
 

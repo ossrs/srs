@@ -406,6 +406,12 @@ protected:
     virtual int on_got_http_message(ISrsHttpMessage* msg) = 0;
 private:
     virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    /**
+     * when the connection disconnect, call this method.
+     * e.g. log msg of connection and report to other system.
+     * @param request: request which is converted by the last http message.
+     */
+    virtual int on_disconnect(SrsRequest* req);
 };
 
 /**

@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 IConnectionManager::IConnectionManager()
 {
@@ -42,7 +43,12 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
     stfd = c;
     disposed = false;
     expired = false;
-    
+    create_time = srs_get_system_time_ms();
+
+    skt = new SrsStSocket(c);
+    kbps = new SrsKbps();
+    kbps->set_io(skt, skt);
+
     // the client thread should reap itself, 
     // so we never use joinable.
     // TODO: FIXME: maybe other thread need to stop it.
@@ -53,8 +59,30 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
 SrsConnection::~SrsConnection()
 {
     dispose();
-    
+
+    srs_freep(kbps);
+    srs_freep(skt);
     srs_freep(pthread);
+}
+
+void SrsConnection::resample()
+{
+    kbps->resample();
+}
+
+int64_t SrsConnection::get_send_bytes_delta()
+{
+    return kbps->get_send_bytes_delta();
+}
+
+int64_t SrsConnection::get_recv_bytes_delta()
+{
+    return kbps->get_recv_bytes_delta();
+}
+
+void SrsConnection::cleanup()
+{
+    kbps->cleanup();
 }
 
 void SrsConnection::dispose()
@@ -86,7 +114,7 @@ int SrsConnection::cycle()
     
     ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     
-    ret = do_cycle();
+    int oret = ret = do_cycle();
     
     // if socket io error, set to closed.
     if (srs_is_client_gracefully_close(ret)) {
@@ -100,7 +128,7 @@ int SrsConnection::cycle()
     
     // client close peer.
     if (ret == ERROR_SOCKET_CLOSED) {
-        srs_warn("client disconnect peer. ret=%d", ret);
+        srs_warn("client disconnect peer. oret=%d, ret=%d", oret, ret);
     }
 
     return ERROR_SUCCESS;

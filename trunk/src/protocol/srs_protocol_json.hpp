@@ -151,6 +151,8 @@ public:
     virtual SrsJsonAny* ensure_property_string(std::string name);
     virtual SrsJsonAny* ensure_property_integer(std::string name);
     virtual SrsJsonAny* ensure_property_boolean(std::string name);
+    virtual SrsJsonAny* ensure_property_object(std::string name);
+    virtual SrsJsonAny* ensure_property_array(std::string name);
 };
 
 class SrsJsonArray : public SrsJsonAny

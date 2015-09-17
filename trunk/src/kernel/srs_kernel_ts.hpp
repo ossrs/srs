@@ -345,6 +345,7 @@ class SrsTsContext
 private:
     std::map<int, SrsTsChannel*> pids;
     bool pure_audio;
+    int8_t sync_byte;
 // encoder
 private:
     // when any codec changed, write the PAT/PMT.
@@ -394,6 +395,13 @@ public:
     * @param ac the audio codec, write the PAT/PMT table when changed.
     */
     virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac);
+// drm methods
+public:
+    /**
+     * set sync byte of ts segment.
+     * replace the standard ts sync byte to bravo sync byte.
+     */
+    virtual void set_sync_byte(int8_t sb);
 private:
     virtual int encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
     virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);

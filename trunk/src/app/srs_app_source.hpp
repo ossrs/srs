@@ -592,6 +592,8 @@ public:
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
+public:
+    virtual std::string get_curr_origin();
 };
 
 #endif

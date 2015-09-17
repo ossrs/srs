@@ -2292,3 +2292,8 @@ void SrsSource::destroy_forwarders()
     forwarders.clear();
 }
 
+string SrsSource::get_curr_origin()
+{
+    return play_edge->get_curr_origin();
+}
+

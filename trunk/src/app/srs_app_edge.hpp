@@ -89,6 +89,8 @@ private:
     SrsKbps* kbps;
     SrsRtmpClient* client;
     int origin_index;
+    // current origin server of current source.
+    std::string curr_origin_server;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
@@ -96,6 +98,7 @@ public:
     virtual int initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
+    virtual std::string get_curr_origin();
 // interface ISrsReusableThread2Handler
 public:
     virtual int cycle();
@@ -182,6 +185,7 @@ public:
     * when all client stopped play, disconnect to origin.
     */
     virtual void on_all_client_stop();
+    virtual std::string get_curr_origin();
 public:
     /**
     * when ingester start to play stream.

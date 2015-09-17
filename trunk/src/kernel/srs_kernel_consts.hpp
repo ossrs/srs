@@ -42,6 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////////
 // default vhost of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_VHOST "__defaultVhost__"
+#define SRS_CONSTS_RTMP_DEFAULT_APP "__defaultApp__"
 // default port of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_PORT "1935"
 

@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_statistic.hpp>
 
 #endif
 
@@ -494,6 +495,13 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
+
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((ret = stat->on_client(_srs_context->get_id(), req, NULL, SrsRtmpConnPlay)) != ERROR_SUCCESS) {
+        srs_error("stat client failed. ret=%d", ret);
+        return ret;
+    }
     
     // the memory writer.
     SrsStreamWriter writer(w);
@@ -1132,7 +1140,7 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     if (ext.empty()) {
         return ret;
     }
-    
+
     // find the actually request vhost.
     SrsConfDirective* vhost = _srs_config->get_vhost(request->host());
     if (!vhost || !_srs_config->get_vhost_enabled(vhost)) {
@@ -1179,7 +1187,7 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
             return ret;
         }
     }
-    
+
     // convert to concreate class.
     SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(request);
     srs_assert(hreq);

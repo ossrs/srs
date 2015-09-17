@@ -340,6 +340,12 @@ public:
      * @remark user can stop multiple times, ignore if already stopped.
      */
     virtual void stop();
+    /**
+     * whether the thread should loop,
+     * used for handler->cycle() which has a loop method,
+     * to check this method, break if false.
+     */
+    virtual bool can_loop();
 public:
     /**
      * get the context id. @see: ISrsThreadContext.get_id().

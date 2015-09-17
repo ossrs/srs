@@ -387,13 +387,13 @@ int SrsHlsMuxer::deviation()
 int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
 {
     int ret = ERROR_SUCCESS;
-    
+
     handler = h;
     
     if ((ret = async->start()) != ERROR_SUCCESS) {
         return ret;
     }
-    
+
     return ret;
 }
 
@@ -724,7 +724,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
     // when too large, it maybe timestamp corrupt.
     if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration <= max_td) {
         segments.push_back(current);
-        
+
         // use async to call the http hooks, for it will cause thread switch.
         if ((ret = async->execute(new SrsDvrAsyncCallOnHls(
             _srs_context->get_id(), req,
@@ -733,12 +733,12 @@ int SrsHlsMuxer::segment_close(string log_desc)
         {
             return ret;
         }
-        
+
         // use async to call the http hooks, for it will cause thread switch.
         if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
-    
+
         srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64,
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
             current->segment_start_dts);
@@ -749,12 +749,12 @@ int SrsHlsMuxer::segment_close(string log_desc)
             srs_error("notify handler for update ts failed. ret=%d", ret);
             return ret;
         }
-    
+
         // close the muxer of finished segment.
         srs_freep(current->muxer);
         std::string full_path = current->full_path;
         current = NULL;
-        
+
         // rename from tmp to real path
         std::string tmp_file = full_path + ".tmp";
         if (should_write_file && rename(tmp_file.c_str(), full_path.c_str()) < 0) {
@@ -766,11 +766,11 @@ int SrsHlsMuxer::segment_close(string log_desc)
     } else {
         // reuse current segment index.
         _sequence_no--;
-        
+
         srs_trace("%s drop ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
             current->segment_start_dts);
-        
+
         // rename from tmp to real path
         std::string tmp_file = current->full_path + ".tmp";
         if (should_write_file) {
@@ -778,13 +778,13 @@ int SrsHlsMuxer::segment_close(string log_desc)
                 srs_warn("ignore unlink path failed, file=%s.", tmp_file.c_str());
             }
         }
-        
+
         srs_freep(current);
     }
-    
+
     // the segments to remove
     std::vector<SrsHlsSegment*> segment_to_remove;
-    
+
     // shrink the segments.
     double duration = 0;
     int remove_index = -1;
@@ -802,7 +802,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         segments.erase(segments.begin());
         segment_to_remove.push_back(segment);
     }
-    
+
     // refresh the m3u8, donot contains the removed ts
     ret = refresh_m3u8();
 
@@ -815,24 +815,24 @@ int SrsHlsMuxer::segment_close(string log_desc)
                 srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
             }
         }
-        
+
         if (should_write_cache) {
             if ((ret = handler->on_remove_ts(req, segment->uri)) != ERROR_SUCCESS) {
                 srs_warn("remove the ts from ram hls failed. ret=%d", ret);
                 return ret;
             }
         }
-        
+
         srs_freep(segment);
     }
     segment_to_remove.clear();
-    
+
     // check ret of refresh m3u8
     if (ret != ERROR_SUCCESS) {
         srs_error("refresh m3u8 failed. ret=%d", ret);
         return ret;
     }
-    
+
     return ret;
 }
 

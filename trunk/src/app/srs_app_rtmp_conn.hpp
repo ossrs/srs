@@ -134,6 +134,11 @@ private:
     virtual int check_edge_token_traverse_auth();
     virtual int connect_server(int origin_index, st_netfd_t* pstsock);
     virtual int do_token_traverse_auth(SrsRtmpClient* client);
+    /**
+     * when the connection disconnect, call this method.
+     * e.g. log msg of connection and report to other system.
+     */
+    virtual int on_disconnect();
 private:
     virtual int http_hooks_on_connect();
     virtual void http_hooks_on_close();

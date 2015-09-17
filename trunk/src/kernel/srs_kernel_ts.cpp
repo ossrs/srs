@@ -198,6 +198,7 @@ ISrsTsHandler::~ISrsTsHandler()
 SrsTsContext::SrsTsContext()
 {
     pure_audio = false;
+    sync_byte = 0x47; // ts default sync byte.
     vcodec = SrsCodecVideoReserved;
     acodec = SrsCodecAudioReserved1;
 }
@@ -368,6 +369,11 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
     }
 }
 
+void SrsTsContext::set_sync_byte(int8_t sb)
+{
+    sync_byte = sb;
+}
+
 int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     int ret = ERROR_SUCCESS;
@@ -383,6 +389,8 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
     if (true) {
         SrsTsPacket* pkt = SrsTsPacket::create_pat(this, pmt_number, pmt_pid);
         SrsAutoFree(SrsTsPacket, pkt);
+
+        pkt->sync_byte = sync_byte;
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFree(char, buf);
@@ -408,6 +416,8 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
     if (true) {
         SrsTsPacket* pkt = SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as);
         SrsAutoFree(SrsTsPacket, pkt);
+
+        pkt->sync_byte = sync_byte;
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFree(char, buf);
@@ -478,6 +488,8 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
             );
         }
         SrsAutoFree(SrsTsPacket, pkt);
+
+        pkt->sync_byte = sync_byte;
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFree(char, buf);
@@ -2704,7 +2716,7 @@ int SrsTSMuxer::open(string p)
     path = p;
     
     close();
-    
+
     // reset the context for a new ts start.
     context->reset();
     

@@ -55,6 +55,9 @@ using namespace std;
 #include <srs_app_http_static.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_http_api.hpp>
+#include <srs_protocol_json.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 #endif
 
@@ -1204,47 +1207,57 @@ int SrsHttpConn::do_cycle()
         srs_error("http initialize http parser failed. ret=%d", ret);
         return ret;
     }
-    
-    // underlayer socket
-    SrsStSocket skt(stfd);
-    
+
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/simple-rtmp-server/srs/issues/398
-    skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
-    
+    skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
+
+    SrsRequest* last_req = NULL;
+    SrsAutoFree(SrsRequest, last_req);
+
     // process http messages.
     while (!disposed) {
         ISrsHttpMessage* req = NULL;
-        
+
         // get a http message
-        if ((ret = parser->parse_message(&skt, this, &req)) != ERROR_SUCCESS) {
-            return ret;
+        if ((ret = parser->parse_message(skt, this, &req)) != ERROR_SUCCESS) {
+            break;
         }
 
         // if SUCCESS, always NOT-NULL.
         srs_assert(req);
-        
+
         // always free it in this scope.
         SrsAutoFree(ISrsHttpMessage, req);
-        
+
+        // get the last request, for report the info of request on connection disconnect.
+        delete last_req;
+        SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(req);
+        last_req = hreq->to_request(hreq->host());
+
         // may should discard the body.
         if ((ret = on_got_http_message(req)) != ERROR_SUCCESS) {
-            return ret;
+            break;
         }
-        
+
         // ok, handle http request.
-        SrsHttpResponseWriter writer(&skt);
+        SrsHttpResponseWriter writer(skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
-            return ret;
+            break;
         }
-        
+
         // donot keep alive, disconnect it.
         // @see https://github.com/simple-rtmp-server/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }
     }
-        
+
+    int disc_ret = ERROR_SUCCESS;
+    if ((disc_ret = on_disconnect(last_req)) != ERROR_SUCCESS) {
+        srs_warn("connection on disconnect peer failed, but ignore this error. disc_ret=%d, ret=%d", disc_ret, ret);
+    }
+
     return ret;
 }
 
@@ -1263,6 +1276,13 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return ret;
     }
     
+    return ret;
+}
+
+int SrsHttpConn::on_disconnect(SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: implements it.s
     return ret;
 }
 

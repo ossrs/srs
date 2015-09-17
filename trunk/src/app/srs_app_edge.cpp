@@ -70,6 +70,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
+    curr_origin_server = "";
     pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
@@ -116,6 +117,11 @@ void SrsEdgeIngester::stop()
     
     // notice to unpublish.
     _source->on_unpublish();
+}
+
+string SrsEdgeIngester::get_curr_origin()
+{
+    return curr_origin_server;
 }
 
 int SrsEdgeIngester::cycle()
@@ -205,7 +211,7 @@ int SrsEdgeIngester::ingest()
             return ret;
         }
     }
-    
+
     return ret;
 }
 
@@ -352,9 +358,9 @@ int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
     }
     
     // select the origin.
-    std::string server = conf->args.at(origin_index % conf->args.size());
+    std::string server = curr_origin_server = conf->args.at(origin_index % conf->args.size());
     origin_index = (origin_index + 1) % conf->args.size();
-    
+
     std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
     size_t pos = server.find(":");
@@ -752,6 +758,11 @@ void SrsPlayEdge::on_all_client_stop()
         
         return;
     }
+}
+
+string SrsPlayEdge::get_curr_origin()
+{
+    return ingester->get_curr_origin();
 }
 
 int SrsPlayEdge::on_ingest_play()

@@ -474,13 +474,13 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
         srs_error("res code error, ret=%d", ret);
         return ret;
     }
-
+    
     if ((res_code->to_integer()) != ERROR_SUCCESS) {
         ret = ERROR_RESPONSE_CODE;
         srs_error("res code error, ret=%d, code=%d", ret, code);
         return ret;
     }
-
+    
     return ret;
 }
 

@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_stack.hpp>

@@ -102,7 +102,7 @@ public:
     MockSrsReloadConfig();
     virtual ~MockSrsReloadConfig();
 public:
-    virtual int reload(std::string buf);
+    virtual int do_reload(std::string buf);
 };
 
 #endif

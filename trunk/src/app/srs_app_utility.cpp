@@ -1483,3 +1483,17 @@ void srs_api_dump_summaries(SrsAmf0Object* obj)
     sys->set("conn_srs", SrsAmf0Any::number(nrs->nb_conn_srs));
 }
 
+string srs_join_vector_string(vector<string>& vs, string separator)
+{
+    string str = "";
+
+    for (int i = 0; i < (int)vs.size(); i++) {
+        str += vs.at(i);
+        if (i != (int)vs.size() - 1) {
+            str += separator;
+        }
+    }
+
+    return str;
+}
+

@@ -435,6 +435,11 @@ void SrsReusableThread::stop()
     pthread->stop();
 }
 
+bool SrsReusableThread::can_loop()
+{
+    return pthread->can_loop();
+}
+
 int SrsReusableThread::cid()
 {
     return pthread->cid();

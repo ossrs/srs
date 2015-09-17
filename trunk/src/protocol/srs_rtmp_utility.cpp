@@ -67,8 +67,13 @@ void srs_discovery_tc_url(
         host = host.substr(0, pos);
         srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
     }
-    
-    app = url;
+
+    if (url.empty()) {
+        app = SRS_CONSTS_RTMP_DEFAULT_APP;
+    } else {
+        app = url;
+    }
+
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
 }
@@ -230,7 +235,7 @@ std::string srs_generate_stream_url(std::string vhost, std::string app, std::str
     std::string url = "";
     
     if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost){
-    	url += vhost;
+        url += vhost;
     }
     url += "/";
     url += app;

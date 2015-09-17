@@ -93,9 +93,31 @@ protected:
      * when expired, the connection must never be served and quit ASAP.
      */
     bool expired;
+    /**
+    * the underlayer socket.
+    */
+    SrsStSocket* skt;
+    /**
+     * connection total kbps.
+     * not only the rtmp or http connection, all type of connection are
+     * need to statistic the kbps of io.
+     * the SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
+     */
+    SrsKbps* kbps;
+    /**
+     * the create time in milliseconds.
+     * for current connection to log self create time and calculate the living time.
+     */
+    int64_t create_time;
 public:
     SrsConnection(IConnectionManager* cm, st_netfd_t c);
     virtual ~SrsConnection();
+// interface IKbpsDelta
+public:
+    virtual void resample();
+    virtual int64_t get_send_bytes_delta();
+    virtual int64_t get_recv_bytes_delta();
+    virtual void cleanup();
 public:
     /**
      * to dipose the connection.

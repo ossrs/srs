@@ -487,6 +487,36 @@ SrsJsonAny* SrsJsonObject::ensure_property_boolean(string name)
     return prop;
 }
 
+SrsJsonAny* SrsJsonObject::ensure_property_object(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+
+    if (!prop) {
+        return NULL;
+    }
+
+    if (!prop->is_object()) {
+        return NULL;
+    }
+
+    return prop;
+}
+
+SrsJsonAny* SrsJsonObject::ensure_property_array(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+
+    if (!prop) {
+        return NULL;
+    }
+
+    if (!prop->is_array()) {
+        return NULL;
+    }
+
+    return prop;
+}
+
 SrsJsonArray::SrsJsonArray()
 {
     marker = SRS_JSON_Array;

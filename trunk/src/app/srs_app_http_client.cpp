@@ -44,6 +44,7 @@ SrsHttpClient::SrsHttpClient()
     skt = NULL;
     parser = NULL;
     timeout_us = 0;
+    port = 0;
 }
 
 SrsHttpClient::~SrsHttpClient()
@@ -55,6 +56,11 @@ SrsHttpClient::~SrsHttpClient()
 int SrsHttpClient::initialize(string h, int p, int64_t t_us)
 {
     int ret = ERROR_SUCCESS;
+    
+    // disconnect first when h:p changed.
+    if ((!host.empty() && host != h) || (port != 0 && port != p)) {
+        disconnect();
+    }
     
     srs_freep(parser);
     parser = new SrsHttpParser();

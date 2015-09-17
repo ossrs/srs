@@ -31,9 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 #include <string>
+#include <map>
 #include <sstream>
 
 #include <srs_app_reload.hpp>
+#include <srs_app_async_call.hpp>
+#include <srs_app_thread.hpp>
 
 class SrsRequest;
 class SrsFileWriter;
@@ -41,10 +44,89 @@ class SrsAmf0Object;
 class SrsAmf0StrictArray;
 class SrsAmf0Any;
 
+class SrsConfig;
+class SrsRequest;
+class SrsJsonArray;
+class SrsConfDirective;
+
+
 namespace _srs_internal
 {
-    class SrsConfigBuffer;
-}
+    /**
+     * the buffer of config content.
+     */
+    class SrsConfigBuffer
+    {
+    protected:
+        // last available position.
+        char* last;
+        // end of buffer.
+        char* end;
+        // start of buffer.
+        char* start;
+    public:
+        // current consumed position.
+        char* pos;
+        // current parsed line.
+        int line;
+    public:
+        SrsConfigBuffer();
+        virtual ~SrsConfigBuffer();
+    public:
+        /**
+         * fullfill the buffer with content of file specified by filename.
+         */
+        virtual int fullfill(const char* filename);
+        /**
+         * whether buffer is empty.
+         */
+        virtual bool empty();
+    };
+};
+
+/**
+ * deep compare directive.
+ */
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, std::string except);
+
+/**
+ * helper utilities, used for compare the consts values.
+ */
+extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
+extern bool srs_config_hls_is_on_error_continue(std::string strategy);
+extern bool srs_config_ingest_is_file(std::string type);
+extern bool srs_config_ingest_is_stream(std::string type);
+extern bool srs_config_dvr_is_plan_segment(std::string plan);
+extern bool srs_config_dvr_is_plan_session(std::string plan);
+extern bool srs_config_dvr_is_plan_append(std::string plan);
+extern bool srs_stream_caster_is_udp(std::string caster);
+extern bool srs_stream_caster_is_rtsp(std::string caster);
+extern bool srs_stream_caster_is_flv(std::string caster);
+// whether the dvr_apply active the stream specified by req.
+extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
+
+/**
+ * convert bool in str to on/off
+ */
+extern std::string srs_config_bool2switch(const std::string& sbool);
+
+/**
+ * parse loaded vhost directives to compatible mode.
+ * for exmaple, SRS1/2 use the follow refer style:
+ *          refer   a.domain.com b.domain.com;
+ * while SRS3 use the following:
+ *          refer {
+ *              enabled on;
+ *              all a.domain.com b.domain.com;
+ *          }
+ * so we must transform the vhost directive anytime load the config.
+ * @param root the root directive to transform, in and out parameter.
+ */
+extern int srs_config_transform_vhost(SrsConfDirective* root);
+
+// global config
+extern SrsConfig* _srs_config;
 
 /**
 * the config directive.
@@ -103,6 +185,13 @@ public:
 public:
     SrsConfDirective();
     virtual ~SrsConfDirective();
+public:
+    /**
+     * deep copy the directive, for SrsConfig to use it to support reload in upyun cluster,
+     * for when reload the upyun dynamic config, the root will be changed,
+     * so need to copy it to an old root directive, and use the copy result to do reload.
+     */
+    virtual SrsConfDirective* copy();
 // args
 public:
     /**
@@ -189,10 +278,6 @@ private:
     * 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
     */
     virtual int parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
-    /**
-     * deep copy the directive.
-     */
-    virtual SrsConfDirective* copy();
     /**
     * read a token from buffer.
     * a token, is the directive args and a flag indicates whether has child-directives.
@@ -1290,84 +1375,6 @@ public:
     */
     virtual SrsConfDirective*   get_stats_disk_device();
 };
-
-namespace _srs_internal
-{
-    /**
-    * the buffer of config content.
-    */
-    class SrsConfigBuffer
-    {
-    protected:
-        // last available position.
-        char* last;
-        // end of buffer.
-        char* end;
-        // start of buffer.
-        char* start;
-    public:
-        // current consumed position.
-        char* pos;
-        // current parsed line.
-        int line;
-    public:
-        SrsConfigBuffer();
-        virtual ~SrsConfigBuffer();
-    public:
-        /**
-        * fullfill the buffer with content of file specified by filename.
-        */
-        virtual int fullfill(const char* filename);
-        /**
-        * whether buffer is empty.
-        */
-        virtual bool empty();
-    };
-};
-
-/**
-* deep compare directive.
- */
-extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
-extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, std::string except);
-
-/**
- * helper utilities, used for compare the consts values.
- */
-extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
-extern bool srs_config_hls_is_on_error_continue(std::string strategy);
-extern bool srs_config_ingest_is_file(std::string type);
-extern bool srs_config_ingest_is_stream(std::string type);
-extern bool srs_config_dvr_is_plan_segment(std::string plan);
-extern bool srs_config_dvr_is_plan_session(std::string plan);
-extern bool srs_config_dvr_is_plan_append(std::string plan);
-extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_rtsp(std::string caster);
-extern bool srs_stream_caster_is_flv(std::string caster);
-// whether the dvr_apply active the stream specified by req.
-extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
-
-/**
- * convert bool in str to on/off
- */
-extern std::string srs_config_bool2switch(const std::string& sbool);
-
-/**
- * parse loaded vhost directives to compatible mode.
- * for exmaple, SRS1/2 use the follow refer style:
- *          refer   a.domain.com b.domain.com;
- * while SRS3 use the following:
- *          refer {
- *              enabled on;
- *              all a.domain.com b.domain.com;
- *          }
- * so we must transform the vhost directive anytime load the config.
- * @param root the root directive to transform, in and out parameter.
- */
-extern int srs_config_transform_vhost(SrsConfDirective* root);
-
-// global config
-extern SrsConfig* _srs_config;
 
 #endif
 
