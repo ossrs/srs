@@ -84,7 +84,7 @@ void SrsHttpHeartbeat::heartbeat()
         return;
     }
     
-    std::string req = obj->to_json();
+    std::string req = obj->dumps();
     ISrsHttpMessage* msg = NULL;
     if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. url=%s, request=%s, ret=%d",

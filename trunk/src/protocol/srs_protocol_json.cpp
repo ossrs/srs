@@ -318,7 +318,7 @@ SrsJsonArray* SrsJsonAny::to_array()
     return p;
 }
 
-string SrsJsonAny::to_json()
+string SrsJsonAny::dumps()
 {
     switch (marker) {
         case SRS_JSON_String: {
@@ -344,11 +344,11 @@ string SrsJsonAny::to_json()
         }
         case SRS_JSON_Object: {
             SrsJsonObject* obj = to_object();
-            return obj->to_json();
+            return obj->dumps();
         }
         case SRS_JSON_Array: {
             SrsJsonArray* arr = to_array();
-            return arr->to_json();
+            return arr->dumps();
         }
         default: {
             break;
@@ -527,7 +527,7 @@ SrsJsonAny* SrsJsonObject::value_at(int index)
     return elem.second;
 }
 
-string SrsJsonObject::to_json()
+string SrsJsonObject::dumps()
 {
     stringstream ss;
     
@@ -537,7 +537,7 @@ string SrsJsonObject::to_json()
         std::string name = this->key_at(i);
         SrsJsonAny* any = this->value_at(i);
         
-        ss << SRS_JFIELD_NAME(name) << any->to_json();
+        ss << SRS_JFIELD_NAME(name) << any->dumps();
         if (i < (int)properties.size() - 1) {
             ss << SRS_JFIELD_CONT;
         }
@@ -714,7 +714,7 @@ void SrsJsonArray::append(SrsJsonAny* value)
     add(value);
 }
 
-string SrsJsonArray::to_json()
+string SrsJsonArray::dumps()
 {
     stringstream ss;
     
@@ -723,7 +723,7 @@ string SrsJsonArray::to_json()
     for (int i = 0; i < (int)properties.size(); i++) {
         SrsJsonAny* any = properties[i];
         
-        ss << any->to_json();
+        ss << any->dumps();
         
         if (i < (int)properties.size() - 1) {
             ss << SRS_JFIELD_CONT;

@@ -114,7 +114,7 @@ public:
     */
     virtual SrsJsonArray* to_array();
 public:
-    virtual std::string to_json();
+    virtual std::string dumps();
     virtual SrsAmf0Any* to_amf0();
 public:
     static SrsJsonAny* str(const char* value = NULL); 
@@ -150,7 +150,7 @@ public:
     // @remark: max index is count().
     virtual SrsJsonAny* value_at(int index);
 public:
-    virtual std::string to_json();
+    virtual std::string dumps();
     virtual SrsAmf0Any* to_amf0();
 public:
     virtual void set(std::string key, SrsJsonAny* value);
@@ -181,13 +181,13 @@ public:
     // alias to add.
     virtual void append(SrsJsonAny* value);
 public:
-    virtual std::string to_json();
+    virtual std::string dumps();
     virtual SrsAmf0Any* to_amf0();
 };
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-// json encode, please use AMF0.to_json() to encode json object.
+// json encode, please use JSON.dumps() to encode json object.
 
 #endif

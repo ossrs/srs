@@ -74,7 +74,7 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -110,7 +110,7 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     obj->set("send_bytes", SrsJsonAny::number(send_bytes));
     obj->set("recv_bytes", SrsJsonAny::number(recv_bytes));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -145,7 +145,7 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -180,7 +180,7 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -216,7 +216,7 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -251,7 +251,7 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -289,7 +289,7 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     
@@ -332,7 +332,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
     obj->set("seq_no", SrsJsonAny::number(sn));
         
-    std::string data = obj->to_json();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
     

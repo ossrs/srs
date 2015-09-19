@@ -83,7 +83,7 @@ int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, int 
     
     obj->set("code", SrsJsonAny::integer(code));
     
-    return srs_api_response_jsonp(w, callback, obj->to_json());
+    return srs_api_response_jsonp(w, callback, obj->dumps());
 }
 
 int srs_api_response_json(ISrsHttpResponseWriter* w, string data)
@@ -103,7 +103,7 @@ int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
     
     obj->set("code", SrsJsonAny::integer(code));
     
-    return srs_api_response_json(w, obj->to_json());
+    return srs_api_response_json(w, obj->dumps());
 }
 
 int srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json)
@@ -153,7 +153,7 @@ int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     urls->set("api", SrsJsonAny::str("the api root"));
         
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiApi::SrsGoApiApi()
@@ -179,7 +179,7 @@ int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     urls->set("v1", SrsJsonAny::str("the api version 1.0"));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiV1::SrsGoApiV1()
@@ -225,7 +225,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     tests->set("redirects", SrsJsonAny::str("always redirect to /api/v1/test/errors"));
     tests->set("[vhost]", SrsJsonAny::str("http vhost for http://error.srs.com:1985/api/v1/tests/errors"));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiVersion::SrsGoApiVersion()
@@ -254,7 +254,7 @@ int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("revision", SrsJsonAny::number(VERSION_REVISION));
     data->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiSummaries::SrsGoApiSummaries()
@@ -272,7 +272,7 @@ int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     srs_api_dump_summaries(obj);
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiRusages::SrsGoApiRusages()
@@ -317,7 +317,7 @@ int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("ru_nvcsw", SrsJsonAny::number(ru->r.ru_nvcsw));
     data->set("ru_nivcsw", SrsJsonAny::number(ru->r.ru_nivcsw));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiSelfProcStats::SrsGoApiSelfProcStats()
@@ -394,7 +394,7 @@ int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     data->set("guest_time", SrsJsonAny::number(u->guest_time));
     data->set("cguest_time", SrsJsonAny::number(u->cguest_time));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiSystemProcStats::SrsGoApiSystemProcStats()
@@ -433,7 +433,7 @@ int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     data->set("steal", SrsJsonAny::number(s->steal));
     data->set("guest", SrsJsonAny::number(s->guest));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiMemInfos::SrsGoApiMemInfos()
@@ -473,7 +473,7 @@ int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("SwapTotal", SrsJsonAny::number(m->SwapTotal));
     data->set("SwapFree", SrsJsonAny::number(m->SwapFree));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiAuthors::SrsGoApiAuthors()
@@ -504,7 +504,7 @@ int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("contributors_link", SrsJsonAny::str(RTMP_SIG_SRS_CONTRIBUTORS_URL));
     data->set("contributors", SrsJsonAny::str(SRS_AUTO_CONSTRIBUTORS));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiFeatures::SrsGoApiFeatures()
@@ -622,7 +622,7 @@ int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     features->set("mr", SrsJsonAny::boolean(false));
 #endif
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiRequests::SrsGoApiRequests()
@@ -672,7 +672,7 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     server->set("link", SrsJsonAny::str(RTMP_SIG_SRS_URL));
     server->set("time", SrsJsonAny::number(srs_get_system_time_ms()));
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiVhosts::SrsGoApiVhosts()
@@ -726,7 +726,7 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiStreams::SrsGoApiStreams()
@@ -780,7 +780,7 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiClients::SrsGoApiClients()
@@ -843,7 +843,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
     
-    return srs_api_response(w, r, obj->to_json());
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
@@ -882,7 +882,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             return srs_api_response_code(w, r, ret);
         }
         
-        return srs_api_response(w, r, obj->to_json());
+        return srs_api_response(w, r, obj->dumps());
     }
     
     // whether enabled the HTTP RAW API.
@@ -978,7 +978,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             }
         }
         
-        return srs_api_response(w, r, obj->to_json());
+        return srs_api_response(w, r, obj->dumps());
     }
     
     // for rpc=update, to update the configs of server.
@@ -1275,7 +1275,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             srs_warn("raw api update not applied %s=%s%s.", scope.c_str(), value.c_str(), extra.c_str());
         }
         
-        return srs_api_response(w, r, obj->to_json());
+        return srs_api_response(w, r, obj->dumps());
     }
     
     return ret;
