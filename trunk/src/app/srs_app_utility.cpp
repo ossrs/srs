@@ -1372,7 +1372,7 @@ bool srs_is_boolean(const string& str)
     return str == "true" || str == "false";
 }
 
-void srs_api_dump_summaries(SrsAmf0Object* obj)
+void srs_api_dump_summaries(SrsJsonObject* obj)
 {
     SrsRusage* r = srs_get_system_rusage();
     SrsProcSelfStat* u = srs_get_self_proc_stat();
@@ -1425,62 +1425,62 @@ void srs_api_dump_summaries(SrsAmf0Object* obj)
     bool ok = (r->ok && u->ok && s->ok && c->ok 
         && d->ok && m->ok && p->ok && nrs->ok);
     
-    SrsAmf0Object* data = SrsAmf0Any::object();
+    SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
     
-    data->set("ok", SrsAmf0Any::boolean(ok));
-    data->set("now_ms", SrsAmf0Any::number(now));
+    data->set("ok", SrsJsonAny::boolean(ok));
+    data->set("now_ms", SrsJsonAny::number(now));
     
     // self
-    SrsAmf0Object* self = SrsAmf0Any::object();
+    SrsJsonObject* self = SrsJsonAny::object();
     data->set("self", self);
     
-    self->set("version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    self->set("pid", SrsAmf0Any::number(getpid()));
-    self->set("ppid", SrsAmf0Any::number(u->ppid));
-    self->set("argv", SrsAmf0Any::str(_srs_config->argv().c_str()));
-    self->set("cwd", SrsAmf0Any::str(_srs_config->cwd().c_str()));
-    self->set("mem_kbyte", SrsAmf0Any::number(r->r.ru_maxrss));
-    self->set("mem_percent", SrsAmf0Any::number(self_mem_percent));
-    self->set("cpu_percent", SrsAmf0Any::number(u->percent));
-    self->set("srs_uptime", SrsAmf0Any::number(srs_uptime));
+    self->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
+    self->set("pid", SrsJsonAny::number(getpid()));
+    self->set("ppid", SrsJsonAny::number(u->ppid));
+    self->set("argv", SrsJsonAny::str(_srs_config->argv().c_str()));
+    self->set("cwd", SrsJsonAny::str(_srs_config->cwd().c_str()));
+    self->set("mem_kbyte", SrsJsonAny::number(r->r.ru_maxrss));
+    self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
+    self->set("cpu_percent", SrsJsonAny::number(u->percent));
+    self->set("srs_uptime", SrsJsonAny::number(srs_uptime));
     
     // system
-    SrsAmf0Object* sys = SrsAmf0Any::object();
+    SrsJsonObject* sys = SrsJsonAny::object();
     data->set("system", sys);
     
-    sys->set("cpu_percent", SrsAmf0Any::number(s->percent));
-    sys->set("disk_read_KBps", SrsAmf0Any::number(d->in_KBps));
-    sys->set("disk_write_KBps", SrsAmf0Any::number(d->out_KBps));
-    sys->set("disk_busy_percent", SrsAmf0Any::number(d->busy));
-    sys->set("mem_ram_kbyte", SrsAmf0Any::number(m->MemTotal));
-    sys->set("mem_ram_percent", SrsAmf0Any::number(m->percent_ram));
-    sys->set("mem_swap_kbyte", SrsAmf0Any::number(m->SwapTotal));
-    sys->set("mem_swap_percent", SrsAmf0Any::number(m->percent_swap));
-    sys->set("cpus", SrsAmf0Any::number(c->nb_processors));
-    sys->set("cpus_online", SrsAmf0Any::number(c->nb_processors_online));
-    sys->set("uptime", SrsAmf0Any::number(p->os_uptime));
-    sys->set("ilde_time", SrsAmf0Any::number(p->os_ilde_time));
-    sys->set("load_1m", SrsAmf0Any::number(p->load_one_minutes));
-    sys->set("load_5m", SrsAmf0Any::number(p->load_five_minutes));
-    sys->set("load_15m", SrsAmf0Any::number(p->load_fifteen_minutes));
+    sys->set("cpu_percent", SrsJsonAny::number(s->percent));
+    sys->set("disk_read_KBps", SrsJsonAny::number(d->in_KBps));
+    sys->set("disk_write_KBps", SrsJsonAny::number(d->out_KBps));
+    sys->set("disk_busy_percent", SrsJsonAny::number(d->busy));
+    sys->set("mem_ram_kbyte", SrsJsonAny::number(m->MemTotal));
+    sys->set("mem_ram_percent", SrsJsonAny::number(m->percent_ram));
+    sys->set("mem_swap_kbyte", SrsJsonAny::number(m->SwapTotal));
+    sys->set("mem_swap_percent", SrsJsonAny::number(m->percent_swap));
+    sys->set("cpus", SrsJsonAny::number(c->nb_processors));
+    sys->set("cpus_online", SrsJsonAny::number(c->nb_processors_online));
+    sys->set("uptime", SrsJsonAny::number(p->os_uptime));
+    sys->set("ilde_time", SrsJsonAny::number(p->os_ilde_time));
+    sys->set("load_1m", SrsJsonAny::number(p->load_one_minutes));
+    sys->set("load_5m", SrsJsonAny::number(p->load_five_minutes));
+    sys->set("load_15m", SrsJsonAny::number(p->load_fifteen_minutes));
     // system network bytes stat.
-    sys->set("net_sample_time", SrsAmf0Any::number(n_sample_time));
+    sys->set("net_sample_time", SrsJsonAny::number(n_sample_time));
     // internet public address network device bytes.
-    sys->set("net_recv_bytes", SrsAmf0Any::number(nr_bytes));
-    sys->set("net_send_bytes", SrsAmf0Any::number(ns_bytes));
+    sys->set("net_recv_bytes", SrsJsonAny::number(nr_bytes));
+    sys->set("net_send_bytes", SrsJsonAny::number(ns_bytes));
     // intranet private address network device bytes.
-    sys->set("net_recvi_bytes", SrsAmf0Any::number(nri_bytes));
-    sys->set("net_sendi_bytes", SrsAmf0Any::number(nsi_bytes));
+    sys->set("net_recvi_bytes", SrsJsonAny::number(nri_bytes));
+    sys->set("net_sendi_bytes", SrsJsonAny::number(nsi_bytes));
     // srs network bytes stat.
-    sys->set("srs_sample_time", SrsAmf0Any::number(nrs->sample_time));
-    sys->set("srs_recv_bytes", SrsAmf0Any::number(nrs->rbytes));
-    sys->set("srs_send_bytes", SrsAmf0Any::number(nrs->sbytes));
-    sys->set("conn_sys", SrsAmf0Any::number(nrs->nb_conn_sys));
-    sys->set("conn_sys_et", SrsAmf0Any::number(nrs->nb_conn_sys_et));
-    sys->set("conn_sys_tw", SrsAmf0Any::number(nrs->nb_conn_sys_tw));
-    sys->set("conn_sys_udp", SrsAmf0Any::number(nrs->nb_conn_sys_udp));
-    sys->set("conn_srs", SrsAmf0Any::number(nrs->nb_conn_srs));
+    sys->set("srs_sample_time", SrsJsonAny::number(nrs->sample_time));
+    sys->set("srs_recv_bytes", SrsJsonAny::number(nrs->rbytes));
+    sys->set("srs_send_bytes", SrsJsonAny::number(nrs->sbytes));
+    sys->set("conn_sys", SrsJsonAny::number(nrs->nb_conn_sys));
+    sys->set("conn_sys_et", SrsJsonAny::number(nrs->nb_conn_sys_et));
+    sys->set("conn_sys_tw", SrsJsonAny::number(nrs->nb_conn_sys_tw));
+    sys->set("conn_sys_udp", SrsJsonAny::number(nrs->nb_conn_sys_udp));
+    sys->set("conn_srs", SrsJsonAny::number(nrs->nb_conn_srs));
 }
 
 string srs_join_vector_string(vector<string>& vs, string separator)

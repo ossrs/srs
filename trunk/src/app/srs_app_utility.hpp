@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsKbps;
 class SrsStream;
-class SrsAmf0Object;
+class SrsJsonObject;
 
 // client open socket and connect to server.
 extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
@@ -682,7 +682,7 @@ extern bool srs_is_digit_number(const std::string& str);
 extern bool srs_is_boolean(const std::string& str);
 
 // dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(SrsAmf0Object* obj);
+extern void srs_api_dump_summaries(SrsJsonObject* obj);
 
 // join string in vector with indicated separator
 extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);

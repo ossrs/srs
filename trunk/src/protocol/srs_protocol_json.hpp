@@ -112,6 +112,12 @@ public:
     * user must ensure the type is a ecma array, or assert failed.
     */
     virtual SrsJsonArray* to_array();
+// json
+public:
+    /**
+     * convert the amf0 stuff to json.
+     */
+    virtual std::string to_json();
 public:
     static SrsJsonAny* str(const char* value = NULL); 
     static SrsJsonAny* boolean(bool value = false);
@@ -145,6 +151,12 @@ public:
     virtual std::string key_at(int index);
     // @remark: max index is count().
     virtual SrsJsonAny* value_at(int index);
+// json
+public:
+    /**
+     * convert the amf0 object to json.
+     */
+    virtual std::string to_json();
 public:
     virtual void set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
@@ -171,6 +183,14 @@ public:
     // @remark: max index is count().
     virtual SrsJsonAny* at(int index);
     virtual void add(SrsJsonAny* value);
+    // alias to add.
+    virtual void append(SrsJsonAny* value);
+// json
+public:
+    /**
+     * convert the amf0 ecma array to json.
+     */
+    virtual std::string to_json();
 };
 
 ////////////////////////////////////////////////////////////////////////

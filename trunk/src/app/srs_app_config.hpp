@@ -40,9 +40,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsRequest;
 class SrsFileWriter;
-class SrsAmf0Object;
-class SrsAmf0StrictArray;
-class SrsAmf0Any;
+class SrsJsonObject;
+class SrsJsonArray;
+class SrsJsonAny;
 
 class SrsConfig;
 class SrsRequest;
@@ -250,13 +250,13 @@ public:
     /**
      * dumps the args[0-N] to array(string).
      */
-    virtual SrsAmf0StrictArray* dumps_args();
+    virtual SrsJsonArray* dumps_args();
     /**
      * dumps arg0 to str, number or boolean.
      */
-    virtual SrsAmf0Any* dumps_arg0_to_str();
-    virtual SrsAmf0Any* dumps_arg0_to_number();
-    virtual SrsAmf0Any* dumps_arg0_to_boolean();
+    virtual SrsJsonAny* dumps_arg0_to_str();
+    virtual SrsJsonAny* dumps_arg0_to_number();
+    virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
 private:
     /**
@@ -416,19 +416,19 @@ public:
     /**
      * dumps the global sections to json.
      */
-    virtual int global_to_json(SrsAmf0Object* obj);
+    virtual int global_to_json(SrsJsonObject* obj);
     /**
      * dumps the minimal sections to json.
      */
-    virtual int minimal_to_json(SrsAmf0Object* obj);
+    virtual int minimal_to_json(SrsJsonObject* obj);
     /**
      * dumps the vhost section to json.
      */
-    virtual int vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj);
+    virtual int vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
     /**
      * dumps the http_api sections to json for raw api info.
      */
-    virtual int raw_to_json(SrsAmf0Object* obj);
+    virtual int raw_to_json(SrsJsonObject* obj);
     /**
      * raw set the global listen.
      */

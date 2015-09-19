@@ -272,12 +272,6 @@ public:
     * @remark user must free the data returned or output by pdata.
     */
     virtual char* human_print(char** pdata, int* psize);
-// json
-public:
-    /**
-     * convert the amf0 stuff to json.
-     */
-    virtual std::string to_json();
 // create AMF0 instance.
 public:
     /**
@@ -357,12 +351,6 @@ public:
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-// json
-public:
-    /**
-     * convert the amf0 object to json.
-     */
-    virtual std::string to_json();
 // properties iteration
 public:
     /**
@@ -446,12 +434,6 @@ public:
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-// json
-public:
-    /**
-     * convert the amf0 ecma array to json.
-     */
-    virtual std::string to_json();
 // properties iteration
 public:
     /**
@@ -533,12 +515,6 @@ public:
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-// json
-public:
-    /**
-     * convert the amf0 strict array to json.
-     */
-    virtual std::string to_json();
 // properties iteration
 public:
     /**

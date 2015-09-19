@@ -40,8 +40,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsKbps;
 class SrsRequest;
 class SrsConnection;
-class SrsAmf0Object;
-class SrsAmf0StrictArray;
+class SrsJsonObject;
+class SrsJsonArray;
 
 struct SrsStatisticVhost
 {
@@ -59,7 +59,7 @@ public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
 public:
-    virtual int dumps(SrsAmf0Object* obj);
+    virtual int dumps(SrsJsonObject* obj);
 };
 
 struct SrsStatisticStream
@@ -104,7 +104,7 @@ public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
-    virtual int dumps(SrsAmf0Object* obj);
+    virtual int dumps(SrsJsonObject* obj);
 public:
     /**
     * publish the stream.
@@ -129,7 +129,7 @@ public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
 public:
-    virtual int dumps(SrsAmf0Object* obj);
+    virtual int dumps(SrsJsonObject* obj);
 };
 
 class SrsStatistic
@@ -226,17 +226,17 @@ public:
     /**
     * dumps the vhosts to amf0 array.
     */
-    virtual int dumps_vhosts(SrsAmf0StrictArray* arr);
+    virtual int dumps_vhosts(SrsJsonArray* arr);
     /**
     * dumps the streams to amf0 array.
     */
-    virtual int dumps_streams(SrsAmf0StrictArray* arr);
+    virtual int dumps_streams(SrsJsonArray* arr);
     /**
      * dumps the clients to amf0 array
      * @param start the start index, from 0.
      * @param count the max count of clients to dump.
      */
-    virtual int dumps_clients(SrsAmf0StrictArray* arr, int start, int count);
+    virtual int dumps_clients(SrsJsonArray* arr, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

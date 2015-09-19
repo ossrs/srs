@@ -66,14 +66,14 @@ void SrsHttpHeartbeat::heartbeat()
         ip = ips[_srs_config->get_stats_network() % (int)ips.size()];
     }
     
-    SrsAmf0Object* obj = SrsAmf0Any::object();
-    SrsAutoFree(SrsAmf0Object, obj);
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
     
-    obj->set("device_id", SrsAmf0Any::str(device_id.c_str()));
-    obj->set("ip", SrsAmf0Any::str(ip.c_str()));
+    obj->set("device_id", SrsJsonAny::str(device_id.c_str()));
+    obj->set("ip", SrsJsonAny::str(ip.c_str()));
     
     if (_srs_config->get_heartbeat_summaries()) {
-        SrsAmf0Object* summaries = SrsAmf0Any::object();
+        SrsJsonObject* summaries = SrsJsonAny::object();
         obj->set("summaries", summaries);
         
         srs_api_dump_summaries(summaries);

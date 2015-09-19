@@ -75,7 +75,7 @@ using namespace _srs_internal;
  * @param dir the transcode or ingest config directive.
  * @param engine the amf0 object to dumps to.
  */
-int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine);
+int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine);
 
 /**
  * whether the two vector actual equals, for instance,
@@ -511,21 +511,21 @@ int srs_config_transform_vhost(SrsConfDirective* root)
     return ret;
 }
 
-int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
+int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
 {
     int ret = ERROR_SUCCESS;
     
     SrsConfDirective* conf = NULL;
     
     engine->set("id", dir->dumps_arg0_to_str());
-    engine->set("enabled", SrsAmf0Any::boolean(_srs_config->get_engine_enabled(dir)));
+    engine->set("enabled", SrsJsonAny::boolean(_srs_config->get_engine_enabled(dir)));
     
     if ((conf = dir->get("iformat")) != NULL) {
         engine->set("iformat", conf->dumps_arg0_to_str());
     }
     
     if ((conf = dir->get("vfilter")) != NULL) {
-        SrsAmf0Object* vfilter = SrsAmf0Any::object();
+        SrsJsonObject* vfilter = SrsJsonAny::object();
         engine->set("vfilter", vfilter);
         
         for (int i = 0; i < (int)conf->directives.size(); i++) {
@@ -567,7 +567,7 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
     }
     
     if ((conf = dir->get("vparams")) != NULL) {
-        SrsAmf0Object* vparams = SrsAmf0Any::object();
+        SrsJsonObject* vparams = SrsJsonAny::object();
         engine->set("vparams", vparams);
         
         for (int i = 0; i < (int)conf->directives.size(); i++) {
@@ -593,7 +593,7 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsAmf0Object* engine)
     }
     
     if ((conf = dir->get("aparams")) != NULL) {
-        SrsAmf0Object* aparams = SrsAmf0Any::object();
+        SrsJsonObject* aparams = SrsJsonAny::object();
         engine->set("aparams", aparams);
         
         for (int i = 0; i < (int)conf->directives.size(); i++) {
@@ -868,29 +868,29 @@ int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     return ret;
 }
 
-SrsAmf0StrictArray* SrsConfDirective::dumps_args()
+SrsJsonArray* SrsConfDirective::dumps_args()
 {
-    SrsAmf0StrictArray* arr = SrsAmf0Any::strict_array();
+    SrsJsonArray* arr = SrsJsonAny::array();
     for (int i = 0; i < (int)args.size(); i++) {
         string arg = args.at(i);
-        arr->append(SrsAmf0Any::str(arg.c_str()));
+        arr->append(SrsJsonAny::str(arg.c_str()));
     }
     return arr;
 }
 
-SrsAmf0Any* SrsConfDirective::dumps_arg0_to_str()
+SrsJsonAny* SrsConfDirective::dumps_arg0_to_str()
 {
-    return SrsAmf0Any::str(arg0().c_str());
+    return SrsJsonAny::str(arg0().c_str());
 }
 
-SrsAmf0Any* SrsConfDirective::dumps_arg0_to_number()
+SrsJsonAny* SrsConfDirective::dumps_arg0_to_number()
 {
-    return SrsAmf0Any::number(::atof(arg0().c_str()));
+    return SrsJsonAny::number(::atof(arg0().c_str()));
 }
 
-SrsAmf0Any* SrsConfDirective::dumps_arg0_to_boolean()
+SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 {
-    return SrsAmf0Any::boolean(arg0() == "on");
+    return SrsJsonAny::boolean(arg0() == "on");
 }
 
 // see: ngx_conf_parse
@@ -1994,7 +1994,7 @@ int SrsConfig::persistence()
     return ret;
 }
 
-int SrsConfig::minimal_to_json(SrsAmf0Object* obj)
+int SrsConfig::minimal_to_json(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2012,7 +2012,7 @@ int SrsConfig::minimal_to_json(SrsAmf0Object* obj)
     return ret;
 }
 
-int SrsConfig::global_to_json(SrsAmf0Object* obj)
+int SrsConfig::global_to_json(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2045,7 +2045,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         } else if (dir->name == "pithy_print_ms") {
             obj->set(dir->name, dir->dumps_arg0_to_number());
         } else if (dir->name == "heartbeat") {
-            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "enabled") {
@@ -2062,7 +2062,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
             obj->set(dir->name, sobj);
         } else if (dir->name == "stats") {
-            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "network") {
@@ -2073,7 +2073,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
             obj->set(dir->name, sobj);
         } else if (dir->name == "http_api") {
-            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "enabled") {
@@ -2083,7 +2083,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
                 } else if (sdir->name == "crossdomain") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "raw_api") {
-                    SrsAmf0Object* ssobj = SrsAmf0Any::object();
+                    SrsJsonObject* ssobj = SrsJsonAny::object();
                     sobj->set(sdir->name, ssobj);
                     
                     for (int j = 0; j < (int)sdir->directives.size(); j++) {
@@ -2102,7 +2102,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
             obj->set(dir->name, sobj);
         } else if (dir->name == "http_server") {
-            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "enabled") {
@@ -2115,7 +2115,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
             obj->set(dir->name, sobj);
         } else if (dir->name == "stream_caster") {
-            SrsAmf0Object* sobj = SrsAmf0Any::object();
+            SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "enabled") {
@@ -2138,7 +2138,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         }
     }
     
-    SrsAmf0Object* sobjs = SrsAmf0Any::object();
+    SrsJsonObject* sobjs = SrsJsonAny::object();
     int nb_vhosts = 0;
     
     SrsStatistic* stat = SrsStatistic::instance();
@@ -2149,73 +2149,73 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
         }
         
         nb_vhosts++;
-        SrsAmf0Object* sobj = SrsAmf0Any::object();
+        SrsJsonObject* sobj = SrsJsonAny::object();
         sobjs->set(dir->arg0(), sobj);
         
         SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
-        sobj->set("id", SrsAmf0Any::number(svhost? (double)svhost->id : 0));
+        sobj->set("id", SrsJsonAny::number(svhost? (double)svhost->id : 0));
         sobj->set("name", dir->dumps_arg0_to_str());
-        sobj->set("enabled", SrsAmf0Any::boolean(get_vhost_enabled(dir->arg0())));
+        sobj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(dir->arg0())));
         
         if (get_dvr_enabled(dir->arg0())) {
-            sobj->set("dvr", SrsAmf0Any::boolean(true));
+            sobj->set("dvr", SrsJsonAny::boolean(true));
         }
         if (get_vhost_http_enabled(dir->arg0())) {
-            sobj->set("http_static", SrsAmf0Any::boolean(true));
+            sobj->set("http_static", SrsJsonAny::boolean(true));
         }
         if (get_vhost_http_remux_enabled(dir->arg0())) {
-            sobj->set("http_remux", SrsAmf0Any::boolean(true));
+            sobj->set("http_remux", SrsJsonAny::boolean(true));
         }
         if (get_hls_enabled(dir->arg0())) {
-            sobj->set("hls", SrsAmf0Any::boolean(true));
+            sobj->set("hls", SrsJsonAny::boolean(true));
         }
         if (get_hds_enabled(dir->arg0())) {
-            sobj->set("hds", SrsAmf0Any::boolean(true));
+            sobj->set("hds", SrsJsonAny::boolean(true));
         }
         if (get_vhost_http_hooks(dir->arg0())) {
-            sobj->set("http_hooks", SrsAmf0Any::boolean(true));
+            sobj->set("http_hooks", SrsJsonAny::boolean(true));
         }
         if (get_exec_enabled(dir->arg0())) {
-            sobj->set("exec", SrsAmf0Any::boolean(true));
+            sobj->set("exec", SrsJsonAny::boolean(true));
         }
         if (get_bw_check_enabled(dir->arg0())) {
-            sobj->set("bandcheck", SrsAmf0Any::boolean(true));
+            sobj->set("bandcheck", SrsJsonAny::boolean(true));
         }
         if (!get_vhost_is_edge(dir->arg0())) {
-            sobj->set("origin", SrsAmf0Any::boolean(true));
+            sobj->set("origin", SrsJsonAny::boolean(true));
         }
         if (get_forward_enabled(dir->arg0())) {
-            sobj->set("forward", SrsAmf0Any::boolean(true));
+            sobj->set("forward", SrsJsonAny::boolean(true));
         }
         
         if (get_security_enabled(dir->arg0())) {
-            sobj->set("security", SrsAmf0Any::boolean(true));
+            sobj->set("security", SrsJsonAny::boolean(true));
         }
         if (get_refer_enabled(dir->arg0())) {
-            sobj->set("refer", SrsAmf0Any::boolean(true));
+            sobj->set("refer", SrsJsonAny::boolean(true));
         }
         
         if (get_mr_enabled(dir->arg0())) {
-            sobj->set("mr", SrsAmf0Any::boolean(true));
+            sobj->set("mr", SrsJsonAny::boolean(true));
         }
         if (get_realtime_enabled(dir->arg0())) {
-            sobj->set("min_latency", SrsAmf0Any::boolean(true));
+            sobj->set("min_latency", SrsJsonAny::boolean(true));
         }
         if (get_gop_cache(dir->arg0())) {
-            sobj->set("gop_cache", SrsAmf0Any::boolean(true));
+            sobj->set("gop_cache", SrsJsonAny::boolean(true));
         }
         if (get_tcp_nodelay(dir->arg0())) {
-            sobj->set("tcp_nodelay", SrsAmf0Any::boolean(true));
+            sobj->set("tcp_nodelay", SrsJsonAny::boolean(true));
         }
         
         if (get_mix_correct(dir->arg0())) {
-            sobj->set("mix_correct", SrsAmf0Any::boolean(true));
+            sobj->set("mix_correct", SrsJsonAny::boolean(true));
         }
         if (get_time_jitter(dir->arg0()) != SrsRtmpJitterAlgorithmOFF) {
-            sobj->set("time_jitter", SrsAmf0Any::boolean(true));
+            sobj->set("time_jitter", SrsJsonAny::boolean(true));
         }
         if (get_atc(dir->arg0())) {
-            sobj->set("atc", SrsAmf0Any::boolean(true));
+            sobj->set("atc", SrsJsonAny::boolean(true));
         }
         
         bool has_transcode = false;
@@ -2242,7 +2242,7 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
         }
         if (has_transcode) {
-            sobj->set("transcode", SrsAmf0Any::boolean(has_transcode));
+            sobj->set("transcode", SrsJsonAny::boolean(has_transcode));
         }
         
         bool has_ingest = false;
@@ -2258,17 +2258,17 @@ int SrsConfig::global_to_json(SrsAmf0Object* obj)
             }
         }
         if (has_ingest) {
-            sobj->set("ingest", SrsAmf0Any::boolean(has_ingest));
+            sobj->set("ingest", SrsJsonAny::boolean(has_ingest));
         }
     }
     
-    obj->set("nb_vhosts", SrsAmf0Any::number(nb_vhosts));
+    obj->set("nb_vhosts", SrsJsonAny::number(nb_vhosts));
     obj->set("vhosts", sobjs);
     
     return ret;
 }
 
-int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
+int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2278,10 +2278,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     SrsStatistic* stat = SrsStatistic::instance();
     
     SrsStatisticVhost* svhost = stat->find_vhost(vhost->arg0());
-    obj->set("id", SrsAmf0Any::number(svhost? (double)svhost->id : 0));
+    obj->set("id", SrsJsonAny::number(svhost? (double)svhost->id : 0));
     
     obj->set("name", vhost->dumps_arg0_to_str());
-    obj->set("enabled", SrsAmf0Any::boolean(get_vhost_enabled(vhost)));
+    obj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(vhost)));
     
     // vhost scope configs.
     if ((dir = vhost->get("chunk_size")) != NULL) {
@@ -2296,7 +2296,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // cluster.
     if ((dir = vhost->get("cluster")) != NULL) {
-        SrsAmf0Object* cluster = SrsAmf0Any::object();
+        SrsJsonObject* cluster = SrsJsonAny::object();
         obj->set("cluster", cluster);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
@@ -2318,10 +2318,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // forward
     if ((dir = vhost->get("forward")) != NULL) {
-        SrsAmf0Object* forward = SrsAmf0Any::object();
+        SrsJsonObject* forward = SrsJsonAny::object();
         obj->set("forward", forward);
         
-        forward->set("enabled", SrsAmf0Any::boolean(get_forward_enabled(vhost->name)));
+        forward->set("enabled", SrsJsonAny::boolean(get_forward_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2334,7 +2334,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // play
     if ((dir = vhost->get("play")) != NULL) {
-        SrsAmf0Object* play = SrsAmf0Any::object();
+        SrsJsonObject* play = SrsJsonAny::object();
         obj->set("play", play);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
@@ -2364,7 +2364,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // publish
     if ((dir = vhost->get("publish")) != NULL) {
-        SrsAmf0Object* publish = SrsAmf0Any::object();
+        SrsJsonObject* publish = SrsJsonAny::object();
         obj->set("publish", publish);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
@@ -2384,10 +2384,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // refer
     if ((dir = vhost->get("refer")) != NULL) {
-        SrsAmf0Object* refer = SrsAmf0Any::object();
+        SrsJsonObject* refer = SrsJsonAny::object();
         obj->set("refer", refer);
         
-        refer->set("enabled", SrsAmf0Any::boolean(get_refer_enabled(vhost->name)));
+        refer->set("enabled", SrsJsonAny::boolean(get_refer_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2404,10 +2404,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // bandcheck
     if ((dir = vhost->get("bandcheck")) != NULL) {
-        SrsAmf0Object* bandcheck = SrsAmf0Any::object();
+        SrsJsonObject* bandcheck = SrsJsonAny::object();
         obj->set("bandcheck", bandcheck);
         
-        bandcheck->set("enabled", SrsAmf0Any::boolean(get_bw_check_enabled(vhost->name)));
+        bandcheck->set("enabled", SrsJsonAny::boolean(get_bw_check_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2424,31 +2424,31 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // security
     if ((dir = vhost->get("security")) != NULL) {
-        SrsAmf0Object* security = SrsAmf0Any::object();
+        SrsJsonObject* security = SrsJsonAny::object();
         obj->set("security", security);
         
-        security->set("enabled", SrsAmf0Any::boolean(get_security_enabled(vhost->name)));
+        security->set("enabled", SrsJsonAny::boolean(get_security_enabled(vhost->name)));
         
-        SrsAmf0StrictArray* allows = SrsAmf0Any::strict_array();
+        SrsJsonArray* allows = SrsJsonAny::array();
         security->set("allows", allows);
         
-        SrsAmf0StrictArray* denies = SrsAmf0Any::strict_array();
+        SrsJsonArray* denies = SrsJsonAny::array();
         security->set("denies", denies);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
             
             if (sdir->name == "allow") {
-                SrsAmf0Object* allow = SrsAmf0Any::object();
-                allow->set("action", SrsAmf0Any::str(sdir->name.c_str()));
-                allow->set("method", SrsAmf0Any::str(sdir->arg0().c_str()));
-                allow->set("entry", SrsAmf0Any::str(sdir->arg1().c_str()));
+                SrsJsonObject* allow = SrsJsonAny::object();
+                allow->set("action", SrsJsonAny::str(sdir->name.c_str()));
+                allow->set("method", SrsJsonAny::str(sdir->arg0().c_str()));
+                allow->set("entry", SrsJsonAny::str(sdir->arg1().c_str()));
                 allows->append(allow);
             } else if (sdir->name == "deny") {
-                SrsAmf0Object* deny = SrsAmf0Any::object();
-                deny->set("action", SrsAmf0Any::str(sdir->name.c_str()));
-                deny->set("method", SrsAmf0Any::str(sdir->arg0().c_str()));
-                deny->set("entry", SrsAmf0Any::str(sdir->arg1().c_str()));
+                SrsJsonObject* deny = SrsJsonAny::object();
+                deny->set("action", SrsJsonAny::str(sdir->name.c_str()));
+                deny->set("method", SrsJsonAny::str(sdir->arg0().c_str()));
+                deny->set("entry", SrsJsonAny::str(sdir->arg1().c_str()));
                 denies->append(deny);
             }
         }
@@ -2456,10 +2456,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // http_static
     if ((dir = vhost->get("http_static")) != NULL) {
-        SrsAmf0Object* http_static = SrsAmf0Any::object();
+        SrsJsonObject* http_static = SrsJsonAny::object();
         obj->set("http_static", http_static);
         
-        http_static->set("enabled", SrsAmf0Any::boolean(get_vhost_http_enabled(vhost->name)));
+        http_static->set("enabled", SrsJsonAny::boolean(get_vhost_http_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2474,10 +2474,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // http_remux
     if ((dir = vhost->get("http_remux")) != NULL) {
-        SrsAmf0Object* http_remux = SrsAmf0Any::object();
+        SrsJsonObject* http_remux = SrsJsonAny::object();
         obj->set("http_remux", http_remux);
         
-        http_remux->set("enabled", SrsAmf0Any::boolean(get_vhost_http_remux_enabled(vhost->name)));
+        http_remux->set("enabled", SrsJsonAny::boolean(get_vhost_http_remux_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2494,10 +2494,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // http_hooks
     if ((dir = vhost->get("http_hooks")) != NULL) {
-        SrsAmf0Object* http_hooks = SrsAmf0Any::object();
+        SrsJsonObject* http_hooks = SrsJsonAny::object();
         obj->set("http_hooks", http_hooks);
         
-        http_hooks->set("enabled", SrsAmf0Any::boolean(get_vhost_http_hooks_enabled(vhost->name)));
+        http_hooks->set("enabled", SrsJsonAny::boolean(get_vhost_http_hooks_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2526,10 +2526,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // hls
     if ((dir = vhost->get("hls")) != NULL) {
-        SrsAmf0Object* hls = SrsAmf0Any::object();
+        SrsJsonObject* hls = SrsJsonAny::object();
         obj->set("hls", hls);
         
-        hls->set("enabled", SrsAmf0Any::boolean(get_hls_enabled(vhost->name)));
+        hls->set("enabled", SrsJsonAny::boolean(get_hls_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2576,10 +2576,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // hds
     if ((dir = vhost->get("hds")) != NULL) {
-        SrsAmf0Object* hds = SrsAmf0Any::object();
+        SrsJsonObject* hds = SrsJsonAny::object();
         obj->set("hds", hds);
         
-        hds->set("enabled", SrsAmf0Any::boolean(get_hds_enabled(vhost->name)));
+        hds->set("enabled", SrsJsonAny::boolean(get_hds_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2596,10 +2596,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // dvr
     if ((dir = vhost->get("dvr")) != NULL) {
-        SrsAmf0Object* dvr = SrsAmf0Any::object();
+        SrsJsonObject* dvr = SrsJsonAny::object();
         obj->set("dvr", dvr);
         
-        dvr->set("enabled", SrsAmf0Any::boolean(get_dvr_enabled(vhost->name)));
+        dvr->set("enabled", SrsJsonAny::boolean(get_dvr_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2622,10 +2622,10 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     
     // exec
     if ((dir = vhost->get("exec")) != NULL) {
-        SrsAmf0Object* ng_exec = SrsAmf0Any::object();
+        SrsJsonObject* ng_exec = SrsJsonAny::object();
         obj->set("exec", ng_exec);
         
-        ng_exec->set("enabled", SrsAmf0Any::boolean(get_exec_enabled(vhost->name)));
+        ng_exec->set("enabled", SrsJsonAny::boolean(get_exec_enabled(vhost->name)));
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
             SrsConfDirective* sdir = dir->directives.at(i);
@@ -2637,7 +2637,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     }
     
     // ingest
-    SrsAmf0StrictArray* ingests = NULL;
+    SrsJsonArray* ingests = NULL;
     for (int i = 0; i < (int)vhost->directives.size(); i++) {
         dir = vhost->directives.at(i);
         if (dir->name != "ingest") {
@@ -2645,20 +2645,20 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         }
         
         if (!ingests) {
-            ingests = SrsAmf0Any::strict_array();
+            ingests = SrsJsonAny::array();
             obj->set("ingests", ingests);
         }
         
-        SrsAmf0Object* ingest = SrsAmf0Any::object();
+        SrsJsonObject* ingest = SrsJsonAny::object();
         ingest->set("id", dir->dumps_arg0_to_str());
-        ingest->set("enabled", SrsAmf0Any::boolean(get_ingest_enabled(dir)));
+        ingest->set("enabled", SrsJsonAny::boolean(get_ingest_enabled(dir)));
         ingests->append(ingest);
         
         for (int j = 0; j < (int)dir->directives.size(); j++) {
             SrsConfDirective* sdir = dir->directives.at(j);
             
             if (sdir->name == "input") {
-                SrsAmf0Object* input = SrsAmf0Any::object();
+                SrsJsonObject* input = SrsJsonAny::object();
                 ingest->set("input", input);
                 
                 SrsConfDirective* type = sdir->get("type");
@@ -2673,7 +2673,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
             } else if (sdir->name == "ffmpeg") {
                 ingest->set("ffmpeg", sdir->dumps_arg0_to_str());
             } else if (sdir->name == "engine") {
-                SrsAmf0Object* engine = SrsAmf0Any::object();
+                SrsJsonObject* engine = SrsJsonAny::object();
                 ingest->set("engine", engine);
                 
                 if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
@@ -2684,7 +2684,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     }
     
     // transcode
-    SrsAmf0StrictArray* transcodes = NULL;
+    SrsJsonArray* transcodes = NULL;
     for (int i = 0; i < (int)vhost->directives.size(); i++) {
         dir = vhost->directives.at(i);
         if (dir->name != "transcode") {
@@ -2692,17 +2692,17 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
         }
         
         if (!transcodes) {
-            transcodes = SrsAmf0Any::strict_array();
+            transcodes = SrsJsonAny::array();
             obj->set("transcodes", transcodes);
         }
         
-        SrsAmf0Object* transcode = SrsAmf0Any::object();
+        SrsJsonObject* transcode = SrsJsonAny::object();
         transcodes->append(transcode);
         
         transcode->set("apply", dir->dumps_arg0_to_str());
-        transcode->set("enabled", SrsAmf0Any::boolean(get_transcode_enabled(dir)));
+        transcode->set("enabled", SrsJsonAny::boolean(get_transcode_enabled(dir)));
         
-        SrsAmf0StrictArray* engines = SrsAmf0Any::strict_array();
+        SrsJsonArray* engines = SrsJsonAny::array();
         transcode->set("engines", engines);
         
         for (int i = 0; i < (int)dir->directives.size(); i++) {
@@ -2711,7 +2711,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
             if (sdir->name == "ffmpeg") {
                 transcode->set("ffmpeg", sdir->dumps_arg0_to_str());
             } else if (sdir->name == "engine") {
-                SrsAmf0Object* engine = SrsAmf0Any::object();
+                SrsJsonObject* engine = SrsJsonAny::object();
                 engines->append(engine);
                 
                 if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
@@ -2724,24 +2724,24 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsAmf0Object* obj)
     return ret;
 }
 
-int SrsConfig::raw_to_json(SrsAmf0Object* obj)
+int SrsConfig::raw_to_json(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAmf0Object* sobj = SrsAmf0Any::object();
+    SrsJsonObject* sobj = SrsJsonAny::object();
     obj->set("http_api", sobj);
     
-    sobj->set("enabled", SrsAmf0Any::boolean(get_http_api_enabled()));
-    sobj->set("listen", SrsAmf0Any::str(get_http_api_listen().c_str()));
-    sobj->set("crossdomain", SrsAmf0Any::boolean(get_http_api_crossdomain()));
+    sobj->set("enabled", SrsJsonAny::boolean(get_http_api_enabled()));
+    sobj->set("listen", SrsJsonAny::str(get_http_api_listen().c_str()));
+    sobj->set("crossdomain", SrsJsonAny::boolean(get_http_api_crossdomain()));
     
-    SrsAmf0Object* ssobj = SrsAmf0Any::object();
+    SrsJsonObject* ssobj = SrsJsonAny::object();
     sobj->set("raw_api", ssobj);
     
-    ssobj->set("enabled", SrsAmf0Any::boolean(get_raw_api()));
-    ssobj->set("allow_reload", SrsAmf0Any::boolean(get_raw_api_allow_reload()));
-    ssobj->set("allow_query", SrsAmf0Any::boolean(get_raw_api_allow_query()));
-    ssobj->set("allow_update", SrsAmf0Any::boolean(get_raw_api_allow_update()));
+    ssobj->set("enabled", SrsJsonAny::boolean(get_raw_api()));
+    ssobj->set("allow_reload", SrsJsonAny::boolean(get_raw_api_allow_reload()));
+    ssobj->set("allow_query", SrsJsonAny::boolean(get_raw_api_allow_query()));
+    ssobj->set("allow_update", SrsJsonAny::boolean(get_raw_api_allow_update()));
     
     return ret;
 }

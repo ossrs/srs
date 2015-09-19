@@ -35,55 +35,6 @@ using namespace std;
 
 using namespace _srs_internal;
 
-/* json encode
-     cout<< SRS_JOBJECT_START
-         << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
-         << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
-         << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
-             << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
-             << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
-             << SRS_JFIELD_STR("dash", "plan")
-         << SRS_JOBJECT_END << SRS_JFIELD_CONT
-         << SRS_JFIELD_STR("author", "srs team")
-     << SRS_JOBJECT_END
- it's:
-     cont<< "{"
-         << "name:" << "srs" << ","
-         << "version:" << 100 << ","
-         << "features:" << "{"
-             << "rtmp:" << "released" << ","
-             << "hls:" << "released" << ","
-             << "dash:" << "plan"
-         << "}" << ","
-         << "author:" << "srs team"
-     << "}"
- that is:
-     """
-     {
-         "name": "srs",
-         "version": 100,
-         "features": {
-             "rtmp": "released",
-             "hls": "released",
-             "dash": "plan"
-         },
-         "author": "srs team"
-     }
-     """
- */
-#define SRS_JOBJECT_START "{"
-#define SRS_JFIELD_NAME(k) "\"" << k << "\":"
-#define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
-#define SRS_JFIELD_STR(k, v) SRS_JFIELD_NAME(k) << "\"" << v << "\""
-#define SRS_JFIELD_ORG(k, v) SRS_JFIELD_NAME(k) << std::dec << v
-#define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
-#define SRS_JFIELD_NULL(k) SRS_JFIELD_NAME(k) << "null"
-#define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
-#define SRS_JFIELD_CONT ","
-#define SRS_JOBJECT_END "}"
-#define SRS_JARRAY_START "["
-#define SRS_JARRAY_END "]"
-
 // AMF0 marker
 #define RTMP_AMF0_Number                     0x00
 #define RTMP_AMF0_Boolean                     0x01
@@ -329,60 +280,6 @@ char* SrsAmf0Any::human_print(char** pdata, int* psize)
     }
     
     return data;
-}
-
-string SrsAmf0Any::to_json()
-{
-    switch (marker) {
-        case RTMP_AMF0_String: {
-            return "\"" + to_str() + "\"";
-        }
-        case RTMP_AMF0_Boolean: {
-            return to_boolean()? "true":"false";
-        }
-        case RTMP_AMF0_Number: {
-            double v = to_number();
-            int64_t iv = (int64_t)v;
-            
-            // len(max int64_t) is 20, plus one "+-."
-            char tmp[22];
-            if (v == iv) {
-                snprintf(tmp, 22, "%"PRId64, iv);
-            } else {
-                snprintf(tmp, 22, "%.6f", to_number());
-            }
-            
-            return tmp;
-        }
-        case RTMP_AMF0_Null: {
-            return "null";
-        }
-        case RTMP_AMF0_Undefined: {
-            return "null";
-        }
-        case RTMP_AMF0_Object: {
-            SrsAmf0Object* obj = to_object();
-            return obj->to_json();
-        }
-        case RTMP_AMF0_EcmaArray: {
-            SrsAmf0EcmaArray* arr = to_ecma_array();
-            return arr->to_json();
-        }
-        case RTMP_AMF0_StrictArray: {
-            SrsAmf0StrictArray* arr = to_strict_array();
-            return arr->to_json();
-        }
-        case RTMP_AMF0_Date: {
-            // TODO: FIXME: support amf0 data to json.
-            return "null";
-        }
-        case RTMP_AMF0_Invalid:
-        default: {
-            break;
-        }
-    }
-    
-    return "null";
 }
 
 SrsAmf0Any* SrsAmf0Any::str(const char* value)
@@ -846,27 +743,6 @@ SrsAmf0Any* SrsAmf0Object::copy()
     return copy;
 }
 
-string SrsAmf0Object::to_json()
-{
-    stringstream ss;
-    
-    ss << SRS_JOBJECT_START;
-    
-    for (int i = 0; i < properties->count(); i++) {
-        std::string name = this->key_at(i);
-        SrsAmf0Any* any = this->value_at(i);
-        
-        ss << SRS_JFIELD_NAME(name) << any->to_json();
-        if (i < properties->count() - 1) {
-            ss << SRS_JFIELD_CONT;
-        }
-    }
-    
-    ss << SRS_JOBJECT_END;
-    
-    return ss.str();
-}
-
 void SrsAmf0Object::clear()
 {
     properties->clear();
@@ -1068,27 +944,6 @@ SrsAmf0Any* SrsAmf0EcmaArray::copy()
     return copy;
 }
 
-string SrsAmf0EcmaArray::to_json()
-{
-    stringstream ss;
-    
-    ss << SRS_JOBJECT_START;
-    
-    for (int i = 0; i < properties->count(); i++) {
-        std::string name = this->key_at(i);
-        SrsAmf0Any* any = this->value_at(i);
-        
-        ss << SRS_JFIELD_NAME(name) << any->to_json();
-        if (i < properties->count() - 1) {
-            ss << SRS_JFIELD_CONT;
-        }
-    }
-    
-    ss << SRS_JOBJECT_END;
-    
-    return ss.str();
-}
-
 void SrsAmf0EcmaArray::clear()
 {
     properties->clear();
@@ -1262,27 +1117,6 @@ SrsAmf0Any* SrsAmf0StrictArray::copy()
     
     copy->_count = _count;
     return copy;
-}
-
-string SrsAmf0StrictArray::to_json()
-{
-    stringstream ss;
-    
-    ss << SRS_JARRAY_START;
-    
-    for (int i = 0; i < (int)properties.size(); i++) {
-        SrsAmf0Any* any = properties[i];
-        
-        ss << any->to_json();
-        
-        if (i < (int)properties.size() - 1) {
-            ss << SRS_JFIELD_CONT;
-        }
-    }
-    
-    ss << SRS_JARRAY_END;
-    
-    return ss.str();
 }
 
 void SrsAmf0StrictArray::clear()

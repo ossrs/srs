@@ -58,7 +58,7 @@ SrsStatisticVhost::~SrsStatisticVhost()
     srs_freep(kbps);
 }
 
-int SrsStatisticVhost::dumps(SrsAmf0Object* obj)
+int SrsStatisticVhost::dumps(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
@@ -66,26 +66,26 @@ int SrsStatisticVhost::dumps(SrsAmf0Object* obj)
     bool hls_enabled = _srs_config->get_hls_enabled(vhost);
     bool enabled = _srs_config->get_vhost_enabled(vhost);
     
-    obj->set("id", SrsAmf0Any::number(id));
-    obj->set("name", SrsAmf0Any::str(vhost.c_str()));
-    obj->set("enabled", SrsAmf0Any::boolean(enabled));
-    obj->set("clients", SrsAmf0Any::number(nb_clients));
-    obj->set("streams", SrsAmf0Any::number(nb_streams));
-    obj->set("send_bytes", SrsAmf0Any::number(kbps->get_send_bytes()));
-    obj->set("recv_bytes", SrsAmf0Any::number(kbps->get_recv_bytes()));
+    obj->set("id", SrsJsonAny::number(id));
+    obj->set("name", SrsJsonAny::str(vhost.c_str()));
+    obj->set("enabled", SrsJsonAny::boolean(enabled));
+    obj->set("clients", SrsJsonAny::number(nb_clients));
+    obj->set("streams", SrsJsonAny::number(nb_streams));
+    obj->set("send_bytes", SrsJsonAny::number(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsJsonAny::number(kbps->get_recv_bytes()));
     
-    SrsAmf0Object* okbps = SrsAmf0Any::object();
+    SrsJsonObject* okbps = SrsJsonAny::object();
     obj->set("kbps", okbps);
     
-    okbps->set("recv_30s", SrsAmf0Any::number(kbps->get_recv_kbps_30s()));
-    okbps->set("send_30s", SrsAmf0Any::number(kbps->get_send_kbps_30s()));
+    okbps->set("recv_30s", SrsJsonAny::number(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::number(kbps->get_send_kbps_30s()));
     
-    SrsAmf0Object* hls = SrsAmf0Any::object();
+    SrsJsonObject* hls = SrsJsonAny::object();
     obj->set("hls", hls);
     
-    hls->set("enabled", SrsAmf0Any::boolean(hls_enabled));
+    hls->set("enabled", SrsJsonAny::boolean(hls_enabled));
     if (hls_enabled) {
-        hls->set("fragment", SrsAmf0Any::number(_srs_config->get_hls_fragment(vhost)));
+        hls->set("fragment", SrsJsonAny::number(_srs_config->get_hls_fragment(vhost)));
     }
     
     return ret;
@@ -122,54 +122,54 @@ SrsStatisticStream::~SrsStatisticStream()
     srs_freep(kbps);
 }
 
-int SrsStatisticStream::dumps(SrsAmf0Object* obj)
+int SrsStatisticStream::dumps(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    obj->set("id", SrsAmf0Any::number(id));
-    obj->set("name", SrsAmf0Any::str(stream.c_str()));
-    obj->set("vhost", SrsAmf0Any::number(vhost->id));
-    obj->set("app", SrsAmf0Any::str(app.c_str()));
-    obj->set("live_ms", SrsAmf0Any::number(srs_get_system_time_ms()));
-    obj->set("clients", SrsAmf0Any::number(nb_clients));
-    obj->set("send_bytes", SrsAmf0Any::number(kbps->get_send_bytes()));
-    obj->set("recv_bytes", SrsAmf0Any::number(kbps->get_recv_bytes()));
+    obj->set("id", SrsJsonAny::number(id));
+    obj->set("name", SrsJsonAny::str(stream.c_str()));
+    obj->set("vhost", SrsJsonAny::number(vhost->id));
+    obj->set("app", SrsJsonAny::str(app.c_str()));
+    obj->set("live_ms", SrsJsonAny::number(srs_get_system_time_ms()));
+    obj->set("clients", SrsJsonAny::number(nb_clients));
+    obj->set("send_bytes", SrsJsonAny::number(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsJsonAny::number(kbps->get_recv_bytes()));
     
-    SrsAmf0Object* okbps = SrsAmf0Any::object();
+    SrsJsonObject* okbps = SrsJsonAny::object();
     obj->set("kbps", okbps);
     
-    okbps->set("recv_30s", SrsAmf0Any::number(kbps->get_recv_kbps_30s()));
-    okbps->set("send_30s", SrsAmf0Any::number(kbps->get_send_kbps_30s()));
+    okbps->set("recv_30s", SrsJsonAny::number(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::number(kbps->get_send_kbps_30s()));
     
-    SrsAmf0Object* publish = SrsAmf0Any::object();
+    SrsJsonObject* publish = SrsJsonAny::object();
     obj->set("publish", publish);
     
-    publish->set("active", SrsAmf0Any::boolean(active));
-    publish->set("cid", SrsAmf0Any::number(connection_cid));
+    publish->set("active", SrsJsonAny::boolean(active));
+    publish->set("cid", SrsJsonAny::number(connection_cid));
     
     if (!has_video) {
-        obj->set("video", SrsAmf0Any::null());
+        obj->set("video", SrsJsonAny::null());
     } else {
-        SrsAmf0Object* video = SrsAmf0Any::object();
+        SrsJsonObject* video = SrsJsonAny::object();
         obj->set("video", video);
         
-        video->set("codec", SrsAmf0Any::str(srs_codec_video2str(vcodec).c_str()));
-        video->set("profile", SrsAmf0Any::str(srs_codec_avc_profile2str(avc_profile).c_str()));
-        video->set("level", SrsAmf0Any::str(srs_codec_avc_level2str(avc_level).c_str()));
-        video->set("width", SrsAmf0Any::number(width));
-        video->set("height", SrsAmf0Any::number(height));
+        video->set("codec", SrsJsonAny::str(srs_codec_video2str(vcodec).c_str()));
+        video->set("profile", SrsJsonAny::str(srs_codec_avc_profile2str(avc_profile).c_str()));
+        video->set("level", SrsJsonAny::str(srs_codec_avc_level2str(avc_level).c_str()));
+        video->set("width", SrsJsonAny::number(width));
+        video->set("height", SrsJsonAny::number(height));
     }
     
     if (!has_audio) {
-        obj->set("audio", SrsAmf0Any::null());
+        obj->set("audio", SrsJsonAny::null());
     } else {
-        SrsAmf0Object* audio = SrsAmf0Any::object();
+        SrsJsonObject* audio = SrsJsonAny::object();
         obj->set("audio", audio);
         
-        audio->set("codec", SrsAmf0Any::str(srs_codec_audio2str(acodec).c_str()));
-        audio->set("sample_rate", SrsAmf0Any::number(flv_sample_rates[asample_rate]));
-        audio->set("channel", SrsAmf0Any::number(asound_type + 1));
-        audio->set("profile", SrsAmf0Any::str(srs_codec_aac_object2str(aac_object).c_str()));
+        audio->set("codec", SrsJsonAny::str(srs_codec_audio2str(acodec).c_str()));
+        audio->set("sample_rate", SrsJsonAny::number(flv_sample_rates[asample_rate]));
+        audio->set("channel", SrsJsonAny::number(asound_type + 1));
+        audio->set("profile", SrsJsonAny::str(srs_codec_aac_object2str(aac_object).c_str()));
     }
     
     return ret;
@@ -206,21 +206,21 @@ SrsStatisticClient::~SrsStatisticClient()
 {
 }
 
-int SrsStatisticClient::dumps(SrsAmf0Object* obj)
+int SrsStatisticClient::dumps(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    obj->set("id", SrsAmf0Any::number(id));
-    obj->set("vhost", SrsAmf0Any::number(stream->vhost->id));
-    obj->set("stream", SrsAmf0Any::number(stream->id));
-    obj->set("ip", SrsAmf0Any::str(req->ip.c_str()));
-    obj->set("pageUrl", SrsAmf0Any::str(req->pageUrl.c_str()));
-    obj->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
-    obj->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
-    obj->set("url", SrsAmf0Any::str(req->get_stream_url().c_str()));
-    obj->set("type", SrsAmf0Any::str(srs_client_type_string(type).c_str()));
-    obj->set("publish", SrsAmf0Any::boolean(srs_client_type_is_publish(type)));
-    obj->set("alive", SrsAmf0Any::number((srs_get_system_time_ms() - create) / 1000.0));
+    obj->set("id", SrsJsonAny::number(id));
+    obj->set("vhost", SrsJsonAny::number(stream->vhost->id));
+    obj->set("stream", SrsJsonAny::number(stream->id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
+    obj->set("swfUrl", SrsJsonAny::str(req->swfUrl.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
+    obj->set("url", SrsJsonAny::str(req->get_stream_url().c_str()));
+    obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
+    obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
+    obj->set("alive", SrsJsonAny::number((srs_get_system_time_ms() - create) / 1000.0));
     
     return ret;
 }
@@ -456,7 +456,7 @@ int64_t SrsStatistic::server_id()
     return _server_id;
 }
 
-int SrsStatistic::dumps_vhosts(SrsAmf0StrictArray* arr)
+int SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
 {
     int ret = ERROR_SUCCESS;
 
@@ -464,7 +464,7 @@ int SrsStatistic::dumps_vhosts(SrsAmf0StrictArray* arr)
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
         
-        SrsAmf0Object* obj = SrsAmf0Any::object();
+        SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
         
         if ((ret = vhost->dumps(obj)) != ERROR_SUCCESS) {
@@ -475,7 +475,7 @@ int SrsStatistic::dumps_vhosts(SrsAmf0StrictArray* arr)
     return ret;
 }
 
-int SrsStatistic::dumps_streams(SrsAmf0StrictArray* arr)
+int SrsStatistic::dumps_streams(SrsJsonArray* arr)
 {
     int ret = ERROR_SUCCESS;
     
@@ -483,7 +483,7 @@ int SrsStatistic::dumps_streams(SrsAmf0StrictArray* arr)
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
         
-        SrsAmf0Object* obj = SrsAmf0Any::object();
+        SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
 
         if ((ret = stream->dumps(obj)) != ERROR_SUCCESS) {
@@ -494,7 +494,7 @@ int SrsStatistic::dumps_streams(SrsAmf0StrictArray* arr)
     return ret;
 }
 
-int SrsStatistic::dumps_clients(SrsAmf0StrictArray* arr, int start, int count)
+int SrsStatistic::dumps_clients(SrsJsonArray* arr, int start, int count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -506,7 +506,7 @@ int SrsStatistic::dumps_clients(SrsAmf0StrictArray* arr, int start, int count)
         
         SrsStatisticClient* client = it->second;
         
-        SrsAmf0Object* obj = SrsAmf0Any::object();
+        SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
         
         if ((ret = client->dumps(obj)) != ERROR_SUCCESS) {
