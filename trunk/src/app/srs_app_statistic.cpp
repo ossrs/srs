@@ -66,19 +66,19 @@ int SrsStatisticVhost::dumps(SrsJsonObject* obj)
     bool hls_enabled = _srs_config->get_hls_enabled(vhost);
     bool enabled = _srs_config->get_vhost_enabled(vhost);
     
-    obj->set("id", SrsJsonAny::number(id));
+    obj->set("id", SrsJsonAny::integer(id));
     obj->set("name", SrsJsonAny::str(vhost.c_str()));
     obj->set("enabled", SrsJsonAny::boolean(enabled));
-    obj->set("clients", SrsJsonAny::number(nb_clients));
-    obj->set("streams", SrsJsonAny::number(nb_streams));
-    obj->set("send_bytes", SrsJsonAny::number(kbps->get_send_bytes()));
-    obj->set("recv_bytes", SrsJsonAny::number(kbps->get_recv_bytes()));
+    obj->set("clients", SrsJsonAny::integer(nb_clients));
+    obj->set("streams", SrsJsonAny::integer(nb_streams));
+    obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsJsonAny::integer(kbps->get_recv_bytes()));
     
     SrsJsonObject* okbps = SrsJsonAny::object();
     obj->set("kbps", okbps);
     
-    okbps->set("recv_30s", SrsJsonAny::number(kbps->get_recv_kbps_30s()));
-    okbps->set("send_30s", SrsJsonAny::number(kbps->get_send_kbps_30s()));
+    okbps->set("recv_30s", SrsJsonAny::integer(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::integer(kbps->get_send_kbps_30s()));
     
     SrsJsonObject* hls = SrsJsonAny::object();
     obj->set("hls", hls);
@@ -126,26 +126,26 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    obj->set("id", SrsJsonAny::number(id));
+    obj->set("id", SrsJsonAny::integer(id));
     obj->set("name", SrsJsonAny::str(stream.c_str()));
-    obj->set("vhost", SrsJsonAny::number(vhost->id));
+    obj->set("vhost", SrsJsonAny::integer(vhost->id));
     obj->set("app", SrsJsonAny::str(app.c_str()));
-    obj->set("live_ms", SrsJsonAny::number(srs_get_system_time_ms()));
-    obj->set("clients", SrsJsonAny::number(nb_clients));
-    obj->set("send_bytes", SrsJsonAny::number(kbps->get_send_bytes()));
-    obj->set("recv_bytes", SrsJsonAny::number(kbps->get_recv_bytes()));
+    obj->set("live_ms", SrsJsonAny::integer(srs_get_system_time_ms()));
+    obj->set("clients", SrsJsonAny::integer(nb_clients));
+    obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
+    obj->set("recv_bytes", SrsJsonAny::integer(kbps->get_recv_bytes()));
     
     SrsJsonObject* okbps = SrsJsonAny::object();
     obj->set("kbps", okbps);
     
-    okbps->set("recv_30s", SrsJsonAny::number(kbps->get_recv_kbps_30s()));
-    okbps->set("send_30s", SrsJsonAny::number(kbps->get_send_kbps_30s()));
+    okbps->set("recv_30s", SrsJsonAny::integer(kbps->get_recv_kbps_30s()));
+    okbps->set("send_30s", SrsJsonAny::integer(kbps->get_send_kbps_30s()));
     
     SrsJsonObject* publish = SrsJsonAny::object();
     obj->set("publish", publish);
     
     publish->set("active", SrsJsonAny::boolean(active));
-    publish->set("cid", SrsJsonAny::number(connection_cid));
+    publish->set("cid", SrsJsonAny::integer(connection_cid));
     
     if (!has_video) {
         obj->set("video", SrsJsonAny::null());
@@ -156,8 +156,8 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
         video->set("codec", SrsJsonAny::str(srs_codec_video2str(vcodec).c_str()));
         video->set("profile", SrsJsonAny::str(srs_codec_avc_profile2str(avc_profile).c_str()));
         video->set("level", SrsJsonAny::str(srs_codec_avc_level2str(avc_level).c_str()));
-        video->set("width", SrsJsonAny::number(width));
-        video->set("height", SrsJsonAny::number(height));
+        video->set("width", SrsJsonAny::integer(width));
+        video->set("height", SrsJsonAny::integer(height));
     }
     
     if (!has_audio) {
@@ -167,8 +167,8 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
         obj->set("audio", audio);
         
         audio->set("codec", SrsJsonAny::str(srs_codec_audio2str(acodec).c_str()));
-        audio->set("sample_rate", SrsJsonAny::number(flv_sample_rates[asample_rate]));
-        audio->set("channel", SrsJsonAny::number(asound_type + 1));
+        audio->set("sample_rate", SrsJsonAny::integer(flv_sample_rates[asample_rate]));
+        audio->set("channel", SrsJsonAny::integer(asound_type + 1));
         audio->set("profile", SrsJsonAny::str(srs_codec_aac_object2str(aac_object).c_str()));
     }
     
@@ -210,9 +210,9 @@ int SrsStatisticClient::dumps(SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
-    obj->set("id", SrsJsonAny::number(id));
-    obj->set("vhost", SrsJsonAny::number(stream->vhost->id));
-    obj->set("stream", SrsJsonAny::number(stream->id));
+    obj->set("id", SrsJsonAny::integer(id));
+    obj->set("vhost", SrsJsonAny::integer(stream->vhost->id));
+    obj->set("stream", SrsJsonAny::integer(stream->id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
     obj->set("swfUrl", SrsJsonAny::str(req->swfUrl.c_str()));

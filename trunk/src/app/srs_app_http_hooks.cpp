@@ -67,7 +67,7 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_connect"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -103,12 +103,12 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_close"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
-    obj->set("send_bytes", SrsJsonAny::number(send_bytes));
-    obj->set("recv_bytes", SrsJsonAny::number(recv_bytes));
+    obj->set("send_bytes", SrsJsonAny::integer(send_bytes));
+    obj->set("recv_bytes", SrsJsonAny::integer(recv_bytes));
         
     std::string data = obj->dumps();
     std::string res;
@@ -139,7 +139,7 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_publish"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -174,7 +174,7 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_unpublish"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -209,7 +209,7 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_play"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -245,7 +245,7 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_stop"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -281,7 +281,7 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_dvr"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -319,7 +319,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_hls"));
-    obj->set("client_id", SrsJsonAny::number(client_id));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -330,7 +330,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     obj->set("url", SrsJsonAny::str(url.c_str()));
     obj->set("m3u8", SrsJsonAny::str(m3u8.c_str()));
     obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
-    obj->set("seq_no", SrsJsonAny::number(sn));
+    obj->set("seq_no", SrsJsonAny::integer(sn));
         
     std::string data = obj->dumps();
     std::string res;

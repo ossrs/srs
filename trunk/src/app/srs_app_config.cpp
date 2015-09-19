@@ -539,7 +539,7 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
     }
     
     if ((conf = dir->get("vbitrate")) != NULL) {
-        engine->set("vbitrate", conf->dumps_arg0_to_number());
+        engine->set("vbitrate", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("vfps")) != NULL) {
@@ -547,15 +547,15 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
     }
     
     if ((conf = dir->get("vwidth")) != NULL) {
-        engine->set("vwidth", conf->dumps_arg0_to_number());
+        engine->set("vwidth", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("vheight")) != NULL) {
-        engine->set("vheight", conf->dumps_arg0_to_number());
+        engine->set("vheight", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("vthreads")) != NULL) {
-        engine->set("vthreads", conf->dumps_arg0_to_number());
+        engine->set("vthreads", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("vprofile")) != NULL) {
@@ -581,15 +581,15 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
     }
     
     if ((conf = dir->get("abitrate")) != NULL) {
-        engine->set("abitrate", conf->dumps_arg0_to_number());
+        engine->set("abitrate", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("asample_rate")) != NULL) {
-        engine->set("asample_rate", conf->dumps_arg0_to_number());
+        engine->set("asample_rate", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("achannels")) != NULL) {
-        engine->set("achannels", conf->dumps_arg0_to_number());
+        engine->set("achannels", conf->dumps_arg0_to_integer());
     }
     
     if ((conf = dir->get("aparams")) != NULL) {
@@ -881,6 +881,11 @@ SrsJsonArray* SrsConfDirective::dumps_args()
 SrsJsonAny* SrsConfDirective::dumps_arg0_to_str()
 {
     return SrsJsonAny::str(arg0().c_str());
+}
+
+SrsJsonAny* SrsConfDirective::dumps_arg0_to_integer()
+{
+    return SrsJsonAny::integer(::atol(arg0().c_str()));
 }
 
 SrsJsonAny* SrsConfDirective::dumps_arg0_to_number()
@@ -2027,7 +2032,7 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
         } else if (dir->name == "pid") {
             obj->set(dir->name, dir->dumps_arg0_to_str());
         } else if (dir->name == "chunk_size") {
-            obj->set(dir->name, dir->dumps_arg0_to_number());
+            obj->set(dir->name, dir->dumps_arg0_to_integer());
         } else if (dir->name == "ff_log_dir") {
             obj->set(dir->name, dir->dumps_arg0_to_str());
         } else if (dir->name == "srs_log_tank") {
@@ -2037,13 +2042,13 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
         } else if (dir->name == "srs_log_file") {
             obj->set(dir->name, dir->dumps_arg0_to_str());
         } else if (dir->name == "max_connections") {
-            obj->set(dir->name, dir->dumps_arg0_to_number());
+            obj->set(dir->name, dir->dumps_arg0_to_integer());
         } else if (dir->name == "daemon") {
             obj->set(dir->name, dir->dumps_arg0_to_boolean());
         } else if (dir->name == "utc_time") {
             obj->set(dir->name, dir->dumps_arg0_to_boolean());
         } else if (dir->name == "pithy_print_ms") {
-            obj->set(dir->name, dir->dumps_arg0_to_number());
+            obj->set(dir->name, dir->dumps_arg0_to_integer());
         } else if (dir->name == "heartbeat") {
             SrsJsonObject* sobj = SrsJsonAny::object();
             for (int j = 0; j < (int)dir->directives.size(); j++) {
@@ -2051,7 +2056,7 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
                 if (sdir->name == "enabled") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "interval") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 } else if (sdir->name == "url") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "device_id") {
@@ -2066,7 +2071,7 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
             for (int j = 0; j < (int)dir->directives.size(); j++) {
                 SrsConfDirective* sdir = dir->directives.at(j);
                 if (sdir->name == "network") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 } else if (sdir->name == "disk") {
                     sobj->set(sdir->name, sdir->dumps_args());
                 }
@@ -2127,9 +2132,9 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
                 } else if (sdir->name == "listen") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "rtp_port_min") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 } else if (sdir->name == "rtp_port_max") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_number());
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 }
             }
             obj->set(dir->name, sobj);
@@ -2153,7 +2158,7 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
         sobjs->set(dir->arg0(), sobj);
         
         SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
-        sobj->set("id", SrsJsonAny::number(svhost? (double)svhost->id : 0));
+        sobj->set("id", SrsJsonAny::integer(svhost? (double)svhost->id : 0));
         sobj->set("name", dir->dumps_arg0_to_str());
         sobj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(dir->arg0())));
         
@@ -2262,7 +2267,7 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
         }
     }
     
-    obj->set("nb_vhosts", SrsJsonAny::number(nb_vhosts));
+    obj->set("nb_vhosts", SrsJsonAny::integer(nb_vhosts));
     obj->set("vhosts", sobjs);
     
     return ret;
@@ -2278,14 +2283,14 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
     SrsStatistic* stat = SrsStatistic::instance();
     
     SrsStatisticVhost* svhost = stat->find_vhost(vhost->arg0());
-    obj->set("id", SrsJsonAny::number(svhost? (double)svhost->id : 0));
+    obj->set("id", SrsJsonAny::integer(svhost? (double)svhost->id : 0));
     
     obj->set("name", vhost->dumps_arg0_to_str());
     obj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(vhost)));
     
     // vhost scope configs.
     if ((dir = vhost->get("chunk_size")) != NULL) {
-        obj->set("chunk_size", dir->dumps_arg0_to_number());
+        obj->set("chunk_size", dir->dumps_arg0_to_integer());
     }
     if ((dir = vhost->get("min_latency")) != NULL) {
         obj->set("min_latency", dir->dumps_arg0_to_boolean());
@@ -2349,15 +2354,15 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
             } else if (sdir->name == "atc_auto") {
                 play->set("atc_auto", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "mw_latency") {
-                play->set("mw_latency", sdir->dumps_arg0_to_number());
+                play->set("mw_latency", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "gop_cache") {
                 play->set("gop_cache", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "queue_length") {
-                play->set("queue_length", sdir->dumps_arg0_to_number());
+                play->set("queue_length", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "reduce_sequence_header") {
                 play->set("reduce_sequence_header", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "send_min_interval") {
-                play->set("send_min_interval", sdir->dumps_arg0_to_number());
+                play->set("send_min_interval", sdir->dumps_arg0_to_integer());
             }
         }
     }
@@ -2373,11 +2378,11 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
             if (sdir->name == "mr") {
                 publish->set("mr", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "mr_latency") {
-                publish->set("mr_latency", sdir->dumps_arg0_to_number());
+                publish->set("mr_latency", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "firstpkt_timeout") {
-                publish->set("firstpkt_timeout", sdir->dumps_arg0_to_number());
+                publish->set("firstpkt_timeout", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "normal_timeout") {
-                publish->set("normal_timeout", sdir->dumps_arg0_to_number());
+                publish->set("normal_timeout", sdir->dumps_arg0_to_integer());
             }
         }
     }
@@ -2415,9 +2420,9 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
             if (sdir->name == "key") {
                 bandcheck->set("key", sdir->dumps_arg0_to_str());
             } else if (sdir->name == "interval") {
-                bandcheck->set("interval", sdir->dumps_arg0_to_number());
+                bandcheck->set("interval", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "limit_kbps") {
-                bandcheck->set("limit_kbps", sdir->dumps_arg0_to_number());
+                bandcheck->set("limit_kbps", sdir->dumps_arg0_to_integer());
             }
         }
     }
@@ -2483,7 +2488,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
             SrsConfDirective* sdir = dir->directives.at(i);
             
             if (sdir->name == "fast_cache") {
-                http_remux->set("fast_cache", sdir->dumps_arg0_to_number());
+                http_remux->set("fast_cache", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "mount") {
                 http_remux->set("mount", sdir->dumps_arg0_to_str());
             } else if (sdir->name == "hstrs") {
@@ -2567,7 +2572,7 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
             } else if (sdir->name == "hls_dispose") {
                 hls->set("hls_dispose", sdir->dumps_arg0_to_number());
             } else if (sdir->name == "hls_nb_notify") {
-                hls->set("hls_nb_notify", sdir->dumps_arg0_to_number());
+                hls->set("hls_nb_notify", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "hls_wait_keyframe") {
                 hls->set("hls_wait_keyframe", sdir->dumps_arg0_to_boolean());
             }

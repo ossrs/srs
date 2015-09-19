@@ -255,6 +255,7 @@ public:
      * dumps arg0 to str, number or boolean.
      */
     virtual SrsJsonAny* dumps_arg0_to_str();
+    virtual SrsJsonAny* dumps_arg0_to_integer();
     virtual SrsJsonAny* dumps_arg0_to_number();
     virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
