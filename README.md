@@ -344,6 +344,7 @@ Remark:
 
 ## History
 
+* v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
 * v3.0, 2015-09-14, fix [#459][bug #459], support dvr raw api. 3.0.4
 * v3.0, 2015-09-14, fix [#459][bug #459], dvr support apply filter for ng-control dvr module.

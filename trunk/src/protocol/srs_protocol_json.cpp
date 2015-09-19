@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_log.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 /* json encode
  cout<< SRS_JOBJECT_START
@@ -357,6 +358,40 @@ string SrsJsonAny::to_json()
     return "null";
 }
 
+SrsAmf0Any* SrsJsonAny::to_amf0()
+{
+    switch (marker) {
+        case SRS_JSON_String: {
+            return SrsAmf0Any::str(to_str().c_str());
+        }
+        case SRS_JSON_Boolean: {
+            return SrsAmf0Any::boolean(to_boolean());
+        }
+        case SRS_JSON_Integer: {
+            return SrsAmf0Any::number(to_integer());
+        }
+        case SRS_JSON_Number: {
+            return SrsAmf0Any::number(to_number());
+        }
+        case SRS_JSON_Null: {
+            return SrsAmf0Any::null();
+        }
+        case SRS_JSON_Object: {
+            // json object must override this method.
+            srs_assert(false);
+        }
+        case SRS_JSON_Array: {
+            // json array must override this method.
+            srs_assert(false);
+        }
+        default: {
+            break;
+        }
+    }
+    
+    return SrsAmf0Any::null();
+}
+
 SrsJsonAny* SrsJsonAny::str(const char* value)
 {
     return new SrsJsonString(value);
@@ -367,7 +402,7 @@ SrsJsonAny* SrsJsonAny::boolean(bool value)
     return new SrsJsonBoolean(value);
 }
 
-SrsJsonAny* SrsJsonAny::ingeter(int64_t value)
+SrsJsonAny* SrsJsonAny::integer(int64_t value)
 {
     return new SrsJsonInteger(value);
 }
@@ -405,7 +440,7 @@ SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
         case NX_JSON_STRING:
             return SrsJsonAny::str(node->text_value);
         case NX_JSON_INTEGER:
-            return SrsJsonAny::ingeter(node->int_value);
+            return SrsJsonAny::integer(node->int_value);
         case NX_JSON_DOUBLE:
             return SrsJsonAny::number(node->dbl_value);
         case NX_JSON_BOOL:
@@ -511,6 +546,20 @@ string SrsJsonObject::to_json()
     ss << SRS_JOBJECT_END;
     
     return ss.str();
+}
+
+SrsAmf0Any* SrsJsonObject::to_amf0()
+{
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        std::string name = this->key_at(i);
+        SrsJsonAny* any = this->value_at(i);
+        
+        obj->set(name, any->to_amf0());
+    }
+    
+    return obj;
 }
 
 void SrsJsonObject::set(string key, SrsJsonAny* value)
@@ -684,6 +733,19 @@ string SrsJsonArray::to_json()
     ss << SRS_JARRAY_END;
     
     return ss.str();
+}
+
+SrsAmf0Any* SrsJsonArray::to_amf0()
+{
+    SrsAmf0StrictArray* arr = SrsAmf0Any::strict_array();
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsJsonAny* any = properties[i];
+        
+        arr->append(any->to_amf0());
+    }
+    
+    return arr;
 }
 
 #ifdef SRS_JSON_USE_NXJSON

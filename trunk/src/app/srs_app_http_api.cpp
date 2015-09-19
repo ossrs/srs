@@ -81,7 +81,7 @@ int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, int 
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
-    obj->set("code", SrsJsonAny::ingeter(code));
+    obj->set("code", SrsJsonAny::integer(code));
     
     return srs_api_response_jsonp(w, callback, obj->to_json());
 }
@@ -101,7 +101,7 @@ int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
-    obj->set("code", SrsJsonAny::ingeter(code));
+    obj->set("code", SrsJsonAny::integer(code));
     
     return srs_api_response_json(w, obj->to_json());
 }

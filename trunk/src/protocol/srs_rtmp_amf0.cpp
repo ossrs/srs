@@ -282,6 +282,53 @@ char* SrsAmf0Any::human_print(char** pdata, int* psize)
     return data;
 }
 
+SrsJsonAny* SrsAmf0Any::to_json()
+{
+    switch (marker) {
+        case RTMP_AMF0_String: {
+            return SrsJsonAny::str(to_str().c_str());
+        }
+        case RTMP_AMF0_Boolean: {
+            return SrsJsonAny::boolean(to_boolean());
+        }
+        case RTMP_AMF0_Number: {
+            double dv = to_number();
+            int64_t iv = (int64_t)dv;
+            if (iv == dv) {
+                return SrsJsonAny::integer(iv);
+            } else {
+                return SrsJsonAny::number(dv);
+            }
+        }
+        case RTMP_AMF0_Null: {
+            return SrsJsonAny::null();
+        }
+        case RTMP_AMF0_Undefined: {
+            return SrsJsonAny::null();
+        }
+        case RTMP_AMF0_Object: {
+            // amf0 object implements it.
+            srs_assert(false);
+        }
+        case RTMP_AMF0_EcmaArray: {
+            // amf0 ecma array implements it.
+            srs_assert(false);
+        }
+        case RTMP_AMF0_StrictArray: {
+            // amf0 strict array implements it.
+            srs_assert(false);
+        }
+        case RTMP_AMF0_Date: {
+            // TODO: FIXME: implements it.
+            return SrsJsonAny::null();
+        }
+        default: {
+            return SrsJsonAny::null();
+        }
+    }
+    
+}
+
 SrsAmf0Any* SrsAmf0Any::str(const char* value)
 {
     return new SrsAmf0String(value);
@@ -743,6 +790,20 @@ SrsAmf0Any* SrsAmf0Object::copy()
     return copy;
 }
 
+SrsJsonAny* SrsAmf0Object::to_json()
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    
+    for (int i = 0; i < properties->count(); i++) {
+        std::string name = this->key_at(i);
+        SrsAmf0Any* any = this->value_at(i);
+        
+        obj->set(name, any->to_json());
+    }
+    
+    return obj;
+}
+
 void SrsAmf0Object::clear()
 {
     properties->clear();
@@ -944,6 +1005,20 @@ SrsAmf0Any* SrsAmf0EcmaArray::copy()
     return copy;
 }
 
+SrsJsonAny* SrsAmf0EcmaArray::to_json()
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    
+    for (int i = 0; i < properties->count(); i++) {
+        std::string name = this->key_at(i);
+        SrsAmf0Any* any = this->value_at(i);
+        
+        obj->set(name, any->to_json());
+    }
+    
+    return obj;
+}
+
 void SrsAmf0EcmaArray::clear()
 {
     properties->clear();
@@ -1117,6 +1192,19 @@ SrsAmf0Any* SrsAmf0StrictArray::copy()
     
     copy->_count = _count;
     return copy;
+}
+
+SrsJsonAny* SrsAmf0StrictArray::to_json()
+{
+    SrsJsonArray* arr = SrsJsonAny::array();
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsAmf0Any* any = properties[i];
+        
+        arr->append(any->to_json());
+    }
+    
+    return arr;
 }
 
 void SrsAmf0StrictArray::clear()

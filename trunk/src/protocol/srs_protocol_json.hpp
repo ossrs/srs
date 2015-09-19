@@ -60,6 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // @see: https://bitbucket.org/yarosla/nxjson
 // @see: https://github.com/udp/json-parser
 
+class SrsAmf0Any;
 class SrsJsonArray;
 class SrsJsonObject;
 
@@ -112,16 +113,13 @@ public:
     * user must ensure the type is a ecma array, or assert failed.
     */
     virtual SrsJsonArray* to_array();
-// json
 public:
-    /**
-     * convert the amf0 stuff to json.
-     */
     virtual std::string to_json();
+    virtual SrsAmf0Any* to_amf0();
 public:
     static SrsJsonAny* str(const char* value = NULL); 
     static SrsJsonAny* boolean(bool value = false);
-    static SrsJsonAny* ingeter(int64_t value = 0);
+    static SrsJsonAny* integer(int64_t value = 0);
     static SrsJsonAny* number(double value = 0.0);
     static SrsJsonAny* null();
     static SrsJsonObject* object();
@@ -151,12 +149,9 @@ public:
     virtual std::string key_at(int index);
     // @remark: max index is count().
     virtual SrsJsonAny* value_at(int index);
-// json
 public:
-    /**
-     * convert the amf0 object to json.
-     */
     virtual std::string to_json();
+    virtual SrsAmf0Any* to_amf0();
 public:
     virtual void set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
@@ -185,12 +180,9 @@ public:
     virtual void add(SrsJsonAny* value);
     // alias to add.
     virtual void append(SrsJsonAny* value);
-// json
 public:
-    /**
-     * convert the amf0 ecma array to json.
-     */
     virtual std::string to_json();
+    virtual SrsAmf0Any* to_amf0();
 };
 
 ////////////////////////////////////////////////////////////////////////

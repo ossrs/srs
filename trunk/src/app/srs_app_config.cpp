@@ -5573,22 +5573,22 @@ vector<SrsConfDirective*> SrsConfig::get_exec_publishs(string vhost)
 
 vector<SrsConfDirective*> SrsConfig::get_ingesters(string vhost)
 {
-    vector<SrsConfDirective*> ingeters;
+    vector<SrsConfDirective*> integers;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return ingeters;
+        return integers;
     }
     
     for (int i = 0; i < (int)conf->directives.size(); i++) {
         SrsConfDirective* ingester = conf->directives[i];
         
         if (ingester->name == "ingest") {
-            ingeters.push_back(ingester);
+            integers.push_back(ingester);
         }
     }
     
-    return ingeters;
+    return integers;
 }
 
 SrsConfDirective* SrsConfig::get_ingest_by_id(string vhost, string ingest_id)
