@@ -37,7 +37,7 @@ Enjoy it!
 
 ## About
 
-SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
+SRS(Simple RTMP Server) over state-threads created in 2013.10.
 
 SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
@@ -48,7 +48,7 @@ provides EN/CN wiki and the most simple architecture.
 
 ## AUTHORS
 
-There are three types of people that have contributed to the SRS project:
+There are two types of people that have contributed to the SRS project:
 * AUTHORS: Contribute important features. Names of all 
 PRIMARY response in NetConnection.connect and metadata. 
 * CONTRIBUTORS: Submit patches, report bugs, add translations, help answer 
