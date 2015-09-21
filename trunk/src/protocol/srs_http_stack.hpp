@@ -25,8 +25,8 @@
 #define SRS_PROTOCOL_HTTP_HPP
 
 /*
- #include <srs_http_stack.hpp>
- */
+#include <srs_http_stack.hpp>
+*/
 #include <srs_core.hpp>
 
 #include <map>

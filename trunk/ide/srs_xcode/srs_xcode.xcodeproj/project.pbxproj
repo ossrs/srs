@@ -101,6 +101,7 @@
 		3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9B1AB6AAC800C9CEEE /* sched.c */; };
 		3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9C1AB6AAC800C9CEEE /* stk.c */; };
 		3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9D1AB6AAC800C9CEEE /* sync.c */; };
+		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
 		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
 		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
 		3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCE1ACE4023006FEB01 /* srs_utest_core.cpp */; };
@@ -359,6 +360,14 @@
 		3C689F9B1AB6AAC800C9CEEE /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../objs/st-1.9/sched.c"; sourceTree = "<group>"; };
 		3C689F9C1AB6AAC800C9CEEE /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../objs/st-1.9/stk.c"; sourceTree = "<group>"; };
 		3C689F9D1AB6AAC800C9CEEE /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../objs/st-1.9/sync.c"; sourceTree = "<group>"; };
+		3C8280241BAFF896004A1794 /* compatible.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = compatible.conf; path = ../../../conf/compatible.conf; sourceTree = "<group>"; };
+		3C8280251BAFF896004A1794 /* full.one.vhost.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = full.one.vhost.conf; path = ../../../conf/full.one.vhost.conf; sourceTree = "<group>"; };
+		3C8280261BAFF896004A1794 /* http.flv.live.edge1.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge1.conf; path = ../../../conf/http.flv.live.edge1.conf; sourceTree = "<group>"; };
+		3C8280271BAFF896004A1794 /* http.flv.live.edge2.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge2.conf; path = ../../../conf/http.flv.live.edge2.conf; sourceTree = "<group>"; };
+		3C8280281BAFF896004A1794 /* push.flv.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.flv.conf; path = ../../../conf/push.flv.conf; sourceTree = "<group>"; };
+		3C8280291BAFF896004A1794 /* transform.edge.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transform.edge.conf; path = ../../../conf/transform.edge.conf; sourceTree = "<group>"; };
+		3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kafka_stack.cpp; path = ../../../src/protocol/srs_kafka_stack.cpp; sourceTree = "<group>"; };
+		3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kafka_stack.hpp; path = ../../../src/protocol/srs_kafka_stack.hpp; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
 		3CC52DCB1ACE4023006FEB01 /* srs_utest_amf0.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_amf0.hpp; path = ../../src/utest/srs_utest_amf0.hpp; sourceTree = "<group>"; };
 		3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_config.cpp; path = ../../src/utest/srs_utest_config.cpp; sourceTree = "<group>"; };
@@ -501,6 +510,8 @@
 			children = (
 				3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */,
 				3C0E1B8C1B0F5ADF003ADEF7 /* srs_http_stack.hpp */,
+				3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */,
+				3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */,
 				3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */,
 				3C068D6C1B10175500AA722C /* srs_protocol_buffer.hpp */,
 				3C0D422C1B87165900C2508B /* srs_protocol_json.cpp */,
@@ -682,8 +693,8 @@
 		3C1EE6AF1AB107EE00576EE9 /* conf */ = {
 			isa = PBXGroup;
 			children = (
-				3C4AB9341B8C9FF9006627D3 /* exec.conf */,
 				3C1EE6B01AB1080900576EE9 /* bandwidth.conf */,
+				3C8280241BAFF896004A1794 /* compatible.conf */,
 				3C1EE6B11AB1080900576EE9 /* console.conf */,
 				3C1EE6B21AB1080900576EE9 /* demo.19350.conf */,
 				3C1EE6B31AB1080900576EE9 /* demo.conf */,
@@ -692,14 +703,18 @@
 				3C1EE6B61AB1080900576EE9 /* dvr.session.conf */,
 				3C1EE6B71AB1080900576EE9 /* edge.conf */,
 				3C1EE6B81AB1080900576EE9 /* edge.token.traverse.conf */,
+				3C4AB9341B8C9FF9006627D3 /* exec.conf */,
 				3C1EE6B91AB1080900576EE9 /* ffmpeg.transcode.conf */,
 				3C1EE6BA1AB1080900576EE9 /* forward.master.conf */,
 				3C1EE6BB1AB1080900576EE9 /* forward.slave.conf */,
 				3C1EE6BC1AB1080900576EE9 /* full.conf */,
+				3C8280251BAFF896004A1794 /* full.one.vhost.conf */,
 				3C1EE6BD1AB1080900576EE9 /* hds.conf */,
 				3C1EE6BE1AB1080900576EE9 /* hls.conf */,
 				3C1EE6BF1AB1080900576EE9 /* http.aac.live.conf */,
 				3C1EE6C01AB1080900576EE9 /* http.flv.live.conf */,
+				3C8280261BAFF896004A1794 /* http.flv.live.edge1.conf */,
+				3C8280271BAFF896004A1794 /* http.flv.live.edge2.conf */,
 				3C1EE6C11AB1080900576EE9 /* http.heartbeat.conf */,
 				3C1EE6C21AB1080900576EE9 /* http.hls.conf */,
 				3C1EE6C31AB1080900576EE9 /* http.hooks.callback.conf */,
@@ -709,6 +724,7 @@
 				3C1EE6C71AB1080900576EE9 /* ingest.conf */,
 				3C1EE6C81AB1080900576EE9 /* mac.dev.conf */,
 				3C1EE6C91AB1080900576EE9 /* origin.conf */,
+				3C8280281BAFF896004A1794 /* push.flv.conf */,
 				3C1EE6CA1AB1080900576EE9 /* push.mpegts.over.udp.conf */,
 				3C1EE6CB1AB1080900576EE9 /* push.rtsp.conf */,
 				3C1EE6CC1AB1080900576EE9 /* ram.hls.conf */,
@@ -717,6 +733,7 @@
 				3C1EE6CF1AB1080900576EE9 /* security.deny.publish.conf */,
 				3C1EE6D01AB1080900576EE9 /* srs.conf */,
 				3C1EE6D11AB1080900576EE9 /* transcode2hls.audio.only.conf */,
+				3C8280291BAFF896004A1794 /* transform.edge.conf */,
 			);
 			name = conf;
 			sourceTree = "<group>";
@@ -901,6 +918,7 @@
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
 				3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */,
 				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
+				3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */,
 				3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */,
 				3C1232491AAE81A400CE8F6C /* srs_rtmp_utility.cpp in Sources */,
 				3C663F191AB0155100286D8B /* srs_publish.c in Sources */,

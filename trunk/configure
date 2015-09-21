@@ -159,7 +159,8 @@ MODULE_DEPENDS=("CORE" "KERNEL")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_rtmp_amf0" "srs_rtmp_io" "srs_rtmp_stack"
         "srs_rtmp_handshake" "srs_rtmp_utility" "srs_rtmp_msg_array" "srs_protocol_buffer"
-        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json")
+        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
+        "srs_kafka_stack")
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
