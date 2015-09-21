@@ -218,15 +218,6 @@ Supported operating systems and hardware:
 1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 1. [experiment] Support [remote console][console], read [srs-ngb][srs-ngb].
-1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
-1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
-1. [no-plan] Support multiple processes, for both origin and edge
-1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
-1. [no-plan] Support adobe flash refer/token/swf verification.
-1. [no-plan] Support adobe amf3 codec.
-1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
-1. [no-plan] Support RTMPT, http to tranverse firewalls
-1. [no-plan] Support file source, transcoding file to live stream
 
 ## Compare
 
