@@ -12,7 +12,18 @@ Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 [![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
 [![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
 
-## Why SRS?
+## About
+
+SRS(Simple RTMP Server) over state-threads created in 2013.10.
+
+SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
+supports origin/edge/vhost and transcode/ingest and dvr/forward 
+and http-api/http-callback/reload, introduces tracable 
+session-oriented log, exports client srs-librtmp, 
+with stream caster to push MPEGTS-over-UDP/RTSP to SRS,
+provides EN/CN wiki and the most simple architecture.
+
+<strong>Why SRS?</strong>
 
 1. <strong>Completely Rewrite HLS:</strong> following m3u8/ts spec, and HLS support h.264+aac/mp3.
 1. <strong>High Efficient RTMP:</strong> deliverying support 7k+ concurrency, vhost based, both origin and edge.
@@ -34,17 +45,6 @@ and session based log, linux service script and install script.
 1. <strong>MIT License:</strong> open source with product management and evolution.
 
 Enjoy it!
-
-## About
-
-SRS(Simple RTMP Server) over state-threads created in 2013.10.
-
-SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
-supports origin/edge/vhost and transcode/ingest and dvr/forward 
-and http-api/http-callback/reload, introduces tracable 
-session-oriented log, exports client srs-librtmp, 
-with stream caster to push MPEGTS-over-UDP/RTSP to SRS,
-provides EN/CN wiki and the most simple architecture.
 
 ## AUTHORS
 
@@ -221,12 +221,12 @@ Supported operating systems and hardware:
 1. Support NGINX-RTMP style EXEC, read [#367][bug367].
 1. Support NGINX-RTMP style dvr control module, read [#459][bug459].
 1. Support HTTP Security Raw Api, read [#459][bug459], [#470][bug470], [#319][bug319].
+1. [dev]Support Integration with Kafka/Spark Big-Data system, read [#467][bug467].
 1. [plan]Support Origin Cluster for Load Balance and Fault Tolarence, read [#464][bug464], [RTMP 302][bug92].
 1. [plan]Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug465].
 1. [plan]Support MPEG-DASH, the future streaming protocol, read [#299][bug299].
 1. [plan]Support HLS edge server, read [#466][bug466].
 1. [plan]Support HLS realtime latency mode, read [#468][bug468].
-1. [plan]Support Integration with Kafka/Spark Big-Data system, read [#467][bug467].
 
 ## Compare
 
