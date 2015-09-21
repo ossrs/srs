@@ -12,7 +12,29 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs3_CN] or [English][srs3_EN].
 [![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
 [![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
 
-The below is `About`, `Usage`, `Product` and `Architecture` of SRS.
+## Content
+
+* [Content](content
+* [About](about)
+  * [Why SRS?](why-srs)
+  * [Authors](authors)
+  * [Donation](donation)
+* [Usage](usage)
+  * [Build](usage)
+  * [Mirrors](mirrors)
+  * [System Requirements](system-requirements)
+  * [Wiki](wiki)
+* [Product](product)
+  * [Features](features)
+  * [Compare](compare)
+  * [Releases](releases)
+  * [History](history)
+  * [Performance](performance)
+* [Architecture](architecture)
+  * [System Architecture](system-architecture)
+  * [Modularity Architecture](modularity-architecture)
+  * [Stream Architecture](stream-architecture)
+
 
 ## About
 
@@ -80,7 +102,7 @@ Donations: [https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
 ## Usage
 
 <strong>Step 1:</strong> get SRS 
-<strong>Download slow? Please use [mirrors][mirrors] for SRS.</strong>
+<strong>Download slow? Please use [mirrors](mirrors) for SRS.</strong>
 
 ```
 git clone https://github.com/simple-rtmp-server/srs &&
@@ -166,6 +188,8 @@ Please select your language:
 * [SRS 2.0 Chinese][v2_CN_Home]
 
 ## Product
+
+The `features`, `compare`, `release` and `performance` of SRS.
 
 ### Features
 
@@ -1271,7 +1295,6 @@ Winlin
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
 
-[mirrors]: https://github.com/simple-rtmp-server/srs/tree/develop#mirrors
 [branch1]: https://github.com/simple-rtmp-server/srs/tree/1.0release
 [branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
 [release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
