@@ -9,8 +9,8 @@ Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 
-[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
-[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
+[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
+[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
 
 ## About
 
@@ -23,7 +23,7 @@ session-oriented log, exports client srs-librtmp,
 with stream caster to push MPEGTS-over-UDP/RTSP to SRS,
 provides EN/CN wiki and the most simple architecture.
 
-<strong>Why SRS?</strong>
+### Why SRS?
 
 1. <strong>Completely Rewrite HLS:</strong> following m3u8/ts spec, and HLS support h.264+aac/mp3.
 1. <strong>High Efficient RTMP:</strong> deliverying support 7k+ concurrency, vhost based, both origin and edge.
@@ -46,7 +46,7 @@ and session based log, linux service script and install script.
 
 Enjoy it!
 
-## AUTHORS
+### AUTHORS
 
 There are two types of people that have contributed to the SRS project:
 * AUTHORS: Contribute important features. Names of all 
@@ -66,7 +66,57 @@ A big THANK YOU goes to:
 * [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use to transcode.
 * Guido van Rossum for creating Python for api-server for SRS.
 
-## Mirrors
+### Donation
+
+[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
+[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
+
+Donation: [http://www.ossrs.net/srs.release/donation/index.html][donation1]
+
+Donations: [https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt][donations]
+
+## Usage
+
+<strong>Step 1:</strong> get SRS 
+<strong>Download slow? Please use [mirrors][mirrors] for SRS.</strong>
+
+```
+git clone https://github.com/simple-rtmp-server/srs &&
+cd srs/trunk
+```
+
+<strong>Step 2:</strong> build SRS,
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
+
+```
+./configure && make
+```
+
+<strong>Step 3:</strong> start SRS 
+
+```
+./objs/srs -c conf/srs.conf
+```
+
+<strong>See also:</strong>
+* Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* Usage: How to delivery RTMP Cluster?([CN][v1_CN_SampleRTMPCluster], [EN][v1_EN_SampleRTMPCluster])
+* Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
+* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v2_CN_SampleHttpFlvCluster], [EN][v2_EN_SampleHttpFlvCluster])
+* Usage: How to delivery HLS?([CN][v2_CN_SampleHLS], [EN][v2_EN_SampleHLS])
+* Usage: How to delivery HLS for other codec?([CN][v2_CN_SampleTranscode2HLS], [EN][v2_EN_SampleTranscode2HLS])
+* Usage: How to transode RTMP stream by SRS?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
+* Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
+* Usage: How to deploy low lantency application?([CN][v2_CN_SampleRealtime], [EN][v2_EN_SampleRealtime])
+* Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
+* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
+* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP])
+* Usage: How to show the demo of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
+* Usage: How to publish h.264 raw stream to SRS? ([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2])
+* Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
+* Usage: Why SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
+
+### Mirrors
 
 Github: [https://github.com/simple-rtmp-server/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
@@ -92,47 +142,14 @@ Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1
 git clone https://gitlab.com/winlinvip/srs-gitlab.git
 ```
 
-## Usage
+### System Requirements
 
-<strong>Step 1:</strong> get SRS 
+Supported operating systems and hardware:
+* All Linux , both 32 and 64 bits
+* Apple OSX(Darwin), both 32 and 64bits.
+* All hardware with x86/x86_64/arm/mips cpu.
 
-<pre>
-git clone https://github.com/simple-rtmp-server/srs &&
-cd srs/trunk
-</pre>
-
-<strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
-
-<pre>
-./configure && make
-</pre>
-
-<strong>Step 3:</strong> start SRS 
-
-<pre>
-./objs/srs -c conf/srs.conf
-</pre>
-
-<strong>See also:</strong>
-* Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* Usage: How to delivery RTMP Cluster?([CN][v1_CN_SampleRTMPCluster], [EN][v1_EN_SampleRTMPCluster])
-* Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
-* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v2_CN_SampleHttpFlvCluster], [EN][v2_EN_SampleHttpFlvCluster])
-* Usage: How to delivery HLS?([CN][v2_CN_SampleHLS], [EN][v2_EN_SampleHLS])
-* Usage: How to delivery HLS for other codec?([CN][v2_CN_SampleTranscode2HLS], [EN][v2_EN_SampleTranscode2HLS])
-* Usage: How to transode RTMP stream by SRS?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
-* Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
-* Usage: How to deploy low lantency application?([CN][v2_CN_SampleRealtime], [EN][v2_EN_SampleRealtime])
-* Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
-* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP])
-* Usage: How to show the demo of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
-* Usage: How to publish h.264 raw stream to SRS? ([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2])
-* Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
-* Usage: Why SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
-
-## Wiki
+### Wiki
 
 SRS 1.0 wiki
 
@@ -146,20 +163,9 @@ Please select your language:
 * [SRS 2.0 English][v2_EN_Home]
 * [SRS 2.0 Chinese][v2_CN_Home]
 
-## Donation
+## Product
 
-Donation: [http://www.ossrs.net/srs.release/donation/index.html][donation1]
-
-Donations: [https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt][donations]
-
-## System Requirements
-
-Supported operating systems and hardware:
-* All Linux , both 32 and 64 bits
-* Apple OSX(Darwin), both 32 and 64bits.
-* All hardware with x86/x86_64/arm/mips cpu.
-
-## Features
+### Features
 
 1. Simple, also stable enough.
 1. High-performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]): single-thread, async socket, event/st-thread driven.
@@ -228,11 +234,11 @@ Supported operating systems and hardware:
 1. [plan]Support HLS edge server, read [#466][bug #466].
 1. [plan]Support HLS realtime latency mode, read [#468][bug #468].
 
-## Compare
+### Compare
 
 Compare SRS with other media server.
 
-### Stream Delivery
+#### Stream Delivery
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -243,7 +249,7 @@ Compare SRS with other media server.
 |   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
 
-### Cluster
+#### Cluster
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -254,7 +260,7 @@ Compare SRS with other media server.
 |   Forward     |   Stable  |   X       |   X       |   X       |   X       |
 |   ATC         |   Stable  |   X       |   X       |   X       |   X       |
 
-### Stream Service
+#### Stream Service
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -269,7 +275,7 @@ Compare SRS with other media server.
 |   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
 | Token Traverse|   Stable  |   X       |   X       |   Stable  |   X       |
 
-### Efficiency
+#### Efficiency
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -278,7 +284,7 @@ Compare SRS with other media server.
 |   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
 |   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
 
-### Stream Caster
+#### Stream Caster
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -287,21 +293,21 @@ Compare SRS with other media server.
 |   Push RTSP   | Experiment|   X       |   Stable  |   X       |   Stable  |
 | Push HTTP FLV | Experiment|   X       |   X       |   X       |   X       |
 
-### Debug System
+#### Debug System
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   BW check    |   Stable  |   X       |   X       |   X       |   X       |
 | Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
 
-### Docs
+#### Docs
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Demos       |   Stable  |   X       |   X       |   X       |   X       |
 |   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
 
-### Others 
+#### Others 
 
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
@@ -317,7 +323,7 @@ Remark:
 1. Security: To allow or deny stream publish or play.
 1. Reload: Nginx supports reload, but not nginx-rtmp.
 
-## Releases
+### Releases
 
 * 2015-09-14, [Release v2.0a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
 * 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
@@ -345,7 +351,7 @@ Remark:
 * 2013-10-23, [Release v0.1][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
 
-## History
+### History
 
 * v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
@@ -676,7 +682,7 @@ Remark:
 * v0.1, 2013-10-18, support rtmp message2chunk protocol(send\_message).
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
-## Performance
+### Performance
 
 Performance benchmark history, on virtual box.
 
@@ -684,7 +690,7 @@ Performance benchmark history, on virtual box.
 * See also: [Performance for RaspberryPi][v1_CN_RaspberryPi]
 * About multiple-process performance, read [srs-dolphin][srs-dolphin].
 
-### Play RTMP benchmark
+#### Play RTMP benchmark
 
 The play RTMP benchmark by [SB][srs-bench]:
 
@@ -704,7 +710,7 @@ The play RTMP benchmark by [SB][srs-bench]:
 |   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
 |   2014-12-07  |   2.0.67  |   10k(10000)  |   players     |   95%     |   656MB   |   [code][p12] |
 
-### Publish RTMP benchmark
+#### Publish RTMP benchmark
 
 The publish RTMP benchmark by [SB][srs-bench]:
 
@@ -720,7 +726,7 @@ The publish RTMP benchmark by [SB][srs-bench]:
 |   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
 |   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   [code][p5]  |
 
-### Play HTTP FLV benchmark
+#### Play HTTP FLV benchmark
 
 The play HTTP FLV benchmark by [SB][srs-bench]:
 
@@ -733,7 +739,7 @@ The play HTTP FLV benchmark by [SB][srs-bench]:
 |   2014-05-24  |   2.0.170 |   3.0k(3000)  |   players     |   89%     |   96MB    |   [code][p19] |
 |   2014-05-25  |   2.0.171 |   6.0k(6000)  |   players     |   84%     |   297MB   |   [code][p20] |
 
-### Latency benchmark
+#### Latency benchmark
 
 The latency between encoder and player with realtime config([CN][v2_CN_LowLatency], [EN][v2_EN_LowLatency]):
 |   
@@ -748,7 +754,7 @@ We use FMLE as encoder for benchmark. The latency of server is 0.1s+,
 and the bottleneck is the encoder. For more information, read 
 [bug #257][bug #257-c0].
 
-### HLS overhead
+#### HLS overhead
 
 About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS to FLV by ffmpeg.
 
@@ -783,7 +789,7 @@ SRS always use the most simple architecture to support complex transaction.
 
 ### System Architecture
 
-<pre>
+```
 +------------------------------------------------------+
 |                    Application                       |
 |            Origin/Edge/HTTP-FLV/StreamCaster         |
@@ -797,11 +803,11 @@ SRS always use the most simple architecture to support complex transaction.
 +------------------------------------------------------+
 |    All Linux/Unix(RHEL,CentOS,Ubuntu,Fedora...)      |
 +------------------------------------------------------+
-</pre>
+```
 
 ### Modularity Architecture
 
-<pre>
+```
 +------------------------------------------------------+
 |             Main(srs/ingest-hls/librtmp)             |
 +------------------------------------------------------+
@@ -815,7 +821,7 @@ SRS always use the most simple architecture to support complex transaction.
 +------------------------------------------------------+
 |         Core(depends only on system apis)            |
 +------------------------------------------------------+
-</pre>
+```
 
 Remark:
 
@@ -823,7 +829,7 @@ Remark:
 
 ### Stream Architecture
 
-<pre>
+```
                    +---------+              +----------+
                    | Publish |              |  Deliver |
                    +---|-----+              +----|-----+
@@ -852,7 +858,7 @@ Remark:
 |   ......)            |                         |                |
 +----------------------+-------------------------+----------------+
 
-</pre>
+```
 
 Remark:
 
@@ -864,6 +870,7 @@ Remark:
 
 Beijing, 2013.10<br/>
 Winlin
+
 
 [p1]: https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
 [p2]: https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
@@ -947,6 +954,7 @@ Winlin
 [v2_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
 [donation1]: http://www.ossrs.net/srs.release/donation/index.html
+[donation2]: http://www.ossrs.net/srs.release/donation/paypal.html
 [donations]: https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
 
 [v2_CN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Build
@@ -1261,6 +1269,7 @@ Winlin
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
 
+[mirrors]: https://github.com/simple-rtmp-server/srs/tree/develop#mirrors
 [branch1]: https://github.com/simple-rtmp-server/srs/tree/1.0release
 [branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
 [release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
