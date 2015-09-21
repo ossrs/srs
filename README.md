@@ -14,26 +14,26 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs3_CN] or [English][srs3_EN].
 
 ## Content
 
-* [Content](content)
-* [About](about)
-  * [Why SRS?](why-srs)
-  * [Authors](authors)
-  * [Donation](donation)
-* [Usage](usage)
-  * [Build](usage)
-  * [Mirrors](mirrors)
-  * [System Requirements](system-requirements)
-  * [Wiki](wiki)
-* [Product](product)
-  * [Features](features)
-  * [Compare](compare)
-  * [Releases](releases)
-  * [History](history)
-  * [Performance](performance)
-* [Architecture](architecture)
-  * [System Architecture](system-architecture)
-  * [Modularity Architecture](modularity-architecture)
-  * [Stream Architecture](stream-architecture)
+* [Content](#content)
+* [About](#about)
+  * [Why SRS?](#why-srs)
+  * [Authors](#authors)
+  * [Donation](#donation)
+* [Usage](#usage)
+  * [Build](#usage)
+  * [Mirrors](#mirrors)
+  * [System Requirements](#system-requirements)
+  * [Wiki](#wiki)
+* [Product](#product)
+  * [Features](#features)
+  * [Compare](#compare)
+  * [Releases](#releases)
+  * [History](#history)
+  * [Performance](#performance)
+* [Architecture](#architecture)
+  * [System Architecture](#system-architecture)
+  * [Modularity Architecture](#modularity-architecture)
+  * [Stream Architecture](#stream-architecture)
 
 
 ## About
@@ -102,7 +102,7 @@ Donations: [https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
 ## Usage
 
 <strong>Step 1:</strong> get SRS 
-<strong>Download slow? Please use [mirrors](mirrors) for SRS.</strong>
+<strong>Download slow? Please use [mirrors](#mirrors) for SRS.</strong>
 
 ```
 git clone https://github.com/simple-rtmp-server/srs &&
