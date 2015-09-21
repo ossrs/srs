@@ -15,23 +15,23 @@ Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
 ## Why SRS?
 
 1. <strong>Completely Rewrite HLS:</strong> following m3u8/ts spec, and HLS support h.264+aac/mp3.
-1. High Efficient RTMP: deliverying support 7k+ concurrency, vhost based, both origin and edge.
-1. Embeded Simplified Media HTTP Server: for HLS, api and HTTP flv/ts/mp3/aac streaming.
-1. Variety Inputs: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
+1. <strong>High Efficient RTMP:</strong> deliverying support 7k+ concurrency, vhost based, both origin and edge.
+1. <strong>Embeded Simplified Media HTTP Server:</strong> for HLS, api and HTTP flv/ts/mp3/aac streaming.
+1. <strong>Variety Inputs:</strong> RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
-1. Popular Internet Delivery: RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
+1. <strong>Popular Internet Delivery:</strong> RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
-1. Enhanced DVR and HSTRS: segment/session/append plan, customer path and HTTP callback.
+1. <strong>Enhanced DVR and HSTRS:</strong> segment/session/append plan, customer path and HTTP callback.
 the hstrs(http stream trigger rtmp source) enable the http-flv stream standby util encoder 
 start publish, similar to rtmp, which will trigger edge to fetch from origin.
-1. Multiple Features: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
+1. <strong>Multiple Features:</strong> transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http raw api, refer, log, bandwith test and srs-librtmp.
-1. Best Maintainess: simple arch over state-threads(coroutine), single thread, single process 
+1. <strong>Best Maintainess:</strong> simple arch over state-threads(coroutine), single thread, single process 
 and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
 follows RTMP/HLS/RTSP spec.
-1. Easy to Use: both English and Chinese wiki, typically config files in trunk/conf, traceable 
+1. <strong>Easy to Use:</strong> both English and Chinese wiki, typically config files in trunk/conf, traceable 
 and session based log, linux service script and install script.
-1. MIT License: open source with product management and evolution.
+1. <strong>MIT License:</strong> open source with product management and evolution.
 
 Enjoy it!
 
