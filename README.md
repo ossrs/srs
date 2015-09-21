@@ -218,15 +218,15 @@ Supported operating systems and hardware:
 1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 1. [experiment] Support [remote console][console], read [srs-ngb][srs-ngb].
 1. Support nginx-rtmp style exec, read [bug #367][bug #367].
-1. Support NGINX-RTMP style EXEC, read [#367][bug367].
-1. Support NGINX-RTMP style dvr control module, read [#459][bug459].
-1. Support HTTP Security Raw Api, read [#459][bug459], [#470][bug470], [#319][bug319].
-1. [dev]Support Integration with Kafka/Spark Big-Data system, read [#467][bug467].
-1. [plan]Support Origin Cluster for Load Balance and Fault Tolarence, read [#464][bug464], [RTMP 302][bug92].
-1. [plan]Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug465].
-1. [plan]Support MPEG-DASH, the future streaming protocol, read [#299][bug299].
-1. [plan]Support HLS edge server, read [#466][bug466].
-1. [plan]Support HLS realtime latency mode, read [#468][bug468].
+1. Support NGINX-RTMP style EXEC, read [#367][bug #367].
+1. Support NGINX-RTMP style dvr control module, read [#459][bug #459].
+1. Support HTTP Security Raw Api, read [#459][bug #459], [#470][bug #470], [#319][bug #319].
+1. [dev]Support Integration with Kafka/Spark Big-Data system, read [#467][bug #467].
+1. [plan]Support Origin Cluster for Load Balance and Fault Tolarence, read [#464][bug #464], [RTMP 302][bug #92].
+1. [plan]Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
+1. [plan]Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
+1. [plan]Support HLS edge server, read [#466][bug #466].
+1. [plan]Support HLS realtime latency mode, read [#468][bug #468].
 
 ## Compare
 
@@ -1214,6 +1214,19 @@ Winlin
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
 [bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
 [bug #319]: https://github.com/simple-rtmp-server/srs/issues/319
+[bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
+[bug #459]: https://github.com/simple-rtmp-server/srs/issues/459
+[bug #470]: https://github.com/simple-rtmp-server/srs/issues/470
+[bug #319]: https://github.com/simple-rtmp-server/srs/issues/319
+[bug #467]: https://github.com/simple-rtmp-server/srs/issues/467
+[bug #464]: https://github.com/simple-rtmp-server/srs/issues/464
+[bug #465]: https://github.com/simple-rtmp-server/srs/issues/465
+[bug #299]: https://github.com/simple-rtmp-server/srs/issues/299
+[bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
+[bug #299]: https://github.com/simple-rtmp-server/srs/issues/299
+[bug #466]: https://github.com/simple-rtmp-server/srs/issues/466
+[bug #468]: https://github.com/simple-rtmp-server/srs/issues/468
+[bug #xxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxx
 
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
