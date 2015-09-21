@@ -211,8 +211,8 @@ Supported operating systems and hardware:
 1. Support rtmp remux to http flv/mp3/aac/ts live stream, read [bug #293][bug #293]([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
 1. Support HLS(h.264+mp3) streaming, read [bug #301][bug #301].
 1. Rewrite HLS(h.264+aac/mp3) streaming, read [bug #304][bug #304].
-1. Support Adobe HDS(f4m)([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]) dynamic streaming.
 1. [dev] Realease [2.0release branch][branch2].
+1. [experiment] Support Adobe HDS(f4m)([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]) dynamic streaming.
 1. [experiment] Support push MPEG-TS over UDP to SRS, read [bug #250][bug #250].
 1. [experiment] Support push RTSP to SRS, read [bug #133][bug #133].
 1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
