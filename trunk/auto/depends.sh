@@ -601,7 +601,8 @@ fi
 if [ $SRS_OSX = YES ]; then
     CONFIGURE_TOOL="./Configure darwin64-`uname -m`-cc"
 fi
-# @see http://www.openssl.org/news/secadv_20140407.txt
+OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
+# @see http://www.openssl.org/news/secadv/20140407.txt
 # Affected users should upgrade to OpenSSL 1.0.1g. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
@@ -618,7 +619,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm &&
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm $OPENSSL_HOTFIX &&
                     make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
                         LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
                     make install_sw &&
@@ -635,7 +636,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared &&
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared $OPENSSL_HOTFIX &&
                     make && make install_sw &&
                     cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                     cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp

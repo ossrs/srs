@@ -344,6 +344,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-21, fix [#484][bug #484] hotfix the openssl build script 2.0.190
 * <strong>v2.0, 2015-09-14, [2.0 alpha1(2.0.189)][r2.0a1] released. 89269 lines.</strong>
 * v2.0, 2015-09-14, fix [#474][bug #474] config to donot parse width/height from sps. 2.0.189
 * v2.0, 2015-09-14, for [#474][bug #474] always release publish for source.
