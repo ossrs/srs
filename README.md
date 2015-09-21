@@ -259,8 +259,11 @@ Compare SRS with other media server.
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   DVR API     |   Stable  |   Stable  |   X       |   X       |   X       |
+|   EXEC        |   Stable  |   Stable  |   X       |   X       |   X       |
 |   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
 |   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
+| HTTP RAW API  |   Stable  |   X       |   X       |   X       |   X       |
 |   HTTP hooks  |   Stable  |   X       |   X       |   X       |   X       |
 |   GopCache    |   Stable  |   X       |   X       |   Stable  |   X       |
 |   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
