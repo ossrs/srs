@@ -218,15 +218,15 @@ Supported operating systems and hardware:
 1. [experiment] Support [srs-dolphin][srs-dolphin], the multiple-process SRS.
 1. [experiment] Support [remote console][console], read [srs-ngb][srs-ngb].
 1. Support nginx-rtmp style exec, read [bug #367][bug #367].
-1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
-1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
-1. [no-plan] Support multiple processes, for both origin and edge
-1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
-1. [no-plan] Support adobe flash refer/token/swf verification.
-1. [no-plan] Support adobe amf3 codec.
-1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
-1. [no-plan] Support RTMPT, http to tranverse firewalls
-1. [no-plan] Support file source, transcoding file to live stream
+1. Support NGINX-RTMP style EXEC, read [#367][bug367].
+1. Support NGINX-RTMP style dvr control module, read [#459][bug459].
+1. Support HTTP Security Raw Api, read [#459][bug459], [#470][bug470], [#319][bug319].
+1. [plan]Support Origin Cluster for Load Balance and Fault Tolarence, read [#464][bug464], [RTMP 302][bug92].
+1. [plan]Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug465].
+1. [plan]Support MPEG-DASH, the future streaming protocol, read [#299][bug299].
+1. [plan]Support HLS edge server, read [#466][bug466].
+1. [plan]Support HLS realtime latency mode, read [#468][bug468].
+1. [plan]Support Integration with Kafka/Spark Big-Data system, read [#467][bug467].
 
 ## Compare
 
@@ -1053,6 +1053,7 @@ Winlin
 [bug #471]: https://github.com/simple-rtmp-server/srs/issues/471
 [bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
 [bug #474]: https://github.com/simple-rtmp-server/srs/issues/474
+[bug #484]: https://github.com/simple-rtmp-server/srs/issues/484
 [bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
