@@ -14,7 +14,7 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs3_CN] or [English][srs3_EN].
 
 ## Content
 
-* [Content](content
+* [Content](content)
 * [About](about)
   * [Why SRS?](why-srs)
   * [Authors](authors)
