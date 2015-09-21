@@ -229,7 +229,7 @@ Compare SRS with other media server.
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
 |   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
-|   HDS         |   Stable  |   X       |   X       |   Stable  |   Stable  |
+|   HDS         | Experiment|   X       |   X       |   Stable  |   Stable  |
 |   HTTP FLV    |   Stable  |   X       |   X       |   X       |   X       |
 |   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
