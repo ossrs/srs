@@ -184,6 +184,7 @@ Presets:
   --fast-dev                for dev fast compile, the RTMP server, without librtmp/utest/research.
   --demo                    for srs demo, @see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
   --full                    enable all features, no gperf/gprof/arm.
+  --x86-64                  alias for --x86-x64.
   
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -275,6 +276,7 @@ function parse_user_option() {
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
+        --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
