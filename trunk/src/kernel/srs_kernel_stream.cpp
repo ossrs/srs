@@ -21,52 +21,50 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_KERNEL_TEMP_HPP
-#define SRS_KERNEL_TEMP_HPP
+#include <srs_kernel_stream.hpp>
 
-/*
-#include <srs_kernel_temp.hpp>
-*/
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_core_performance.hpp>
 
-#include <srs_core.hpp>
-
-#include <vector>
-
-/**
-* the simple buffer use vector to append bytes,
-* it's for hls and http, and need to be refined in future.
-*/
-class SrsSimpleBuffer
+SrsSimpleBuffer::SrsSimpleBuffer()
 {
-private:
-    std::vector<char> data;
-public:
-    SrsSimpleBuffer();
-    virtual ~SrsSimpleBuffer();
-public:
-    /**
-    * get the length of buffer. empty if zero.
-    * @remark assert length() is not negative.
-    */
-    virtual int length();
-    /**
-    * get the buffer bytes.
-    * @return the bytes, NULL if empty.
-    */
-    virtual char* bytes();
-    /**
-    * erase size of bytes from begin.
-    * @param size to erase size of bytes. 
-    *       clear if size greater than or equals to length()
-    * @remark ignore size is not positive.
-    */
-    virtual void erase(int size);
-    /**
-    * append specified bytes to buffer.
-    * @param size the size of bytes
-    * @remark assert size is positive.
-    */
-    virtual void append(const char* bytes, int size);
-};
+}
 
-#endif
+SrsSimpleBuffer::~SrsSimpleBuffer()
+{
+}
+
+int SrsSimpleBuffer::length()
+{
+    int len = (int)data.size();
+    srs_assert(len >= 0);
+    return len;
+}
+
+char* SrsSimpleBuffer::bytes()
+{
+    return (length() == 0)? NULL : &data.at(0);
+}
+
+void SrsSimpleBuffer::erase(int size)
+{
+    if (size <= 0) {
+        return;
+    }
+    
+    if (size >= length()) {
+        data.clear();
+        return;
+    }
+    
+    data.erase(data.begin(), data.begin() + size);
+}
+
+void SrsSimpleBuffer::append(const char* bytes, int size)
+{
+    srs_assert(size > 0);
+
+    data.insert(data.end(), bytes, bytes + size);
+}

@@ -38,7 +38,7 @@ using namespace std;
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_kernel_temp.hpp>
+#include <srs_kernel_stream.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
