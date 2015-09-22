@@ -23,3 +23,125 @@
 
 #include <srs_kafka_stack.hpp>
 
+using namespace std;
+
+SrsKafkaString::SrsKafkaString()
+{
+    size = -1;
+    data = NULL;
+}
+
+SrsKafkaString::~SrsKafkaString()
+{
+    srs_freep(data);
+}
+
+bool SrsKafkaString::null()
+{
+    return size == -1;
+}
+
+bool SrsKafkaString::empty()
+{
+    return size <= 0;
+}
+
+int SrsKafkaString::total_size()
+{
+    return 2 + (size == -1? 0 : size);
+}
+
+SrsKafkaBytes::SrsKafkaBytes()
+{
+    size = -1;
+    data = NULL;
+}
+
+SrsKafkaBytes::~SrsKafkaBytes()
+{
+    srs_freep(data);
+}
+
+bool SrsKafkaBytes::null()
+{
+    return size == -1;
+}
+
+bool SrsKafkaBytes::empty()
+{
+    return size <= 0;
+}
+
+int SrsKafkaBytes::total_size()
+{
+    return 4 + (size == -1? 0 : size);
+}
+
+SrsKafkaRequestHeader::SrsKafkaRequestHeader()
+{
+    size = 0;
+    api_key = api_version = 0;
+    correlation_id = 0;
+    client_id = new SrsKafkaString();
+}
+
+SrsKafkaRequestHeader::~SrsKafkaRequestHeader()
+{
+    srs_freep(client_id);
+}
+
+int SrsKafkaRequestHeader::header_size()
+{
+    return 2 + 2 + 4 + client_id->total_size();
+}
+
+int SrsKafkaRequestHeader::message_size()
+{
+    return size - header_size();
+}
+
+int SrsKafkaRequestHeader::total_size()
+{
+    return 4 + size;
+}
+
+SrsKafkaResponse::SrsKafkaResponse()
+{
+    correlation_id = 0;
+}
+
+SrsKafkaResponse::~SrsKafkaResponse()
+{
+}
+
+SrsKafkaMessage::SrsKafkaMessage()
+{
+    offset = 0;
+    message_size = 0;
+    
+    crc = 0;
+    magic_byte = attributes = 0;
+    key = new SrsKafkaBytes();
+    value = new SrsKafkaBytes();
+}
+
+SrsKafkaMessage::~SrsKafkaMessage()
+{
+    srs_freep(key);
+    srs_freep(value);
+}
+
+SrsKafkaMessageSet::SrsKafkaMessageSet()
+{
+}
+
+SrsKafkaMessageSet::~SrsKafkaMessageSet()
+{
+    vector<SrsKafkaMessage*>::iterator it;
+    for (it = messages.begin(); it != messages.end(); ++it) {
+        SrsKafkaMessage* message = *it;
+        srs_freep(message);
+    }
+    messages.clear();
+}
+
