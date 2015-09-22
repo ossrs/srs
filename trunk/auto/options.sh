@@ -140,6 +140,7 @@ Options:
   --with-gcp                build cpu profile for SRS with gperf tools.
   --with-gprof              build SRS with gprof(GNU profile tool).
   --with-arm-ubuntu12       build SRS on ubuntu12 for armhf(v7cpu).
+  --with-mips-ubuntu12      build SRS on ubuntu12 for mips.
                           
   --without-ssl             disable rtmp complex handshake.
   --without-hls             disable hls, the apple http live streaming.
@@ -163,6 +164,7 @@ Options:
   --without-gcp             do not build cpu profile for SRS with gperf tools.
   --without-gprof           do not build srs with gprof(GNU profile tool).
   --without-arm-ubuntu12    do not build srs on ubuntu12 for armhf(v7cpu).
+  --without-mips-ubuntu12   do not build srs on ubuntu12 for mips.
                           
   --prefix=<path>           the absolute install path for srs.
   --static                  whether add '-static' to link options.
@@ -207,6 +209,12 @@ Workflow:
   2. apply "Options". user specified option will override the preset.
   3. check conflicts. @see Conflicts section.
   4. generate detail features.
+
+Remark:
+  1. both ubuntu12 and ubuntu14 are ok for SRS.
+  2. the centos5, centos6 and centos7 are ok for SRS.
+  3. all linux and unix-like os are ok for SRS.
+  4. windows is absolutely impossible for SRS.
 
 END
 }
