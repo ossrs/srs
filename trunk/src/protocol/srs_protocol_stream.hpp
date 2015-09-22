@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#include <srs_rtmp_io.hpp>
+#include <srs_protocol_io.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_kernel_stream.hpp>
 

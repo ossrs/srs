@@ -40,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace _srs_internal;
 #endif
 
-#include <srs_rtmp_io.hpp>
+#include <srs_protocol_io.hpp>
 
 class MockEmptyIO : public ISrsProtocolReaderWriter
 {

@@ -39,7 +39,7 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_io.hpp>
+#include <srs_protocol_io.hpp>
 
 void srs_discovery_tc_url(
     string tcUrl, 

@@ -211,7 +211,7 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_io.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp">
@@ -405,7 +405,7 @@
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_io.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp">

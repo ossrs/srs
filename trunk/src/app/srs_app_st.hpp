@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 #include <srs_app_st.hpp>
-#include <srs_rtmp_io.hpp>
+#include <srs_protocol_io.hpp>
 
 // the internal classes, user should never use it.
 // user should use the public classes at the bellow:
