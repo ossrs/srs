@@ -95,7 +95,7 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
     sid = (SrsTsPESStreamId)0x00;
     continuity_counter = 0;
     PES_packet_length = 0;
-    payload = new SrsSimpleBuffer();
+    payload = new SrsSimpleStream();
     is_discontinuity = false;
 
     start_pts = 0;

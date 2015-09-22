@@ -38,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_STREAM_CASTER
 
 class SrsBuffer;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsCodecSample;
 class ISrsProtocolReaderWriter;
 
@@ -286,7 +286,7 @@ public:
     u_int32_t ssrc; //32bits
 
     // the payload.
-    SrsSimpleBuffer* payload;
+    SrsSimpleStream* payload;
     // whether transport in chunked payload.
     bool chunked;
     // whether message is completed.
@@ -657,7 +657,7 @@ private:
     /**
     * cached bytes buffer.
     */
-    SrsSimpleBuffer* buf;
+    SrsSimpleStream* buf;
     /**
     * underlayer socket object, send/recv bytes.
     */

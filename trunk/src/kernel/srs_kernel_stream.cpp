@@ -28,27 +28,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 
-SrsSimpleBuffer::SrsSimpleBuffer()
+SrsSimpleStream::SrsSimpleStream()
 {
 }
 
-SrsSimpleBuffer::~SrsSimpleBuffer()
+SrsSimpleStream::~SrsSimpleStream()
 {
 }
 
-int SrsSimpleBuffer::length()
+int SrsSimpleStream::length()
 {
     int len = (int)data.size();
     srs_assert(len >= 0);
     return len;
 }
 
-char* SrsSimpleBuffer::bytes()
+char* SrsSimpleStream::bytes()
 {
     return (length() == 0)? NULL : &data.at(0);
 }
 
-void SrsSimpleBuffer::erase(int size)
+void SrsSimpleStream::erase(int size)
 {
     if (size <= 0) {
         return;
@@ -62,7 +62,7 @@ void SrsSimpleBuffer::erase(int size)
     data.erase(data.begin(), data.begin() + size);
 }
 
-void SrsSimpleBuffer::append(const char* bytes, int size)
+void SrsSimpleStream::append(const char* bytes, int size)
 {
     srs_assert(size > 0);
 

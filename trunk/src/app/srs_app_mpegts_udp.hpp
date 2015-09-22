@@ -39,7 +39,7 @@ struct sockaddr_in;
 class SrsBuffer;
 class SrsTsContext;
 class SrsConfDirective;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
@@ -82,7 +82,7 @@ class SrsMpegtsOverUdp : virtual public ISrsTsHandler
 private:
     SrsBuffer* stream;
     SrsTsContext* context;
-    SrsSimpleBuffer* buffer;
+    SrsSimpleStream* buffer;
     std::string output;
 private:
     SrsRequest* req;

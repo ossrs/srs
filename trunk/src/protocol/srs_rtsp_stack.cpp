@@ -133,7 +133,7 @@ SrsRtpPacket::SrsRtpPacket()
     timestamp = 0;
     ssrc = 0;
 
-    payload = new SrsSimpleBuffer();
+    payload = new SrsSimpleStream();
     audio_samples = new SrsCodecSample();
     chunked = false;
     completed = false;
@@ -829,7 +829,7 @@ int SrsRtspSetupResponse::encode_header(stringstream& ss)
 
 SrsRtspStack::SrsRtspStack(ISrsProtocolReaderWriter* s)
 {
-    buf = new SrsSimpleBuffer();
+    buf = new SrsSimpleStream();
     skt = s;
 }
 

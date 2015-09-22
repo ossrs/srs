@@ -54,7 +54,7 @@ class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
 class SrsCodecSample;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsPithyPrint;
 
 /**
@@ -87,7 +87,7 @@ struct SrsRtspAudioCache
 {
     int64_t dts;
     SrsCodecSample* audio_samples;
-    SrsSimpleBuffer* payload;
+    SrsSimpleStream* payload;
 
     SrsRtspAudioCache();
     virtual ~SrsRtspAudioCache();

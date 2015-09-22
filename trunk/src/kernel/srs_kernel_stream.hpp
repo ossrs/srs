@@ -36,13 +36,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * the simple buffer use vector to append bytes,
 * it's for hls and http, and need to be refined in future.
 */
-class SrsSimpleBuffer
+class SrsSimpleStream
 {
 private:
     std::vector<char> data;
 public:
-    SrsSimpleBuffer();
-    virtual ~SrsSimpleBuffer();
+    SrsSimpleStream();
+    virtual ~SrsSimpleStream();
 public:
     /**
     * get the length of buffer. empty if zero.

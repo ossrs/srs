@@ -46,7 +46,7 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
 class SrsFileWriter;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsTsAacJitter;
 class SrsTsCache;
 class SrsHlsSegment;

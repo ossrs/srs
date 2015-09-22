@@ -42,7 +42,7 @@ class SrsFileWriter;
 class SrsFileReader;
 class SrsAvcAacCodec;
 class SrsCodecSample;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsTsAdaptationField;
 class SrsTsPayload;
 class SrsTsMessage;
@@ -273,7 +273,7 @@ public:
     // the chunk id.
     u_int8_t continuity_counter;
     // the payload bytes.
-    SrsSimpleBuffer* payload;
+    SrsSimpleStream* payload;
 public:
     SrsTsMessage(SrsTsChannel* c = NULL, SrsTsPacket* p = NULL);
     virtual ~SrsTsMessage();

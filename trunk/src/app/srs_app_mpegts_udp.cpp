@@ -128,7 +128,7 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
     stream = new SrsBuffer();
     context = new SrsTsContext();
-    buffer = new SrsSimpleBuffer();
+    buffer = new SrsSimpleStream();
     output = _srs_config->get_stream_caster_output(c);
     
     req = NULL;

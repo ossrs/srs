@@ -78,9 +78,9 @@ public:
     int64_t recv_bytes;
     int64_t send_bytes;
     // data source for socket read.
-    SrsSimpleBuffer in_buffer;
+    SrsSimpleStream in_buffer;
     // data buffer for socket send.
-    SrsSimpleBuffer out_buffer;
+    SrsSimpleStream out_buffer;
 public:
     MockBufferIO();
     virtual ~MockBufferIO();
