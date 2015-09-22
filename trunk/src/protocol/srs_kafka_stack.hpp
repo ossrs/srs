@@ -70,6 +70,35 @@ public:
 };
 
 /**
+ * This is a notation for handling repeated structures. These will always be encoded as an 
+ * int32 size containing the length N followed by N repetitions of the structure which can 
+ * itself be made up of other primitive types. In the BNF grammars below we will show an 
+ * array of a structure foo as [foo].
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
+ */
+template<typename T>
+class SrsKafkaArray
+{
+private:
+    int length;
+    std::vector<T*> elems;
+    typedef typename std::vector<T*>::iterator SrsIterator;
+public:
+    SrsKafkaArray()
+    {
+        length = 0;
+    }
+    virtual ~SrsKafkaArray()
+    {
+        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
+            T* elem = *it;
+            srs_freep(elem);
+        }
+        elems.clear();
+    }
+};
+
+/**
  * the header of request, includes the size of request.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
