@@ -331,6 +331,7 @@
 		3C36DB581ABD1CB90066CCAF /* srs_lib_simple_socket.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_lib_simple_socket.hpp; path = ../../../src/libs/srs_lib_simple_socket.hpp; sourceTree = "<group>"; };
 		3C36DB591ABD1CB90066CCAF /* srs_librtmp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_librtmp.cpp; path = ../../../src/libs/srs_librtmp.cpp; sourceTree = "<group>"; };
 		3C36DB5A1ABD1CB90066CCAF /* srs_librtmp.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_librtmp.hpp; path = ../../../src/libs/srs_librtmp.hpp; sourceTree = "<group>"; };
+		3C4468E81BB0E31300589C9D /* sources_replace.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = sources_replace.sh; path = ../../../scripts/sources_replace.sh; sourceTree = "<group>"; };
 		3C4AB9311B8C9148006627D3 /* srs_app_ng_exec.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_ng_exec.cpp; path = ../../../src/app/srs_app_ng_exec.cpp; sourceTree = "<group>"; };
 		3C4AB9321B8C9148006627D3 /* srs_app_ng_exec.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_ng_exec.hpp; path = ../../../src/app/srs_app_ng_exec.hpp; sourceTree = "<group>"; };
 		3C4AB9341B8C9FF9006627D3 /* exec.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = exec.conf; path = ../../../conf/exec.conf; sourceTree = "<group>"; };
@@ -633,6 +634,7 @@
 				3C1232CC1AAE833300CE8F6C /* install.sh */,
 				3C1232CD1AAE833300CE8F6C /* package.sh */,
 				3C1232CE1AAE833300CE8F6C /* run.sh */,
+				3C4468E81BB0E31300589C9D /* sources_replace.sh */,
 				3C1232CF1AAE833300CE8F6C /* srs.test */,
 				3C1232D01AAE833300CE8F6C /* stop.sh */,
 				3C1232D11AAE833300CE8F6C /* test_configure.sh */,
