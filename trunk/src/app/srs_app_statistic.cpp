@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_app_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 
 int64_t srs_gvid = getpid();
 

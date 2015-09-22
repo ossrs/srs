@@ -41,7 +41,7 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_core_autofree.hpp>
 

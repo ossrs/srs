@@ -57,7 +57,7 @@ using namespace std;
 #include <srs_app_http_api.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_http_hooks.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 
 #endif
 

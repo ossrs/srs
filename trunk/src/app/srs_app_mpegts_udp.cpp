@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_app_st.hpp>
 #include <srs_rtmp_utility.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_raw_avc.hpp>
 #include <srs_app_pithy_print.hpp>
 

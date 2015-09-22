@@ -121,7 +121,7 @@
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_http_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_raw_avc.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_amf0.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_protocol_stream.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp" />
@@ -204,7 +204,7 @@
     <ClCompile Include="..\..\src\main\srs_main_server.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_http_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_raw_avc.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_amf0.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_protocol_stream.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp" />

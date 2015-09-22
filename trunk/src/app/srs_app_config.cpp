@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_performance.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_http_hooks.hpp>

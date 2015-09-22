@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest.hpp>
 
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 
 #endif
 

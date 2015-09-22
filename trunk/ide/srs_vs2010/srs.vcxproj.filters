@@ -202,7 +202,7 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_amf0.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp">
@@ -396,7 +396,7 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_amf0.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp">

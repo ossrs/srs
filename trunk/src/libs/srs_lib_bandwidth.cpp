@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 
 /**
 * recv bandwidth helper.

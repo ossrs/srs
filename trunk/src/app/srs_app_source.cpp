@@ -29,7 +29,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_forward.hpp>
