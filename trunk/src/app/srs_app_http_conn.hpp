@@ -63,7 +63,7 @@ class SrsHttpHandler;
 class SrsMessageQueue;
 class SrsSharedPtrMessage;
 class SrsRequest;
-class SrsFastBuffer;
+class SrsFastStream;
 class SrsHttpUri;
 class SrsConnection;
 class SrsHttpMessage;
@@ -122,7 +122,7 @@ class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
 private:
     SrsStSocket* skt;
     SrsHttpMessage* owner;
-    SrsFastBuffer* buffer;
+    SrsFastStream* buffer;
     bool is_eof;
     // the left bytes in chunk.
     int nb_left_chunk;
@@ -137,7 +137,7 @@ public:
     /**
      * initialize the response reader with buffer.
      */
-    virtual int initialize(SrsFastBuffer* buffer);
+    virtual int initialize(SrsFastStream* buffer);
     // interface ISrsHttpResponseReader
 public:
     virtual bool eof();
@@ -215,7 +215,7 @@ public:
      * set the original messages, then update the message.
      */
     virtual int update(std::string url, bool allow_jsonp, http_parser* header,
-        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
+        SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers
     );
 public:
     virtual SrsConnection* connection();
@@ -303,7 +303,7 @@ private:
     http_parser_settings settings;
     http_parser parser;
     // the global parse buffer.
-    SrsFastBuffer* buffer;
+    SrsFastStream* buffer;
     // whether allow jsonp parse.
     bool jsonp;
 private:

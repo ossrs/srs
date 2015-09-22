@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 
 #include <stdlib.h>
 
@@ -52,7 +52,7 @@ IMergeReadHandler::~IMergeReadHandler()
 }
 #endif
 
-SrsFastBuffer::SrsFastBuffer()
+SrsFastStream::SrsFastStream()
 {
 #ifdef SRS_PERF_MERGED_READ
     merged_read = false;
@@ -64,23 +64,23 @@ SrsFastBuffer::SrsFastBuffer()
     p = end = buffer;
 }
 
-SrsFastBuffer::~SrsFastBuffer()
+SrsFastStream::~SrsFastStream()
 {
     free(buffer);
     buffer = NULL;
 }
 
-int SrsFastBuffer::size()
+int SrsFastStream::size()
 {
     return (int)(end - p);
 }
 
-char* SrsFastBuffer::bytes()
+char* SrsFastStream::bytes()
 {
     return p;
 }
 
-void SrsFastBuffer::set_buffer(int buffer_size)
+void SrsFastStream::set_buffer(int buffer_size)
 {
     // never exceed the max size.
     if (buffer_size > SRS_MAX_SOCKET_BUFFER) {
@@ -106,13 +106,13 @@ void SrsFastBuffer::set_buffer(int buffer_size)
     end = p + nb_bytes;
 }
 
-char SrsFastBuffer::read_1byte()
+char SrsFastStream::read_1byte()
 {
     srs_assert(end - p >= 1);
     return *p++;
 }
 
-char* SrsFastBuffer::read_slice(int size)
+char* SrsFastStream::read_slice(int size)
 {
     srs_assert(size >= 0);
     srs_assert(end - p >= size);
@@ -124,14 +124,14 @@ char* SrsFastBuffer::read_slice(int size)
     return ptr;
 }
 
-void SrsFastBuffer::skip(int size)
+void SrsFastStream::skip(int size)
 {
     srs_assert(end - p >= size);
     srs_assert(p + size >= buffer);
     p += size;
 }
 
-int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
+int SrsFastStream::grow(ISrsBufferReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 
@@ -205,7 +205,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 }
 
 #ifdef SRS_PERF_MERGED_READ
-void SrsFastBuffer::set_merge_read(bool v, IMergeReadHandler* handler)
+void SrsFastStream::set_merge_read(bool v, IMergeReadHandler* handler)
 {
     merged_read = v;
     _handler = handler;

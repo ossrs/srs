@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_http_hooks.hpp>

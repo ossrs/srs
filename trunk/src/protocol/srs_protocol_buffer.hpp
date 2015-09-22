@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_PROTOCOL_BUFFER_HPP
-#define SRS_PROTOCOL_BUFFER_HPP
+#ifndef SRS_PROTOCOL_STREAM_HPP
+#define SRS_PROTOCOL_STREAM_HPP
 
 /*
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 */
 
 #include <srs_core.hpp>
@@ -61,13 +61,13 @@ public:
 * protocol recv data from socket, put into buffer, decode to RTMP message.
 * Usage:
 *       ISrsBufferReader* r = ......;
-*       SrsFastBuffer* fb = ......;
+*       SrsFastStream* fb = ......;
 *       fb->grow(r, 1024);
 *       char* header = fb->read_slice(100);
 *       char* payload = fb->read_payload(924);
 */
 // TODO: FIXME: add utest for it.
-class SrsFastBuffer
+class SrsFastStream
 {
 private:
 #ifdef SRS_PERF_MERGED_READ
@@ -88,8 +88,8 @@ private:
     // the size of buffer.
     int nb_buffer;
 public:
-    SrsFastBuffer();
-    virtual ~SrsFastBuffer();
+    SrsFastStream();
+    virtual ~SrsFastStream();
 public:
     /**
     * get the size of current bytes in buffer.

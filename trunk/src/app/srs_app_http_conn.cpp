@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_rtmp_utility.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -317,7 +317,7 @@ SrsHttpResponseReader::~SrsHttpResponseReader()
 {
 }
 
-int SrsHttpResponseReader::initialize(SrsFastBuffer* body)
+int SrsHttpResponseReader::initialize(SrsFastStream* body)
 {
     int ret = ERROR_SUCCESS;
     
@@ -512,7 +512,7 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
-int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
+int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, vector<SrsHttpHeaderField>& headers)
 {
     int ret = ERROR_SUCCESS;
     
@@ -845,7 +845,7 @@ bool SrsHttpMessage::is_jsonp()
 
 SrsHttpParser::SrsHttpParser()
 {
-    buffer = new SrsFastBuffer();
+    buffer = new SrsFastStream();
 }
 
 SrsHttpParser::~SrsHttpParser()

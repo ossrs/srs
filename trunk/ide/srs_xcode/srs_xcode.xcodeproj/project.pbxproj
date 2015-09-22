@@ -10,7 +10,7 @@
 		3C036B551B2D0AC10078E2E0 /* srs_app_http_static.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C036B511B2D0AC10078E2E0 /* srs_app_http_static.cpp */; };
 		3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C036B531B2D0AC10078E2E0 /* srs_app_http_stream.cpp */; };
 		3C068D6A1B10149F00AA722C /* srs_protocol_kbps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C068D681B10149F00AA722C /* srs_protocol_kbps.cpp */; };
-		3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */; };
+		3C068D6D1B10175500AA722C /* srs_protocol_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C068D6B1B10175500AA722C /* srs_protocol_stream.cpp */; };
 		3C0D422E1B87165900C2508B /* srs_protocol_json.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0D422C1B87165900C2508B /* srs_protocol_json.cpp */; };
 		3C0E1B8D1B0F5ADF003ADEF7 /* srs_http_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */; };
 		3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1231F01AAE652C00CE8F6C /* srs_core_autofree.cpp */; };
@@ -132,8 +132,8 @@
 		3C036B541B2D0AC10078E2E0 /* srs_app_http_stream.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_http_stream.hpp; path = ../../../src/app/srs_app_http_stream.hpp; sourceTree = "<group>"; };
 		3C068D681B10149F00AA722C /* srs_protocol_kbps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_kbps.cpp; path = ../../../src/protocol/srs_protocol_kbps.cpp; sourceTree = "<group>"; };
 		3C068D691B10149F00AA722C /* srs_protocol_kbps.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_protocol_kbps.hpp; path = ../../../src/protocol/srs_protocol_kbps.hpp; sourceTree = "<group>"; };
-		3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_buffer.cpp; path = ../../../src/protocol/srs_protocol_buffer.cpp; sourceTree = "<group>"; };
-		3C068D6C1B10175500AA722C /* srs_protocol_buffer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_protocol_buffer.hpp; path = ../../../src/protocol/srs_protocol_buffer.hpp; sourceTree = "<group>"; };
+		3C068D6B1B10175500AA722C /* srs_protocol_stream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_stream.cpp; path = ../../../src/protocol/srs_protocol_stream.cpp; sourceTree = "<group>"; };
+		3C068D6C1B10175500AA722C /* srs_protocol_stream.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_protocol_stream.hpp; path = ../../../src/protocol/srs_protocol_stream.hpp; sourceTree = "<group>"; };
 		3C0D422C1B87165900C2508B /* srs_protocol_json.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_protocol_json.cpp; path = ../../../src/protocol/srs_protocol_json.cpp; sourceTree = "<group>"; };
 		3C0D422D1B87165900C2508B /* srs_protocol_json.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_protocol_json.hpp; path = ../../../src/protocol/srs_protocol_json.hpp; sourceTree = "<group>"; };
 		3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_http_stack.cpp; path = ../../../src/protocol/srs_http_stack.cpp; sourceTree = "<group>"; };
@@ -512,8 +512,8 @@
 				3C0E1B8C1B0F5ADF003ADEF7 /* srs_http_stack.hpp */,
 				3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */,
 				3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */,
-				3C068D6B1B10175500AA722C /* srs_protocol_buffer.cpp */,
-				3C068D6C1B10175500AA722C /* srs_protocol_buffer.hpp */,
+				3C068D6B1B10175500AA722C /* srs_protocol_stream.cpp */,
+				3C068D6C1B10175500AA722C /* srs_protocol_stream.hpp */,
 				3C0D422C1B87165900C2508B /* srs_protocol_json.cpp */,
 				3C0D422D1B87165900C2508B /* srs_protocol_json.hpp */,
 				3C068D681B10149F00AA722C /* srs_protocol_kbps.cpp */,
@@ -955,7 +955,7 @@
 				3C28EDDF1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp in Sources */,
 				3C1232241AAE814D00CE8F6C /* srs_kernel_error.cpp in Sources */,
 				3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */,
-				3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */,
+				3C068D6D1B10175500AA722C /* srs_protocol_stream.cpp in Sources */,
 				3C1232441AAE81A400CE8F6C /* srs_rtmp_handshake.cpp in Sources */,
 				3C1232291AAE814D00CE8F6C /* srs_kernel_buffer.cpp in Sources */,
 				3C663F181AB0155100286D8B /* srs_play.c in Sources */,

@@ -267,7 +267,7 @@ VOID TEST(KernelBufferTest, EraseBytes)
 
 VOID TEST(KernelFastBufferTest, Grow)
 {
-    SrsFastBuffer b;
+    SrsFastStream b;
     MockBufferReader r("winlin");
     
     b.grow(&r, 1);

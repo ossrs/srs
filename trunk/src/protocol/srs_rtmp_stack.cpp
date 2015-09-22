@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_rtmp_utility.hpp>
 #include <srs_rtmp_handshake.hpp>
 
@@ -216,7 +216,7 @@ SrsProtocol::AckWindowSize::AckWindowSize()
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 {
-    in_buffer = new SrsFastBuffer();
+    in_buffer = new SrsFastStream();
     skt = io;
     
     in_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;

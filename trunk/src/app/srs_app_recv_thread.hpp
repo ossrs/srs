@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 #include <srs_app_thread.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>
 
