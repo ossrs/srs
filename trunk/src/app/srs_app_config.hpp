@@ -628,6 +628,12 @@ public:
     * get the max udp port for rtp of stream caster rtsp.
     */
     virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* conf);
+// kafka section.
+public:
+    /**
+     * whether the kafka enabled.
+     */
+    virtual bool                get_kafka_enabled();
 // vhost specified section
 public:
     /**

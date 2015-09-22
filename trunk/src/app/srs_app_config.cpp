@@ -3488,7 +3488,7 @@ int SrsConfig::check_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster"
+            && n != "http_server" && n != "stream_caster" && n != "kafka"
             && n != "utc_time"
         ) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -3526,6 +3526,17 @@ int SrsConfig::check_config()
             if (n != "enabled" && n != "listen" && n != "dir") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported http_stream directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = root->get("kafka");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled") {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported kafka directive %s, ret=%d", n.c_str(), ret);
                 return ret;
             }
         }
@@ -4241,6 +4252,23 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_kafka_enabled()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("kafka");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
