@@ -62,7 +62,7 @@ public:
 };
 
 /**
- * the async callback for dvr.
+ * the async callback for dvr, callback and other async worker.
  * when worker call with the task, the worker will do it in isolate thread.
  * that is, the task is execute/call in async mode.
  */

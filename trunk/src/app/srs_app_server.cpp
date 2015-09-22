@@ -49,6 +49,7 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
+#include <srs_app_kafka.hpp>
 
 // system interval in ms,
 // all resolution times should be times togother,
@@ -508,6 +509,7 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
+    kafka = new SrsKafkaProducer();
 }
 
 SrsServer::~SrsServer()
@@ -537,6 +539,8 @@ void SrsServer::destroy()
     srs_freep(ingester);
 #endif
     
+    srs_freep(kafka);
+    
     if (pid_fd > 0) {
         ::close(pid_fd);
         pid_fd = -1;
@@ -560,6 +564,8 @@ void SrsServer::dispose()
 #ifdef SRS_AUTO_INGEST
     ingester->dispose();
 #endif
+    
+    kafka->stop();
     
     SrsSource::dispose_all();
     
@@ -862,6 +868,18 @@ int SrsServer::ingest()
 #endif
 
     return ret;
+}
+
+int SrsServer::start_kafka()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = kafka->initialize()) != ERROR_SUCCESS) {
+        srs_error("initialize the kafka producer failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return kafka->start();
 }
 
 int SrsServer::cycle()

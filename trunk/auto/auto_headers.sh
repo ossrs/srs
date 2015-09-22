@@ -94,6 +94,12 @@ else
     echo "#undef SRS_AUTO_STREAM_CASTER" >> $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_KAFKA = YES ]; then
+    echo "#define SRS_AUTO_KAFKA" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_KAFKA" >> $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_HTTP_API = YES ]; then
     echo "#define SRS_AUTO_HTTP_API" >> $SRS_AUTO_HEADERS_H
 else

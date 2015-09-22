@@ -177,7 +177,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
-            "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec")
+            "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec" "srs_app_kafka")
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -513,6 +513,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${YELLOW}Experiment: StreamCaster is enabled${BLACK}"
     else
         echo -e "${GREEN}note: without StreamCaster support${BLACK}"
+    fi
+    if [ $SRS_KAFKA = YES ]; then
+        echo -e "${GREEN}Kafka is enabled${BLACK}"
+    else
+        echo -e "${YELLOW}warning: without Kafka support${BLACK}"
     fi
     if [ $SRS_HDS = YES ]; then
         echo -e "${YELLOW}Experiment: HDS is enabled${BLACK}"

@@ -55,6 +55,7 @@ class SrsTcpListener;
 #ifdef SRS_AUTO_STREAM_CASTER
 class SrsAppCasterFlv;
 #endif
+class SrsKafkaProducer;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -247,6 +248,7 @@ private:
 #ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
 #endif
+    SrsKafkaProducer* kafka;
 private:
     /**
     * the pid file fd, lock the file write when server is running.
@@ -307,6 +309,7 @@ public:
     virtual int register_signal();
     virtual int http_handle();
     virtual int ingest();
+    virtual int start_kafka();
     virtual int cycle();
 // IConnectionManager
 public:

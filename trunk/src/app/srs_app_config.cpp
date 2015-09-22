@@ -1539,6 +1539,7 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     }
 
     // TODO: FIXME: support reload stream_caster.
+    // TODO: FIXME: support reload kafka.
 
     // merge config: vhost
     if ((ret = reload_vhost(old_root)) != ERROR_SUCCESS) {

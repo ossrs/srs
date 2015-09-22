@@ -382,6 +382,10 @@ int run_master()
         return ret;
     }
     
+    if ((ret = _srs_server->start_kafka()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
         return ret;
     }
