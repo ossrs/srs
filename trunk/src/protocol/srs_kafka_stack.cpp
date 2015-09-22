@@ -105,6 +105,46 @@ int SrsKafkaRequestHeader::total_size()
     return 4 + size;
 }
 
+bool SrsKafkaRequestHeader::is_producer_request()
+{
+    return api_key == SrsKafkaApiKeyProduceRequest;
+}
+
+bool SrsKafkaRequestHeader::is_fetch_request()
+{
+    return api_key == SrsKafkaApiKeyFetchRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_request()
+{
+    return api_key == SrsKafkaApiKeyOffsetRequest;
+}
+
+bool SrsKafkaRequestHeader::is_metadata_request()
+{
+    return api_key == SrsKafkaApiKeyMetadataRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_commit_request()
+{
+    return api_key == SrsKafkaApiKeyOffsetCommitRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_fetch_request()
+{
+    return api_key == SrsKafkaApiKeyOffsetFetchRequest;
+}
+
+bool SrsKafkaRequestHeader::is_consumer_metadata_request()
+{
+    return api_key == SrsKafkaApiKeyConsumerMetadataRequest;
+}
+
+void SrsKafkaRequestHeader::set_api_key(SrsKafkaApiKey key)
+{
+    api_key = (int16_t)key;
+}
+
 SrsKafkaResponse::SrsKafkaResponse()
 {
     correlation_id = 0;
@@ -143,5 +183,14 @@ SrsKafkaMessageSet::~SrsKafkaMessageSet()
         srs_freep(message);
     }
     messages.clear();
+}
+
+SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
+{
+    header.set_api_key(SrsKafkaApiKeyMetadataRequest);
+}
+
+SrsKafkaTopicMetadataRequest::~SrsKafkaTopicMetadataRequest()
+{
 }
 

@@ -31,6 +31,19 @@
 
 #include <vector>
 
+// https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
+enum SrsKafkaApiKey
+{
+    SrsKafkaApiKeyProduceRequest = 0,
+    SrsKafkaApiKeyFetchRequest = 1,
+    SrsKafkaApiKeyOffsetRequest = 2,
+    SrsKafkaApiKeyMetadataRequest = 3,
+    /* Non-user facing control APIs 4-7 */
+    SrsKafkaApiKeyOffsetCommitRequest = 8,
+    SrsKafkaApiKeyOffsetFetchRequest = 9,
+    SrsKafkaApiKeyConsumerMetadataRequest = 10,
+};
+
 /**
  * These types consist of a signed integer giving a length N followed by N bytes of content. 
  * A length of -1 indicates null. string uses an int16 for its size, and bytes uses an int32.
@@ -74,6 +87,11 @@ public:
  * int32 size containing the length N followed by N repetitions of the structure which can 
  * itself be made up of other primitive types. In the BNF grammars below we will show an 
  * array of a structure foo as [foo].
+ * 
+ * Usage:
+ *      SrsKafkaArray<SrsKafkaBytes> body;
+ *      body.append(new SrsKafkaBytes());
+ *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
 template<typename T>
@@ -95,6 +113,12 @@ public:
             srs_freep(elem);
         }
         elems.clear();
+    }
+public:
+    virtual void append(T* elem)
+    {
+        length++;
+        elems.push_back(elem);
     }
 };
 
@@ -161,6 +185,20 @@ public:
      * @remark total_size = 4 + header_size + message_size.
      */
     virtual int total_size();
+public:
+    /**
+     * the api key enumeration.
+     * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
+     */
+    virtual bool is_producer_request();
+    virtual bool is_fetch_request();
+    virtual bool is_offset_request();
+    virtual bool is_metadata_request();
+    virtual bool is_offset_commit_request();
+    virtual bool is_offset_fetch_request();
+    virtual bool is_consumer_metadata_request();
+    // set the api key.
+    virtual void set_api_key(SrsKafkaApiKey key);
 };
 
 /**
@@ -262,7 +300,12 @@ public:
  */
 class SrsKafkaTopicMetadataRequest
 {
+private:
+    SrsKafkaRequestHeader header;
+    SrsKafkaArray<SrsKafkaString> request;
 public:
+    SrsKafkaTopicMetadataRequest();
+    virtual ~SrsKafkaTopicMetadataRequest();
 };
 
 #endif
