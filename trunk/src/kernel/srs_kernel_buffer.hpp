@@ -159,15 +159,15 @@ public:
 /**
  * the bit stream.
  */
-class SrsBitStream
+class SrsBitBuffer
 {
 private:
     int8_t cb;
     u_int8_t cb_left;
     SrsBuffer* stream;
 public:
-    SrsBitStream();
-    virtual ~SrsBitStream();
+    SrsBitBuffer();
+    virtual ~SrsBitBuffer();
 public:
     virtual int initialize(SrsBuffer* s);
     virtual bool empty();

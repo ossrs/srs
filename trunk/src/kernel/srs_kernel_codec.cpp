@@ -981,7 +981,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return ret;
     }
     
-    SrsBitStream bs;
+    SrsBitBuffer bs;
     if ((ret = bs.initialize(&stream)) != ERROR_SUCCESS) {
         return ret;
     }
