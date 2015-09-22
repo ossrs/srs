@@ -53,7 +53,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_statistic.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
 
 // when stream is busy, for example, streaming is already

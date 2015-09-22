@@ -220,7 +220,7 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_utility.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\app\srs_app_mpegts_udp.cpp">
@@ -414,7 +414,7 @@
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_utility.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\app\srs_app_mpegts_udp.hpp">

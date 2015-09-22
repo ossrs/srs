@@ -45,7 +45,7 @@ using namespace std;
 #include <srs_app_hds.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_app_ng_exec.hpp>
 
 #define CONST_MAX_JITTER_MS         250

@@ -127,7 +127,7 @@
     <ClInclude Include="..\..\src\protocol\srs_protocol_io.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_utility.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtsp_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_protocol_kbps.hpp" />
   </ItemGroup>
@@ -210,7 +210,7 @@
     <ClCompile Include="..\..\src\protocol\srs_protocol_io.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_utility.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtsp_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_protocol_kbps.cpp" />
   </ItemGroup>

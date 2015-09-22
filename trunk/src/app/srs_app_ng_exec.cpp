@@ -34,7 +34,7 @@ using namespace std;
 #include <srs_app_process.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 // when error, ng-exec sleep for a while and retry.
 #define SRS_RTMP_EXEC_SLEEP_US (int64_t)(3*1000*1000LL)
