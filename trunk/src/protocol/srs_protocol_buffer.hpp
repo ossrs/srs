@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtmp_io.hpp>
 #include <srs_core_performance.hpp>
-#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_temp.hpp>
 
 #ifdef SRS_PERF_MERGED_READ
 /**

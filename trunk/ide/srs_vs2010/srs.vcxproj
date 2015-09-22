@@ -105,7 +105,7 @@
     <ClInclude Include="..\..\src\core\srs_core_performance.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_aac.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp" />
-    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_temp.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_codec.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_consts.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_error.hpp" />
@@ -187,7 +187,7 @@
     <ClCompile Include="..\..\src\core\srs_core_performance.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_aac.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp" />
-    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_temp.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_codec.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_consts.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_error.cpp" />

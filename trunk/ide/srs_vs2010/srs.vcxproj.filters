@@ -199,7 +199,7 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp">
+    <ClCompile Include="..\..\src\kernel\srs_kernel_temp.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp">
@@ -393,7 +393,7 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp">
+    <ClInclude Include="..\..\src\kernel\srs_kernel_temp.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp">

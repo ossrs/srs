@@ -21,6 +21,6 @@ for file in $files; do
     grep -in "$from" $file >/dev/null 2>&1; 
     if [[ 0 -eq $? ]]; then 
         echo "replace $file"; 
-        #sed -i '' "s|$from|$to|g" $file; 
+        sed -i '' "s|$from|$to|g" $file; 
     fi; 
 done
