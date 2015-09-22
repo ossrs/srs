@@ -926,7 +926,7 @@ SrsSource::SrsSource()
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
-    aggregate_stream = new SrsStream();
+    aggregate_stream = new SrsBuffer();
     ng_exec = new SrsNgExec();
     
     is_monotonically_increase = false;
@@ -1322,7 +1322,7 @@ int SrsSource::on_dvr_request_sh()
         char* payload = cache_metadata->payload;
         int size = cache_metadata->size;
         
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
             srs_error("dvr decode metadata stream failed. ret=%d", ret);
             return ret;
@@ -1919,7 +1919,7 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsStream* stream = aggregate_stream;
+    SrsBuffer* stream = aggregate_stream;
     if ((ret = stream->initialize(msg->payload, msg->size)) != ERROR_SUCCESS) {
         return ret;
     }

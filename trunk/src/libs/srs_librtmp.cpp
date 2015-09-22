@@ -88,7 +88,7 @@ struct Context
 
     // for h264 raw stream, 
     // @see: https://github.com/simple-rtmp-server/srs/issues/66#issuecomment-62240521
-    SrsStream h264_raw_stream;
+    SrsBuffer h264_raw_stream;
     // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
@@ -101,7 +101,7 @@ struct Context
     bool h264_pps_changed;
     // for aac raw stream,
     // @see: https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64146250
-    SrsStream aac_raw_stream;
+    SrsBuffer aac_raw_stream;
     // the aac sequence header.
     std::string aac_specific_config;
     
@@ -823,8 +823,8 @@ int srs_rtmp_on_aggregate(Context* context, SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsStream aggregate_stream;
-    SrsStream* stream = &aggregate_stream;
+    SrsBuffer aggregate_stream;
+    SrsBuffer* stream = &aggregate_stream;
     if ((ret = stream->initialize(msg->payload, msg->size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1049,7 +1049,7 @@ srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
         return false;
     }
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return false;
     }
@@ -1123,7 +1123,7 @@ int srs_write_aac_adts_frames(Context* context,
 ) {
     int ret = ERROR_SUCCESS;
     
-    SrsStream* stream = &context->aac_raw_stream;
+    SrsBuffer* stream = &context->aac_raw_stream;
     if ((ret = stream->initialize(frames, frames_size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1195,7 +1195,7 @@ int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
 */
 srs_bool srs_aac_is_adts(char* aac_raw_data, int ac_raw_size)
 {
-    SrsStream stream;
+    SrsBuffer stream;
     if (stream.initialize(aac_raw_data, ac_raw_size) != ERROR_SUCCESS) {
         return false;
     }
@@ -1432,7 +1432,7 @@ srs_bool srs_h264_is_duplicated_pps_error(int error_code)
 
 srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int* pnb_start_code)
 {
-    SrsStream stream;
+    SrsBuffer stream;
     if (stream.initialize(h264_raw_data, h264_raw_size) != ERROR_SUCCESS) {
         return false;
     }
@@ -1629,7 +1629,7 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     
     srs_amf0_t amf0 = NULL;
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return amf0;
     }
@@ -1712,7 +1712,7 @@ int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size)
     
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }

@@ -38,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * convert basic types to bytes,
 * build basic types from bytes.
 */
-class SrsStream
+class SrsBuffer
 {
 private:
     // current position at bytes.
@@ -48,8 +48,8 @@ private:
     // the total number of bytes.
     int nb_bytes;
 public:
-    SrsStream();
-    virtual ~SrsStream();
+    SrsBuffer();
+    virtual ~SrsBuffer();
 public:
     /**
     * initialize the stream from bytes.
@@ -164,12 +164,12 @@ class SrsBitStream
 private:
     int8_t cb;
     u_int8_t cb_left;
-    SrsStream* stream;
+    SrsBuffer* stream;
 public:
     SrsBitStream();
     virtual ~SrsBitStream();
 public:
-    virtual int initialize(SrsStream* s);
+    virtual int initialize(SrsBuffer* s);
     virtual bool empty();
     virtual int8_t read_bit();
 };

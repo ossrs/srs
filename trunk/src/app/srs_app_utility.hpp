@@ -40,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 
 class SrsKbps;
-class SrsStream;
+class SrsBuffer;
 class SrsJsonObject;
 
 // client open socket and connect to server.

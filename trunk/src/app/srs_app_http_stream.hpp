@@ -39,7 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * for example, the audio stream cache to make android(weixin) happy.
 * we start a thread to shrink the queue.
 */
-class SrsStreamCache : public ISrsEndlessThreadHandler
+class SrsBufferCache : public ISrsEndlessThreadHandler
 {
 private:
     double fast_cache;
@@ -49,8 +49,8 @@ private:
     SrsRequest* req;
     SrsEndlessThread* pthread;
 public:
-    SrsStreamCache(SrsSource* s, SrsRequest* r);
-    virtual ~SrsStreamCache();
+    SrsBufferCache(SrsSource* s, SrsRequest* r);
+    virtual ~SrsBufferCache();
 public:
     virtual int start();
     virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
@@ -62,18 +62,18 @@ public:
 /**
 * the stream encoder in some codec, for example, flv or aac.
 */
-class ISrsStreamEncoder
+class ISrsBufferEncoder
 {
 public:
-    ISrsStreamEncoder();
-    virtual ~ISrsStreamEncoder();
+    ISrsBufferEncoder();
+    virtual ~ISrsBufferEncoder();
 public:
     /**
     * initialize the encoder with file writer(to http response) and stream cache.
     * @param w the writer to write to http response.
     * @param c the stream cache for audio stream fast startup.
     */
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c) = 0;
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c) = 0;
     /**
     * write rtmp video/audio/metadata.
     */
@@ -96,7 +96,7 @@ public:
 /**
 * the flv stream encoder, remux rtmp stream to flv stream.
 */
-class SrsFlvStreamEncoder : public ISrsStreamEncoder
+class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
 protected:
     SrsFlvEncoder* enc;
@@ -104,7 +104,7 @@ public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -134,7 +134,7 @@ public:
 /**
 * the ts stream encoder, remux rtmp stream to ts stream.
 */
-class SrsTsStreamEncoder : public ISrsStreamEncoder
+class SrsTsStreamEncoder : public ISrsBufferEncoder
 {
 private:
     SrsTsEncoder* enc;
@@ -142,7 +142,7 @@ public:
     SrsTsStreamEncoder();
     virtual ~SrsTsStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -154,16 +154,16 @@ public:
 /**
 * the aac stream encoder, remux rtmp stream to aac stream.
 */
-class SrsAacStreamEncoder : public ISrsStreamEncoder
+class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
 private:
     SrsAacEncoder* enc;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
 public:
     SrsAacStreamEncoder();
     virtual ~SrsAacStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -175,16 +175,16 @@ public:
 /**
 * the mp3 stream encoder, remux rtmp stream to mp3 stream.
 */
-class SrsMp3StreamEncoder : public ISrsStreamEncoder
+class SrsMp3StreamEncoder : public ISrsBufferEncoder
 {
 private:
     SrsMp3Encoder* enc;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
 public:
     SrsMp3StreamEncoder();
     virtual ~SrsMp3StreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -196,13 +196,13 @@ public:
 /**
 * write stream to http response direclty.
 */
-class SrsStreamWriter : public SrsFileWriter
+class SrsBufferWriter : public SrsFileWriter
 {
 private:
     ISrsHttpResponseWriter* writer;
 public:
-    SrsStreamWriter(ISrsHttpResponseWriter* w);
-    virtual ~SrsStreamWriter();
+    SrsBufferWriter(ISrsHttpResponseWriter* w);
+    virtual ~SrsBufferWriter();
 public:
     virtual int open(std::string file);
     virtual void close();
@@ -223,14 +223,14 @@ class SrsLiveStream : public ISrsHttpHandler
 private:
     SrsRequest* req;
     SrsSource* source;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
 public:
-    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
+    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
-    virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**
@@ -254,7 +254,7 @@ public:
     bool hstrs;
     
     SrsLiveStream* stream;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
     
     SrsLiveEntry(std::string m, bool h);
     void reset_hstrs(bool h);

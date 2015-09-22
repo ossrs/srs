@@ -60,7 +60,7 @@ using namespace std;
 
 #ifdef SRS_AUTO_HTTP_SERVER
 
-SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
+SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
 {
     req = r->copy();
     source = s;
@@ -71,7 +71,7 @@ SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
     fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
 }
 
-SrsStreamCache::~SrsStreamCache()
+SrsBufferCache::~SrsBufferCache()
 {
     srs_freep(pthread);
     
@@ -79,12 +79,12 @@ SrsStreamCache::~SrsStreamCache()
     srs_freep(req);
 }
 
-int SrsStreamCache::start()
+int SrsBufferCache::start()
 {
     return pthread->start();
 }
 
-int SrsStreamCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
+int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     int ret = ERROR_SUCCESS;
 
@@ -104,7 +104,7 @@ int SrsStreamCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jit
     return ret;
 }
 
-int SrsStreamCache::cycle()
+int SrsBufferCache::cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -167,11 +167,11 @@ int SrsStreamCache::cycle()
     return ret;
 }
 
-ISrsStreamEncoder::ISrsStreamEncoder()
+ISrsBufferEncoder::ISrsBufferEncoder()
 {
 }
 
-ISrsStreamEncoder::~ISrsStreamEncoder()
+ISrsBufferEncoder::~ISrsBufferEncoder()
 {
 }
 
@@ -185,7 +185,7 @@ SrsTsStreamEncoder::~SrsTsStreamEncoder()
     srs_freep(enc);
 }
 
-int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* /*c*/)
+int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 {
     int ret = ERROR_SUCCESS;
     
@@ -233,7 +233,7 @@ SrsFlvStreamEncoder::~SrsFlvStreamEncoder()
     srs_freep(enc);
 }
 
-int SrsFlvStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* /*c*/)
+int SrsFlvStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 {
     int ret = ERROR_SUCCESS;
     
@@ -302,7 +302,7 @@ SrsAacStreamEncoder::~SrsAacStreamEncoder()
     srs_freep(enc);
 }
 
-int SrsAacStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* c)
+int SrsAacStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* c)
 {
     int ret = ERROR_SUCCESS;
     
@@ -354,7 +354,7 @@ SrsMp3StreamEncoder::~SrsMp3StreamEncoder()
     srs_freep(enc);
 }
 
-int SrsMp3StreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* c)
+int SrsMp3StreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* c)
 {
     int ret = ERROR_SUCCESS;
     
@@ -399,35 +399,35 @@ int SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorith
     return cache->dump_cache(consumer, jitter);
 }
 
-SrsStreamWriter::SrsStreamWriter(ISrsHttpResponseWriter* w)
+SrsBufferWriter::SrsBufferWriter(ISrsHttpResponseWriter* w)
 {
     writer = w;
 }
 
-SrsStreamWriter::~SrsStreamWriter()
+SrsBufferWriter::~SrsBufferWriter()
 {
 }
 
-int SrsStreamWriter::open(std::string /*file*/)
+int SrsBufferWriter::open(std::string /*file*/)
 {
     return ERROR_SUCCESS;
 }
 
-void SrsStreamWriter::close()
+void SrsBufferWriter::close()
 {
 }
 
-bool SrsStreamWriter::is_open()
+bool SrsBufferWriter::is_open()
 {
     return true;
 }
 
-int64_t SrsStreamWriter::tellg()
+int64_t SrsBufferWriter::tellg()
 {
     return 0;
 }
 
-int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+int SrsBufferWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     if (pnwrite) {
         *pnwrite = count;
@@ -435,12 +435,12 @@ int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return writer->write((char*)buf, (int)count);
 }
 
-int SrsStreamWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+int SrsBufferWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     return writer->writev(iov, iovcnt, pnwrite);
 }
 
-SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)
+SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c)
 {
     source = s;
     cache = c;
@@ -456,7 +456,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    ISrsStreamEncoder* enc = NULL;
+    ISrsBufferEncoder* enc = NULL;
     
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
@@ -480,7 +480,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         srs_error("http: unsupported pattern %s", entry->pattern.c_str());
         return ret;
     }
-    SrsAutoFree(ISrsStreamEncoder, enc);
+    SrsAutoFree(ISrsBufferEncoder, enc);
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
@@ -504,7 +504,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     
     // the memory writer.
-    SrsStreamWriter writer(w);
+    SrsBufferWriter writer(w);
     if ((ret = enc->initialize(&writer, cache)) != ERROR_SUCCESS) {
         srs_error("http: initialize stream encoder failed. ret=%d", ret);
         return ret;
@@ -577,7 +577,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return ret;
 }
 
-int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
+int SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -811,7 +811,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         
         entry = new SrsLiveEntry(mount, tmpl->hstrs);
     
-        entry->cache = new SrsStreamCache(s, r);
+        entry->cache = new SrsBufferCache(s, r);
         entry->stream = new SrsLiveStream(s, r, entry->cache);
 
         // TODO: FIXME: maybe refine the logic of http remux service.

@@ -79,8 +79,8 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
         ASSERT_GT(nb_bytes, 0);
         bytes = new char[nb_bytes];
         
-        // use SrsStream to write props/info to binary buf.
-        SrsStream s;
+        // use SrsBuffer to write props/info to binary buf.
+        SrsBuffer s;
         EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
         EXPECT_EQ(ERROR_SUCCESS, props->write(&s));
         EXPECT_EQ(ERROR_SUCCESS, info->write(&s));
@@ -97,8 +97,8 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
     if (true) {
         ASSERT_TRUE(NULL != bytes);
         
-        // use SrsStream to assist amf0 object to read from bytes.
-        SrsStream s;
+        // use SrsBuffer to assist amf0 object to read from bytes.
+        SrsBuffer s;
         EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
         
         // decoding
@@ -148,8 +148,8 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
     if (true) {
         ASSERT_TRUE(NULL != bytes);
         
-        // use SrsStream to assist amf0 object to read from bytes.
-        SrsStream s;
+        // use SrsBuffer to assist amf0 object to read from bytes.
+        SrsBuffer s;
         EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
         
         // decoding a amf0 any, for user donot know
@@ -526,7 +526,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyElem)
 */
 VOID TEST(ProtocolAMF0Test, ApiAnyIO) 
 {
-    SrsStream s;
+    SrsBuffer s;
     SrsAmf0Any* o = NULL;
     
     char buf[1024];
@@ -839,7 +839,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
 */
 VOID TEST(ProtocolAMF0Test, ApiAnyTypeAssert) 
 {
-    SrsStream s;
+    SrsBuffer s;
     SrsAmf0Any* o = NULL;
     
     char buf[1024];
@@ -1092,7 +1092,7 @@ VOID TEST(ProtocolAMF0Test, ApiEcmaArrayProps)
 */
 VOID TEST(ProtocolAMF0Test, ApiStrictArray)
 {
-    SrsStream s;
+    SrsBuffer s;
     
     char buf[1024];
     memset(buf, 0, sizeof(buf));

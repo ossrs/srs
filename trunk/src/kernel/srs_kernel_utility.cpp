@@ -418,7 +418,7 @@ string srs_path_basename(string path)
     return dirname;
 }
 
-bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
+bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
 {
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;
@@ -447,7 +447,7 @@ bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
     return false;
 }
 
-bool srs_aac_startswith_adts(SrsStream* stream)
+bool srs_aac_startswith_adts(SrsBuffer* stream)
 {
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;

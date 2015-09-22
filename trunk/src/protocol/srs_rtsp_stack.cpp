@@ -175,7 +175,7 @@ void SrsRtpPacket::reap(SrsRtpPacket* src)
     src->audio_samples = NULL;
 }
 
-int SrsRtpPacket::decode(SrsStream* stream)
+int SrsRtpPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -212,7 +212,7 @@ int SrsRtpPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsRtpPacket::decode_97(SrsStream* stream)
+int SrsRtpPacket::decode_97(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -273,7 +273,7 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
     return ret;
 }
 
-int SrsRtpPacket::decode_96(SrsStream* stream)
+int SrsRtpPacket::decode_96(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 

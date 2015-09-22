@@ -29,7 +29,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsStream::SrsStream()
+SrsBuffer::SrsBuffer()
 {
     p = bytes = NULL;
     nb_bytes = 0;
@@ -38,11 +38,11 @@ SrsStream::SrsStream()
     srs_assert(srs_is_little_endian());
 }
 
-SrsStream::~SrsStream()
+SrsBuffer::~SrsBuffer()
 {
 }
 
-int SrsStream::initialize(char* b, int nb)
+int SrsBuffer::initialize(char* b, int nb)
 {
     int ret = ERROR_SUCCESS;
     
@@ -65,48 +65,48 @@ int SrsStream::initialize(char* b, int nb)
     return ret;
 }
 
-char* SrsStream::data()
+char* SrsBuffer::data()
 {
     return bytes;
 }
 
-int SrsStream::size()
+int SrsBuffer::size()
 {
     return nb_bytes;
 }
 
-int SrsStream::pos()
+int SrsBuffer::pos()
 {
     return (int)(p - bytes);
 }
 
-bool SrsStream::empty()
+bool SrsBuffer::empty()
 {
     return !bytes || (p >= bytes + nb_bytes);
 }
 
-bool SrsStream::require(int required_size)
+bool SrsBuffer::require(int required_size)
 {
     srs_assert(required_size > 0);
     
     return required_size <= nb_bytes - (p - bytes);
 }
 
-void SrsStream::skip(int size)
+void SrsBuffer::skip(int size)
 {
     srs_assert(p);
     
     p += size;
 }
 
-int8_t SrsStream::read_1bytes()
+int8_t SrsBuffer::read_1bytes()
 {
     srs_assert(require(1));
     
     return (int8_t)*p++;
 }
 
-int16_t SrsStream::read_2bytes()
+int16_t SrsBuffer::read_2bytes()
 {
     srs_assert(require(2));
     
@@ -118,7 +118,7 @@ int16_t SrsStream::read_2bytes()
     return value;
 }
 
-int32_t SrsStream::read_3bytes()
+int32_t SrsBuffer::read_3bytes()
 {
     srs_assert(require(3));
     
@@ -131,7 +131,7 @@ int32_t SrsStream::read_3bytes()
     return value;
 }
 
-int32_t SrsStream::read_4bytes()
+int32_t SrsBuffer::read_4bytes()
 {
     srs_assert(require(4));
     
@@ -145,7 +145,7 @@ int32_t SrsStream::read_4bytes()
     return value;
 }
 
-int64_t SrsStream::read_8bytes()
+int64_t SrsBuffer::read_8bytes()
 {
     srs_assert(require(8));
     
@@ -163,7 +163,7 @@ int64_t SrsStream::read_8bytes()
     return value;
 }
 
-string SrsStream::read_string(int len)
+string SrsBuffer::read_string(int len)
 {
     srs_assert(require(len));
     
@@ -175,7 +175,7 @@ string SrsStream::read_string(int len)
     return value;
 }
 
-void SrsStream::read_bytes(char* data, int size)
+void SrsBuffer::read_bytes(char* data, int size)
 {
     srs_assert(require(size));
     
@@ -184,14 +184,14 @@ void SrsStream::read_bytes(char* data, int size)
     p += size;
 }
 
-void SrsStream::write_1bytes(int8_t value)
+void SrsBuffer::write_1bytes(int8_t value)
 {
     srs_assert(require(1));
     
     *p++ = value;
 }
 
-void SrsStream::write_2bytes(int16_t value)
+void SrsBuffer::write_2bytes(int16_t value)
 {
     srs_assert(require(2));
     
@@ -200,7 +200,7 @@ void SrsStream::write_2bytes(int16_t value)
     *p++ = pp[0];
 }
 
-void SrsStream::write_4bytes(int32_t value)
+void SrsBuffer::write_4bytes(int32_t value)
 {
     srs_assert(require(4));
     
@@ -211,7 +211,7 @@ void SrsStream::write_4bytes(int32_t value)
     *p++ = pp[0];
 }
 
-void SrsStream::write_3bytes(int32_t value)
+void SrsBuffer::write_3bytes(int32_t value)
 {
     srs_assert(require(3));
     
@@ -221,7 +221,7 @@ void SrsStream::write_3bytes(int32_t value)
     *p++ = pp[0];
 }
 
-void SrsStream::write_8bytes(int64_t value)
+void SrsBuffer::write_8bytes(int64_t value)
 {
     srs_assert(require(8));
     
@@ -236,7 +236,7 @@ void SrsStream::write_8bytes(int64_t value)
     *p++ = pp[0];
 }
 
-void SrsStream::write_string(string value)
+void SrsBuffer::write_string(string value)
 {
     srs_assert(require((int)value.length()));
     
@@ -244,7 +244,7 @@ void SrsStream::write_string(string value)
     p += value.length();
 }
 
-void SrsStream::write_bytes(char* data, int size)
+void SrsBuffer::write_bytes(char* data, int size)
 {
     srs_assert(require(size));
     
@@ -263,7 +263,7 @@ SrsBitStream::~SrsBitStream()
 {
 }
 
-int SrsBitStream::initialize(SrsStream* s) {
+int SrsBitStream::initialize(SrsBuffer* s) {
     stream = s;
     return ERROR_SUCCESS;
 }

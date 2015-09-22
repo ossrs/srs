@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-class SrsStream;
+class SrsBuffer;
 class SrsAmf0Object;
 class SrsAmf0EcmaArray;
 class SrsAmf0StrictArray;
@@ -53,15 +53,15 @@ namespace _srs_internal
 ////////////////////////////////////////////////////////////////////////
 Usages:
 
-1. the bytes proxy: SrsStream
+1. the bytes proxy: SrsBuffer
     // when we got some bytes from file or network,
-    // use SrsStream proxy to read/write bytes
+    // use SrsBuffer proxy to read/write bytes
     
     // for example, read bytes from file or network.
     char* bytes = ...; 
     
     // initialize the stream, proxy for bytes.
-    SrsStream stream;
+    SrsBuffer stream;
     stream.initialize(bytes);
     
     // use stream instead.
@@ -106,7 +106,7 @@ Usages:
     
     char* bytes = new char[any->total_size()];
     
-    SrsStream stream;
+    SrsBuffer stream;
     stream.initialize(bytes);
     
     any->write(&stream);
@@ -257,11 +257,11 @@ public:
     /**
     * read AMF0 instance from stream.
     */
-    virtual int read(SrsStream* stream) = 0;
+    virtual int read(SrsBuffer* stream) = 0;
     /**
     * write AMF0 instance to stream.
     */
-    virtual int write(SrsStream* stream) = 0;
+    virtual int write(SrsBuffer* stream) = 0;
     /**
     * copy current AMF0 instance.
     */
@@ -328,7 +328,7 @@ public:
     * @remark, instance is created without read from stream, user must
     *       use (*ppvalue)->read(stream) to get the instance.
     */
-    static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
+    static int discovery(SrsBuffer* stream, SrsAmf0Any** ppvalue);
 };
 
 /**
@@ -353,8 +353,8 @@ public:
 // serialize/deserialize to/from stream.
 public:
     virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
+    virtual int read(SrsBuffer* stream);
+    virtual int write(SrsBuffer* stream);
     virtual SrsAmf0Any* copy();
     /**
      * convert amf0 to json.
@@ -440,8 +440,8 @@ public:
 // serialize/deserialize to/from stream.
 public:
     virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
+    virtual int read(SrsBuffer* stream);
+    virtual int write(SrsBuffer* stream);
     virtual SrsAmf0Any* copy();
     /**
      * convert amf0 to json.
@@ -525,8 +525,8 @@ public:
 // serialize/deserialize to/from stream.
 public:
     virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
+    virtual int read(SrsBuffer* stream);
+    virtual int write(SrsBuffer* stream);
     virtual SrsAmf0Any* copy();
     /**
      * convert amf0 to json.
@@ -582,15 +582,15 @@ public:
 * @param ppvalue, the output amf0 any elem.
 *         NULL if error; otherwise, never NULL and user must free it.
 */
-extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
+extern int srs_amf0_read_any(SrsBuffer* stream, SrsAmf0Any** ppvalue);
 
 /**
 * read amf0 string from stream.
 * 2.4 String Type
 * string-type = string-marker UTF-8
 */
-extern int srs_amf0_read_string(SrsStream* stream, std::string& value);
-extern int srs_amf0_write_string(SrsStream* stream, std::string value);
+extern int srs_amf0_read_string(SrsBuffer* stream, std::string& value);
+extern int srs_amf0_write_string(SrsBuffer* stream, std::string value);
 
 /**
 * read amf0 boolean from stream.
@@ -598,32 +598,32 @@ extern int srs_amf0_write_string(SrsStream* stream, std::string value);
 * boolean-type = boolean-marker U8
 *         0 is false, <> 0 is true
 */
-extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
-extern int srs_amf0_write_boolean(SrsStream* stream, bool value);
+extern int srs_amf0_read_boolean(SrsBuffer* stream, bool& value);
+extern int srs_amf0_write_boolean(SrsBuffer* stream, bool value);
 
 /**
 * read amf0 number from stream.
 * 2.2 Number Type
 * number-type = number-marker DOUBLE
 */
-extern int srs_amf0_read_number(SrsStream* stream, double& value);
-extern int srs_amf0_write_number(SrsStream* stream, double value);
+extern int srs_amf0_read_number(SrsBuffer* stream, double& value);
+extern int srs_amf0_write_number(SrsBuffer* stream, double value);
 
 /**
 * read amf0 null from stream.
 * 2.7 null Type
 * null-type = null-marker
 */
-extern int srs_amf0_read_null(SrsStream* stream);
-extern int srs_amf0_write_null(SrsStream* stream);
+extern int srs_amf0_read_null(SrsBuffer* stream);
+extern int srs_amf0_write_null(SrsBuffer* stream);
 
 /**
 * read amf0 undefined from stream.
 * 2.8 undefined Type
 * undefined-type = undefined-marker
 */
-extern int srs_amf0_read_undefined(SrsStream* stream);
-extern int srs_amf0_write_undefined(SrsStream* stream);
+extern int srs_amf0_read_undefined(SrsBuffer* stream);
+extern int srs_amf0_write_undefined(SrsBuffer* stream);
 
 // internal objects, user should never use it.
 namespace _srs_internal
@@ -650,8 +650,8 @@ namespace _srs_internal
         virtual ~SrsAmf0String();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
     
@@ -677,8 +677,8 @@ namespace _srs_internal
         virtual ~SrsAmf0Boolean();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
     
@@ -703,8 +703,8 @@ namespace _srs_internal
         virtual ~SrsAmf0Number();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
     
@@ -731,8 +731,8 @@ namespace _srs_internal
     // serialize/deserialize to/from stream.
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     public:
         /**
@@ -763,8 +763,8 @@ namespace _srs_internal
         virtual ~SrsAmf0Null();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
     
@@ -786,8 +786,8 @@ namespace _srs_internal
         virtual ~SrsAmf0Undefined();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
     
@@ -836,8 +836,8 @@ namespace _srs_internal
         virtual ~SrsAmf0ObjectEOF();
     public:
         virtual int total_size();
-        virtual int read(SrsStream* stream);
-        virtual int write(SrsStream* stream);
+        virtual int read(SrsBuffer* stream);
+        virtual int write(SrsBuffer* stream);
         virtual SrsAmf0Any* copy();
     };
 
@@ -849,13 +849,13 @@ namespace _srs_internal
     * UTF8-1 = %x00-7F
     * @remark only support UTF8-1 char.
     */
-    extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
-    extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
+    extern int srs_amf0_read_utf8(SrsBuffer* stream, std::string& value);
+    extern int srs_amf0_write_utf8(SrsBuffer* stream, std::string value);
     
-    extern bool srs_amf0_is_object_eof(SrsStream* stream);
-    extern int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF* value);
+    extern bool srs_amf0_is_object_eof(SrsBuffer* stream);
+    extern int srs_amf0_write_object_eof(SrsBuffer* stream, SrsAmf0ObjectEOF* value);
     
-    extern int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value);
+    extern int srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value);
 };
 
 #endif

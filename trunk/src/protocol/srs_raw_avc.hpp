@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-class SrsStream;
+class SrsBuffer;
 
 /**
 * the raw h.264 stream, in annexb.
@@ -51,7 +51,7 @@ public:
     * @param pframe the output h.264 frame in stream. user should never free it.
     * @param pnb_frame the output h.264 frame size.
     */
-    virtual int annexb_demux(SrsStream* stream, char** pframe, int* pnb_frame);
+    virtual int annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame);
     /**
     * whether the frame is sps or pps.
     */
@@ -123,7 +123,7 @@ public:
     * @param pnb_frame the output aac frame size.
     * @param codec the output codec info.
     */
-    virtual int adts_demux(SrsStream* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec);
+    virtual int adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec);
     /**
     * aac raw data to aac packet, without flv payload header.
     * mux the aac specific config to flv sequence header packet.

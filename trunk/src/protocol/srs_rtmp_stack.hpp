@@ -48,7 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class ISrsProtocolReaderWriter;
 class SrsFastBuffer;
 class SrsPacket;
-class SrsStream;
+class SrsBuffer;
 class SrsAmf0Object;
 class SrsAmf0Any;
 class SrsMessageHeader;
@@ -152,7 +152,7 @@ public:
      * subpacket must override to decode packet from stream.
      * @remark never invoke the super.decode, it always failed.
      */
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
     // encode functions for concrete packet to override.
 public:
     /**
@@ -176,7 +176,7 @@ protected:
      * subpacket can override to encode the payload to stream.
      * @remark never invoke the super.encode_packet, it always failed.
      */
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -446,7 +446,7 @@ private:
     /**
     * imp for decode_message
     */
-    virtual int do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket);
+    virtual int do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket);
     /**
     * recv bytes oriented RTMP message from protocol stack.
     * return error if error occur and nerver set the pmsg,
@@ -1052,14 +1052,14 @@ public:
     virtual ~SrsConnectAppPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsConnectAppPacket.
@@ -1091,14 +1091,14 @@ public:
     virtual ~SrsConnectAppResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1134,14 +1134,14 @@ public:
     virtual ~SrsCallPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsCallPacket.
@@ -1176,7 +1176,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1207,14 +1207,14 @@ public:
     virtual ~SrsCreateStreamPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsCreateStreamPacket.
@@ -1244,14 +1244,14 @@ public:
     virtual ~SrsCreateStreamResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1278,7 +1278,7 @@ public:
     virtual ~SrsCloseStreamPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 };
 
 /**
@@ -1309,14 +1309,14 @@ public:
     virtual ~SrsFMLEStartPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 // factory method to create specified FMLE packet.
 public:
     static SrsFMLEStartPacket* create_release_stream(std::string stream);
@@ -1351,14 +1351,14 @@ public:
     virtual ~SrsFMLEStartResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1406,14 +1406,14 @@ public:
     virtual ~SrsPublishPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1453,7 +1453,7 @@ public:
     virtual ~SrsPausePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 };
 
 /**
@@ -1525,14 +1525,14 @@ public:
     virtual ~SrsPlayPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1572,7 +1572,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1603,7 +1603,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1641,7 +1641,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1679,14 +1679,14 @@ public:
     virtual ~SrsBandwidthPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 // help function for bandwidth packet.
 public:
     virtual bool is_start_play();
@@ -1741,7 +1741,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1776,7 +1776,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1801,14 +1801,14 @@ public:
     virtual ~SrsOnMetaDataPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1825,14 +1825,14 @@ public:
     virtual ~SrsSetWindowAckSizePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1853,7 +1853,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1874,14 +1874,14 @@ public:
     virtual ~SrsSetChunkSizePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 // 5.6. Set Peer Bandwidth (6)
@@ -1914,7 +1914,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 // 3.7. User Control message
@@ -2042,14 +2042,14 @@ public:
     virtual ~SrsUserControlPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 #endif

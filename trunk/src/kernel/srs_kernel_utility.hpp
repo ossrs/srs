@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-class SrsStream;
+class SrsBuffer;
 class SrsBitStream;
 
 // compare
@@ -93,14 +93,14 @@ extern std::string srs_path_basename(std::string path);
 * @param pnb_start_code output the size of start code, must >=3. 
 *       NULL to ignore.
 */
-extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = NULL);
+extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = NULL);
 
 /**
 * whether stream starts with the aac ADTS 
 * from aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS.
 * start code must be '1111 1111 1111'B, that is 0xFFF
 */
-extern bool srs_aac_startswith_adts(SrsStream* stream);
+extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 
 /**
 * cacl the crc32 of bytes in buf.

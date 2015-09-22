@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-class SrsStream;
+class SrsBuffer;
 
 // AACPacketType IF SoundFormat == 10 UI8
 // The following values are defined:
@@ -542,7 +542,7 @@ std::string srs_codec_avc_level2str(SrsAvcLevel level);
 class SrsAvcAacCodec
 {
 private:
-    SrsStream* stream;
+    SrsBuffer* stream;
 public:
     /**
     * metadata specified
@@ -644,7 +644,7 @@ private:
     * when avc packet type is SrsCodecVideoAVCTypeSequenceHeader,
     * decode the sps and pps.
     */
-    virtual int avc_demux_sps_pps(SrsStream* stream);
+    virtual int avc_demux_sps_pps(SrsBuffer* stream);
     /**
      * decode the sps rbsp stream.
      */
@@ -654,12 +654,12 @@ private:
     * demux the avc NALU in "AnnexB" 
     * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
     */
-    virtual int avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* sample);
+    virtual int avc_demux_annexb_format(SrsBuffer* stream, SrsCodecSample* sample);
     /**
     * demux the avc NALU in "ISO Base Media File Format" 
     * from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
     */
-    virtual int avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sample);
+    virtual int avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sample);
 };
 
 #endif

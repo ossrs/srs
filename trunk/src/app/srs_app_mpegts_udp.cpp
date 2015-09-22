@@ -126,7 +126,7 @@ SrsSharedPtrMessage* SrsMpegtsQueue::dequeue()
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
-    stream = new SrsStream();
+    stream = new SrsBuffer();
     context = new SrsTsContext();
     buffer = new SrsSimpleBuffer();
     output = _srs_config->get_stream_caster_output(c);
@@ -317,7 +317,7 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     }
 
     // parse the stream.
-    SrsStream avs;
+    SrsBuffer avs;
     if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
         srs_error("mpegts: initialize av stream failed. ret=%d", ret);
         return ret;
@@ -335,7 +335,7 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     return ret;
 }
 
-int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
+int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
 
@@ -494,7 +494,7 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, u_int32_
     return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
 }
 
-int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsStream* avs)
+int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
 

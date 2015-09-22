@@ -412,7 +412,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     pictureParameterSetNALUnit  = NULL;
 
     payload_format = SrsAvcPayloadFormatGuess;
-    stream = new SrsStream();
+    stream = new SrsBuffer();
 }
 
 SrsAvcAacCodec::~SrsAvcAacCodec()
@@ -754,7 +754,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     return ret;
 }
 
-int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
+int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -868,7 +868,7 @@ int SrsAvcAacCodec::avc_demux_sps()
         return ret;
     }
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(sequenceParameterSetNALUnit, sequenceParameterSetLength)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -948,7 +948,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     }
     
     // reparse the rbsp.
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(rbsp, nb_rbsp)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1115,7 +1115,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     return ret;
 }
 
-int SrsAvcAacCodec::avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* sample)
+int SrsAvcAacCodec::avc_demux_annexb_format(SrsBuffer* stream, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1168,7 +1168,7 @@ int SrsAvcAacCodec::avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* s
     return ret;
 }
 
-int SrsAvcAacCodec::avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sample)
+int SrsAvcAacCodec::avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     

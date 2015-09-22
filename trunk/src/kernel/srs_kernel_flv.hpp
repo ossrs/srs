@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/uio.h>
 #endif
 
-class SrsStream;
+class SrsBuffer;
 class SrsFileWriter;
 class SrsFileReader;
 
@@ -436,7 +436,7 @@ class SrsFlvEncoder
 private:
     SrsFileWriter* reader;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
 public:
     SrsFlvEncoder();
@@ -514,7 +514,7 @@ class SrsFlvDecoder
 private:
     SrsFileReader* reader;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsFlvDecoder();
     virtual ~SrsFlvDecoder();
@@ -558,7 +558,7 @@ class SrsFlvVodStreamDecoder
 private:
     SrsFileReader* reader;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsFlvVodStreamDecoder();
     virtual ~SrsFlvVodStreamDecoder();

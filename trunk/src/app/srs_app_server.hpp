@@ -96,13 +96,13 @@ public:
 /**
 * tcp listener.
 */
-class SrsStreamListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsBufferListener : virtual public SrsListener, virtual public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
 public:
-    SrsStreamListener(SrsServer* server, SrsListenerType type);
-    virtual ~SrsStreamListener();
+    SrsBufferListener(SrsServer* server, SrsListenerType type);
+    virtual ~SrsBufferListener();
 public:
     virtual int listen(std::string ip, int port);
 // ISrsTcpHandler

@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-class SrsStream;
+class SrsBuffer;
 class SrsTsCache;
 class SrsTSMuxer;
 class SrsFileWriter;
@@ -282,7 +282,7 @@ public:
     /**
     * dumps all bytes in stream to ts message.
     */
-    virtual int dump(SrsStream* stream, int* pnb_bytes);
+    virtual int dump(SrsBuffer* stream, int* pnb_bytes);
     /**
     * whether ts message is completed to reap.
     * @param payload_unit_start_indicator whether new ts message start.
@@ -385,7 +385,7 @@ public:
     * @param handler the ts message handler to process the msg.
     * @remark we will consume all bytes in stream.
     */
-    virtual int decode(SrsStream* stream, ISrsTsHandler* handler);
+    virtual int decode(SrsBuffer* stream, ISrsTsHandler* handler);
 // encode methods
 public:
     /**
@@ -509,10 +509,10 @@ public:
     SrsTsPacket(SrsTsContext* c);
     virtual ~SrsTsPacket();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
     virtual void padding(int nb_stuffings);
 public:
     static SrsTsPacket* create_pat(SrsTsContext* context, 
@@ -838,10 +838,10 @@ public:
     SrsTsAdaptationField(SrsTsPacket* pkt);
     virtual ~SrsTsAdaptationField();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -886,10 +886,10 @@ public:
     SrsTsPayload(SrsTsPacket* p);
     virtual ~SrsTsPayload();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg) = 0;
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg) = 0;
 public:
     virtual int size() = 0;
-    virtual int encode(SrsStream* stream) = 0;
+    virtual int encode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -1237,13 +1237,13 @@ public:
     SrsTsPayloadPES(SrsTsPacket* p);
     virtual ~SrsTsPayloadPES();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 private:
-    virtual int decode_33bits_dts_pts(SrsStream* stream, int64_t* pv);
-    virtual int encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64_t v);
+    virtual int decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
+    virtual int encode_33bits_dts_pts(SrsBuffer* stream, u_int8_t fb, int64_t v);
 };
 
 /**
@@ -1304,14 +1304,14 @@ public:
     SrsTsPayloadPSI(SrsTsPacket* p);
     virtual ~SrsTsPayloadPSI();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 protected:
     virtual int psi_size() = 0;
-    virtual int psi_encode(SrsStream* stream) = 0;
-    virtual int psi_decode(SrsStream* stream) = 0;
+    virtual int psi_encode(SrsBuffer* stream) = 0;
+    virtual int psi_decode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -1344,10 +1344,10 @@ public:
     SrsTsPayloadPATProgram(int16_t n = 0, int16_t p = 0);
     virtual ~SrsTsPayloadPATProgram();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -1408,10 +1408,10 @@ public:
     SrsTsPayloadPAT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPAT();
 protected:
-    virtual int psi_decode(SrsStream* stream);
+    virtual int psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsStream* stream);
+    virtual int psi_encode(SrsBuffer* stream);
 };
 
 /**
@@ -1453,10 +1453,10 @@ public:
     SrsTsPayloadPMTESInfo(SrsTsStream st = SrsTsStreamReserved, int16_t epid = 0);
     virtual ~SrsTsPayloadPMTESInfo();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -1544,10 +1544,10 @@ public:
     SrsTsPayloadPMT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPMT();
 protected:
-    virtual int psi_decode(SrsStream* stream);
+    virtual int psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsStream* stream);
+    virtual int psi_encode(SrsBuffer* stream);
 };
 
 /**

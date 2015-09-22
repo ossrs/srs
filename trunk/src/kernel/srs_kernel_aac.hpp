@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-class SrsStream;
+class SrsBuffer;
 class SrsFileWriter;
 class SrsFileReader;
 
@@ -50,7 +50,7 @@ private:
     int8_t aac_channels;
     bool got_sequence_header;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsAacEncoder();
     virtual ~SrsAacEncoder();

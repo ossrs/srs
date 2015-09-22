@@ -42,7 +42,7 @@ SrsAacEncoder::SrsAacEncoder()
 {
     _fs = NULL;
     got_sequence_header = false;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
     aac_object = SrsAacObjectTypeReserved;
 }
 
@@ -76,7 +76,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     timestamp &= 0x7fffffff;
     
-    SrsStream* stream = tag_stream;
+    SrsBuffer* stream = tag_stream;
     if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }

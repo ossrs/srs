@@ -57,7 +57,7 @@ char flv_header[] = {'F', 'L', 'V',
 
 string serialFlv(SrsSharedPtrMessage *msg)
 {
-   SrsStream *stream = new SrsStream;
+   SrsBuffer *stream = new SrsBuffer;
 
    int size = 15 + msg->size;
    char *byte = new char[size];
@@ -147,7 +147,7 @@ public:
         }
 
         char box_header[8];
-        SrsStream ss;
+        SrsBuffer ss;
         ss.initialize(box_header, 8);
         ss.write_4bytes(8 + data.size());
         ss.write_string("mdat");
@@ -477,7 +477,7 @@ int SrsHds::flush_bootstrap()
 {
     int ret = ERROR_SUCCESS;
 
-    SrsStream abst;
+    SrsBuffer abst;
 
     int size = 1024*100;
 

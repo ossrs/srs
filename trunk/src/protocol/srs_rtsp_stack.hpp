@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-class SrsStream;
+class SrsBuffer;
 class SrsSimpleBuffer;
 class SrsCodecSample;
 class ISrsProtocolReaderWriter;
@@ -313,10 +313,10 @@ public:
     /**
     * decode rtp packet from stream.
     */
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 private:
-    virtual int decode_97(SrsStream* stream);
-    virtual int decode_96(SrsStream* stream);
+    virtual int decode_97(SrsBuffer* stream);
+    virtual int decode_96(SrsBuffer* stream);
 };
 
 /**

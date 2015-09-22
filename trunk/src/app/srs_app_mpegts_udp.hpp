@@ -36,7 +36,7 @@ struct sockaddr_in;
 #include <string>
 #include <map>
 
-class SrsStream;
+class SrsBuffer;
 class SrsTsContext;
 class SrsConfDirective;
 class SrsSimpleBuffer;
@@ -80,7 +80,7 @@ class SrsMpegtsOverUdp : virtual public ISrsTsHandler
     , virtual public ISrsUdpHandler
 {
 private:
-    SrsStream* stream;
+    SrsBuffer* stream;
     SrsTsContext* context;
     SrsSimpleBuffer* buffer;
     std::string output;
@@ -115,10 +115,10 @@ private:
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
 private:
-    virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
+    virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
     virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
-    virtual int on_ts_audio(SrsTsMessage* msg, SrsStream* avs);
+    virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
 private:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);

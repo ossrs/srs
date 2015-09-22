@@ -107,7 +107,7 @@ SrsTsMessage::~SrsTsMessage()
     srs_freep(payload);
 }
 
-int SrsTsMessage::dump(SrsStream* stream, int* pnb_bytes)
+int SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
 {
     int ret = ERROR_SUCCESS;
 
@@ -262,7 +262,7 @@ void SrsTsContext::set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream)
     channel->stream = stream;
 }
 
-int SrsTsContext::decode(SrsStream* stream, ISrsTsHandler* handler)
+int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
 {
     int ret = ERROR_SUCCESS;
 
@@ -400,7 +400,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -427,7 +427,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -518,7 +518,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         memcpy(buf + nb_buf, p, left);
         p += left;
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -557,7 +557,7 @@ SrsTsPacket::~SrsTsPacket()
     srs_freep(payload);
 }
 
-int SrsTsPacket::decode(SrsStream* stream, SrsTsMessage** ppmsg)
+int SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -650,7 +650,7 @@ int SrsTsPacket::size()
     return sz;
 }
 
-int SrsTsPacket::encode(SrsStream* stream)
+int SrsTsPacket::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -925,7 +925,7 @@ SrsTsAdaptationField::~SrsTsAdaptationField()
     srs_freep(transport_private_data);
 }
 
-int SrsTsAdaptationField::decode(SrsStream* stream)
+int SrsTsAdaptationField::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1145,7 +1145,7 @@ int SrsTsAdaptationField::size()
     return sz;
 }
 
-int SrsTsAdaptationField::encode(SrsStream* stream)
+int SrsTsAdaptationField::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1337,7 +1337,7 @@ SrsTsPayloadPES::~SrsTsPayloadPES()
     srs_freep(PES_extension_field);
 }
 
-int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
+int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1808,7 +1808,7 @@ int SrsTsPayloadPES::size()
     return sz;
 }
 
-int SrsTsPayloadPES::encode(SrsStream* stream)
+int SrsTsPayloadPES::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1969,7 +1969,7 @@ int SrsTsPayloadPES::encode(SrsStream* stream)
     return ret;
 }
 
-int SrsTsPayloadPES::decode_33bits_dts_pts(SrsStream* stream, int64_t* pv)
+int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2030,7 +2030,7 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsStream* stream, int64_t* pv)
     return ret;
 }
 
-int SrsTsPayloadPES::encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64_t v)
+int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, u_int8_t fb, int64_t v)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2071,7 +2071,7 @@ SrsTsPayloadPSI::~SrsTsPayloadPSI()
 {
 }
 
-int SrsTsPayloadPSI::decode(SrsStream* stream, SrsTsMessage** /*ppmsg*/)
+int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2180,7 +2180,7 @@ int SrsTsPayloadPSI::size()
     return sz;
 }
 
-int SrsTsPayloadPSI::encode(SrsStream* stream)
+int SrsTsPayloadPSI::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2253,7 +2253,7 @@ SrsTsPayloadPATProgram::~SrsTsPayloadPATProgram()
 {
 }
 
-int SrsTsPayloadPATProgram::decode(SrsStream* stream)
+int SrsTsPayloadPATProgram::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2277,7 +2277,7 @@ int SrsTsPayloadPATProgram::size()
     return 4;
 }
 
-int SrsTsPayloadPATProgram::encode(SrsStream* stream)
+int SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2311,7 +2311,7 @@ SrsTsPayloadPAT::~SrsTsPayloadPAT()
     programs.clear();
 }
 
-int SrsTsPayloadPAT::psi_decode(SrsStream* stream)
+int SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2373,7 +2373,7 @@ int SrsTsPayloadPAT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPAT::psi_encode(SrsStream* stream)
+int SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2431,7 +2431,7 @@ SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
     srs_freep(ES_info);
 }
 
-int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
+int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2471,7 +2471,7 @@ int SrsTsPayloadPMTESInfo::size()
     return 5 + ES_info_length;
 }
 
-int SrsTsPayloadPMTESInfo::encode(SrsStream* stream)
+int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2525,7 +2525,7 @@ SrsTsPayloadPMT::~SrsTsPayloadPMT()
     infos.clear();
 }
 
-int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
+int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2619,7 +2619,7 @@ int SrsTsPayloadPMT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
+int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 

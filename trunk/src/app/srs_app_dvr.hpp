@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsSource;
 class SrsRequest;
-class SrsStream;
+class SrsBuffer;
 class SrsRtmpJitter;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;

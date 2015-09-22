@@ -128,17 +128,17 @@ SrsListenerType SrsListener::listen_type()
     return type;
 }
 
-SrsStreamListener::SrsStreamListener(SrsServer* svr, SrsListenerType t) : SrsListener(svr, t)
+SrsBufferListener::SrsBufferListener(SrsServer* svr, SrsListenerType t) : SrsListener(svr, t)
 {
     listener = NULL;
 }
 
-SrsStreamListener::~SrsStreamListener()
+SrsBufferListener::~SrsBufferListener()
 {
     srs_freep(listener);
 }
 
-int SrsStreamListener::listen(string i, int p)
+int SrsBufferListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
     
@@ -162,7 +162,7 @@ int SrsStreamListener::listen(string i, int p)
     return ret;
 }
 
-int SrsStreamListener::on_tcp_client(st_netfd_t stfd)
+int SrsBufferListener::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1087,7 +1087,7 @@ int SrsServer::listen_rtmp()
     close_listeners(SrsListenerRtmpStream);
     
     for (int i = 0; i < (int)ip_ports.size(); i++) {
-        SrsListener* listener = new SrsStreamListener(this, SrsListenerRtmpStream);
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerRtmpStream);
         listeners.push_back(listener);
         
         std::string ip;
@@ -1110,7 +1110,7 @@ int SrsServer::listen_http_api()
 #ifdef SRS_AUTO_HTTP_API
     close_listeners(SrsListenerHttpApi);
     if (_srs_config->get_http_api_enabled()) {
-        SrsListener* listener = new SrsStreamListener(this, SrsListenerHttpApi);
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpApi);
         listeners.push_back(listener);
         
         std::string ep = _srs_config->get_http_api_listen();
@@ -1136,7 +1136,7 @@ int SrsServer::listen_http_stream()
 #ifdef SRS_AUTO_HTTP_SERVER
     close_listeners(SrsListenerHttpStream);
     if (_srs_config->get_http_stream_enabled()) {
-        SrsListener* listener = new SrsStreamListener(this, SrsListenerHttpStream);
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpStream);
         listeners.push_back(listener);
         
         std::string ep = _srs_config->get_http_stream_listen();

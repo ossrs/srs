@@ -41,7 +41,7 @@ using namespace std;
 SrsMp3Encoder::SrsMp3Encoder()
 {
     writer = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
 SrsMp3Encoder::~SrsMp3Encoder()
@@ -89,7 +89,7 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     
     timestamp &= 0x7fffffff;
     
-    SrsStream* stream = tag_stream;
+    SrsBuffer* stream = tag_stream;
     if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }

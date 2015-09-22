@@ -37,8 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *      the step to create a thread never stop:
  *      1. create SrsEndlessThread field.
  *      for example:
- *          class SrsStreamCache : public ISrsEndlessThreadHandler {
- *               public: SrsStreamCache() { pthread = new SrsEndlessThread("http-stream", this); }
+ *          class SrsBufferCache : public ISrsEndlessThreadHandler {
+ *               public: SrsBufferCache() { pthread = new SrsEndlessThread("http-stream", this); }
  *               public: virtual int cycle() {
  *                   // do some work never end.
  *               }

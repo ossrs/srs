@@ -962,7 +962,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 */
 VOID TEST(KernelStreamTest, StreamInitialize)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -976,7 +976,7 @@ VOID TEST(KernelStreamTest, StreamInitialize)
 */
 VOID TEST(KernelStreamTest, StreamData)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.data() == NULL);
@@ -989,7 +989,7 @@ VOID TEST(KernelStreamTest, StreamData)
 */
 VOID TEST(KernelStreamTest, StreamSize)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.size() == 0);
@@ -1002,7 +1002,7 @@ VOID TEST(KernelStreamTest, StreamSize)
 */
 VOID TEST(KernelStreamTest, StreamPos)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.pos() == 0);
@@ -1018,7 +1018,7 @@ VOID TEST(KernelStreamTest, StreamPos)
 */
 VOID TEST(KernelStreamTest, StreamEmpty)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.empty());
@@ -1034,7 +1034,7 @@ VOID TEST(KernelStreamTest, StreamEmpty)
 */
 VOID TEST(KernelStreamTest, StreamRequire)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_FALSE(s.require(1));
@@ -1054,7 +1054,7 @@ VOID TEST(KernelStreamTest, StreamRequire)
 */
 VOID TEST(KernelStreamTest, StreamSkip)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1072,7 +1072,7 @@ VOID TEST(KernelStreamTest, StreamSkip)
 */
 VOID TEST(KernelStreamTest, StreamRead1Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1093,7 +1093,7 @@ VOID TEST(KernelStreamTest, StreamRead1Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead2Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1122,7 +1122,7 @@ VOID TEST(KernelStreamTest, StreamRead2Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead3Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1151,7 +1151,7 @@ VOID TEST(KernelStreamTest, StreamRead3Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead4Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1180,7 +1180,7 @@ VOID TEST(KernelStreamTest, StreamRead4Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead8Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1219,7 +1219,7 @@ VOID TEST(KernelStreamTest, StreamRead8Bytes)
 */
 VOID TEST(KernelStreamTest, StreamReadString)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[] = "Hello, world!";
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
@@ -1242,7 +1242,7 @@ VOID TEST(KernelStreamTest, StreamReadString)
 */
 VOID TEST(KernelStreamTest, StreamReadBytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[] = "Hello, world!";
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
@@ -1269,7 +1269,7 @@ VOID TEST(KernelStreamTest, StreamReadBytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite1Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1290,7 +1290,7 @@ VOID TEST(KernelStreamTest, StreamWrite1Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite2Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1314,7 +1314,7 @@ VOID TEST(KernelStreamTest, StreamWrite2Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite3Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1337,7 +1337,7 @@ VOID TEST(KernelStreamTest, StreamWrite3Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite4Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1359,7 +1359,7 @@ VOID TEST(KernelStreamTest, StreamWrite4Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite8Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1380,7 +1380,7 @@ VOID TEST(KernelStreamTest, StreamWrite8Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWriteString)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1408,7 +1408,7 @@ VOID TEST(KernelStreamTest, StreamWriteString)
 */
 VOID TEST(KernelStreamTest, StreamWriteBytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));

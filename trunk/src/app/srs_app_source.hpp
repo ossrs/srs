@@ -61,7 +61,7 @@ class SrsDvr;
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
-class SrsStream;
+class SrsBuffer;
 class ISrsHlsHandler;
 #ifdef SRS_AUTO_HDS
 class SrsHds;
@@ -497,7 +497,7 @@ private:
     // to forward stream to other servers
     std::vector<SrsForwarder*> forwarders;
     // for aggregate message
-    SrsStream* aggregate_stream;
+    SrsBuffer* aggregate_stream;
     // the event handler.
     ISrsSourceHandler* handler;
 private:

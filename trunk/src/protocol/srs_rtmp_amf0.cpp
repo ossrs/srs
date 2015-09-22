@@ -379,7 +379,7 @@ SrsAmf0Any* SrsAmf0Any::date(int64_t value)
     return new SrsAmf0Date(value);
 }
 
-int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
+int SrsAmf0Any::discovery(SrsBuffer* stream, SrsAmf0Any** ppvalue)
 {
     int ret = ERROR_SUCCESS;
     
@@ -586,7 +586,7 @@ int SrsAmf0ObjectEOF::total_size()
     return SrsAmf0Size::object_eof();
 }
 
-int SrsAmf0ObjectEOF::read(SrsStream* stream)
+int SrsAmf0ObjectEOF::read(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -624,7 +624,7 @@ int SrsAmf0ObjectEOF::read(SrsStream* stream)
     
     return ret;
 }
-int SrsAmf0ObjectEOF::write(SrsStream* stream)
+int SrsAmf0ObjectEOF::write(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -686,7 +686,7 @@ int SrsAmf0Object::total_size()
     return size;
 }
 
-int SrsAmf0Object::read(SrsStream* stream)
+int SrsAmf0Object::read(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -741,7 +741,7 @@ int SrsAmf0Object::read(SrsStream* stream)
     return ret;
 }
 
-int SrsAmf0Object::write(SrsStream* stream)
+int SrsAmf0Object::write(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -880,7 +880,7 @@ int SrsAmf0EcmaArray::total_size()
     return size;
 }
 
-int SrsAmf0EcmaArray::read(SrsStream* stream)
+int SrsAmf0EcmaArray::read(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -945,7 +945,7 @@ int SrsAmf0EcmaArray::read(SrsStream* stream)
     
     return ret;
 }
-int SrsAmf0EcmaArray::write(SrsStream* stream)
+int SrsAmf0EcmaArray::write(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1092,7 +1092,7 @@ int SrsAmf0StrictArray::total_size()
     return size;
 }
 
-int SrsAmf0StrictArray::read(SrsStream* stream)
+int SrsAmf0StrictArray::read(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1139,7 +1139,7 @@ int SrsAmf0StrictArray::read(SrsStream* stream)
     
     return ret;
 }
-int SrsAmf0StrictArray::write(SrsStream* stream)
+int SrsAmf0StrictArray::write(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1322,12 +1322,12 @@ int SrsAmf0String::total_size()
     return SrsAmf0Size::str(value);
 }
 
-int SrsAmf0String::read(SrsStream* stream)
+int SrsAmf0String::read(SrsBuffer* stream)
 {
     return srs_amf0_read_string(stream, value);
 }
 
-int SrsAmf0String::write(SrsStream* stream)
+int SrsAmf0String::write(SrsBuffer* stream)
 {
     return srs_amf0_write_string(stream, value);
 }
@@ -1353,12 +1353,12 @@ int SrsAmf0Boolean::total_size()
     return SrsAmf0Size::boolean();
 }
 
-int SrsAmf0Boolean::read(SrsStream* stream)
+int SrsAmf0Boolean::read(SrsBuffer* stream)
 {
     return srs_amf0_read_boolean(stream, value);
 }
 
-int SrsAmf0Boolean::write(SrsStream* stream)
+int SrsAmf0Boolean::write(SrsBuffer* stream)
 {
     return srs_amf0_write_boolean(stream, value);
 }
@@ -1384,12 +1384,12 @@ int SrsAmf0Number::total_size()
     return SrsAmf0Size::number();
 }
 
-int SrsAmf0Number::read(SrsStream* stream)
+int SrsAmf0Number::read(SrsBuffer* stream)
 {
     return srs_amf0_read_number(stream, value);
 }
 
-int SrsAmf0Number::write(SrsStream* stream)
+int SrsAmf0Number::write(SrsBuffer* stream)
 {
     return srs_amf0_write_number(stream, value);
 }
@@ -1416,7 +1416,7 @@ int SrsAmf0Date::total_size()
     return SrsAmf0Size::date();
 }
 
-int SrsAmf0Date::read(SrsStream* stream)
+int SrsAmf0Date::read(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1465,7 +1465,7 @@ int SrsAmf0Date::read(SrsStream* stream)
     
     return ret;
 }
-int SrsAmf0Date::write(SrsStream* stream)
+int SrsAmf0Date::write(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1538,12 +1538,12 @@ int SrsAmf0Null::total_size()
     return SrsAmf0Size::null();
 }
 
-int SrsAmf0Null::read(SrsStream* stream)
+int SrsAmf0Null::read(SrsBuffer* stream)
 {
     return srs_amf0_read_null(stream);
 }
 
-int SrsAmf0Null::write(SrsStream* stream)
+int SrsAmf0Null::write(SrsBuffer* stream)
 {
     return srs_amf0_write_null(stream);
 }
@@ -1568,12 +1568,12 @@ int SrsAmf0Undefined::total_size()
     return SrsAmf0Size::undefined();
 }
 
-int SrsAmf0Undefined::read(SrsStream* stream)
+int SrsAmf0Undefined::read(SrsBuffer* stream)
 {
     return srs_amf0_read_undefined(stream);
 }
 
-int SrsAmf0Undefined::write(SrsStream* stream)
+int SrsAmf0Undefined::write(SrsBuffer* stream)
 {
     return srs_amf0_write_undefined(stream);
 }
@@ -1584,7 +1584,7 @@ SrsAmf0Any* SrsAmf0Undefined::copy()
     return copy;
 }
 
-int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue)
+int srs_amf0_read_any(SrsBuffer* stream, SrsAmf0Any** ppvalue)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1604,7 +1604,7 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue)
     return ret;
 }
 
-int srs_amf0_read_string(SrsStream* stream, string& value)
+int srs_amf0_read_string(SrsBuffer* stream, string& value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1627,7 +1627,7 @@ int srs_amf0_read_string(SrsStream* stream, string& value)
     return srs_amf0_read_utf8(stream, value);
 }
 
-int srs_amf0_write_string(SrsStream* stream, string value)
+int srs_amf0_write_string(SrsBuffer* stream, string value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1644,7 +1644,7 @@ int srs_amf0_write_string(SrsStream* stream, string value)
     return srs_amf0_write_utf8(stream, value);
 }
 
-int srs_amf0_read_boolean(SrsStream* stream, bool& value)
+int srs_amf0_read_boolean(SrsBuffer* stream, bool& value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1677,7 +1677,7 @@ int srs_amf0_read_boolean(SrsStream* stream, bool& value)
     
     return ret;
 }
-int srs_amf0_write_boolean(SrsStream* stream, bool value)
+int srs_amf0_write_boolean(SrsBuffer* stream, bool value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1708,7 +1708,7 @@ int srs_amf0_write_boolean(SrsStream* stream, bool value)
     return ret;
 }
 
-int srs_amf0_read_number(SrsStream* stream, double& value)
+int srs_amf0_read_number(SrsBuffer* stream, double& value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1742,7 +1742,7 @@ int srs_amf0_read_number(SrsStream* stream, double& value)
     
     return ret;
 }
-int srs_amf0_write_number(SrsStream* stream, double value)
+int srs_amf0_write_number(SrsBuffer* stream, double value)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1772,7 +1772,7 @@ int srs_amf0_write_number(SrsStream* stream, double value)
     return ret;
 }
 
-int srs_amf0_read_null(SrsStream* stream)
+int srs_amf0_read_null(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1794,7 +1794,7 @@ int srs_amf0_read_null(SrsStream* stream)
     
     return ret;
 }
-int srs_amf0_write_null(SrsStream* stream)
+int srs_amf0_write_null(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1811,7 +1811,7 @@ int srs_amf0_write_null(SrsStream* stream)
     return ret;
 }
 
-int srs_amf0_read_undefined(SrsStream* stream)
+int srs_amf0_read_undefined(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1833,7 +1833,7 @@ int srs_amf0_read_undefined(SrsStream* stream)
     
     return ret;
 }
-int srs_amf0_write_undefined(SrsStream* stream)
+int srs_amf0_write_undefined(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1853,7 +1853,7 @@ int srs_amf0_write_undefined(SrsStream* stream)
 
 namespace _srs_internal
 {
-    int srs_amf0_read_utf8(SrsStream* stream, string& value)
+    int srs_amf0_read_utf8(SrsBuffer* stream, string& value)
     {
         int ret = ERROR_SUCCESS;
         
@@ -1898,7 +1898,7 @@ namespace _srs_internal
         
         return ret;
     }
-    int srs_amf0_write_utf8(SrsStream* stream, string value)
+    int srs_amf0_write_utf8(SrsBuffer* stream, string value)
     {
         int ret = ERROR_SUCCESS;
         
@@ -1929,7 +1929,7 @@ namespace _srs_internal
         return ret;
     }
     
-    bool srs_amf0_is_object_eof(SrsStream* stream) 
+    bool srs_amf0_is_object_eof(SrsBuffer* stream) 
     {
         // detect the object-eof specially
         if (stream->require(3)) {
@@ -1942,7 +1942,7 @@ namespace _srs_internal
         return false;
     }
     
-    int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF* value)
+    int srs_amf0_write_object_eof(SrsBuffer* stream, SrsAmf0ObjectEOF* value)
     {
         int ret = ERROR_SUCCESS;
         
@@ -1971,7 +1971,7 @@ namespace _srs_internal
         return ret;
     }
 
-    int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
+    int srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value)
     {
         srs_assert(value != NULL);
         return value->write(stream);

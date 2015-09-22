@@ -212,7 +212,7 @@ int SrsFlvSegment::write_metadata(SrsSharedPtrMessage* metadata)
         return ret;
     }
 
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(metadata->payload, metadata->size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -357,7 +357,7 @@ int SrsFlvSegment::update_flv_metadata()
     char* buf = new char[SrsAmf0Size::number()];
     SrsAutoFree(char, buf);
 
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(buf, SrsAmf0Size::number())) != ERROR_SUCCESS) {
         return ret;
     }

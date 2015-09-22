@@ -80,7 +80,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     pprint->elapse();
 
     if (true) {
-        SrsStream stream;
+        SrsBuffer stream;
 
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;

@@ -166,14 +166,14 @@ private:
     std::vector<SrsTsPiece*> pieces;
     int64_t next_connect_time;
 private:
-    SrsStream* stream;
+    SrsBuffer* stream;
     SrsTsContext* context;
 public:
     SrsIngestSrsInput(SrsHttpUri* hls) {
         in_hls = hls;
         next_connect_time = 0;
         
-        stream = new SrsStream();
+        stream = new SrsBuffer();
         context = new SrsTsContext();
     }
     virtual ~SrsIngestSrsInput() {
@@ -689,12 +689,12 @@ public:
 public:
     virtual int on_aac_frame(char* frame, int frame_size, double duration);
 private:
-    virtual int do_on_aac_frame(SrsStream* avs, double duration);
+    virtual int do_on_aac_frame(SrsBuffer* avs, double duration);
     virtual int parse_message_queue();
-    virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
+    virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
     virtual int write_h264_ipb_frame(std::string ibps, SrsCodecVideoAVCFrame frame_type, u_int32_t dts, u_int32_t pts);
-    virtual int on_ts_audio(SrsTsMessage* msg, SrsStream* avs);
+    virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
 private:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
@@ -789,7 +789,7 @@ int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duratio
     
     srs_trace("handle aac frames, size=%dB, duration=%.2f, dts=%"PRId64, frame_size, duration, raw_aac_dts);
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(frame, frame_size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -797,7 +797,7 @@ int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duratio
     return do_on_aac_frame(&stream, duration);
 }
 
-int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
+int SrsIngestSrsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -898,7 +898,7 @@ int SrsIngestSrsOutput::parse_message_queue()
         queue.erase(it);
         
         // parse the stream.
-        SrsStream avs;
+        SrsBuffer avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
             return ret;
@@ -932,7 +932,7 @@ int SrsIngestSrsOutput::flush_message_queue()
         queue.erase(it);
         
         // parse the stream.
-        SrsStream avs;
+        SrsBuffer avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
             return ret;
@@ -954,7 +954,7 @@ int SrsIngestSrsOutput::flush_message_queue()
     return ret;
 }
 
-int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
+int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1109,7 +1109,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
     return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
 }
 
-int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsStream* avs)
+int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     

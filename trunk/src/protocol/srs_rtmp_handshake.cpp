@@ -323,7 +323,7 @@ namespace _srs_internal
         srs_freep(random1);
     }
     
-    int key_block::parse(SrsStream* stream)
+    int key_block::parse(SrsBuffer* stream)
     {
         int ret = ERROR_SUCCESS;
         
@@ -405,7 +405,7 @@ namespace _srs_internal
         srs_freep(random1);
     }
 
-    int digest_block::parse(SrsStream* stream)
+    int digest_block::parse(SrsBuffer* stream)
     {
         int ret = ERROR_SUCCESS;
         
@@ -629,7 +629,7 @@ namespace _srs_internal
         return ret;
     }
     
-    void c1s1_strategy::copy_time_version(SrsStream* stream, c1s1* owner)
+    void c1s1_strategy::copy_time_version(SrsBuffer* stream, c1s1* owner)
     {
         srs_assert(stream->require(8));
         
@@ -639,7 +639,7 @@ namespace _srs_internal
         // 4bytes version
         stream->write_4bytes(owner->version);
     }
-    void c1s1_strategy::copy_key(SrsStream* stream)
+    void c1s1_strategy::copy_key(SrsBuffer* stream)
     {
         srs_assert(key.random0_size >= 0);
         srs_assert(key.random1_size >= 0);
@@ -660,7 +660,7 @@ namespace _srs_internal
         
         stream->write_4bytes(key.offset);
     }
-    void c1s1_strategy::copy_digest(SrsStream* stream, bool with_digest)
+    void c1s1_strategy::copy_digest(SrsBuffer* stream, bool with_digest)
     {
         srs_assert(key.random0_size >= 0);
         srs_assert(key.random1_size >= 0);
@@ -710,7 +710,7 @@ namespace _srs_internal
         
         srs_assert(size == 1536);
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
             return ret;
@@ -745,7 +745,7 @@ namespace _srs_internal
             srs_assert(size == 1504);
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -779,7 +779,7 @@ namespace _srs_internal
         
         srs_assert(size == 1536);
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
             return ret;
@@ -814,7 +814,7 @@ namespace _srs_internal
             srs_assert(size == 1504);
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -875,7 +875,7 @@ namespace _srs_internal
             return ret;
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1, size)) != ERROR_SUCCESS) {
             return ret;

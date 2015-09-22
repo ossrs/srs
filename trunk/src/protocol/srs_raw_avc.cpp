@@ -41,7 +41,7 @@ SrsRawH264Stream::~SrsRawH264Stream()
 {
 }
 
-int SrsRawH264Stream::annexb_demux(SrsStream* stream, char** pframe, int* pnb_frame)
+int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame)
 {
     int ret = ERROR_SUCCESS;
 
@@ -160,7 +160,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     SrsAutoFree(char, packet);
 
     // use stream to generate the h264 packet.
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -239,7 +239,7 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     SrsAutoFree(char, packet);
     
     // use stream to generate the h264 packet.
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -310,7 +310,7 @@ SrsRawAacStream::~SrsRawAacStream()
 {
 }
 
-int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec)
+int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec)
 {
     int ret = ERROR_SUCCESS;
     

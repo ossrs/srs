@@ -333,7 +333,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 SrsFlvEncoder::SrsFlvEncoder()
 {
     reader = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
     
 #ifdef SRS_PERF_FAST_FLV_ENCODER
     nb_tag_headers = 0;
@@ -696,7 +696,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
 SrsFlvDecoder::SrsFlvDecoder()
 {
     reader = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
 SrsFlvDecoder::~SrsFlvDecoder()
@@ -820,7 +820,7 @@ int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 SrsFlvVodStreamDecoder::SrsFlvVodStreamDecoder()
 {
     reader = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
 SrsFlvVodStreamDecoder::~SrsFlvVodStreamDecoder()

@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-class SrsStream;
+class SrsBuffer;
 class SrsFileWriter;
 
 /**
@@ -42,7 +42,7 @@ class SrsMp3Encoder
 private:
     SrsFileWriter* writer;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsMp3Encoder();
     virtual ~SrsMp3Encoder();
