@@ -28,6 +28,8 @@
 #include <srs_app_config.hpp>
 #include <srs_app_async_call.hpp>
 
+#ifdef SRS_AUTO_KAFKA
+
 SrsKafkaProducer::SrsKafkaProducer()
 {
     worker = new SrsAsyncCallWorker();
@@ -65,4 +67,6 @@ void SrsKafkaProducer::stop()
 {
     worker->stop();
 }
+
+#endif
 

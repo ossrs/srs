@@ -25,6 +25,8 @@
 
 using namespace std;
 
+#ifdef SRS_AUTO_KAFKA
+
 SrsKafkaString::SrsKafkaString()
 {
     size = -1;
@@ -193,4 +195,6 @@ SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
 SrsKafkaTopicMetadataRequest::~SrsKafkaTopicMetadataRequest()
 {
 }
+
+#endif
 

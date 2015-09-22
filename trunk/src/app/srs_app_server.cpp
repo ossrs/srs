@@ -509,7 +509,9 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
+#ifdef SRS_AUTO_KAFKA
     kafka = new SrsKafkaProducer();
+#endif
 }
 
 SrsServer::~SrsServer()
@@ -539,7 +541,9 @@ void SrsServer::destroy()
     srs_freep(ingester);
 #endif
     
+#ifdef SRS_AUTO_KAFKA
     srs_freep(kafka);
+#endif
     
     if (pid_fd > 0) {
         ::close(pid_fd);
@@ -565,7 +569,9 @@ void SrsServer::dispose()
     ingester->dispose();
 #endif
     
+#ifdef SRS_AUTO_KAFKA
     kafka->stop();
+#endif
     
     SrsSource::dispose_all();
     
@@ -874,12 +880,19 @@ int SrsServer::start_kafka()
 {
     int ret = ERROR_SUCCESS;
     
+#ifdef SRS_AUTO_KAFKA
     if ((ret = kafka->initialize()) != ERROR_SUCCESS) {
         srs_error("initialize the kafka producer failed. ret=%d", ret);
         return ret;
     }
     
-    return kafka->start();
+    if ((ret = kafka->start()) != ERROR_SUCCESS) {
+        srs_error("start kafka failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    return ret;
 }
 
 int SrsServer::cycle()

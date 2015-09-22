@@ -31,6 +31,11 @@
 
 class SrsAsyncCallWorker;
 
+#ifdef SRS_AUTO_KAFKA
+
+/**
+ * the kafka producer used to save log to kafka cluster.
+ */
 class SrsKafkaProducer
 {
 private:
@@ -45,3 +50,6 @@ public:
 };
 
 #endif
+
+#endif
+

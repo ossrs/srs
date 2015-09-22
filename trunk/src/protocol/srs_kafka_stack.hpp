@@ -31,6 +31,8 @@
 
 #include <vector>
 
+#ifdef SRS_AUTO_KAFKA
+
 // https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
 enum SrsKafkaApiKey
 {
@@ -307,6 +309,8 @@ public:
     SrsKafkaTopicMetadataRequest();
     virtual ~SrsKafkaTopicMetadataRequest();
 };
+
+#endif
 
 #endif
 
