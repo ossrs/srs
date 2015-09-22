@@ -113,7 +113,7 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_flv.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_log.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_mp3.hpp" />
-    <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_ts.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_utility.hpp" />
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp" />
@@ -195,7 +195,7 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_flv.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_log.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_mp3.cpp" />
-    <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_ts.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_utility.cpp" />
     <ClCompile Include="..\..\src\libs\srs_librtmp.cpp" />

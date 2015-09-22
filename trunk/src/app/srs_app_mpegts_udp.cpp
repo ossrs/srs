@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_temp.hpp>
 #include <srs_kernel_file.hpp>

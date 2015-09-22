@@ -45,7 +45,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_rtmp_amf0.hpp>
 
 // the longest time to wait for a process to quit.

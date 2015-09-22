@@ -37,7 +37,7 @@ using namespace std;
 #include <srs_app_encoder.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_dvr.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>

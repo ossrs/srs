@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_temp.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_core_autofree.hpp>

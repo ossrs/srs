@@ -39,7 +39,7 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_amf0.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_utility.hpp>
 

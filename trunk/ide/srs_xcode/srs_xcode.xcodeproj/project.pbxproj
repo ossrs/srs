@@ -26,7 +26,7 @@
 		3C1232261AAE814D00CE8F6C /* srs_kernel_flv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1232141AAE814D00CE8F6C /* srs_kernel_flv.cpp */; };
 		3C1232271AAE814D00CE8F6C /* srs_kernel_log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1232161AAE814D00CE8F6C /* srs_kernel_log.cpp */; };
 		3C1232281AAE814D00CE8F6C /* srs_kernel_mp3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1232181AAE814D00CE8F6C /* srs_kernel_mp3.cpp */; };
-		3C1232291AAE814D00CE8F6C /* srs_kernel_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C12321A1AAE814D00CE8F6C /* srs_kernel_stream.cpp */; };
+		3C1232291AAE814D00CE8F6C /* srs_kernel_buffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C12321A1AAE814D00CE8F6C /* srs_kernel_buffer.cpp */; };
 		3C12322A1AAE814D00CE8F6C /* srs_kernel_ts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C12321C1AAE814D00CE8F6C /* srs_kernel_ts.cpp */; };
 		3C12322B1AAE814D00CE8F6C /* srs_kernel_utility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C12321E1AAE814D00CE8F6C /* srs_kernel_utility.cpp */; };
 		3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C12322D1AAE81A400CE8F6C /* srs_raw_avc.cpp */; };
@@ -165,8 +165,8 @@
 		3C1232171AAE814D00CE8F6C /* srs_kernel_log.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_log.hpp; path = ../../../src/kernel/srs_kernel_log.hpp; sourceTree = "<group>"; };
 		3C1232181AAE814D00CE8F6C /* srs_kernel_mp3.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_mp3.cpp; path = ../../../src/kernel/srs_kernel_mp3.cpp; sourceTree = "<group>"; };
 		3C1232191AAE814D00CE8F6C /* srs_kernel_mp3.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_mp3.hpp; path = ../../../src/kernel/srs_kernel_mp3.hpp; sourceTree = "<group>"; };
-		3C12321A1AAE814D00CE8F6C /* srs_kernel_stream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_stream.cpp; path = ../../../src/kernel/srs_kernel_stream.cpp; sourceTree = "<group>"; };
-		3C12321B1AAE814D00CE8F6C /* srs_kernel_stream.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_stream.hpp; path = ../../../src/kernel/srs_kernel_stream.hpp; sourceTree = "<group>"; };
+		3C12321A1AAE814D00CE8F6C /* srs_kernel_buffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_buffer.cpp; path = ../../../src/kernel/srs_kernel_buffer.cpp; sourceTree = "<group>"; };
+		3C12321B1AAE814D00CE8F6C /* srs_kernel_buffer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_buffer.hpp; path = ../../../src/kernel/srs_kernel_buffer.hpp; sourceTree = "<group>"; };
 		3C12321C1AAE814D00CE8F6C /* srs_kernel_ts.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_ts.cpp; path = ../../../src/kernel/srs_kernel_ts.cpp; sourceTree = "<group>"; };
 		3C12321D1AAE814D00CE8F6C /* srs_kernel_ts.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_ts.hpp; path = ../../../src/kernel/srs_kernel_ts.hpp; sourceTree = "<group>"; };
 		3C12321E1AAE814D00CE8F6C /* srs_kernel_utility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_utility.cpp; path = ../../../src/kernel/srs_kernel_utility.cpp; sourceTree = "<group>"; };
@@ -495,8 +495,8 @@
 				3C1232171AAE814D00CE8F6C /* srs_kernel_log.hpp */,
 				3C1232181AAE814D00CE8F6C /* srs_kernel_mp3.cpp */,
 				3C1232191AAE814D00CE8F6C /* srs_kernel_mp3.hpp */,
-				3C12321A1AAE814D00CE8F6C /* srs_kernel_stream.cpp */,
-				3C12321B1AAE814D00CE8F6C /* srs_kernel_stream.hpp */,
+				3C12321A1AAE814D00CE8F6C /* srs_kernel_buffer.cpp */,
+				3C12321B1AAE814D00CE8F6C /* srs_kernel_buffer.hpp */,
 				3C12321C1AAE814D00CE8F6C /* srs_kernel_ts.cpp */,
 				3C12321D1AAE814D00CE8F6C /* srs_kernel_ts.hpp */,
 				3C12321E1AAE814D00CE8F6C /* srs_kernel_utility.cpp */,
@@ -957,7 +957,7 @@
 				3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */,
 				3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */,
 				3C1232441AAE81A400CE8F6C /* srs_rtmp_handshake.cpp in Sources */,
-				3C1232291AAE814D00CE8F6C /* srs_kernel_stream.cpp in Sources */,
+				3C1232291AAE814D00CE8F6C /* srs_kernel_buffer.cpp in Sources */,
 				3C663F181AB0155100286D8B /* srs_play.c in Sources */,
 				3C689F971AB6AAAC00C9CEEE /* io.c in Sources */,
 				3C1232B61AAE81D900CE8F6C /* srs_app_thread.cpp in Sources */,

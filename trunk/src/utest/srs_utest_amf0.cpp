@@ -29,7 +29,7 @@ using namespace std;
 
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 
 /**
 * main scenario to use amf0.
