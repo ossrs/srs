@@ -42,7 +42,7 @@ function Ubuntu_prepare()
         fi
     fi
     
-    # for arm, install the cross build tool chain.
+    # cross build for arm, install the cross build tool chain.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
@@ -52,7 +52,7 @@ function Ubuntu_prepare()
         fi
     fi
     
-    # for mips, user must installed the tool chain.
+    # cross build for mips, user must installed the tool chain.
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "user must install the tool chain: $SrsArmCC"
@@ -147,7 +147,7 @@ function Centos_prepare()
         return 0;
     fi
     
-    # for arm, install the cross build tool chain.
+    # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for CentOS"
         return 1
@@ -252,7 +252,7 @@ function OSX_prepare()
         return 0;
     fi
     
-    # for arm, install the cross build tool chain.
+    # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for OSX"
         return 1
@@ -377,7 +377,7 @@ fi
 # st-1.9
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # check the arm flag file, if flag changed, need to rebuild the st.
+    # check the cross build flag file, if flag changed, need to rebuild the st.
     _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_EPOLL"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
@@ -387,7 +387,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # @see: https://github.com/simple-rtmp-server/srs/issues/197
     if [ $SRS_CROSS_BUILD = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
-        if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+        if [[ -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
             echo "st-1.9t for arm is ok.";
         else
             # TODO: FIXME: patch the bug.
@@ -401,13 +401,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
                 make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} ${_ST_EXTRA_CFLAGS} &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-                cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
+                cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
         fi
     else
-        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+        if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
             echo "st-1.9t is ok.";
         else
+            # patch st for arm, @see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
             echo "build st-1.9t"; 
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
@@ -417,7 +418,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
                 make ${_ST_MAKE} ${_ST_EXTRA_CFLAGS} &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+                cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
         fi
     fi
@@ -429,7 +430,7 @@ fi
 #####################################################################################
 # http-parser-2.1
 #####################################################################################
-# check the arm flag file, if flag changed, need to rebuild the st.
+# check the cross build flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_CORE = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
     if [ $SRS_CROSS_BUILD = YES ]; then
@@ -447,7 +448,7 @@ if [ $SRS_HTTP_CORE = YES ]; then
             )
         fi
     else
-        # arm not specified, if exists flag, need to rebuild for no-arm platform.
+        # cross build not specified, if exists flag, need to rebuild for no-arm platform.
         if [[ ! -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
             echo "http-parser-2.1 is ok.";
         else
@@ -613,10 +614,10 @@ if [ $SRS_SSL = YES ]; then
     if [ $SRS_USE_SYS_SSL = YES ]; then
         echo "warning: donot compile ssl, use system ssl"
     else
-        # check the arm flag file, if flag changed, need to rebuild the st.
+        # check the cross build flag file, if flag changed, need to rebuild the st.
         if [ $SRS_CROSS_BUILD = YES ]; then
             # ok, arm specified, if the flag filed does not exists, need to rebuild.
-            if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            if [[ -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
                 echo "openssl-1.0.1f for arm is ok.";
             else
                 echo "build openssl-1.0.1f for arm"; 
@@ -628,12 +629,12 @@ if [ $SRS_SSL = YES ]; then
                         LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
                     make install_sw &&
                     cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
-                    cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
+                    cd .. && touch ${SRS_OBJS}/_flag.ssl.cross.build.tmp
                 )
             fi
         else
-            # arm not specified, if exists flag, need to rebuild for no-arm platform.
-            if [[ ! -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            # cross build not specified, if exists flag, need to rebuild for no-arm platform.
+            if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
                 echo "openssl-1.0.1f is ok.";
             else
                 echo "build openssl-1.0.1f"; 
@@ -643,7 +644,7 @@ if [ $SRS_SSL = YES ]; then
                     $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared $OPENSSL_HOTFIX &&
                     make && make install_sw &&
                     cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
-                    cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
+                    cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
                 )
             fi
         fi

@@ -135,8 +135,8 @@ Options:
   --with-gmp                build memory profile for SRS with gperf tools.
   --with-gcp                build cpu profile for SRS with gperf tools.
   --with-gprof              build SRS with gprof(GNU profile tool).
-  --with-arm-ubuntu12       build SRS on ubuntu12 for armhf(v7cpu).
-  --with-mips-ubuntu12      build SRS on ubuntu12 for mips.
+  --with-arm-ubuntu12       cross build SRS on ubuntu12 for armhf(v7cpu).
+  --with-mips-ubuntu12      cross build SRS on ubuntu12 for mips.
                           
   --without-ssl             disable rtmp complex handshake.
   --without-hls             disable hls, the apple http live streaming.
@@ -160,8 +160,8 @@ Options:
   --without-gmp             do not build memory profile for SRS with gperf tools.
   --without-gcp             do not build cpu profile for SRS with gperf tools.
   --without-gprof           do not build srs with gprof(GNU profile tool).
-  --without-arm-ubuntu12    do not build srs on ubuntu12 for armhf(v7cpu).
-  --without-mips-ubuntu12   do not build srs on ubuntu12 for mips.
+  --without-arm-ubuntu12    do not cross build srs on ubuntu12 for armhf(v7cpu).
+  --without-mips-ubuntu12   do not cross build srs on ubuntu12 for mips.
                           
   --prefix=<path>           the absolute install path for srs.
   --static                  whether add '-static' to link options.
