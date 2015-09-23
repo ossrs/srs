@@ -918,29 +918,6 @@ int SrsServer::cycle()
     return ret;
 }
 
-void SrsServer::remove(SrsConnection* conn)
-{
-    std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
-    
-    // removed by destroy, ignore.
-    if (it == conns.end()) {
-        srs_warn("server moved connection, ignore.");
-        return;
-    }
-    
-    conns.erase(it);
-    
-    srs_info("conn removed. conns=%d", (int)conns.size());
-    
-    SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(conn);
-    stat->on_disconnect(conn->srs_id());
-    
-    // all connections are created by server,
-    // so we free it here.
-    srs_freep(conn);
-}
-
 void SrsServer::on_signal(int signo)
 {
     if (signo == SRS_SIGNAL_RELOAD) {
@@ -1002,10 +979,9 @@ int SrsServer::do_cycle()
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
         // dynamic fetch the max.
-        int temp_max = max;
-        temp_max = srs_max(temp_max, heartbeat_max_resolution);
+        int dynamic_max = srs_max(max, heartbeat_max_resolution);
         
-        for (int i = 0; i < temp_max; i++) {
+        for (int i = 0; i < dynamic_max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
             
             // gracefully quit for SIGINT or SIGTERM(SRS_SIGNAL_GRACEFULLY_QUIT).
@@ -1329,6 +1305,29 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
     return ret;
+}
+
+void SrsServer::remove(SrsConnection* conn)
+{
+    std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
+    
+    // removed by destroy, ignore.
+    if (it == conns.end()) {
+        srs_warn("server moved connection, ignore.");
+        return;
+    }
+    
+    conns.erase(it);
+    
+    srs_info("conn removed. conns=%d", (int)conns.size());
+    
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(conn);
+    stat->on_disconnect(conn->srs_id());
+    
+    // all connections are created by server,
+    // so we free it here.
+    srs_freep(conn);
 }
 
 int SrsServer::on_reload_listen()

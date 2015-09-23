@@ -315,14 +315,6 @@ public:
     virtual int ingest();
     virtual int start_kafka();
     virtual int cycle();
-// IConnectionManager
-public:
-    /**
-    * callback for connection to remove itself.
-    * when connection thread cycle terminated, callback this to delete connection.
-    * @see SrsConnection.on_thread_stop().
-    */
-    virtual void remove(SrsConnection* conn);
 // server utilities.
 public:
     /**
@@ -372,6 +364,14 @@ public:
     * @param client_stfd, the client fd in st boxed, the underlayer fd.
     */
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+// IConnectionManager
+public:
+    /**
+     * callback for connection to remove itself.
+     * when connection thread cycle terminated, callback this to delete connection.
+     * @see SrsConnection.on_thread_stop().
+     */
+    virtual void remove(SrsConnection* conn);
 // interface ISrsReloadHandler.
 public:
     virtual int on_reload_listen();
