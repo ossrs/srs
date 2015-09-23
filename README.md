@@ -335,6 +335,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-23, for [#485][bug #485] error when arm glibc 2.15+ or not i386/x86_64/amd64. 2.0.192
 * v2.0, 2015-09-23, for [#485][bug #485] srs for respberrypi and cubieboard. 2.0.191
 * v2.0, 2015-09-21, fix [#484][bug #484] hotfix the openssl build script 2.0.190
 * <strong>v2.0, 2015-09-14, [2.0 alpha1(2.0.189)][r2.0a1] released. 89269 lines.</strong>
