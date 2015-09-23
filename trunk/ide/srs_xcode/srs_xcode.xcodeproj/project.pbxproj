@@ -352,6 +352,7 @@
 		3C689F9B1AB6AAC800C9CEEE /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../objs/st-1.9/sched.c"; sourceTree = "<group>"; };
 		3C689F9C1AB6AAC800C9CEEE /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../objs/st-1.9/stk.c"; sourceTree = "<group>"; };
 		3C689F9D1AB6AAC800C9CEEE /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../objs/st-1.9/sync.c"; sourceTree = "<group>"; };
+		3CB25C281BB2596300C97A63 /* setup_variables.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = setup_variables.sh; path = ../../../auto/setup_variables.sh; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
 		3CC52DCB1ACE4023006FEB01 /* srs_utest_amf0.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_amf0.hpp; path = ../../src/utest/srs_utest_amf0.hpp; sourceTree = "<group>"; };
 		3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_config.cpp; path = ../../src/utest/srs_utest_config.cpp; sourceTree = "<group>"; };
@@ -632,6 +633,7 @@
 				3C1232C31AAE827E00CE8F6C /* local_ip.sh */,
 				3C1232C41AAE827E00CE8F6C /* modules.sh */,
 				3C1232C51AAE827E00CE8F6C /* options.sh */,
+				3CB25C281BB2596300C97A63 /* setup_variables.sh */,
 				3C1232C61AAE827E00CE8F6C /* summary.sh */,
 				3C1232C71AAE827E00CE8F6C /* utest.sh */,
 			);
