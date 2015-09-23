@@ -335,6 +335,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-09-23, for [#485][bug #485] srs for respberrypi and cubieboard. 2.0.191
 * v2.0, 2015-09-21, fix [#484][bug #484] hotfix the openssl build script 2.0.190
 * <strong>v2.0, 2015-09-14, [2.0 alpha1(2.0.189)][r2.0a1] released. 89269 lines.</strong>
 * v2.0, 2015-09-14, fix [#474][bug #474] config to donot parse width/height from sps. 2.0.189
@@ -1024,6 +1025,7 @@ Winlin
 [bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
 [bug #474]: https://github.com/simple-rtmp-server/srs/issues/474
 [bug #484]: https://github.com/simple-rtmp-server/srs/issues/484
+[bug #485]: https://github.com/simple-rtmp-server/srs/issues/485
 [bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
