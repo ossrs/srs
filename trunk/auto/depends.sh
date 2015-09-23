@@ -362,12 +362,15 @@ fi
 #####################################################################################
 # user must specifies something what a fuck, we suppport following os:
 #       centos/ubuntu/osx,
-#       embeded system, for example, mips or arm,
+#       cross build for embeded system, for example, mips or arm,
+#       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EMBEDED_CPU = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
-    echo "what a fuck, os not supported."
-    exit 1
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+    if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_EMBEDED_CPU = NO ]]; then
+        echo "what a fuck, os not supported."
+        exit 1
+    fi
 fi
 
 #####################################################################################
@@ -409,6 +412,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
                 make ${_ST_MAKE} ${_ST_EXTRA_CFLAGS} &&

@@ -100,8 +100,7 @@ SRS_DISABLE_ALL=NO
 SRS_ENABLE_ALL=NO
 #
 ################################################################
-# calc
-# whether embed cpu, arm/mips
+# whether cross build for embed cpu, arm/mips
 SRS_EMBEDED_CPU=NO
 
 #####################################################################################
