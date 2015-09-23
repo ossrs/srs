@@ -148,7 +148,7 @@ function Centos_prepare()
     fi
     
     # for arm, install the cross build tool chain.
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for CentOS"
         return 1
     fi
@@ -253,7 +253,7 @@ function OSX_prepare()
     fi
     
     # for arm, install the cross build tool chain.
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for OSX"
         return 1
     fi
@@ -367,7 +367,7 @@ fi
 #       export srs-librtmp
 # others is invalid.
 if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
-    if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_EMBEDED_CPU = NO ]]; then
+    if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
         echo "what a fuck, os not supported."
         exit 1
     fi
@@ -385,7 +385,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     fi
     # memory leak for linux-optimized
     # @see: https://github.com/simple-rtmp-server/srs/issues/197
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_CROSS_BUILD = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
         if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
             echo "st-1.9t for arm is ok.";
@@ -432,7 +432,7 @@ fi
 # check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_CORE = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_CROSS_BUILD = YES ]; then
         if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
             echo "http-parser-2.1 for arm is ok.";
         else
@@ -487,7 +487,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     mkdir -p ${SRS_OBJS}/nginx
 fi
 # make nginx
-__SRS_BUILD_NGINX=NO; if [ $SRS_EMBEDED_CPU = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
+__SRS_BUILD_NGINX=NO; if [ $SRS_CROSS_BUILD = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "nginx-1.5.7 is ok.";
@@ -599,7 +599,7 @@ fi
 #####################################################################################
 # extra configure options
 CONFIGURE_TOOL="./config"
-if [ $SRS_EMBEDED_CPU = YES ]; then
+if [ $SRS_CROSS_BUILD = YES ]; then
     CONFIGURE_TOOL="./Configure linux-armv4"
 fi
 if [ $SRS_OSX = YES ]; then
@@ -614,7 +614,7 @@ if [ $SRS_SSL = YES ]; then
         echo "warning: donot compile ssl, use system ssl"
     else
         # check the arm flag file, if flag changed, need to rebuild the st.
-        if [ $SRS_EMBEDED_CPU = YES ]; then
+        if [ $SRS_CROSS_BUILD = YES ]; then
             # ok, arm specified, if the flag filed does not exists, need to rebuild.
             if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
                 echo "openssl-1.0.1f for arm is ok.";

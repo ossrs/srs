@@ -67,7 +67,7 @@ if [[ -z $SrsArmAR ]]; then SrsArmAR=$__SrsArmAR; fi
 if [[ -z $SrsArmLD ]]; then SrsArmLD=$__SrsArmLD; fi
 if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB=$__SrsArmRANDLIB; fi
 # write to source file
-if [ $SRS_EMBEDED_CPU = YES ]; then
+if [ $SRS_CROSS_BUILD = YES ]; then
     echo "cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB"
     echo "#define SRS_AUTO_EMBEDED_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
 else
@@ -200,7 +200,7 @@ fi
 #####################################################################################
 # for embeded.
 #####################################################################################
-if [ $SRS_EMBEDED_CPU = YES ]; then
+if [ $SRS_CROSS_BUILD = YES ]; then
     echo "#define SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
