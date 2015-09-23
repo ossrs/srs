@@ -103,6 +103,7 @@
 		3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9C1AB6AAC800C9CEEE /* stk.c */; };
 		3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9D1AB6AAC800C9CEEE /* sync.c */; };
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
+		3CB25C2A1BB269FD00C97A63 /* jmp_sp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */; };
 		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
 		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
 		3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCE1ACE4023006FEB01 /* srs_utest_core.cpp */; };
@@ -372,6 +373,8 @@
 		3C8280291BAFF896004A1794 /* transform.edge.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transform.edge.conf; path = ../../../conf/transform.edge.conf; sourceTree = "<group>"; };
 		3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kafka_stack.cpp; path = ../../../src/protocol/srs_kafka_stack.cpp; sourceTree = "<group>"; };
 		3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kafka_stack.hpp; path = ../../../src/protocol/srs_kafka_stack.hpp; sourceTree = "<group>"; };
+		3CB25C281BB2596300C97A63 /* setup_variables.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = setup_variables.sh; path = ../../../auto/setup_variables.sh; sourceTree = "<group>"; };
+		3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = jmp_sp.cpp; path = ../../../research/arm/jmp_sp.cpp; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
 		3CC52DCB1ACE4023006FEB01 /* srs_utest_amf0.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_amf0.hpp; path = ../../src/utest/srs_utest_amf0.hpp; sourceTree = "<group>"; };
 		3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_config.cpp; path = ../../src/utest/srs_utest_config.cpp; sourceTree = "<group>"; };
@@ -661,6 +664,7 @@
 				3C1232C31AAE827E00CE8F6C /* local_ip.sh */,
 				3C1232C41AAE827E00CE8F6C /* modules.sh */,
 				3C1232C51AAE827E00CE8F6C /* options.sh */,
+				3CB25C281BB2596300C97A63 /* setup_variables.sh */,
 				3C1232C61AAE827E00CE8F6C /* summary.sh */,
 				3C1232C71AAE827E00CE8F6C /* utest.sh */,
 			);
@@ -772,6 +776,7 @@
 		3C663F001AB014B500286D8B /* research */ = {
 			isa = PBXGroup;
 			children = (
+				3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */,
 				3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */,
 				3C663F031AB0155100286D8B /* srs_audio_raw_publish.c */,
 				3C663F041AB0155100286D8B /* srs_bandwidth_check.c */,
@@ -964,6 +969,8 @@
 				3C1232241AAE814D00CE8F6C /* srs_kernel_error.cpp in Sources */,
 				3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */,
 				3C068D6D1B10175500AA722C /* srs_protocol_stream.cpp in Sources */,
+				3CB25C2A1BB269FD00C97A63 /* jmp_sp.cpp in Sources */,
+				3C068D6D1B10175500AA722C /* srs_protocol_buffer.cpp in Sources */,
 				3C1232441AAE81A400CE8F6C /* srs_rtmp_handshake.cpp in Sources */,
 				3C1232291AAE814D00CE8F6C /* srs_kernel_buffer.cpp in Sources */,
 				3C663F181AB0155100286D8B /* srs_play.c in Sources */,

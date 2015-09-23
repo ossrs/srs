@@ -23,6 +23,9 @@ BLACK="\\033[0m"
 # parse options, exit with error when parse options invalid.
 . auto/options.sh
 
+# setup variables when options parsed.
+. auto/setup_variables.sh
+
 # clean the exists, when not export srs-librtmp.
 # do this only when the options is ok.
 if [[ -f Makefile ]]; then

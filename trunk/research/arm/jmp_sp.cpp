@@ -11,22 +11,7 @@
 
 jmp_buf context;
 
-void func1()
-{
-#if defined(__amd64__) || defined(__x86_64__)
-    register long int rsp0 asm("rsp");
-    
-    int ret = setjmp(context);
-    printf("setjmp func1 ret=%d, rsp=%#lx\n", ret, rsp0);
-    // enter by longjmp
-    if (ret != 0) {
-        printf("call by longjmp.\n");
-        exit(0);
-    }
-#endif
-}
-
-void func0()
+void do_longjmp()
 {
     /**
     the definition of jmp_buf:
@@ -78,8 +63,6 @@ void func0()
         printf("env[%d]=%#x, ", i, (int)context[0].__jmpbuf[i]);
     }
     printf("\n");
-    
-    func1();
 #endif
 
 #if defined(__arm__)
@@ -105,7 +88,7 @@ void func0()
     */
     /**
     For example, on raspberry-pi, armv6 cpu:
-        (gdb) x /64 context[0].__jmpbuf
+        (gdb) x /64xb (char*)context[0].__jmpbuf
             v1, 0:  0x00	0x00	0x00	0x00	
             v2, 1:  0x00	0x00	0x00	0x00
             v3, 2:  0x2c	0x84	0x00	0x00	
@@ -147,8 +130,7 @@ int main(int argc, char** argv)
         (int)__GLIBC__, (int)__GLIBC_MINOR__);
 #endif
 
-    func0();
-    longjmp(context, 1);
+    do_longjmp();
     
     printf("terminated\n");
 

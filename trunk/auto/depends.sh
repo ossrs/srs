@@ -38,7 +38,11 @@ function Ubuntu_prepare()
     else
         uname -v|grep Ubuntu >/dev/null 2>&1
         ret=$?; if [[ 0 -ne $ret ]]; then
-            return 0;
+            # for debian, we think it's ubuntu also.
+            # for example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
+            if [[ ! -f /etc/debian_version ]]; then
+                return 0;
+            fi
         fi
     fi
     
@@ -378,7 +382,7 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_EPOLL"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_KQUEUE"
@@ -399,7 +403,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
-                make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} ${_ST_EXTRA_CFLAGS} &&
+                make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
@@ -416,7 +420,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
-                make ${_ST_MAKE} ${_ST_EXTRA_CFLAGS} &&
+                make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
