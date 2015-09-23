@@ -328,11 +328,11 @@ help:
 	@echo "     make help"
 
 clean: 
-	(cd ${SRS_OBJS_DIR}; rm -rf srs srs_utest $__mcleanups)
-	(cd ${SRS_OBJS_DIR}; rm -rf src include lib)
-	(cd ${SRS_OBJS_DIR}/utest; rm -rf *.o *.a)
-	(cd research/librtmp; make clean)
-	(cd research/api-server/static-dir; rm -rf crossdomain.xml forward live players)
+	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
+	(cd ${SRS_OBJS_DIR} && rm -rf src include lib)
+	(cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
+	(cd research/librtmp && make clean)
+	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 END
 
