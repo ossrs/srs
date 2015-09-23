@@ -286,7 +286,7 @@ __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 END
 
 # embeded, ubuntu12, use embeded tool chain.
-if [ $SRS_EMBEDED_CPU = YES ]; then
+if [ $SRS_CROSS_BUILD = YES ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 default:
 	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default

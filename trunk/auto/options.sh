@@ -101,9 +101,8 @@ SRS_DISABLE_ALL=NO
 SRS_ENABLE_ALL=NO
 #
 ################################################################
-# calc
-# whether embed cpu, arm/mips
-SRS_EMBEDED_CPU=NO
+# whether cross build for embed cpu, arm/mips
+SRS_CROSS_BUILD=NO
 
 #####################################################################################
 # menu
@@ -374,10 +373,10 @@ function apply_user_presets() {
     
     # whether embeded cpu.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        SRS_EMBEDED_CPU=YES
+        SRS_CROSS_BUILD=YES
     fi
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        SRS_EMBEDED_CPU=YES
+        SRS_CROSS_BUILD=YES
     fi
 
     # all disabled.
@@ -906,7 +905,7 @@ function check_option_conflicts() {
 
     # check embeded(arm/mips), if embeded enabled, only allow st/ssl/librtmp,
     # user should disable all other features
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_CROSS_BUILD = YES ]; then
         if [ $SRS_FFMPEG_TOOL = YES ]; then echo "ffmpeg for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
