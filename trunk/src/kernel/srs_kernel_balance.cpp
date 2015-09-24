@@ -23,6 +23,8 @@
 
 #include <srs_kernel_balance.hpp>
 
+using namespace std;
+
 SrsLbRoundRobin::SrsLbRoundRobin()
 {
     index = -1;
@@ -36,5 +38,20 @@ SrsLbRoundRobin::~SrsLbRoundRobin()
 u_int32_t SrsLbRoundRobin::current()
 {
     return index;
+}
+
+string SrsLbRoundRobin::selected()
+{
+    return elem;
+}
+
+string SrsLbRoundRobin::select(const vector<string>& servers)
+{
+    srs_assert(!servers.empty());
+    
+    index = (int)(count++ % servers.size());
+    elem = servers.at(index);
+    
+    return elem;
 }
 

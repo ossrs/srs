@@ -98,7 +98,7 @@ int SrsKafkaProducer::request_metadata()
     }
     
     srs_assert(!brokers->args.empty());
-    std::string broker = lb->select<string>(brokers->args);
+    std::string broker = lb->select(brokers->args);
     
     if (true) {
         std::string senabled = srs_bool2switch(enabled);

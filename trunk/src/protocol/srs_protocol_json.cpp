@@ -28,6 +28,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_kernel_utility.hpp>
 
 /* json encode
  cout<< SRS_JOBJECT_START
@@ -328,10 +329,7 @@ string SrsJsonAny::dumps()
             return to_boolean()? "true":"false";
         }
         case SRS_JSON_Integer: {
-            // len(max int64_t) is 20, plus one "+-."
-            char tmp[22];
-            snprintf(tmp, 22, "%"PRId64, to_integer());
-            return tmp;
+            return srs_int2str(to_integer());
         }
         case SRS_JSON_Number: {
             // len(max int64_t) is 20, plus one "+-."

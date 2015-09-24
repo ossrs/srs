@@ -720,15 +720,12 @@ int SrsServer::acquire_pid_file()
         srs_error("truncate pid file %s error! ret=%#x", pid_file.c_str(), ret);
         return ret;
     }
-
-    int pid = (int)getpid();
     
     // write the pid
-    char buf[512];
-    snprintf(buf, sizeof(buf), "%d", pid);
-    if (write(fd, buf, strlen(buf)) != (int)strlen(buf)) {
+    string pid = srs_int2str(getpid());
+    if (write(fd, pid.c_str(), pid.length()) != pid.length()) {
         ret = ERROR_SYSTEM_PID_WRITE_FILE;
-        srs_error("write our pid error! pid=%d file=%s ret=%#x", pid, pid_file.c_str(), ret);
+        srs_error("write our pid error! pid=%s file=%s ret=%#x", pid.c_str(), pid_file.c_str(), ret);
         return ret;
     }
 
@@ -746,7 +743,7 @@ int SrsServer::acquire_pid_file()
         return ret;
     }
     
-    srs_trace("write pid=%d to %s success!", pid, pid_file.c_str());
+    srs_trace("write pid=%s to %s success!", pid.c_str(), pid_file.c_str());
     pid_fd = fd;
     
     return ret;

@@ -169,12 +169,41 @@ string srs_dns_resolve(string host)
     
     char ipv4[16];
     memset(ipv4, 0, sizeof(ipv4));
-    for (int i = 0; i < answer->h_length; i++) {
-        inet_ntop(AF_INET, answer->h_addr_list[i], ipv4, sizeof(ipv4));
-        break;
+    
+    // covert the first entry to ip.
+    if (answer->h_length > 0) {
+        inet_ntop(AF_INET, answer->h_addr_list[0], ipv4, sizeof(ipv4));
     }
     
     return ipv4;
+}
+
+void srs_parse_hostport(const string& hostport, string& host, int& port)
+{
+    host = hostport;
+    
+    size_t pos = hostport.find(":");
+    if (pos != std::string::npos) {
+        string p = hostport.substr(pos + 1);
+        host = hostport.substr(0, pos);
+        port = ::atoi(p.c_str());
+    }
+}
+
+string srs_int2str(int64_t value)
+{
+    // len(max int64_t) is 20, plus one "+-."
+    char tmp[22];
+    snprintf(tmp, 22, "%"PRId64, value);
+    return tmp;
+}
+
+string srs_float2str(double value)
+{
+    // len(max int64_t) is 20, plus one "+-."
+    char tmp[22];
+    snprintf(tmp, 22, "%.2f", value);
+    return tmp;
 }
 
 bool srs_is_little_endian()

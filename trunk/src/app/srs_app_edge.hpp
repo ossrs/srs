@@ -46,6 +46,7 @@ class SrsCommonMessage;
 class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
 class SrsKbps;
+class SrsLbRoundRobin;
 
 /**
 * the state of edge, auto machine
@@ -88,9 +89,7 @@ private:
     ISrsProtocolReaderWriter* io;
     SrsKbps* kbps;
     SrsRtmpClient* client;
-    int origin_index;
-    // current origin server of current source.
-    std::string curr_origin_server;
+    SrsLbRoundRobin* lb;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
@@ -105,8 +104,8 @@ public:
 private:
     virtual int ingest();
     virtual void close_underlayer_socket();
-    virtual int connect_server(std::string& ep_server, std::string& ep_port);
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    virtual int connect_server(std::string& ep_server, int& ep_port);
+    virtual int connect_app(std::string ep_server, int ep_port);
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
 

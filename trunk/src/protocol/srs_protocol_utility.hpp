@@ -89,6 +89,10 @@ extern std::string srs_generate_tc_url(
     std::string ip, std::string vhost, std::string app, std::string port,
     std::string param
 );
+extern std::string srs_generate_tc_url(
+    std::string ip, std::string vhost, std::string app, int port,
+    std::string param
+);
 
 /**
 * compare the memory in bytes.

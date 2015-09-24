@@ -204,8 +204,7 @@ string srs_path_build_timestamp(string template_path)
     // [timestamp],replace this const to current UNIX timestamp in ms.
     if (true) {
         int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
-        snprintf(buf, sizeof(buf), "%"PRId64, now_us / 1000);
-        path = srs_string_replace(path, "[timestamp]", buf);
+        path = srs_string_replace(path, "[timestamp]", srs_int2str(now_us / 1000));
     }
     
     return path;

@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_process.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
@@ -248,12 +249,6 @@ int SrsFFMPEG::start()
         return ret;
     }
     
-    // prepare exec params
-    // @remark we should never use stack variable, use heap to alloc to make lldb happy.
-    #define SRS_TMP_SIZE 512
-    char* tmp = new char[SRS_TMP_SIZE];
-    SrsAutoFree(char, tmp);
-    
     // the argv for process.
     params.clear();
     
@@ -300,33 +295,28 @@ int SrsFFMPEG::start()
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
         if (vbitrate > 0) {
             params.push_back("-b:v");
-            snprintf(tmp, SRS_TMP_SIZE, "%d", vbitrate * 1000);
-            params.push_back(tmp);
+            params.push_back(srs_int2str(vbitrate * 1000));
         }
         
         if (vfps > 0) {
             params.push_back("-r");
-            snprintf(tmp, SRS_TMP_SIZE, "%.2f", vfps);
-            params.push_back(tmp);
+            params.push_back(srs_float2str(vfps));
         }
         
         if (vwidth > 0 && vheight > 0) {
             params.push_back("-s");
-            snprintf(tmp, SRS_TMP_SIZE, "%dx%d", vwidth, vheight);
-            params.push_back(tmp);
+            params.push_back(srs_int2str(vwidth) + "x" + srs_int2str(vheight));
         }
         
         // TODO: add aspect if needed.
         if (vwidth > 0 && vheight > 0) {
             params.push_back("-aspect");
-            snprintf(tmp, SRS_TMP_SIZE, "%d:%d", vwidth, vheight);
-            params.push_back(tmp);
+            params.push_back(srs_int2str(vwidth) + ":" + srs_int2str(vheight));
         }
         
         if (vthreads > 0) {
             params.push_back("-threads");
-            snprintf(tmp, SRS_TMP_SIZE, "%d", vthreads);
-            params.push_back(tmp);
+            params.push_back(srs_int2str(vthreads));
         }
         
         params.push_back("-profile:v");
@@ -360,20 +350,17 @@ int SrsFFMPEG::start()
         if (acodec != SRS_RTMP_ENCODER_COPY) {
             if (abitrate > 0) {
                 params.push_back("-b:a");
-                snprintf(tmp, SRS_TMP_SIZE, "%d", abitrate * 1000);
-                params.push_back(tmp);
+                params.push_back(srs_int2str(abitrate * 1000));
             }
             
             if (asample_rate > 0) {
                 params.push_back("-ar");
-                snprintf(tmp, SRS_TMP_SIZE, "%d", asample_rate);
-                params.push_back(tmp);
+                params.push_back(srs_int2str(asample_rate));
             }
             
             if (achannels > 0) {
                 params.push_back("-ac");
-                snprintf(tmp, SRS_TMP_SIZE, "%d", achannels);
-                params.push_back(tmp);
+                params.push_back(srs_int2str(achannels));
             }
             
             // aparams

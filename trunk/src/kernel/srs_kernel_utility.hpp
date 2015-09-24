@@ -52,6 +52,13 @@ extern int64_t srs_update_system_time_ms();
 
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host);
+// split the host:port to host and port.
+extern void srs_parse_hostport(const std::string& hostport, std::string& host, int& port);
+
+// parse the int64 value to string.
+extern std::string srs_int2str(int64_t value);
+// parse the float value to string, precise is 2.
+extern std::string srs_float2str(double value);
 
 // whether system is little endian
 extern bool srs_is_little_endian();

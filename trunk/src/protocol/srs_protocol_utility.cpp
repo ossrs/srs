@@ -125,6 +125,11 @@ void srs_random_generate(char* bytes, int size)
     }
 }
 
+string srs_generate_tc_url(string ip, string vhost, string app, int port, string param)
+{
+    return srs_generate_tc_url(ip, vhost, app, srs_int2str(port), param);
+}
+
 string srs_generate_tc_url(string ip, string vhost, string app, string port, string param)
 {
     string tcUrl = "rtmp://";

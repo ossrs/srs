@@ -30,6 +30,7 @@
 #include <srs_core.hpp>
 
 #include <vector>
+#include <string>
 
 /**
  * the round-robin load balance algorithm,
@@ -42,21 +43,15 @@ private:
     int index;
     // total scheduled count.
     u_int32_t count;
+    // current selected server.
+    std::string elem;
 public:
     SrsLbRoundRobin();
     virtual ~SrsLbRoundRobin();
 public:
     virtual u_int32_t current();
-public:
-    template<typename T>
-    const T& select(const std::vector<T>& servers)
-    {
-        srs_assert(!servers.empty());
-        
-        index = (int)(count++ % servers.size());
-        
-        return servers.at(index);
-    }
+    virtual std::string selected();
+    virtual std::string select(const std::vector<std::string>& servers);
 };
 
 #endif

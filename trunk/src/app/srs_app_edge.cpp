@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_balance.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
@@ -67,10 +68,9 @@ SrsEdgeIngester::SrsEdgeIngester()
     client = NULL;
     _edge = NULL;
     _req = NULL;
-    origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    curr_origin_server = "";
+    lb = new SrsLbRoundRobin();
     pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
@@ -78,6 +78,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
 {
     stop();
     
+    srs_freep(lb);
     srs_freep(pthread);
     srs_freep(kbps);
 }
@@ -121,7 +122,7 @@ void SrsEdgeIngester::stop()
 
 string SrsEdgeIngester::get_curr_origin()
 {
-    return curr_origin_server;
+    return lb->selected();
 }
 
 int SrsEdgeIngester::cycle()
@@ -130,7 +131,8 @@ int SrsEdgeIngester::cycle()
 
     _source->on_source_id_changed(_srs_context->get_id());
         
-    std::string ep_server, ep_port;
+    std::string ep_server;
+    int ep_port;
     if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -216,7 +218,7 @@ int SrsEdgeIngester::ingest()
 }
 
 // TODO: FIXME: refine the connect_app.
-int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
+int SrsEdgeIngester::connect_app(string ep_server, int ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -258,7 +260,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     // generate the tcUrl
     std::string param = "";
     std::string tc_url = srs_generate_tc_url(ep_server, vhost, req->app, ep_port, param);
-    srs_trace("edge ingest from %s:%s at %s", ep_server.c_str(), ep_port.c_str(), tc_url.c_str());
+    srs_trace("edge ingest from %s:%d at %s", ep_server.c_str(), ep_port, tc_url.c_str());
     
     // replace the tcUrl in request,
     // which will replace the tc_url in client.connect_app().
@@ -339,7 +341,7 @@ void SrsEdgeIngester::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
+int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -358,21 +360,13 @@ int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
     }
     
     // select the origin.
-    std::string server = curr_origin_server = conf->args.at(origin_index % conf->args.size());
-    origin_index = (origin_index + 1) % conf->args.size();
-
-    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    std::string server = lb->select(conf->args);
     int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
-    size_t pos = server.find(":");
-    if (pos != std::string::npos) {
-        s_port = server.substr(pos + 1);
-        server = server.substr(0, pos);
-        port = ::atoi(s_port.c_str());
-    }
+    srs_parse_hostport(server, server, port);
     
     // output the connected server and port.
     ep_server = server;
-    ep_port = s_port;
+    ep_port = port;
     
     // open socket.
     int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
