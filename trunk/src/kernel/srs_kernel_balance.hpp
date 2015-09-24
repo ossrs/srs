@@ -21,39 +21,43 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_KAFKA_HPP
-#define SRS_APP_KAFKA_HPP
+#ifndef SRS_KERNEL_AAC_HPP
+#define SRS_KERNEL_AAC_HPP
 
 /*
-#include <srs_app_kafka.hpp>
+#include <srs_kernel_balance.hpp>
 */
 #include <srs_core.hpp>
 
-class SrsLbRoundRobin;
-class SrsAsyncCallWorker;
-
-#ifdef SRS_AUTO_KAFKA
+#include <vector>
 
 /**
- * the kafka producer used to save log to kafka cluster.
+ * the round-robin load balance algorithm,
+ * used for edge pull, kafka and other multiple server feature.
  */
-class SrsKafkaProducer
+class SrsLbRoundRobin
 {
 private:
-    SrsLbRoundRobin* lb;
-    SrsAsyncCallWorker* worker;
+    // current selected index.
+    int index;
+    // total scheduled count.
+    u_int32_t count;
 public:
-    SrsKafkaProducer();
-    virtual ~SrsKafkaProducer();
+    SrsLbRoundRobin();
+    virtual ~SrsLbRoundRobin();
 public:
-    virtual int initialize();
-    virtual int start();
-    virtual void stop();
-private:
-    virtual int request_metadata();
+    virtual u_int32_t current();
+public:
+    template<typename T>
+    const T& select(const std::vector<T>& servers)
+    {
+        srs_assert(!servers.empty());
+        
+        index = (int)(count++ % servers.size());
+        
+        return servers.at(index);
+    }
 };
-
-#endif
 
 #endif
 

@@ -21,39 +21,20 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_KAFKA_HPP
-#define SRS_APP_KAFKA_HPP
+#include <srs_kernel_balance.hpp>
 
-/*
-#include <srs_app_kafka.hpp>
-*/
-#include <srs_core.hpp>
-
-class SrsLbRoundRobin;
-class SrsAsyncCallWorker;
-
-#ifdef SRS_AUTO_KAFKA
-
-/**
- * the kafka producer used to save log to kafka cluster.
- */
-class SrsKafkaProducer
+SrsLbRoundRobin::SrsLbRoundRobin()
 {
-private:
-    SrsLbRoundRobin* lb;
-    SrsAsyncCallWorker* worker;
-public:
-    SrsKafkaProducer();
-    virtual ~SrsKafkaProducer();
-public:
-    virtual int initialize();
-    virtual int start();
-    virtual void stop();
-private:
-    virtual int request_metadata();
-};
+    index = -1;
+    count = 0;
+}
 
-#endif
+SrsLbRoundRobin::~SrsLbRoundRobin()
+{
+}
 
-#endif
+u_int32_t SrsLbRoundRobin::current()
+{
+    return index;
+}
 

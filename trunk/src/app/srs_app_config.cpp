@@ -4290,7 +4290,7 @@ SrsConfDirective* SrsConfig::get_kafka_brokers()
         return NULL;
     }
     
-    conf->get("brokers");
+    conf = conf->get("brokers");
     if (!conf || conf->args.empty()) {
         return NULL;
     }
