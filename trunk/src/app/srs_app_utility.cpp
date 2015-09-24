@@ -163,11 +163,6 @@ string srs_path_build_timestamp(string template_path)
     
     // [2006], replace with current year.
     if (true) {
-        snprintf(buf, sizeof(buf), "%d", 1900 + tm->tm_year);
-        path = srs_string_replace(path, "[2006]", buf);
-    }
-    // [2006], replace with current year.
-    if (true) {
         snprintf(buf, sizeof(buf), "%04d", 1900 + tm->tm_year);
         path = srs_string_replace(path, "[2006]", buf);
     }
