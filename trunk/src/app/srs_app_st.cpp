@@ -443,7 +443,7 @@ int srs_st_init()
         srs_error("st_set_eventsys use %s failed. ret=%d", st_get_eventsys_name(), ret);
         return ret;
     }
-    srs_trace("st_set_eventsys to %s", st_get_eventsys_name());
+    srs_info("st_set_eventsys to %s", st_get_eventsys_name());
 
     if(st_init() != 0){
         ret = ERROR_ST_INITIALIZE;

@@ -230,6 +230,10 @@ void srs_parse_endpoint(string ip_port, string& ip, int& port)
     port = ::atoi(the_port.c_str());
 }
 
+string srs_bool2switch(bool v) {
+    return v? "on" : "off";
+}
+
 int srs_kill_forced(int& pid)
 {
     int ret = ERROR_SUCCESS;
@@ -490,7 +494,7 @@ void srs_update_proc_stat()
     static int user_hz = 0;
     if (user_hz <= 0) {
         user_hz = (int)sysconf(_SC_CLK_TCK);
-        srs_trace("USER_HZ=%d", user_hz);
+        srs_info("USER_HZ=%d", user_hz);
         srs_assert(user_hz > 0);
     }
     
@@ -1234,6 +1238,12 @@ void retrieve_local_ipv4_ips()
         return;
     }
     
+    stringstream ss0;
+    ss0 << "ips";
+    
+    stringstream ss1;
+    ss1 << "devices";
+    
     ifaddrs* p = ifap;
     while (p != NULL) {
         ifaddrs* cur = p;
@@ -1257,20 +1267,23 @@ void retrieve_local_ipv4_ips()
             
             std::string ip = buf;
             if (ip != SRS_CONSTS_LOCALHOST) {
-                srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
+                ss0 << ", local[" << (int)ips.size() << "] ipv4 " << ip;
                 ips.push_back(ip);
             }
             
             // set the device internet status.
             if (!srs_net_device_is_internet(inaddr->s_addr)) {
-                srs_trace("detect intranet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                ss1 << ", intranet ";
                 _srs_device_ifs[cur->ifa_name] = false;
             } else {
-                srs_trace("detect internet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                ss1 << ", internet ";
                 _srs_device_ifs[cur->ifa_name] = true;
             }
+            ss1 << cur->ifa_name << " " << ip;
         }
     }
+    srs_trace(ss0.str().c_str());
+    srs_trace(ss1.str().c_str());
 
     freeifaddrs(ifap);
 }

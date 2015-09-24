@@ -47,6 +47,8 @@ public:
     virtual int initialize();
     virtual int start();
     virtual void stop();
+private:
+    virtual int request_metadata();
 };
 
 #endif

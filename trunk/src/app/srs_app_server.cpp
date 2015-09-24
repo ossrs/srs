@@ -440,7 +440,8 @@ int SrsSignalManager::start()
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_PERSISTENCE_CONFIG, &sa, NULL);
     
-    srs_trace("signal installed");
+    srs_trace("signal installed, reload=%d, dispose=%d, persistence=%d, grace_quit=%d",
+        SRS_SIGNAL_RELOAD, SRS_SIGNAL_DISPOSE, SRS_SIGNAL_PERSISTENCE_CONFIG, SRS_SIGNAL_GRACEFULLY_QUIT);
     
     return pthread->start();
 }

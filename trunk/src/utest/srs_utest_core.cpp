@@ -58,9 +58,6 @@ VOID TEST(CoreMacroseTest, Check)
 #ifndef SRS_AUTO_CONFIGURE
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_EMBEDED_TOOL_CHAIN
-    EXPECT_TRUE(false);
-#endif
 #ifndef SRS_AUTO_PREFIX
     EXPECT_TRUE(false);
 #endif

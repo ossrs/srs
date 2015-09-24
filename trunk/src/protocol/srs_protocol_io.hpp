@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 | IBufferReader |     |    IStatistic      |      | IBufferWriter |
 +---------------+     +--------------------+      +---------------+
 | + read()      |     | + get_recv_bytes() |      | + write()     |
-+------+--------+     | + get_recv_bytes() |      | + writev()    |
++------+--------+     | + get_send_bytes() |      | + writev()    |
       / \             +---+--------------+-+      +-------+-------+
        |                 / \            / \              / \
        |                  |              |                |

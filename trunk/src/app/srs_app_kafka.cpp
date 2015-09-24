@@ -44,7 +44,13 @@ int SrsKafkaProducer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("initialize kafka producer ok.");
+    // when kafka enabled, request metadata when startup.
+    if (_srs_config->get_kafka_enabled() && (ret = request_metadata()) != ERROR_SUCCESS) {
+        srs_error("request kafka metadata failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_info("initialize kafka producer ok.");
     
     return ret;
 }
@@ -58,7 +64,7 @@ int SrsKafkaProducer::start()
         return ret;
     }
     
-    srs_trace("start kafka async worker ok.");
+    srs_trace("kafka worker ok, enabled:%d", _srs_config->get_kafka_enabled());
     
     return ret;
 }
@@ -66,6 +72,15 @@ int SrsKafkaProducer::start()
 void SrsKafkaProducer::stop()
 {
     worker->stop();
+}
+
+int SrsKafkaProducer::request_metadata()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_info("update kafka metadata ok");
+    
+    return ret;
 }
 
 #endif
