@@ -27,6 +27,7 @@
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_async_call.hpp>
+#include <srs_app_utility.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -64,7 +65,8 @@ int SrsKafkaProducer::start()
         return ret;
     }
     
-    srs_trace("kafka worker ok, enabled:%d", _srs_config->get_kafka_enabled());
+    std::string enabled = srs_bool2switch(_srs_config->get_kafka_enabled());
+    srs_trace("kafka worker ok, enabled:%s", enabled.c_str());
     
     return ret;
 }

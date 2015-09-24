@@ -634,6 +634,10 @@ public:
      * whether the kafka enabled.
      */
     virtual bool                get_kafka_enabled();
+    /**
+     * get the broker list, each is format in <ip:port>.
+     */
+    virtual SrsConfDirective*   get_kafka_brokers();
 // vhost specified section
 public:
     /**
