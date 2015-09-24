@@ -708,7 +708,7 @@ public:
      */
     virtual int flush_message_queue();
 private:
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    virtual int connect_app(std::string ep_server, int ep_port);
     // close the connected io and rtmp to ready to be re-connect.
     virtual void close();
 };
@@ -1235,8 +1235,8 @@ int SrsIngestSrsOutput::connect()
     }
     
     // connect host.
-    if ((ret = srs_socket_connect(req->host, ::atoi(req->port.c_str()), ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect server %s:%s failed. ret=%d", req->host.c_str(), req->port.c_str(), ret);
+    if ((ret = srs_socket_connect(req->host, req->port, ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect server %s:%d failed. ret=%d", req->host.c_str(), req->port, ret);
         return ret;
     }
     io = new SrsStSocket(stfd);
@@ -1270,7 +1270,7 @@ int SrsIngestSrsOutput::connect()
 }
 
 // TODO: FIXME: refine the connect_app.
-int SrsIngestSrsOutput::connect_app(string ep_server, string ep_port)
+int SrsIngestSrsOutput::connect_app(string ep_server, int ep_port)
 {
     int ret = ERROR_SUCCESS;
     

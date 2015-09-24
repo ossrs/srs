@@ -281,7 +281,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", req->vhost);
-    output = srs_string_replace(output, "[port]", req->port);
+    output = srs_string_replace(output, "[port]", srs_int2str(req->port));
     output = srs_string_replace(output, "[app]", req->app);
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[engine]", engine->arg0());

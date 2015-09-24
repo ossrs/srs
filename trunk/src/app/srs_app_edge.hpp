@@ -125,7 +125,7 @@ private:
     ISrsProtocolReaderWriter* io;
     SrsKbps* kbps;
     SrsRtmpClient* client;
-    int origin_index;
+    SrsLbRoundRobin* lb;
     /**
     * we must ensure one thread one fd principle,
     * that is, a fd must be write/read by the one thread.
@@ -153,8 +153,8 @@ public:
     virtual int proxy(SrsCommonMessage* msg);
 private:
     virtual void close_underlayer_socket();
-    virtual int connect_server(std::string& ep_server, std::string& ep_port);
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    virtual int connect_server(std::string& ep_server, int& ep_port);
+    virtual int connect_app(std::string ep_server, int ep_port);
 };
 
 /**

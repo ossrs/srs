@@ -58,7 +58,7 @@ class ISrsProtocolReaderWriter;
 extern void srs_discovery_tc_url(
     std::string tcUrl, 
     std::string& schema, std::string& host, std::string& vhost, 
-    std::string& app, std::string& port, std::string& param
+    std::string& app, int& port, std::string& param
 );
 
 /**
@@ -85,10 +85,6 @@ extern void srs_random_generate(char* bytes, int size);
 * @remark when vhost equals to __defaultVhost__, use ip as vhost.
 * @remark ignore port if port equals to default port 1935.
 */
-extern std::string srs_generate_tc_url(
-    std::string ip, std::string vhost, std::string app, std::string port,
-    std::string param
-);
 extern std::string srs_generate_tc_url(
     std::string ip, std::string vhost, std::string app, int port,
     std::string param

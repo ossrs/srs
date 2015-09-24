@@ -100,9 +100,9 @@ public:
     virtual int cycle();
 private:
     virtual void close_underlayer_socket();
-    virtual void discovery_ep(std::string& server, std::string& port, std::string& tc_url);
-    virtual int connect_server(std::string& ep_server, std::string& ep_port);
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    virtual void discovery_ep(std::string& server, int& port, std::string& tc_url);
+    virtual int connect_server(std::string& ep_server, int& ep_port);
+    virtual int connect_app(std::string ep_server, int ep_port);
     virtual int forward();
 };
 

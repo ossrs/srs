@@ -44,7 +44,7 @@ using namespace std;
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
-    string& app, string& port, std::string& param
+    string& app, int& port, std::string& param
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
@@ -63,8 +63,7 @@ void srs_discovery_tc_url(
 
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
-        port = host.substr(pos + 1);
-        host = host.substr(0, pos);
+        srs_parse_hostport(host, host, port);
         srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
     }
 
@@ -127,11 +126,6 @@ void srs_random_generate(char* bytes, int size)
 
 string srs_generate_tc_url(string ip, string vhost, string app, int port, string param)
 {
-    return srs_generate_tc_url(ip, vhost, app, srs_int2str(port), param);
-}
-
-string srs_generate_tc_url(string ip, string vhost, string app, string port, string param)
-{
     string tcUrl = "rtmp://";
     
     if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
@@ -142,7 +136,7 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port, str
     
     if (port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
         tcUrl += ":";
-        tcUrl += port;
+        tcUrl += srs_int2str(port);
     }
     
     tcUrl += "/";

@@ -180,13 +180,27 @@ string srs_dns_resolve(string host)
 
 void srs_parse_hostport(const string& hostport, string& host, int& port)
 {
-    host = hostport;
-    
     size_t pos = hostport.find(":");
     if (pos != std::string::npos) {
         string p = hostport.substr(pos + 1);
         host = hostport.substr(0, pos);
         port = ::atoi(p.c_str());
+    } else {
+        host = hostport;
+    }
+}
+
+void srs_parse_endpoint(string hostport, string& ip, int& port)
+{
+    ip = "0.0.0.0";
+    
+    size_t pos = string::npos;
+    if ((pos = hostport.find(":")) != string::npos) {
+        ip = hostport.substr(0, pos);
+        string sport = hostport.substr(pos + 1);
+        port = ::atoi(sport.c_str());
+    } else {
+        port = ::atoi(hostport.c_str());
     }
 }
 
@@ -204,6 +218,10 @@ string srs_float2str(double value)
     char tmp[22];
     snprintf(tmp, 22, "%.2f", value);
     return tmp;
+}
+
+string srs_bool2switch(bool v) {
+    return v? "on" : "off";
 }
 
 bool srs_is_little_endian()

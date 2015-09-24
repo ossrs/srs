@@ -63,7 +63,7 @@ struct Context
     std::string tcUrl;
     std::string host;
     std::string ip;
-    std::string port;
+    int port;
     std::string vhost;
     std::string app;
     std::string stream;
@@ -509,9 +509,7 @@ int srs_librtmp_context_connect(Context* context)
     srs_assert(context->skt);
     
     std::string ip = context->ip;
-    int port = ::atoi(context->port.c_str());
-    
-    if ((ret = context->skt->connect(ip.c_str(), port)) != ERROR_SUCCESS) {
+    if ((ret = context->skt->connect(ip.c_str(), context->port)) != ERROR_SUCCESS) {
         return ret;
     }
     

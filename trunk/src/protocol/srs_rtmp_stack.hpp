@@ -554,7 +554,7 @@ public:
     // the host in tcUrl.
     std::string host;
     // the port in tcUrl.
-    std::string port;
+    int port;
     // the app in tcUrl, without param.
     std::string app;
     // the param in tcUrl(app).

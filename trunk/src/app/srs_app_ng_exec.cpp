@@ -198,7 +198,7 @@ string SrsNgExec::parse(SrsRequest* req, string tmpl)
     string output = tmpl;
     
     output = srs_string_replace(output, "[vhost]", req->vhost);
-    output = srs_string_replace(output, "[port]", req->port);
+    output = srs_string_replace(output, "[port]", srs_int2str(req->port));
     output = srs_string_replace(output, "[app]", req->app);
     output = srs_string_replace(output, "[stream]", req->stream);
     
@@ -207,7 +207,7 @@ string SrsNgExec::parse(SrsRequest* req, string tmpl)
     output = srs_string_replace(output, "[pageUrl]", req->pageUrl);
     
     if (output.find("[url]") != string::npos) {
-        string url = srs_generate_rtmp_url(req->host, ::atoi(req->port.c_str()), req->vhost, req->app, req->stream);
+        string url = srs_generate_rtmp_url(req->host, req->port, req->vhost, req->app, req->stream);
         output = srs_string_replace(output, "[url]", url);
     }
     

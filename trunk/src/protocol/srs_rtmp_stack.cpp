@@ -1664,6 +1664,7 @@ SrsRequest::SrsRequest()
 {
     objectEncoding = RTMP_SIG_AMF0_VER;
     duration = -1;
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     args = NULL;
 }
 

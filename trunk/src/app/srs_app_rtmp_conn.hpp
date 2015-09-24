@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
@@ -132,7 +134,7 @@ private:
     virtual void set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
-    virtual int connect_server(int origin_index, st_netfd_t* pstsock);
+    virtual int connect_server(std::string hostport, st_netfd_t* pstsock);
     virtual int do_token_traverse_auth(SrsRtmpClient* client);
     /**
      * when the connection disconnect, call this method.

@@ -76,18 +76,6 @@ extern std::string srs_path_build_stream(std::string template_path, std::string 
 extern std::string srs_path_build_timestamp(std::string template_path);
 
 /**
-* parse the endpoint to ip and port.
-* @param ip_port the ip and port which formats in <[ip:]port>
- */
-extern void srs_parse_endpoint(std::string ip_port, std::string& ip, std::string& port);
-extern void srs_parse_endpoint(std::string ip_port, std::string& ip, int& port);
-
-/**
- * convert bool to switch value, true to "on", false to "off".
- */
-extern std::string srs_bool2switch(bool v);
-
-/**
  * kill the pid by SIGINT, then wait to quit,
  * kill the pid by SIGKILL again when exceed the timeout.
  * @param pid the pid to kill. ignore for -1. set to -1 when killed.

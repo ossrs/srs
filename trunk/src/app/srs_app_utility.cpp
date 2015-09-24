@@ -205,29 +205,6 @@ string srs_path_build_timestamp(string template_path)
     return path;
 }
 
-void srs_parse_endpoint(string ip_port, string& ip, string& port)
-{
-    ip = "0.0.0.0";
-    port = ip_port;
-    
-    size_t pos = string::npos;
-    if ((pos = port.find(":")) != string::npos) {
-        ip = port.substr(0, pos);
-        port = port.substr(pos + 1);
-    }
-}
-
-void srs_parse_endpoint(string ip_port, string& ip, int& port)
-{
-    std::string the_port;
-    srs_parse_endpoint(ip_port, ip, the_port);
-    port = ::atoi(the_port.c_str());
-}
-
-string srs_bool2switch(bool v) {
-    return v? "on" : "off";
-}
-
 int srs_kill_forced(int& pid)
 {
     int ret = ERROR_SUCCESS;

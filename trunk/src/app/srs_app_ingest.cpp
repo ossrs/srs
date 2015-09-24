@@ -332,13 +332,13 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
 {
     int ret = ERROR_SUCCESS;
     
-    std::string port;
+    int port;
     if (true) {
         std::vector<std::string> ip_ports = _srs_config->get_listens();
         srs_assert(ip_ports.size() > 0);
         
-        std::string ep = ip_ports[0];
         std::string ip;
+        std::string ep = ip_ports[0];
         srs_parse_endpoint(ep, ip, port);
     }
     
@@ -346,7 +346,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", vhost->arg0());
-    output = srs_string_replace(output, "[port]", port);
+    output = srs_string_replace(output, "[port]", srs_int2str(port));
     if (output.empty()) {
         ret = ERROR_ENCODER_NO_OUTPUT;
         srs_trace("empty output url, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);

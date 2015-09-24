@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_utility.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -105,7 +106,8 @@ int SrsForwarder::on_publish()
     SrsRequest* req = _req;
     
     // discovery the server port and tcUrl from req and ep_forward.
-    std::string server, port, tc_url;
+    int port;
+    std::string server, tc_url;
     discovery_ep(server, port, tc_url);
     
     // dead loop check
@@ -228,7 +230,8 @@ int SrsForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    std::string ep_server, ep_port;
+    std::string ep_server;
+    int ep_port;
     if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -273,25 +276,18 @@ void SrsForwarder::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url)
+void SrsForwarder::discovery_ep(string& server, int& port, string& tc_url)
 {
     SrsRequest* req = _req;
     
-    server = _ep_forward;
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    
-    // TODO: FIXME: parse complex params
-    size_t pos = _ep_forward.find(":");
-    if (pos != std::string::npos) {
-        port = _ep_forward.substr(pos + 1);
-        server = _ep_forward.substr(0, pos);
-    }
+    srs_parse_hostport(_ep_forward, server, port);
     
     // generate tcUrl
     tc_url = srs_generate_tc_url(server, req->vhost, req->app, port, req->param);
 }
 
-int SrsForwarder::connect_server(string& ep_server, string& ep_port)
+int SrsForwarder::connect_server(string& ep_server, int& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -299,19 +295,14 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port)
     close_underlayer_socket();
     
     // discovery the server port and tcUrl from req and ep_forward.
-    std::string server, s_port, tc_url;
-    discovery_ep(server, s_port, tc_url);
-    int port = ::atoi(s_port.c_str());
-    
-    // output the connected server and port.
-    ep_server = server;
-    ep_port = s_port;
+    string tc_url;
+    discovery_ep(ep_server, ep_port, tc_url);
     
     // open socket.
     int64_t timeout = SRS_FORWARDER_SLEEP_US;
-    if ((ret = srs_socket_connect(ep_server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_warn("forward failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
+            _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
@@ -325,13 +316,13 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port)
     kbps->set_io(io, io);
     
     srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d",
-        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+        _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port);
     
     return ret;
 }
 
 // TODO: FIXME: refine the connect_app.
-int SrsForwarder::connect_app(string ep_server, string ep_port)
+int SrsForwarder::connect_app(string ep_server, int ep_port)
 {
     int ret = ERROR_SUCCESS;
     

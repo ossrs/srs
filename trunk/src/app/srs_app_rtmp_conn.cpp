@@ -159,11 +159,11 @@ int SrsRtmpConn::do_cycle()
     srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
         req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str());
     
-    if (req->schema.empty() || req->vhost.empty() || req->port.empty() || req->app.empty()) {
+    if (req->schema.empty() || req->vhost.empty() || req->app.empty()) {
         ret = ERROR_RTMP_REQ_TCURL;
         srs_error("discovery tcUrl failed. "
-            "tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, ret=%d",
-            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str(), ret);
+            "tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, ret=%d",
+            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str(), ret);
         return ret;
     }
     
@@ -175,9 +175,9 @@ int SrsRtmpConn::do_cycle()
     srs_verbose("check vhost success.");
     
     srs_trace("connect app, "
-        "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, args=%s", 
+        "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s", 
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
-        req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
+        req->schema.c_str(), req->vhost.c_str(), req->port,
         req->app.c_str(), (req->args? "(obj)":"null"));
     
     // show client identity
@@ -1230,9 +1230,10 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     srs_assert(req);
     
     st_netfd_t stsock = NULL;
-    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
-    for (int i = 0; i < (int)conf->args.size(); i++) {
-        if ((ret = connect_server(i, &stsock)) == ERROR_SUCCESS) {
+    vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost)->args;
+    for (int i = 0; i < (int)args.size(); i++) {
+        string hostport = args.at(i);
+        if ((ret = connect_server(hostport, &stsock)) == ERROR_SUCCESS) {
             break;
         }
     }
@@ -1254,7 +1255,7 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     return ret;
 }
 
-int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
+int SrsRtmpConn::connect_server(string hostport, st_netfd_t* pstsock)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1262,17 +1263,9 @@ int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
     srs_assert(conf);
     
     // select the origin.
-    std::string server = conf->args.at(origin_index % conf->args.size());
-    origin_index = (origin_index + 1) % conf->args.size();
-    
-    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
-    size_t pos = server.find(":");
-    if (pos != std::string::npos) {
-        s_port = server.substr(pos + 1);
-        server = server.substr(0, pos);
-        port = ::atoi(s_port.c_str());
-    }
+    string server;
+    int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    srs_parse_hostport(hostport, server, port);
     
     // open socket.
     st_netfd_t stsock = NULL;

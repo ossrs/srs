@@ -360,19 +360,17 @@ int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
     }
     
     // select the origin.
-    std::string server = lb->select(conf->args);
-    int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
-    srs_parse_hostport(server, server, port);
-    
-    // output the connected server and port.
-    ep_server = server;
-    ep_port = port;
+    if (true) {
+        std::string server = lb->select(conf->args);
+        ep_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        srs_parse_hostport(server, ep_server, ep_port);
+    }
     
     // open socket.
     int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_warn("edge pull failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
+            _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
@@ -386,7 +384,7 @@ int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
     kbps->set_io(io, io);
     
     srs_trace("edge pull connected, url=%s/%s, server=%s:%d",
-        _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
+        _req->tcUrl.c_str(), _req->stream.c_str(), ep_server.c_str(), ep_port);
     
     return ret;
 }
@@ -398,7 +396,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     client = NULL;
     _edge = NULL;
     _req = NULL;
-    origin_index = 0;
+    lb = new SrsLbRoundRobin();
     stream_id = 0;
     stfd = NULL;
     pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
@@ -410,6 +408,7 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
     
+    srs_freep(lb);
     srs_freep(pthread);
     srs_freep(queue);
     srs_freep(kbps);
@@ -437,7 +436,8 @@ int SrsEdgeForwarder::start()
     
     send_error_code = ERROR_SUCCESS;
     
-    std::string ep_server, ep_port;
+    std::string ep_server;
+    int ep_port;
     if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -591,7 +591,7 @@ void SrsEdgeForwarder::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
+int SrsEdgeForwarder::connect_server(string& ep_server, int& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -602,27 +602,17 @@ int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
     srs_assert(conf);
     
     // select the origin.
-    std::string server = conf->args.at(origin_index % conf->args.size());
-    origin_index = (origin_index + 1) % conf->args.size();
-    
-    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
-    size_t pos = server.find(":");
-    if (pos != std::string::npos) {
-        s_port = server.substr(pos + 1);
-        server = server.substr(0, pos);
-        port = ::atoi(s_port.c_str());
+    if (true) {
+        std::string server = lb->select(conf->args);
+        ep_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        srs_parse_hostport(server, ep_server, ep_port);
     }
-    
-    // output the connected server and port.
-    ep_server = server;
-    ep_port = s_port;
     
     // open socket.
     int64_t timeout = SRS_EDGE_FORWARDER_TIMEOUT_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_warn("edge push failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
+            _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
@@ -637,13 +627,13 @@ int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
     
     // open socket.
     srs_trace("edge push connected, stream=%s, tcUrl=%s to server=%s, port=%d",
-        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+        _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port);
     
     return ret;
 }
 
 // TODO: FIXME: refine the connect_app.
-int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
+int SrsEdgeForwarder::connect_app(string ep_server, int ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -685,7 +675,7 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     // generate the tcUrl
     std::string param = "";
     std::string tc_url = srs_generate_tc_url(ep_server, vhost, req->app, ep_port, param);
-    srs_trace("edge forward to %s:%s at %s", ep_server.c_str(), ep_port.c_str(), tc_url.c_str());
+    srs_trace("edge forward to %s:%d at %s", ep_server.c_str(), ep_port, tc_url.c_str());
     
     // replace the tcUrl in request,
     // which will replace the tc_url in client.connect_app().
