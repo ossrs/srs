@@ -838,7 +838,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         
         client->conn->expire();
-        srs_warn("kickoff client id=%d", cid);
+        srs_warn("kickoff client id=%d ok", cid);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
