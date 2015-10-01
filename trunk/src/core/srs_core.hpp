@@ -128,7 +128,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__)
     #error "only support i386/amd64/x86_64/arm cpu"
 #endif
-#if defined(__arm__) && __GLIBC__ != 2 || __GLIBC_MINOR__ > 15
+#if defined(__arm__) && (__GLIBC__ != 2 || __GLIBC_MINOR__ > 15)
     #error "for arm, only support glibc <= 2.15"
 #endif
 
