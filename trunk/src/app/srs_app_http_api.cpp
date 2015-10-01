@@ -794,16 +794,20 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     SrsStatisticClient* client = NULL;
     if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
-        ret = ERROR_RTMP_STREAM_NOT_FOUND;
-        srs_error("stream client_id=%d not found. ret=%d", cid, ret);
+        ret = ERROR_RTMP_CLIENT_NOT_FOUND;
+        srs_error("client id=%d not found. ret=%d", cid, ret);
         return srs_api_response_code(w, r, ret);
     }
     
     if (r->is_http_delete()) {
-        srs_assert(client);
+        if (!client) {
+            ret = ERROR_RTMP_CLIENT_NOT_FOUND;
+            srs_error("client id=%d not found. ret=%d", cid, ret);
+            return srs_api_response_code(w, r, ret);
+        }
         
         client->conn->expire();
-        srs_warn("delete client=%d ok", cid);
+        srs_warn("kickoff client id=%d ok", cid);
         return srs_api_response_code(w, r, ret);
     } else if (r->is_http_get()) {
         std::stringstream data;
