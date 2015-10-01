@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_aac.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
@@ -217,4 +219,6 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     return ret;
 }
+
+#endif
 

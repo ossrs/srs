@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_mp3.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
@@ -124,4 +126,6 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     
     return writer->write(data + stream->pos(), size - stream->pos(), NULL);
 }
+
+#endif
 

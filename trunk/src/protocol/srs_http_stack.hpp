@@ -29,6 +29,8 @@
 */
 #include <srs_core.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <map>
 #include <string>
 #include <vector>
@@ -536,3 +538,6 @@ public:
 };
 
 #endif
+
+#endif
+

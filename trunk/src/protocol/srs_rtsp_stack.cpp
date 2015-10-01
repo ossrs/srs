@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtsp_stack.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <stdlib.h>
 #include <map>
 using namespace std;
@@ -1179,6 +1181,8 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
 
     return ret;
 }
+
+#endif
 
 #endif
 

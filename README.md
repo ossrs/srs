@@ -1100,6 +1100,7 @@ Winlin
 [bug #474]: https://github.com/simple-rtmp-server/srs/issues/474
 [bug #484]: https://github.com/simple-rtmp-server/srs/issues/484
 [bug #485]: https://github.com/simple-rtmp-server/srs/issues/485
+[bug #495]: https://github.com/simple-rtmp-server/srs/issues/495
 [bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
