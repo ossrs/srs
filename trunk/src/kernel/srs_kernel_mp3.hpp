@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <string>
 
 class SrsStream;
@@ -65,6 +67,8 @@ public:
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
 };
+
+#endif
 
 #endif
 

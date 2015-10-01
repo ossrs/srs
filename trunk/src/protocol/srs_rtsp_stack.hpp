@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <string>
 #include <sstream>
 
@@ -709,6 +711,8 @@ private:
     */
     virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
 };
+
+#endif
 
 #endif
 

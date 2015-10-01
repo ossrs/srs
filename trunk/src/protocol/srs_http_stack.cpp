@@ -23,6 +23,8 @@
 
 #include <srs_http_stack.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <stdlib.h>
 #include <sstream>
 #include <algorithm>
@@ -779,3 +781,6 @@ char* ISrsHttpMessage::http_ts_send_buffer()
 {
     return _http_ts_send_buffer;
 }
+
+#endif
+

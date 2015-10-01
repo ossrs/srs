@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 #include <string>
 #include <map>
 #include <vector>
@@ -1653,6 +1655,8 @@ private:
     virtual int flush_audio();
     virtual int flush_video();
 };
+
+#endif
 
 #endif
 

@@ -380,6 +380,8 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
     return ret;
 }
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 SrsAvcAacCodec::SrsAvcAacCodec()
 {
     avc_parse_sps               = true;
@@ -1224,4 +1226,6 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sam
     
     return ret;
 }
+
+#endif
 

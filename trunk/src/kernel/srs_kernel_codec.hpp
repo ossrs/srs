@@ -525,6 +525,8 @@ enum SrsAvcLevel
 };
 std::string srs_codec_avc_level2str(SrsAvcLevel level);
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 /**
 * the h264/avc and aac codec, for media stream.
 *
@@ -663,3 +665,6 @@ private:
 };
 
 #endif
+
+#endif
+

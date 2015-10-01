@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_ts.hpp>
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
@@ -3212,4 +3214,5 @@ int SrsTsEncoder::flush_video()
     return ret;
 }
 
+#endif
 
