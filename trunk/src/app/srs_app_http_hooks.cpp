@@ -447,37 +447,49 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     // ensure the http status is ok.
     // https://github.com/simple-rtmp-server/srs/issues/158
     if (code != SRS_CONSTS_HTTP_OK) {
-        return ERROR_HTTP_STATUS_INVLIAD;
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("invalid response status=%d. ret=%d", code, ret);
+        return ret;
     }
     
+    // should never be empty.
     if (res.empty()) {
-        return ERROR_HTTP_DATA_INVLIAD;
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_error("invalid empty response. ret=%d", ret);
+        return ret;
     }
     
     // parse string res to json.
     SrsJsonAny* info = SrsJsonAny::loads((char*)res.c_str());
+    if (!info) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_error("invalid response %s. ret=%d", res.c_str(), ret);
+        return ret;
+    }
     SrsAutoFree(SrsJsonAny, info);
     
-    // if res is number of error code
+    // response error code in string.
     if (!info->is_object()) {
         if (res != SRS_HTTP_RESPONSE_OK) {
-            return ERROR_HTTP_DATA_INVLIAD;
+            ret = ERROR_HTTP_DATA_INVLIAD;
+            srs_error("invalid response number %s. ret=%d", res.c_str(), ret);
+            return ret;
         }
         return ret;
     }
     
-    // if res is json obj, like: {"code": 0, "data": ""}
+    // response standard object, format in json: {"code": 0, "data": ""}
     SrsJsonObject* res_info = info->to_object();
     SrsJsonAny* res_code = NULL;
     if ((res_code = res_info->ensure_property_integer("code")) == NULL) {
         ret = ERROR_RESPONSE_CODE;
-        srs_error("res code error, ret=%d", ret);
+        srs_error("invalid response without code, ret=%d", ret);
         return ret;
     }
     
     if ((res_code->to_integer()) != ERROR_SUCCESS) {
         ret = ERROR_RESPONSE_CODE;
-        srs_error("res code error, ret=%d, code=%d", ret, code);
+        srs_error("error response code=%d. ret=%d", res_code->to_integer(), ret);
         return ret;
     }
     
