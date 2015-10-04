@@ -335,6 +335,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
 * v2.0, 2015-10-01, for [#497][bug #497] response error when client not found to kickoff. 2.0.194
 * v2.0, 2015-10-01, for [#495][bug #495] decrease the srs-librtmp size. 2.0.193
 * v2.0, 2015-09-23, for [#485][bug #485] error when arm glibc 2.15+ or not i386/x86_64/amd64. 2.0.192
@@ -1031,6 +1032,7 @@ Winlin
 [bug #485]: https://github.com/simple-rtmp-server/srs/issues/485
 [bug #495]: https://github.com/simple-rtmp-server/srs/issues/495
 [bug #497]: https://github.com/simple-rtmp-server/srs/issues/497
+[bug #448]: https://github.com/simple-rtmp-server/srs/issues/448
 [bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
 [bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
 [bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
