@@ -307,6 +307,7 @@ Remark:
 
 ## Releases
 
+* 2015-10-08, [Release v2.0a2][r2.0a2], 2.0 alpha2, 2.0.195, 89358 lines.<br/>
 * 2015-09-14, [Release v2.0a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
 * 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
 * 2015-05-23, [Release v1.0r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.<br/>
@@ -335,6 +336,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
 * v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
 * v2.0, 2015-10-01, for [#497][bug #497] response error when client not found to kickoff. 2.0.194
 * v2.0, 2015-10-01, for [#495][bug #495] decrease the srs-librtmp size. 2.0.193
@@ -1192,6 +1194,7 @@ Winlin
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
 
+[r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a2
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
