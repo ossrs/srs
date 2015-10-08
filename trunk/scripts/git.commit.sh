@@ -66,12 +66,12 @@ function sync_push()
     done
 }
 
-sync_push --all origin
-sync_push --all srs.winlin
-sync_push --all srs.csdn
-sync_push --all srs.oschina
-sync_push --all srs.gitlab
-ok_msg "push refs ok"
+sync_push origin
+sync_push srs.winlin
+sync_push srs.csdn
+sync_push srs.oschina
+sync_push srs.gitlab
+ok_msg "push branches ok"
 
 sync_push --tags srs.winlin
 sync_push --tags srs.csdn
