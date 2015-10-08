@@ -1229,8 +1229,8 @@ Winlin
 [branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
 [release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.195.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.195.zip
 
 [srs2_CN]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
 [srs2_EN]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
