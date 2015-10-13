@@ -28,6 +28,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_app_utility.hpp>
 
 namespace internal
 {
@@ -411,16 +412,104 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 
 SrsTcpClient::SrsTcpClient()
 {
+    io = NULL;
+    stfd = NULL;
 }
 
 SrsTcpClient::~SrsTcpClient()
 {
+    close();
+}
+
+bool SrsTcpClient::connected()
+{
+    return io;
 }
 
 int SrsTcpClient::connect(string host, int port, int64_t timeout)
 {
     int ret = ERROR_SUCCESS;
+    
+    // when connected, ignore.
+    if (io) {
+        return ret;
+    }
+    
+    // connect host.
+    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect server %s:%d failed. ret=%d", host.c_str(), port, ret);
+        return ret;
+    }
+    
+    io = new SrsStSocket(stfd);
+    
     return ret;
+}
+
+void SrsTcpClient::close()
+{
+    // when closed, ignore.
+    if (!io) {
+        return;
+    }
+    
+    srs_freep(io);
+    srs_close_stfd(stfd);
+}
+
+bool SrsTcpClient::is_never_timeout(int64_t timeout_us)
+{
+    return io->is_never_timeout(timeout_us);
+}
+
+void SrsTcpClient::set_recv_timeout(int64_t timeout_us)
+{
+    io->set_recv_timeout(timeout_us);
+}
+
+int64_t SrsTcpClient::get_recv_timeout()
+{
+    return io->get_recv_timeout();
+}
+
+void SrsTcpClient::set_send_timeout(int64_t timeout_us)
+{
+    io->set_send_timeout(timeout_us);
+}
+
+int64_t SrsTcpClient::get_send_timeout()
+{
+    return io->get_send_timeout();
+}
+
+int64_t SrsTcpClient::get_recv_bytes()
+{
+    return io->get_recv_bytes();
+}
+
+int64_t SrsTcpClient::get_send_bytes()
+{
+    return io->get_send_bytes();
+}
+
+int SrsTcpClient::read(void* buf, size_t size, ssize_t* nread)
+{
+    return io->read(buf, size, nread);
+}
+
+int SrsTcpClient::read_fully(void* buf, size_t size, ssize_t* nread)
+{
+    return io->read_fully(buf, size, nread);
+}
+
+int SrsTcpClient::write(void* buf, size_t size, ssize_t* nwrite)
+{
+    return io->write(buf, size, nwrite);
+}
+
+int SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+{
+    return io->writev(iov, iov_size, nwrite);
 }
 
 #ifdef __linux__

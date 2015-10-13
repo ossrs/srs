@@ -119,9 +119,8 @@ SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, Sr
 {
     
     req = NULL;
-    io = NULL;
+    transport = new SrsTcpClient();
     client = NULL;
-    stfd = NULL;
     stream_id = 0;
     
     pprint = SrsPithyPrint::create_caster();
@@ -131,6 +130,7 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
 {
     close();
     
+    srs_freep(transport);
     srs_freep(pprint);
 }
 
@@ -261,7 +261,7 @@ int SrsDynamicHttpConn::connect()
     
     // when ok, ignore.
     // TODO: FIXME: should reconnect when disconnected.
-    if (io || client) {
+    if (transport->connected()) {
         return ret;
     }
     
@@ -273,12 +273,10 @@ int SrsDynamicHttpConn::connect()
     }
     
     // connect host.
-    if ((ret = srs_socket_connect(req->host, req->port, ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect server %s:%d failed. ret=%d", req->host.c_str(), req->port, ret);
+    if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
         return ret;
     }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
+    client = new SrsRtmpClient(transport);
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
@@ -360,10 +358,10 @@ int SrsDynamicHttpConn::connect_app(string ep_server, int ep_port)
 
 void SrsDynamicHttpConn::close()
 {
+    transport->close();
+    
     srs_freep(client);
-    srs_freep(io);
     srs_freep(req);
-    srs_close_stfd(stfd);
 }
 
 SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader* h)

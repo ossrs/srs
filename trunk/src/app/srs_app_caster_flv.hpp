@@ -43,6 +43,7 @@ class SrsRequest;
 class SrsPithyPrint;
 class ISrsHttpResponseReader;
 class SrsFlvDecoder;
+class SrsTcpClient;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -86,8 +87,7 @@ private:
     SrsPithyPrint* pprint;
 private:
     SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
+    SrsTcpClient* transport;
     SrsRtmpClient* client;
     int stream_id;
 public:
