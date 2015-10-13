@@ -60,7 +60,7 @@ int SrsBuffer::initialize(char* b, int nb)
 
     nb_bytes = nb;
     p = bytes = b;
-    srs_info("init stream ok, size=%d", size);
+    srs_info("init stream ok, size=%d", size());
 
     return ret;
 }
