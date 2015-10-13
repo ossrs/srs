@@ -410,7 +410,7 @@ string SrsFlvSegment::generate_path()
     std::string path_config = _srs_config->get_dvr_path(req->vhost);
     
     // add [stream].[timestamp].flv as filename for dir
-    if (path_config.find(".flv") != path_config.length() - 4) {
+    if (!srs_string_ends_with(path_config, ".flv")) {
         path_config += "/[stream].[timestamp].flv";
     }
     

@@ -219,7 +219,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     // for not rtmp input, donot append the iformat,
     // for example, "-f flv" before "-i udp://192.168.1.252:2222"
     // @see https://github.com/simple-rtmp-server/srs/issues/290
-    if (input.find("rtmp://") != 0) {
+    if (!srs_string_starts_with(input, "rtmp://")) {
         iformat = "";
     }
     
