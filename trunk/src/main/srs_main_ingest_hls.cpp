@@ -378,7 +378,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     int ret = ERROR_SUCCESS;
     
     SrsHttpClient client;
-    srs_trace("parse input hls %s", url->get_url());
+    srs_trace("parse input hls %s", url->get_url().c_str());
     
     if ((ret = client.initialize(url->get_host(), url->get_port())) != ERROR_SUCCESS) {
         srs_error("connect to server failed. ret=%d", ret);
@@ -387,7 +387,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
-        srs_error("HTTP GET %s failed. ret=%d", url->get_url(), ret);
+        srs_error("HTTP GET %s failed. ret=%d", url->get_url().c_str(), ret);
         return ret;
     }
     
@@ -609,7 +609,7 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
-        srs_error("HTTP GET %s failed. ret=%d", uri.get_url(), ret);
+        srs_error("HTTP GET %s failed. ret=%d", uri.get_url().c_str(), ret);
         return ret;
     }
     
@@ -1215,7 +1215,7 @@ int SrsIngestSrsOutput::connect()
         return ret;
     }
     
-    srs_trace("connect output=%s", out_rtmp->get_url());
+    srs_trace("connect output=%s", out_rtmp->get_url().c_str());
     
     // parse uri
     if (!req) {
@@ -1322,7 +1322,7 @@ int SrsIngestSrsOutput::connect_app(string ep_server, int ep_port)
 
 void SrsIngestSrsOutput::close()
 {
-    srs_trace("close output=%s", out_rtmp->get_url());
+    srs_trace("close output=%s", out_rtmp->get_url().c_str());
     h264_sps_pps_sent = false;
     
     srs_freep(client);

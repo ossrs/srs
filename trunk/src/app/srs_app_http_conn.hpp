@@ -369,12 +369,12 @@ public:
      */
     virtual int initialize(std::string _url);
 public:
-    virtual const char* get_url();
-    virtual const char* get_schema();
-    virtual const char* get_host();
+    virtual std::string get_url();
+    virtual std::string get_schema();
+    virtual std::string get_host();
     virtual int get_port();
-    virtual const char* get_path();
-    virtual const char* get_query();
+    virtual std::string get_path();
+    virtual std::string get_query();
 private:
     /**
      * get the parsed url field.

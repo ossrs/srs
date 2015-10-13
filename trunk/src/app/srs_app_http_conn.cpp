@@ -1109,19 +1109,19 @@ int SrsHttpUri::initialize(string _url)
     return ret;
 }
 
-const char* SrsHttpUri::get_url()
+string SrsHttpUri::get_url()
 {
-    return url.data();
+    return url;
 }
 
-const char* SrsHttpUri::get_schema()
+string SrsHttpUri::get_schema()
 {
-    return schema.data();
+    return schema;
 }
 
-const char* SrsHttpUri::get_host()
+string SrsHttpUri::get_host()
 {
-    return host.data();
+    return host;
 }
 
 int SrsHttpUri::get_port()
@@ -1129,14 +1129,14 @@ int SrsHttpUri::get_port()
     return port;
 }
 
-const char* SrsHttpUri::get_path()
+string SrsHttpUri::get_path()
 {
-    return path.data();
+    return path;
 }
 
-const char* SrsHttpUri::get_query()
+string SrsHttpUri::get_query()
 {
-    return query.data();
+    return query;
 }
 
 string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_url_fields field)
