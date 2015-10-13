@@ -101,16 +101,34 @@ extern bool srs_bytes_equals(void* pa, void* pb, int size);
 * @param data the packet bytes. user should never free it.
 * @param ppmsg output the shared ptr message. user should free it.
 */
-extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg);
+extern int srs_rtmp_create_msg(
+    char type, u_int32_t timestamp, char* data, int size, int stream_id,
+    SrsSharedPtrMessage** ppmsg
+);
 
 // get the stream identify, vhost/app/stream.
-extern std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream);
+extern std::string srs_generate_stream_url(
+    std::string vhost, std::string app, std::string stream
+);
+
+// parse the rtmp url to tcUrl/stream,
+// for example, rtmp://v.ossrs.net/live/livestream to
+//      tcUrl: rtmp://v.ossrs.net/live
+//      stream: livestream
+extern void srs_parse_rtmp_url(
+    std::string url, std::string& tcUrl, std::string& stream
+);
 
 // genereate the rtmp url, for instance, rtmp://server:port/app...vhost...vhost/stream
-extern std::string srs_generate_rtmp_url(std::string server, int port, std::string vhost, std::string app, std::string stream);
+extern std::string srs_generate_rtmp_url(
+    std::string server, int port, std::string vhost, std::string app, std::string stream
+);
 
 // write large numbers of iovs.
-extern int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
+extern int srs_write_large_iovs(
+    ISrsProtocolReaderWriter* skt, iovec* iovs, int size,
+    ssize_t* pnwrite = NULL
+);
 
 #endif
 

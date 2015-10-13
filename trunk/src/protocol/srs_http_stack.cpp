@@ -377,11 +377,7 @@ int SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r,
     }
     
     if (true) {
-        size_t pos;
-        std::string ext = fullpath;
-        if ((pos = ext.rfind(".")) != string::npos) {
-            ext = ext.substr(pos);
-        }
+        std::string ext = srs_path_filext(fullpath);
         
         if (_mime.find(ext) == _mime.end()) {
             w->header()->set_content_type("application/octet-stream");

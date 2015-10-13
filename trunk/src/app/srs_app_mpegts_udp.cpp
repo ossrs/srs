@@ -611,19 +611,8 @@ int SrsMpegtsOverUdp::connect()
     // parse uri
     if (!req) {
         req = new SrsRequest();
-
-        size_t pos = string::npos;
-        string uri = req->tcUrl = output;
-
-        // tcUrl, stream
-        if ((pos = uri.rfind("/")) != string::npos) {
-            req->stream = uri.substr(pos + 1);
-            req->tcUrl = uri = uri.substr(0, pos);
-        }
-    
-        srs_discovery_tc_url(req->tcUrl, 
-            req->schema, req->host, req->vhost, req->app, req->port,
-            req->param);
+        srs_parse_rtmp_url(output, req->tcUrl, req->stream);
+        srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
     }
 
     // connect host.

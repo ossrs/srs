@@ -44,7 +44,7 @@ using namespace std;
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
-    string& app, int& port, std::string& param
+    string& app, int& port, string& param
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
@@ -229,7 +229,7 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
     return ret;
 }
 
-std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream) 
+string srs_generate_stream_url(string vhost, string app, string stream)
 {
     std::string url = "";
     
@@ -242,6 +242,18 @@ std::string srs_generate_stream_url(std::string vhost, std::string app, std::str
     url += stream;
 
     return url;
+}
+
+void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
+{
+    size_t pos;
+    
+    if ((pos = url.rfind("/")) != string::npos) {
+        stream = url.substr(pos + 1);
+        tcUrl = url.substr(0, pos);
+    } else {
+        tcUrl = url;
+    }
 }
 
 string srs_generate_rtmp_url(string server, int port, string vhost, string app, string stream)

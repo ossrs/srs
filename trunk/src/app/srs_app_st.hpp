@@ -202,6 +202,17 @@ public:
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
+/**
+ * the common tcp client, to connect to specified TCP server,
+ * reconnect and close the connection.
+ */
+class SrsTcpClient
+{
+public:
+    SrsTcpClient();
+    virtual ~SrsTcpClient();
+};
+
 // initialize st, requires epoll.
 extern int srs_st_init();
 

@@ -242,7 +242,7 @@ int SrsHttpStaticServer::initialize()
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
         // the dir mount must always ends with "/"
-        if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
+        if (mount != "/" && !srs_string_ends_with(mount, "/")) {
             mount += "/";
         }
         

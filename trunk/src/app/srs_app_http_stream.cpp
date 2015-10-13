@@ -611,11 +611,7 @@ SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
     req = NULL;
     source = NULL;
     
-    std::string ext;
-    size_t pos = string::npos;
-    if ((pos = m.rfind(".")) != string::npos) {
-        ext = m.substr(pos);
-    }
+    std::string ext = srs_path_filext(m);
     _is_flv = (ext == ".flv");
     _is_ts = (ext == ".ts");
     _is_mp3 = (ext == ".mp3");
@@ -1319,10 +1315,7 @@ string SrsHttpStreamServer::hls_mount_generate(SrsRequest* r, string uri, string
     std::string mount = tmpl;
     
     // the ts is relative from the m3u8, the same start dir.
-    size_t pos = string::npos;
-    if ((pos = mount.rfind("/")) != string::npos) {
-        mount = mount.substr(0, pos);
-    }
+    mount = srs_path_dirname(mount);
     
     // replace the vhost variable
     mount = srs_string_replace(mount, "[vhost]", r->vhost);

@@ -270,10 +270,7 @@ int SrsRtspConn::do_cycle()
             if ((pos = rtsp_tcUrl.rfind(".sdp")) != string::npos) {
                 rtsp_tcUrl = rtsp_tcUrl.substr(0, pos);
             }
-            if ((pos = rtsp_tcUrl.rfind("/")) != string::npos) {
-                rtsp_stream = rtsp_tcUrl.substr(pos + 1);
-                rtsp_tcUrl = rtsp_tcUrl.substr(0, pos);
-            }
+            srs_parse_rtmp_url(rtsp_tcUrl, rtsp_tcUrl, rtsp_stream);
 
             srs_assert(req->sdp);
             video_id = ::atoi(req->sdp->video_stream_id.c_str());
@@ -651,8 +648,6 @@ int SrsRtspConn::connect()
     
     // parse uri
     if (!req) {
-        req = new SrsRequest();
-
         std::string schema, host, vhost, app, port, param;
         srs_discovery_tc_url(rtsp_tcUrl, schema, host, vhost, app, port, param);
 
@@ -660,19 +655,10 @@ int SrsRtspConn::connect()
         std::string output = output_template;
         output = srs_string_replace(output, "[app]", app);
         output = srs_string_replace(output, "[stream]", rtsp_stream);
-
-        size_t pos = string::npos;
-        string uri = req->tcUrl = output;
-
-        // tcUrl, stream
-        if ((pos = uri.rfind("/")) != string::npos) {
-            req->stream = uri.substr(pos + 1);
-            req->tcUrl = uri = uri.substr(0, pos);
-        }
-    
-        srs_discovery_tc_url(req->tcUrl, 
-            req->schema, req->host, req->vhost, req->app, req->port,
-            req->param);
+        
+        req = new SrsRequest();
+        srs_parse_rtmp_url(output, req->tcUrl, req->stream);
+        srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
     }
 
     // connect host.

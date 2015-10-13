@@ -464,6 +464,29 @@ string srs_path_basename(string path)
     
     return dirname;
 }
+    
+string srs_path_filename(string path)
+{
+    std::string filename = path;
+    size_t pos = string::npos;
+    
+    if ((pos = filename.rfind(".")) != string::npos) {
+        return filename.substr(0, pos);
+    }
+    
+    return filename;
+}
+    
+string srs_path_filext(string path)
+{
+    size_t pos = string::npos;
+    
+    if ((pos = path.rfind(".")) != string::npos) {
+        return path.substr(pos);
+    }
+    
+    return "";
+}
 
 bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
 {
@@ -471,7 +494,7 @@ bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
     char* p = bytes;
     
     for (;;) {
-        if (!stream->require(p - bytes + 3)) {
+        if (!stream->require((int)(p - bytes + 3))) {
             return false;
         }
         
