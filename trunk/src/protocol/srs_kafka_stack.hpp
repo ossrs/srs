@@ -33,7 +33,10 @@
 
 #ifdef SRS_AUTO_KAFKA
 
-// https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
+/**
+ * the api key used to identify the request type.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
+ */
 enum SrsKafkaApiKey
 {
     SrsKafkaApiKeyProduceRequest = 0,
@@ -178,7 +181,7 @@ public:
      */
     virtual int header_size();
     /**
-     * the size of message, the left bytes left after the header.
+     * the size of message, the bytes left after the header.
      * @remark total_size = 4 + header_size + message_size.
      */
     virtual int message_size();
