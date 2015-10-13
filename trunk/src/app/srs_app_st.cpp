@@ -23,6 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
+#include <string>
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
@@ -403,6 +406,20 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     
     send_bytes += nb_write;
     
+    return ret;
+}
+
+SrsTcpClient::SrsTcpClient()
+{
+}
+
+SrsTcpClient::~SrsTcpClient()
+{
+}
+
+int SrsTcpClient::connect(string host, int port, int64_t timeout)
+{
+    int ret = ERROR_SUCCESS;
     return ret;
 }
 

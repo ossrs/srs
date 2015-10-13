@@ -126,7 +126,7 @@ private:
     // connect to rtmp output url. 
     // @remark ignore when not connected, reconnect when disconnected.
     virtual int connect();
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    virtual int connect_app(std::string ep_server, int ep_port);
     // close the connected io and rtmp to ready to be re-connect.
     virtual void close();
 };

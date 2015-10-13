@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <st.h>
 
 #include <srs_app_st.hpp>
@@ -211,6 +213,14 @@ class SrsTcpClient
 public:
     SrsTcpClient();
     virtual ~SrsTcpClient();
+public:
+    /**
+     * connect to server over TCP.
+     * @param host the ip or hostname of server.
+     * @param port the port to connect to.
+     * @param timeout the timeout in us.
+     */
+    virtual int connect(std::string host, int port, int64_t timeout);
 };
 
 // initialize st, requires epoll.
