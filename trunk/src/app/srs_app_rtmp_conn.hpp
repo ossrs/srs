@@ -72,11 +72,13 @@ public:
     virtual ~SrsSimpleRtmpClient();
 public:
     virtual int connect(std::string url, int64_t timeout);
+    virtual int connect(std::string url, std::string vhost, int64_t timeout);
+private:
+    virtual int connect_app(std::string vhost);
+public:
     virtual void close();
 public:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
-private:
-    virtual int connect_app(std::string ep_server, int ep_port);
 };
 
 /**

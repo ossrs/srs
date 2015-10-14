@@ -94,6 +94,11 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 
 int SrsSimpleRtmpClient::connect(string url, int64_t timeout)
 {
+    return connect(url, "", timeout);
+}
+
+int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
+{
     int ret = ERROR_SUCCESS;
     
     // when ok, ignore.
@@ -122,21 +127,21 @@ int SrsSimpleRtmpClient::connect(string url, int64_t timeout)
     
     // connect to vhost/app
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("mpegts: handshake with server failed. ret=%d", ret);
+        srs_error("sdk: handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed. ret=%d", ret);
+    if ((ret = connect_app(vhost)) != ERROR_SUCCESS) {
+        srs_error("sdk: connect with server failed. ret=%d", ret);
         return ret;
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+        srs_error("sdk: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
         return ret;
     }
     
     // publish.
     if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: publish failed, stream=%s, stream_id=%d. ret=%d",
+        srs_error("sdk: publish failed, stream=%s, stream_id=%d. ret=%d",
                   req->stream.c_str(), stream_id, ret);
         return ret;
     }
@@ -144,35 +149,7 @@ int SrsSimpleRtmpClient::connect(string url, int64_t timeout)
     return ret;
 }
 
-void SrsSimpleRtmpClient::close()
-{
-    transport->close();
-    
-    srs_freep(client);
-    srs_freep(req);
-}
-
-int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsSharedPtrMessage* msg = NULL;
-    
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
-        srs_error("flv: create shared ptr msg failed. ret=%d", ret);
-        return ret;
-    }
-    srs_assert(msg);
-    
-    // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsSimpleRtmpClient::connect_app(string ep_server, int ep_port)
+int SrsSimpleRtmpClient::connect_app(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
@@ -185,7 +162,7 @@ int SrsSimpleRtmpClient::connect_app(string ep_server, int ep_port)
     // @see https://github.com/simple-rtmp-server/srs/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
@@ -207,15 +184,51 @@ int SrsSimpleRtmpClient::connect_app(string ep_server, int ep_port)
     
     // generate the tcUrl
     std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    std::string target_vhost = req->vhost;
+    if (vhost.empty()) {
+        target_vhost = vhost;
+    }
+    std::string tc_url = srs_generate_tc_url(req->host, target_vhost, req->app, req->port, param);
+    
+    // replace the tcUrl in request,
+    // which will replace the tc_url in client.connect_app().
+    req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
     // @see https://github.com/simple-rtmp-server/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
     if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
+        srs_error("sdk: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
                   tc_url.c_str(), debug_srs_upnode, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsSimpleRtmpClient::close()
+{
+    transport->close();
+    
+    srs_freep(client);
+    srs_freep(req);
+}
+
+int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = NULL;
+    
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+        srs_error("sdk: create shared ptr msg failed. ret=%d", ret);
+        return ret;
+    }
+    srs_assert(msg);
+    
+    // send out encoded msg.
+    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
         return ret;
     }
     
