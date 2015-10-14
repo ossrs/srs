@@ -676,8 +676,8 @@ int SrsRtspConn::connect()
     srs_freep(client);
     client = new SrsRtmpClient(transport);
 
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     // connect to vhost/app
     if ((ret = client->handshake()) != ERROR_SUCCESS) {

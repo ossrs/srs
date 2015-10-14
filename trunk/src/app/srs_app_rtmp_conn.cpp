@@ -362,8 +362,8 @@ int SrsRtmpConn::do_cycle()
     
     srs_trace("RTMP client ip=%s", ip.c_str());
 
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
         srs_error("rtmp handshake failed. ret=%d", ret);
@@ -690,8 +690,8 @@ int SrsRtmpConn::stream_service_cycle()
     srs_info("security check ok");
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     // find a source to serve.
     SrsSource* source = SrsSource::fetch(req);
@@ -1510,8 +1510,8 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("handshake with server failed. ret=%d", ret);

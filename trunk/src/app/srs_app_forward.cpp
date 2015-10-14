@@ -235,8 +235,8 @@ int SrsForwarder::cycle()
     }
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("handshake with server failed. ret=%d", ret);
