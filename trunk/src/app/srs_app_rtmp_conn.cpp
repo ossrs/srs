@@ -80,6 +80,7 @@ SrsSimpleRtmpClient::SrsSimpleRtmpClient()
 {
     req = NULL;
     client = NULL;
+    kbps = new SrsKbps();
     
     transport = new SrsTcpClient();
     stream_id = 0;
@@ -89,7 +90,11 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 {
     close();
     
+    srs_freep(kbps);
     srs_freep(transport);
+    
+    srs_freep(client);
+    kbps->set_io(NULL, NULL);
 }
 
 int SrsSimpleRtmpClient::connect(string url, int64_t timeout)
@@ -122,6 +127,8 @@ int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
     srs_freep(client);
     client = new SrsRtmpClient(transport);
     
+    kbps->set_io(transport, transport);
+    
     client->set_recv_timeout(timeout);
     client->set_send_timeout(timeout);
     
@@ -136,13 +143,6 @@ int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
         srs_error("sdk: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
-        return ret;
-    }
-    
-    // publish.
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("sdk: publish failed, stream=%s, stream_id=%d. ret=%d",
-                  req->stream.c_str(), stream_id, ret);
         return ret;
     }
     
@@ -215,6 +215,47 @@ void SrsSimpleRtmpClient::close()
     srs_freep(req);
 }
 
+int SrsSimpleRtmpClient::publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // publish.
+    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("sdk: publish failed, stream=%s, stream_id=%d. ret=%d",
+                  req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSimpleRtmpClient::play()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d",
+                  req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
+{
+    kbps->sample();
+    
+    int sr = kbps->get_send_kbps();
+    int sr30s = kbps->get_send_kbps_30s();
+    int sr5m = kbps->get_send_kbps_5m();
+    int rr = kbps->get_recv_kbps();
+    int rr30s = kbps->get_recv_kbps_30s();
+    int rr5m = kbps->get_recv_kbps_5m();
+    
+    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+}
+
 int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
@@ -233,6 +274,21 @@ int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char*
     }
     
     return ret;
+}
+
+int SrsSimpleRtmpClient::recv_message(SrsCommonMessage** pmsg)
+{
+    return client->recv_message(pmsg);
+}
+
+int SrsSimpleRtmpClient::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
+{
+    return client->decode_message(msg, ppacket);
+}
+
+void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
+{
+    transport->set_recv_timeout(timeout);
 }
 
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)

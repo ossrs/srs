@@ -68,6 +68,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
+
 // the timeout to send data to client,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)

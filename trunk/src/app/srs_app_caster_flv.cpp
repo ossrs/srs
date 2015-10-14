@@ -179,14 +179,19 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = sdk->connect(output, SRS_CONSTS_RTMP_RECV_TIMEOUT_US)) != ERROR_SUCCESS) {
+        srs_error("flv: connect %s failed. ret=%d", output.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        srs_error("flv: publish failed. ret=%d", ret);
+        return ret;
+    }
+    
     char pps[4];
     while (!rr->eof()) {
         pprint->elapse();
-        
-        if ((ret = sdk->connect(output, SRS_CONSTS_RTMP_RECV_TIMEOUT_US)) != ERROR_SUCCESS) {
-            srs_error("flv: connect %s failed. ret=%d", output.c_str(), ret);
-            return ret;
-        }
         
         char type;
         int32_t size;

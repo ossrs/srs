@@ -56,6 +56,8 @@ class SrsQueueRecvThread;
 class SrsPublishRecvThread;
 class SrsSecurity;
 class ISrsWakable;
+class SrsCommonMessage;
+class SrsPacket;
 
 /**
  * the simple rtmp client stub, use SrsRtmpClient and provides high level APIs.
@@ -66,6 +68,7 @@ private:
     SrsRequest* req;
     SrsTcpClient* transport;
     SrsRtmpClient* client;
+    SrsKbps* kbps;
     int stream_id;
 public:
     SrsSimpleRtmpClient();
@@ -78,7 +81,15 @@ private:
 public:
     virtual void close();
 public:
+    virtual int publish();
+    virtual int play();
+    virtual void kbps_sample(const char* label, int64_t age);
+public:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+public:
+    virtual void set_recv_timeout(int64_t timeout);
 };
 
 /**

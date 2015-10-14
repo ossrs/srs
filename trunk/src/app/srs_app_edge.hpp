@@ -48,6 +48,7 @@ class ISrsProtocolReaderWriter;
 class SrsKbps;
 class SrsLbRoundRobin;
 class SrsTcpClient;
+class SrsSimpleRtmpClient;
 
 /**
 * the state of edge, auto machine
@@ -80,21 +81,17 @@ enum SrsEdgeUserState
 class SrsEdgeIngester : public ISrsReusableThread2Handler
 {
 private:
-    int stream_id;
-private:
-    SrsSource* _source;
-    SrsPlayEdge* _edge;
-    SrsRequest* _req;
+    SrsSource* source;
+    SrsPlayEdge* edge;
+    SrsRequest* req;
     SrsReusableThread2* pthread;
-    SrsTcpClient* transport;
-    SrsKbps* kbps;
-    SrsRtmpClient* client;
+    SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual int initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
     virtual std::string get_curr_origin();
@@ -103,8 +100,6 @@ public:
     virtual int cycle();
 private:
     virtual int ingest();
-    virtual int connect_server(std::string& ep_server, int& ep_port);
-    virtual int connect_app(std::string ep_server, int ep_port);
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
 

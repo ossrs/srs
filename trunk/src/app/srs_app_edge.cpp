@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_balance.hpp>
+#include <srs_app_rtmp_conn.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
@@ -63,12 +64,11 @@ using namespace std;
 
 SrsEdgeIngester::SrsEdgeIngester()
 {
-    transport = new SrsTcpClient();
-    kbps = new SrsKbps();
-    client = NULL;
-    _edge = NULL;
-    _req = NULL;
-    stream_id = 0;
+    source = NULL;
+    edge = NULL;
+    req = NULL;
+    
+    sdk = new SrsSimpleRtmpClient();
     lb = new SrsLbRoundRobin();
     pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
@@ -77,19 +77,18 @@ SrsEdgeIngester::~SrsEdgeIngester()
 {
     stop();
     
-    srs_freep(transport);
+    srs_freep(sdk);
     srs_freep(lb);
     srs_freep(pthread);
-    srs_freep(kbps);
 }
 
-int SrsEdgeIngester::initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req)
+int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
-    _source = source;
-    _edge = edge;
-    _req = req;
+    source = s;
+    edge = e;
+    req = r;
     
     return ret;
 }
@@ -98,7 +97,7 @@ int SrsEdgeIngester::start()
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = _source->on_publish()) != ERROR_SUCCESS) {
+    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
         srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
         return ret;
     }
@@ -109,13 +108,10 @@ int SrsEdgeIngester::start()
 void SrsEdgeIngester::stop()
 {
     pthread->stop();
-    transport->close();
-    
-    srs_freep(client);
-    kbps->set_io(NULL, NULL);
+    sdk->close();
     
     // notice to unpublish.
-    _source->on_unpublish();
+    source->on_unpublish();
 }
 
 string SrsEdgeIngester::get_curr_origin()
@@ -127,39 +123,47 @@ int SrsEdgeIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
 
-    _source->on_source_id_changed(_srs_context->get_id());
+    source->on_source_id_changed(_srs_context->get_id());
         
-    std::string ep_server;
-    int ep_port;
-    if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    srs_assert(client);
-
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
-
-    SrsRequest* req = _req;
-    
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("handshake with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = connect_app(ep_server, ep_port)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
-        return ret;
-    }
-    
-    if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d", 
-            req->stream.c_str(), stream_id, ret);
-        return ret;
+    std::string url, vhost;
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
+        
+        // @see https://github.com/simple-rtmp-server/srs/issues/79
+        // when origin is error, for instance, server is shutdown,
+        // then user remove the vhost then reload, the conf is empty.
+        if (!conf) {
+            ret = ERROR_EDGE_VHOST_REMOVED;
+            srs_warn("vhost %s removed. ret=%d", req->vhost.c_str(), ret);
+            return ret;
+        }
+        
+        // select the origin.
+        if (true) {
+            std::string server = lb->select(conf->args);
+            int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+            srs_parse_hostport(server, server, port);
+            
+            url = srs_generate_rtmp_url(server, port, req->vhost, req->app, req->stream);
+        }
+        
+        // support vhost tranform for edge,
+        // @see https://github.com/simple-rtmp-server/srs/issues/372
+        vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
+        vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
     }
     
-    if ((ret = _edge->on_ingest_play()) != ERROR_SUCCESS) {
+    if ((ret = sdk->connect(url, vhost, SRS_CONSTS_RTMP_TIMEOUT_US)) != ERROR_SUCCESS) {
+        srs_error("edge pull %s failed. ret=%d", url.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = sdk->play()) != ERROR_SUCCESS) {
+        srs_error("edge pull %s stream failed. ret=%d", url.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = edge->on_ingest_play()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -176,27 +180,22 @@ int SrsEdgeIngester::ingest()
 {
     int ret = ERROR_SUCCESS;
     
-    client->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
+    sdk->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);
-
+    
     while (!pthread->interrupted()) {
         pprint->elapse();
         
         // pithy print
         if (pprint->can_print()) {
-            kbps->sample();
-            srs_trace("<- "SRS_CONSTS_LOG_EDGE_PLAY
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
-                pprint->age(),
-                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
+            sdk->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
         }
-
+        
         // read from client.
         SrsCommonMessage* msg = NULL;
-        if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
+        if ((ret = sdk->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("pull origin server message failed. ret=%d", ret);
             }
@@ -211,68 +210,6 @@ int SrsEdgeIngester::ingest()
             return ret;
         }
     }
-
-    return ret;
-}
-
-// TODO: FIXME: refine the connect_app.
-int SrsEdgeIngester::connect_app(string ep_server, int ep_port)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsRequest* req = _req;
-    
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
-    // notify server the edge identity,
-    // @see https://github.com/simple-rtmp-server/srs/issues/147
-    SrsAmf0Object* data = req->args;
-    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
-    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
-    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
-    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
-    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
-    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
-    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    // for edge to directly get the id of client.
-    data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
-    
-    // local ip of edge
-    std::vector<std::string> ips = srs_get_local_ipv4_ips();
-    assert(_srs_config->get_stats_network() < (int)ips.size());
-    std::string local_ip = ips[_srs_config->get_stats_network()];
-    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
-    
-    // support vhost tranform for edge,
-    // @see https://github.com/simple-rtmp-server/srs/issues/372
-    std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
-    vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
-    // generate the tcUrl
-    std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, vhost, req->app, ep_port, param);
-    srs_trace("edge ingest from %s:%d at %s", ep_server.c_str(), ep_port, tc_url.c_str());
-    
-    // replace the tcUrl in request,
-    // which will replace the tc_url in client.connect_app().
-    req->tcUrl = tc_url;
-    
-    // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/simple-rtmp-server/srs/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
-    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
-            tc_url.c_str(), debug_srs_upnode, ret);
-        return ret;
-    }
     
     return ret;
 }
@@ -280,8 +217,6 @@ int SrsEdgeIngester::connect_app(string ep_server, int ep_port)
 int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsSource* source = _source;
         
     // process audio packet
     if (msg->header.is_audio()) {
@@ -311,7 +246,7 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
-        if ((ret = client->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = sdk->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("decode onMetaData message failed. ret=%d", ret);
             return ret;
         }
@@ -330,50 +265,6 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
         srs_info("ignore AMF0/AMF3 data message.");
         return ret;
     }
-    
-    return ret;
-}
-
-int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // reopen
-    transport->close();
-    
-    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
-    
-    // @see https://github.com/simple-rtmp-server/srs/issues/79
-    // when origin is error, for instance, server is shutdown,
-    // then user remove the vhost then reload, the conf is empty.
-    if (!conf) {
-        ret = ERROR_EDGE_VHOST_REMOVED;
-        srs_warn("vhost %s removed. ret=%d", _req->vhost.c_str(), ret);
-        return ret;
-    }
-    
-    // select the origin.
-    if (true) {
-        std::string server = lb->select(conf->args);
-        ep_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-        srs_parse_hostport(server, ep_server, ep_port);
-    }
-    
-    // open socket.
-    int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
-    if ((ret = transport->connect(ep_server, ep_port, timeout)) != ERROR_SUCCESS) {
-        srs_warn("edge pull failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
-        return ret;
-    }
-    
-    srs_freep(client);
-    client = new SrsRtmpClient(transport);
-    
-    kbps->set_io(transport, transport);
-    
-    srs_trace("edge pull connected, url=%s/%s, server=%s:%d",
-        _req->tcUrl.c_str(), _req->stream.c_str(), ep_server.c_str(), ep_port);
     
     return ret;
 }
