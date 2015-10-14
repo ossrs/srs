@@ -90,6 +90,7 @@ public:
     virtual int recv_message(SrsCommonMessage** pmsg);
     virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int send_and_free_message(SrsSharedPtrMessage* msg);
 public:
     virtual void set_recv_timeout(int64_t timeout);
 };

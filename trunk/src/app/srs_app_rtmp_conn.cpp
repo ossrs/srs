@@ -301,6 +301,11 @@ int SrsSimpleRtmpClient::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
     return client->send_and_free_messages(msgs, nb_msgs, stream_id);
 }
 
+int SrsSimpleRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg)
+{
+    return client->send_and_free_message(msg, stream_id);
+}
+
 void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
 {
     transport->set_recv_timeout(timeout);

@@ -43,6 +43,7 @@ class SrsRtmpClient;
 class SrsRequest;
 class SrsSource;
 class SrsKbps;
+class SrsSimpleRtmpClient;
 
 /**
 * forward the stream to other servers.
@@ -52,16 +53,13 @@ class SrsForwarder : public ISrsReusableThread2Handler
 {
 private:
     // the ep to forward, server[:port].
-    std::string _ep_forward;
-    SrsRequest* _req;
-    int stream_id;
+    std::string ep_forward;
+    SrsRequest* req;
 private:
     SrsReusableThread2* pthread;
 private:
     SrsSource* source;
-    SrsTcpClient* transport;
-    SrsKbps* kbps;
-    SrsRtmpClient* client;
+    SrsSimpleRtmpClient* sdk;
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
     /**
@@ -74,7 +72,7 @@ public:
     SrsForwarder(SrsSource* _source);
     virtual ~SrsForwarder();
 public:
-    virtual int initialize(SrsRequest* req, std::string ep_forward);
+    virtual int initialize(SrsRequest* r, std::string ep);
     virtual void set_queue_size(double queue_size);
 public:
     virtual int on_publish();
@@ -98,9 +96,6 @@ public:
 public:
     virtual int cycle();
 private:
-    virtual void discovery_ep(std::string& server, int& port, std::string& tc_url);
-    virtual int connect_server(std::string& ep_server, int& ep_port);
-    virtual int connect_app(std::string ep_server, int ep_port);
     virtual int forward();
 };
 
