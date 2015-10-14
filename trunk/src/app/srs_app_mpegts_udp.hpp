@@ -86,8 +86,7 @@ private:
     std::string output;
 private:
     SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
+    SrsTcpClient* transport;
     SrsRtmpClient* client;
     int stream_id;
 private:

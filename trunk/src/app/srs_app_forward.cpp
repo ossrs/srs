@@ -54,9 +54,8 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
     source = _source;
     
     _req = NULL;
-    io = NULL;
     client = NULL;
-    stfd = NULL;
+    transport = new SrsTcpClient();
     kbps = new SrsKbps();
     stream_id = 0;
 
@@ -71,6 +70,7 @@ SrsForwarder::~SrsForwarder()
 {
     on_unpublish();
     
+    srs_freep(transport);
     srs_freep(pthread);
     srs_freep(queue);
     srs_freep(jitter);
@@ -151,11 +151,9 @@ int SrsForwarder::on_publish()
 void SrsForwarder::on_unpublish()
 {
     pthread->stop();
-    
-    close_underlayer_socket();
+    transport->close();
     
     srs_freep(client);
-    srs_freep(io);
     kbps->set_io(NULL, NULL);
 }
 
@@ -271,11 +269,6 @@ int SrsForwarder::cycle()
     return ret;
 }
 
-void SrsForwarder::close_underlayer_socket()
-{
-    srs_close_stfd(stfd);
-}
-
 void SrsForwarder::discovery_ep(string& server, int& port, string& tc_url)
 {
     SrsRequest* req = _req;
@@ -292,7 +285,7 @@ int SrsForwarder::connect_server(string& ep_server, int& ep_port)
     int ret = ERROR_SUCCESS;
     
     // reopen
-    close_underlayer_socket();
+    transport->close();
     
     // discovery the server port and tcUrl from req and ep_forward.
     string tc_url;
@@ -300,20 +293,16 @@ int SrsForwarder::connect_server(string& ep_server, int& ep_port)
     
     // open socket.
     int64_t timeout = SRS_FORWARDER_SLEEP_US;
-    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(ep_server, ep_port, timeout)) != ERROR_SUCCESS) {
         srs_warn("forward failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
     srs_freep(client);
-    srs_freep(io);
+    client = new SrsRtmpClient(transport);
     
-    srs_assert(stfd);
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
-    
-    kbps->set_io(io, io);
+    kbps->set_io(transport, transport);
     
     srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d",
         _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port);

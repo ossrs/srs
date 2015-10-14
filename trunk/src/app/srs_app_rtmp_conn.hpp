@@ -134,7 +134,7 @@ private:
     virtual void set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
-    virtual int connect_server(std::string hostport, st_netfd_t* pstsock);
+    virtual int connect_server(std::string hostport, SrsTcpClient* transport);
     virtual int do_token_traverse_auth(SrsRtmpClient* client);
     /**
      * when the connection disconnect, call this method.

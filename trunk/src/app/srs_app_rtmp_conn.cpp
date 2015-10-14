@@ -1229,11 +1229,13 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     
     srs_assert(req);
     
-    st_netfd_t stsock = NULL;
+    SrsTcpClient* transport = new SrsTcpClient();
+    SrsAutoFree(SrsTcpClient, transport);
+    
     vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost)->args;
     for (int i = 0; i < (int)args.size(); i++) {
         string hostport = args.at(i);
-        if ((ret = connect_server(hostport, &stsock)) == ERROR_SUCCESS) {
+        if ((ret = connect_server(hostport, transport)) == ERROR_SUCCESS) {
             break;
         }
     }
@@ -1242,20 +1244,13 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
         return ret;
     }
     
-    srs_assert(stsock);
-    SrsStSocket* io = new SrsStSocket(stsock);
-    SrsRtmpClient* client = new SrsRtmpClient(io);
+    SrsRtmpClient* client = new SrsRtmpClient(transport);
+    SrsAutoFree(SrsRtmpClient, client);
     
-    ret = do_token_traverse_auth(client);
-
-    srs_freep(client);
-    srs_freep(io);
-    srs_close_stfd(stsock);
-
-    return ret;
+    return do_token_traverse_auth(client);
 }
 
-int SrsRtmpConn::connect_server(string hostport, st_netfd_t* pstsock)
+int SrsRtmpConn::connect_server(string hostport, SrsTcpClient* transport)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1268,16 +1263,14 @@ int SrsRtmpConn::connect_server(string hostport, st_netfd_t* pstsock)
     srs_parse_hostport(hostport, server, port);
     
     // open socket.
-    st_netfd_t stsock = NULL;
     int64_t timeout = SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stsock)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(server, port, timeout)) != ERROR_SUCCESS) {
         srs_warn("edge token traverse failed, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
     srs_info("edge token auth connected, url=%s/%s, server=%s:%d", req->tcUrl.c_str(), req->stream.c_str(), server.c_str(), port);
     
-    *pstsock = stsock;
     return ret;
 }
 

@@ -195,8 +195,8 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
     trd = new SrsOneCycleThread("rtsp", this);
 
     req = NULL;
-    io = NULL;
     client = NULL;
+    transport = new SrsTcpClient();
     stream_id = 0;
     vjitter = new SrsRtspJitter();
     ajitter = new SrsRtspJitter();
@@ -219,7 +219,7 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(rtsp);
     
     srs_freep(client);
-    srs_freep(io);
+    srs_freep(transport);
     srs_freep(req);
 
     srs_freep(vjitter);
@@ -254,7 +254,7 @@ int SrsRtspConn::do_cycle()
         srs_info("rtsp: got rtsp request");
 
         if (req->is_options()) {
-            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -288,7 +288,7 @@ int SrsRtspConn::do_cycle()
                 audio_sample_rate, audio_channel, rtsp_tcUrl.c_str(), rtsp_stream.c_str()
             );
 
-            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -328,7 +328,7 @@ int SrsRtspConn::do_cycle()
                 session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
             }
 
-            SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
             res->local_port_min = lpm;
@@ -341,7 +341,7 @@ int SrsRtspConn::do_cycle()
                 return ret;
             }
         } else if (req->is_record()) {
-            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -434,7 +434,11 @@ int SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
         return ret;
     }
 
-    if ((ret = write_h264_ipb_frame(pkt->payload->bytes(), pkt->payload->length(), dts / 90, pts / 90)) != ERROR_SUCCESS) {
+    char* bytes = pkt->payload->bytes();
+    int length = pkt->payload->length();
+    u_int32_t fdts = (u_int32_t)(dts / 90);
+    u_int32_t fpts = (u_int32_t)(pts / 90);
+    if ((ret = write_h264_ipb_frame(bytes, length, fdts, fpts)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -476,7 +480,7 @@ int SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
             int nb_frame = acache->audio_samples->sample_units[i].size;
             int64_t timestamp = (acache->dts + delta * i) / 90;
             acodec->aac_packet_type = 1;
-            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, timestamp)) != ERROR_SUCCESS) {
+            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, (u_int32_t)timestamp)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
@@ -497,7 +501,7 @@ int SrsRtspConn::write_sequence_header()
     int64_t dts = vjitter->timestamp() / 90;
 
     // send video sps/pps
-    if ((ret = write_h264_sps_pps(dts, dts)) != ERROR_SUCCESS) {
+    if ((ret = write_h264_sps_pps((u_int32_t)dts, (u_int32_t)dts)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -535,7 +539,7 @@ int SrsRtspConn::write_sequence_header()
                 break;
         };
 
-        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, dts)) != ERROR_SUCCESS) {
+        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (u_int32_t)dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -642,7 +646,8 @@ int SrsRtspConn::connect()
     int ret = ERROR_SUCCESS;
 
     // when ok, ignore.
-    if (io || client) {
+    // TODO: FIXME: support reconnect.
+    if (transport->connected()) {
         return ret;
     }
     
@@ -663,12 +668,13 @@ int SrsRtspConn::connect()
     }
 
     // connect host.
-    if ((ret = srs_socket_connect(req->host, req->port, ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
         srs_error("rtsp: connect server %s:%d failed. ret=%d", req->host.c_str(), req->port, ret);
         return ret;
     }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport);
 
     client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);

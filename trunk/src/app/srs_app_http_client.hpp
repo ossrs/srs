@@ -49,9 +49,7 @@ class SrsStSocket;
 class SrsHttpClient
 {
 private:
-    bool connected;
-    st_netfd_t stfd;
-    SrsStSocket* skt;
+    SrsTcpClient* transport;
     SrsHttpParser* parser;
 private:
     int64_t timeout_us;

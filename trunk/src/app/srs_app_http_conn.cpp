@@ -303,7 +303,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
 }
 
-SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io)
+SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io)
 {
     skt = io;
     owner = msg;
@@ -494,7 +494,7 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     return ret;
 }
 
-SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c) : ISrsHttpMessage()
+SrsHttpMessage::SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c) : ISrsHttpMessage()
 {
     conn = c;
     chunked = false;
@@ -870,7 +870,7 @@ int SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
     return ret;
 }
 
-int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttpMessage** ppmsg)
+int SrsHttpParser::parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
@@ -887,7 +887,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     header_parsed = 0;
     
     // do parse
-    if ((ret = parse_message_imp(skt)) != ERROR_SUCCESS) {
+    if ((ret = parse_message_imp(io)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("parse http msg failed. ret=%d", ret);
         }
@@ -895,7 +895,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     }
     
     // create msg
-    SrsHttpMessage* msg = new SrsHttpMessage(skt, conn);
+    SrsHttpMessage* msg = new SrsHttpMessage(io, conn);
     
     // initalize http msg, parse url.
     if ((ret = msg->update(url, jsonp, &header, buffer, headers)) != ERROR_SUCCESS) {
@@ -910,7 +910,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     return ret;
 }
 
-int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
+int SrsHttpParser::parse_message_imp(ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
     
@@ -944,7 +944,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         // when nothing parsed, read more to parse.
         if (nparsed == 0) {
             // when requires more, only grow 1bytes, but the buffer will cache more.
-            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+            if ((ret = buffer->grow(io, buffer->size() + 1)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("read body from server failed. ret=%d", ret);
                 }

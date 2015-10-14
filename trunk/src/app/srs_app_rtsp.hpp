@@ -139,7 +139,7 @@ private:
     SrsOneCycleThread* trd;
 private:
     SrsRequest* req;
-    SrsStSocket* io;
+    SrsTcpClient* transport;
     SrsRtmpClient* client;
     SrsRtspJitter* vjitter;
     SrsRtspJitter* ajitter;

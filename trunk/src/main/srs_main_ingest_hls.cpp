@@ -637,8 +637,7 @@ private:
     int64_t raw_aac_dts;
 private:
     SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
+    SrsTcpClient* transport;
     SrsRtmpClient* client;
     int stream_id;
 private:
@@ -658,9 +657,8 @@ public:
         raw_aac_dts = srs_update_system_time_ms();
         
         req = NULL;
-        io = NULL;
         client = NULL;
-        stfd = NULL;
+        transport = new SrsTcpClient();
         stream_id = 0;
         
         avc = new SrsRawH264Stream();
@@ -672,6 +670,7 @@ public:
     virtual ~SrsIngestSrsOutput() {
         close();
         
+        srs_freep(transport);
         srs_freep(avc);
         srs_freep(aac);
         
@@ -1211,7 +1210,7 @@ int SrsIngestSrsOutput::connect()
     
     // when ok, ignore.
     // TODO: FIXME: should reconnect when disconnected.
-    if (io || client) {
+    if (transport->connected()) {
         return ret;
     }
     
@@ -1235,12 +1234,13 @@ int SrsIngestSrsOutput::connect()
     }
     
     // connect host.
-    if ((ret = srs_socket_connect(req->host, req->port, ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
         srs_error("mpegts: connect server %s:%d failed. ret=%d", req->host.c_str(), req->port, ret);
         return ret;
     }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport);
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
@@ -1326,9 +1326,9 @@ void SrsIngestSrsOutput::close()
     h264_sps_pps_sent = false;
     
     srs_freep(client);
-    srs_freep(io);
     srs_freep(req);
-    srs_close_stfd(stfd);
+    
+    transport->close();
 }
 
 // the context for ingest hls stream.

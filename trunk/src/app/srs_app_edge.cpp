@@ -63,13 +63,12 @@ using namespace std;
 
 SrsEdgeIngester::SrsEdgeIngester()
 {
-    io = NULL;
+    transport = new SrsTcpClient();
     kbps = new SrsKbps();
     client = NULL;
     _edge = NULL;
     _req = NULL;
     stream_id = 0;
-    stfd = NULL;
     lb = new SrsLbRoundRobin();
     pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
@@ -78,6 +77,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
 {
     stop();
     
+    srs_freep(transport);
     srs_freep(lb);
     srs_freep(pthread);
     srs_freep(kbps);
@@ -109,11 +109,9 @@ int SrsEdgeIngester::start()
 void SrsEdgeIngester::stop()
 {
     pthread->stop();
-    
-    close_underlayer_socket();
+    transport->close();
     
     srs_freep(client);
-    srs_freep(io);
     kbps->set_io(NULL, NULL);
     
     // notice to unpublish.
@@ -336,17 +334,12 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
     return ret;
 }
 
-void SrsEdgeIngester::close_underlayer_socket()
-{
-    srs_close_stfd(stfd);
-}
-
 int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
     // reopen
-    close_underlayer_socket();
+    transport->close();
     
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
     
@@ -368,20 +361,16 @@ int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
     
     // open socket.
     int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
-    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(ep_server, ep_port, timeout)) != ERROR_SUCCESS) {
         srs_warn("edge pull failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
     srs_freep(client);
-    srs_freep(io);
+    client = new SrsRtmpClient(transport);
     
-    srs_assert(stfd);
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
-    
-    kbps->set_io(io, io);
+    kbps->set_io(transport, transport);
     
     srs_trace("edge pull connected, url=%s/%s, server=%s:%d",
         _req->tcUrl.c_str(), _req->stream.c_str(), ep_server.c_str(), ep_port);
@@ -391,14 +380,13 @@ int SrsEdgeIngester::connect_server(string& ep_server, int& ep_port)
 
 SrsEdgeForwarder::SrsEdgeForwarder()
 {
-    io = NULL;
+    transport = new SrsTcpClient();
     kbps = new SrsKbps();
     client = NULL;
     _edge = NULL;
     _req = NULL;
     lb = new SrsLbRoundRobin();
     stream_id = 0;
-    stfd = NULL;
     pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
     send_error_code = ERROR_SUCCESS;
@@ -408,6 +396,7 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
     
+    srs_freep(transport);
     srs_freep(lb);
     srs_freep(pthread);
     srs_freep(queue);
@@ -473,13 +462,11 @@ int SrsEdgeForwarder::start()
 void SrsEdgeForwarder::stop()
 {
     pthread->stop();
-    
-    close_underlayer_socket();
+    transport->close();
     
     queue->clear();
     
     srs_freep(client);
-    srs_freep(io);
     kbps->set_io(NULL, NULL);
 }
 
@@ -586,17 +573,12 @@ int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
     return ret;
 }
 
-void SrsEdgeForwarder::close_underlayer_socket()
-{
-    srs_close_stfd(stfd);
-}
-
 int SrsEdgeForwarder::connect_server(string& ep_server, int& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
     // reopen
-    close_underlayer_socket();
+    transport->close();
     
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
     srs_assert(conf);
@@ -610,20 +592,16 @@ int SrsEdgeForwarder::connect_server(string& ep_server, int& ep_port)
     
     // open socket.
     int64_t timeout = SRS_EDGE_FORWARDER_TIMEOUT_US;
-    if ((ret = srs_socket_connect(ep_server, ep_port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(ep_server, ep_port, timeout)) != ERROR_SUCCESS) {
         srs_warn("edge push failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             _req->stream.c_str(), _req->tcUrl.c_str(), ep_server.c_str(), ep_port, timeout, ret);
         return ret;
     }
     
     srs_freep(client);
-    srs_freep(io);
+    client = new SrsRtmpClient(transport);
     
-    srs_assert(stfd);
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
-    
-    kbps->set_io(io, io);
+    kbps->set_io(transport, transport);
     
     // open socket.
     srs_trace("edge push connected, stream=%s, tcUrl=%s to server=%s, port=%d",

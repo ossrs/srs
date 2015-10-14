@@ -132,9 +132,8 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     
     req = NULL;
-    io = NULL;
     client = NULL;
-    stfd = NULL;
+    transport = new SrsTcpClient();
     stream_id = 0;
     
     avc = new SrsRawH264Stream();
@@ -150,6 +149,7 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
     close();
 
+    srs_freep(transport);
     srs_freep(buffer);
     srs_freep(stream);
     srs_freep(context);
@@ -345,8 +345,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     }
 
     // ts tbn to flv tbn.
-    u_int32_t dts = msg->dts / 90; 
-    u_int32_t pts = msg->dts / 90;
+    u_int32_t dts = (u_int32_t)(msg->dts / 90);
+    u_int32_t pts = (u_int32_t)(msg->dts / 90);
     
     // send each frame.
     while (!avs->empty()) {
@@ -504,7 +504,7 @@ int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     }
 
     // ts tbn to flv tbn.
-    u_int32_t dts = msg->dts / 90;
+    u_int32_t dts = (u_int32_t)(msg->dts / 90);
     
     // send each frame.
     while (!avs->empty()) {
@@ -604,7 +604,7 @@ int SrsMpegtsOverUdp::connect()
 
     // when ok, ignore.
     // TODO: FIXME: should reconnect when disconnected.
-    if (io || client) {
+    if (transport->connected()) {
         return ret;
     }
     
@@ -616,12 +616,13 @@ int SrsMpegtsOverUdp::connect()
     }
 
     // connect host.
-    if ((ret = srs_socket_connect(req->host, req->port, ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
         srs_error("mpegts: connect server %s:%d failed. ret=%d", req->host.c_str(), req->port, ret);
         return ret;
     }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport);
 
     client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
@@ -704,9 +705,9 @@ int SrsMpegtsOverUdp::connect_app(string ep_server, int ep_port)
 void SrsMpegtsOverUdp::close()
 {
     srs_freep(client);
-    srs_freep(io);
     srs_freep(req);
-    srs_close_stfd(stfd);
+    
+    transport->close();
 }
 
 #endif

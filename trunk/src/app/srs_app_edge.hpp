@@ -47,6 +47,7 @@ class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
 class SrsKbps;
 class SrsLbRoundRobin;
+class SrsTcpClient;
 
 /**
 * the state of edge, auto machine
@@ -85,8 +86,7 @@ private:
     SrsPlayEdge* _edge;
     SrsRequest* _req;
     SrsReusableThread2* pthread;
-    st_netfd_t stfd;
-    ISrsProtocolReaderWriter* io;
+    SrsTcpClient* transport;
     SrsKbps* kbps;
     SrsRtmpClient* client;
     SrsLbRoundRobin* lb;
@@ -103,7 +103,6 @@ public:
     virtual int cycle();
 private:
     virtual int ingest();
-    virtual void close_underlayer_socket();
     virtual int connect_server(std::string& ep_server, int& ep_port);
     virtual int connect_app(std::string ep_server, int ep_port);
     virtual int process_publish_message(SrsCommonMessage* msg);
@@ -121,8 +120,7 @@ private:
     SrsPublishEdge* _edge;
     SrsRequest* _req;
     SrsReusableThread2* pthread;
-    st_netfd_t stfd;
-    ISrsProtocolReaderWriter* io;
+    SrsTcpClient* transport;
     SrsKbps* kbps;
     SrsRtmpClient* client;
     SrsLbRoundRobin* lb;
@@ -152,7 +150,6 @@ public:
 public:
     virtual int proxy(SrsCommonMessage* msg);
 private:
-    virtual void close_underlayer_socket();
     virtual int connect_server(std::string& ep_server, int& ep_port);
     virtual int connect_app(std::string ep_server, int ep_port);
 };

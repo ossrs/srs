@@ -276,7 +276,9 @@ int SrsDynamicHttpConn::connect()
     if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
         return ret;
     }
-    client = new SrsRtmpClient(transport);
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport); 
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
     client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
