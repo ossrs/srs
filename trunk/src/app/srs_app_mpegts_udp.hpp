@@ -48,6 +48,7 @@ class SrsSharedPtrMessage;
 class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsPithyPrint;
+class SrsSimpleRtmpClient;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
@@ -86,9 +87,7 @@ private:
     std::string output;
 private:
     SrsRequest* req;
-    SrsTcpClient* transport;
-    SrsRtmpClient* client;
-    int stream_id;
+    SrsSimpleRtmpClient* sdk;
 private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -125,7 +124,6 @@ private:
     // connect to rtmp output url. 
     // @remark ignore when not connected, reconnect when disconnected.
     virtual int connect();
-    virtual int connect_app(std::string ep_server, int ep_port);
     // close the connected io and rtmp to ready to be re-connect.
     virtual void close();
 };

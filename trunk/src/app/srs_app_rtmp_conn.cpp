@@ -198,6 +198,11 @@ int SrsSimpleRtmpClient::connect_app()
     return ret;
 }
 
+bool SrsSimpleRtmpClient::connected()
+{
+    return transport->connected();
+}
+
 void SrsSimpleRtmpClient::close()
 {
     transport->close();
@@ -266,20 +271,14 @@ int SrsSimpleRtmpClient::sid()
     return stream_id;
 }
 
-int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsSimpleRtmpClient::rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, SrsSharedPtrMessage** pmsg)
 {
+    *pmsg = NULL;
+    
     int ret = ERROR_SUCCESS;
     
-    SrsSharedPtrMessage* msg = NULL;
-    
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, pmsg)) != ERROR_SUCCESS) {
         srs_error("sdk: create shared ptr msg failed. ret=%d", ret);
-        return ret;
-    }
-    srs_assert(msg);
-    
-    // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
         return ret;
     }
     

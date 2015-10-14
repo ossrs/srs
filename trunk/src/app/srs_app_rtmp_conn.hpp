@@ -78,6 +78,7 @@ public:
 private:
     virtual int connect_app();
 public:
+    virtual bool connected();
     virtual void close();
 public:
     virtual int publish();
@@ -86,7 +87,8 @@ public:
     virtual void kbps_sample(const char* label, int64_t age, int msgs);
     virtual int sid();
 public:
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, SrsSharedPtrMessage** pmsg);
+public:
     virtual int recv_message(SrsCommonMessage** pmsg);
     virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);

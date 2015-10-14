@@ -214,8 +214,13 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
             return ret;
         }
         
+        SrsSharedPtrMessage* msg = NULL;
+        if ((ret = sdk->rtmp_create_msg(type, time, data, size, &msg)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
         // TODO: FIXME: for post flv, reconnect when error.
-        if ((ret = sdk->rtmp_write_packet(type, time, data, size)) != ERROR_SUCCESS) {
+        if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy rtmp packet failed. ret=%d", ret);
             }
