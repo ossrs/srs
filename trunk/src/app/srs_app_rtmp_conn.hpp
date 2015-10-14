@@ -71,7 +71,7 @@ public:
     SrsSimpleRtmpClient();
     virtual ~SrsSimpleRtmpClient();
 public:
-    virtual int connect(std::string url);
+    virtual int connect(std::string url, int64_t timeout);
     virtual void close();
 public:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
