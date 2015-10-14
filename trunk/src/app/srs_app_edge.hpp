@@ -109,15 +109,11 @@ private:
 class SrsEdgeForwarder : public ISrsReusableThread2Handler
 {
 private:
-    int stream_id;
-private:
-    SrsSource* _source;
-    SrsPublishEdge* _edge;
-    SrsRequest* _req;
+    SrsSource* source;
+    SrsPublishEdge* edge;
+    SrsRequest* req;
     SrsReusableThread2* pthread;
-    SrsTcpClient* transport;
-    SrsKbps* kbps;
-    SrsRtmpClient* client;
+    SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
     /**
     * we must ensure one thread one fd principle,
@@ -136,7 +132,7 @@ public:
 public:
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
 // interface ISrsReusableThread2Handler
@@ -144,9 +140,6 @@ public:
     virtual int cycle();
 public:
     virtual int proxy(SrsCommonMessage* msg);
-private:
-    virtual int connect_server(std::string& ep_server, int& ep_port);
-    virtual int connect_app(std::string ep_server, int ep_port);
 };
 
 /**

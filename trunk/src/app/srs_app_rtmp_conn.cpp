@@ -97,12 +97,7 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
     kbps->set_io(NULL, NULL);
 }
 
-int SrsSimpleRtmpClient::connect(string url, int64_t timeout)
-{
-    return connect(url, "", timeout);
-}
-
-int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
+int SrsSimpleRtmpClient::connect(string url, int64_t connect_timeout, int64_t stream_timeout)
 {
     int ret = ERROR_SUCCESS;
     
@@ -113,14 +108,13 @@ int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
     }
     
     // parse uri
-    if (!req) {
-        req = new SrsRequest();
-        srs_parse_rtmp_url(url, req->tcUrl, req->stream);
-        srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
-    }
+    srs_freep(req);
+    req = new SrsRequest();
+    srs_parse_rtmp_url(url, req->tcUrl, req->stream);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
     
     // connect host.
-    if ((ret = transport->connect(req->host, req->port, timeout)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(req->host, req->port, connect_timeout)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -129,15 +123,15 @@ int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
     
     kbps->set_io(transport, transport);
     
-    client->set_recv_timeout(timeout);
-    client->set_send_timeout(timeout);
+    client->set_recv_timeout(stream_timeout);
+    client->set_send_timeout(stream_timeout);
     
     // connect to vhost/app
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("sdk: handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = connect_app(vhost)) != ERROR_SUCCESS) {
+    if ((ret = connect_app()) != ERROR_SUCCESS) {
         srs_error("sdk: connect with server failed. ret=%d", ret);
         return ret;
     }
@@ -149,7 +143,7 @@ int SrsSimpleRtmpClient::connect(string url, string vhost, int64_t timeout)
     return ret;
 }
 
-int SrsSimpleRtmpClient::connect_app(string vhost)
+int SrsSimpleRtmpClient::connect_app()
 {
     int ret = ERROR_SUCCESS;
     
@@ -185,10 +179,7 @@ int SrsSimpleRtmpClient::connect_app(string vhost)
     // generate the tcUrl
     std::string param = "";
     std::string target_vhost = req->vhost;
-    if (vhost.empty()) {
-        target_vhost = vhost;
-    }
-    std::string tc_url = srs_generate_tc_url(req->host, target_vhost, req->app, req->port, param);
+    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port, param);
     
     // replace the tcUrl in request,
     // which will replace the tc_url in client.connect_app().
@@ -256,6 +247,25 @@ void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
     srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", age, sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
+void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
+{
+    kbps->sample();
+    
+    int sr = kbps->get_send_kbps();
+    int sr30s = kbps->get_send_kbps_30s();
+    int sr5m = kbps->get_send_kbps_5m();
+    int rr = kbps->get_recv_kbps();
+    int rr30s = kbps->get_recv_kbps_30s();
+    int rr5m = kbps->get_recv_kbps_5m();
+    
+    srs_trace("<- %s time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", age, msgs, sr, sr30s, sr5m, rr, rr30s, rr5m);
+}
+
+int SrsSimpleRtmpClient::sid()
+{
+    return stream_id;
+}
+
 int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
@@ -284,6 +294,11 @@ int SrsSimpleRtmpClient::recv_message(SrsCommonMessage** pmsg)
 int SrsSimpleRtmpClient::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
     return client->decode_message(msg, ppacket);
+}
+
+int SrsSimpleRtmpClient::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
+{
+    return client->send_and_free_messages(msgs, nb_msgs, stream_id);
 }
 
 void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)

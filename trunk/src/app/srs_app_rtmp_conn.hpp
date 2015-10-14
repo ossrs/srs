@@ -74,20 +74,22 @@ public:
     SrsSimpleRtmpClient();
     virtual ~SrsSimpleRtmpClient();
 public:
-    virtual int connect(std::string url, int64_t timeout);
-    virtual int connect(std::string url, std::string vhost, int64_t timeout);
+    virtual int connect(std::string url, int64_t connect_timeout, int64_t stream_timeout);
 private:
-    virtual int connect_app(std::string vhost);
+    virtual int connect_app();
 public:
     virtual void close();
 public:
     virtual int publish();
     virtual int play();
     virtual void kbps_sample(const char* label, int64_t age);
+    virtual void kbps_sample(const char* label, int64_t age, int msgs);
+    virtual int sid();
 public:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
     virtual int recv_message(SrsCommonMessage** pmsg);
     virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
 public:
     virtual void set_recv_timeout(int64_t timeout);
 };

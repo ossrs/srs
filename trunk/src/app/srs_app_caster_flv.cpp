@@ -179,8 +179,10 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = sdk->connect(output, SRS_CONSTS_RTMP_RECV_TIMEOUT_US)) != ERROR_SUCCESS) {
-        srs_error("flv: connect %s failed. ret=%d", output.c_str(), ret);
+    int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
+    if ((ret = sdk->connect(output, cto, sto)) != ERROR_SUCCESS) {
+        srs_error("flv: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }
     

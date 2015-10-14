@@ -71,10 +71,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the common io timeout, for both recv and send.
 #define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
+// TODO: FIXME: remove following two macros.
 // the timeout to send data to client,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
-
 // the timeout to wait client data,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
