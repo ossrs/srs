@@ -76,6 +76,152 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
+SrsSimpleRtmpClient::SrsSimpleRtmpClient()
+{
+    req = NULL;
+    client = NULL;
+    
+    transport = new SrsTcpClient();
+    stream_id = 0;
+}
+
+SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
+{
+    close();
+    
+    srs_freep(transport);
+}
+
+int SrsSimpleRtmpClient::connect(string url)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when ok, ignore.
+    // TODO: FIXME: should reconnect when disconnected.
+    if (transport->connected()) {
+        return ret;
+    }
+    
+    // parse uri
+    if (!req) {
+        req = new SrsRequest();
+        srs_parse_rtmp_url(url, req->tcUrl, req->stream);
+        srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
+    }
+    
+    // connect host.
+    if ((ret = transport->connect(req->host, req->port, ST_UTIME_NO_TIMEOUT)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport);
+    
+    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    
+    // connect to vhost/app
+    if ((ret = client->handshake()) != ERROR_SUCCESS) {
+        srs_error("mpegts: handshake with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+        return ret;
+    }
+    
+    // publish.
+    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("mpegts: publish failed, stream=%s, stream_id=%d. ret=%d",
+                  req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsSimpleRtmpClient::close()
+{
+    transport->close();
+    
+    srs_freep(client);
+    srs_freep(req);
+}
+
+int SrsSimpleRtmpClient::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = NULL;
+    
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+        srs_error("flv: create shared ptr msg failed. ret=%d", ret);
+        return ret;
+    }
+    srs_assert(msg);
+    
+    // send out encoded msg.
+    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSimpleRtmpClient::connect_app(string ep_server, int ep_port)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/simple-rtmp-server/srs/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // generate the tcUrl
+    std::string param = "";
+    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    
+    // upnode server identity will show in the connect_app of client.
+    // @see https://github.com/simple-rtmp-server/srs/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
+                  tc_url.c_str(), debug_srs_upnode, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
     : SrsConnection(svr, c)
 {

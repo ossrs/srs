@@ -58,8 +58,30 @@ class SrsSecurity;
 class ISrsWakable;
 
 /**
-* the client provides the main logic control for RTMP clients.
-*/
+ * the simple rtmp client stub, use SrsRtmpClient and provides high level APIs.
+ */
+class SrsSimpleRtmpClient
+{
+private:
+    SrsRequest* req;
+    SrsTcpClient* transport;
+    SrsRtmpClient* client;
+    int stream_id;
+public:
+    SrsSimpleRtmpClient();
+    virtual ~SrsSimpleRtmpClient();
+public:
+    virtual int connect(std::string url);
+    virtual void close();
+public:
+    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+private:
+    virtual int connect_app(std::string ep_server, int ep_port);
+};
+
+/**
+ * the client provides the main logic control for RTMP clients.
+ */
 class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandler
 {
     // for the thread to directly access any field of connection.
