@@ -150,13 +150,29 @@ void SrsKafkaRequestHeader::set_api_key(SrsKafkaApiKey key)
     api_key = (int16_t)key;
 }
 
-SrsKafkaResponse::SrsKafkaResponse()
+SrsKafkaResponseHeader::SrsKafkaResponseHeader()
 {
+    size = 0;
     correlation_id = 0;
 }
 
-SrsKafkaResponse::~SrsKafkaResponse()
+SrsKafkaResponseHeader::~SrsKafkaResponseHeader()
 {
+}
+
+int SrsKafkaResponseHeader::header_size()
+{
+    return 4;
+}
+
+int SrsKafkaResponseHeader::message_size()
+{
+    return size - header_size();
+}
+
+int SrsKafkaResponseHeader::total_size()
+{
+    return 4 + size;
 }
 
 SrsKafkaMessage::SrsKafkaMessage()
