@@ -30,6 +30,9 @@
 #include <srs_core.hpp>
 
 #include <vector>
+#include <string>
+
+class ISrsProtocolReaderWriter;
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -94,7 +97,7 @@ public:
  * array of a structure foo as [foo].
  * 
  * Usage:
- *      SrsKafkaArray<SrsKafkaBytes> body;
+ *      SrsKafkaArray<SrsKafkaBytes*> body;
  *      body.append(new SrsKafkaBytes());
  *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
@@ -104,8 +107,8 @@ class SrsKafkaArray
 {
 private:
     int length;
-    std::vector<T*> elems;
-    typedef typename std::vector<T*>::iterator SrsIterator;
+    std::vector<T> elems;
+    typedef typename std::vector<T>::iterator SrsIterator;
 public:
     SrsKafkaArray()
     {
@@ -114,13 +117,13 @@ public:
     virtual ~SrsKafkaArray()
     {
         for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
-            T* elem = *it;
+            T elem = *it;
             srs_freep(elem);
         }
         elems.clear();
     }
 public:
-    virtual void append(T* elem)
+    virtual void append(T elem)
     {
         length++;
         elems.push_back(elem);
@@ -307,10 +310,45 @@ class SrsKafkaTopicMetadataRequest
 {
 private:
     SrsKafkaRequestHeader header;
-    SrsKafkaArray<SrsKafkaString> request;
+    SrsKafkaArray<SrsKafkaString*> request;
 public:
     SrsKafkaTopicMetadataRequest();
     virtual ~SrsKafkaTopicMetadataRequest();
+};
+
+/**
+ * the kafka protocol stack, use to send and recv kakfa messages.
+ */
+class SrsKafkaProtocol
+{
+private:
+    ISrsProtocolReaderWriter* skt;
+public:
+    SrsKafkaProtocol(ISrsProtocolReaderWriter* io);
+    virtual ~SrsKafkaProtocol();
+public:
+    /**
+     * write the message to kafka server.
+     * @param msg the msg to send. user must not free it again.
+     */
+    virtual int send_and_free_message(SrsKafkaMessage* msg);
+};
+
+/**
+ * the kafka client, for producer or consumer.
+ */
+class SrsKafkaClient
+{
+private:
+    SrsKafkaProtocol* protocol;
+public:
+    SrsKafkaClient(ISrsProtocolReaderWriter* io);
+    virtual ~SrsKafkaClient();
+public:
+    /**
+     * fetch the metadata from broker for topic.
+     */
+    virtual int fetch_metadata(std::string topic);
 };
 
 #endif

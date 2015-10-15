@@ -23,7 +23,10 @@
 
 #include <srs_kafka_stack.hpp>
 
+#include <string>
 using namespace std;
+
+#include <srs_kernel_error.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -194,6 +197,43 @@ SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
 
 SrsKafkaTopicMetadataRequest::~SrsKafkaTopicMetadataRequest()
 {
+}
+
+SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReaderWriter* io)
+{
+    skt = io;
+}
+
+SrsKafkaProtocol::~SrsKafkaProtocol()
+{
+}
+
+int SrsKafkaProtocol::send_and_free_message(SrsKafkaMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: implements it.
+    
+    return ret;
+}
+
+SrsKafkaClient::SrsKafkaClient(ISrsProtocolReaderWriter* io)
+{
+    protocol = new SrsKafkaProtocol(io);
+}
+
+SrsKafkaClient::~SrsKafkaClient()
+{
+    srs_freep(protocol);
+}
+
+int SrsKafkaClient::fetch_metadata(string topic)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: implements it.
+    
+    return ret;
 }
 
 #endif

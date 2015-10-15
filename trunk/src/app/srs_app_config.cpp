@@ -4298,6 +4298,23 @@ SrsConfDirective* SrsConfig::get_kafka_brokers()
     return conf;
 }
 
+string SrsConfig::get_kafka_topic()
+{
+    static string DEFAULT = "srs";
+    
+    SrsConfDirective* conf = root->get("kafka");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("topic");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
