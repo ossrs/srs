@@ -112,6 +112,7 @@ public:
  * Usage:
  *      SrsKafkaArray<SrsKafkaBytes*> body;
  *      body.append(new SrsKafkaBytes());
+ * @remark the typename T must be a ISrsCodec*
  *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
