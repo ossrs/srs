@@ -32,6 +32,8 @@
 #include <vector>
 #include <string>
 
+#include <srs_kernel_buffer.hpp>
+
 class ISrsProtocolReaderWriter;
 
 #ifdef SRS_AUTO_KAFKA
@@ -136,7 +138,7 @@ public:
  * the header of request, includes the size of request.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
-class SrsKafkaRequestHeader
+class SrsKafkaRequestHeader : public ISrsCodec
 {
 private:
     /**
@@ -145,7 +147,7 @@ private:
      * size as an integer N, and then reading and parsing the subsequent N bytes
      * of the request.
      */
-    int32_t size;
+    int32_t _size;
 private:
     /**
      * This is a numeric id for the API being invoked (i.e. is it 
@@ -179,13 +181,13 @@ private:
 public:
     SrsKafkaRequestHeader();
     virtual ~SrsKafkaRequestHeader();
-public:
+private:
     /**
      * the layout of request:
      *      +-----------+----------------------------------+
-     *      |   4B size |       [size] bytes               |
+     *      |  4B _size |      [_size] bytes               |
      *      +-----------+------------+---------------------+
-     *      |   4B size |   header   |    message          |
+     *      |  4B _size |   header   |    message          |
      *      +-----------+------------+---------------------+
      *      |  total size = 4 + header + message           |
      *      +----------------------------------------------+
@@ -215,6 +217,11 @@ public:
     virtual bool is_consumer_metadata_request();
     // set the api key.
     virtual void set_api_key(SrsKafkaApiKey key);
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -223,7 +230,7 @@ public:
  * send a MetadataResponse in return to a MetadataRequest).
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Responses
  */
-class SrsKafkaResponseHeader
+class SrsKafkaResponseHeader : public ISrsCodec
 {
 private:
     /**
@@ -232,7 +239,7 @@ private:
      * size as an integer N, and then reading and parsing the subsequent N bytes
      * of the request.
      */
-    int32_t size;
+    int32_t _size;
 private:
     /**
      * This is a user-supplied integer. It will be passed back in
@@ -243,13 +250,13 @@ private:
 public:
     SrsKafkaResponseHeader();
     virtual ~SrsKafkaResponseHeader();
-public:
+private:
     /**
      * the layout of response:
      *      +-----------+----------------------------------+
-     *      |   4B size |       [size] bytes               |
+     *      |  4B _size |      [_size] bytes               |
      *      +-----------+------------+---------------------+
-     *      |   4B size |  4B header |    message          |
+     *      |  4B _size |  4B header |    message          |
      *      +-----------+------------+---------------------+
      *      |  total size = 4 + 4 + message                |
      *      +----------------------------------------------+
@@ -265,6 +272,11 @@ public:
      * the total size of the request, includes the 4B size.
      */
     virtual int total_size();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -335,21 +347,35 @@ public:
 /**
  * the kafka request message, for protocol to send.
  */
-class SrsKafkaRequest
+class SrsKafkaRequest : public ISrsCodec
 {
+protected:
+    SrsKafkaRequestHeader header;
 public:
     SrsKafkaRequest();
     virtual ~SrsKafkaRequest();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
  * the kafka response message, for protocol to recv.
  */
-class SrsKafkaResponse
+class SrsKafkaResponse : public ISrsCodec
 {
+protected:
+    SrsKafkaResponseHeader header;
 public:
     SrsKafkaResponse();
     virtual ~SrsKafkaResponse();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -369,13 +395,17 @@ public:
 class SrsKafkaTopicMetadataRequest : public SrsKafkaRequest
 {
 private:
-    SrsKafkaRequestHeader header;
     SrsKafkaArray<SrsKafkaString*> topics;
 public:
     SrsKafkaTopicMetadataRequest();
     virtual ~SrsKafkaTopicMetadataRequest();
 public:
     virtual void add_topic(std::string topic);
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -388,11 +418,14 @@ public:
  */
 class SrsKafkaTopicMetadataResponse : public SrsKafkaResponse
 {
-private:
-    SrsKafkaResponseHeader header;
 public:
     SrsKafkaTopicMetadataResponse();
     virtual ~SrsKafkaTopicMetadataResponse();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**

@@ -33,11 +33,60 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <string>
 
+class SrsBuffer;
+
 /**
-* bytes utility, used to:
-* convert basic types to bytes,
-* build basic types from bytes.
-*/
+ * the srs codec, to code and decode object with bytes:
+ *      code: to encode/serialize object to bytes in buffer,
+ *      decode: to decode/deserialize object from bytes in buffer.
+ * we use SrsBuffer as bytes helper utility,
+ * for example, to code:
+ *      ISrsCodec* obj = ...
+ *      char* bytes = new char[obj->size()];
+ *
+ *      SrsBuffer* buf = new SrsBuffer();
+ *      buf->initialize(bytes, obj->size())
+ *
+ *      obj->encode(buf);
+ * for example, to decode:
+ *      int nb_bytes = ...
+ *      char* bytes = ...
+ *
+ *      SrsBuffer* buf = new Srsbuffer();
+ *      buf->initialize(bytes, nb_bytes);
+ *
+ *      ISrsCodec* obj = ...
+ *      obj->decode(buf);
+ * @remark protocol or amf0 or json should implements this interface.
+ */
+// TODO: FIXME: protocol, amf0, json should implements it.
+class ISrsCodec
+{
+public:
+    ISrsCodec();
+    virtual ~ISrsCodec();
+public:
+    /**
+     * get the size of object to encode object to bytes.
+     */
+    virtual int size() = 0;
+    /**
+     * encode object to bytes in SrsBuffer.
+     */
+    virtual int encode(SrsBuffer* buf) = 0;
+public:
+    /**
+     * decode object from bytes in SrsBuffer.
+     */
+    virtual int decode(SrsBuffer* buf) = 0;
+};
+
+/**
+ * bytes utility, used to:
+ * convert basic types to bytes,
+ * build basic types from bytes.
+ * @remark the buffer never mange the bytes, user must manage it.
+ */
 class SrsBuffer
 {
 private:
@@ -157,7 +206,8 @@ public:
 };
 
 /**
- * the bit stream.
+ * the bit stream, base on SrsBuffer,
+ * for exmaple, the h.264 avc stream is bit stream.
  */
 class SrsBitBuffer
 {

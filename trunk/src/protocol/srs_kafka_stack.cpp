@@ -28,6 +28,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_log.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -103,7 +104,7 @@ int SrsKafkaBytes::total_size()
 
 SrsKafkaRequestHeader::SrsKafkaRequestHeader()
 {
-    size = 0;
+    _size = 0;
     api_key = api_version = 0;
     correlation_id = 0;
     client_id = new SrsKafkaString();
@@ -121,12 +122,12 @@ int SrsKafkaRequestHeader::header_size()
 
 int SrsKafkaRequestHeader::message_size()
 {
-    return size - header_size();
+    return _size - header_size();
 }
 
 int SrsKafkaRequestHeader::total_size()
 {
-    return 4 + size;
+    return 4 + _size;
 }
 
 bool SrsKafkaRequestHeader::is_producer_request()
@@ -169,9 +170,28 @@ void SrsKafkaRequestHeader::set_api_key(SrsKafkaApiKey key)
     api_key = (int16_t)key;
 }
 
+int SrsKafkaRequestHeader::size()
+{
+    return 4 + _size;
+}
+
+int SrsKafkaRequestHeader::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaRequestHeader::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
 SrsKafkaResponseHeader::SrsKafkaResponseHeader()
 {
-    size = 0;
+    _size = 0;
     correlation_id = 0;
 }
 
@@ -186,12 +206,31 @@ int SrsKafkaResponseHeader::header_size()
 
 int SrsKafkaResponseHeader::message_size()
 {
-    return size - header_size();
+    return _size - header_size();
 }
 
 int SrsKafkaResponseHeader::total_size()
 {
-    return 4 + size;
+    return 4 + _size;
+}
+
+int SrsKafkaResponseHeader::size()
+{
+    return 4 + _size;
+}
+
+int SrsKafkaResponseHeader::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaResponseHeader::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
 }
 
 SrsKafkaRawMessage::SrsKafkaRawMessage()
@@ -233,12 +272,42 @@ SrsKafkaRequest::~SrsKafkaRequest()
 {
 }
 
+int SrsKafkaRequest::size()
+{
+    return header.size();
+}
+
+int SrsKafkaRequest::encode(SrsBuffer* buf)
+{
+    return header.encode(buf);
+}
+
+int SrsKafkaRequest::decode(SrsBuffer* buf)
+{
+    return header.decode(buf);
+}
+
 SrsKafkaResponse::SrsKafkaResponse()
 {
 }
 
 SrsKafkaResponse::~SrsKafkaResponse()
 {
+}
+
+int SrsKafkaResponse::size()
+{
+    return header.size();
+}
+
+int SrsKafkaResponse::encode(SrsBuffer* buf)
+{
+    return header.encode(buf);
+}
+
+int SrsKafkaResponse::decode(SrsBuffer* buf)
+{
+    return header.decode(buf);
 }
 
 SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
@@ -255,12 +324,54 @@ void SrsKafkaTopicMetadataRequest::add_topic(string topic)
     topics.append(new SrsKafkaString(topic));
 }
 
+int SrsKafkaTopicMetadataRequest::size()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaTopicMetadataRequest::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaTopicMetadataRequest::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
 SrsKafkaTopicMetadataResponse::SrsKafkaTopicMetadataResponse()
 {
 }
 
 SrsKafkaTopicMetadataResponse::~SrsKafkaTopicMetadataResponse()
 {
+}
+
+int SrsKafkaTopicMetadataResponse::size()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaTopicMetadataResponse::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsKafkaTopicMetadataResponse::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
 }
 
 SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReaderWriter* io)
@@ -296,9 +407,13 @@ int SrsKafkaClient::fetch_metadata(string topic)
     int ret = ERROR_SUCCESS;
     
     SrsKafkaTopicMetadataRequest* req = new SrsKafkaTopicMetadataRequest();
-    SrsAutoFree(SrsKafkaTopicMetadataRequest, req);
     
     req->add_topic(topic);
+    
+    if ((ret = protocol->send_and_free_message(req)) != ERROR_SUCCESS) {
+        srs_error("kafka send message failed. ret=%d", ret);
+        return ret;
+    }
     
     // TODO: FIXME: implements it.
     

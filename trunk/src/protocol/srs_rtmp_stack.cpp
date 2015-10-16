@@ -654,12 +654,12 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         int nbh = 0;
         if (p == payload) {
             nbh = srs_chunk_header_c0(
-                mh->perfer_cid, mh->timestamp, mh->payload_length,
+                mh->perfer_cid, (u_int32_t)mh->timestamp, mh->payload_length,
                 mh->message_type, mh->stream_id,
                 c0c3, sizeof(c0c3));
         } else {
             nbh = srs_chunk_header_c3(
-                mh->perfer_cid, mh->timestamp,
+                mh->perfer_cid, (u_int32_t)mh->timestamp,
                 c0c3, sizeof(c0c3));
         }
         srs_assert(nbh > 0);;
@@ -668,7 +668,7 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         iovs[0].iov_base = c0c3;
         iovs[0].iov_len = nbh;
         
-        int payload_size = srs_min(end - p, out_chunk_size);
+        int payload_size = srs_min((int)(end - p), out_chunk_size);
         iovs[1].iov_base = p;
         iovs[1].iov_len = payload_size;
         p += payload_size;
