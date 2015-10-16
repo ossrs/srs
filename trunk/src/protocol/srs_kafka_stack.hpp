@@ -33,6 +33,7 @@
 #include <string>
 
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_error.hpp>
 
 class ISrsProtocolReaderWriter;
 
@@ -59,10 +60,10 @@ enum SrsKafkaApiKey
  * A length of -1 indicates null. string uses an int16 for its size, and bytes uses an int32.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ProtocolPrimitiveTypes
  */
-class SrsKafkaString
+class SrsKafkaString : public ISrsCodec
 {
 private:
-    int16_t size;
+    int16_t _size;
     char* data;
 public:
     SrsKafkaString();
@@ -71,7 +72,11 @@ public:
 public:
     virtual bool null();
     virtual bool empty();
-    virtual int total_size();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -79,10 +84,10 @@ public:
  * A length of -1 indicates null. string uses an int16 for its size, and bytes uses an int32.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ProtocolPrimitiveTypes
  */
-class SrsKafkaBytes
+class SrsKafkaBytes : public ISrsCodec
 {
 private:
-    int32_t size;
+    int32_t _size;
     char* data;
 public:
     SrsKafkaBytes();
@@ -91,7 +96,11 @@ public:
 public:
     virtual bool null();
     virtual bool empty();
-    virtual int total_size();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -107,7 +116,7 @@ public:
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
 template<typename T>
-class SrsKafkaArray
+class SrsKafkaArray : public ISrsCodec
 {
 private:
     int length;
@@ -131,6 +140,45 @@ public:
     {
         length++;
         elems.push_back(elem);
+    }
+// interface ISrsCodec
+public:
+    virtual int size()
+    {
+        int s = 0;
+        
+        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
+            T elem = *it;
+            s += elem->size();
+        }
+        
+        return s;
+    }
+    virtual int encode(SrsBuffer* buf)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
+            T elem = *it;
+            if ((ret = elem->encode(buf)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        return ret;
+    }
+    virtual int decode(SrsBuffer* buf)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
+            T elem = *it;
+            if ((ret = elem->decode(buf)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        return ret;
     }
 };
 

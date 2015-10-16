@@ -236,7 +236,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_REQUEST_DATA                  3066
 
 ///////////////////////////////////////////////////////
-// HTTP/StreamCaster protocol error.
+// HTTP/StreamCaster/KAFKA protocol error.
 ///////////////////////////////////////////////////////
 #define ERROR_HTTP_PATTERN_EMPTY            4000
 #define ERROR_HTTP_PATTERN_DUPLICATED       4001
@@ -268,6 +268,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AVC_NALU_UEV                  4027
 #define ERROR_AAC_BYTES_INVALID             4028
 #define ERROR_HTTP_REQUEST_EOF              4029
+#define ERROR_KAFKA_CODEC_STRING            4030
+#define ERROR_KAFKA_CODEC_BYTES             4031
+#define ERROR_KAFKA_CODEC_REQUEST           4032
+#define ERROR_KAFKA_CODEC_RESPONSE          4033
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
