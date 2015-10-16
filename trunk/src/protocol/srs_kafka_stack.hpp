@@ -64,6 +64,7 @@ private:
     char* data;
 public:
     SrsKafkaString();
+    SrsKafkaString(std::string v);
     virtual ~SrsKafkaString();
 public:
     virtual bool null();
@@ -83,6 +84,7 @@ private:
     char* data;
 public:
     SrsKafkaBytes();
+    SrsKafkaBytes(const char* v, int nb_v);
     virtual ~SrsKafkaBytes();
 public:
     virtual bool null();
@@ -269,7 +271,7 @@ public:
  * the kafka message in message set.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Messagesets
  */
-struct SrsKafkaMessage
+struct SrsKafkaRawMessage
 {
 // metadata.
 public:
@@ -313,8 +315,8 @@ public:
      */
     SrsKafkaBytes* value;
 public:
-    SrsKafkaMessage();
-    virtual ~SrsKafkaMessage();
+    SrsKafkaRawMessage();
+    virtual ~SrsKafkaRawMessage();
 };
 
 /**
@@ -324,10 +326,30 @@ public:
 class SrsKafkaMessageSet
 {
 private:
-    std::vector<SrsKafkaMessage*> messages;
+    std::vector<SrsKafkaRawMessage*> messages;
 public:
     SrsKafkaMessageSet();
     virtual ~SrsKafkaMessageSet();
+};
+
+/**
+ * the kafka request message, for protocol to send.
+ */
+class SrsKafkaRequest
+{
+public:
+    SrsKafkaRequest();
+    virtual ~SrsKafkaRequest();
+};
+
+/**
+ * the kafka response message, for protocol to recv.
+ */
+class SrsKafkaResponse
+{
+public:
+    SrsKafkaResponse();
+    virtual ~SrsKafkaResponse();
 };
 
 /**
@@ -344,20 +366,30 @@ public:
  *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-MetadataAPI
  */
-class SrsKafkaTopicMetadataRequest
+class SrsKafkaTopicMetadataRequest : public SrsKafkaRequest
 {
 private:
     SrsKafkaRequestHeader header;
-    SrsKafkaArray<SrsKafkaString*> request;
+    SrsKafkaArray<SrsKafkaString*> topics;
 public:
     SrsKafkaTopicMetadataRequest();
     virtual ~SrsKafkaTopicMetadataRequest();
+public:
+    virtual void add_topic(std::string topic);
 };
 
-class SrsKafkaTopicMetadataResponse
+/**
+ * response for the metadata request from broker.
+ * The response contains metadata for each partition, 
+ * with partitions grouped together by topic. This 
+ * metadata refers to brokers by their broker id. 
+ * The brokers each have a host and port.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-MetadataResponse
+ */
+class SrsKafkaTopicMetadataResponse : public SrsKafkaResponse
 {
 private:
-    SrsKafkaRequestHeader header;
+    SrsKafkaResponseHeader header;
 public:
     SrsKafkaTopicMetadataResponse();
     virtual ~SrsKafkaTopicMetadataResponse();
@@ -378,7 +410,7 @@ public:
      * write the message to kafka server.
      * @param msg the msg to send. user must not free it again.
      */
-    virtual int send_and_free_message(SrsKafkaMessage* msg);
+    virtual int send_and_free_message(SrsKafkaRequest* msg);
 };
 
 /**

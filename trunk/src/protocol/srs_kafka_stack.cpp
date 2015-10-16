@@ -27,6 +27,7 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
+#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -34,6 +35,15 @@ SrsKafkaString::SrsKafkaString()
 {
     size = -1;
     data = NULL;
+}
+
+SrsKafkaString::SrsKafkaString(string v)
+{
+    size = (int16_t)v.length();
+    
+    srs_assert(size > 0);
+    data = new char[size];
+    memcpy(data, v.data(), size);
 }
 
 SrsKafkaString::~SrsKafkaString()
@@ -60,6 +70,15 @@ SrsKafkaBytes::SrsKafkaBytes()
 {
     size = -1;
     data = NULL;
+}
+
+SrsKafkaBytes::SrsKafkaBytes(const char* v, int nb_v)
+{
+    size = (int16_t)nb_v;
+    
+    srs_assert(size > 0);
+    data = new char[size];
+    memcpy(data, v, size);
 }
 
 SrsKafkaBytes::~SrsKafkaBytes()
@@ -175,7 +194,7 @@ int SrsKafkaResponseHeader::total_size()
     return 4 + size;
 }
 
-SrsKafkaMessage::SrsKafkaMessage()
+SrsKafkaRawMessage::SrsKafkaRawMessage()
 {
     offset = 0;
     message_size = 0;
@@ -186,7 +205,7 @@ SrsKafkaMessage::SrsKafkaMessage()
     value = new SrsKafkaBytes();
 }
 
-SrsKafkaMessage::~SrsKafkaMessage()
+SrsKafkaRawMessage::~SrsKafkaRawMessage()
 {
     srs_freep(key);
     srs_freep(value);
@@ -198,12 +217,28 @@ SrsKafkaMessageSet::SrsKafkaMessageSet()
 
 SrsKafkaMessageSet::~SrsKafkaMessageSet()
 {
-    vector<SrsKafkaMessage*>::iterator it;
+    vector<SrsKafkaRawMessage*>::iterator it;
     for (it = messages.begin(); it != messages.end(); ++it) {
-        SrsKafkaMessage* message = *it;
+        SrsKafkaRawMessage* message = *it;
         srs_freep(message);
     }
     messages.clear();
+}
+
+SrsKafkaRequest::SrsKafkaRequest()
+{
+}
+
+SrsKafkaRequest::~SrsKafkaRequest()
+{
+}
+
+SrsKafkaResponse::SrsKafkaResponse()
+{
+}
+
+SrsKafkaResponse::~SrsKafkaResponse()
+{
 }
 
 SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
@@ -212,6 +247,19 @@ SrsKafkaTopicMetadataRequest::SrsKafkaTopicMetadataRequest()
 }
 
 SrsKafkaTopicMetadataRequest::~SrsKafkaTopicMetadataRequest()
+{
+}
+
+void SrsKafkaTopicMetadataRequest::add_topic(string topic)
+{
+    topics.append(new SrsKafkaString(topic));
+}
+
+SrsKafkaTopicMetadataResponse::SrsKafkaTopicMetadataResponse()
+{
+}
+
+SrsKafkaTopicMetadataResponse::~SrsKafkaTopicMetadataResponse()
 {
 }
 
@@ -224,7 +272,7 @@ SrsKafkaProtocol::~SrsKafkaProtocol()
 {
 }
 
-int SrsKafkaProtocol::send_and_free_message(SrsKafkaMessage* msg)
+int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -246,6 +294,11 @@ SrsKafkaClient::~SrsKafkaClient()
 int SrsKafkaClient::fetch_metadata(string topic)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsKafkaTopicMetadataRequest* req = new SrsKafkaTopicMetadataRequest();
+    SrsAutoFree(SrsKafkaTopicMetadataRequest, req);
+    
+    req->add_topic(topic);
     
     // TODO: FIXME: implements it.
     
