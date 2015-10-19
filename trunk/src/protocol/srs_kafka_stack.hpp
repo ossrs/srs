@@ -339,7 +339,7 @@ private:
      * the response by the server, unmodified. It is useful for matching
      * request and response between the client and server.
      */
-    int32_t correlation_id;
+    int32_t _correlation_id;
 public:
     SrsKafkaResponseHeader();
     virtual ~SrsKafkaResponseHeader();
@@ -361,8 +361,9 @@ private:
      * the size of message, the bytes left after the header.
      */
     virtual int message_size();
+public:
     /**
-     * the total size of the request, includes the 4B size.
+     * the total size of the request, includes the 4B size and message body.
      */
     virtual int total_size();
 public:
@@ -371,6 +372,10 @@ public:
      * @param s the whole message, including the 4 bytes size size.
      */
     virtual void set_total_size(int s);
+    /**
+     * get the correlation id of response message.
+     */
+    virtual int32_t correlation_id();
 // interface ISrsCodec
 public:
     virtual int size();
@@ -567,9 +572,23 @@ private:
 public:
     virtual ~SrsKafkaCorrelationPool();
 public:
+    /**
+     * generate a global correlation id.
+     */
     virtual int32_t generate_correlation_id();
-    virtual void set(int32_t correlation_id, SrsKafkaApiKey request);
-    virtual void unset(int32_t correlation_id);
+    /**
+     * set the correlation id to specified request key.
+     */
+    virtual SrsKafkaApiKey set(int32_t correlation_id, SrsKafkaApiKey request);
+    /**
+     * unset the correlation id.
+     * @return the previous api key; unknown if not set.
+     */
+    virtual SrsKafkaApiKey unset(int32_t correlation_id);
+    /**
+     * get the key by specified correlation id.
+     * @return the specified api key; unknown if no correlation id.
+     */
     virtual SrsKafkaApiKey get(int32_t correlation_id);
 };
 
