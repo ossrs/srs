@@ -461,11 +461,11 @@ SrsKafkaRawMessage::~SrsKafkaRawMessage()
     srs_freep(value);
 }
 
-SrsKafkaMessageSet::SrsKafkaMessageSet()
+SrsKafkaRawMessageSet::SrsKafkaRawMessageSet()
 {
 }
 
-SrsKafkaMessageSet::~SrsKafkaMessageSet()
+SrsKafkaRawMessageSet::~SrsKafkaRawMessageSet()
 {
     vector<SrsKafkaRawMessage*>::iterator it;
     for (it = messages.begin(); it != messages.end(); ++it) {

@@ -413,13 +413,13 @@ public:
  * a set of kafka message.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Messagesets
  */
-class SrsKafkaMessageSet
+class SrsKafkaRawMessageSet
 {
 private:
     std::vector<SrsKafkaRawMessage*> messages;
 public:
-    SrsKafkaMessageSet();
-    virtual ~SrsKafkaMessageSet();
+    SrsKafkaRawMessageSet();
+    virtual ~SrsKafkaRawMessageSet();
 };
 
 /**
