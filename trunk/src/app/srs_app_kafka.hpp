@@ -34,13 +34,21 @@ class SrsAsyncCallWorker;
 class SrsTcpClient;
 class SrsKafkaClient;
 
+#include <srs_app_thread.hpp>
+
 #ifdef SRS_AUTO_KAFKA
 
 /**
  * the kafka producer used to save log to kafka cluster.
  */
-class SrsKafkaProducer
+class SrsKafkaProducer : public ISrsReusableThreadHandler
 {
+private:
+    st_mutex_t lock;
+    SrsReusableThread* pthread;
+private:
+    bool meatadata_ok;
+    st_cond_t metadata_expired;
 private:
     SrsLbRoundRobin* lb;
     SrsAsyncCallWorker* worker;
@@ -53,7 +61,13 @@ public:
     virtual int initialize();
     virtual int start();
     virtual void stop();
+// interface ISrsReusableThreadHandler
+public:
+    virtual int cycle();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
 private:
+    virtual int do_cycle();
     virtual int request_metadata();
 };
 
