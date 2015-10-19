@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_io.hpp>
+#include <srs_protocol_stream.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -682,10 +683,12 @@ SrsKafkaApiKey SrsKafkaCorrelationPool::get(int32_t correlation_id)
 SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReaderWriter* io)
 {
     skt = io;
+    reader = new SrsFastStream();
 }
 
 SrsKafkaProtocol::~SrsKafkaProtocol()
 {
+    srs_freep(reader);
 }
 
 int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
@@ -733,6 +736,36 @@ int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
     return ret;
 }
 
+int SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
+{
+    *pmsg = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    SrsKafkaResponseHeader header;
+    while (reader->size() < header.size()) {
+        if ((ret = reader->grow(skt, header.size())) != ERROR_SUCCESS) {
+            srs_error("kafka recv message failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    SrsBuffer buffer;
+    if ((ret = buffer.initialize(reader->bytes(), reader->size())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    SrsBuffer* buf = &buffer;
+    if ((ret = header.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode response header failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // TODO: FIXME: decode message.
+    
+    return ret;
+}
+
 SrsKafkaClient::SrsKafkaClient(ISrsProtocolReaderWriter* io)
 {
     protocol = new SrsKafkaProtocol(io);
@@ -755,6 +788,13 @@ int SrsKafkaClient::fetch_metadata(string topic)
         srs_error("kafka send message failed. ret=%d", ret);
         return ret;
     }
+    
+    SrsKafkaResponse* res = NULL;
+    if ((ret = protocol->recv_message(&res)) != ERROR_SUCCESS) {
+        srs_error("kafka recv response failed. ret=%d", ret);
+        return ret;
+    }
+    SrsAutoFree(SrsKafkaResponse, res);
     
     // TODO: FIXME: implements it.
     

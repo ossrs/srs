@@ -35,7 +35,9 @@
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 
+class SrsFastStream;
 class ISrsProtocolReaderWriter;
 
 #ifdef SRS_AUTO_KAFKA
@@ -113,9 +115,9 @@ public:
  * array of a structure foo as [foo].
  * 
  * Usage:
- *      SrsKafkaArray<SrsKafkaBytes*> body;
+ *      SrsKafkaArray<SrsKafkaBytes> body;
  *      body.append(new SrsKafkaBytes());
- * @remark the typename T must be a ISrsCodec*
+ * @remark array elem is the T*, which must be ISrsCodec*
  *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */
@@ -123,9 +125,9 @@ template<typename T>
 class SrsKafkaArray : public ISrsCodec
 {
 private:
-    int length;
-    std::vector<T> elems;
-    typedef typename std::vector<T>::iterator SrsIterator;
+    int32_t length;
+    std::vector<T*> elems;
+    typedef typename std::vector<T*>::iterator SrsIterator;
 public:
     SrsKafkaArray()
     {
@@ -134,13 +136,13 @@ public:
     virtual ~SrsKafkaArray()
     {
         for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
-            T elem = *it;
+            T* elem = *it;
             srs_freep(elem);
         }
         elems.clear();
     }
 public:
-    virtual void append(T elem)
+    virtual void append(T* elem)
     {
         length++;
         elems.push_back(elem);
@@ -149,10 +151,10 @@ public:
 public:
     virtual int size()
     {
-        int s = 0;
+        int s = 4;
         
         for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
-            T elem = *it;
+            T* elem = *it;
             s += elem->size();
         }
         
@@ -162,9 +164,17 @@ public:
     {
         int ret = ERROR_SUCCESS;
         
+        if (!buf->require(4)) {
+            ret = ERROR_KAFKA_CODEC_ARRAY;
+            srs_error("kafka encode array failed. ret=%d", ret);
+            return ret;
+        }
+        buf->write_4bytes(length);
+        
         for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
-            T elem = *it;
+            T* elem = *it;
             if ((ret = elem->encode(buf)) != ERROR_SUCCESS) {
+                srs_error("kafka encode array elem failed. ret=%d", ret);
                 return ret;
             }
         }
@@ -175,11 +185,22 @@ public:
     {
         int ret = ERROR_SUCCESS;
         
-        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
-            T elem = *it;
+        if (!buf->require(4)) {
+            ret = ERROR_KAFKA_CODEC_ARRAY;
+            srs_error("kafka decode array failed. ret=%d", ret);
+            return ret;
+        }
+        length = buf->read_2bytes();
+        
+        for (int i = 0; i < length; i++) {
+            T* elem = new T();
             if ((ret = elem->decode(buf)) != ERROR_SUCCESS) {
+                srs_error("kafka decode array elem failed. ret=%d", ret);
+                srs_freep(elem);
                 return ret;
             }
+            
+            elems.push_back(elem);
         }
         
         return ret;
@@ -493,7 +514,7 @@ public:
 class SrsKafkaTopicMetadataRequest : public SrsKafkaRequest
 {
 private:
-    SrsKafkaArray<SrsKafkaString*> topics;
+    SrsKafkaArray<SrsKafkaString> topics;
 public:
     SrsKafkaTopicMetadataRequest();
     virtual ~SrsKafkaTopicMetadataRequest();
@@ -559,6 +580,7 @@ class SrsKafkaProtocol
 {
 private:
     ISrsProtocolReaderWriter* skt;
+    SrsFastStream* reader;
 public:
     SrsKafkaProtocol(ISrsProtocolReaderWriter* io);
     virtual ~SrsKafkaProtocol();
@@ -568,6 +590,11 @@ public:
      * @param msg the msg to send. user must not free it again.
      */
     virtual int send_and_free_message(SrsKafkaRequest* msg);
+    /**
+     * read the message from kafka server.
+     * @param pmsg output the received message. user must free it.
+     */
+    virtual int recv_message(SrsKafkaResponse** pmsg);
 };
 
 /**
