@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
@@ -45,6 +46,8 @@ class ISrsProtocolReaderWriter;
  */
 enum SrsKafkaApiKey
 {
+    SrsKafkaApiKeyUnknown = -1,
+    
     SrsKafkaApiKeyProduceRequest = 0,
     SrsKafkaApiKeyFetchRequest = 1,
     SrsKafkaApiKeyOffsetRequest = 2,
@@ -203,7 +206,7 @@ private:
      * a metadata request, a produce request, a fetch request, etc).
      * @remark MetadataRequest | ProduceRequest | FetchRequest | OffsetRequest | OffsetCommitRequest | OffsetFetchRequest
      */
-    int16_t api_key;
+    int16_t _api_key;
     /**
      * This is a numeric version number for this api. We version each API and 
      * this version number allows the server to properly interpret the request 
@@ -216,7 +219,7 @@ private:
      * the response by the server, unmodified. It is useful for matching
      * request and response between the client and server.
      */
-    int32_t correlation_id;
+    int32_t _correlation_id;
     /**
      * This is a user supplied identifier for the client application. 
      * The user can use any identifier they like and it will be used
@@ -254,6 +257,28 @@ private:
     virtual int total_size();
 public:
     /**
+     * when got the whole message size, update the header.
+     * @param s the whole message, including the 4 bytes size size.
+     */
+    virtual void set_total_size(int s);
+    /**
+     * get the correlation id for message.
+     */
+    virtual int32_t correlation_id();
+    /**
+     * set the correlation id for message.
+     */
+    virtual void set_correlation_id(int32_t cid);
+    /**
+     * get the api key of header for message.
+     */
+    virtual SrsKafkaApiKey api_key();
+    /**
+     * set the api key of header for message.
+     */
+    virtual void set_api_key(SrsKafkaApiKey key);
+public:
+    /**
      * the api key enumeration.
      * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys
      */
@@ -264,8 +289,6 @@ public:
     virtual bool is_offset_commit_request();
     virtual bool is_offset_fetch_request();
     virtual bool is_consumer_metadata_request();
-    // set the api key.
-    virtual void set_api_key(SrsKafkaApiKey key);
 // interface ISrsCodec
 public:
     virtual int size();
@@ -321,6 +344,12 @@ private:
      * the total size of the request, includes the 4B size.
      */
     virtual int total_size();
+public:
+    /**
+     * when got the whole message size, update the header.
+     * @param s the whole message, including the 4 bytes size size.
+     */
+    virtual void set_total_size(int s);
 // interface ISrsCodec
 public:
     virtual int size();
@@ -403,6 +432,20 @@ protected:
 public:
     SrsKafkaRequest();
     virtual ~SrsKafkaRequest();
+public:
+    /**
+     * update the size in header.
+     * @param s an int value specifies the size of message in header.
+     */
+    virtual void update_header(int s);
+    /**
+     * get the correlation id of header for message. 
+     */
+    virtual int32_t correlation_id();
+    /**
+     * get the api key of request.
+     */
+    virtual SrsKafkaApiKey api_key();
 // interface ISrsCodec
 public:
     virtual int size();
@@ -420,6 +463,12 @@ protected:
 public:
     SrsKafkaResponse();
     virtual ~SrsKafkaResponse();
+public:
+    /**
+     * update the size in header.
+     * @param s an int value specifies the size of message in header.
+     */
+    virtual void update_header(int s);
 // interface ISrsCodec
 public:
     virtual int size();
@@ -475,6 +524,32 @@ public:
     virtual int size();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
+};
+
+/**
+ * the poll to discovery reponse.
+ * @param CorrelationId This is a user-supplied integer. It will be passed back 
+ *          in the response by the server, unmodified. It is useful for matching 
+ *          request and response between the client and server.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
+ */
+class SrsKafkaCorrelationPool
+{
+private:
+    static SrsKafkaCorrelationPool* _instance;
+public:
+    static SrsKafkaCorrelationPool* instance();
+private:
+    std::map<int32_t, SrsKafkaApiKey> correlation_ids;
+private:
+    SrsKafkaCorrelationPool();
+public:
+    virtual ~SrsKafkaCorrelationPool();
+public:
+    virtual int32_t generate_correlation_id();
+    virtual void set(int32_t correlation_id, SrsKafkaApiKey request);
+    virtual void unset(int32_t correlation_id);
+    virtual SrsKafkaApiKey get(int32_t correlation_id);
 };
 
 /**

@@ -221,8 +221,8 @@ int SrsKafkaBytes::decode(SrsBuffer* buf)
 SrsKafkaRequestHeader::SrsKafkaRequestHeader()
 {
     _size = 0;
-    api_key = api_version = 0;
-    correlation_id = 0;
+    _api_key = api_version = 0;
+    _correlation_id = 0;
     client_id = new SrsKafkaString();
 }
 
@@ -246,49 +246,69 @@ int SrsKafkaRequestHeader::total_size()
     return 4 + _size;
 }
 
-bool SrsKafkaRequestHeader::is_producer_request()
+void SrsKafkaRequestHeader::set_total_size(int s)
 {
-    return api_key == SrsKafkaApiKeyProduceRequest;
+    _size = s - 4;
 }
 
-bool SrsKafkaRequestHeader::is_fetch_request()
+int32_t SrsKafkaRequestHeader::correlation_id()
 {
-    return api_key == SrsKafkaApiKeyFetchRequest;
+    return _correlation_id;
 }
 
-bool SrsKafkaRequestHeader::is_offset_request()
+void SrsKafkaRequestHeader::set_correlation_id(int32_t cid)
 {
-    return api_key == SrsKafkaApiKeyOffsetRequest;
+    _correlation_id = cid;
 }
 
-bool SrsKafkaRequestHeader::is_metadata_request()
+SrsKafkaApiKey SrsKafkaRequestHeader::api_key()
 {
-    return api_key == SrsKafkaApiKeyMetadataRequest;
-}
-
-bool SrsKafkaRequestHeader::is_offset_commit_request()
-{
-    return api_key == SrsKafkaApiKeyOffsetCommitRequest;
-}
-
-bool SrsKafkaRequestHeader::is_offset_fetch_request()
-{
-    return api_key == SrsKafkaApiKeyOffsetFetchRequest;
-}
-
-bool SrsKafkaRequestHeader::is_consumer_metadata_request()
-{
-    return api_key == SrsKafkaApiKeyConsumerMetadataRequest;
+    return (SrsKafkaApiKey)_api_key;
 }
 
 void SrsKafkaRequestHeader::set_api_key(SrsKafkaApiKey key)
 {
-    api_key = (int16_t)key;
+    _api_key = (int16_t)key;
+}
+
+bool SrsKafkaRequestHeader::is_producer_request()
+{
+    return _api_key == SrsKafkaApiKeyProduceRequest;
+}
+
+bool SrsKafkaRequestHeader::is_fetch_request()
+{
+    return _api_key == SrsKafkaApiKeyFetchRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_request()
+{
+    return _api_key == SrsKafkaApiKeyOffsetRequest;
+}
+
+bool SrsKafkaRequestHeader::is_metadata_request()
+{
+    return _api_key == SrsKafkaApiKeyMetadataRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_commit_request()
+{
+    return _api_key == SrsKafkaApiKeyOffsetCommitRequest;
+}
+
+bool SrsKafkaRequestHeader::is_offset_fetch_request()
+{
+    return _api_key == SrsKafkaApiKeyOffsetFetchRequest;
+}
+
+bool SrsKafkaRequestHeader::is_consumer_metadata_request()
+{
+    return _api_key == SrsKafkaApiKeyConsumerMetadataRequest;
 }
 
 int SrsKafkaRequestHeader::size()
 {
-    return 4 + _size;
+    return 4 + header_size();
 }
 
 int SrsKafkaRequestHeader::encode(SrsBuffer* buf)
@@ -302,9 +322,9 @@ int SrsKafkaRequestHeader::encode(SrsBuffer* buf)
     }
     
     buf->write_4bytes(_size);
-    buf->write_2bytes(api_key);
+    buf->write_2bytes(_api_key);
     buf->write_2bytes(api_version);
-    buf->write_4bytes(correlation_id);
+    buf->write_4bytes(_correlation_id);
     
     if ((ret = client_id->encode(buf)) != ERROR_SUCCESS) {
         srs_error("kafka encode request client_id failed. ret=%d", ret);
@@ -335,9 +355,9 @@ int SrsKafkaRequestHeader::decode(SrsBuffer* buf)
         srs_error("kafka decode request message failed. ret=%d", ret);
         return ret;
     }
-    api_key = buf->read_2bytes();
+    _api_key = buf->read_2bytes();
     api_version = buf->read_2bytes();
-    correlation_id = buf->read_4bytes();
+    _correlation_id = buf->read_4bytes();
     
     if ((ret = client_id->decode(buf)) != ERROR_SUCCESS) {
         srs_error("kafka decode request client_id failed. ret=%d", ret);
@@ -372,9 +392,14 @@ int SrsKafkaResponseHeader::total_size()
     return 4 + _size;
 }
 
+void SrsKafkaResponseHeader::set_total_size(int s)
+{
+    _size = s - 4;
+}
+
 int SrsKafkaResponseHeader::size()
 {
-    return 4 + _size;
+    return 4 + header_size();
 }
 
 int SrsKafkaResponseHeader::encode(SrsBuffer* buf)
@@ -452,10 +477,26 @@ SrsKafkaMessageSet::~SrsKafkaMessageSet()
 
 SrsKafkaRequest::SrsKafkaRequest()
 {
+    header.set_correlation_id(SrsKafkaCorrelationPool::instance()->generate_correlation_id());
 }
 
 SrsKafkaRequest::~SrsKafkaRequest()
 {
+}
+
+void SrsKafkaRequest::update_header(int s)
+{
+    header.set_total_size(s);
+}
+
+int32_t SrsKafkaRequest::correlation_id()
+{
+    return header.correlation_id();
+}
+
+SrsKafkaApiKey SrsKafkaRequest::api_key()
+{
+    return header.api_key();
 }
 
 int SrsKafkaRequest::size()
@@ -479,6 +520,11 @@ SrsKafkaResponse::SrsKafkaResponse()
 
 SrsKafkaResponse::~SrsKafkaResponse()
 {
+}
+
+void SrsKafkaResponse::update_header(int s)
+{
+    header.set_total_size(s);
 }
 
 int SrsKafkaResponse::size()
@@ -589,6 +635,50 @@ int SrsKafkaTopicMetadataResponse::decode(SrsBuffer* buf)
     return ret;
 }
 
+SrsKafkaCorrelationPool* SrsKafkaCorrelationPool::_instance = new SrsKafkaCorrelationPool();
+
+SrsKafkaCorrelationPool* SrsKafkaCorrelationPool::instance()
+{
+    return _instance;
+}
+
+SrsKafkaCorrelationPool::SrsKafkaCorrelationPool()
+{
+}
+
+SrsKafkaCorrelationPool::~SrsKafkaCorrelationPool()
+{
+    correlation_ids.clear();
+}
+
+int32_t SrsKafkaCorrelationPool::generate_correlation_id()
+{
+    static int32_t cid = 1;
+    return cid++;
+}
+
+void SrsKafkaCorrelationPool::set(int32_t correlation_id, SrsKafkaApiKey request)
+{
+    correlation_ids[correlation_id] = request;
+}
+
+void SrsKafkaCorrelationPool::unset(int32_t correlation_id)
+{
+    std::map<int32_t, SrsKafkaApiKey>::iterator it = correlation_ids.find(correlation_id);
+    if (it != correlation_ids.end()) {
+        correlation_ids.erase(it);
+    }
+}
+
+SrsKafkaApiKey SrsKafkaCorrelationPool::get(int32_t correlation_id)
+{
+    if (correlation_ids.find(correlation_id) == correlation_ids.end()) {
+        return SrsKafkaApiKeyUnknown;
+    }
+    
+    return correlation_ids[correlation_id];
+}
+
 SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReaderWriter* io)
 {
     skt = io;
@@ -609,6 +699,13 @@ int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
     if (size <= 0) {
         return ret;
     }
+    
+    // update the header of message.
+    msg->update_header(size);
+    
+    // cache the request correlation id to discovery response message.
+    SrsKafkaCorrelationPool* pool = SrsKafkaCorrelationPool::instance();
+    pool->set(msg->correlation_id(), msg->api_key());
     
     // TODO: FIXME: refine for performance issue.
     char* bytes = new char[size];
