@@ -939,9 +939,14 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
                 del self.__snapshots[url]
                 print 'abort snapshot %s'%snapshot['cmd']
                 break
-                
+
+            # how many snapshots to output.
+            vframes = 6
+            # the expire in seconds for ffmpeg to snapshot.
+            expire = 10
+            
             # already snapshoted and not expired.
-            if process is not None and diff < 10:
+            if process is not None and diff < expire:
                 continue
             
             # terminate the active process
@@ -951,17 +956,35 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
 
                 # None incidates the process hasn't terminate yet.
                 if process.returncode is not None:
-                    # process terminated, check the returncode.
+                    # process terminated with error.
                     if process.returncode != 0:
                         print 'process terminated with error=%s, cmd=%s'%(process.returncode, snapshot['cmd'])
+                    # process terminated normally.
+                    else:
+                        # guess the best one.
+                        bestsize = 0
+                        besturl = os.path.join(static_dir, "%s/%s-best.png"%(snapshot['app'], snapshot['stream']))
+                        for i in range(0, vframes):
+                            output = os.path.join(static_dir, "%s/%s-%03d.png"%(snapshot['app'], snapshot['stream'], i + 1))
+                            fsize = os.path.getsize(output)
+                            if bestsize < fsize:
+                                os.system("rm -f '%s'"%besturl)
+                                os.system("ln -sf '%s' '%s'"%(output, besturl))
+                                bestsize = fsize
+                        print 'the best thumbnail is %s'%besturl
                 else:
+                    # wait for process to terminate, timeout is N*expire.
+                    if diff < 10 * expire:
+                        continue
                     # kill the process when user cancel.
-                    process.kill()
+                    else:
+                        process.kill()
+                        print 'kill the process %s'%snapshot['cmd']
                 
             # create new process to snapshot.
             ffmpeg = "./objs/ffmpeg/bin/ffmpeg"
-            output = os.path.join(static_dir, "%s-%s-%%3d.png"%(snapshot['app'], snapshot['stream']))
-            cmd = '%s -i %s -vf fps=1/6 -vcodec png -f image2 -an -y -vframes 3 -y %s'%(ffmpeg, url, output)
+            output = os.path.join(static_dir, "%s/%s-%%03d.png"%(snapshot['app'], snapshot['stream']))
+            cmd = '%s -i %s -vf fps=1/6 -vcodec png -f image2 -an -y -vframes %s -y %s'%(ffmpeg, url, vframes, output)
             print 'snapshot by: %s'%cmd
             
             process = create_process(cmd, discard.fileno(), discard.fileno())
@@ -971,7 +994,7 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
         pass;
         
     # {"action":"on_publish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
-    # ffmpeg -i rtmp://127.0.0.1:1935/live?vhost=dev/stream -vf fps=1/6 -vcodec png -f image2 -an -y -vframes 3 -y static-dir/live-livestream-%3d.png
+    # ffmpeg -i rtmp://127.0.0.1:1935/live?vhost=dev/stream -vf fps=1/6 -vcodec png -f image2 -an -y -vframes 3 -y static-dir/live/livestream-%03d.png
     def snapshot_create(self, req):
         url = "rtmp://127.0.0.1/%s...vhost...%s/%s"%(req['app'], req['vhost'], req['stream'])
         if url in self.__snapshots:
