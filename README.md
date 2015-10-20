@@ -1281,7 +1281,7 @@ Winlin
 [bug #502]: https://github.com/simple-rtmp-server/srs/issues/502
 [bug #xxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxx
 
-[r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a2
+[r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/v2.0-a2
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
 [r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
 [r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
