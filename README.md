@@ -7,7 +7,7 @@ SRS is industrial-strength live streaming cluster, for the best conceptual integ
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
-Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
+Website for SRS/2.0, read SRS 2.0 [Chinese][srs_CN] or [English][srs_EN].
 
 [![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
 [![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
