@@ -941,9 +941,21 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
                 break
 
             # how many snapshots to output.
-            vframes = 6
+            vframes = 5
             # the expire in seconds for ffmpeg to snapshot.
-            expire = 10
+            expire = 1
+            # the timeout to kill ffmpeg.
+            kill_ffmpeg_timeout = 30 * expire
+            # the ffmpeg binary path
+            ffmpeg = "./objs/ffmpeg/bin/ffmpeg"
+            # the best url for thumbnail.
+            besturl = os.path.join(static_dir, "%s/%s-best.png"%(snapshot['app'], snapshot['stream']))
+            # the lambda to generate the thumbnail with index.
+            lgo = lambda dir, app, stream, index: os.path.join(dir, "%s/%s-%03d.png"%(app, stream, index))
+            # the output for snapshot command
+            output = os.path.join(static_dir, "%s/%s-%%03d.png"%(snapshot['app'], snapshot['stream']))
+            # the ffmepg command to snapshot
+            cmd = '%s -i %s -vf fps=1 -vcodec png -f image2 -an -y -vframes %s -y %s'%(ffmpeg, url, vframes, output)
             
             # already snapshoted and not expired.
             if process is not None and diff < expire:
@@ -963,9 +975,8 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
                     else:
                         # guess the best one.
                         bestsize = 0
-                        besturl = os.path.join(static_dir, "%s/%s-best.png"%(snapshot['app'], snapshot['stream']))
                         for i in range(0, vframes):
-                            output = os.path.join(static_dir, "%s/%s-%03d.png"%(snapshot['app'], snapshot['stream'], i + 1))
+                            output = lgo(static_dir, snapshot['app'], snapshot['stream'], i + 1)
                             fsize = os.path.getsize(output)
                             if bestsize < fsize:
                                 os.system("rm -f '%s'"%besturl)
@@ -974,7 +985,7 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
                         print 'the best thumbnail is %s'%besturl
                 else:
                     # wait for process to terminate, timeout is N*expire.
-                    if diff < 10 * expire:
+                    if diff < kill_ffmpeg_timeout:
                         continue
                     # kill the process when user cancel.
                     else:
@@ -982,9 +993,6 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
                         print 'kill the process %s'%snapshot['cmd']
                 
             # create new process to snapshot.
-            ffmpeg = "./objs/ffmpeg/bin/ffmpeg"
-            output = os.path.join(static_dir, "%s/%s-%%03d.png"%(snapshot['app'], snapshot['stream']))
-            cmd = '%s -i %s -vf fps=1/6 -vcodec png -f image2 -an -y -vframes %s -y %s'%(ffmpeg, url, vframes, output)
             print 'snapshot by: %s'%cmd
             
             process = create_process(cmd, discard.fileno(), discard.fileno())
@@ -994,7 +1002,7 @@ class SrsWorker(cherrypy.process.plugins.SimplePlugin):
         pass;
         
     # {"action":"on_publish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
-    # ffmpeg -i rtmp://127.0.0.1:1935/live?vhost=dev/stream -vf fps=1/6 -vcodec png -f image2 -an -y -vframes 3 -y static-dir/live/livestream-%03d.png
+    # ffmpeg -i rtmp://127.0.0.1:1935/live?vhost=dev/stream -vf fps=1 -vcodec png -f image2 -an -y -vframes 3 -y static-dir/live/livestream-%03d.png
     def snapshot_create(self, req):
         url = "rtmp://127.0.0.1/%s...vhost...%s/%s"%(req['app'], req['vhost'], req['stream'])
         if url in self.__snapshots:
