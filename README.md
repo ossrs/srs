@@ -386,6 +386,7 @@ Remark:
 
 ### History
 
+* v3.0, 2015-10-20, fix [#502][bug #502], support snapshot with http-callback or transcoder. 3.0.5
 * v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
 * v3.0, 2015-09-14, fix [#459][bug #459], support dvr raw api. 3.0.4
@@ -1277,6 +1278,7 @@ Winlin
 [bug #299]: https://github.com/simple-rtmp-server/srs/issues/299
 [bug #466]: https://github.com/simple-rtmp-server/srs/issues/466
 [bug #468]: https://github.com/simple-rtmp-server/srs/issues/468
+[bug #502]: https://github.com/simple-rtmp-server/srs/issues/502
 [bug #xxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxx
 
 [r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a2

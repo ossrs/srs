@@ -262,7 +262,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     input = "rtmp://";
     input += SRS_CONSTS_LOCALHOST;
     input += ":";
-    input += req->port;
+    input += srs_int2str(req->port);
     input += "/";
     input += req->app;
     input += "?vhost=";

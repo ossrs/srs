@@ -47,16 +47,17 @@ using namespace std;
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
-#define SRS_RTMP_ENCODER_COPY           "copy"
-#define SRS_RTMP_ENCODER_NO_VIDEO       "vn"
-#define SRS_RTMP_ENCODER_NO_AUDIO       "an"
+#define SRS_RTMP_ENCODER_COPY "copy"
+#define SRS_RTMP_ENCODER_NO_VIDEO "vn"
+#define SRS_RTMP_ENCODER_NO_AUDIO "an"
 // only support libx264 encoder.
-#define SRS_RTMP_ENCODER_VCODEC         "libx264"
+#define SRS_RTMP_ENCODER_VCODEC_LIBX264 "libx264"
+#define SRS_RTMP_ENCODER_VCODEC_PNG "png"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
-#define SRS_RTMP_ENCODER_ACODEC         "aac"
-#define SRS_RTMP_ENCODER_LIBAACPLUS     "libaacplus"
-#define SRS_RTMP_ENCODER_LIBFDKAAC      "libfdk_aac"
+#define SRS_RTMP_ENCODER_ACODEC "aac"
+#define SRS_RTMP_ENCODER_LIBAACPLUS "libaacplus"
+#define SRS_RTMP_ENCODER_LIBFDKAAC "libfdk_aac"
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -139,11 +140,11 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         return ret;
     }
     
-    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
-        if (vcodec != SRS_RTMP_ENCODER_VCODEC) {
+    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO && vcodec != SRS_RTMP_ENCODER_VCODEC_PNG) {
+        if (vcodec != SRS_RTMP_ENCODER_VCODEC_LIBX264) {
             ret = ERROR_ENCODER_VCODEC;
             srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
-                SRS_RTMP_ENCODER_VCODEC, vcodec.c_str(), ret);
+                SRS_RTMP_ENCODER_VCODEC_LIBX264, vcodec.c_str(), ret);
             return ret;
         }
         if (vbitrate < 0) {
@@ -319,11 +320,15 @@ int SrsFFMPEG::start()
             params.push_back(srs_int2str(vthreads));
         }
         
-        params.push_back("-profile:v");
-        params.push_back(vprofile);
+        if (!vprofile.empty()) {
+            params.push_back("-profile:v");
+            params.push_back(vprofile);
+        }
         
-        params.push_back("-preset");
-        params.push_back(vpreset);
+        if (!vpreset.empty()) {
+            params.push_back("-preset");
+            params.push_back(vpreset);
+        }
         
         // vparams
         if (!vparams.empty()) {

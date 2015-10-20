@@ -76,15 +76,16 @@ int SrsProcess::initialize(string binary, vector<string> argv)
     
     for (int i = 0; i < (int)argv.size(); i++) {
         std::string ffp = argv[i];
+        std::string nffp = (i < (int)argv.size() -1)? argv[i + 1] : "";
         
         // remove the stdout and stderr.
-        if (ffp == "1") {
+        if (ffp == "1" && nffp == ">") {
             if (i + 2 < (int)argv.size()) {
                 stdout_file = argv[i + 2];
                 i += 2;
             }
             continue;
-        } else if (ffp == "2") {
+        } else if (ffp == "2" && nffp == ">") {
             if (i + 2 < (int)argv.size()) {
                 stderr_file = argv[i + 2];
                 i += 2;
