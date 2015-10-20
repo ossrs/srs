@@ -447,14 +447,14 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     // ensure the http status is ok.
     // https://github.com/simple-rtmp-server/srs/issues/158
     if (code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
+        ret = ERROR_HTTP_STATUS_INVALID;
         srs_error("invalid response status=%d. ret=%d", code, ret);
         return ret;
     }
     
     // should never be empty.
     if (res.empty()) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
+        ret = ERROR_HTTP_DATA_INVALID;
         srs_error("invalid empty response. ret=%d", ret);
         return ret;
     }
@@ -462,7 +462,7 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     // parse string res to json.
     SrsJsonAny* info = SrsJsonAny::loads((char*)res.c_str());
     if (!info) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
+        ret = ERROR_HTTP_DATA_INVALID;
         srs_error("invalid response %s. ret=%d", res.c_str(), ret);
         return ret;
     }
@@ -471,7 +471,7 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     // response error code in string.
     if (!info->is_object()) {
         if (res != SRS_HTTP_RESPONSE_OK) {
-            ret = ERROR_HTTP_DATA_INVLIAD;
+            ret = ERROR_HTTP_DATA_INVALID;
             srs_error("invalid response number %s. ret=%d", res.c_str(), ret);
             return ret;
         }
