@@ -36,10 +36,12 @@ using namespace std;
 #include <srs_kernel_balance.hpp>
 #include <srs_kafka_stack.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_json.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
 #define SRS_KAKFA_CYCLE_INTERVAL_MS 3000
+#define SRS_KAFKA_PRODUCER_AGGREGATE_SIZE 10
 
 std::string srs_kafka_metadata_summary(SrsKafkaTopicMetadataResponse* metadata)
 {
@@ -144,6 +146,33 @@ string SrsKafkaPartition::hostport()
     return ep;
 }
 
+SrsKafkaMessageOnClient::SrsKafkaMessageOnClient(SrsKafkaProducer* p, SrsListenerType t, string i)
+{
+    producer = p;
+    type = t;
+    ip = i;
+}
+
+SrsKafkaMessageOnClient::~SrsKafkaMessageOnClient()
+{
+}
+
+int SrsKafkaMessageOnClient::call()
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    
+    obj->set("msg", SrsJsonAny::str("accept"));
+    obj->set("type", SrsJsonAny::integer(type));
+    obj->set("ip", SrsJsonAny::str(ip.c_str()));
+    
+    return producer->send(obj);
+}
+
+string SrsKafkaMessageOnClient::to_string()
+{
+    return ip;
+}
+
 SrsKafkaProducer::SrsKafkaProducer()
 {
     metadata_ok = false;
@@ -209,6 +238,41 @@ void SrsKafkaProducer::stop()
 {
     pthread->stop();
     worker->stop();
+}
+
+int SrsKafkaProducer::on_client(SrsListenerType type, st_netfd_t stfd)
+{
+    return worker->execute(new SrsKafkaMessageOnClient(this, type, srs_get_peer_ip(st_netfd_fileno(stfd))));
+}
+
+int SrsKafkaProducer::send(SrsJsonObject* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // cache the json object.
+    objects.push_back(obj);
+    
+    // too few messages, ignore.
+    if (objects.size() < SRS_KAFKA_PRODUCER_AGGREGATE_SIZE) {
+        return ret;
+    }
+    
+    // too many messages, warn user.
+    if (objects.size() > SRS_KAFKA_PRODUCER_AGGREGATE_SIZE * 10) {
+        srs_warn("kafka cache too many messages: %d", objects.size());
+    }
+    
+    // sync with backgound metadata worker.
+    st_mutex_lock(lock);
+    
+    // flush message when metadata is ok.
+    if (metadata_ok) {
+        ret = flush();
+    }
+    
+    st_mutex_unlock(lock);
+    
+    return ret;
 }
 
 int SrsKafkaProducer::cycle()
@@ -327,6 +391,13 @@ void SrsKafkaProducer::refresh_metadata()
     metadata_ok = false;
     st_cond_signal(metadata_expired);
     srs_trace("kafka async refresh metadata in background");
+}
+
+int SrsKafkaProducer::flush()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
 }
 
 #endif

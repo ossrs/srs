@@ -1289,6 +1289,14 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     }
     srs_assert(conn);
     
+#ifdef SRS_AUTO_KAFKA
+    // notify kafka cluster.
+    if ((ret = kafka->on_client(type, client_stfd)) != ERROR_SUCCESS) {
+        srs_error("kafka handler on_client failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
     // directly enqueue, the cycle thread will remove the client.
     conns.push_back(conn);
     srs_verbose("add conn to vector.");

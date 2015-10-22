@@ -35,8 +35,12 @@ class SrsLbRoundRobin;
 class SrsAsyncCallWorker;
 class SrsTcpClient;
 class SrsKafkaClient;
+class SrsJsonObject;
+class SrsKafkaProducer;
 
 #include <srs_app_thread.hpp>
+#include <srs_app_server.hpp>
+#include <srs_app_async_call.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -61,6 +65,24 @@ public:
 };
 
 /**
+ * the following is all types of kafka messages.
+ */
+struct SrsKafkaMessageOnClient : public ISrsAsyncCallTask
+{
+public:
+    SrsKafkaProducer* producer;
+    SrsListenerType type;
+    std::string ip;
+public:
+    SrsKafkaMessageOnClient(SrsKafkaProducer* p, SrsListenerType t, std::string i);
+    virtual ~SrsKafkaMessageOnClient();
+// interface ISrsAsyncCallTask
+public:
+    virtual int call();
+    virtual std::string to_string();
+};
+
+/**
  * the kafka producer used to save log to kafka cluster.
  */
 class SrsKafkaProducer : public ISrsReusableThreadHandler
@@ -73,6 +95,7 @@ private:
     st_cond_t metadata_expired;
 public:
     std::vector<SrsKafkaPartition*> partitions;
+    std::vector<SrsJsonObject*> objects;
 private:
     SrsLbRoundRobin* lb;
     SrsAsyncCallWorker* worker;
@@ -85,6 +108,17 @@ public:
     virtual int initialize();
     virtual int start();
     virtual void stop();
+public:
+    /**
+     * when got any client connect to SRS, notify kafka.
+     */
+    virtual int on_client(SrsListenerType type, st_netfd_t stfd);
+    /**
+     * send json object to kafka cluster.
+     * the producer will aggregate message and send in kafka message set.
+     * @param obj the json object; user must never free it again.
+     */
+    virtual int send(SrsJsonObject* obj);
 // interface ISrsReusableThreadHandler
 public:
     virtual int cycle();
@@ -95,6 +129,7 @@ private:
     virtual int request_metadata();
     // set the metadata to invalid and refresh it.
     virtual void refresh_metadata();
+    virtual int flush();
 };
 
 #endif
