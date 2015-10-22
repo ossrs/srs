@@ -164,8 +164,6 @@ public:
 private:
     SrsLbRoundRobin* lb;
     SrsAsyncCallWorker* worker;
-    SrsTcpClient* transport;
-    SrsKafkaClient* kafka;
 public:
     SrsKafkaProducer();
     virtual ~SrsKafkaProducer();
