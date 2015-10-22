@@ -312,3 +312,17 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     return ret;
 }
 
+string srs_join_vector_string(vector<string>& vs, string separator)
+{
+    string str = "";
+    
+    for (int i = 0; i < (int)vs.size(); i++) {
+        str += vs.at(i);
+        if (i != (int)vs.size() - 1) {
+            str += separator;
+        }
+    }
+    
+    return str;
+}
+

@@ -77,6 +77,7 @@ public:
 public:
     virtual bool null();
     virtual bool empty();
+    virtual std::string to_str();
 // interface ISrsCodec
 public:
     virtual int nb_bytes();
@@ -146,6 +147,14 @@ public:
     {
         length++;
         elems.push_back(elem);
+    }
+    virtual int size()
+    {
+        return length;
+    }
+    virtual T* at(int index)
+    {
+        return elems.at(index);
     }
 // interface ISrsCodec
 public:
@@ -227,6 +236,14 @@ public:
     {
         length++;
         elems.push_back(elem);
+    }
+    virtual int size()
+    {
+        return length;
+    }
+    virtual int32_t at(int index)
+    {
+        return elems.at(index);
     }
     // interface ISrsCodec
 public:
@@ -792,6 +809,7 @@ public:
 
 // convert kafka array[string] to vector[string]
 extern std::vector<std::string> srs_kafka_array2vector(SrsKafkaArray<SrsKafkaString>* arr);
+extern std::vector<std::string> srs_kafka_array2vector(SrsKafkaArray<int32_t>* arr);
 
 #endif
 

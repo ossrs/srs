@@ -23,7 +23,7 @@
 
 #include <srs_kafka_stack.hpp>
 
-#include <string>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -31,6 +31,8 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_io.hpp>
 #include <srs_protocol_stream.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -62,6 +64,15 @@ bool SrsKafkaString::null()
 bool SrsKafkaString::empty()
 {
     return _size <= 0;
+}
+
+string SrsKafkaString::to_str()
+{
+    string ret;
+    if (_size > 0) {
+        ret.append(data, _size);
+    }
+    return ret;
 }
 
 int SrsKafkaString::nb_bytes()
@@ -1077,8 +1088,24 @@ int SrsKafkaClient::fetch_metadata(string topic, SrsKafkaTopicMetadataResponse**
 vector<string> srs_kafka_array2vector(SrsKafkaArray<SrsKafkaString>* arr)
 {
     vector<string> strs;
-    for (int i = 0; i < arr->nb_bytes(); i++) {
+    
+    for (int i = 0; i < arr->size(); i++) {
+        SrsKafkaString* elem = arr->at(i);
+        strs.push_back(elem->to_str());
     }
+    
+    return strs;
+}
+
+vector<string> srs_kafka_array2vector(SrsKafkaArray<int32_t>* arr)
+{
+    vector<string> strs;
+    
+    for (int i = 0; i < arr->size(); i++) {
+        int32_t elem = arr->at(i);
+        strs.push_back(srs_int2str(elem));
+    }
+    
     return strs;
 }
 

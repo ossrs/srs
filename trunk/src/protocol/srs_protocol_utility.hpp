@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <string>
+#include <vector>
 
 #include <srs_kernel_consts.hpp>
 
@@ -129,6 +130,9 @@ extern int srs_write_large_iovs(
     ISrsProtocolReaderWriter* skt, iovec* iovs, int size,
     ssize_t* pnwrite = NULL
 );
+
+// join string in vector with indicated separator
+extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);
 
 #endif
 

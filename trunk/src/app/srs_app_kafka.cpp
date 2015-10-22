@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_app_async_call.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_kernel_balance.hpp>
 #include <srs_kafka_stack.hpp>
 #include <srs_core_autofree.hpp>
@@ -200,6 +201,48 @@ int SrsKafkaProducer::request_metadata()
         return ret;
     }
     SrsAutoFree(SrsKafkaTopicMetadataResponse, metadata);
+    
+    // show kafka metadata.
+    string summary;
+    if (true) {
+        vector<string> bs;
+        for (int i = 0; i < metadata->brokers.size(); i++) {
+            SrsKafkaBroker* broker = metadata->brokers.at(i);
+            
+            string hostport = srs_int2str(broker->node_id) + "/" + broker->host.to_str();
+            if (broker->port > 0) {
+                hostport += ":" + srs_int2str(broker->port);
+            }
+            
+            bs.push_back(hostport);
+        }
+        
+        vector<string> ps;
+        for (int i = 0; i < metadata->metadatas.size(); i++) {
+            SrsKafkaTopicMetadata* topic = metadata->metadatas.at(i);
+            
+            string desc = "topic=" + topic->name.to_str();
+            
+            for (int j = 0; j < topic->metadatas.size(); j++) {
+                SrsKafkaPartitionMetadata* partition = topic->metadatas.at(j);
+                
+                desc += ", partition" + srs_int2str(partition->partition_id) +"=";
+                desc += srs_int2str(partition->leader) + "/";
+                
+                vector<string> replicas = srs_kafka_array2vector(&partition->replicas);
+                desc += srs_join_vector_string(replicas, ",");
+            }
+            
+            ps.push_back(desc);
+        }
+        
+        std::stringstream ss;
+        ss << "brokers=" << srs_join_vector_string(bs, ",");
+        ss << ", " << srs_join_vector_string(ps, ",");
+    
+        summary = ss.str();
+    }
+    srs_trace("kafka metadata: %s", summary.c_str());
     
     meatadata_ok = true;
     
