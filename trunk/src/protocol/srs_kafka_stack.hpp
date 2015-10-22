@@ -152,6 +152,10 @@ public:
     {
         return length;
     }
+    virtual bool empty()
+    {
+        return elems.empty();
+    }
     virtual T* at(int index)
     {
         return elems.at(index);
@@ -240,6 +244,10 @@ public:
     virtual int size()
     {
         return length;
+    }
+    virtual bool empty()
+    {
+        return elems.empty();
     }
     virtual int32_t at(int index)
     {

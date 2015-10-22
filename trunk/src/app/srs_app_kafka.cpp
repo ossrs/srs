@@ -459,7 +459,8 @@ int SrsKafkaProducer::request_metadata()
                   senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
     }
     
-    // connect to kafka server.
+    // reconnect to kafka server.
+    transport->close();
     if ((ret = transport->connect(server, port, SRS_CONSTS_KAFKA_TIMEOUT_US)) != ERROR_SUCCESS) {
         srs_error("kafka connect %s:%d failed. ret=%d", server.c_str(), port, ret);
         return ret;
@@ -472,6 +473,16 @@ int SrsKafkaProducer::request_metadata()
         return ret;
     }
     SrsAutoFree(SrsKafkaTopicMetadataResponse, metadata);
+    
+    // we may need to request multiple times.
+    // for example, the first time to create a none-exists topic, then query metadata.
+    if (!metadata->metadatas.empty()) {
+        SrsKafkaTopicMetadata* topic = metadata->metadatas.at(0);
+        if (topic->metadatas.empty()) {
+            srs_warn("topic %s metadata empty, retry.", topic->name.to_str().c_str());
+            return ret;
+        }
+    }
     
     // show kafka metadata.
     string summary = srs_kafka_metadata_summary(metadata);
