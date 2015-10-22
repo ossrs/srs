@@ -29,6 +29,7 @@
 */
 #include <srs_core.hpp>
 
+#include <map>
 #include <vector>
 
 class SrsLbRoundRobin;
@@ -67,14 +68,22 @@ public:
 /**
  * the following is all types of kafka messages.
  */
-struct SrsKafkaMessageOnClient : public ISrsAsyncCallTask
+class SrsKafkaMessage : public ISrsAsyncCallTask
+{
+protected:
+    int key;
+public:
+    SrsKafkaMessage(int k);
+    virtual ~SrsKafkaMessage();
+};
+struct SrsKafkaMessageOnClient : public SrsKafkaMessage
 {
 public:
     SrsKafkaProducer* producer;
     SrsListenerType type;
     std::string ip;
 public:
-    SrsKafkaMessageOnClient(SrsKafkaProducer* p, SrsListenerType t, std::string i);
+    SrsKafkaMessageOnClient(SrsKafkaProducer* p, int k, SrsListenerType t, std::string i);
     virtual ~SrsKafkaMessageOnClient();
 // interface ISrsAsyncCallTask
 public:
@@ -83,9 +92,65 @@ public:
 };
 
 /**
+ * the partition messages cache.
+ */
+typedef std::vector<SrsJsonObject*> SrsKafkaPartitionCache;
+
+/**
+ * a message cache for kafka.
+ */
+class SrsKafkaCache
+{
+public:
+    // the total partitions,
+    // for the key to map to the parition by key%nb_partitions.
+    int nb_partitions;
+private:
+    // total messages for all partitions.
+    int count;
+    // key is the partition id, value is the message set to write to this partition.
+    // @remark, when refresh metadata, the partition will increase,
+    //      so maybe some message will dispatch to new partition.
+    std::map< int32_t, SrsKafkaPartitionCache*> cache;
+public:
+    SrsKafkaCache();
+    virtual ~SrsKafkaCache();
+public:
+    virtual void append(int key, SrsJsonObject* obj);
+    virtual int size();
+    /**
+     * fetch out a available partition cache.
+     * @return true when got a key and pc; otherwise, false.
+     */
+    virtual bool fetch(int* pkey, SrsKafkaPartitionCache** ppc);
+    /**
+     * flush the specified partition cache.
+     */
+    virtual int flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitionCache* pc);
+};
+
+/**
+ * the kafka cluster interface.
+ */
+class ISrsKafkaCluster
+{
+public:
+    ISrsKafkaCluster();
+    virtual ~ISrsKafkaCluster();
+public:
+    /**
+     * when got any client connect to SRS, notify kafka.
+     * @param key the partition map key, a id or hash.
+     * @param type the type of client.
+     * @param ip the peer ip of client.
+     */
+    virtual int on_client(int key, SrsListenerType type, std::string ip) = 0;
+};
+
+/**
  * the kafka producer used to save log to kafka cluster.
  */
-class SrsKafkaProducer : public ISrsReusableThreadHandler
+class SrsKafkaProducer : virtual public ISrsReusableThreadHandler, virtual public ISrsKafkaCluster
 {
 private:
     st_mutex_t lock;
@@ -95,7 +160,7 @@ private:
     st_cond_t metadata_expired;
 public:
     std::vector<SrsKafkaPartition*> partitions;
-    std::vector<SrsJsonObject*> objects;
+    SrsKafkaCache* cache;
 private:
     SrsLbRoundRobin* lb;
     SrsAsyncCallWorker* worker;
@@ -112,19 +177,23 @@ public:
     /**
      * when got any client connect to SRS, notify kafka.
      */
-    virtual int on_client(SrsListenerType type, st_netfd_t stfd);
+    virtual int on_client(int key, SrsListenerType type, std::string ip);
+// for worker to call task to send object.
+public:
     /**
      * send json object to kafka cluster.
      * the producer will aggregate message and send in kafka message set.
+     * @param key the key to map to the partition, user can use cid or hash.
      * @param obj the json object; user must never free it again.
      */
-    virtual int send(SrsJsonObject* obj);
+    virtual int send(int key, SrsJsonObject* obj);
 // interface ISrsReusableThreadHandler
 public:
     virtual int cycle();
     virtual int on_before_cycle();
     virtual int on_end_cycle();
 private:
+    virtual void clear_metadata();
     virtual int do_cycle();
     virtual int request_metadata();
     // set the metadata to invalid and refresh it.

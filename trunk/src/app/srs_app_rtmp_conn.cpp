@@ -55,6 +55,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_app_kafka.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -310,10 +311,18 @@ void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
     transport->set_recv_timeout(timeout);
 }
 
+#ifdef SRS_AUTO_KAFKA
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c)
+#else
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
+#endif
     : SrsConnection(svr, c)
 {
     server = svr;
+#ifdef SRS_AUTO_KAFKA
+    kafka = k;
+#endif
+    
     req = new SrsRequest();
     res = new SrsResponse();
     skt = new SrsStSocket(c);
@@ -365,6 +374,14 @@ int SrsRtmpConn::do_cycle()
     int ret = ERROR_SUCCESS;
     
     srs_trace("RTMP client ip=%s", ip.c_str());
+    
+    // notify kafka cluster.
+#ifdef SRS_AUTO_KAFKA
+    if ((ret = kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
+        srs_error("kafka handler on_client failed. ret=%d", ret);
+        return ret;
+    }
+#endif
 
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);

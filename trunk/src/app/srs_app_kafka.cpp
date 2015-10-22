@@ -146,7 +146,17 @@ string SrsKafkaPartition::hostport()
     return ep;
 }
 
-SrsKafkaMessageOnClient::SrsKafkaMessageOnClient(SrsKafkaProducer* p, SrsListenerType t, string i)
+SrsKafkaMessage::SrsKafkaMessage(int k)
+{
+    key = k;
+}
+
+SrsKafkaMessage::~SrsKafkaMessage()
+{
+}
+
+SrsKafkaMessageOnClient::SrsKafkaMessageOnClient(SrsKafkaProducer* p, int k, SrsListenerType t, string i)
+    : SrsKafkaMessage(k)
 {
     producer = p;
     type = t;
@@ -165,12 +175,93 @@ int SrsKafkaMessageOnClient::call()
     obj->set("type", SrsJsonAny::integer(type));
     obj->set("ip", SrsJsonAny::str(ip.c_str()));
     
-    return producer->send(obj);
+    return producer->send(key, obj);
 }
 
 string SrsKafkaMessageOnClient::to_string()
 {
     return ip;
+}
+
+SrsKafkaCache::SrsKafkaCache()
+{
+    count = 0;
+    nb_partitions = 0;
+}
+
+SrsKafkaCache::~SrsKafkaCache()
+{
+    map<int32_t, SrsKafkaPartitionCache*>::iterator it;
+    for (it = cache.begin(); it != cache.end(); ++it) {
+        SrsKafkaPartitionCache* pc = it->second;
+        
+        for (vector<SrsJsonObject*>::iterator it2 = pc->begin(); it2 != pc->end(); ++it2) {
+            SrsJsonObject* obj = *it2;
+            srs_freep(obj);
+        }
+        pc->clear();
+        
+        srs_freep(pc);
+    }
+    cache.clear();
+}
+
+void SrsKafkaCache::append(int key, SrsJsonObject* obj)
+{
+    count++;
+    
+    int partition = 0;
+    if (nb_partitions > 0) {
+        partition = key % nb_partitions;
+    }
+    
+    SrsKafkaPartitionCache* pc = NULL;
+    map<int32_t, SrsKafkaPartitionCache*>::iterator it = cache.find(partition);
+    if (it == cache.end()) {
+        pc = new SrsKafkaPartitionCache();
+        cache[partition] = pc;
+    } else {
+        pc = it->second;
+    }
+    
+    pc->push_back(obj);
+}
+
+int SrsKafkaCache::size()
+{
+    return count;
+}
+
+bool SrsKafkaCache::fetch(int* pkey, SrsKafkaPartitionCache** ppc)
+{
+    map<int32_t, SrsKafkaPartitionCache*>::iterator it;
+    for (it = cache.begin(); it != cache.end(); ++it) {
+        int32_t key = it->first;
+        SrsKafkaPartitionCache* pc = it->second;
+        
+        if (!pc->empty()) {
+            *pkey = (int)key;
+            *ppc = pc;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+int SrsKafkaCache::flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitionCache* pc)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+ISrsKafkaCluster::ISrsKafkaCluster()
+{
+}
+
+ISrsKafkaCluster::~ISrsKafkaCluster()
+{
 }
 
 SrsKafkaProducer::SrsKafkaProducer()
@@ -181,6 +272,7 @@ SrsKafkaProducer::SrsKafkaProducer()
     lock = st_mutex_new();
     pthread = new SrsReusableThread("kafka", this, SRS_KAKFA_CYCLE_INTERVAL_MS * 1000);
     worker = new SrsAsyncCallWorker();
+    cache = new SrsKafkaCache();
     
     lb = new SrsLbRoundRobin();
     transport = new SrsTcpClient();
@@ -189,12 +281,7 @@ SrsKafkaProducer::SrsKafkaProducer()
 
 SrsKafkaProducer::~SrsKafkaProducer()
 {
-    vector<SrsKafkaPartition*>::iterator it;
-    for (it = partitions.begin(); it != partitions.end(); ++it) {
-        SrsKafkaPartition* partition = *it;
-        srs_freep(partition);
-    }
-    partitions.clear();
+    clear_metadata();
     
     srs_freep(lb);
     srs_freep(kafka);
@@ -202,6 +289,7 @@ SrsKafkaProducer::~SrsKafkaProducer()
     
     srs_freep(worker);
     srs_freep(pthread);
+    srs_freep(cache);
     
     st_mutex_destroy(lock);
     st_cond_destroy(metadata_expired);
@@ -240,26 +328,26 @@ void SrsKafkaProducer::stop()
     worker->stop();
 }
 
-int SrsKafkaProducer::on_client(SrsListenerType type, st_netfd_t stfd)
+int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
-    return worker->execute(new SrsKafkaMessageOnClient(this, type, srs_get_peer_ip(st_netfd_fileno(stfd))));
+    return worker->execute(new SrsKafkaMessageOnClient(this, key, type, ip));
 }
 
-int SrsKafkaProducer::send(SrsJsonObject* obj)
+int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
 {
     int ret = ERROR_SUCCESS;
     
     // cache the json object.
-    objects.push_back(obj);
+    cache->append(key, obj);
     
     // too few messages, ignore.
-    if (objects.size() < SRS_KAFKA_PRODUCER_AGGREGATE_SIZE) {
+    if (cache->size() < SRS_KAFKA_PRODUCER_AGGREGATE_SIZE) {
         return ret;
     }
     
     // too many messages, warn user.
-    if (objects.size() > SRS_KAFKA_PRODUCER_AGGREGATE_SIZE * 10) {
-        srs_warn("kafka cache too many messages: %d", objects.size());
+    if (cache->size() > SRS_KAFKA_PRODUCER_AGGREGATE_SIZE * 10) {
+        srs_warn("kafka cache too many messages: %d", cache->size());
     }
     
     // sync with backgound metadata worker.
@@ -305,6 +393,18 @@ int SrsKafkaProducer::on_end_cycle()
     st_mutex_unlock(lock);
  
     return ERROR_SUCCESS;
+}
+
+void SrsKafkaProducer::clear_metadata()
+{
+    vector<SrsKafkaPartition*>::iterator it;
+    
+    for (it = partitions.begin(); it != partitions.end(); ++it) {
+        SrsKafkaPartition* partition = *it;
+        srs_freep(partition);
+    }
+    
+    partitions.clear();
 }
 
 int SrsKafkaProducer::do_cycle()
@@ -381,6 +481,9 @@ int SrsKafkaProducer::request_metadata()
     srs_kafka_metadata2connector(metadata, partitions);
     srs_trace("kafka connector: %s", srs_kafka_summary_partitions(partitions).c_str());
     
+    // update the total partition for cache.
+    cache->nb_partitions = (int)partitions.size();
+    
     metadata_ok = true;
     
     return ret;
@@ -388,6 +491,8 @@ int SrsKafkaProducer::request_metadata()
 
 void SrsKafkaProducer::refresh_metadata()
 {
+    clear_metadata();
+    
     metadata_ok = false;
     st_cond_signal(metadata_expired);
     srs_trace("kafka async refresh metadata in background");
@@ -396,7 +501,26 @@ void SrsKafkaProducer::refresh_metadata()
 int SrsKafkaProducer::flush()
 {
     int ret = ERROR_SUCCESS;
-    // TODO: FIXME: implements it.
+    
+    // flush all available partition caches.
+    while (true) {
+        int key = 0;
+        SrsKafkaPartitionCache* pc = NULL;
+        
+        // all flushed, or no kafka partition to write to.
+        if (!cache->fetch(&key, &pc) || partitions.empty()) {
+            break;
+        }
+        
+        // flush specified partition.
+        srs_assert(key && pc);
+        SrsKafkaPartition* partition = partitions.at(key % partitions.size());
+        if ((ret = cache->flush(partition, key, pc)) != ERROR_SUCCESS) {
+            srs_error("flush partition failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
     return ret;
 }
 

@@ -1267,7 +1267,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     
     SrsConnection* conn = NULL;
     if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, client_stfd);
+        conn = new SrsRtmpConn(this, kafka, client_stfd);
     } else if (type == SrsListenerHttpApi) {
 #ifdef SRS_AUTO_HTTP_API
         conn = new SrsHttpApi(this, client_stfd, http_api_mux);
@@ -1288,14 +1288,6 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
         // TODO: FIXME: handler others
     }
     srs_assert(conn);
-    
-#ifdef SRS_AUTO_KAFKA
-    // notify kafka cluster.
-    if ((ret = kafka->on_client(type, client_stfd)) != ERROR_SUCCESS) {
-        srs_error("kafka handler on_client failed. ret=%d", ret);
-        return ret;
-    }
-#endif
     
     // directly enqueue, the cycle thread will remove the client.
     conns.push_back(conn);
