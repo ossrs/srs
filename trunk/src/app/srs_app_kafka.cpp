@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_balance.hpp>
 #include <srs_kafka_stack.hpp>
+#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -178,6 +179,14 @@ int SrsKafkaProducer::request_metadata()
         srs_parse_endpoint(broker, server, port);
     }
     
+    std::string topic = _srs_config->get_kafka_topic();
+    if (true) {
+        std::string senabled = srs_bool2switch(enabled);
+        std::string sbrokers = srs_join_vector_string(brokers->args, ",");
+        srs_trace("kafka request enabled:%s, brokers:%s, current:[%d]%s:%d, topic:%s",
+                  senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
+    }
+    
     // connect to kafka server.
     if ((ret = transport->connect(server, port, SRS_CONSTS_KAFKA_TIMEOUT_US)) != ERROR_SUCCESS) {
         srs_error("kafka connect %s:%d failed. ret=%d", server.c_str(), port, ret);
@@ -185,19 +194,12 @@ int SrsKafkaProducer::request_metadata()
     }
     
     // do fetch medata from broker.
-    std::string topic = _srs_config->get_kafka_topic();
-    if ((ret = kafka->fetch_metadata(topic)) != ERROR_SUCCESS) {
+    SrsKafkaTopicMetadataResponse* metadata = NULL;
+    if ((ret = kafka->fetch_metadata(topic, &metadata)) != ERROR_SUCCESS) {
         srs_error("kafka fetch metadata failed. ret=%d", ret);
         return ret;
     }
-    
-    // log when completed.
-    if (true) {
-        std::string senabled = srs_bool2switch(enabled);
-        std::string sbrokers = srs_join_vector_string(brokers->args, ",");
-        srs_trace("kafka ok, enabled:%s, brokers:%s, current:[%d]%s:%d, topic:%s",
-                  senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
-    }
+    SrsAutoFree(SrsKafkaTopicMetadataResponse, metadata);
     
     meatadata_ok = true;
     

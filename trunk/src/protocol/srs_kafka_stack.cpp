@@ -1051,8 +1051,10 @@ SrsKafkaClient::~SrsKafkaClient()
     srs_freep(protocol);
 }
 
-int SrsKafkaClient::fetch_metadata(string topic)
+int SrsKafkaClient::fetch_metadata(string topic, SrsKafkaTopicMetadataResponse** pmsg)
 {
+    *pmsg = NULL;
+    
     int ret = ERROR_SUCCESS;
     
     SrsKafkaTopicMetadataRequest* req = new SrsKafkaTopicMetadataRequest();
@@ -1064,16 +1066,20 @@ int SrsKafkaClient::fetch_metadata(string topic)
         return ret;
     }
     
-    SrsKafkaResponse* res = NULL;
-    if ((ret = protocol->recv_message(&res)) != ERROR_SUCCESS) {
+    if ((ret = protocol->expect_message(pmsg)) != ERROR_SUCCESS) {
         srs_error("kafka recv response failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsKafkaResponse, res);
-    
-    // TODO: FIXME: implements it.
     
     return ret;
+}
+
+vector<string> srs_kafka_array2vector(SrsKafkaArray<SrsKafkaString>* arr)
+{
+    vector<string> strs;
+    for (int i = 0; i < arr->size(); i++) {
+    }
+    return strs;
 }
 
 #endif

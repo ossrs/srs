@@ -666,7 +666,7 @@ public:
  */
 class SrsKafkaTopicMetadataResponse : public SrsKafkaResponse
 {
-private:
+public:
     SrsKafkaArray<SrsKafkaBroker> brokers;
     SrsKafkaArray<SrsKafkaTopicMetadata> metadatas;
 public:
@@ -741,6 +741,36 @@ public:
      * @param pmsg output the received message. user must free it.
      */
     virtual int recv_message(SrsKafkaResponse** pmsg);
+public:
+    /**
+     * expect specified message.
+     */
+    template<typename T>
+    int expect_message(T** pmsg)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        while (true) {
+            SrsKafkaResponse* res = NULL;
+            if ((ret = recv_message(&res)) != ERROR_SUCCESS) {
+                srs_error("recv response failed. ret=%d", ret);
+                return ret;
+            }
+            
+            // drop not matched.
+            T* msg = dynamic_cast<T*>(res);
+            if (!msg) {
+                srs_info("kafka drop response.");
+                srs_freep(res);
+                continue;
+            }
+            
+            *pmsg = msg;
+            break;
+        }
+        
+        return ret;
+    }
 };
 
 /**
@@ -757,8 +787,11 @@ public:
     /**
      * fetch the metadata from broker for topic.
      */
-    virtual int fetch_metadata(std::string topic);
+    virtual int fetch_metadata(std::string topic, SrsKafkaTopicMetadataResponse** pmsg);
 };
+
+// convert kafka array[string] to vector[string]
+extern std::vector<std::string> srs_kafka_array2vector(SrsKafkaArray<SrsKafkaString>* arr);
 
 #endif
 
