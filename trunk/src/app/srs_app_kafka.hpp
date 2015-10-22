@@ -52,6 +52,8 @@ struct SrsKafkaPartition
 {
 private:
     std::string ep;
+    SrsTcpClient* transport;
+    SrsKafkaClient* kafka;
 public:
     int id;
     // leader.
@@ -63,6 +65,7 @@ public:
     virtual ~SrsKafkaPartition();
 public:
     virtual std::string hostport();
+    virtual int connect();
 };
 
 /**
