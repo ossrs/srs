@@ -190,7 +190,7 @@ public:
             srs_error("kafka decode array failed. ret=%d", ret);
             return ret;
         }
-        length = buf->read_2bytes();
+        length = buf->read_4bytes();
         
         for (int i = 0; i < length; i++) {
             T* elem = new T();
@@ -200,6 +200,78 @@ public:
                 return ret;
             }
             
+            elems.push_back(elem);
+        }
+        
+        return ret;
+    }
+};
+template<>
+class SrsKafkaArray<int32_t> : public ISrsCodec
+{
+private:
+    int32_t length;
+    std::vector<int32_t> elems;
+    typedef std::vector<int32_t>::iterator SrsIterator;
+public:
+    SrsKafkaArray()
+    {
+        length = 0;
+    }
+    virtual ~SrsKafkaArray()
+    {
+        elems.clear();
+    }
+public:
+    virtual void append(int32_t elem)
+    {
+        length++;
+        elems.push_back(elem);
+    }
+    // interface ISrsCodec
+public:
+    virtual int size()
+    {
+        return 4 + sizeof(int32_t) * (int)elems.size();
+    }
+    virtual int encode(SrsBuffer* buf)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if (!buf->require(4 + sizeof(int32_t) * (int)elems.size())) {
+            ret = ERROR_KAFKA_CODEC_ARRAY;
+            srs_error("kafka encode array failed. ret=%d", ret);
+            return ret;
+        }
+        buf->write_4bytes(length);
+        
+        for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
+            int32_t elem = *it;
+            buf->write_4bytes(elem);
+        }
+        
+        return ret;
+    }
+    virtual int decode(SrsBuffer* buf)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if (!buf->require(4)) {
+            ret = ERROR_KAFKA_CODEC_ARRAY;
+            srs_error("kafka decode array failed. ret=%d", ret);
+            return ret;
+        }
+        length = buf->read_4bytes();
+        
+        for (int i = 0; i < length; i++) {
+            if (!buf->require(sizeof(int32_t))) {
+                ret = ERROR_KAFKA_CODEC_ARRAY;
+                srs_error("kafka decode array elem failed. ret=%d", ret);
+                return ret;
+                
+            }
+            
+            int32_t elem = buf->read_4bytes();
             elems.push_back(elem);
         }
         
@@ -533,6 +605,58 @@ public:
 };
 
 /**
+ * the metadata response data.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-MetadataResponse
+ */
+struct SrsKafkaBroker : public ISrsCodec
+{
+public:
+    int32_t node_id;
+    SrsKafkaString host;
+    int32_t port;
+public:
+    SrsKafkaBroker();
+    virtual ~SrsKafkaBroker();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+struct SrsKafkaPartitionMetadata : public ISrsCodec
+{
+public:
+    int16_t error_code;
+    int32_t partition_id;
+    int32_t leader;
+    SrsKafkaArray<int32_t> replicas;
+    SrsKafkaArray<int32_t> isr;
+public:
+    SrsKafkaPartitionMetadata();
+    virtual ~SrsKafkaPartitionMetadata();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+struct SrsKafkaTopicMetadata : public ISrsCodec
+{
+public:
+    int16_t error_code;
+    SrsKafkaString name;
+    SrsKafkaArray<SrsKafkaPartitionMetadata> metadatas;
+public:
+    SrsKafkaTopicMetadata();
+    virtual ~SrsKafkaTopicMetadata();
+// interface ISrsCodec
+public:
+    virtual int size();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+
+/**
  * response for the metadata request from broker.
  * The response contains metadata for each partition, 
  * with partitions grouped together by topic. This 
@@ -542,6 +666,9 @@ public:
  */
 class SrsKafkaTopicMetadataResponse : public SrsKafkaResponse
 {
+private:
+    SrsKafkaArray<SrsKafkaBroker> brokers;
+    SrsKafkaArray<SrsKafkaTopicMetadata> metadatas;
 public:
     SrsKafkaTopicMetadataResponse();
     virtual ~SrsKafkaTopicMetadataResponse();

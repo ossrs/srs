@@ -601,6 +601,200 @@ int SrsKafkaTopicMetadataRequest::decode(SrsBuffer* buf)
     return ret;
 }
 
+SrsKafkaBroker::SrsKafkaBroker()
+{
+    node_id = port = 0;
+}
+
+SrsKafkaBroker::~SrsKafkaBroker()
+{
+}
+
+int SrsKafkaBroker::size()
+{
+    return 4 + host.size() + 4;
+}
+
+int SrsKafkaBroker::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka encode broker node_id failed. ret=%d", ret);
+        return ret;
+    }
+    buf->write_4bytes(node_id);
+    
+    if ((ret = host.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode broker host failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if (!buf->require(4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka encode broker port failed. ret=%d", ret);
+        return ret;
+    }
+    buf->write_4bytes(port);
+
+    return ret;
+}
+
+int SrsKafkaBroker::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka decode broker node_id failed. ret=%d", ret);
+        return ret;
+    }
+    node_id = buf->read_4bytes();
+    
+    if ((ret = host.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode broker host failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if (!buf->require(4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka decode broker port failed. ret=%d", ret);
+        return ret;
+    }
+    port = buf->read_4bytes();
+    
+    return ret;
+}
+
+SrsKafkaPartitionMetadata::SrsKafkaPartitionMetadata()
+{
+    error_code = 0;
+    partition_id = 0;
+    leader = 0;
+}
+
+SrsKafkaPartitionMetadata::~SrsKafkaPartitionMetadata()
+{
+}
+
+int SrsKafkaPartitionMetadata::size()
+{
+    return 2 + 4 + 4 + replicas.size() + isr.size();
+}
+
+int SrsKafkaPartitionMetadata::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(2 + 4 + 4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka encode partition metadata failed. ret=%d", ret);
+        return ret;
+    }
+    buf->write_2bytes(error_code);
+    buf->write_4bytes(partition_id);
+    buf->write_4bytes(leader);
+    
+    if ((ret = replicas.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode partition metadata replicas failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = isr.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode partition metadata isr failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsKafkaPartitionMetadata::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(2 + 4 + 4)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka decode partition metadata failed. ret=%d", ret);
+        return ret;
+    }
+    error_code = buf->read_2bytes();
+    partition_id = buf->read_4bytes();
+    leader = buf->read_4bytes();
+    
+    if ((ret = replicas.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode partition metadata replicas failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = isr.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode partition metadata isr failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+SrsKafkaTopicMetadata::SrsKafkaTopicMetadata()
+{
+    error_code = 0;
+}
+
+SrsKafkaTopicMetadata::~SrsKafkaTopicMetadata()
+{
+}
+
+int SrsKafkaTopicMetadata::size()
+{
+    return 2 + name.size() + metadatas.size();
+}
+
+int SrsKafkaTopicMetadata::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(2)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka encode topic metadata failed. ret=%d", ret);
+        return ret;
+    }
+    buf->write_2bytes(error_code);
+    
+    if ((ret = name.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode topic name failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = metadatas.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode topic metadatas failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsKafkaTopicMetadata::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!buf->require(2)) {
+        ret = ERROR_KAFKA_CODEC_METADATA;
+        srs_error("kafka decode topic metadata failed. ret=%d", ret);
+        return ret;
+    }
+    error_code = buf->read_2bytes();
+    
+    if ((ret = name.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode topic name failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = metadatas.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode topic metadatas failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
 SrsKafkaTopicMetadataResponse::SrsKafkaTopicMetadataResponse()
 {
 }
@@ -611,8 +805,7 @@ SrsKafkaTopicMetadataResponse::~SrsKafkaTopicMetadataResponse()
 
 int SrsKafkaTopicMetadataResponse::size()
 {
-    // TODO: FIXME: implements it.
-    return SrsKafkaResponse::size();
+    return SrsKafkaResponse::size() + brokers.size() + metadatas.size();
 }
 
 int SrsKafkaTopicMetadataResponse::encode(SrsBuffer* buf)
@@ -624,7 +817,16 @@ int SrsKafkaTopicMetadataResponse::encode(SrsBuffer* buf)
         return ret;
     }
     
-    // TODO: FIXME: implements it.
+    if ((ret = brokers.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode metadata brokers failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = metadatas.encode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka encode metadatas failed. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -637,7 +839,16 @@ int SrsKafkaTopicMetadataResponse::decode(SrsBuffer* buf)
         return ret;
     }
     
-    // TODO: FIXME: implements it.
+    if ((ret = brokers.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode metadata brokers failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = metadatas.decode(buf)) != ERROR_SUCCESS) {
+        srs_error("kafka decode metadatas failed. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
