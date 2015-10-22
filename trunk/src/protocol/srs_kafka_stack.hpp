@@ -79,7 +79,7 @@ public:
     virtual bool empty();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -103,7 +103,7 @@ public:
     virtual bool empty();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -149,13 +149,13 @@ public:
     }
 // interface ISrsCodec
 public:
-    virtual int size()
+    virtual int nb_bytes()
     {
         int s = 4;
         
         for (SrsIterator it = elems.begin(); it != elems.end(); ++it) {
             T* elem = *it;
-            s += elem->size();
+            s += elem->nb_bytes();
         }
         
         return s;
@@ -230,9 +230,9 @@ public:
     }
     // interface ISrsCodec
 public:
-    virtual int size()
+    virtual int nb_bytes()
     {
-        return 4 + sizeof(int32_t) * (int)elems.size();
+        return 4 + 4 * (int)elems.size();
     }
     virtual int encode(SrsBuffer* buf)
     {
@@ -384,7 +384,7 @@ public:
     virtual bool is_consumer_metadata_request();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -450,7 +450,7 @@ public:
     virtual int32_t correlation_id();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -546,7 +546,7 @@ public:
     virtual SrsKafkaApiKey api_key();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -569,7 +569,7 @@ public:
     virtual void update_header(int s);
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -599,7 +599,7 @@ public:
     virtual void add_topic(std::string topic);
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -619,7 +619,7 @@ public:
     virtual ~SrsKafkaBroker();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -636,7 +636,7 @@ public:
     virtual ~SrsKafkaPartitionMetadata();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -651,7 +651,7 @@ public:
     virtual ~SrsKafkaTopicMetadata();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };
@@ -674,7 +674,7 @@ public:
     virtual ~SrsKafkaTopicMetadataResponse();
 // interface ISrsCodec
 public:
-    virtual int size();
+    virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 };

@@ -67,9 +67,9 @@ public:
     virtual ~ISrsCodec();
 public:
     /**
-     * get the size of object to encode object to bytes.
+     * get the number of bytes to code to.
      */
-    virtual int size() = 0;
+    virtual int nb_bytes() = 0;
     /**
      * encode object to bytes in SrsBuffer.
      */
