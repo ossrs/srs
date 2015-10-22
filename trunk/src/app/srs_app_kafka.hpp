@@ -69,7 +69,7 @@ private:
     st_mutex_t lock;
     SrsReusableThread* pthread;
 private:
-    bool meatadata_ok;
+    bool metadata_ok;
     st_cond_t metadata_expired;
 public:
     std::vector<SrsKafkaPartition*> partitions;
@@ -93,6 +93,8 @@ public:
 private:
     virtual int do_cycle();
     virtual int request_metadata();
+    // set the metadata to invalid and refresh it.
+    virtual void refresh_metadata();
 };
 
 #endif

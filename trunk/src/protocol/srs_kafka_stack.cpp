@@ -1010,7 +1010,7 @@ int SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
         // fetch cached api key.
         SrsKafkaCorrelationPool* pool = SrsKafkaCorrelationPool::instance();
         SrsKafkaApiKey key = pool->unset(header.correlation_id());
-        srs_trace("kafka got %d bytes response, key=%d", header.total_size(), header.correlation_id());
+        srs_info("kafka got %d bytes response, key=%d", header.total_size(), header.correlation_id());
         
         // create message by cached api key.
         SrsKafkaResponse* res = NULL;
