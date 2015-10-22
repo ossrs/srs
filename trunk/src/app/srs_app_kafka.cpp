@@ -281,28 +281,32 @@ int SrsKafkaCache::flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitio
     // ensure the key exists.
     srs_assert (cache.find(key) != cache.end());
     
+    // the cache is vector, which is continous store.
+    // we remember the messages we have written and clear it when completed.
+    int nb_msgs = (int)pc->size();
+    if (pc->empty()) {
+        return ret;
+    }
+    
     // connect transport.
     if ((ret = partition->connect()) != ERROR_SUCCESS) {
         srs_error("connect to partition failed. ret=%d", ret);
         return ret;
     }
     
-    // copy the messages to a temp cache.
-    SrsKafkaPartitionCache tpc(*pc);
-    
     // TODO: FIXME: implements it.
     
     // free all wrote messages.
-    for (vector<SrsJsonObject*>::iterator it = tpc.begin(); it != tpc.end(); ++it) {
+    for (vector<SrsJsonObject*>::iterator it = pc->begin(); it != pc->end(); ++it) {
         SrsJsonObject* obj = *it;
         srs_freep(obj);
     }
     
     // remove the messages from cache.
-    if (pc->size() == tpc.size()) {
+    if (pc->size() == nb_msgs) {
         pc->clear();
     } else {
-        pc->erase(pc->begin(), pc->begin() + tpc.size());
+        pc->erase(pc->begin(), pc->begin() + nb_msgs);
     }
     
     return ret;
