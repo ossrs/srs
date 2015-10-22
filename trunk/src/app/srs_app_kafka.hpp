@@ -29,6 +29,8 @@
 */
 #include <srs_core.hpp>
 
+#include <vector>
+
 class SrsLbRoundRobin;
 class SrsAsyncCallWorker;
 class SrsTcpClient;
@@ -37,6 +39,26 @@ class SrsKafkaClient;
 #include <srs_app_thread.hpp>
 
 #ifdef SRS_AUTO_KAFKA
+
+/**
+ * the kafka partition info.
+ */
+struct SrsKafkaPartition
+{
+private:
+    std::string ep;
+public:
+    int id;
+    // leader.
+    int broker;
+    std::string host;
+    int port;
+public:
+    SrsKafkaPartition();
+    virtual ~SrsKafkaPartition();
+public:
+    virtual std::string hostport();
+};
 
 /**
  * the kafka producer used to save log to kafka cluster.
@@ -49,6 +71,8 @@ private:
 private:
     bool meatadata_ok;
     st_cond_t metadata_expired;
+public:
+    std::vector<SrsKafkaPartition*> partitions;
 private:
     SrsLbRoundRobin* lb;
     SrsAsyncCallWorker* worker;
