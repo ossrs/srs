@@ -39,6 +39,7 @@
 
 class SrsFastStream;
 class ISrsProtocolReaderWriter;
+class SrsJsonObject;
 
 #ifdef SRS_AUTO_KAFKA
 
@@ -484,7 +485,7 @@ public:
  * the kafka message in message set.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Messagesets
  */
-struct SrsKafkaRawMessage
+struct SrsKafkaRawMessage : public ISrsCodec
 {
 // metadata.
 public:
@@ -530,19 +531,32 @@ public:
 public:
     SrsKafkaRawMessage();
     virtual ~SrsKafkaRawMessage();
+// interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
  * a set of kafka message.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Messagesets
+ * @remark because the message set are not preceded by int32, so we decode the buffer util empty.
  */
-class SrsKafkaRawMessageSet
+class SrsKafkaRawMessageSet : public ISrsCodec
 {
 private:
     std::vector<SrsKafkaRawMessage*> messages;
 public:
     SrsKafkaRawMessageSet();
     virtual ~SrsKafkaRawMessageSet();
+public:
+    virtual void append(SrsKafkaRawMessage* msg);
+// interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -704,6 +718,94 @@ public:
     virtual int decode(SrsBuffer* buf);
 };
 
+
+/**
+ * the messages for producer to send.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ProduceRequest
+ */
+struct SrsKafkaProducerPartitionMessages : public ISrsCodec
+{
+public:
+    /**
+     * The partition that data is being published to.
+     */
+    int32_t partition;
+    /**
+     * The size, in bytes, of the message set that follows.
+     */
+    int32_t message_set_size;
+    /**
+     * messages in set.
+     */
+    SrsKafkaRawMessageSet messages;
+// interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+struct SrsKafkaProducerTopicMessages : public ISrsCodec
+{
+public:
+    /**
+     * The topic that data is being published to.
+     */
+    SrsKafkaString topic_name;
+    /**
+     * messages of partitions.
+     */
+    SrsKafkaArray<SrsKafkaProducerPartitionMessages> partitions;
+// interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+
+/**
+ * the request for producer to send message.
+ * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ProduceRequest
+ */
+class SrsKafkaProducerRequest : public SrsKafkaRequest
+{
+private:
+    /**
+     * This field indicates how many acknowledgements the servers should receive 
+     * before responding to the request. If it is 0 the server will not send any 
+     * response (this is the only case where the server will not reply to a request). 
+     * If it is 1, the server will wait the data is written to the local log 
+     * before sending a response. If it is -1 the server will block until the 
+     * message is committed by all in sync replicas before sending a response. 
+     * For any number > 1 the server will block waiting for this number of 
+     * acknowledgements to occur (but the server will never wait for more 
+     * acknowledgements than there are in-sync replicas).
+     */
+    int16_t required_acks;
+    /**
+     * This provides a maximum time in milliseconds the server can await the receipt 
+     * of the number of acknowledgements in RequiredAcks. The timeout is not an exact 
+     * limit on the request time for a few reasons: (1) it does not include network 
+     * latency, (2) the timer begins at the beginning of the processing of this request 
+     * so if many requests are queued due to server overload that wait time will not 
+     * be included, (3) we will not terminate a local write so if the local write 
+     * time exceeds this timeout it will not be respected. To get a hard timeout of 
+     * this type the client should use the socket timeout.
+     */
+    int32_t timeout;
+    /**
+     * messages of topics.
+     */
+    SrsKafkaArray<SrsKafkaProducerTopicMessages> topics;
+public:
+    SrsKafkaProducerRequest();
+    virtual ~SrsKafkaProducerRequest();
+// interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+};
+
 /**
  * the poll to discovery reponse.
  * @param CorrelationId This is a user-supplied integer. It will be passed back 
@@ -813,6 +915,10 @@ public:
      * fetch the metadata from broker for topic.
      */
     virtual int fetch_metadata(std::string topic, SrsKafkaTopicMetadataResponse** pmsg);
+    /**
+     * write the messages to partition of topic.
+     */
+    virtual int write_messages(std::string topic, int32_t partition, std::vector<SrsJsonObject*>& msgs);
 };
 
 // convert kafka array[string] to vector[string]

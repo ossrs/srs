@@ -274,6 +274,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_KAFKA_CODEC_RESPONSE          4033
 #define ERROR_KAFKA_CODEC_ARRAY             4034
 #define ERROR_KAFKA_CODEC_METADATA          4035
+#define ERROR_KAFKA_CODEC_MESSAGE           4036
+#define ERROR_KAFKA_CODEC_PRODUCER          4037
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

@@ -46,6 +46,11 @@ class SrsKafkaProducer;
 #ifdef SRS_AUTO_KAFKA
 
 /**
+ * the partition messages cache.
+ */
+typedef std::vector<SrsJsonObject*> SrsKafkaPartitionCache;
+
+/**
  * the kafka partition info.
  */
 struct SrsKafkaPartition
@@ -56,6 +61,7 @@ private:
     SrsKafkaClient* kafka;
 public:
     int id;
+    std::string topic;
     // leader.
     int broker;
     std::string host;
@@ -66,6 +72,7 @@ public:
 public:
     virtual std::string hostport();
     virtual int connect();
+    virtual int flush(SrsKafkaPartitionCache* pc);
 };
 
 /**
@@ -93,11 +100,6 @@ public:
     virtual int call();
     virtual std::string to_string();
 };
-
-/**
- * the partition messages cache.
- */
-typedef std::vector<SrsJsonObject*> SrsKafkaPartitionCache;
 
 /**
  * a message cache for kafka.

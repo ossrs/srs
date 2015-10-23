@@ -102,7 +102,7 @@ std::string srs_kafka_summary_partitions(const vector<SrsKafkaPartition*>& parti
     return srs_join_vector_string(ret, ", ");
 }
 
-void srs_kafka_metadata2connector(SrsKafkaTopicMetadataResponse* metadata, vector<SrsKafkaPartition*>& partitions)
+void srs_kafka_metadata2connector(string topic_name, SrsKafkaTopicMetadataResponse* metadata, vector<SrsKafkaPartition*>& partitions)
 {
     for (int i = 0; i < metadata->metadatas.size(); i++) {
         SrsKafkaTopicMetadata* topic = metadata->metadatas.at(i);
@@ -111,6 +111,8 @@ void srs_kafka_metadata2connector(SrsKafkaTopicMetadataResponse* metadata, vecto
             SrsKafkaPartitionMetadata* partition = topic->metadatas.at(j);
             
             SrsKafkaPartition* p = new SrsKafkaPartition();
+            
+            p->topic = topic_name;
             p->id = partition->partition_id;
             p->broker = partition->leader;
             
@@ -169,6 +171,11 @@ int SrsKafkaPartition::connect()
     srs_trace("connect at %s, partition=%d, broker=%d", hostport().c_str(), id, broker);
     
     return ret;
+}
+
+int SrsKafkaPartition::flush(SrsKafkaPartitionCache* pc)
+{
+    return kafka->write_messages(topic, id, *pc);
 }
 
 SrsKafkaMessage::SrsKafkaMessage(int k)
@@ -290,11 +297,15 @@ int SrsKafkaCache::flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitio
     
     // connect transport.
     if ((ret = partition->connect()) != ERROR_SUCCESS) {
-        srs_error("connect to partition failed. ret=%d", ret);
+        srs_error("kafka connect to partition failed. ret=%d", ret);
         return ret;
     }
     
-    // TODO: FIXME: implements it.
+    // write the json objects.
+    if ((ret = partition->flush(pc)) != ERROR_SUCCESS) {
+        srs_error("kafka write messages failed. ret=%d", ret);
+        return ret;
+    }
     
     // free all wrote messages.
     for (vector<SrsJsonObject*>::iterator it = pc->begin(); it != pc->end(); ++it) {
@@ -546,7 +557,7 @@ int SrsKafkaProducer::request_metadata()
     srs_trace("kafka metadata: %s", summary.c_str());
     
     // generate the partition info.
-    srs_kafka_metadata2connector(metadata, partitions);
+    srs_kafka_metadata2connector(topic, metadata, partitions);
     srs_trace("kafka connector: %s", srs_kafka_summary_partitions(partitions).c_str());
     
     // update the total partition for cache.
