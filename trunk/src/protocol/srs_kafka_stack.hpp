@@ -79,6 +79,7 @@ public:
     virtual bool null();
     virtual bool empty();
     virtual std::string to_str();
+    virtual void set_value(std::string v);
 // interface ISrsCodec
 public:
     virtual int nb_bytes();
@@ -103,6 +104,8 @@ public:
 public:
     virtual bool null();
     virtual bool empty();
+    virtual void set_value(std::string v);
+    virtual void set_value(const char* v, int nb_v);
 // interface ISrsCodec
 public:
     virtual int nb_bytes();
@@ -531,6 +534,16 @@ public:
 public:
     SrsKafkaRawMessage();
     virtual ~SrsKafkaRawMessage();
+public:
+    /**
+     * create message from json object.
+     */
+    virtual int create(SrsJsonObject* obj);
+private:
+    /**
+     * get the raw message, bytes after the message_size.
+     */
+    virtual int raw_message_size();
 // interface ISrsCodec
 public:
     virtual int nb_bytes();
@@ -768,7 +781,7 @@ public:
  */
 class SrsKafkaProducerRequest : public SrsKafkaRequest
 {
-private:
+public:
     /**
      * This field indicates how many acknowledgements the servers should receive 
      * before responding to the request. If it is 0 the server will not send any 

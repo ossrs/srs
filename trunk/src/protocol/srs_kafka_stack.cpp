@@ -37,6 +37,8 @@ using namespace std;
 
 #ifdef SRS_AUTO_KAFKA
 
+#define SRS_KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS 300000
+
 SrsKafkaString::SrsKafkaString()
 {
     _size = -1;
@@ -45,11 +47,10 @@ SrsKafkaString::SrsKafkaString()
 
 SrsKafkaString::SrsKafkaString(string v)
 {
-    _size = (int16_t)v.length();
+    _size = -1;
+    data = NULL;
     
-    srs_assert(_size > 0);
-    data = new char[_size];
-    memcpy(data, v.data(), _size);
+    set_value(v);
 }
 
 SrsKafkaString::~SrsKafkaString()
@@ -74,6 +75,19 @@ string SrsKafkaString::to_str()
         ret.append(data, _size);
     }
     return ret;
+}
+
+void SrsKafkaString::set_value(string v)
+{
+    // free previous data.
+    srs_freep(data);
+    
+    // copy new value to data.
+    _size = (int16_t)v.length();
+    
+    srs_assert(_size > 0);
+    data = new char[_size];
+    memcpy(data, v.data(), _size);
 }
 
 int SrsKafkaString::nb_bytes()
@@ -149,11 +163,10 @@ SrsKafkaBytes::SrsKafkaBytes()
 
 SrsKafkaBytes::SrsKafkaBytes(const char* v, int nb_v)
 {
-    _size = (int16_t)nb_v;
+    _size = -1;
+    data = NULL;
     
-    srs_assert(_size > 0);
-    data = new char[_size];
-    memcpy(data, v, _size);
+    set_value(v, nb_v);
 }
 
 SrsKafkaBytes::~SrsKafkaBytes()
@@ -169,6 +182,24 @@ bool SrsKafkaBytes::null()
 bool SrsKafkaBytes::empty()
 {
     return _size <= 0;
+}
+
+void SrsKafkaBytes::set_value(string v)
+{
+    set_value(v.data(), (int)v.length());
+}
+
+void SrsKafkaBytes::set_value(const char* v, int nb_v)
+{
+    // free previous data.
+    srs_freep(data);
+    
+    // copy new value to data.
+    _size = (int16_t)nb_v;
+    
+    srs_assert(_size > 0);
+    data = new char[_size];
+    memcpy(data, v, _size);
 }
 
 int SrsKafkaBytes::nb_bytes()
@@ -477,6 +508,32 @@ SrsKafkaRawMessage::~SrsKafkaRawMessage()
 {
     srs_freep(key);
     srs_freep(value);
+}
+
+int SrsKafkaRawMessage::create(SrsJsonObject* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // current must be 0.
+    magic_byte = 0;
+    
+    // no compression codec.
+    attributes = 0;
+    
+    // dumps the json to string.
+    value->set_value(obj->dumps());
+    
+    // TODO: FIXME: implements it.
+    crc = 0;
+    
+    message_size = raw_message_size();
+    
+    return ret;
+}
+
+int SrsKafkaRawMessage::raw_message_size()
+{
+    return 4 + 1 + 1 + key->nb_bytes() + value->nb_bytes();
 }
 
 int SrsKafkaRawMessage::nb_bytes()
@@ -1352,6 +1409,42 @@ int SrsKafkaClient::fetch_metadata(string topic, SrsKafkaTopicMetadataResponse**
 int SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<SrsJsonObject*>& msgs)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsKafkaProducerRequest* req = new SrsKafkaProducerRequest();
+    
+    // 0 the server will not send any response.
+    req->required_acks = 0;
+    // timeout of producer message.
+    req->timeout = SRS_KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS;
+    
+    // create the topic and partition to write message to.
+    SrsKafkaProducerTopicMessages* topics = new SrsKafkaProducerTopicMessages();
+    SrsKafkaProducerPartitionMessages* partitions = new SrsKafkaProducerPartitionMessages();
+    
+    topics->partitions.append(partitions);
+    req->topics.append(topics);
+    
+    topics->topic_name.set_value(topic);
+    partitions->partition = partition;
+    
+    // convert json objects to kafka raw messages.
+    vector<SrsJsonObject*>::iterator it;
+    for (it = msgs.begin(); it != msgs.end(); ++it) {
+        SrsJsonObject* obj = *it;
+        SrsKafkaRawMessage* msg = new SrsKafkaRawMessage();
+        
+        if ((ret = msg->create(obj)) != ERROR_SUCCESS) {
+            srs_freep(msg);
+            srs_freep(req);
+            srs_error("kafka write messages failed. ret=%d", ret);
+            return ret;
+        }
+        
+        partitions->messages.append(msg);
+    }
+    
+    partitions->message_set_size = partitions->messages.nb_bytes();
+    
     // TODO: FIXME: implements it.
     return ret;
 }
