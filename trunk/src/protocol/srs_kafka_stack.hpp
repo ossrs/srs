@@ -96,16 +96,19 @@ class SrsKafkaBytes : public ISrsCodec
 {
 private:
     int32_t _size;
-    char* data;
+    char* _data;
 public:
     SrsKafkaBytes();
     SrsKafkaBytes(const char* v, int nb_v);
     virtual ~SrsKafkaBytes();
 public:
+    virtual char* data();
+    virtual int size();
     virtual bool null();
     virtual bool empty();
     virtual void set_value(std::string v);
     virtual void set_value(const char* v, int nb_v);
+    virtual u_int32_t crc32(u_int32_t previous);
 // interface ISrsCodec
 public:
     virtual int nb_bytes();

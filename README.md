@@ -259,7 +259,7 @@ The `features`, `compare`, `release` and `performance` of SRS.
 1. Support NGINX-RTMP style EXEC, read [#367][bug #367].
 1. Support NGINX-RTMP style dvr control module, read [#459][bug #459].
 1. Support HTTP Security Raw Api, read [#459][bug #459], [#470][bug #470], [#319][bug #319].
-1. [dev]Support Integration with Kafka/Spark Big-Data system, read [#467][bug #467].
+1. Support Integration with Kafka/Spark Big-Data system, read [#467][bug #467].
 1. [plan]Support Origin Cluster for Load Balance and Fault Tolarence, read [#464][bug #464], [RTMP 302][bug #92].
 1. [plan]Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
 1. [plan]Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
@@ -386,6 +386,7 @@ Remark:
 
 ### History
 
+* v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
 * v3.0, 2015-10-20, fix [#502][bug #502], support snapshot with http-callback or transcoder. 3.0.5
 * v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
@@ -1279,6 +1280,7 @@ Winlin
 [bug #466]: https://github.com/simple-rtmp-server/srs/issues/466
 [bug #468]: https://github.com/simple-rtmp-server/srs/issues/468
 [bug #502]: https://github.com/simple-rtmp-server/srs/issues/502
+[bug #467]: https://github.com/simple-rtmp-server/srs/issues/467
 [bug #xxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxx
 
 [r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/v2.0-a2

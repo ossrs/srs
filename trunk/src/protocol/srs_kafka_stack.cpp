@@ -158,20 +158,30 @@ int SrsKafkaString::decode(SrsBuffer* buf)
 SrsKafkaBytes::SrsKafkaBytes()
 {
     _size = -1;
-    data = NULL;
+    _data = NULL;
 }
 
 SrsKafkaBytes::SrsKafkaBytes(const char* v, int nb_v)
 {
     _size = -1;
-    data = NULL;
+    _data = NULL;
     
     set_value(v, nb_v);
 }
 
 SrsKafkaBytes::~SrsKafkaBytes()
 {
-    srs_freep(data);
+    srs_freep(_data);
+}
+
+char* SrsKafkaBytes::data()
+{
+    return _data;
+}
+
+int SrsKafkaBytes::size()
+{
+    return _size;
 }
 
 bool SrsKafkaBytes::null()
@@ -192,14 +202,29 @@ void SrsKafkaBytes::set_value(string v)
 void SrsKafkaBytes::set_value(const char* v, int nb_v)
 {
     // free previous data.
-    srs_freep(data);
+    srs_freep(_data);
     
     // copy new value to data.
     _size = (int16_t)nb_v;
     
     srs_assert(_size > 0);
-    data = new char[_size];
-    memcpy(data, v, _size);
+    _data = new char[_size];
+    memcpy(_data, v, _size);
+}
+
+u_int32_t SrsKafkaBytes::crc32(u_int32_t previous)
+{
+    char bsize[4];
+    SrsBuffer(bsize, 4).write_4bytes(_size);
+    
+    if (_size <= 0) {
+        return srs_crc32_ieee(bsize, 4, previous);
+    }
+    
+    u_int32_t crc = srs_crc32_ieee(bsize, 4, previous);
+    crc = srs_crc32_ieee(_data, _size, crc);
+    
+    return crc;
 }
 
 int SrsKafkaBytes::nb_bytes()
@@ -227,7 +252,7 @@ int SrsKafkaBytes::encode(SrsBuffer* buf)
         srs_error("kafka encode bytes data failed. ret=%d", ret);
         return ret;
     }
-    buf->write_bytes(data, _size);
+    buf->write_bytes(_data, _size);
     
     return ret;
 }
@@ -255,9 +280,9 @@ int SrsKafkaBytes::decode(SrsBuffer* buf)
         return ret;
     }
     
-    srs_freep(data);
-    data = new char[_size];
-    buf->read_bytes(data, _size);
+    srs_freep(_data);
+    _data = new char[_size];
+    buf->read_bytes(_data, _size);
     
     return ret;
 }
@@ -523,8 +548,13 @@ int SrsKafkaRawMessage::create(SrsJsonObject* obj)
     // dumps the json to string.
     value->set_value(obj->dumps());
     
-    // TODO: FIXME: implements it.
-    crc = 0;
+    // crc32 message.
+    crc = srs_crc32_ieee(&magic_byte, 1);
+    crc = srs_crc32_ieee(&attributes, 1, crc);
+    crc = key->crc32(crc);
+    crc = value->crc32(crc);
+    
+    srs_info("crc32 message is %#x", crc);
     
     message_size = raw_message_size();
     
@@ -1143,12 +1173,16 @@ SrsKafkaProducerRequest::~SrsKafkaProducerRequest()
 
 int SrsKafkaProducerRequest::nb_bytes()
 {
-    return 2 + 4 + topics.nb_bytes();
+    return SrsKafkaRequest::nb_bytes() + 2 + 4 + topics.nb_bytes();
 }
 
 int SrsKafkaProducerRequest::encode(SrsBuffer* buf)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsKafkaRequest::encode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     if (!buf->require(2 + 4)) {
         ret = ERROR_KAFKA_CODEC_PRODUCER;
@@ -1168,6 +1202,10 @@ int SrsKafkaProducerRequest::encode(SrsBuffer* buf)
 int SrsKafkaProducerRequest::decode(SrsBuffer* buf)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsKafkaRequest::decode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     if (!buf->require(2 + 4)) {
         ret = ERROR_KAFKA_CODEC_PRODUCER;
@@ -1445,7 +1483,12 @@ int SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<
     
     partitions->message_set_size = partitions->messages.nb_bytes();
     
-    // TODO: FIXME: implements it.
+    // write to kafka cluster.
+    if ((ret = protocol->send_and_free_message(req)) != ERROR_SUCCESS) {
+        srs_error("kafka write producer message failed. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 

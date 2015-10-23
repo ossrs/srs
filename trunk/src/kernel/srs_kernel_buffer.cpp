@@ -39,15 +39,25 @@ ISrsCodec::~ISrsCodec()
 
 SrsBuffer::SrsBuffer()
 {
-    p = bytes = NULL;
-    nb_bytes = 0;
-    
-    // TODO: support both little and big endian.
-    srs_assert(srs_is_little_endian());
+    set_value(NULL, 0);
+}
+
+SrsBuffer::SrsBuffer(char* b, int nb_b)
+{
+    set_value(b, nb_b);
 }
 
 SrsBuffer::~SrsBuffer()
 {
+}
+
+void SrsBuffer::set_value(char* b, int nb_b)
+{
+    p = bytes = b;
+    nb_bytes = nb_b;
+    
+    // TODO: support both little and big endian.
+    srs_assert(srs_is_little_endian());
 }
 
 int SrsBuffer::initialize(char* b, int nb)

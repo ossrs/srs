@@ -122,9 +122,14 @@ extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = N
 extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 
 /**
-* cacl the crc32 of bytes in buf.
-*/
-extern u_int32_t srs_crc32(const void* buf, int size);
+* cacl the crc32 of bytes in buf, for ffmpeg.
+ */
+extern u_int32_t srs_crc32_mpegts(const void* buf, int size);
+
+/**
+ * calc the crc32 of bytes in buf by IEEE, for zip.
+ */
+extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 0);
 
 /**
 * Decode a base64-encoded string.

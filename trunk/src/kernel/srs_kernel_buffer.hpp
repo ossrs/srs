@@ -98,7 +98,10 @@ private:
     int nb_bytes;
 public:
     SrsBuffer();
+    SrsBuffer(char* b, int nb_b);
     virtual ~SrsBuffer();
+private:
+    virtual void set_value(char* b, int nb_b);
 public:
     /**
     * initialize the stream from bytes.

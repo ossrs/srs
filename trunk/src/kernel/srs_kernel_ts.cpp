@@ -2141,7 +2141,7 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
     CRC_32 = stream->read_4bytes();
 
     // verify crc32.
-    int32_t crc32 = srs_crc32(ppat, stream->pos() - pat_pos - 4);
+    int32_t crc32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos - 4);
     if (crc32 != CRC_32) {
         ret = ERROR_STREAM_CASTER_TS_CRC32;
         srs_error("ts: verify PSI crc32 failed. ret=%d", ret);
@@ -2238,7 +2238,7 @@ int SrsTsPayloadPSI::encode(SrsBuffer* stream)
         srs_error("ts: mux PSI crc32 failed. ret=%d", ret);
         return ret;
     }
-    CRC_32 = srs_crc32(ppat, stream->pos() - pat_pos);
+    CRC_32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos);
     stream->write_4bytes(CRC_32);
 
     return ret;
