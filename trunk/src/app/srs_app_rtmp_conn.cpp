@@ -1555,6 +1555,13 @@ int SrsRtmpConn::on_disconnect()
     int ret = ERROR_SUCCESS;
 
     http_hooks_on_close();
+    
+#ifdef SRS_AUTO_KAFKA
+    if ((ret = kafka->on_close(srs_id())) != ERROR_SUCCESS) {
+        srs_error("notify kafka failed. ret=%d", ret);
+        return ret;
+    }
+#endif
 
     // TODO: implements it.
 

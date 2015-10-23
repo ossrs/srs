@@ -383,11 +383,34 @@ void SrsKafkaProducer::stop()
 
 int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
+    int ret = ERROR_SUCCESS;
+    
+    bool enabled = _srs_config->get_kafka_enabled();
+    if (!enabled) {
+        return ret;
+    }
+    
     SrsJsonObject* obj = SrsJsonAny::object();
     
     obj->set("msg", SrsJsonAny::str("accept"));
     obj->set("type", SrsJsonAny::integer(type));
     obj->set("ip", SrsJsonAny::str(ip.c_str()));
+    
+    return worker->execute(new SrsKafkaMessage(this, key, obj));
+}
+
+int SrsKafkaProducer::on_close(int key)
+{
+    int ret = ERROR_SUCCESS;
+    
+    bool enabled = _srs_config->get_kafka_enabled();
+    if (!enabled) {
+        return ret;
+    }
+    
+    SrsJsonObject* obj = SrsJsonAny::object();
+    
+    obj->set("msg", SrsJsonAny::str("close"));
     
     return worker->execute(new SrsKafkaMessage(this, key, obj));
 }

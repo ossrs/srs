@@ -137,11 +137,16 @@ public:
 public:
     /**
      * when got any client connect to SRS, notify kafka.
-     * @param key the partition map key, a id or hash.
+     * @param key the partition map key, the client id or hash(ip).
      * @param type the type of client.
      * @param ip the peer ip of client.
      */
     virtual int on_client(int key, SrsListenerType type, std::string ip) = 0;
+    /**
+     * when client close or disconnect for error.
+     * @param key the partition map key, the client id or hash(ip).
+     */
+    virtual int on_close(int key) = 0;
 };
 
 /**
@@ -168,11 +173,10 @@ public:
     virtual int initialize();
     virtual int start();
     virtual void stop();
+// interface ISrsKafkaCluster
 public:
-    /**
-     * when got any client connect to SRS, notify kafka.
-     */
     virtual int on_client(int key, SrsListenerType type, std::string ip);
+    virtual int on_close(int key);
 // for worker to call task to send object.
 public:
     /**
