@@ -352,7 +352,8 @@ int SrsKafkaProducer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_info("initialize kafka producer ok.");
+    enabled = _srs_config->get_kafka_enabled();
+    srs_info("initialize kafka ok, enabled=%d.", enabled);
     
     return ret;
 }
@@ -415,7 +416,6 @@ int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
     int ret = ERROR_SUCCESS;
     
-    bool enabled = _srs_config->get_kafka_enabled();
     if (!enabled) {
         return ret;
     }
@@ -433,7 +433,6 @@ int SrsKafkaProducer::on_close(int key)
 {
     int ret = ERROR_SUCCESS;
     
-    bool enabled = _srs_config->get_kafka_enabled();
     if (!enabled) {
         return ret;
     }
@@ -494,7 +493,6 @@ int SrsKafkaProducer::do_cycle()
     int ret = ERROR_SUCCESS;
     
     // ignore when disabled.
-    bool enabled = _srs_config->get_kafka_enabled();
     if (!enabled) {
         return ret;
     }
@@ -513,7 +511,6 @@ int SrsKafkaProducer::request_metadata()
     int ret = ERROR_SUCCESS;
     
     // ignore when disabled.
-    bool enabled = _srs_config->get_kafka_enabled();
     if (!enabled) {
         return ret;
     }

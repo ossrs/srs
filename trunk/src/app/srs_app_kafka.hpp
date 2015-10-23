@@ -155,6 +155,8 @@ public:
 class SrsKafkaProducer : virtual public ISrsReusableThreadHandler, virtual public ISrsKafkaCluster
 {
 private:
+    // TODO: FIXME: support reload.
+    bool enabled;
     st_mutex_t lock;
     SrsReusableThread* pthread;
 private:
