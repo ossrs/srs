@@ -80,21 +80,13 @@ public:
  */
 class SrsKafkaMessage : public ISrsAsyncCallTask
 {
-protected:
-    int key;
-public:
-    SrsKafkaMessage(int k);
-    virtual ~SrsKafkaMessage();
-};
-struct SrsKafkaMessageOnClient : public SrsKafkaMessage
-{
-public:
+private:
     SrsKafkaProducer* producer;
-    SrsListenerType type;
-    std::string ip;
+    int key;
+    SrsJsonObject* obj;
 public:
-    SrsKafkaMessageOnClient(SrsKafkaProducer* p, int k, SrsListenerType t, std::string i);
-    virtual ~SrsKafkaMessageOnClient();
+    SrsKafkaMessage(SrsKafkaProducer* p, int k, SrsJsonObject* j);
+    virtual ~SrsKafkaMessage();
 // interface ISrsAsyncCallTask
 public:
     virtual int call();

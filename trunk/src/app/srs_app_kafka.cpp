@@ -178,41 +178,31 @@ int SrsKafkaPartition::flush(SrsKafkaPartitionCache* pc)
     return kafka->write_messages(topic, id, *pc);
 }
 
-SrsKafkaMessage::SrsKafkaMessage(int k)
+SrsKafkaMessage::SrsKafkaMessage(SrsKafkaProducer* p, int k, SrsJsonObject* j)
 {
+    producer = p;
     key = k;
+    obj = j;
 }
 
 SrsKafkaMessage::~SrsKafkaMessage()
 {
+    srs_freep(obj);
 }
 
-SrsKafkaMessageOnClient::SrsKafkaMessageOnClient(SrsKafkaProducer* p, int k, SrsListenerType t, string i)
-    : SrsKafkaMessage(k)
+int SrsKafkaMessage::call()
 {
-    producer = p;
-    type = t;
-    ip = i;
-}
-
-SrsKafkaMessageOnClient::~SrsKafkaMessageOnClient()
-{
-}
-
-int SrsKafkaMessageOnClient::call()
-{
-    SrsJsonObject* obj = SrsJsonAny::object();
+    int ret = producer->send(key, obj);
     
-    obj->set("msg", SrsJsonAny::str("accept"));
-    obj->set("type", SrsJsonAny::integer(type));
-    obj->set("ip", SrsJsonAny::str(ip.c_str()));
+    // the obj is manged by producer now.
+    obj = NULL;
     
-    return producer->send(key, obj);
+    return ret;
 }
 
-string SrsKafkaMessageOnClient::to_string()
+string SrsKafkaMessage::to_string()
 {
-    return ip;
+    return "kafka";
 }
 
 SrsKafkaCache::SrsKafkaCache()
@@ -393,7 +383,13 @@ void SrsKafkaProducer::stop()
 
 int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
-    return worker->execute(new SrsKafkaMessageOnClient(this, key, type, ip));
+    SrsJsonObject* obj = SrsJsonAny::object();
+    
+    obj->set("msg", SrsJsonAny::str("accept"));
+    obj->set("type", SrsJsonAny::integer(type));
+    obj->set("ip", SrsJsonAny::str(ip.c_str()));
+    
+    return worker->execute(new SrsKafkaMessage(this, key, obj));
 }
 
 int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
