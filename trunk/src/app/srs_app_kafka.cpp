@@ -381,6 +381,36 @@ void SrsKafkaProducer::stop()
     worker->stop();
 }
 
+int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // cache the json object.
+    cache->append(key, obj);
+    
+    // too few messages, ignore.
+    if (cache->size() < SRS_KAFKA_PRODUCER_AGGREGATE_SIZE) {
+        return ret;
+    }
+    
+    // too many messages, warn user.
+    if (cache->size() > SRS_KAFKA_PRODUCER_AGGREGATE_SIZE * 10) {
+        srs_warn("kafka cache too many messages: %d", cache->size());
+    }
+    
+    // sync with backgound metadata worker.
+    st_mutex_lock(lock);
+    
+    // flush message when metadata is ok.
+    if (metadata_ok) {
+        ret = flush();
+    }
+    
+    st_mutex_unlock(lock);
+    
+    return ret;
+}
+
 int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
     int ret = ERROR_SUCCESS;
@@ -413,36 +443,6 @@ int SrsKafkaProducer::on_close(int key)
     obj->set("msg", SrsJsonAny::str("close"));
     
     return worker->execute(new SrsKafkaMessage(this, key, obj));
-}
-
-int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // cache the json object.
-    cache->append(key, obj);
-    
-    // too few messages, ignore.
-    if (cache->size() < SRS_KAFKA_PRODUCER_AGGREGATE_SIZE) {
-        return ret;
-    }
-    
-    // too many messages, warn user.
-    if (cache->size() > SRS_KAFKA_PRODUCER_AGGREGATE_SIZE * 10) {
-        srs_warn("kafka cache too many messages: %d", cache->size());
-    }
-    
-    // sync with backgound metadata worker.
-    st_mutex_lock(lock);
-    
-    // flush message when metadata is ok.
-    if (metadata_ok) {
-        ret = flush();
-    }
-    
-    st_mutex_unlock(lock);
-    
-    return ret;
 }
 
 int SrsKafkaProducer::cycle()

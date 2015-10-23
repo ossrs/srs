@@ -173,11 +173,7 @@ public:
     virtual int initialize();
     virtual int start();
     virtual void stop();
-// interface ISrsKafkaCluster
-public:
-    virtual int on_client(int key, SrsListenerType type, std::string ip);
-    virtual int on_close(int key);
-// for worker to call task to send object.
+// internal: for worker to call task to send object.
 public:
     /**
      * send json object to kafka cluster.
@@ -186,6 +182,10 @@ public:
      * @param obj the json object; user must never free it again.
      */
     virtual int send(int key, SrsJsonObject* obj);
+// interface ISrsKafkaCluster
+public:
+    virtual int on_client(int key, SrsListenerType type, std::string ip);
+    virtual int on_close(int key);
 // interface ISrsReusableThreadHandler
 public:
     virtual int cycle();
