@@ -96,10 +96,14 @@ extern int srs_create_dir_recursively(std::string dir);
 
 // whether path exists.
 extern bool srs_path_exists(std::string path);
-// get the dirname of path
+// get the dirname of path, for instance, filename("/live/livestream")="/live"
 extern std::string srs_path_dirname(std::string path);
-// get the basename of path
+// get the basename of path, for instance, filename("/live/livestream")="livestream"
 extern std::string srs_path_basename(std::string path);
+// get the filename of path, for instance, filename("livestream.flv")="livestream"
+extern std::string srs_path_filename(std::string path);
+// get the file extension of path, for instance, filext("live.flv")=".flv"
+extern std::string srs_path_filext(std::string path);
 
 /**
 * whether stream starts with the avc NALU in "AnnexB" 
@@ -118,9 +122,14 @@ extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = N
 extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 
 /**
-* cacl the crc32 of bytes in buf.
-*/
-extern u_int32_t srs_crc32(const void* buf, int size);
+* cacl the crc32 of bytes in buf, for ffmpeg.
+ */
+extern u_int32_t srs_crc32_mpegts(const void* buf, int size);
+
+/**
+ * calc the crc32 of bytes in buf by IEEE, for zip.
+ */
+extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 0);
 
 /**
 * Decode a base64-encoded string.

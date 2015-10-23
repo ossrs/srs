@@ -120,7 +120,7 @@ public:
 class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
 {
 private:
-    SrsStSocket* skt;
+    ISrsProtocolReaderWriter* skt;
     SrsHttpMessage* owner;
     SrsFastStream* buffer;
     bool is_eof;
@@ -131,7 +131,7 @@ private:
     // already read total bytes.
     int64_t nb_total_read;
 public:
-    SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
+    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io);
     virtual ~SrsHttpResponseReader();
 public:
     /**
@@ -208,7 +208,7 @@ private:
     // the method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(SrsStSocket* io, SrsConnection* c);
+    SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c);
     virtual ~SrsHttpMessage();
 public:
     /**
@@ -332,12 +332,12 @@ public:
      * or error and *ppmsg must be NULL.
      * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
      */
-    virtual int parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttpMessage** ppmsg);
+    virtual int parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
 private:
     /**
      * parse the HTTP message to member field: msg.
      */
-    virtual int parse_message_imp(SrsStSocket* skt);
+    virtual int parse_message_imp(ISrsProtocolReaderWriter* io);
 private:
     static int on_message_begin(http_parser* parser);
     static int on_headers_complete(http_parser* parser);
@@ -369,12 +369,12 @@ public:
      */
     virtual int initialize(std::string _url);
 public:
-    virtual const char* get_url();
-    virtual const char* get_schema();
-    virtual const char* get_host();
+    virtual std::string get_url();
+    virtual std::string get_schema();
+    virtual std::string get_host();
     virtual int get_port();
-    virtual const char* get_path();
-    virtual const char* get_query();
+    virtual std::string get_path();
+    virtual std::string get_query();
 private:
     /**
      * get the parsed url field.

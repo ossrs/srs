@@ -638,6 +638,10 @@ public:
      * get the broker list, each is format in <ip:port>.
      */
     virtual SrsConfDirective*   get_kafka_brokers();
+    /**
+     * get the kafka topic to use for srs.
+     */
+    virtual std::string         get_kafka_topic();
 // vhost specified section
 public:
     /**

@@ -2128,6 +2128,8 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "brokers") {
                     sobj->set(sdir->name, sdir->dumps_args());
+                } else if (sdir->name == "topic") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 }
             }
             obj->set(dir->name, sobj);
@@ -3546,7 +3548,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = root->get("kafka");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "brokers") {
+            if (n != "enabled" && n != "brokers" && n != "topic") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported kafka directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -4296,6 +4298,23 @@ SrsConfDirective* SrsConfig::get_kafka_brokers()
     }
     
     return conf;
+}
+
+string SrsConfig::get_kafka_topic()
+{
+    static string DEFAULT = "srs";
+    
+    SrsConfDirective* conf = root->get("kafka");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("topic");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)

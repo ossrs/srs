@@ -55,6 +55,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_app_kafka.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -76,10 +77,252 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
+SrsSimpleRtmpClient::SrsSimpleRtmpClient()
+{
+    req = NULL;
+    client = NULL;
+    kbps = new SrsKbps();
+    
+    transport = new SrsTcpClient();
+    stream_id = 0;
+}
+
+SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
+{
+    close();
+    
+    srs_freep(kbps);
+    srs_freep(transport);
+    
+    srs_freep(client);
+    kbps->set_io(NULL, NULL);
+}
+
+int SrsSimpleRtmpClient::connect(string url, int64_t connect_timeout, int64_t stream_timeout)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when ok, ignore.
+    // TODO: FIXME: should reconnect when disconnected.
+    if (transport->connected()) {
+        return ret;
+    }
+    
+    // parse uri
+    srs_freep(req);
+    req = new SrsRequest();
+    srs_parse_rtmp_url(url, req->tcUrl, req->stream);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
+    
+    // connect host.
+    if ((ret = transport->connect(req->host, req->port, connect_timeout)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_freep(client);
+    client = new SrsRtmpClient(transport);
+    
+    kbps->set_io(transport, transport);
+    
+    client->set_recv_timeout(stream_timeout);
+    client->set_send_timeout(stream_timeout);
+    
+    // connect to vhost/app
+    if ((ret = client->handshake()) != ERROR_SUCCESS) {
+        srs_error("sdk: handshake with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = connect_app()) != ERROR_SUCCESS) {
+        srs_error("sdk: connect with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
+        srs_error("sdk: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSimpleRtmpClient::connect_app()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/simple-rtmp-server/srs/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // generate the tcUrl
+    std::string param = "";
+    std::string target_vhost = req->vhost;
+    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port, param);
+    
+    // replace the tcUrl in request,
+    // which will replace the tc_url in client.connect_app().
+    req->tcUrl = tc_url;
+    
+    // upnode server identity will show in the connect_app of client.
+    // @see https://github.com/simple-rtmp-server/srs/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("sdk: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
+                  tc_url.c_str(), debug_srs_upnode, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+bool SrsSimpleRtmpClient::connected()
+{
+    return transport->connected();
+}
+
+void SrsSimpleRtmpClient::close()
+{
+    transport->close();
+    
+    srs_freep(client);
+    srs_freep(req);
+}
+
+int SrsSimpleRtmpClient::publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // publish.
+    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("sdk: publish failed, stream=%s, stream_id=%d. ret=%d",
+                  req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSimpleRtmpClient::play()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d",
+                  req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
+{
+    kbps->sample();
+    
+    int sr = kbps->get_send_kbps();
+    int sr30s = kbps->get_send_kbps_30s();
+    int sr5m = kbps->get_send_kbps_5m();
+    int rr = kbps->get_recv_kbps();
+    int rr30s = kbps->get_recv_kbps_30s();
+    int rr5m = kbps->get_recv_kbps_5m();
+    
+    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+}
+
+void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
+{
+    kbps->sample();
+    
+    int sr = kbps->get_send_kbps();
+    int sr30s = kbps->get_send_kbps_30s();
+    int sr5m = kbps->get_send_kbps_5m();
+    int rr = kbps->get_recv_kbps();
+    int rr30s = kbps->get_recv_kbps_30s();
+    int rr5m = kbps->get_recv_kbps_5m();
+    
+    srs_trace("<- %s time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", age, msgs, sr, sr30s, sr5m, rr, rr30s, rr5m);
+}
+
+int SrsSimpleRtmpClient::sid()
+{
+    return stream_id;
+}
+
+int SrsSimpleRtmpClient::rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, SrsSharedPtrMessage** pmsg)
+{
+    *pmsg = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, pmsg)) != ERROR_SUCCESS) {
+        srs_error("sdk: create shared ptr msg failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsSimpleRtmpClient::recv_message(SrsCommonMessage** pmsg)
+{
+    return client->recv_message(pmsg);
+}
+
+int SrsSimpleRtmpClient::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
+{
+    return client->decode_message(msg, ppacket);
+}
+
+int SrsSimpleRtmpClient::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
+{
+    return client->send_and_free_messages(msgs, nb_msgs, stream_id);
+}
+
+int SrsSimpleRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg)
+{
+    return client->send_and_free_message(msg, stream_id);
+}
+
+void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
+{
+    transport->set_recv_timeout(timeout);
+}
+
+#ifdef SRS_AUTO_KAFKA
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c)
+#else
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
+#endif
     : SrsConnection(svr, c)
 {
     server = svr;
+#ifdef SRS_AUTO_KAFKA
+    kafka = k;
+#endif
+    
     req = new SrsRequest();
     res = new SrsResponse();
     skt = new SrsStSocket(c);
@@ -131,9 +374,17 @@ int SrsRtmpConn::do_cycle()
     int ret = ERROR_SUCCESS;
     
     srs_trace("RTMP client ip=%s", ip.c_str());
+    
+    // notify kafka cluster.
+#ifdef SRS_AUTO_KAFKA
+    if ((ret = kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
+        srs_error("kafka handler on_client failed. ret=%d", ret);
+        return ret;
+    }
+#endif
 
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
         srs_error("rtmp handshake failed. ret=%d", ret);
@@ -460,8 +711,8 @@ int SrsRtmpConn::stream_service_cycle()
     srs_info("security check ok");
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     // find a source to serve.
     SrsSource* source = SrsSource::fetch(req);
@@ -1229,11 +1480,13 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     
     srs_assert(req);
     
-    st_netfd_t stsock = NULL;
+    SrsTcpClient* transport = new SrsTcpClient();
+    SrsAutoFree(SrsTcpClient, transport);
+    
     vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost)->args;
     for (int i = 0; i < (int)args.size(); i++) {
         string hostport = args.at(i);
-        if ((ret = connect_server(hostport, &stsock)) == ERROR_SUCCESS) {
+        if ((ret = connect_server(hostport, transport)) == ERROR_SUCCESS) {
             break;
         }
     }
@@ -1242,20 +1495,13 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
         return ret;
     }
     
-    srs_assert(stsock);
-    SrsStSocket* io = new SrsStSocket(stsock);
-    SrsRtmpClient* client = new SrsRtmpClient(io);
+    SrsRtmpClient* client = new SrsRtmpClient(transport);
+    SrsAutoFree(SrsRtmpClient, client);
     
-    ret = do_token_traverse_auth(client);
-
-    srs_freep(client);
-    srs_freep(io);
-    srs_close_stfd(stsock);
-
-    return ret;
+    return do_token_traverse_auth(client);
 }
 
-int SrsRtmpConn::connect_server(string hostport, st_netfd_t* pstsock)
+int SrsRtmpConn::connect_server(string hostport, SrsTcpClient* transport)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1268,16 +1514,14 @@ int SrsRtmpConn::connect_server(string hostport, st_netfd_t* pstsock)
     srs_parse_hostport(hostport, server, port);
     
     // open socket.
-    st_netfd_t stsock = NULL;
     int64_t timeout = SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stsock)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(server, port, timeout)) != ERROR_SUCCESS) {
         srs_warn("edge token traverse failed, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
     srs_info("edge token auth connected, url=%s/%s, server=%s:%d", req->tcUrl.c_str(), req->stream.c_str(), server.c_str(), port);
     
-    *pstsock = stsock;
     return ret;
 }
 
@@ -1287,8 +1531,8 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("handshake with server failed. ret=%d", ret);
@@ -1311,6 +1555,13 @@ int SrsRtmpConn::on_disconnect()
     int ret = ERROR_SUCCESS;
 
     http_hooks_on_close();
+    
+#ifdef SRS_AUTO_KAFKA
+    if ((ret = kafka->on_close(srs_id())) != ERROR_SUCCESS) {
+        srs_error("notify kafka failed. ret=%d", ret);
+        return ret;
+    }
+#endif
 
     // TODO: implements it.
 

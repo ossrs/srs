@@ -997,7 +997,7 @@ public:
      * for example:
      *          SrsCommonMessage* msg = NULL;
      *          SrsConnectAppResPacket* pkt = NULL;
-     *          if ((ret = server->expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+     *          if ((ret = server->expect_message<SrsConnectAppResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
      *              return ret;
      *          }
      *          // use then free msg and pkt

@@ -39,9 +39,7 @@ using namespace std;
 
 SrsHttpClient::SrsHttpClient()
 {
-    connected = false;
-    stfd = NULL;
-    skt = NULL;
+    transport = new SrsTcpClient();
     parser = NULL;
     timeout_us = 0;
     port = 0;
@@ -50,6 +48,8 @@ SrsHttpClient::SrsHttpClient()
 SrsHttpClient::~SrsHttpClient()
 {
     disconnect();
+    
+    srs_freep(transport);
     srs_freep(parser);
 }
 
@@ -102,7 +102,7 @@ int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
         << req;
     
     std::string data = ss.str();
-    if ((ret = skt->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // disconnect when error.
         disconnect();
         
@@ -111,7 +111,7 @@ int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(skt, NULL, &msg)) != ERROR_SUCCESS) {
+    if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
@@ -148,7 +148,7 @@ int SrsHttpClient::get(string path, std::string req, ISrsHttpMessage** ppmsg)
         << req;
 
     std::string data = ss.str();
-    if ((ret = skt->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // disconnect when error.
         disconnect();
 
@@ -157,7 +157,7 @@ int SrsHttpClient::get(string path, std::string req, ISrsHttpMessage** ppmsg)
     }
 
     ISrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(skt, NULL, &msg)) != ERROR_SUCCESS) {
+    if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
@@ -171,37 +171,30 @@ int SrsHttpClient::get(string path, std::string req, ISrsHttpMessage** ppmsg)
 
 void SrsHttpClient::disconnect()
 {
-    connected = false;
-    
-    srs_close_stfd(stfd);
-    srs_freep(skt);
+    transport->close();
 }
 
 int SrsHttpClient::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    if (connected) {
+    if (transport->connected()) {
         return ret;
     }
     
     disconnect();
     
     // open socket.
-    if ((ret = srs_socket_connect(host, port, timeout_us, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect(host, port, timeout_us)) != ERROR_SUCCESS) {
         srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d",
             host.c_str(), port, timeout_us, ret);
         return ret;
     }
     srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);
     
-    srs_assert(!skt);
-    skt = new SrsStSocket(stfd);
-    connected = true;
-    
     // set the recv/send timeout in us.
-    skt->set_recv_timeout(timeout_us);
-    skt->set_send_timeout(timeout_us);
+    transport->set_recv_timeout(timeout_us);
+    transport->set_send_timeout(timeout_us);
     
     return ret;
 }

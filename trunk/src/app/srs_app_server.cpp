@@ -1267,7 +1267,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     
     SrsConnection* conn = NULL;
     if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, client_stfd);
+        conn = new SrsRtmpConn(this, kafka, client_stfd);
     } else if (type == SrsListenerHttpApi) {
 #ifdef SRS_AUTO_HTTP_API
         conn = new SrsHttpApi(this, client_stfd, http_api_mux);

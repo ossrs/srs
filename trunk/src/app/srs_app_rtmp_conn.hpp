@@ -56,10 +56,53 @@ class SrsQueueRecvThread;
 class SrsPublishRecvThread;
 class SrsSecurity;
 class ISrsWakable;
+class SrsCommonMessage;
+class SrsPacket;
+#ifdef SRS_AUTO_KAFKA
+class ISrsKafkaCluster;
+#endif
 
 /**
-* the client provides the main logic control for RTMP clients.
-*/
+ * the simple rtmp client stub, use SrsRtmpClient and provides high level APIs.
+ */
+class SrsSimpleRtmpClient
+{
+private:
+    SrsRequest* req;
+    SrsTcpClient* transport;
+    SrsRtmpClient* client;
+    SrsKbps* kbps;
+    int stream_id;
+public:
+    SrsSimpleRtmpClient();
+    virtual ~SrsSimpleRtmpClient();
+public:
+    virtual int connect(std::string url, int64_t connect_timeout, int64_t stream_timeout);
+private:
+    virtual int connect_app();
+public:
+    virtual bool connected();
+    virtual void close();
+public:
+    virtual int publish();
+    virtual int play();
+    virtual void kbps_sample(const char* label, int64_t age);
+    virtual void kbps_sample(const char* label, int64_t age, int msgs);
+    virtual int sid();
+public:
+    virtual int rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, SrsSharedPtrMessage** pmsg);
+public:
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int send_and_free_message(SrsSharedPtrMessage* msg);
+public:
+    virtual void set_recv_timeout(int64_t timeout);
+};
+
+/**
+ * the client provides the main logic control for RTMP clients.
+ */
 class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandler
 {
     // for the thread to directly access any field of connection.
@@ -95,8 +138,16 @@ private:
     int publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
+    // the kafka cluster
+#ifdef SRS_AUTO_KAFKA
+    ISrsKafkaCluster* kafka;
+#endif
 public:
+#ifdef SRS_AUTO_KAFKA
+    SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c);
+#else
     SrsRtmpConn(SrsServer* svr, st_netfd_t c);
+#endif
     virtual ~SrsRtmpConn();
 public:
     virtual void dispose();
@@ -134,7 +185,7 @@ private:
     virtual void set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
-    virtual int connect_server(std::string hostport, st_netfd_t* pstsock);
+    virtual int connect_server(std::string hostport, SrsTcpClient* transport);
     virtual int do_token_traverse_auth(SrsRtmpClient* client);
     /**
      * when the connection disconnect, call this method.

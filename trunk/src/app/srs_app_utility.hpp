@@ -677,8 +677,5 @@ extern bool srs_is_boolean(const std::string& str);
 // dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
 
-// join string in vector with indicated separator
-extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);
-
 #endif
 

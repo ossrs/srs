@@ -988,10 +988,7 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
     // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         size_t pos = string::npos;
-        std::string stream_id;
-        if ((pos = req->uri.rfind("/")) != string::npos) {
-            stream_id = req->uri.substr(pos + 1);
-        }
+        std::string stream_id = srs_path_basename(req->uri);
         if ((pos = stream_id.find("=")) != string::npos) {
             stream_id = stream_id.substr(pos + 1);
         }

@@ -68,13 +68,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
-// the timeout to send data to client,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
-
-// the timeout to wait client data,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
@@ -402,6 +397,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTSP_GatewayTimeout_str                      "Gateway Timeout"
 #define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
 #define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
+
+///////////////////////////////////////////////////////////
+// KAFKA consts values
+///////////////////////////////////////////////////////////
+#define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
+
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_KAFKA_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 #endif
 

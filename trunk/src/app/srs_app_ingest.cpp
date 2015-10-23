@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
@@ -354,17 +355,9 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     }
     
     // find the app and stream in rtmp url
-    std::string url = output;
     std::string app, stream;
-    size_t pos = std::string::npos;
-    if ((pos = url.rfind("/")) != std::string::npos) {
-        stream = url.substr(pos + 1);
-        url = url.substr(0, pos);
-    }
-    if ((pos = url.rfind("/")) != std::string::npos) {
-        app = url.substr(pos + 1);
-        url = url.substr(0, pos);
-    }
+    srs_parse_rtmp_url(output, app, stream);
+    size_t pos;
     if ((pos = app.rfind("?")) != std::string::npos) {
         app = app.substr(0, pos);
     }

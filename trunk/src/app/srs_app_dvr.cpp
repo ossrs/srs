@@ -107,7 +107,7 @@ int SrsFlvSegment::open(bool use_tmp_file)
     bool fresh_flv_file = !srs_path_exists(path);
     
     // create dir first.
-    std::string dir = path.substr(0, path.rfind("/"));
+    std::string dir = srs_path_dirname(path);
     if ((ret = srs_create_dir_recursively(dir)) != ERROR_SUCCESS) {
         srs_error("create dir=%s failed. ret=%d", dir.c_str(), ret);
         return ret;
@@ -410,7 +410,7 @@ string SrsFlvSegment::generate_path()
     std::string path_config = _srs_config->get_dvr_path(req->vhost);
     
     // add [stream].[timestamp].flv as filename for dir
-    if (path_config.find(".flv") != path_config.length() - 4) {
+    if (!srs_string_ends_with(path_config, ".flv")) {
         path_config += "/[stream].[timestamp].flv";
     }
     
