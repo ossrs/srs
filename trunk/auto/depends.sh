@@ -361,6 +361,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
 fi
 
+# the sed command
+SED="sed -i" && if [ $OS_IS_OSX = YES ]; then SED="sed -i ''"; fi
+
 #####################################################################################
 # check the os.
 #####################################################################################

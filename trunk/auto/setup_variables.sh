@@ -28,7 +28,3 @@ if [[ -z $SrsArmCXX ]]; then SrsArmCXX=$__SrsArmCXX; fi
 if [[ -z $SrsArmAR ]]; then SrsArmAR=$__SrsArmAR; fi
 if [[ -z $SrsArmLD ]]; then SrsArmLD=$__SrsArmLD; fi
 if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB=$__SrsArmRANDLIB; fi
-
-# the sed command
-SED="sed -i"
-if [ $OS_IS_OSX = YES ]; then SED="sed -i ''"; fi
