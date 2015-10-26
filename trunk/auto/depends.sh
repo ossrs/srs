@@ -361,6 +361,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
 fi
 
+# the sed command
+SED="sed -i" && if [ $OS_IS_OSX = YES ]; then SED="sed -i ''"; fi
+
 #####################################################################################
 # check the os.
 #####################################################################################
@@ -513,7 +516,7 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     # srs will write ts/m3u8 file use current user,
     # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
     cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-    $SED '' "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    $SED "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
 fi
 
 # the demo dir.
