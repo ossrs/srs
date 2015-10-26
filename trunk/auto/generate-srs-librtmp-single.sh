@@ -7,10 +7,6 @@ ret=$?; if [[ 0 -eq $ret ]]; then
 fi
 echo "Is OSX: ${OS_IS_OSX}"
 
-# the sed command
-SED="sed -i"
-if [ $OS_IS_OSX = YES ]; then SED="sed -i ''"; fi
-
 # when export srs-librtmp single files
 # package the whole project to srs_librtmp.h and srs_librtmp.cpp
 #

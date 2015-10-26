@@ -513,7 +513,7 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     # srs will write ts/m3u8 file use current user,
     # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
     cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-    $SED '' "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    $SED "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
 fi
 
 # the demo dir.
