@@ -129,7 +129,7 @@ void show_macro_features()
 #endif
         
 #ifndef SRS_OSX
-        ss << ", glibc" << (int)__GLIBC__ << "."  (int)__GLIBC_MINOR__;
+        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
 #endif
         
         ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()

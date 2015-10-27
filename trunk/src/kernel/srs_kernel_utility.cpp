@@ -678,7 +678,7 @@ u_int32_t __crc32_ieee(u_int32_t init, const u_int8_t* buf, size_t nb_buf)
     
     u_int32_t crc = init ^ 0xFFFFFFFF;
     
-    for (int i = 0; i < nb_buf; i++) {
+    for (size_t i = 0; i < nb_buf; i++) {
         crc = table[(crc ^ buf[i]) & 0xff] ^ (crc >> 8);
     }
     
