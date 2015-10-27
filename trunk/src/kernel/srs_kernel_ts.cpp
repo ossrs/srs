@@ -469,8 +469,11 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
     while (p < end) {
         SrsTsPacket* pkt = NULL;
         if (p == start) {
-            // for pure audio stream, always write pcr.
+            // write pcr according to message.
             bool write_pcr = msg->write_pcr;
+            
+            // for pure audio, always write pcr.
+            // TODO: FIXME: maybe only need to write at begin and end of ts.
             if (pure_audio && msg->is_audio()) {
                 write_pcr = true;
             }
@@ -2772,6 +2775,11 @@ void SrsTSMuxer::close()
     writer->close();
 }
 
+SrsCodecVideo SrsTSMuxer::video_codec()
+{
+    return vcodec;
+}
+
 SrsTsCache::SrsTsCache()
 {
     audio = NULL;
@@ -2792,11 +2800,12 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     if (!audio) {
         audio = new SrsTsMessage();
         audio->write_pcr = false;
-        audio->start_pts = dts;
+        audio->dts = audio->pts = audio->start_pts = dts;
     }
 
-    audio->dts = dts;
-    audio->pts = audio->dts;
+    // TODO: FIXME: refine code.
+    //audio->dts = dts;
+    //audio->pts = audio->dts;
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
@@ -3146,20 +3155,11 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    // flush if buffer exceed max size.
-    if (cache->audio->payload->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        return flush_video();
-    }
-
-    // TODO: config it.
-    // in ms, audio delay to flush the audios.
-    int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-    // flush if audio delay exceed
-    if (dts - cache->audio->start_pts > audio_delay * 90) {
-        return flush_audio();
-    }
-
-    return ret;
+    // TODO: FIXME: for pure audio, aggregate some frame to one.
+    
+    // always flush audio frame by frame.
+    // @see https://github.com/simple-rtmp-server/srs/issues/512
+    return flush_audio();
 }
 
 int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)

@@ -309,6 +309,10 @@ public:
     virtual bool is_segment_absolutely_overflow();
 public:
     virtual int update_acodec(SrsCodecAudio ac);
+    /**
+     * whether current hls muxer is pure audio mode.
+     */
+    virtual bool pure_audio();
     virtual int flush_audio(SrsTsCache* cache);
     virtual int flush_video(SrsTsCache* cache);
     /**
