@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 #include <vector>
 using namespace std;
