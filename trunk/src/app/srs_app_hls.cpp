@@ -646,6 +646,11 @@ int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
     return current->muxer->update_acodec(ac);
 }
 
+bool SrsHlsMuxer::pure_audio()
+{
+    return current && current->muxer && current->muxer->video_codec() == SrsCodecVideoDisabled;
+}
+
 int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
 {
     int ret = ERROR_SUCCESS;
@@ -1049,25 +1054,6 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         return ret;
     }
     
-    // flush if buffer exceed max size.
-    if (cache->audio->payload->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-
-    // TODO: config it.
-    // in ms, audio delay to flush the audios.
-    int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-    // flush if audio delay exceed
-    // cache->audio will be free in flush_audio
-    // so we must check whether it's null ptr.
-    if (cache->audio && pts - cache->audio->start_pts > audio_delay * 90) {
-        if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-    
     // reap when current source is pure audio.
     // it maybe changed when stream info changed,
     // for example, pure audio when start, audio/video when publishing,
@@ -1081,6 +1067,14 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
+    }
+    
+    // directly write the audio frame by frame to ts,
+    // it's ok for the hls overload, or maybe cause the audio corrupt,
+    // which introduced by aggregate the audios to a big one.
+    // @see https://github.com/simple-rtmp-server/srs/issues/512
+    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     return ret;
@@ -1100,7 +1094,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         // do reap ts if any of:
         //      a. wait keyframe and got keyframe.
         //      b. always reap when not wait keyframe.
-        if (!muxer->wait_keyframe()|| sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+        if (!muxer->wait_keyframe() || sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
             // when wait keyframe, there must exists idr frame in sample.
             if (!sample->has_idr && muxer->wait_keyframe()) {
                 srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);
@@ -1110,9 +1104,6 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
             if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
                 return ret;
             }
-            
-            // the video must be flushed, just return.
-            return ret;
         }
     }
     

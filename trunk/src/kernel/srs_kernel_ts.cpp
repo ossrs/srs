@@ -2760,6 +2760,11 @@ void SrsTSMuxer::close()
     writer->close();
 }
 
+SrsCodecVideo SrsTSMuxer::video_codec()
+{
+    return vcodec;
+}
+
 SrsTsCache::SrsTsCache()
 {
     audio = NULL;
@@ -3134,20 +3139,9 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    // flush if buffer exceed max size.
-    if (cache->audio->payload->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        return flush_video();
-    }
-
-    // TODO: config it.
-    // in ms, audio delay to flush the audios.
-    int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-    // flush if audio delay exceed
-    if (dts - cache->audio->start_pts > audio_delay * 90) {
-        return flush_audio();
-    }
-
-    return ret;
+    // always flush audio frame by frame.
+    // @see https://github.com/simple-rtmp-server/srs/issues/512
+    return flush_audio();
 }
 
 int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)

@@ -765,7 +765,9 @@ About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS t
 | 5147kbps  |   370s        |   195040      |   200280      |   2.68%       |
 | 5158kbps  |   1327s       |   835664      |   858092      |   2.68%       |
 
-The HLS overhead is calc by: (HLS - FLV) / FLV * 100%
+The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
+
+The overhead is larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug#512].
 
 ## Architecture
 
@@ -1193,6 +1195,8 @@ Winlin
 [bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
+[bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
+[bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
 
 [r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/v2.0-a2
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1

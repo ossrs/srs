@@ -1586,6 +1586,11 @@ public:
     * close the writer.
     */
     virtual void close();
+public:
+    /**
+     * get the video codec of ts muxer.
+     */
+    virtual SrsCodecVideo video_codec();
 };
 
 /**
