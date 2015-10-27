@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-10-27, for [#512][bug #512] partical hotfix the hls pure audio. 2.0.196
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
 * v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
 * v2.0, 2015-10-01, for [#497][bug #497] response error when client not found to kickoff. 2.0.194

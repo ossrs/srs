@@ -459,8 +459,11 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
     while (p < end) {
         SrsTsPacket* pkt = NULL;
         if (p == start) {
-            // for pure audio stream, always write pcr.
+            // write pcr according to message.
             bool write_pcr = msg->write_pcr;
+            
+            // for pure audio, always write pcr.
+            // TODO: FIXME: maybe only need to write at begin and end of ts.
             if (pure_audio && msg->is_audio()) {
                 write_pcr = true;
             }
@@ -2785,11 +2788,12 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     if (!audio) {
         audio = new SrsTsMessage();
         audio->write_pcr = false;
-        audio->start_pts = dts;
+        audio->dts = audio->pts = audio->start_pts = dts;
     }
 
-    audio->dts = dts;
-    audio->pts = audio->dts;
+    // TODO: FIXME: refine code.
+    //audio->dts = dts;
+    //audio->pts = audio->dts;
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
@@ -3138,6 +3142,8 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     if ((ret = cache->cache_audio(codec, dts, sample)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // TODO: FIXME: for pure audio, aggregate some frame to one.
     
     // always flush audio frame by frame.
     // @see https://github.com/simple-rtmp-server/srs/issues/512

@@ -578,6 +578,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         current->full_path.c_str(), tmp_file.c_str());
 
     // set the segment muxer audio codec.
+    // TODO: FIXME: refine code, use event instead.
     if (acodec != SrsCodecAudioReserved1) {
         current->muxer->update_acodec(acodec);
     }
@@ -1044,7 +1045,7 @@ int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
     // when the sequence header changed, the stream is not republish.
     return muxer->on_sequence_header();
 }
-    
+
 int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
@@ -1065,6 +1066,13 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
         srs_info("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    // for pure audio, aggregate some frame to one.
+    if (muxer->pure_audio() && cache->audio) {
+        if (pts - cache->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
             return ret;
         }
     }
