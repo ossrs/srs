@@ -728,7 +728,8 @@ int SrsHlsMuxer::segment_close(string log_desc)
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
-    if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration <= max_td) {
+    // make the segment more acceptable, when in [min, max_td * 2], it's ok.
+    if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration <= max_td * 2) {
         segments.push_back(current);
         
         // use async to call the http hooks, for it will cause thread switch.
