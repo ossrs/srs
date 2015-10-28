@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
 * v2.0, 2015-10-27, for [#512][bug #512] partical hotfix the hls pure audio. 2.0.196
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
 * v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
@@ -1198,6 +1199,8 @@ Winlin
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
 [bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
 [bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
+
+[exo #828]: https://github.com/google/ExoPlayer/pull/828
 
 [r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/v2.0-a2
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
