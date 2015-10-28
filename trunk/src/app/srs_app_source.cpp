@@ -1400,6 +1400,11 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 
     SrsAmf0Any* prop = NULL;
     
+    // when exists the duration, remove it to make ExoPlayer happy.
+    if (metadata->metadata->get_property("duration") != NULL) {
+        metadata->metadata->remove("duration");
+    }
+    
     // generate metadata info to print
     std::stringstream ss;
     if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {

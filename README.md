@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
 * v2.0, 2015-10-27, for [#512][bug #512] partical hotfix the hls pure audio. 2.0.196
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
