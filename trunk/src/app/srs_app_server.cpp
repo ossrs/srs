@@ -723,7 +723,7 @@ int SrsServer::acquire_pid_file()
     
     // write the pid
     string pid = srs_int2str(getpid());
-    if (write(fd, pid.c_str(), pid.length()) != pid.length()) {
+    if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
         ret = ERROR_SYSTEM_PID_WRITE_FILE;
         srs_error("write our pid error! pid=%s file=%s ret=%#x", pid.c_str(), pid_file.c_str(), ret);
         return ret;

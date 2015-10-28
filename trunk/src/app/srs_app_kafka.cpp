@@ -304,7 +304,7 @@ int SrsKafkaCache::flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitio
     }
     
     // remove the messages from cache.
-    if (pc->size() == nb_msgs) {
+    if ((int)pc->size() == nb_msgs) {
         pc->clear();
     } else {
         pc->erase(pc->begin(), pc->begin() + nb_msgs);
