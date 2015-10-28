@@ -381,7 +381,7 @@ int SrsFlvEncoder::write_header()
     char flv_header[] = {
         'F', 'L', 'V', // Signatures "FLV"
         (char)0x01, // File version (for example, 0x01 for FLV version 1)
-        (char)0x00, // 4, audio; 1, video; 5 audio+video.
+        (char)0x05, // 4, audio; 1, video; 5 audio+video.
         (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
     };
     

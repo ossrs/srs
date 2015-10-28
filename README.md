@@ -1267,7 +1267,6 @@ Winlin
 [bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
-<<<<<<< HEAD
 [bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
 [bug #319]: https://github.com/simple-rtmp-server/srs/issues/319
 [bug #367]: https://github.com/simple-rtmp-server/srs/issues/367
@@ -1284,11 +1283,10 @@ Winlin
 [bug #468]: https://github.com/simple-rtmp-server/srs/issues/468
 [bug #502]: https://github.com/simple-rtmp-server/srs/issues/502
 [bug #467]: https://github.com/simple-rtmp-server/srs/issues/467
-[bug #xxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxx
-=======
 [bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
 [bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
->>>>>>> 2.0release
+
+[exo #828]: https://github.com/google/ExoPlayer/pull/828
 
 [r2.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/v2.0-a2
 [r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
