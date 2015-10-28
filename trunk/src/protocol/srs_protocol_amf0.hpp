@@ -414,6 +414,10 @@ public:
     * @remark user should never free the returned value, copy it if needed.
     */
     virtual SrsAmf0Any* ensure_property_number(std::string name);
+    /**
+     * remove the property specified by name.
+     */
+    virtual void remove(std::string name);
 };
 
 /**
@@ -820,6 +824,7 @@ namespace _srs_internal
         virtual SrsAmf0Any* get_property(std::string name);
         virtual SrsAmf0Any* ensure_property_string(std::string name);
         virtual SrsAmf0Any* ensure_property_number(std::string name);
+        virtual void remove(std::string name);
     public:
         virtual void copy(SrsUnSortedHashtable* src);
     };
