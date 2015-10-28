@@ -4751,7 +4751,7 @@ double SrsConfig::get_send_min_interval(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4773,7 +4773,7 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
