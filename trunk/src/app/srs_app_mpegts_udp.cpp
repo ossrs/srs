@@ -199,7 +199,7 @@ int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
     buffer->erase(buffer->length());
     int nb_fbuf = fr.filesize();
     char* fbuf = new char[nb_fbuf];
-    SrsAutoFree(char, fbuf);
+    SrsAutoFreeA(char, fbuf);
     if ((ret = fr.read(fbuf, nb_fbuf, NULL)) != ERROR_SUCCESS) {
         return ret;
     }

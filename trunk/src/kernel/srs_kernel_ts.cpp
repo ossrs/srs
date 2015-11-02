@@ -387,7 +387,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
@@ -412,7 +412,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
@@ -485,7 +485,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();

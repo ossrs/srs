@@ -380,7 +380,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     
     int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
     char* buf = new char[nb_buf];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
     
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();

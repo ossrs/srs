@@ -482,7 +482,7 @@ int SrsHds::flush_bootstrap()
     int size = 1024*100;
 
     char *start_abst = new char[1024*100];
-    SrsAutoFree(char, start_abst);
+    SrsAutoFreeA(char, start_abst);
 
     int size_abst = 0;
     char *start_asrt = NULL;

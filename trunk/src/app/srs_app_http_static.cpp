@@ -116,7 +116,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
         }
     }
     sh_data = new char[sh_size];
-    SrsAutoFree(char, sh_data);
+    SrsAutoFreeA(char, sh_data);
     if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
