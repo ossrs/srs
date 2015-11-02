@@ -137,13 +137,13 @@ int SrsProcess::start()
             if ((stdout_fd = ::open(stdout_file.c_str(), flags, mode)) < 0) {
                 ret = ERROR_ENCODER_OPEN;
                 fprintf(stderr, "open process stdout %s failed. ret=%d", stdout_file.c_str(), ret);
-                return ret;
+                exit(ret);
             }
             
             if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
                 ret = ERROR_ENCODER_DUP2;
                 srs_error("dup2 process stdout failed. ret=%d", ret);
-                return ret;
+                exit(ret);
             }
         }
         
@@ -156,13 +156,13 @@ int SrsProcess::start()
             if ((stderr_fd = ::open(stderr_file.c_str(), flags, mode)) < 0) {
                 ret = ERROR_ENCODER_OPEN;
                 fprintf(stderr, "open process stderr %s failed. ret=%d", stderr_file.c_str(), ret);
-                return ret;
+                exit(ret);
             }
             
             if (dup2(stderr_fd, STDERR_FILENO) < 0) {
                 ret = ERROR_ENCODER_DUP2;
                 srs_error("dup2 process stderr failed. ret=%d", ret);
-                return ret;
+                exit(ret);
             }
         }
         
