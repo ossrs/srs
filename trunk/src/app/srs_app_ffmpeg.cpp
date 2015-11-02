@@ -432,7 +432,7 @@ int SrsFFMPEG::start()
         if ((log_fd = ::open(log_file.c_str(), flags, mode)) < 0) {
             ret = ERROR_ENCODER_OPEN;
             srs_error("open encoder file %s failed. ret=%d", log_file.c_str(), ret);
-            return ret;
+            exit(ret);
         }
         
         // log basic info
@@ -450,12 +450,12 @@ int SrsFFMPEG::start()
         if (dup2(log_fd, STDOUT_FILENO) < 0) {
             ret = ERROR_ENCODER_DUP2;
             srs_error("dup2 encoder file failed. ret=%d", ret);
-            return ret;
+            exit(ret);
         }
         if (dup2(log_fd, STDERR_FILENO) < 0) {
             ret = ERROR_ENCODER_DUP2;
             srs_error("dup2 encoder file failed. ret=%d", ret);
-            return ret;
+            exit(ret);
         }
         
         // close log fd
