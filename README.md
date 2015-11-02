@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
 * v2.0, 2015-10-27, for [#512][bug #512] partical hotfix the hls pure audio. 2.0.196
@@ -1199,6 +1200,7 @@ Winlin
 [bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
 [bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
+[bug #515]: https://github.com/simple-rtmp-server/srs/issues/515
 [bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
