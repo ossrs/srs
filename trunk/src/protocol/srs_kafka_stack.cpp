@@ -55,7 +55,7 @@ SrsKafkaString::SrsKafkaString(string v)
 
 SrsKafkaString::~SrsKafkaString()
 {
-    srs_freep(data);
+    srs_freepa(data);
 }
 
 bool SrsKafkaString::null()
@@ -80,7 +80,7 @@ string SrsKafkaString::to_str()
 void SrsKafkaString::set_value(string v)
 {
     // free previous data.
-    srs_freep(data);
+    srs_freepa(data);
     
     // copy new value to data.
     _size = (int16_t)v.length();
@@ -147,7 +147,7 @@ int SrsKafkaString::decode(SrsBuffer* buf)
         return ret;
     }
     
-    srs_freep(data);
+    srs_freepa(data);
     data = new char[_size];
     
     buf->read_bytes(data, _size);
@@ -171,7 +171,7 @@ SrsKafkaBytes::SrsKafkaBytes(const char* v, int nb_v)
 
 SrsKafkaBytes::~SrsKafkaBytes()
 {
-    srs_freep(_data);
+    srs_freepa(_data);
 }
 
 char* SrsKafkaBytes::data()
@@ -202,7 +202,7 @@ void SrsKafkaBytes::set_value(string v)
 void SrsKafkaBytes::set_value(const char* v, int nb_v)
 {
     // free previous data.
-    srs_freep(_data);
+    srs_freepa(_data);
     
     // copy new value to data.
     _size = (int16_t)nb_v;
@@ -280,7 +280,7 @@ int SrsKafkaBytes::decode(SrsBuffer* buf)
         return ret;
     }
     
-    srs_freep(_data);
+    srs_freepa(_data);
     _data = new char[_size];
     buf->read_bytes(_data, _size);
     
