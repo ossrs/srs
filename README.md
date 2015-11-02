@@ -771,7 +771,7 @@ About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS t
 
 The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
 
-The overhead is larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug#512].
+The overhead is larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
 
 ## Architecture
 
