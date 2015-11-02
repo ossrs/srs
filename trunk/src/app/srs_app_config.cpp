@@ -433,7 +433,7 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
                 if (!word_str.empty()) {
                     args.push_back(word_str);
                 }
-                srs_freep(aword);
+                srs_freepa(aword);
                 
                 if (ch == ';') {
                     return ERROR_SYSTEM_CONFIG_DIRECTIVE;
@@ -4488,7 +4488,7 @@ namespace _srs_internal
     
     SrsConfigBuffer::~SrsConfigBuffer()
     {
-        srs_freep(start);
+        srs_freepa(start);
     }
     
     int SrsConfigBuffer::fullfill(const char* filename)
@@ -4507,7 +4507,7 @@ namespace _srs_internal
         int filesize = (int)reader.filesize();
         
         // create buffer
-        srs_freep(start);
+        srs_freepa(start);
         pos = last = start = new char[filesize];
         end = start + filesize;
         

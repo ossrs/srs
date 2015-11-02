@@ -94,7 +94,7 @@ SrsUdpListener::~SrsUdpListener()
     // close it manually.
     close(_fd);
 
-    srs_freep(buf);
+    srs_freepa(buf);
 }
 
 int SrsUdpListener::fd()

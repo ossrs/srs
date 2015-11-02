@@ -2398,7 +2398,7 @@ int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int
             
             char* amf0_str = NULL;
             srs_human_raw("%s", srs_human_amf0_print(amf0, &amf0_str, NULL));
-            srs_freep(amf0_str);
+            srs_freepa(amf0_str);
         }
     } else {
         srs_human_trace("Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d",

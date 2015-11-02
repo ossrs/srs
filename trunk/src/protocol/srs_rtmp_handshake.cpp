@@ -319,8 +319,8 @@ namespace _srs_internal
     
     key_block::~key_block()
     {
-        srs_freep(random0);
-        srs_freep(random1);
+        srs_freepa(random0);
+        srs_freepa(random1);
     }
     
     int key_block::parse(SrsStream* stream)
@@ -342,7 +342,7 @@ namespace _srs_internal
         
         random0_size = valid_offset;
         if (random0_size > 0) {
-            srs_freep(random0);
+            srs_freepa(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -351,7 +351,7 @@ namespace _srs_internal
         
         random1_size = 764 - valid_offset - 128 - 4;
         if (random1_size > 0) {
-            srs_freep(random1);
+            srs_freepa(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -401,8 +401,8 @@ namespace _srs_internal
     
     digest_block::~digest_block()
     {
-        srs_freep(random0);
-        srs_freep(random1);
+        srs_freepa(random0);
+        srs_freepa(random1);
     }
 
     int digest_block::parse(SrsStream* stream)
@@ -419,7 +419,7 @@ namespace _srs_internal
         
         random0_size = valid_offset;
         if (random0_size > 0) {
-            srs_freep(random0);
+            srs_freepa(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -428,7 +428,7 @@ namespace _srs_internal
         
         random1_size = 764 - 4 - valid_offset - 32;
         if (random1_size > 0) {
-            srs_freep(random1);
+            srs_freepa(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -592,7 +592,7 @@ namespace _srs_internal
         
         c1_digest = new char[SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, c1_digest)) != ERROR_SUCCESS) {
-            srs_freep(c1_digest);
+            srs_freepa(c1_digest);
             srs_error("calc digest for c1 failed. ret=%d", ret);
             return ret;
         }
@@ -620,7 +620,7 @@ namespace _srs_internal
         
         s1_digest = new char[SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, s1_digest)) != ERROR_SUCCESS) {
-            srs_freep(s1_digest);
+            srs_freepa(s1_digest);
             srs_error("calc digest for s1 failed. ret=%d", ret);
             return ret;
         }

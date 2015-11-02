@@ -915,7 +915,7 @@ SrsTsAdaptationField::SrsTsAdaptationField(SrsTsPacket* pkt)
 
 SrsTsAdaptationField::~SrsTsAdaptationField()
 {
-    srs_freep(transport_private_data);
+    srs_freepa(transport_private_data);
 }
 
 int SrsTsAdaptationField::decode(SrsStream* stream)
@@ -1040,7 +1040,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
                 srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
                 return ret;
             }
-            srs_freep(transport_private_data);
+            srs_freepa(transport_private_data);
             transport_private_data = new char[transport_private_data_length];
             stream->read_bytes(transport_private_data, transport_private_data_length);
         }
@@ -1325,9 +1325,9 @@ SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
 
 SrsTsPayloadPES::~SrsTsPayloadPES()
 {
-    srs_freep(PES_private_data);
-    srs_freep(pack_field);
-    srs_freep(PES_extension_field);
+    srs_freepa(PES_private_data);
+    srs_freepa(pack_field);
+    srs_freepa(PES_extension_field);
 }
 
 int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
@@ -1604,7 +1604,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
                 // 16B
                 if (PES_private_data_flag) {
-                    srs_freep(PES_private_data);
+                    srs_freepa(PES_private_data);
                     PES_private_data = new char[16];
                     stream->read_bytes(PES_private_data, 16);
                 }
@@ -1620,7 +1620,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext pack failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freep(pack_field);
+                        srs_freepa(pack_field);
                         pack_field = new char[pack_field_length];
                         stream->read_bytes(pack_field, pack_field_length);
                     }
@@ -1658,7 +1658,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext field failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freep(PES_extension_field);
+                        srs_freepa(PES_extension_field);
                         PES_extension_field = new char[PES_extension_field_length];
                         stream->read_bytes(PES_extension_field, PES_extension_field_length);
                     }
@@ -2421,7 +2421,7 @@ SrsTsPayloadPMTESInfo::SrsTsPayloadPMTESInfo(SrsTsStream st, int16_t epid)
 
 SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
 {
-    srs_freep(ES_info);
+    srs_freepa(ES_info);
 }
 
 int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
@@ -2451,7 +2451,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
             srs_error("ts: demux PMT es info data failed. ret=%d", ret);
             return ret;
         }
-        srs_freep(ES_info);
+        srs_freepa(ES_info);
         ES_info = new char[ES_info_length];
         stream->read_bytes(ES_info, ES_info_length);
     }
@@ -2508,7 +2508,7 @@ SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
 
 SrsTsPayloadPMT::~SrsTsPayloadPMT()
 {
-    srs_freep(program_info_desc);
+    srs_freepa(program_info_desc);
 
     std::vector<SrsTsPayloadPMTESInfo*>::iterator it;
     for (it = infos.begin(); it != infos.end(); ++it) {
@@ -2562,7 +2562,7 @@ int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
             return ret;
         }
 
-        srs_freep(program_info_desc);
+        srs_freepa(program_info_desc);
         program_info_desc = new char[program_info_length];
         stream->read_bytes(program_info_desc, program_info_length);
     }

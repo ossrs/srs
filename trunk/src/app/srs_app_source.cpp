@@ -161,7 +161,7 @@ SrsFastVector::SrsFastVector()
 SrsFastVector::~SrsFastVector()
 {
     free();
-    srs_freep(msgs);
+    srs_freepa(msgs);
 }
 
 int SrsFastVector::size()
@@ -220,7 +220,7 @@ void SrsFastVector::push_back(SrsSharedPtrMessage* msg)
         srs_warn("fast vector incrase %d=>%d", nb_msgs, size);
         
         // use new array.
-        srs_freep(msgs);
+        srs_freepa(msgs);
         msgs = buf;
         nb_msgs = size;
     }
