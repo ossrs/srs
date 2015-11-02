@@ -1312,7 +1312,7 @@ int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
     
     // TODO: FIXME: refine for performance issue.
     char* bytes = new char[size];
-    SrsAutoFree(char, bytes);
+    SrsAutoFreeA(char, bytes);
     
     // TODO: FIXME: refine for performance issue.
     SrsBuffer* buf = new SrsBuffer();

@@ -240,7 +240,7 @@ int SrsFlvSegment::write_metadata(SrsSharedPtrMessage* metadata)
     
     int size = name->total_size() + obj->total_size();
     char* payload = new char[size];
-    SrsAutoFree(char, payload);
+    SrsAutoFreeA(char, payload);
 
     // 11B flv header, 3B object EOF, 8B number value, 1B number flag.
     duration_offset = fs->tellg() + size + 11 - SrsAmf0Size::object_eof() - SrsAmf0Size::number();
@@ -355,7 +355,7 @@ int SrsFlvSegment::update_flv_metadata()
 
     // buffer to write the size.
     char* buf = new char[SrsAmf0Size::number()];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
 
     SrsBuffer stream;
     if ((ret = stream.initialize(buf, SrsAmf0Size::number())) != ERROR_SUCCESS) {

@@ -487,7 +487,7 @@ namespace _srs_internal
         }
         
         srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest);
+        SrsAutoFreeA(char, c1_digest);
         
         memcpy(digest.digest, c1_digest, 32);
         
@@ -506,7 +506,7 @@ namespace _srs_internal
         }
         
         srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest);
+        SrsAutoFreeA(char, c1_digest);
         
         is_valid = srs_bytes_equals(digest.digest, c1_digest, 32);
         
@@ -546,7 +546,7 @@ namespace _srs_internal
         srs_verbose("calc s1 digest success.");
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
+        SrsAutoFreeA(char, s1_digest);
         
         memcpy(digest.digest, s1_digest, 32);
         srs_verbose("copy s1 key success.");
@@ -566,7 +566,7 @@ namespace _srs_internal
         }
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
+        SrsAutoFreeA(char, s1_digest);
         
         is_valid = srs_bytes_equals(digest.digest, s1_digest, 32);
         
@@ -585,7 +585,7 @@ namespace _srs_internal
         * @return a new allocated bytes, user must free it.
         */
         char* c1s1_joined_bytes = new char[1536 -32];
-        SrsAutoFree(char, c1s1_joined_bytes);
+        SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -613,7 +613,7 @@ namespace _srs_internal
         * @return a new allocated bytes, user must free it.
         */
         char* c1s1_joined_bytes = new char[1536 -32];
-        SrsAutoFree(char, c1s1_joined_bytes);
+        SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
             return ret;
         }

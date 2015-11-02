@@ -734,7 +734,7 @@ int SrsHttpMessage::body_read_all(string& body)
     
     // cache to read.
     char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
     
     // whatever, read util EOF.
     while (!_body->eof()) {

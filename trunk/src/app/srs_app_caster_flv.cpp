@@ -142,7 +142,7 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std
     srs_trace("flv: proxy %s to %s", r->uri().c_str(), output.c_str());
     
     char* buffer = new char[SRS_HTTP_FLV_STREAM_BUFFER];
-    SrsAutoFree(char, buffer);
+    SrsAutoFreeA(char, buffer);
     
     ISrsHttpResponseReader* rr = r->body_reader();
     SrsHttpFileReader reader(rr);

@@ -914,7 +914,7 @@ int SrsAvcAacCodec::avc_demux_sps()
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     int8_t* rbsp = new int8_t[sequenceParameterSetLength];
-    SrsAutoFree(int8_t, rbsp);
+    SrsAutoFreeA(int8_t, rbsp);
     
     int nb_rbsp = 0;
     while (!stream.empty()) {
