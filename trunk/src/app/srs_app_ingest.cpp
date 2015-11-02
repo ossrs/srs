@@ -356,10 +356,11 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     
     // find the app and stream in rtmp url
     std::string app, stream;
-    srs_parse_rtmp_url(output, app, stream);
-    size_t pos;
-    if ((pos = app.rfind("?")) != std::string::npos) {
-        app = app.substr(0, pos);
+    if (true) {
+        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        std::string tcUrl, schema, host, vhost2, param;
+        srs_parse_rtmp_url(output, tcUrl, stream);
+        srs_discovery_tc_url(tcUrl, schema, host, vhost2, app, port, param);
     }
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled

@@ -122,6 +122,9 @@ int SrsProcess::start()
         return ret;
     }
     
+    // for osx(lldb) to debug the child process.
+    //kill(0, SIGSTOP);
+    
     // child process: ffmpeg encoder engine.
     if (pid == 0) {
         // ignore the SIGINT and SIGTERM
