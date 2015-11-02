@@ -91,7 +91,7 @@ SrsFastLog::SrsFastLog()
 
 SrsFastLog::~SrsFastLog()
 {
-    srs_freep(log_data);
+    srs_freepa(log_data);
 
     if (fd > 0) {
         ::close(fd);

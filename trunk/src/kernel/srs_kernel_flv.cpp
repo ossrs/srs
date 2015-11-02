@@ -163,12 +163,12 @@ SrsCommonMessage::~SrsCommonMessage()
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
-    srs_freep(payload);
+    srs_freepa(payload);
 }
 
 void SrsCommonMessage::create_payload(int size)
 {
-    srs_freep(payload);
+    srs_freepa(payload);
     
     payload = new char[size];
     srs_verbose("create payload for RTMP message. size=%d", size);
@@ -190,7 +190,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
-    srs_freep(payload);
+    srs_freepa(payload);
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage()
@@ -350,9 +350,9 @@ SrsFlvEncoder::~SrsFlvEncoder()
     srs_freep(tag_stream);
     
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-    srs_freep(tag_headers);
-    srs_freep(iovss_cache);
-    srs_freep(ppts);
+    srs_freepa(tag_headers);
+    srs_freepa(iovss_cache);
+    srs_freepa(ppts);
 #endif
 }
 
@@ -489,7 +489,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
     int nb_iovss = 3 * count;
     iovec* iovss = iovss_cache;
     if (nb_iovss_cache < nb_iovss) {
-        srs_freep(iovss_cache);
+        srs_freepa(iovss_cache);
         
         nb_iovss_cache = nb_iovss;
         iovss = iovss_cache = new iovec[nb_iovss];
@@ -498,7 +498,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
     // realloc the tag headers.
     char* cache = tag_headers;
     if (nb_tag_headers < count) {
-        srs_freep(tag_headers);
+        srs_freepa(tag_headers);
         
         nb_tag_headers = count;
         cache = tag_headers = new char[SRS_FLV_TAG_HEADER_SIZE * count];
@@ -507,7 +507,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
     // realloc the pts.
     char* pts = ppts;
     if (nb_ppts < count) {
-        srs_freep(ppts);
+        srs_freepa(ppts);
         
         nb_ppts = count;
         pts = ppts = new char[SRS_FLV_PREVIOUS_TAG_SIZE * count];

@@ -222,7 +222,7 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
 
     // only when failed, we must free the data.
     if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
-        srs_freep(data);
+        srs_freepa(data);
         return ret;
     }
 

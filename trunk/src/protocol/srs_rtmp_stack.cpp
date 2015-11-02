@@ -151,14 +151,14 @@ int SrsPacket::encode(int& psize, char*& ppayload)
         
         if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
             srs_error("initialize the stream failed. ret=%d", ret);
-            srs_freep(payload);
+            srs_freepa(payload);
             return ret;
         }
     }
     
     if ((ret = encode_packet(&stream)) != ERROR_SUCCESS) {
         srs_error("encode the packet failed. ret=%d", ret);
-        srs_freep(payload);
+        srs_freepa(payload);
         return ret;
     }
     
@@ -279,7 +279,7 @@ SrsProtocol::~SrsProtocol()
         SrsChunkStream* cs = cs_cache[i];
         srs_freep(cs);
     }
-    srs_freep(cs_cache);
+    srs_freepa(cs_cache);
 }
 
 void SrsProtocol::set_auto_response(bool v)
@@ -632,7 +632,7 @@ int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
     header.perfer_cid = packet->get_prefer_cid();
     
     ret = do_simple_send(&header, payload, size);
-    srs_freep(payload);
+    srs_freepa(payload);
     if (ret == ERROR_SUCCESS) {
         ret = on_send_packet(&header, packet);
     }
@@ -1776,9 +1776,9 @@ SrsHandshakeBytes::SrsHandshakeBytes()
 
 SrsHandshakeBytes::~SrsHandshakeBytes()
 {
-    srs_freep(c0c1);
-    srs_freep(s0s1s2);
-    srs_freep(c2);
+    srs_freepa(c0c1);
+    srs_freepa(s0s1s2);
+    srs_freepa(c2);
 }
 
 int SrsHandshakeBytes::read_c0c1(ISrsProtocolReaderWriter* io)

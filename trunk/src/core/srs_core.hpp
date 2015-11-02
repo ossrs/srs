@@ -103,9 +103,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         p = NULL; \
     } \
     (void)0
-// sometimes, the freepa is useless,
-// it's recomments to free each elem explicit.
-// so we remove the srs_freepa utility.
+// please use the freepa(T[]) to free an array,
+// or the behavior is undefined.
+#define srs_freepa(pa) \
+    if (pa) { \
+        delete[] pa; \
+        pa = NULL; \
+    } \
+    (void)0
 
 /**
 * disable copy constructor of class,

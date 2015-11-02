@@ -79,7 +79,7 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
-    srs_freep(iovss_cache);
+    srs_freepa(iovss_cache);
 }
 
 int SrsHttpResponseWriter::final_request()
@@ -191,7 +191,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     int nb_iovss = 3 + iovcnt;
     iovec* iovss = iovss_cache;
     if (nb_iovss_cache < nb_iovss) {
-        srs_freep(iovss_cache);
+        srs_freepa(iovss_cache);
         nb_iovss_cache = nb_iovss;
         iovss = iovss_cache = new iovec[nb_iovss];
     }
@@ -509,7 +509,7 @@ SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
     srs_freep(_uri);
-    srs_freep(_http_ts_send_buffer);
+    srs_freepa(_http_ts_send_buffer);
 }
 
 int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, vector<SrsHttpHeaderField>& headers)

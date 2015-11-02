@@ -419,12 +419,12 @@ SrsAvcAacCodec::SrsAvcAacCodec()
 
 SrsAvcAacCodec::~SrsAvcAacCodec()
 {
-    srs_freep(avc_extra_data);
-    srs_freep(aac_extra_data);
+    srs_freepa(avc_extra_data);
+    srs_freepa(aac_extra_data);
 
     srs_freep(stream);
-    srs_freep(sequenceParameterSetNALUnit);
-    srs_freep(pictureParameterSetNALUnit);
+    srs_freepa(sequenceParameterSetNALUnit);
+    srs_freepa(pictureParameterSetNALUnit);
 }
 
 bool SrsAvcAacCodec::is_avc_codec_ok()
@@ -500,7 +500,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
         aac_extra_size = stream->size() - stream->pos();
         if (aac_extra_size > 0) {
-            srs_freep(aac_extra_data);
+            srs_freepa(aac_extra_data);
             aac_extra_data = new char[aac_extra_size];
             memcpy(aac_extra_data, stream->data() + stream->pos(), aac_extra_size);
 
@@ -764,7 +764,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
     // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
     avc_extra_size = stream->size() - stream->pos();
     if (avc_extra_size > 0) {
-        srs_freep(avc_extra_data);
+        srs_freepa(avc_extra_data);
         avc_extra_data = new char[avc_extra_size];
         memcpy(avc_extra_data, stream->data() + stream->pos(), avc_extra_size);
     }
@@ -825,7 +825,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
         return ret;
     }
     if (sequenceParameterSetLength > 0) {
-        srs_freep(sequenceParameterSetNALUnit);
+        srs_freepa(sequenceParameterSetNALUnit);
         sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
         stream->read_bytes(sequenceParameterSetNALUnit, sequenceParameterSetLength);
     }
@@ -854,7 +854,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
         return ret;
     }
     if (pictureParameterSetLength > 0) {
-        srs_freep(pictureParameterSetNALUnit);
+        srs_freepa(pictureParameterSetNALUnit);
         pictureParameterSetNALUnit = new char[pictureParameterSetLength];
         stream->read_bytes(pictureParameterSetNALUnit, pictureParameterSetLength);
     }

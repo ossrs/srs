@@ -768,7 +768,7 @@ ISrsHttpMessage::ISrsHttpMessage()
 
 ISrsHttpMessage::~ISrsHttpMessage()
 {
-    srs_freep(_http_ts_send_buffer);
+    srs_freepa(_http_ts_send_buffer);
 }
 
 char* ISrsHttpMessage::http_ts_send_buffer()
