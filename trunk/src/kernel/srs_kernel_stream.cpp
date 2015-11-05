@@ -87,7 +87,7 @@ bool SrsStream::empty()
 
 bool SrsStream::require(int required_size)
 {
-    srs_assert(required_size > 0);
+    srs_assert(required_size >= 0);
     
     return required_size <= nb_bytes - (p - bytes);
 }
