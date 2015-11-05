@@ -100,11 +100,12 @@ namespace internal {
             return ret;
         }
         
+        disposed = false;
         // we set to loop to true for thread to run.
         loop = true;
         
         // wait for cid to ready, for parent thread to get the cid.
-        while (_cid < 0 && loop) {
+        while (_cid < 0) {
             st_usleep(10 * 1000);
         }
         
@@ -124,7 +125,9 @@ namespace internal {
         
         dispose();
         
-        tid = NULL;
+        _cid = -1;
+        can_run = false;
+        tid = NULL;        
     }
     
     bool SrsThread::can_loop()
