@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
 * v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
@@ -1201,6 +1202,7 @@ Winlin
 [bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
 [bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
 [bug #515]: https://github.com/simple-rtmp-server/srs/issues/515
+[bug #511]: https://github.com/simple-rtmp-server/srs/issues/511
 [bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
