@@ -1285,6 +1285,7 @@ Winlin
 [bug #467]: https://github.com/simple-rtmp-server/srs/issues/467
 [bug #512]: https://github.com/simple-rtmp-server/srs/issues/512
 [bug #515]: https://github.com/simple-rtmp-server/srs/issues/515
+[bug #511]: https://github.com/simple-rtmp-server/srs/issues/511
 [bug #xxxxxxxxxx]: https://github.com/simple-rtmp-server/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
