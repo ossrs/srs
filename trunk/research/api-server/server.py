@@ -621,7 +621,7 @@ class RESTServers(object):
     '''
     get all servers which report to this api-server.
     '''
-    def GET(self):
+    def GET(self, id=None):
         enable_crossdomain()
         
         try:
@@ -631,7 +631,8 @@ class RESTServers(object):
             
             data = []
             for node in self.__nodes:
-                data.append(node.json_dump())
+                if id == None or node.id == str(id) or node.device_id == str(id):
+                    data.append(node.json_dump())
             
             return json.dumps(data)
         finally:
