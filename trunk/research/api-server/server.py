@@ -528,6 +528,7 @@ class ArmServer:
         self.id = str(global_arm_server_id)
         self.ip = None
         self.device_id = None
+        self.summaries = None
         
         self.public_ip = cherrypy.request.remote.ip
         self.heartbeat = time.time()
@@ -545,10 +546,11 @@ class ArmServer:
         data["id"] = self.id
         data["ip"] = self.ip
         data["device_id"] = self.device_id
+        data["summaries"] = self.summaries
         data["public_ip"] = self.public_ip
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
-        data["summaries"] = "http://%s:1985/api/v1/summaries"%(self.ip)
+        data["api"] = "http://%s:1985/api/v1/summaries"%(self.ip)
         data["console"] = "http://ossrs.net/console/ng_index.html#/summaries?host=%s&port=1985"%(self.ip)
         return data
         
@@ -607,6 +609,8 @@ class RESTServers(object):
                 self.__nodes.append(node)
                 
             node.ip = json_req["ip"]
+            if "summaries" in json_req:
+                node.summaries = json_req["summaries"]
             node.device_id = device_id
             node.public_ip = cherrypy.request.remote.ip
             node.heartbeat = time.time()
