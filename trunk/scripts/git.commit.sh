@@ -6,7 +6,7 @@ echo "cd `pwd` &&" >git-ensure-commit &&
 echo "bash `pwd`/git.commit.sh" >>git-ensure-commit &&
 chmod +x git-ensure-commit &&
 sudo rm -f /bin/git-ensure-commit &&
-sudo mv git-ensure-commit /bin/git-ensure-commit
+sudo mv git-ensure-commit /usr/local/bin/git-ensure-commit
 END
 
 echo "submit code to github.com"
