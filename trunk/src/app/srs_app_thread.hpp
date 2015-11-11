@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -112,12 +112,12 @@ namespace internal {
          * @param interval_us, the sleep interval when cycle finished.
          * @param joinable, if joinable, other thread must stop the thread.
          * @remark if joinable, thread never quit itself, or memory leak.
-         * @see: https://github.com/simple-rtmp-server/srs/issues/78
+         * @see: https://github.com/ossrs/srs/issues/78
          * @remark about st debug, see st-1.9/README, _st_iterate_threads_flag
          */
         /**
          * TODO: FIXME: maybe all thread must be reap by others threads,
-         * @see: https://github.com/simple-rtmp-server/srs/issues/77
+         * @see: https://github.com/ossrs/srs/issues/77
          */
         SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable);
         virtual ~SrsThread();

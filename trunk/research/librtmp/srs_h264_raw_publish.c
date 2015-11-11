@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -79,7 +79,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
 int main(int argc, char** argv)
 {
     printf("publish raw h.264 as rtmp stream to server like FMLE/FFMPEG/Encoder\n");
-    printf("SRS(simple-rtmp-server) client librtmp library.\n");
+    printf("SRS(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
         printf("For example:\n");
         printf("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
         printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw\n");
-        printf("See: https://github.com/simple-rtmp-server/srs/issues/66\n");
+        printf("See: https://github.com/ossrs/srs/issues/66\n");
         exit(-1);
     }
     

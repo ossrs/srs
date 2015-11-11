@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,7 +35,7 @@ gcc srs_audio_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_
        
 #include "../../objs/include/srs_librtmp.h"
 
-// https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-63648892
+// https://github.com/ossrs/srs/issues/212#issuecomment-63648892
 // allspace:
 //      Take this file as an example: https://github.com/allspace/files/blob/master/srs.pcm
 //      It's captured using SDK callback method. I have filtered out h264 video, so it's audio only now.
@@ -67,7 +67,7 @@ int read_audio_frame(char* audio_raw, int file_size, char** pp, char** pdata, in
 int main(int argc, char** argv)
 {
     printf("publish raw audio as rtmp stream to server like FMLE/FFMPEG/Encoder\n");
-    printf("SRS(simple-rtmp-server) client librtmp library.\n");
+    printf("SRS(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
         printf("For example:\n");
         printf("     %s ./audio.raw.pcm rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
         printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/audio.raw.pcm\n");
-        printf("See: https://github.com/simple-rtmp-server/srs/issues/212\n");
+        printf("See: https://github.com/ossrs/srs/issues/212\n");
         exit(-1);
     }
     

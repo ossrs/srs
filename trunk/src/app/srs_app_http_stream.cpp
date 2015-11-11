@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -822,7 +822,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
-        // @see https://github.com/simple-rtmp-server/srs/issues/404
+        // @see https://github.com/ossrs/srs/issues/404
         if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
             srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
             return ret;

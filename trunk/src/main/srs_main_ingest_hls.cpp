@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1092,7 +1092,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
     int ret = ERROR_SUCCESS;
     
     // when sps or pps not sent, ignore the packet.
-    // @see https://github.com/simple-rtmp-server/srs/issues/203
+    // @see https://github.com/ossrs/srs/issues/203
     if (!h264_sps_pps_sent) {
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
@@ -1280,7 +1280,7 @@ int SrsIngestSrsOutput::connect_app(string ep_server, string ep_port)
     }
     
     // notify server the edge identity,
-    // @see https://github.com/simple-rtmp-server/srs/issues/147
+    // @see https://github.com/ossrs/srs/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
@@ -1308,7 +1308,7 @@ int SrsIngestSrsOutput::connect_app(string ep_server, string ep_port)
     std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
     
     // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/simple-rtmp-server/srs/issues/160
+    // @see https://github.com/ossrs/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = true;
     if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {

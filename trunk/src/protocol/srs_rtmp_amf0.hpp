@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -699,7 +699,7 @@ namespace _srs_internal
     * 2.13 Date Type
     * time-zone = S16 ; reserved, not supported should be set to 0x0000
     * date-type = date-marker DOUBLE time-zone
-    * @see: https://github.com/simple-rtmp-server/srs/issues/185
+    * @see: https://github.com/ossrs/srs/issues/185
     */
     class SrsAmf0Date : public SrsAmf0Any
     {

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #include <netdb.h>
@@ -122,7 +122,7 @@ int64_t srs_update_system_time_ms()
         return -1;
     }
 
-    // @see: https://github.com/simple-rtmp-server/srs/issues/35
+    // @see: https://github.com/ossrs/srs/issues/35
     // we must convert the tv_sec/tv_usec to int64_t.
     int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
     
@@ -144,7 +144,7 @@ int64_t srs_update_system_time_ms()
     if (diff < 0 || diff > 1000 * SYS_TIME_RESOLUTION_US) {
         srs_warn("system time jump, history=%"PRId64"us, now=%"PRId64"us, diff=%"PRId64"us", 
             _srs_system_time_us_cache, now_us, diff);
-        // @see: https://github.com/simple-rtmp-server/srs/issues/109
+        // @see: https://github.com/ossrs/srs/issues/109
         _srs_system_time_startup_time += diff;
     }
     
@@ -307,7 +307,7 @@ int srs_do_create_dir_recursively(string dir)
     }
     
     // create curren dir.
-    // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
     mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {

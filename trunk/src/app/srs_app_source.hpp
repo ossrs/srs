@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -108,7 +108,7 @@ public:
 /**
 * to alloc and increase fixed space,
 * fast remove and insert for msgs sender.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 class SrsFastVector
 {
@@ -229,7 +229,7 @@ private:
     bool should_update_source_id;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // the cond wait for mw.
-    // @see https://github.com/simple-rtmp-server/srs/issues/251
+    // @see https://github.com/ossrs/srs/issues/251
     st_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
@@ -316,7 +316,7 @@ private:
     * 
     * @remark, it is ok for performance, for when we clear the gop cache,
     *       gop cache is disabled for pure audio stream.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/124
+    * @see: https://github.com/ossrs/srs/issues/124
     */
     int audio_after_last_video_count;
     /**

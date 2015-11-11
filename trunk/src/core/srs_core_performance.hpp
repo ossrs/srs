@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -40,12 +40,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * that is, we merge some data to read together.
 * @see SrsConfig::get_mr_enabled()
 * @see SrsConfig::get_mr_sleep_ms()
-* @see https://github.com/simple-rtmp-server/srs/issues/241
+* @see https://github.com/ossrs/srs/issues/241
 * @example, for the default settings, this algorithm will use:
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
 */
 /**
-* https://github.com/simple-rtmp-server/srs/issues/241#issuecomment-65554690
+* https://github.com/ossrs/srs/issues/241#issuecomment-65554690
 * The merged read algorithm is ok and can be simplified for:
 *   1. Suppose the client network is ok. All algorithm go wrong when netowrk is not ok.
 *   2. Suppose the client send each packet one by one. Although send some together, it's same.
@@ -71,7 +71,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark this largely improve performance, from 3.5k+ to 7.5k+.
 *       the latency+ when cache+.
 * @remark the socket send buffer default to 185KB, it large enough.
-* @see https://github.com/simple-rtmp-server/srs/issues/194
+* @see https://github.com/ossrs/srs/issues/194
 * @see SrsConfig::get_mw_sleep_ms()
 * @remark the mw sleep and msgs to send, maybe:
 *       mw_sleep        msgs        iovs
@@ -106,24 +106,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
 * whether set the socket send buffer size.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 #define SRS_PERF_MW_SO_SNDBUF
 
 /**
 * whether set the socket recv buffer size.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 #undef SRS_PERF_MW_SO_RCVBUF
 /**
 * whether enable the fast vector for qeueue.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 #define SRS_PERF_QUEUE_FAST_VECTOR
 /**
 * whether use cond wait to send messages.
 * @remark this improve performance for large connectios.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 #define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
@@ -135,14 +135,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * for min latence mode:
 * 1. disable the mr for vhost.
 * 2. use timeout for cond wait for consumer queue.
-* @see https://github.com/simple-rtmp-server/srs/issues/257
+* @see https://github.com/ossrs/srs/issues/257
 */
 #define SRS_PERF_MIN_LATENCY_ENABLED false
 
 /**
 * how many chunk stream to cache, [0, N].
 * to imporove about 10% performance when chunk size small, and 5% for large chunk.
-* @see https://github.com/simple-rtmp-server/srs/issues/249
+* @see https://github.com/ossrs/srs/issues/249
 * @remark 0 to disable the chunk stream cache.
 */
 #define SRS_PERF_CHUNK_STREAM_CACHE 16
@@ -158,21 +158,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * whether always use complex send algorithm.
 * for some network does not support the complex send,
-* @see https://github.com/simple-rtmp-server/srs/issues/320
+* @see https://github.com/ossrs/srs/issues/320
 */
 //#undef SRS_PERF_COMPLEX_SEND
 #define SRS_PERF_COMPLEX_SEND
 /**
  * whether enable the TCP_NODELAY
  * user maybe need send small tcp packet for some network.
- * @see https://github.com/simple-rtmp-server/srs/issues/320
+ * @see https://github.com/ossrs/srs/issues/320
  */
 #undef SRS_PERF_TCP_NODELAY
 #define SRS_PERF_TCP_NODELAY
 /**
 * set the socket send buffer,
 * to force the server to send smaller tcp packet.
-* @see https://github.com/simple-rtmp-server/srs/issues/320
+* @see https://github.com/ossrs/srs/issues/320
 * @remark undef it to auto calc it by merged write sleep ms.
 * @remark only apply it when SRS_PERF_MW_SO_SNDBUF is defined.
 */
@@ -183,7 +183,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
  * define the following macro to enable the fast flv encoder.
- * @see https://github.com/simple-rtmp-server/srs/issues/405
+ * @see https://github.com/ossrs/srs/issues/405
  */
 #undef SRS_PERF_FAST_FLV_ENCODER
 #define SRS_PERF_FAST_FLV_ENCODER

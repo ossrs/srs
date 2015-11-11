@@ -2,7 +2,7 @@
 '''
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -840,13 +840,13 @@ if __name__ != "__main__":
 
 # check the user options
 if len(sys.argv) <= 1:
-    print "SRS api callback server, Copyright (c) 2013-2015 SRS(simple-rtmp-server)"
+    print "SRS api callback server, Copyright (c) 2013-2015 SRS(ossrs)"
     print "Usage: python %s <port>"%(sys.argv[0])
     print "    port: the port to listen at."
     print "For example:"
     print "    python %s 8085"%(sys.argv[0])
     print ""
-    print "See also: https://github.com/simple-rtmp-server/srs"
+    print "See also: https://github.com/ossrs/srs"
     sys.exit(1)
 
 # parse port from user options.

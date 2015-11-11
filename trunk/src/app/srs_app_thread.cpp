@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -70,7 +70,7 @@ namespace internal {
         
         // in start(), the thread cycle method maybe stop and remove the thread itself,
         // and the thread start() is waiting for the _cid, and segment fault then.
-        // @see https://github.com/simple-rtmp-server/srs/issues/110
+        // @see https://github.com/ossrs/srs/issues/110
         // thread will set _cid, callback on_thread_start(), then wait for the can_run signal.
         can_run = false;
     }
@@ -223,7 +223,7 @@ namespace internal {
             }
             
             // to improve performance, donot sleep when interval is zero.
-            // @see: https://github.com/simple-rtmp-server/srs/issues/237
+            // @see: https://github.com/ossrs/srs/issues/237
             if (cycle_interval_us != 0) {
                 st_usleep(cycle_interval_us);
             }

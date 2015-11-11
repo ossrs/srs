@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -67,7 +67,7 @@ private:
     SrsMessageQueue* queue;
     /**
     * cache the sequence header for retry when slave is failed.
-    * @see https://github.com/simple-rtmp-server/srs/issues/150
+    * @see https://github.com/ossrs/srs/issues/150
     */
     SrsSharedPtrMessage* sh_audio;
     SrsSharedPtrMessage* sh_video;
