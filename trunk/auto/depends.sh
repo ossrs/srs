@@ -388,7 +388,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_KQUEUE"
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE"
     fi
     # memory leak for linux-optimized
     # @see: https://github.com/ossrs/srs/issues/197
