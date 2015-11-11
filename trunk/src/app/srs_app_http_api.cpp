@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1359,7 +1359,7 @@ int SrsHttpApi::do_cycle()
     SrsStSocket skt(stfd);
     
     // set the recv timeout, for some clients never disconnect the connection.
-    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    // @see https://github.com/ossrs/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
     // initialize the crossdomain
@@ -1396,7 +1396,7 @@ int SrsHttpApi::do_cycle()
         }
 
         // donot keep alive, disconnect it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }

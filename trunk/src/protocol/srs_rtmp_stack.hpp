@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -216,7 +216,7 @@ private:
     /**
     * cache some frequently used chunk header.
     * cs_cache, the chunk stream cache.
-    * @see https://github.com/simple-rtmp-server/srs/issues/249
+    * @see https://github.com/ossrs/srs/issues/249
     */
     SrsChunkStream** cs_cache;
     /**
@@ -234,7 +234,7 @@ private:
     /**
     * whether auto response when recv messages.
     * default to true for it's very easy to use the protocol stack.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/217
+    * @see: https://github.com/ossrs/srs/issues/217
     */
     bool auto_response_when_recv;
     /**
@@ -272,7 +272,7 @@ public:
     /**
     * set the auto response message when recv for protocol stack.
     * @param v, whether auto response message when recv message.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/217
+    * @see: https://github.com/ossrs/srs/issues/217
     */
     virtual void set_auto_response(bool v);
     /**
@@ -290,7 +290,7 @@ public:
     * that is, we merge some data to read together.
     * @param v true to ename merged read.
     * @param handler the handler when merge read is enabled.
-    * @see https://github.com/simple-rtmp-server/srs/issues/241
+    * @see https://github.com/ossrs/srs/issues/241
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
     /**
@@ -298,7 +298,7 @@ public:
     * @param buffer the size of buffer.
     * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
     * @remark when buffer changed, the previous ptr maybe invalid.
-    * @see https://github.com/simple-rtmp-server/srs/issues/241
+    * @see https://github.com/ossrs/srs/issues/241
     */
     virtual void set_recv_buffer(int buffer_size);
 #endif
@@ -563,12 +563,12 @@ public:
     std::string stream;
     // for play live stream,
     // used to specified the stop when exceed the duration.
-    // @see https://github.com/simple-rtmp-server/srs/issues/45
+    // @see https://github.com/ossrs/srs/issues/45
     // in ms.
     double duration;
     // the token in the connect request,
     // used for edge traverse to origin authentication,
-    // @see https://github.com/simple-rtmp-server/srs/issues/104
+    // @see https://github.com/ossrs/srs/issues/104
     SrsAmf0Object* args;
 public:
     SrsRequest();
@@ -823,7 +823,7 @@ public:
     /**
      * set the auto response message when recv for protocol stack.
      * @param v, whether auto response message when recv message.
-     * @see: https://github.com/simple-rtmp-server/srs/issues/217
+     * @see: https://github.com/ossrs/srs/issues/217
      */
     virtual void set_auto_response(bool v);
 #ifdef SRS_PERF_MERGED_READ
@@ -833,7 +833,7 @@ public:
      * that is, we merge some data to read together.
      * @param v true to ename merged read.
      * @param handler the handler when merge read is enabled.
-     * @see https://github.com/simple-rtmp-server/srs/issues/241
+     * @see https://github.com/ossrs/srs/issues/241
      */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
     /**
@@ -841,7 +841,7 @@ public:
      * @param buffer the size of buffer.
      * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
      * @remark when buffer changed, the previous ptr maybe invalid.
-     * @see https://github.com/simple-rtmp-server/srs/issues/241
+     * @see https://github.com/ossrs/srs/issues/241
      */
     virtual void set_recv_buffer(int buffer_size);
 #endif
@@ -896,7 +896,7 @@ public:
      * @param stream_id, the stream id of packet to send over, 0 for control message.
      *
      * @remark performance issue, to support 6k+ 250kbps client,
-     *       @see https://github.com/simple-rtmp-server/srs/issues/194
+     *       @see https://github.com/ossrs/srs/issues/194
      */
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**
@@ -1757,13 +1757,13 @@ public:
     std::string command_name;
     /**
     * whether allow access the sample of video.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/49
+    * @see: https://github.com/ossrs/srs/issues/49
     * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#videoSampleAccess
     */
     bool video_sample_access;
     /**
     * whether allow access the sample of audio.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/49
+    * @see: https://github.com/ossrs/srs/issues/49
     * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#audioSampleAccess
     */
     bool audio_sample_access;

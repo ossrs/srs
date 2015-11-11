@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -303,7 +303,7 @@ class SrsConfig
 private:
     /**
      * whether srs is run in dolphin mode.
-     * @see https://github.com/simple-rtmp-server/srs-dolphin
+     * @see https://github.com/ossrs/srs-dolphin
      */
     bool dolphin;
     std::string dolphin_rtmp_port;
@@ -677,7 +677,7 @@ public:
     * whether debug_srs_upnode is enabled of vhost.
     * debug_srs_upnode is very important feature for tracable log,
     * but some server, for instance, flussonic donot support it.
-    * @see https://github.com/simple-rtmp-server/srs/issues/160
+    * @see https://github.com/ossrs/srs/issues/160
     * @return true when debug_srs_upnode is ok; otherwise, false.
     * @remark, default true.
     */
@@ -911,7 +911,7 @@ public:
     virtual bool                get_vhost_edge_token_traverse(std::string vhost);
     /**
      * get the transformed vhost for edge,
-     * @see https://github.com/simple-rtmp-server/srs/issues/372
+     * @see https://github.com/ossrs/srs/issues/372
      */
     virtual std::string         get_vhost_edge_transform_vhost(std::string vhost);
 // vhost security section
@@ -1158,7 +1158,7 @@ public:
     * get the hls hls_on_error config.
     * the ignore will ignore error and disable hls.
     * the disconnect will disconnect publish connection.
-    * @see https://github.com/simple-rtmp-server/srs/issues/264
+    * @see https://github.com/ossrs/srs/issues/264
     */
     virtual std::string         get_hls_on_error(std::string vhost);
     /**

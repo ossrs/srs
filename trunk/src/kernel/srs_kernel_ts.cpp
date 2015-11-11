@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #if !defined(SRS_EXPORT_LIBRTMP)
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -479,7 +479,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
             }
 
             // it's ok to set pcr equals to dts,
-            // @see https://github.com/simple-rtmp-server/srs/issues/311
+            // @see https://github.com/ossrs/srs/issues/311
             int64_t pcr = write_pcr? msg->dts : -1;
             
             // TODO: FIXME: finger it why use discontinuity of msg.
@@ -996,7 +996,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         pp[0] = *p++;
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         program_clock_reference_extension = pcrv & 0x1ff;
         const1_value0 = (pcrv >> 9) & 0x3F;
         program_clock_reference_base = (pcrv >> 15) & 0x1ffffffffLL;
@@ -1023,7 +1023,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         pp[0] = *p++;
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         original_program_clock_reference_extension = opcrv & 0x1ff;
         const1_value2 = (opcrv >> 9) & 0x3F;
         original_program_clock_reference_base = (opcrv >> 15) & 0x1ffffffffLL;
@@ -1203,7 +1203,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
         stream->skip(6);
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         int64_t pcrv = program_clock_reference_extension & 0x1ff;
         pcrv |= (const1_value0 << 9) & 0x7E00;
         pcrv |= (program_clock_reference_base << 15) & 0x1FFFFFFFF000000LL;
@@ -3158,7 +3158,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     // TODO: FIXME: for pure audio, aggregate some frame to one.
     
     // always flush audio frame by frame.
-    // @see https://github.com/simple-rtmp-server/srs/issues/512
+    // @see https://github.com/ossrs/srs/issues/512
     return flush_audio();
 }
 
@@ -3173,7 +3173,7 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     }
     
     // ignore info frame,
-    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
+    // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }

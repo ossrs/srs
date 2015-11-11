@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -331,7 +331,7 @@ class SrsSharedPtrMessage
     // 4.1. Message Header
 public:
     // the header can shared, only set the timestamp and stream id.
-    // @see https://github.com/simple-rtmp-server/srs/issues/251
+    // @see https://github.com/ossrs/srs/issues/251
     //SrsSharedMessageHeader header;
     /**
      * Four-byte field that contains a timestamp of the message.
@@ -366,7 +366,7 @@ private:
     {
     public:
         // shared message header.
-        // @see https://github.com/simple-rtmp-server/srs/issues/251
+        // @see https://github.com/ossrs/srs/issues/251
         SrsSharedMessageHeader header;
         // actual shared payload.
         char* payload;

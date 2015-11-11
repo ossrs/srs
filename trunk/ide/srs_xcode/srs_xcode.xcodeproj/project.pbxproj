@@ -1085,7 +1085,7 @@
 				CLANG_CXX_LIBRARY = "libstdc++";
 				LIBRARY_SEARCH_PATHS = (
 					"../../objs/**",
-					"/Users/winlin/Desktop/git/simple-rtmp-server/trunk/objs/http-parser-2.1",
+					"/Users/winlin/Desktop/git/ossrs/trunk/objs/http-parser-2.1",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				"USER_HEADER_SEARCH_PATHS[arch=*]" = "../../src/** ../../objs ../../objs/st ../../objs/hp ../../objs/openssl";
@@ -1100,7 +1100,7 @@
 				CLANG_CXX_LIBRARY = "libstdc++";
 				LIBRARY_SEARCH_PATHS = (
 					"../../objs/**",
-					"/Users/winlin/Desktop/git/simple-rtmp-server/trunk/objs/http-parser-2.1",
+					"/Users/winlin/Desktop/git/ossrs/trunk/objs/http-parser-2.1",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

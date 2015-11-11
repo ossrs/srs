@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -75,7 +75,7 @@ namespace internal
         
         // in start(), the thread cycle method maybe stop and remove the thread itself,
         // and the thread start() is waiting for the _cid, and segment fault then.
-        // @see https://github.com/simple-rtmp-server/srs/issues/110
+        // @see https://github.com/ossrs/srs/issues/110
         // thread will set _cid, callback on_thread_start(), then wait for the can_run signal.
         can_run = false;
     }
@@ -228,7 +228,7 @@ namespace internal
             }
             
             // to improve performance, donot sleep when interval is zero.
-            // @see: https://github.com/simple-rtmp-server/srs/issues/237
+            // @see: https://github.com/ossrs/srs/issues/237
             if (cycle_interval_us != 0) {
                 st_usleep(cycle_interval_us);
             }
@@ -316,7 +316,7 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     // (a value of 0 means the network connection is closed or end of file is reached).
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -346,7 +346,7 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     // (a value less than nbyte means the network connection is closed or end of file is reached)
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read != (ssize_t)size) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -375,7 +375,7 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -400,7 +400,7 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -537,7 +537,7 @@ int srs_st_init()
     
 #ifdef __linux__
     // check epoll, some old linux donot support epoll.
-    // @see https://github.com/simple-rtmp-server/srs/issues/162
+    // @see https://github.com/ossrs/srs/issues/162
     if (!srs_st_epoll_is_supported()) {
         ret = ERROR_ST_SET_EPOLL;
         srs_error("epoll required on Linux. ret=%d", ret);

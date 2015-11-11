@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -654,7 +654,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessage)
 // 0x04             where: message_type=4(protocol control user-control message)
 // 0x00 0x06            where: event Ping(0x06)
 // 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
-// @see: https://github.com/simple-rtmp-server/srs/issues/98
+// @see: https://github.com/ossrs/srs/issues/98
 VOID TEST(ProtocolStackTest, ProtocolRecvMessageBug98)
 {
     MockBufferIO bio;
@@ -3751,7 +3751,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage2)
 * always use 31bits timestamp.
 */
 // always use 31bits timestamp, for some server may use 32bits extended timestamp.
-// @see https://github.com/simple-rtmp-server/srs/issues/111
+// @see https://github.com/ossrs/srs/issues/111
 VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage3)
 {
     MockBufferIO bio;
@@ -4660,7 +4660,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsConnectAppPacket)
     pkt->command_object->set("data", data);
     
     data->set("server", SrsAmf0Any::str("SRS"));
-    data->set("signature", SrsAmf0Any::str("simple-rtmp-server"));
+    data->set("signature", SrsAmf0Any::str("ossrs"));
     
     pkt->args->set("info", SrsAmf0Any::str("NetStream.Status.Info"));
     pkt->args->set("desc", SrsAmf0Any::str("connected"));
@@ -4714,7 +4714,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsConnectAppResPacket)
     pkt->props->set("data", data);
     
     data->set("server", SrsAmf0Any::str("SRS"));
-    data->set("signature", SrsAmf0Any::str("simple-rtmp-server"));
+    data->set("signature", SrsAmf0Any::str("ossrs"));
     
     pkt->info->set("info", SrsAmf0Any::str("NetStream.Status.Info"));
     pkt->info->set("desc", SrsAmf0Any::str("connected"));

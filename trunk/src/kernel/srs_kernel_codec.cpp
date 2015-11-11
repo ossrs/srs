@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -619,7 +619,7 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
     // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
     // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
     // 
-    // donot force to LC, @see: https://github.com/simple-rtmp-server/srs/issues/81
+    // donot force to LC, @see: https://github.com/ossrs/srs/issues/81
     // the source will print the sequence header info.
     //if (aac_profile > 3) {
         // Mark all extended profiles as LC
@@ -661,7 +661,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
     
     // ignore info frame without error,
-    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
+    // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         srs_warn("avc igone the info frame, ret=%d", ret);
         return ret;
@@ -944,7 +944,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     int ret = ERROR_SUCCESS;
     
     // we donot parse the detail of sps.
-    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    // @see https://github.com/ossrs/srs/issues/474
     if (!avc_parse_sps) {
         return ret;
     }
@@ -1201,7 +1201,7 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sam
         }
         
         // maybe stream is invalid format.
-        // see: https://github.com/simple-rtmp-server/srs/issues/183
+        // see: https://github.com/ossrs/srs/issues/183
         if (NALUnitLength < 0) {
             ret = ERROR_HLS_DECODE_ERROR;
             srs_error("maybe stream is AnnexB format. ret=%d", ret);

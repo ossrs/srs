@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -205,7 +205,7 @@ int SrsDvrAsyncCallOnHls::call()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -259,7 +259,7 @@ int SrsDvrAsyncCallOnHlsNotify::call()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -623,7 +623,7 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    // @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-83553950
+    // @see https://github.com/ossrs/srs/issues/151#issuecomment-83553950
     srs_assert(current);
     
     // to prevent very small segment.
@@ -912,7 +912,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     * rounded to the nearest integer. Its value MUST NOT change. A
     * typical target duration is 10 seconds.
     */
-    // @see https://github.com/simple-rtmp-server/srs/issues/304#issuecomment-74000081
+    // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
     int target_duration = 0;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
@@ -1061,9 +1061,9 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // for example, pure audio when start, audio/video when publishing,
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
-    // @see https://github.com/simple-rtmp-server/srs/issues/151
+    // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
-    // @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
+    // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
         srs_info("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
@@ -1081,7 +1081,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // directly write the audio frame by frame to ts,
     // it's ok for the hls overload, or maybe cause the audio corrupt,
     // which introduced by aggregate the audios to a big one.
-    // @see https://github.com/simple-rtmp-server/srs/issues/512
+    // @see https://github.com/ossrs/srs/issues/512
     if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1407,7 +1407,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     SrsAutoFree(SrsSharedPtrMessage, video);
     
     // user can disable the sps parse to workaround when parse sps failed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    // @see https://github.com/ossrs/srs/issues/474
     if (is_sps_pps) {
         codec->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
     }
@@ -1421,7 +1421,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
         sample->frame_type, codec->video_codec_id, sample->avc_packet_type, sample->cts, video->size, video->timestamp);
     
     // ignore info frame,
-    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
+    // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
@@ -1462,7 +1462,7 @@ void SrsHls::hls_show_mux_log()
     // reportable
     if (pprint->can_print()) {
         // the run time is not equals to stream time,
-        // @see: https://github.com/simple-rtmp-server/srs/issues/81#issuecomment-48100994
+        // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
         // it's ok.
         srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%dp",
             pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),

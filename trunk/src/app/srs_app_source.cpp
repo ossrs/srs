@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -128,7 +128,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
     // if jitter detected, reset the delta.
     if (delta < CONST_MAX_JITTER_MS_NEG || delta > CONST_MAX_JITTER_MS) {
         // use default 10ms to notice the problem of stream.
-        // @see https://github.com/simple-rtmp-server/srs/issues/425
+        // @see https://github.com/ossrs/srs/issues/425
         delta = DEFAULT_FRAME_TIME_MS;
         
         srs_info("jitter detected, last_pts=%"PRId64", pts=%"PRId64", diff=%"PRId64", last_time=%"PRId64", time=%"PRId64", diff=%"PRId64"",
@@ -1604,7 +1604,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/simple-rtmp-server/srs/issues/264
+        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
@@ -1724,7 +1724,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     last_packet_time = shared_video->header.timestamp;
     
     // drop any unknown header video.
-    // @see https://github.com/simple-rtmp-server/srs/issues/421
+    // @see https://github.com/ossrs/srs/issues/421
     if (!SrsFlvCodec::video_is_acceptable(shared_video->payload, shared_video->size)) {
         char b0 = 0x00;
         if (shared_video->size > 0) {
@@ -1797,7 +1797,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         SrsAvcAacCodec codec;
         
         // user can disable the sps parse to workaround when parse sps failed.
-        // @see https://github.com/simple-rtmp-server/srs/issues/474
+        // @see https://github.com/ossrs/srs/issues/474
         codec.avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
         
         SrsCodecSample sample;
@@ -1822,7 +1822,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/simple-rtmp-server/srs/issues/264
+        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
@@ -2175,7 +2175,7 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/simple-rtmp-server/srs/issues/301
+    // @see https://github.com/ossrs/srs/issues/301
     if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, jitter_algorithm)) != ERROR_SUCCESS) {
         srs_error("dispatch audio sequence header failed. ret=%d", ret);
         return ret;

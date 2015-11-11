@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -55,7 +55,7 @@ using namespace std;
 
 using namespace _srs_internal;
 
-#define SRS_WIKI_URL_LOG "https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog"
+#define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
 
 // when user config an invalid value, macros to perfer true or false.
 #define SRS_CONF_PERFER_FALSE(conf_arg) conf_arg == "on"
@@ -1377,7 +1377,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (true) {
                 // we must reload the dvr_apply, for it's apply to specified stream,
                 // and we donot want one stream reload take effect on another one.
-                // @see https://github.com/simple-rtmp-server/srs/issues/459#issuecomment-140296597
+                // @see https://github.com/ossrs/srs/issues/459#issuecomment-140296597
                 SrsConfDirective* nda = new_vhost->get("dvr")? new_vhost->get("dvr")->get("dvr_apply") : NULL;
                 SrsConfDirective* oda = old_vhost->get("dvr")? old_vhost->get("dvr")->get("dvr_apply") : NULL;
                 if (!srs_directive_equals(nda, oda) && (ret = do_reload_vhost_dvr_apply(vhost)) != ERROR_SUCCESS) {
@@ -3631,7 +3631,7 @@ int SrsConfig::check_config()
         int nb_canbe = max_open_files - nb_consumed_fds - 1;
 
         // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
-        // refine performance, @see: https://github.com/simple-rtmp-server/srs/issues/194
+        // refine performance, @see: https://github.com/ossrs/srs/issues/194
         if (nb_total >= max_open_files) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("invalid max_connections=%d, required=%d, system limit to %d, "

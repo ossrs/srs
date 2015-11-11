@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <signal.h>
 #include <sys/types.h>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -184,7 +184,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         }
     }
     
-    // @see, https://github.com/simple-rtmp-server/srs/issues/145
+    // @see, https://github.com/ossrs/srs/issues/145
     if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS && acodec != SRS_RTMP_ENCODER_LIBFDKAAC) {
         if (abitrate != 0 && (abitrate < 16 || abitrate > 72)) {
             ret = ERROR_ENCODER_ABITRATE;
@@ -218,7 +218,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     
     // for not rtmp input, donot append the iformat,
     // for example, "-f flv" before "-i udp://192.168.1.252:2222"
-    // @see https://github.com/simple-rtmp-server/srs/issues/290
+    // @see https://github.com/ossrs/srs/issues/290
     if (!srs_string_starts_with(input, "rtmp://")) {
         iformat = "";
     }

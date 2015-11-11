@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -129,7 +129,7 @@ int SrsEdgeIngester::cycle()
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
         
-        // @see https://github.com/simple-rtmp-server/srs/issues/79
+        // @see https://github.com/ossrs/srs/issues/79
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {
@@ -144,7 +144,7 @@ int SrsEdgeIngester::cycle()
         srs_parse_hostport(server, server, port);
         
         // support vhost tranform for edge,
-        // @see https://github.com/simple-rtmp-server/srs/issues/372
+        // @see https://github.com/ossrs/srs/issues/372
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
@@ -323,7 +323,7 @@ int SrsEdgeForwarder::start()
         srs_parse_hostport(server, server, port);
         
         // support vhost tranform for edge,
-        // @see https://github.com/simple-rtmp-server/srs/issues/372
+        // @see https://github.com/ossrs/srs/issues/372
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
@@ -568,7 +568,7 @@ int SrsPublishEdge::on_client_publish()
         return ret;
     }
     
-    // @see https://github.com/simple-rtmp-server/srs/issues/180
+    // @see https://github.com/ossrs/srs/issues/180
     // to avoid multiple publish the same stream on the same edge,
     // directly enter the publish stage.
     if (true) {
@@ -580,7 +580,7 @@ int SrsPublishEdge::on_client_publish()
     // start to forward stream to origin.
     ret = forwarder->start();
     
-    // @see https://github.com/simple-rtmp-server/srs/issues/180
+    // @see https://github.com/ossrs/srs/issues/180
     // when failed, revert to init
     if (ret != ERROR_SUCCESS) {
         SrsEdgeState pstate = state;
