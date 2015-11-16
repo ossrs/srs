@@ -1253,16 +1253,35 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 {
     int ret = ERROR_SUCCESS;
     
+    int fd = st_netfd_fileno(client_stfd);
+    
     int max_connections = _srs_config->get_max_connections();
     if ((int)conns.size() >= max_connections) {
-        int fd = st_netfd_fileno(client_stfd);
-        
         srs_error("exceed the max connections, drop client: "
             "clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
             
         srs_close_stfd(client_stfd);
         
         return ret;
+    }
+    
+    // avoid fd leak when fork.
+    // @see https://github.com/ossrs/srs/issues/518
+    if (true) {
+        int val;
+        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
+            ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
+            srs_error("fnctl F_GETFD error! fd=%d. ret=%#x", fd, ret);
+            srs_close_stfd(client_stfd);
+            return ret;
+        }
+        val |= FD_CLOEXEC;
+        if (fcntl(fd, F_SETFD, val) < 0) {
+            ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
+            srs_error("fcntl F_SETFD error! fd=%d ret=%#x", fd, ret);
+            srs_close_stfd(client_stfd);
+            return ret;
+        }
     }
     
     SrsConnection* conn = NULL;
