@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
 * v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
 * v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
 * v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
@@ -1203,6 +1204,7 @@ Winlin
 [bug #512]: https://github.com/ossrs/srs/issues/512
 [bug #515]: https://github.com/ossrs/srs/issues/515
 [bug #511]: https://github.com/ossrs/srs/issues/511
+[bug #518]: https://github.com/ossrs/srs/issues/518
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
