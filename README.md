@@ -11,6 +11,7 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs_CN] or [English][srs_EN].
 
 [![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
 [![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Content
 
@@ -34,7 +35,6 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs_CN] or [English][srs_EN].
   * [System Architecture](#system-architecture)
   * [Modularity Architecture](#modularity-architecture)
   * [Stream Architecture](#stream-architecture)
-
 
 ## About
 
