@@ -1,5 +1,7 @@
 #Simple-RTMP-Server
 
+[![Join the chat at https://gitter.im/ossrs/srs](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 SRS/2.0, [ZhouGuowen][release2]
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
