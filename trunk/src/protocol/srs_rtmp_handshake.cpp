@@ -532,7 +532,7 @@ namespace _srs_internal
             return ret;
         }
 
-        // altough the public key is always 128bytes, but the share key maybe not.
+        // although the public key is always 128bytes, but the share key maybe not.
         // we just ignore the actual key size, but if need to use the key, must use the actual size.
         // TODO: FIXME: use the actual key size.
         //srs_assert(pkey_size == 128);

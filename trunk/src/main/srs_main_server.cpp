@@ -222,12 +222,28 @@ void show_macro_features()
 #endif
 }
 
+#include <srs_rtmp_handshake.hpp>
 /**
 * main entrance.
 */
 int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
+    
+    _srs_internal::SrsDH dh;
+    dh.initialize();
+    
+    char key[128]; int nb_key = 128;
+    dh.copy_public_key(key, nb_key);
+    for (int i = 0; i < nb_key; i++) {
+        printf("%#x, ", (unsigned char)key[i]);
+        if (((i+1) %16) == 0) {
+            printf("\n");
+        }
+    }
+    
+    printf("\n");
+    exit(0);
 
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
