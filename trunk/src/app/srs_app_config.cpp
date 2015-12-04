@@ -5101,7 +5101,7 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
 
@@ -5121,7 +5121,7 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return NULL;
     }
     
@@ -5138,7 +5138,7 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -5160,7 +5160,7 @@ string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
