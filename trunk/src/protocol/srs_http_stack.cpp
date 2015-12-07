@@ -2989,6 +2989,9 @@ int SrsHttpUri::initialize(string _url)
 {
     int ret = ERROR_SUCCESS;
     
+    port = 0;
+    schema = host = path = query = "";
+    
     url = _url;
     const char* purl = url.c_str();
     

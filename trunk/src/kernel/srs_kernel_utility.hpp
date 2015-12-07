@@ -90,6 +90,7 @@ extern bool srs_string_starts_with(std::string str, std::string flag0, std::stri
 extern bool srs_string_contains(std::string str, std::string flag);
 // split the string by flag to array.
 extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
+extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);

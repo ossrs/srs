@@ -357,7 +357,57 @@ vector<string> srs_string_split(string str, string flag)
     
     while ((pos = s.find(flag)) != string::npos) {
         arr.push_back(s.substr(0, pos));
-        s = s.substr(pos + 1);
+        s = s.substr(pos + flag.length());
+    }
+    
+    if (!s.empty()) {
+        arr.push_back(s);
+    }
+    
+    return arr;
+}
+
+string srs_string_min_match(string str, vector<string> flags)
+{
+    string match;
+    
+    size_t min_pos = string::npos;
+    for (vector<string>::iterator it = flags.begin(); it != flags.end(); ++it) {
+        string flag = *it;
+        
+        size_t pos = str.find(flag);
+        if (pos == string::npos) {
+            continue;
+        }
+        
+        if (min_pos == string::npos || pos < min_pos) {
+            min_pos = pos;
+            match = flag;
+        }
+    }
+    
+    return match;
+}
+
+vector<string> srs_string_split(string str, vector<string> flags)
+{
+    vector<string> arr;
+    
+    size_t pos = string::npos;
+    string s = str;
+    
+    while (true) {
+        string flag = srs_string_min_match(s, flags);
+        if (flag.empty()) {
+            break;
+        }
+        
+        if ((pos = s.find(flag)) == string::npos) {
+            break;
+        }
+        
+        arr.push_back(s.substr(0, pos));
+        s = s.substr(pos + flag.length());
     }
     
     if (!s.empty()) {

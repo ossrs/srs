@@ -630,6 +630,21 @@ SrsJsonAny* SrsJsonObject::ensure_property_integer(string name)
     return prop;
 }
 
+SrsJsonAny* SrsJsonObject::ensure_property_number(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+    
+    if (!prop) {
+        return NULL;
+    }
+    
+    if (!prop->is_number()) {
+        return NULL;
+    }
+    
+    return prop;
+}
+
 SrsJsonAny* SrsJsonObject::ensure_property_boolean(string name)
 {
     SrsJsonAny* prop = get_property(name);
