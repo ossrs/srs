@@ -31,10 +31,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #ifdef SRS_AUTO_HTTP_CORE
-#include <http_parser.h>
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
 
 #include <map>
 #include <string>
@@ -346,41 +342,6 @@ private:
     static int on_header_field(http_parser* parser, const char* at, size_t length);
     static int on_header_value(http_parser* parser, const char* at, size_t length);
     static int on_body(http_parser* parser, const char* at, size_t length);
-};
-
-/**
- * used to resolve the http uri.
- */
-class SrsHttpUri
-{
-private:
-    std::string url;
-    std::string schema;
-    std::string host;
-    int port;
-    std::string path;
-    std::string query;
-public:
-    SrsHttpUri();
-    virtual ~SrsHttpUri();
-public:
-    /**
-     * initialize the http uri.
-     */
-    virtual int initialize(std::string _url);
-public:
-    virtual std::string get_url();
-    virtual std::string get_schema();
-    virtual std::string get_host();
-    virtual int get_port();
-    virtual std::string get_path();
-    virtual std::string get_query();
-private:
-    /**
-     * get the parsed url field.
-     * @return return empty string if not set.
-     */
-    virtual std::string get_uri_field(std::string uri, http_parser_url* hp_u, http_parser_url_fields field);
 };
 
 class SrsHttpConn : public SrsConnection

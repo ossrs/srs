@@ -33,8 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_HTTP_CALLBACK
 
-#include <http_parser.h>
-
 class SrsHttpUri;
 class SrsStSocket;
 class SrsRequest;
