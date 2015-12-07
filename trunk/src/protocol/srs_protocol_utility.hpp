@@ -63,18 +63,6 @@ extern void srs_discovery_tc_url(
 );
 
 /**
-* resolve the vhost in query string
-* @pram vhost, update the vhost if query contains the vhost.
-* @param app, may contains the vhost in query string format:
-*   app?vhost=request_vhost
-*   app...vhost...request_vhost
-* @param param, the query, for example, ?vhost=xxx
-*/ 
-extern void srs_vhost_resolve(
-    std::string& vhost, std::string& app, std::string& param
-);
-
-/**
 * generate ramdom data for handshake.
 */
 extern void srs_random_generate(char* bytes, int size);

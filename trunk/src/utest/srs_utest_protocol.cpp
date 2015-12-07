@@ -424,39 +424,6 @@ VOID TEST(ProtocolHandshakeTest, BytesEqual)
 }
 
 /**
-* resolve vhost from tcUrl.
-*/
-VOID TEST(ProtocolUtilityTest, VhostResolve)
-{
-    std::string vhost = "vhost";
-    std::string app = "app";
-    std::string param;
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("vhost", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?vhost=changed";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?vhost=changed1&&query=true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed1", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?other=true&&vhost=changed2&&query=true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed2", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app...other...true...vhost...changed3...query...true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed3", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-}
-
-/**
 * discovery tcUrl to schema/vhost/host/port/app
 */
 VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)

@@ -41,6 +41,46 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_protocol_io.hpp>
 
+/**
+ * resolve the vhost in query string
+ * @pram vhost, update the vhost if query contains the vhost.
+ * @param app, may contains the vhost in query string format:
+ *   app?vhost=request_vhost
+ *   app...vhost...request_vhost
+ * @param param, the query, for example, ?vhost=xxx
+ */
+void srs_vhost_resolve(string& vhost, string& app, string& param)
+{
+    // get original param
+    size_t pos = 0;
+    if ((pos = app.find("?")) != std::string::npos) {
+        param = app.substr(pos);
+    }
+    
+    // filter tcUrl
+    app = srs_string_replace(app, ",", "?");
+    app = srs_string_replace(app, "...", "?");
+    app = srs_string_replace(app, "&&", "?");
+    app = srs_string_replace(app, "=", "?");
+    
+    if ((pos = app.find("?")) != std::string::npos) {
+        std::string query = app.substr(pos + 1);
+        app = app.substr(0, pos);
+        
+        if ((pos = query.find("vhost?")) != std::string::npos) {
+            query = query.substr(pos + 6);
+            if (!query.empty()) {
+                vhost = query;
+            }
+            if ((pos = vhost.find("?")) != std::string::npos) {
+                vhost = vhost.substr(0, pos);
+            }
+        }
+    }
+    
+    /* others */
+}
+
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
@@ -75,38 +115,6 @@ void srs_discovery_tc_url(
 
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
-}
-
-void srs_vhost_resolve(string& vhost, string& app, string& param)
-{
-    // get original param
-    size_t pos = 0;
-    if ((pos = app.find("?")) != std::string::npos) {
-        param = app.substr(pos);
-    }
-    
-    // filter tcUrl
-    app = srs_string_replace(app, ",", "?");
-    app = srs_string_replace(app, "...", "?");
-    app = srs_string_replace(app, "&&", "?");
-    app = srs_string_replace(app, "=", "?");
-    
-    if ((pos = app.find("?")) != std::string::npos) {
-        std::string query = app.substr(pos + 1);
-        app = app.substr(0, pos);
-        
-        if ((pos = query.find("vhost?")) != std::string::npos) {
-            query = query.substr(pos + 6);
-            if (!query.empty()) {
-                vhost = query;
-            }
-            if ((pos = vhost.find("?")) != std::string::npos) {
-                vhost = vhost.substr(0, pos);
-            }
-        }
-    }
-    
-    /* others */
 }
 
 void srs_random_generate(char* bytes, int size)
