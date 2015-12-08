@@ -440,7 +440,7 @@ int SrsTcpClient::connect(string host, int port, int64_t timeout)
     
     // connect host.
     if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect server %s:%d failed. ret=%d", host.c_str(), port, ret);
+        srs_error("connect server %s:%d failed. ret=%d", host.c_str(), port, ret);
         return ret;
     }
     

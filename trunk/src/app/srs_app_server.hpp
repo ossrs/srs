@@ -225,7 +225,11 @@ public:
     /**
     * do on_cycle while server doing cycle.
     */
-    virtual int on_cycle(int connections) = 0;
+    virtual int on_cycle() = 0;
+    /**
+     * callback the handler when got client.
+     */
+    virtual int on_accept_client(int conf_conns, int curr_conns) = 0;
 };
 
 /**

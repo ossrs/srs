@@ -968,11 +968,11 @@ int SrsServer::do_cycle()
     
     // the deamon thread, update the time cache
     while (true) {
-        if(handler && (ret = handler->on_cycle((int)conns.size())) != ERROR_SUCCESS){
+        if (handler && (ret = handler->on_cycle()) != ERROR_SUCCESS) {
             srs_error("cycle handle failed. ret=%d", ret);
             return ret;
         }
-            
+
         // the interval in config.
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
@@ -1254,15 +1254,20 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     int ret = ERROR_SUCCESS;
     
     int fd = st_netfd_fileno(client_stfd);
-    
+
+    // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
+    if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
+        srs_error("handle accept client failed, drop client: "
+            "clients=%d, max=%d, fd=%d. ret=%d", (int)conns.size(), max_connections, fd, ret);
+        srs_close_stfd(client_stfd);
+        return ERROR_SUCCESS;
+    }
     if ((int)conns.size() >= max_connections) {
         srs_error("exceed the max connections, drop client: "
             "clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
-            
         srs_close_stfd(client_stfd);
-        
-        return ret;
+        return ERROR_SUCCESS;
     }
     
     // avoid fd leak when fork.

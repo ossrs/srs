@@ -356,7 +356,9 @@ vector<string> srs_string_split(string str, string flag)
     string s = str;
     
     while ((pos = s.find(flag)) != string::npos) {
-        arr.push_back(s.substr(0, pos));
+        if (pos != 0) {
+            arr.push_back(s.substr(0, pos));
+        }
         s = s.substr(pos + flag.length());
     }
     
@@ -406,7 +408,9 @@ vector<string> srs_string_split(string str, vector<string> flags)
             break;
         }
         
-        arr.push_back(s.substr(0, pos));
+        if (pos != 0) {
+            arr.push_back(s.substr(0, pos));
+        }
         s = s.substr(pos + flag.length());
     }
     

@@ -410,7 +410,7 @@ int SrsRtmpConn::do_cycle()
     srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
         req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str());
     
-    if (req->schema.empty() || req->vhost.empty() || req->app.empty()) {
+    if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
         ret = ERROR_RTMP_REQ_TCURL;
         srs_error("discovery tcUrl failed. "
             "tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, ret=%d",
