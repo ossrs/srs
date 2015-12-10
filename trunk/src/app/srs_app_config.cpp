@@ -2796,7 +2796,6 @@ int SrsConfig::raw_set_pid(string pid, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("pid");
     
     if (conf->arg0() == pid) {
@@ -2821,7 +2820,6 @@ int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("chunk_size");
     
     if (conf->arg0() == chunk_size) {
@@ -2844,7 +2842,6 @@ int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("ff_log_dir");
     
     if (conf->arg0() == ff_log_dir) {
@@ -2866,7 +2863,6 @@ int SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("srs_log_tank");
     
@@ -2892,7 +2888,6 @@ int SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("srs_log_level");
     
     if (conf->arg0() == srs_log_level) {
@@ -2916,7 +2911,6 @@ int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("srs_log_file");
     
@@ -2942,7 +2936,6 @@ int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("max_connections");
     
     if (conf->arg0() == max_connections) {
@@ -2966,7 +2959,6 @@ int SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("utc_time");
     
@@ -2992,7 +2984,6 @@ int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("pithy_print_ms");
     
     if (conf->arg0() == pithy_print_ms) {
@@ -3016,7 +3007,6 @@ int SrsConfig::raw_create_vhost(string vhost, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("vhost", vhost);
     conf->get_or_create("enabled")->set_arg0("on");
