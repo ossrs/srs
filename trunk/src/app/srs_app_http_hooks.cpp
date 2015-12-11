@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_utility.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
@@ -315,6 +316,12 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
+    // the ts_url is under the same dir of m3u8_url.
+    string prefix = srs_path_dirname(m3u8_url);
+    if (!prefix.empty() && !srs_string_is_http(ts_url)) {
+        ts_url = prefix + "/" + ts_url;
+    }
+    
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
@@ -358,7 +365,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
-    if (srs_string_starts_with(ts_url, "http://") || srs_string_starts_with(ts_url, "https://")) {
+    if (srs_string_is_http(ts_url)) {
         url = ts_url;
     }
     

@@ -460,7 +460,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
             std::string m3u8_url = body.substr(0, pos);
             body = body.substr(pos + 1);
             
-            if (!srs_string_starts_with(m3u8_url, "http://")) {
+            if (!srs_string_is_http(m3u8_url)) {
                 m3u8_url = srs_path_dirname(url->get_url()) + "/" + m3u8_url;
             }
             srs_trace("parse sub m3u8, url=%s", m3u8_url.c_str());
@@ -594,7 +594,7 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
     SrsHttpClient client;
     
     std::string ts_url = url;
-    if (!srs_string_starts_with(ts_url, "http://")) {
+    if (!srs_string_is_http(ts_url)) {
         ts_url = srs_path_dirname(m3u8) + "/" + url;
     }
     

@@ -662,6 +662,9 @@ extern int srs_get_local_port(int fd);
 // where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
 
+// whether the url is starts with http:// or https://
+extern bool srs_string_is_http(std::string url);
+
 // whether string is digit number
 //      is_digit("1234567890")  === true
 //      is_digit("0123456789")  === false
