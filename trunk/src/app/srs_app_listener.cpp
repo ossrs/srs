@@ -270,7 +270,9 @@ int SrsTcpListener::cycle()
     
     if(client_stfd == NULL){
         // ignore error.
-        srs_error("ignore accept thread stoppped for accept client error");
+        if (errno != EINTR) {
+            srs_error("ignore accept thread stoppped for accept client error");
+        }
         return ret;
     }
     srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
