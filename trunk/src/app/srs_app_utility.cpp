@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <arpa/inet.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <math.h>
 
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
@@ -45,6 +46,7 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_utility.hpp>
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
@@ -1347,6 +1349,27 @@ string srs_get_peer_ip(int fd)
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
     
     return ip;
+}
+
+bool srs_string_is_http(string url)
+{
+    return srs_string_starts_with(url, "http://", "https://");
+}
+
+bool srs_is_digit_number(const string& str)
+{
+    if (str.empty()) {
+        return false;
+    }
+    
+    int v = ::atoi(str.c_str());
+    int powv = (int)pow(10, str.length() - 1);
+    return  v / powv >= 1 && v / powv <= 9;
+}
+
+bool srs_is_boolean(const string& str)
+{
+    return str == "true" || str == "false";
 }
 
 void srs_api_dump_summaries(std::stringstream& ss)

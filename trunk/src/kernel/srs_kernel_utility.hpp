@@ -67,6 +67,7 @@ extern std::string srs_string_remove(std::string str, std::string remove_chars);
 extern bool srs_string_ends_with(std::string str, std::string flag);
 // whether string starts with
 extern bool srs_string_starts_with(std::string str, std::string flag);
+extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
 
