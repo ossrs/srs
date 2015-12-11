@@ -566,26 +566,17 @@ void SrsServer::dispose()
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
     
-#ifdef SRS_AUTO_INGEST
-    ingester->dispose();
-#endif
+    // @remark don't dispose ingesters, for too slow.
     
 #ifdef SRS_AUTO_KAFKA
     kafka->stop();
 #endif
     
+    // dispose the source for hls and dvr.
     SrsSource::dispose_all();
     
-    while (!conns.empty()) {
-        std::vector<SrsConnection*>::iterator it;
-        for (it = conns.begin(); it != conns.end(); ++it) {
-            SrsConnection* conn = *it;
-            conn->dispose();
-        }
-        
-        st_usleep(100 * 1000);
-    }
-    
+    // @remark don't dispose all connections, for too slow.
+
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
@@ -907,6 +898,7 @@ int SrsServer::cycle()
     st_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
 #else
+    // normally quit with neccessary cleanup by dispose().
     srs_warn("main cycle terminated, system quit normally.");
     dispose();
     srs_trace("srs terminated");
