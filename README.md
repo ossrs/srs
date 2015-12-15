@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
 * v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
 * v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
 * v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
