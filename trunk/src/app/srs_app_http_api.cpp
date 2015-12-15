@@ -267,8 +267,13 @@ SrsGoApiSummaries::~SrsGoApiSummaries()
 
 int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
+    
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::integer(stat->server_id()));
     
     srs_api_dump_summaries(obj);
     

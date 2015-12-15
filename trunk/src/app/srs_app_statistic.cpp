@@ -35,7 +35,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 
-int64_t srs_gvid = getpid();
+int64_t srs_gvid = getpid() * 3;
 
 int64_t srs_generate_id()
 {
