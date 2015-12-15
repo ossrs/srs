@@ -629,6 +629,11 @@ SrsConfDirective::~SrsConfDirective()
 
 SrsConfDirective* SrsConfDirective::copy()
 {
+    return copy("");
+}
+
+SrsConfDirective* SrsConfDirective::copy(string except)
+{
     SrsConfDirective* cp = new SrsConfDirective();
     
     cp->conf_line = conf_line;
@@ -637,7 +642,10 @@ SrsConfDirective* SrsConfDirective::copy()
     
     for (int i = 0; i < (int)directives.size(); i++) {
         SrsConfDirective* directive = directives.at(i);
-        cp->directives.push_back(directive->copy());
+        if (!except.empty() && directive->name == except) {
+            continue;
+        }
+        cp->directives.push_back(directive->copy(except));
     }
     
     return cp;
@@ -1982,8 +1990,8 @@ int SrsConfig::persistence()
         return ret;
     }
     
-    // persistence root directive to writer.
-    if ((ret = root->persistence(&fw, 0)) != ERROR_SUCCESS) {
+    // do persistence to writer.
+    if ((ret = do_persistence(&fw)) != ERROR_SUCCESS) {
         ::unlink(path.c_str());
         return ret;
     }
@@ -1994,6 +2002,18 @@ int SrsConfig::persistence()
         
         ret = ERROR_SYSTEM_CONFIG_PERSISTENCE;
         srs_error("rename config from %s to %s failed. ret=%d", path.c_str(), config_file.c_str(), ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsConfig::do_persistence(SrsFileWriter* fw)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // persistence root directive to writer.
+    if ((ret = root->persistence(fw, 0)) != ERROR_SUCCESS) {
         return ret;
     }
     

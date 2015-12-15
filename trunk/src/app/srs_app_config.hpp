@@ -192,6 +192,8 @@ public:
      * so need to copy it to an old root directive, and use the copy result to do reload.
      */
     virtual SrsConfDirective* copy();
+    // @param except the name of sub directive.
+    virtual SrsConfDirective* copy(std::string except);
 // args
 public:
     /**
@@ -414,6 +416,9 @@ public:
      * persistence current config to file.
      */
     virtual int persistence();
+private:
+    virtual int do_persistence(SrsFileWriter* fw);
+public:
     /**
      * dumps the global sections to json.
      */
