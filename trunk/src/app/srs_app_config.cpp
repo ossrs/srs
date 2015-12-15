@@ -6002,7 +6002,8 @@ double SrsConfig::get_hls_window(string vhost)
 
 string SrsConfig::get_hls_on_error(string vhost)
 {
-    static string DEFAULT = "ignore";
+    // try to ignore the error.
+    static string DEFAULT = "continue";
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {

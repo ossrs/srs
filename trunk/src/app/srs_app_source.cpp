@@ -1770,6 +1770,23 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     return ret;
 }
 
+bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage* video)
+{
+    // only continue for decode error.
+    if (ret != ERROR_HLS_DECODE_ERROR) {
+        return false;
+    }
+    
+    // when video size equals to sequence header,
+    // the video actually maybe a sequence header,
+    // continue to make ffmpeg happy.
+    if (sh && sh->size == video->size) {
+        return true;
+    }
+    
+    return false;
+}
+
 int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
@@ -1834,7 +1851,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             ret = ERROR_SUCCESS;
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
             // compare the sequence header with video, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg->size) {
+            if (srs_hls_can_continue(ret, cache_sh_video, msg)) {
                 srs_warn("the video is actually a sequence header, ignore this packet.");
                 ret = ERROR_SUCCESS;
             } else {
