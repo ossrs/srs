@@ -1514,10 +1514,17 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             {
                 srs_warn("accept chunk size %d, but should in [%d, %d], "
                     "@see: https://github.com/ossrs/srs/issues/160",
-                    pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
-                    SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
+                    pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE,  SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
             }
 
+            // @see: https://github.com/ossrs/srs/issues/541
+            if (pkt->chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE) {
+                ret = ERROR_RTMP_CHUNK_SIZE;
+                srs_error("chunk size should be %d+, value=%d. ret=%d",
+                    SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, pkt->chunk_size, ret);
+                return ret;
+            }
+            
             in_chunk_size = pkt->chunk_size;
             srs_trace("input chunk size to %d", pkt->chunk_size);
 
