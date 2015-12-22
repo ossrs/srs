@@ -232,11 +232,13 @@ namespace internal {
         // readly terminated now.
         really_terminated = true;
         
+        // when thread terminated normally, also disposed.
+        // we must set to disposed before the on_thread_stop, which may free the thread.
+        // @see https://github.com/ossrs/srs/issues/546
+        disposed = true;
+        
         handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
-        
-        // when thread terminated normally, also disposed.
-        disposed = true;
     }
     
     void* SrsThread::thread_fun(void* arg)
