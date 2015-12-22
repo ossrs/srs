@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
 * v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
 * v2.0, 2015-12-22, for [#546][bug #546] thread terminate normally dispose bug. 2.0.203
 * v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
@@ -1213,6 +1214,7 @@ Winlin
 [bug #541]: https://github.com/ossrs/srs/issues/541
 [bug #546]: https://github.com/ossrs/srs/issues/546
 [bug #418]: https://github.com/ossrs/srs/issues/418
+[bug #509]: https://github.com/ossrs/srs/issues/509
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

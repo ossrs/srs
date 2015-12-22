@@ -1981,11 +1981,19 @@ int SrsRtmpClient::handshake()
     
     srs_assert(hs_bytes);
     
-    SrsComplexHandshake complex_hs;
-    if ((ret = complex_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+    // maybe st has problem when alloc object on stack, always alloc object at heap.
+    // @see https://github.com/ossrs/srs/issues/509
+    SrsComplexHandshake* complex_hs = new SrsComplexHandshake();
+    SrsAutoFree(SrsComplexHandshake, complex_hs);
+    
+    if ((ret = complex_hs->handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
         if (ret == ERROR_RTMP_TRY_SIMPLE_HS) {
-            SrsSimpleHandshake simple_hs;
-            if ((ret = simple_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+            // always alloc object at heap.
+            // @see https://github.com/ossrs/srs/issues/509
+            SrsSimpleHandshake* simple_hs = new SrsSimpleHandshake();
+            SrsAutoFree(SrsSimpleHandshake, simple_hs);
+            
+            if ((ret = simple_hs->handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
