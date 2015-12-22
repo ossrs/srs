@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
 * v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
 * v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
 * v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
@@ -1207,6 +1208,7 @@ Winlin
 [bug #515]: https://github.com/ossrs/srs/issues/515
 [bug #511]: https://github.com/ossrs/srs/issues/511
 [bug #518]: https://github.com/ossrs/srs/issues/518
+[bug #541]: https://github.com/ossrs/srs/issues/541
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
