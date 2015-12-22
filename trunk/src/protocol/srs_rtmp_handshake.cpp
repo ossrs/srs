@@ -1164,6 +1164,11 @@ int SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsP
     if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // for simple handshake, copy s1 to c2.
+    // @see https://github.com/ossrs/srs/issues/418
+    memcpy(hs_bytes->c2, hs_bytes->s0s1s2 + 1, 1536);
+    
     if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake write c2 failed. ret=%d", ret);
         return ret;
