@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
 * v2.0, 2015-12-22, for [#546][bug #546] thread terminate normally dispose bug. 2.0.203
 * v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
 * v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
@@ -1211,6 +1212,7 @@ Winlin
 [bug #518]: https://github.com/ossrs/srs/issues/518
 [bug #541]: https://github.com/ossrs/srs/issues/541
 [bug #546]: https://github.com/ossrs/srs/issues/546
+[bug #418]: https://github.com/ossrs/srs/issues/418
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

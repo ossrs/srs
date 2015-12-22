@@ -3289,9 +3289,24 @@ int SrsConnectAppResPacket::decode(SrsStream* stream)
         ret = ERROR_SUCCESS;
     }
     
-    if ((ret = props->read(stream)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode connect props failed. ret=%d", ret);
-        return ret;
+    // for RED5(1.0.6), the props is NULL, we must ignore it.
+    // @see https://github.com/ossrs/srs/issues/418
+    if (!stream->empty()) {
+        SrsAmf0Any* p = NULL;
+        if ((ret = srs_amf0_read_any(stream, &p)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode connect props failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // ignore when props is not amf0 object.
+        if (!p->is_object()) {
+            srs_warn("ignore connect response props marker=%#x.", (u_int8_t)p->marker);
+            srs_freep(p);
+        } else {
+            srs_freep(props);
+            props = p->to_object();
+            srs_info("accept amf0 object connect response props");
+        }
     }
     
     if ((ret = info->read(stream)) != ERROR_SUCCESS) {
