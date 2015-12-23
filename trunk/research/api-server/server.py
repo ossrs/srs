@@ -2,7 +2,7 @@
 '''
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -882,7 +882,7 @@ if __name__ != "__main__":
 
 # check the user options
 if len(sys.argv) <= 1:
-    print "SRS api callback server, Copyright (c) 2013-2015 SRS(ossrs)"
+    print "SRS api callback server, Copyright (c) 2013-2016 SRS(ossrs)"
     print "Usage: python %s <port>"%(sys.argv[0])
     print "    port: the port to listen at."
     print "For example:"
