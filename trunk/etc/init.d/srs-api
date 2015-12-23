@@ -2,8 +2,8 @@
 
 ### BEGIN INIT INFO
 # Provides:          ossrs-api(srs-api)
-# RequiRED-Start:    $all
-# RequiRED-Stop:     $all
+# Required-Start:    $all
+# Required-Stop:     $all
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: ossrs-api(srs-api)
