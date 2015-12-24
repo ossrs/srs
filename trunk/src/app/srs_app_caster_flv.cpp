@@ -71,7 +71,8 @@ int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux);
+    string ip = srs_get_peer_ip(st_netfd_fileno(stfd));
+    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
     if ((ret = conn->start()) != ERROR_SUCCESS) {
@@ -115,8 +116,8 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return conn->proxy(w, r, o);
 }
 
-SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
-    : SrsHttpConn(cm, fd, m)
+SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
+    : SrsHttpConn(cm, fd, m, cip)
 {
     sdk = new SrsSimpleRtmpClient();
     pprint = SrsPithyPrint::create_caster();
