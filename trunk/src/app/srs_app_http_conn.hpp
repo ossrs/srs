@@ -350,7 +350,7 @@ private:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
 public:
-    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
+    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpConn();
 // interface IKbpsDelta
 public:
@@ -381,7 +381,7 @@ private:
 class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
-    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
+    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsResponseOnlyHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);

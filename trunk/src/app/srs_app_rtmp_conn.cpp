@@ -312,11 +312,11 @@ void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
 }
 
 #ifdef SRS_AUTO_KAFKA
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c, string cip)
 #else
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
 #endif
-    : SrsConnection(svr, c)
+    : SrsConnection(svr, c, cip)
 {
     server = svr;
 #ifdef SRS_AUTO_KAFKA
@@ -373,7 +373,7 @@ int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("RTMP client ip=%s", ip.c_str());
+    srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), st_netfd_fileno(stfd));
     
     // notify kafka cluster.
 #ifdef SRS_AUTO_KAFKA

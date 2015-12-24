@@ -1241,67 +1241,14 @@ void SrsServer::resample_kbps()
     srs_update_rtmp_server((int)conns.size(), kbps);
 }
 
-int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
+int SrsServer::accept_client(SrsListenerType type, st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    int fd = st_netfd_fileno(client_stfd);
-
-    // check connection limitation.
-    int max_connections = _srs_config->get_max_connections();
-    if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
-        srs_error("handle accept client failed, drop client: "
-            "clients=%d, max=%d, fd=%d. ret=%d", (int)conns.size(), max_connections, fd, ret);
-        srs_close_stfd(client_stfd);
+    SrsConnection* conn = fd2conn(type, stfd);
+    if (conn == NULL) {
+        srs_close_stfd(stfd);
         return ERROR_SUCCESS;
-    }
-    if ((int)conns.size() >= max_connections) {
-        srs_error("exceed the max connections, drop client: "
-            "clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
-        srs_close_stfd(client_stfd);
-        return ERROR_SUCCESS;
-    }
-    
-    // avoid fd leak when fork.
-    // @see https://github.com/ossrs/srs/issues/518
-    if (true) {
-        int val;
-        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-            ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
-            srs_error("fnctl F_GETFD error! fd=%d. ret=%#x", fd, ret);
-            srs_close_stfd(client_stfd);
-            return ret;
-        }
-        val |= FD_CLOEXEC;
-        if (fcntl(fd, F_SETFD, val) < 0) {
-            ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
-            srs_error("fcntl F_SETFD error! fd=%d ret=%#x", fd, ret);
-            srs_close_stfd(client_stfd);
-            return ret;
-        }
-    }
-    
-    SrsConnection* conn = NULL;
-    if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, kafka, client_stfd);
-    } else if (type == SrsListenerHttpApi) {
-#ifdef SRS_AUTO_HTTP_API
-        conn = new SrsHttpApi(this, client_stfd, http_api_mux);
-#else
-        srs_warn("close http client for server not support http-api");
-        srs_close_stfd(client_stfd);
-        return ret;
-#endif
-    } else if (type == SrsListenerHttpStream) {
-#ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsResponseOnlyHttpConn(this, client_stfd, http_server);
-#else
-        srs_warn("close http client for server not support http-server");
-        srs_close_stfd(client_stfd);
-        return ret;
-#endif
-    } else {
-        // TODO: FIXME: handler others
     }
     srs_assert(conn);
     
@@ -1314,11 +1261,78 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if ((ret = conn->start()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("conn started success.");
-
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
     return ret;
+}
+
+SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int fd = st_netfd_fileno(stfd);
+    string ip = srs_get_peer_ip(fd);
+    
+    // for some keep alive application, for example, the keepalived,
+    // will send some tcp packet which we cann't got the ip,
+    // we just ignore it.
+    if (ip.empty()) {
+        srs_info("ignore empty ip client, fd=%d.", fd);
+        return NULL;
+    }
+
+    // check connection limitation.
+    int max_connections = _srs_config->get_max_connections();
+    if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
+        srs_error("handle accept client failed, drop client: clients=%d, max=%d, fd=%d. ret=%d", (int)conns.size(), max_connections, fd, ret);
+        return NULL;
+    }
+    if ((int)conns.size() >= max_connections) {
+        srs_error("exceed the max connections, drop client: clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
+        return NULL;
+    }
+    
+    // avoid fd leak when fork.
+    // @see https://github.com/ossrs/srs/issues/518
+    if (true) {
+        int val;
+        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
+            ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
+            srs_error("fnctl F_GETFD error! fd=%d. ret=%#x", fd, ret);
+            return NULL;
+        }
+        val |= FD_CLOEXEC;
+        if (fcntl(fd, F_SETFD, val) < 0) {
+            ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
+            srs_error("fcntl F_SETFD error! fd=%d ret=%#x", fd, ret);
+            return NULL;
+        }
+    }
+    
+    SrsConnection* conn = NULL;
+    
+    if (type == SrsListenerRtmpStream) {
+        conn = new SrsRtmpConn(this, kafka, stfd, ip);
+    } else if (type == SrsListenerHttpApi) {
+#ifdef SRS_AUTO_HTTP_API
+        conn = new SrsHttpApi(this, stfd, http_api_mux, ip);
+#else
+        srs_warn("close http client for server not support http-api");
+        srs_close_stfd(stfd);
+        return ret;
+#endif
+    } else if (type == SrsListenerHttpStream) {
+#ifdef SRS_AUTO_HTTP_SERVER
+        conn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
+#else
+        srs_warn("close http client for server not support http-server");
+        return NULL;
+#endif
+    } else {
+        // TODO: FIXME: handler others
+    }
+    
+    return conn;
 }
 
 void SrsServer::remove(SrsConnection* conn)

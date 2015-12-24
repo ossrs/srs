@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_conn.hpp>
 
+using namespace std;
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
@@ -36,11 +38,12 @@ IConnectionManager::~IConnectionManager()
 {
 }
 
-SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
+SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
 {
     id = 0;
     manager = cm;
     stfd = c;
+    ip = cip;
     disposed = false;
     expired = false;
     create_time = srs_get_system_time_ms();
@@ -111,8 +114,6 @@ int SrsConnection::cycle()
     
     _srs_context->generate_id();
     id = _srs_context->get_id();
-    
-    ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     
     int oret = ret = do_cycle();
     

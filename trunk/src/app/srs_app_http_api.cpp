@@ -1309,8 +1309,8 @@ int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return srs_api_response_code(w, r, 100);
 }
 
-SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
-    : SrsConnection(cm, fd)
+SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
+    : SrsConnection(cm, fd, cip)
 {
     mux = m;
     parser = new SrsHttpParser();

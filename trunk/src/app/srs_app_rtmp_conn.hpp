@@ -144,9 +144,9 @@ private:
 #endif
 public:
 #ifdef SRS_AUTO_KAFKA
-    SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c);
+    SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c, std::string cip);
 #else
-    SrsRtmpConn(SrsServer* svr, st_netfd_t c);
+    SrsRtmpConn(SrsServer* svr, st_netfd_t c, std::string cip);
 #endif
     virtual ~SrsRtmpConn();
 public:

@@ -365,9 +365,11 @@ public:
     * when listener got a fd, notice server to accept it.
     * @param type, the client type, used to create concrete connection, 
     *       for instance RTMP connection to serve client.
-    * @param client_stfd, the client fd in st boxed, the underlayer fd.
+    * @param stfd, the client fd in st boxed, the underlayer fd.
     */
-    virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+    virtual int accept_client(SrsListenerType type, st_netfd_t stfd);
+private:
+    virtual SrsConnection* fd2conn(SrsListenerType type, st_netfd_t stfd);
 // IConnectionManager
 public:
     /**

@@ -1063,8 +1063,8 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
-    : SrsConnection(cm, fd)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+    : SrsConnection(cm, fd, cip)
 {
     parser = new SrsHttpParser();
     http_mux = m;
@@ -1187,8 +1187,8 @@ int SrsHttpConn::on_disconnect(SrsRequest* req)
     return ret;
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
-    : SrsHttpConn(cm, fd, m)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+    : SrsHttpConn(cm, fd, m, cip)
 {
 }
 

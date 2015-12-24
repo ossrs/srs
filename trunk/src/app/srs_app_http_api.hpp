@@ -215,7 +215,7 @@ private:
     bool crossdomain_required;
     bool crossdomain_enabled;
 public:
-    SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpApi();
 // interface IKbpsDelta
 public:

@@ -110,7 +110,7 @@ protected:
      */
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, st_netfd_t c);
+    SrsConnection(IConnectionManager* cm, st_netfd_t c, std::string cip);
     virtual ~SrsConnection();
 // interface IKbpsDelta
 public:
