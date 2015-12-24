@@ -418,8 +418,8 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
     
-    // check vhost
-    if ((ret = check_vhost()) != ERROR_SUCCESS) {
+    // check vhost, allow default vhost.
+    if ((ret = check_vhost(true)) != ERROR_SUCCESS) {
         srs_error("check vhost failed. ret=%d", ret);
         return ret;
     }
@@ -787,13 +787,13 @@ int SrsRtmpConn::stream_service_cycle()
     return ret;
 }
 
-int SrsRtmpConn::check_vhost()
+int SrsRtmpConn::check_vhost(bool try_default_vhost)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(req != NULL);
     
-    SrsConfDirective* vhost = _srs_config->get_vhost(req->vhost);
+    SrsConfDirective* vhost = _srs_config->get_vhost(req->vhost, try_default_vhost);
     if (vhost == NULL) {
         ret = ERROR_RTMP_VHOST_NOT_FOUND;
         srs_error("vhost %s not found. ret=%d", req->vhost.c_str(), ret);

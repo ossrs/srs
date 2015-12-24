@@ -171,7 +171,7 @@ private:
     virtual int service_cycle();
     // stream(play/publish) service cycle, identify client first.
     virtual int stream_service_cycle();
-    virtual int check_vhost();
+    virtual int check_vhost(bool try_default_vhost);
     virtual int playing(SrsSource* source);
     virtual int do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd);
     virtual int publishing(SrsSource* source);
