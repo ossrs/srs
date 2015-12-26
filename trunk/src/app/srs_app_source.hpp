@@ -52,6 +52,7 @@ class SrsRtmpServer;
 class SrsEdgeProxyContext;
 class SrsMessageArray;
 class SrsNgExec;
+class SrsConnection;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -225,6 +226,8 @@ private:
     SrsRtmpJitter* jitter;
     SrsSource* source;
     SrsMessageQueue* queue;
+    // the owner connection for debug, maybe NULL.
+    SrsConnection* conn;
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -237,7 +240,7 @@ private:
     int mw_duration;
 #endif
 public:
-    SrsConsumer(SrsSource* _source);
+    SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
     /**
@@ -575,7 +578,7 @@ public:
     * @param dg, whether dumps the gop cache.
     */
     virtual int create_consumer(
-        SrsConsumer*& consumer, 
+        SrsConnection* conn, SrsConsumer*& consumer,
         bool ds = true, bool dm = true, bool dg = true
     );
     virtual void on_consumer_destroy(SrsConsumer* consumer);

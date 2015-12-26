@@ -419,9 +419,10 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* _source)
+SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
 {
-    source = _source;
+    source = s;
+    conn = c;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -2157,11 +2158,11 @@ void SrsSource::on_unpublish()
     handler->on_unpublish(this, req);
 }
 
-int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg)
+int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
 {
     int ret = ERROR_SUCCESS;
     
-    consumer = new SrsConsumer(this);
+    consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
     double queue_size = _srs_config->get_queue_length(req->vhost);

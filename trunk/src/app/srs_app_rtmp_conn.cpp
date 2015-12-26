@@ -832,7 +832,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // create consumer of souce.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(this, consumer)) != ERROR_SUCCESS) {
         srs_error("create consumer failed. ret=%d", ret);
         return ret;
     }
