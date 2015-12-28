@@ -62,69 +62,32 @@ using namespace std;
 // when edge error, wait for quit
 #define SRS_EDGE_FORWARDER_ERROR_US (int64_t)(50*1000LL)
 
-SrsEdgeIngester::SrsEdgeIngester()
+SrsEdgeUpstream::SrsEdgeUpstream()
 {
-    source = NULL;
-    edge = NULL;
-    req = NULL;
-    
-    sdk = new SrsSimpleRtmpClient();
-    lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
-SrsEdgeIngester::~SrsEdgeIngester()
+SrsEdgeUpstream::~SrsEdgeUpstream()
 {
-    stop();
+}
+
+SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream()
+{
+    sdk = new SrsSimpleRtmpClient();
+}
+
+SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
+{
+    close();
     
     srs_freep(sdk);
-    srs_freep(lb);
-    srs_freep(pthread);
 }
 
-int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
+int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
 {
     int ret = ERROR_SUCCESS;
     
-    source = s;
-    edge = e;
-    req = r;
+    SrsRequest* req = r;
     
-    return ret;
-}
-
-int SrsEdgeIngester::start()
-{
-    int ret = ERROR_SUCCESS;
-
-    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
-        return ret;
-    }
-
-    return pthread->start();
-}
-
-void SrsEdgeIngester::stop()
-{
-    pthread->stop();
-    sdk->close();
-    
-    // notice to unpublish.
-    source->on_unpublish();
-}
-
-string SrsEdgeIngester::get_curr_origin()
-{
-    return lb->selected();
-}
-
-int SrsEdgeIngester::cycle()
-{
-    int ret = ERROR_SUCCESS;
-
-    source->on_source_id_changed(_srs_context->get_id());
-        
     std::string url;
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
@@ -163,6 +126,98 @@ int SrsEdgeIngester::cycle()
         return ret;
     }
     
+    return ret;
+}
+
+int SrsEdgeRtmpUpstream::recv_message(SrsCommonMessage** pmsg)
+{
+    return sdk->recv_message(pmsg);
+}
+
+int SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
+{
+    return sdk->decode_message(msg, ppacket);
+}
+
+void SrsEdgeRtmpUpstream::close()
+{
+    sdk->close();
+}
+
+void SrsEdgeRtmpUpstream::kbps_sample(const char* label, int64_t age)
+{
+    sdk->kbps_sample(label, age);
+}
+
+SrsEdgeIngester::SrsEdgeIngester()
+{
+    source = NULL;
+    edge = NULL;
+    req = NULL;
+    
+    upstream = new SrsEdgeRtmpUpstream();
+    lb = new SrsLbRoundRobin();
+    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
+}
+
+SrsEdgeIngester::~SrsEdgeIngester()
+{
+    stop();
+    
+    srs_freep(upstream);
+    srs_freep(lb);
+    srs_freep(pthread);
+}
+
+int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    source = s;
+    edge = e;
+    req = r;
+    
+    return ret;
+}
+
+int SrsEdgeIngester::start()
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
+        srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
+        return ret;
+    }
+
+    return pthread->start();
+}
+
+void SrsEdgeIngester::stop()
+{
+    pthread->stop();
+    upstream->close();
+    
+    // notice to unpublish.
+    source->on_unpublish();
+}
+
+string SrsEdgeIngester::get_curr_origin()
+{
+    return lb->selected();
+}
+
+int SrsEdgeIngester::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = source->on_source_id_changed(_srs_context->get_id())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = upstream->connect(req, lb)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = edge->on_ingest_play()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -188,12 +243,12 @@ int SrsEdgeIngester::ingest()
         
         // pithy print
         if (pprint->can_print()) {
-            sdk->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
+            upstream->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
         }
         
         // read from client.
         SrsCommonMessage* msg = NULL;
-        if ((ret = sdk->recv_message(&msg)) != ERROR_SUCCESS) {
+        if ((ret = upstream->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("pull origin server message failed. ret=%d", ret);
             }
@@ -244,7 +299,7 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
-        if ((ret = sdk->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = upstream->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("decode onMetaData message failed. ret=%d", ret);
             return ret;
         }

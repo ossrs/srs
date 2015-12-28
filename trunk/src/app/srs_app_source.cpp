@@ -2054,7 +2054,9 @@ int SrsSource::on_publish()
     
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
-    on_source_id_changed(_srs_context->get_id());
+    if ((ret = on_source_id_changed(_srs_context->get_id())) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // reset the mix queue.
     mix_queue->clear();

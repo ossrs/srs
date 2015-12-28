@@ -49,6 +49,7 @@ class SrsKbps;
 class SrsLbRoundRobin;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
+class SrsPacket;
 
 /**
 * the state of edge, auto machine
@@ -76,6 +77,37 @@ enum SrsEdgeUserState
 };
 
 /**
+ * the upstream of edge, can be rtmp or http.
+ */
+class SrsEdgeUpstream
+{
+public:
+    SrsEdgeUpstream();
+    virtual ~SrsEdgeUpstream();
+public:
+    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb) = 0;
+    virtual int recv_message(SrsCommonMessage** pmsg) = 0;
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
+    virtual void close() = 0;
+    virtual void kbps_sample(const char* label, int64_t age) = 0;
+};
+
+class SrsEdgeRtmpUpstream : public SrsEdgeUpstream
+{
+private:
+    SrsSimpleRtmpClient* sdk;
+public:
+    SrsEdgeRtmpUpstream();
+    virtual ~SrsEdgeRtmpUpstream();
+public:
+    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb);
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual void close();
+    virtual void kbps_sample(const char* label, int64_t age);
+};
+
+/**
 * edge used to ingest stream from origin.
 */
 class SrsEdgeIngester : public ISrsReusableThread2Handler
@@ -85,8 +117,8 @@ private:
     SrsPlayEdge* edge;
     SrsRequest* req;
     SrsReusableThread2* pthread;
-    SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
+    SrsEdgeUpstream* upstream;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
