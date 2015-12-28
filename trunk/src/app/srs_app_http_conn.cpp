@@ -830,6 +830,11 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
     req->strip();
     
+    // reset the host to http request host.
+    if (req->host == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+        req->host = _uri->get_host();
+    }
+    
     return req;
 }
 

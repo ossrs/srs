@@ -144,6 +144,11 @@ void SrsEdgeRtmpUpstream::close()
     sdk->close();
 }
 
+void SrsEdgeRtmpUpstream::set_recv_timeout(int64_t timeout)
+{
+    sdk->set_recv_timeout(timeout);
+}
+
 void SrsEdgeRtmpUpstream::kbps_sample(const char* label, int64_t age)
 {
     sdk->kbps_sample(label, age);
@@ -161,7 +166,7 @@ SrsEdgeIngester::SrsEdgeIngester()
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
-{
+{   
     stop();
     
     srs_freep(upstream);
@@ -237,6 +242,9 @@ int SrsEdgeIngester::ingest()
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);
+    
+    // set to larger timeout to read av data from origin.
+    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
     
     while (!pthread->interrupted()) {
         pprint->elapse();
@@ -409,6 +417,7 @@ void SrsEdgeForwarder::stop()
 }
 
 #define SYS_MAX_EDGE_SEND_MSGS 128
+
 int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
