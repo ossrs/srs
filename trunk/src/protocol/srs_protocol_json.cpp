@@ -477,8 +477,10 @@ SrsJsonAny* SrsJsonAny::loads(char* str)
     if (strlen(str) == 0) {
         return NULL;
     }
-    
-    const nx_json* o = nx_json_parse(str, 0);
+
+    // TODO: copy str for nx_json modify it.
+    string s = str;
+    const nx_json* o = nx_json_parse((char*)s.data(), 0);
     
     SrsJsonAny* json = srs_json_parse_tree_nx_json(o);
     
