@@ -93,9 +93,7 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
     
     srs_freep(kbps);
     srs_freep(transport);
-    
     srs_freep(client);
-    kbps->set_io(NULL, NULL);
 }
 
 int SrsSimpleRtmpClient::connect(string url, int64_t connect_timeout, int64_t stream_timeout)
