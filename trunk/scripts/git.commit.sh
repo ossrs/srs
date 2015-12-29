@@ -6,7 +6,7 @@ echo "cd `pwd` &&" >git-ensure-commit &&
 echo "bash `pwd`/git.commit.sh" >>git-ensure-commit &&
 chmod +x git-ensure-commit &&
 sudo rm -f /bin/git-ensure-commit &&
-sudo mv git-ensure-commit /bin/git-ensure-commit
+sudo mv git-ensure-commit /usr/local/bin/git-ensure-commit
 END
 
 echo "submit code to github.com"
@@ -44,7 +44,7 @@ function remote_check()
     fi
     ok_msg "remote $remote ok, url is $url"
 }
-remote_check origin git@github.com:simple-rtmp-server/srs.git
+remote_check origin git@github.com:ossrs/srs.git
 remote_check srs.winlin git@github.com:winlinvip/simple-rtmp-server.git
 remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
 remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
@@ -66,12 +66,12 @@ function sync_push()
     done
 }
 
-sync_push --all origin
-sync_push --all srs.winlin
-sync_push --all srs.csdn
-sync_push --all srs.oschina
-sync_push --all srs.gitlab
-ok_msg "push refs ok"
+sync_push origin
+sync_push srs.winlin
+sync_push srs.csdn
+sync_push srs.oschina
+sync_push srs.gitlab
+ok_msg "push branches ok"
 
 sync_push --tags srs.winlin
 sync_push --tags srs.csdn

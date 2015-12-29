@@ -54,6 +54,7 @@ function update_nav() {
 function build_default_rtmp_url() {
     var query = parse_query_string();
 
+    var schema = (query.schema == undefined)? "rtmp":query.schema;
     var server = (query.server == undefined)? window.location.hostname:query.server;
     var port = (query.port == undefined)? 1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
@@ -61,9 +62,9 @@ function build_default_rtmp_url() {
     var stream = (query.stream == undefined)? "demo":query.stream;
 
     if (server == vhost || vhost == "") {
-        return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
+        return schema + "://" + server + ":" + port + "/" + app + "/" + stream;
     } else {
-        return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
+        return schema + "://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
     }
 }
 // for the chat to init the publish url.

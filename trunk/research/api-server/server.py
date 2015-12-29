@@ -2,7 +2,7 @@
 '''
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -36,7 +36,8 @@ reload(sys)
 exec("sys.setdefaultencoding('utf-8')")
 assert sys.getdefaultencoding().lower() == "utf-8"
 
-import os, json, time, datetime, cherrypy, threading, urllib2
+import os, json, time, datetime, cherrypy, threading, urllib2, shlex, subprocess
+import cherrypy.process.plugins
 
 # simple log functions.
 def trace(msg):
@@ -527,6 +528,7 @@ class ArmServer:
         self.id = str(global_arm_server_id)
         self.ip = None
         self.device_id = None
+        self.summaries = None
         
         self.public_ip = cherrypy.request.remote.ip
         self.heartbeat = time.time()
@@ -544,10 +546,11 @@ class ArmServer:
         data["id"] = self.id
         data["ip"] = self.ip
         data["device_id"] = self.device_id
+        data["summaries"] = self.summaries
         data["public_ip"] = self.public_ip
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
-        data["summaries"] = "http://%s:1985/api/v1/summaries"%(self.ip)
+        data["api"] = "http://%s:1985/api/v1/summaries"%(self.ip)
         data["console"] = "http://ossrs.net/console/ng_index.html#/summaries?host=%s&port=1985"%(self.ip)
         return data
         
@@ -606,6 +609,8 @@ class RESTServers(object):
                 self.__nodes.append(node)
                 
             node.ip = json_req["ip"]
+            if "summaries" in json_req:
+                node.summaries = json_req["summaries"]
             node.device_id = device_id
             node.public_ip = cherrypy.request.remote.ip
             node.heartbeat = time.time()
@@ -617,7 +622,7 @@ class RESTServers(object):
     '''
     get all servers which report to this api-server.
     '''
-    def GET(self):
+    def GET(self, id=None):
         enable_crossdomain()
         
         try:
@@ -627,7 +632,8 @@ class RESTServers(object):
             
             data = []
             for node in self.__nodes:
-                data.append(node.json_dump())
+                if id == None or node.id == str(id) or node.device_id == str(id):
+                    data.append(node.json_dump())
             
             return json.dumps(data)
         finally:
@@ -769,6 +775,46 @@ class RESTChats(object):
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
+'''
+the snapshot api,
+to start a snapshot when encoder start publish stream,
+stop the snapshot worker when stream finished.
+'''
+class RESTSnapshots(object):
+    exposed = True
+    
+    def __init__(self):
+        pass
+
+    def POST(self):
+        enable_crossdomain()
+
+        # return the error code in str
+        code = Error.success
+
+        req = cherrypy.request.body.read()
+        trace("post to streams, req=%s"%(req))
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            code = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
+            return str(code)
+
+        action = json_req["action"]
+        if action == "on_publish":
+            code = worker.snapshot_create(json_req)
+        elif action == "on_unpublish":
+            code = worker.snapshot_destroy(json_req)
+        else:
+            trace("invalid request action: %s"%(json_req["action"]))
+            code = Error.request_invalid_action
+
+        return str(code)
+
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain()
+
 # HTTP RESTful path.
 class Root(object):
     exposed = True
@@ -809,6 +855,7 @@ class V1(object):
         self.proxy = RESTProxy()
         self.chats = RESTChats()
         self.servers = RESTServers()
+        self.snapshots = RESTSnapshots()
     def GET(self):
         enable_crossdomain();
         return json.dumps({"code":Error.success, "urls":{
@@ -835,13 +882,13 @@ if __name__ != "__main__":
 
 # check the user options
 if len(sys.argv) <= 1:
-    print "SRS api callback server, Copyright (c) 2013-2015 SRS(simple-rtmp-server)"
+    print "SRS api callback server, Copyright (c) 2013-2016 SRS(ossrs)"
     print "Usage: python %s <port>"%(sys.argv[0])
     print "    port: the port to listen at."
     print "For example:"
     print "    python %s 8085"%(sys.argv[0])
     print ""
-    print "See also: https://github.com/simple-rtmp-server/srs"
+    print "See also: https://github.com/ossrs/srs"
     sys.exit(1)
 
 # parse port from user options.
@@ -849,10 +896,149 @@ port = int(sys.argv[1])
 static_dir = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "static-dir"))
 trace("api server listen at port: %s, static_dir: %s"%(port, static_dir))
 
+
+discard = open("/dev/null", "rw")
+'''
+create process by specifies command.
+@param command the command str to start the process.
+@param stdout_fd an int fd specifies the stdout fd.
+@param stderr_fd an int fd specifies the stderr fd.
+@param log_file a file object specifies the additional log to write to. ignore if None.
+@return a Popen object created by subprocess.Popen().
+'''
+def create_process(command, stdout_fd, stderr_fd):
+    # log the original command
+    msg = "process start command: %s"%(command);
+
+    # to avoid shell injection, directly use the command, no need to filter.
+    args = shlex.split(str(command));
+    process = subprocess.Popen(args, stdout=stdout_fd, stderr=stderr_fd);
+
+    return process;
+'''
+isolate thread for srs worker, to do some job in background,
+for example, to snapshot thumbnail of RTMP stream.
+'''
+class SrsWorker(cherrypy.process.plugins.SimplePlugin):
+    def __init__(self, bus):
+        cherrypy.process.plugins.SimplePlugin.__init__(self, bus);
+        self.__snapshots = {}
+
+    def start(self):
+        print "srs worker thread started"
+
+    def stop(self):
+        print "srs worker thread stopped"
+
+    def main(self):
+        for url in self.__snapshots:
+            snapshot = self.__snapshots[url]
+            
+            diff = time.time() - snapshot['timestamp']
+            process = snapshot['process']
+            
+            # aborted.
+            if process is not None and snapshot['abort']:
+                process.kill()
+                process.poll()
+                del self.__snapshots[url]
+                print 'abort snapshot %s'%snapshot['cmd']
+                break
+
+            # how many snapshots to output.
+            vframes = 5
+            # the expire in seconds for ffmpeg to snapshot.
+            expire = 1
+            # the timeout to kill ffmpeg.
+            kill_ffmpeg_timeout = 30 * expire
+            # the ffmpeg binary path
+            ffmpeg = "./objs/ffmpeg/bin/ffmpeg"
+            # the best url for thumbnail.
+            besturl = os.path.join(static_dir, "%s/%s-best.png"%(snapshot['app'], snapshot['stream']))
+            # the lambda to generate the thumbnail with index.
+            lgo = lambda dir, app, stream, index: os.path.join(dir, "%s/%s-%03d.png"%(app, stream, index))
+            # the output for snapshot command
+            output = os.path.join(static_dir, "%s/%s-%%03d.png"%(snapshot['app'], snapshot['stream']))
+            # the ffmepg command to snapshot
+            cmd = '%s -i %s -vf fps=1 -vcodec png -f image2 -an -y -vframes %s -y %s'%(ffmpeg, url, vframes, output)
+            
+            # already snapshoted and not expired.
+            if process is not None and diff < expire:
+                continue
+            
+            # terminate the active process
+            if process is not None:
+                # the poll will set the process.returncode
+                process.poll()
+
+                # None incidates the process hasn't terminate yet.
+                if process.returncode is not None:
+                    # process terminated with error.
+                    if process.returncode != 0:
+                        print 'process terminated with error=%s, cmd=%s'%(process.returncode, snapshot['cmd'])
+                    # process terminated normally.
+                    else:
+                        # guess the best one.
+                        bestsize = 0
+                        for i in range(0, vframes):
+                            output = lgo(static_dir, snapshot['app'], snapshot['stream'], i + 1)
+                            fsize = os.path.getsize(output)
+                            if bestsize < fsize:
+                                os.system("rm -f '%s'"%besturl)
+                                os.system("ln -sf '%s' '%s'"%(output, besturl))
+                                bestsize = fsize
+                        print 'the best thumbnail is %s'%besturl
+                else:
+                    # wait for process to terminate, timeout is N*expire.
+                    if diff < kill_ffmpeg_timeout:
+                        continue
+                    # kill the process when user cancel.
+                    else:
+                        process.kill()
+                        print 'kill the process %s'%snapshot['cmd']
+                
+            # create new process to snapshot.
+            print 'snapshot by: %s'%cmd
+            
+            process = create_process(cmd, discard.fileno(), discard.fileno())
+            snapshot['process'] = process
+            snapshot['cmd'] = cmd
+            snapshot['timestamp'] = time.time()
+        pass;
+        
+    # {"action":"on_publish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
+    # ffmpeg -i rtmp://127.0.0.1:1935/live?vhost=dev/stream -vf fps=1 -vcodec png -f image2 -an -y -vframes 3 -y static-dir/live/livestream-%03d.png
+    def snapshot_create(self, req):
+        url = "rtmp://127.0.0.1/%s...vhost...%s/%s"%(req['app'], req['vhost'], req['stream'])
+        if url in self.__snapshots:
+            print 'ignore exists %s'%url
+            return Error.success
+            
+        req['process'] = None
+        req['abort'] = False
+        req['timestamp'] = time.time()
+        self.__snapshots[url] = req
+        return Error.success
+        
+    # {"action":"on_unpublish","client_id":108,"ip":"127.0.0.1","vhost":"__defaultVhost__","app":"live","stream":"livestream"}
+    def snapshot_destroy(self, req):
+        url = "rtmp://127.0.0.1/%s...vhost...%s/%s"%(req['app'], req['vhost'], req['stream'])
+        if url in self.__snapshots:
+            snapshot = self.__snapshots[url]
+            snapshot['abort'] = True
+        return Error.success
+
+# subscribe the plugin to cherrypy.
+worker = SrsWorker(cherrypy.engine)
+worker.subscribe();
+
+# disable the autoreloader to make it more simple.
+cherrypy.engine.autoreload.unsubscribe();
+
 # cherrypy config.
 conf = {
     'global': {
-        'server.shutdown_timeout': 1,
+        'server.shutdown_timeout': 3,
         'server.socket_host': '0.0.0.0',
         'server.socket_port': port,
         'tools.encode.on': True,

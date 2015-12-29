@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -75,7 +75,7 @@ public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
     /**
      * for the HTTP FLV, to writev to improve performance.
-     * @see https://github.com/simple-rtmp-server/srs/issues/405
+     * @see https://github.com/ossrs/srs/issues/405
      */
     virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
 };

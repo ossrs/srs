@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -68,13 +68,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
-// the timeout to send data to client,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
-
-// the timeout to wait client data,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
@@ -101,7 +96,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
 * for performance issue, 
-* the iovs cache, @see https://github.com/simple-rtmp-server/srs/issues/194
+* the iovs cache, @see https://github.com/ossrs/srs/issues/194
 * iovs cache for multiple messages for each connections.
 * suppose the chunk size is 64k, each message send in a chunk which needs only 2 iovec,
 * so the iovs max should be (SRS_PERF_MW_MSGS * 2)
@@ -111,7 +106,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_IOVS_MAX (SRS_PERF_MW_MSGS * 2)
 /**
 * for performance issue, 
-* the c0c3 cache, @see https://github.com/simple-rtmp-server/srs/issues/194
+* the c0c3 cache, @see https://github.com/ossrs/srs/issues/194
 * c0c3 cache for multiple messages for each connections.
 * each c0 <= 16byes, suppose the chunk size is 64k,
 * each message send in a chunk which needs only a c0 header,
@@ -141,7 +136,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // terminate the srs with dispose to detect memory leak for gmc.
 #define SRS_SIGNAL_DISPOSE SIGUSR2
 // persistence the config in memory to config file.
-// @see https://github.com/simple-rtmp-server/srs/issues/319#issuecomment-134993922
+// @see https://github.com/ossrs/srs/issues/319#issuecomment-134993922
 #define SRS_SIGNAL_PERSISTENCE_CONFIG SIGUSR1
 // srs should gracefully quit, do dispose then exit.
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGTERM
@@ -402,6 +397,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTSP_GatewayTimeout_str                      "Gateway Timeout"
 #define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
 #define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
+
+///////////////////////////////////////////////////////////
+// KAFKA consts values
+///////////////////////////////////////////////////////////
+#define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
+
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_KAFKA_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 #endif
 

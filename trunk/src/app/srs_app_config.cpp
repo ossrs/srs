@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -55,7 +55,7 @@ using namespace std;
 
 using namespace _srs_internal;
 
-#define SRS_WIKI_URL_LOG "https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog"
+#define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
 
 // when user config an invalid value, macros to perfer true or false.
 #define SRS_CONF_PERFER_FALSE(conf_arg) conf_arg == "on"
@@ -127,7 +127,7 @@ namespace _srs_internal
     
     SrsConfigBuffer::~SrsConfigBuffer()
     {
-        srs_freep(start);
+        srs_freepa(start);
     }
     
     int SrsConfigBuffer::fullfill(const char* filename)
@@ -146,7 +146,7 @@ namespace _srs_internal
         int filesize = (int)reader.filesize();
         
         // create buffer
-        srs_freep(start);
+        srs_freepa(start);
         pos = last = start = new char[filesize];
         end = start + filesize;
         
@@ -629,6 +629,11 @@ SrsConfDirective::~SrsConfDirective()
 
 SrsConfDirective* SrsConfDirective::copy()
 {
+    return copy("");
+}
+
+SrsConfDirective* SrsConfDirective::copy(string except)
+{
     SrsConfDirective* cp = new SrsConfDirective();
     
     cp->conf_line = conf_line;
@@ -637,7 +642,10 @@ SrsConfDirective* SrsConfDirective::copy()
     
     for (int i = 0; i < (int)directives.size(); i++) {
         SrsConfDirective* directive = directives.at(i);
-        cp->directives.push_back(directive->copy());
+        if (!except.empty() && directive->name == except) {
+            continue;
+        }
+        cp->directives.push_back(directive->copy(except));
     }
     
     return cp;
@@ -1091,7 +1099,7 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
                 if (!word_str.empty()) {
                     args.push_back(word_str);
                 }
-                srs_freep(aword);
+                srs_freepa(aword);
                 
                 if (ch == ';') {
                     return ERROR_SYSTEM_CONFIG_DIRECTIVE;
@@ -1377,7 +1385,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (true) {
                 // we must reload the dvr_apply, for it's apply to specified stream,
                 // and we donot want one stream reload take effect on another one.
-                // @see https://github.com/simple-rtmp-server/srs/issues/459#issuecomment-140296597
+                // @see https://github.com/ossrs/srs/issues/459#issuecomment-140296597
                 SrsConfDirective* nda = new_vhost->get("dvr")? new_vhost->get("dvr")->get("dvr_apply") : NULL;
                 SrsConfDirective* oda = old_vhost->get("dvr")? old_vhost->get("dvr")->get("dvr_apply") : NULL;
                 if (!srs_directive_equals(nda, oda) && (ret = do_reload_vhost_dvr_apply(vhost)) != ERROR_SUCCESS) {
@@ -1982,8 +1990,8 @@ int SrsConfig::persistence()
         return ret;
     }
     
-    // persistence root directive to writer.
-    if ((ret = root->persistence(&fw, 0)) != ERROR_SUCCESS) {
+    // do persistence to writer.
+    if ((ret = do_persistence(&fw)) != ERROR_SUCCESS) {
         ::unlink(path.c_str());
         return ret;
     }
@@ -1994,6 +2002,18 @@ int SrsConfig::persistence()
         
         ret = ERROR_SYSTEM_CONFIG_PERSISTENCE;
         srs_error("rename config from %s to %s failed. ret=%d", path.c_str(), config_file.c_str(), ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsConfig::do_persistence(SrsFileWriter* fw)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // persistence root directive to writer.
+    if ((ret = root->persistence(fw, 0)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -2128,6 +2148,8 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "brokers") {
                     sobj->set(sdir->name, sdir->dumps_args());
+                } else if (sdir->name == "topic") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 }
             }
             obj->set(dir->name, sobj);
@@ -2794,7 +2816,6 @@ int SrsConfig::raw_set_pid(string pid, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("pid");
     
     if (conf->arg0() == pid) {
@@ -2819,7 +2840,6 @@ int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("chunk_size");
     
     if (conf->arg0() == chunk_size) {
@@ -2842,7 +2862,6 @@ int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("ff_log_dir");
     
     if (conf->arg0() == ff_log_dir) {
@@ -2864,7 +2883,6 @@ int SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("srs_log_tank");
     
@@ -2890,7 +2908,6 @@ int SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("srs_log_level");
     
     if (conf->arg0() == srs_log_level) {
@@ -2914,7 +2931,6 @@ int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("srs_log_file");
     
@@ -2940,7 +2956,6 @@ int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("max_connections");
     
     if (conf->arg0() == max_connections) {
@@ -2964,7 +2979,6 @@ int SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("utc_time");
     
@@ -2990,7 +3004,6 @@ int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
     
     applied = false;
     
-    
     SrsConfDirective* conf = root->get_or_create("pithy_print_ms");
     
     if (conf->arg0() == pithy_print_ms) {
@@ -3014,7 +3027,6 @@ int SrsConfig::raw_create_vhost(string vhost, bool& applied)
     int ret = ERROR_SUCCESS;
     
     applied = false;
-    
     
     SrsConfDirective* conf = root->get_or_create("vhost", vhost);
     conf->get_or_create("enabled")->set_arg0("on");
@@ -3546,7 +3558,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = root->get("kafka");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "brokers") {
+            if (n != "enabled" && n != "brokers" && n != "topic") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported kafka directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -3629,7 +3641,7 @@ int SrsConfig::check_config()
         int nb_canbe = max_open_files - nb_consumed_fds - 1;
 
         // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
-        // refine performance, @see: https://github.com/simple-rtmp-server/srs/issues/194
+        // refine performance, @see: https://github.com/ossrs/srs/issues/194
         if (nb_total >= max_open_files) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("invalid max_connections=%d, required=%d, system limit to %d, "
@@ -4298,6 +4310,23 @@ SrsConfDirective* SrsConfig::get_kafka_brokers()
     return conf;
 }
 
+string SrsConfig::get_kafka_topic()
+{
+    static string DEFAULT = "srs";
+    
+    SrsConfDirective* conf = root->get("kafka");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("topic");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
@@ -4732,7 +4761,7 @@ double SrsConfig::get_send_min_interval(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4754,7 +4783,7 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -5082,7 +5111,7 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
 
@@ -5102,7 +5131,7 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return NULL;
     }
     
@@ -5119,7 +5148,7 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -5141,7 +5170,7 @@ string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -5973,7 +6002,8 @@ double SrsConfig::get_hls_window(string vhost)
 
 string SrsConfig::get_hls_on_error(string vhost)
 {
-    static string DEFAULT = "ignore";
+    // try to ignore the error.
+    static string DEFAULT = "continue";
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6814,4 +6844,3 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     
     return conf;
 }
-

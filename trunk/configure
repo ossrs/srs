@@ -116,9 +116,6 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
-# hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
-LibHttpParserRoot=""; LibHttpParserfile=""
-if [ $SRS_HTTP_CORE = YES ]; then LibHttpParserRoot="${SRS_OBJS_DIR}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi
@@ -171,7 +168,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
-    ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
+    ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -204,7 +201,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=("srs_main_server" "srs_main_ingest_hls")
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -230,7 +227,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     done
     # 
     # all depends libraries
-    ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
@@ -260,7 +257,7 @@ if [ $SRS_UTEST = YES ]; then
             "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
             "srs_utest_reload")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
-    ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
@@ -417,7 +414,7 @@ install-api: install
 	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs-api /etc/init.d/srs-api"
 	@echo "     /etc/init.d/srs-api start"
 	@echo "     http://\$(shell bash auto/local_ip.sh):8085"
-	@echo "@see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
 
 install:
 	@echo "mkdir \$(__REAL_INSTALL)"
@@ -439,7 +436,7 @@ install:
 	@echo "srs installed, to link and start srs:"
 	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs"
 	@echo "     /etc/init.d/srs start"
-	@echo "@see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
 
 END
 fi

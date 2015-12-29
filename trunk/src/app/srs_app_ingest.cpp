@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
@@ -354,19 +355,12 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     }
     
     // find the app and stream in rtmp url
-    std::string url = output;
     std::string app, stream;
-    size_t pos = std::string::npos;
-    if ((pos = url.rfind("/")) != std::string::npos) {
-        stream = url.substr(pos + 1);
-        url = url.substr(0, pos);
-    }
-    if ((pos = url.rfind("/")) != std::string::npos) {
-        app = url.substr(pos + 1);
-        url = url.substr(0, pos);
-    }
-    if ((pos = app.rfind("?")) != std::string::npos) {
-        app = app.substr(0, pos);
+    if (true) {
+        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        std::string tcUrl, schema, host, vhost2, param;
+        srs_parse_rtmp_url(output, tcUrl, stream);
+        srs_discovery_tc_url(tcUrl, schema, host, vhost2, app, port, param);
     }
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled

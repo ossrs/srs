@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -91,7 +91,7 @@ SrsFastLog::SrsFastLog()
 
 SrsFastLog::~SrsFastLog()
 {
-    srs_freep(log_data);
+    srs_freepa(log_data);
 
     if (fd > 0) {
         ::close(fd);

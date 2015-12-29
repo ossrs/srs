@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -117,7 +117,7 @@ int SrsBufferCache::cycle()
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer, false, false, true)) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(NULL, consumer, false, false, true)) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -484,7 +484,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -611,11 +611,7 @@ SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
     req = NULL;
     source = NULL;
     
-    std::string ext;
-    size_t pos = string::npos;
-    if ((pos = m.rfind(".")) != string::npos) {
-        ext = m.substr(pos);
-    }
+    std::string ext = srs_path_filext(m);
     _is_flv = (ext == ".flv");
     _is_ts = (ext == ".ts");
     _is_mp3 = (ext == ".mp3");
@@ -830,7 +826,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
-        // @see https://github.com/simple-rtmp-server/srs/issues/404
+        // @see https://github.com/ossrs/srs/issues/404
         if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
             srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
             return ret;
@@ -1319,10 +1315,7 @@ string SrsHttpStreamServer::hls_mount_generate(SrsRequest* r, string uri, string
     std::string mount = tmpl;
     
     // the ts is relative from the m3u8, the same start dir.
-    size_t pos = string::npos;
-    if ((pos = mount.rfind("/")) != string::npos) {
-        mount = mount.substr(0, pos);
-    }
+    mount = srs_path_dirname(mount);
     
     // replace the vhost variable
     mount = srs_string_replace(mount, "[vhost]", r->vhost);

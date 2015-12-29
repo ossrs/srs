@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,17 +29,35 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
+ISrsCodec::ISrsCodec()
+{
+}
+
+ISrsCodec::~ISrsCodec()
+{
+}
+
 SrsBuffer::SrsBuffer()
 {
-    p = bytes = NULL;
-    nb_bytes = 0;
-    
-    // TODO: support both little and big endian.
-    srs_assert(srs_is_little_endian());
+    set_value(NULL, 0);
+}
+
+SrsBuffer::SrsBuffer(char* b, int nb_b)
+{
+    set_value(b, nb_b);
 }
 
 SrsBuffer::~SrsBuffer()
 {
+}
+
+void SrsBuffer::set_value(char* b, int nb_b)
+{
+    p = bytes = b;
+    nb_bytes = nb_b;
+    
+    // TODO: support both little and big endian.
+    srs_assert(srs_is_little_endian());
 }
 
 int SrsBuffer::initialize(char* b, int nb)
@@ -60,7 +78,7 @@ int SrsBuffer::initialize(char* b, int nb)
 
     nb_bytes = nb;
     p = bytes = b;
-    srs_info("init stream ok, size=%d", size);
+    srs_info("init stream ok, size=%d", size());
 
     return ret;
 }
@@ -87,7 +105,7 @@ bool SrsBuffer::empty()
 
 bool SrsBuffer::require(int required_size)
 {
-    srs_assert(required_size > 0);
+    srs_assert(required_size >= 0);
     
     return required_size <= nb_bytes - (p - bytes);
 }

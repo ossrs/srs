@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -88,18 +88,25 @@ extern bool srs_string_starts_with(std::string str, std::string flag0, std::stri
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
+// find the min match in str for flags.
+extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
 // split the string by flag to array.
 extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
+extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);
 
 // whether path exists.
 extern bool srs_path_exists(std::string path);
-// get the dirname of path
+// get the dirname of path, for instance, dirname("/live/livestream")="/live"
 extern std::string srs_path_dirname(std::string path);
-// get the basename of path
+// get the basename of path, for instance, basename("/live/livestream")="livestream"
 extern std::string srs_path_basename(std::string path);
+// get the filename of path, for instance, filename("livestream.flv")="livestream"
+extern std::string srs_path_filename(std::string path);
+// get the file extension of path, for instance, filext("live.flv")=".flv"
+extern std::string srs_path_filext(std::string path);
 
 /**
 * whether stream starts with the avc NALU in "AnnexB" 
@@ -118,9 +125,14 @@ extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = N
 extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 
 /**
-* cacl the crc32 of bytes in buf.
-*/
-extern u_int32_t srs_crc32(const void* buf, int size);
+* cacl the crc32 of bytes in buf, for ffmpeg.
+ */
+extern u_int32_t srs_crc32_mpegts(const void* buf, int size);
+
+/**
+ * calc the crc32 of bytes in buf by IEEE, for zip.
+ */
+extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 0);
 
 /**
 * Decode a base64-encoded string.

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -56,7 +56,7 @@ using namespace std;
 // for example, system-interval is x=1s(1000ms),
 // then rusage can be 3*x, for instance, 3*1=3s,
 // the meminfo canbe 6*x, for instance, 6*1=6s,
-// for performance refine, @see: https://github.com/simple-rtmp-server/srs/issues/194
+// for performance refine, @see: https://github.com/ossrs/srs/issues/194
 // @remark, recomment to 1000ms.
 #define SRS_SYS_CYCLE_INTERVAL 1000
 
@@ -566,26 +566,17 @@ void SrsServer::dispose()
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
     
-#ifdef SRS_AUTO_INGEST
-    ingester->dispose();
-#endif
+    // @remark don't dispose ingesters, for too slow.
     
 #ifdef SRS_AUTO_KAFKA
     kafka->stop();
 #endif
     
+    // dispose the source for hls and dvr.
     SrsSource::dispose_all();
     
-    while (!conns.empty()) {
-        std::vector<SrsConnection*>::iterator it;
-        for (it = conns.begin(); it != conns.end(); ++it) {
-            SrsConnection* conn = *it;
-            conn->dispose();
-        }
-        
-        st_usleep(100 * 1000);
-    }
-    
+    // @remark don't dispose all connections, for too slow.
+
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
@@ -723,7 +714,7 @@ int SrsServer::acquire_pid_file()
     
     // write the pid
     string pid = srs_int2str(getpid());
-    if (write(fd, pid.c_str(), pid.length()) != pid.length()) {
+    if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
         ret = ERROR_SYSTEM_PID_WRITE_FILE;
         srs_error("write our pid error! pid=%s file=%s ret=%#x", pid.c_str(), pid_file.c_str(), ret);
         return ret;
@@ -907,6 +898,7 @@ int SrsServer::cycle()
     st_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
 #else
+    // normally quit with neccessary cleanup by dispose().
     srs_warn("main cycle terminated, system quit normally.");
     dispose();
     srs_trace("srs terminated");
@@ -968,11 +960,11 @@ int SrsServer::do_cycle()
     
     // the deamon thread, update the time cache
     while (true) {
-        if(handler && (ret = handler->on_cycle((int)conns.size())) != ERROR_SUCCESS){
+        if (handler && (ret = handler->on_cycle()) != ERROR_SUCCESS) {
             srs_error("cycle handle failed. ret=%d", ret);
             return ret;
         }
-            
+
         // the interval in config.
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
@@ -1249,43 +1241,14 @@ void SrsServer::resample_kbps()
     srs_update_rtmp_server((int)conns.size(), kbps);
 }
 
-int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
+int SrsServer::accept_client(SrsListenerType type, st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    int max_connections = _srs_config->get_max_connections();
-    if ((int)conns.size() >= max_connections) {
-        int fd = st_netfd_fileno(client_stfd);
-        
-        srs_error("exceed the max connections, drop client: "
-            "clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
-            
-        srs_close_stfd(client_stfd);
-        
-        return ret;
-    }
-    
-    SrsConnection* conn = NULL;
-    if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, client_stfd);
-    } else if (type == SrsListenerHttpApi) {
-#ifdef SRS_AUTO_HTTP_API
-        conn = new SrsHttpApi(this, client_stfd, http_api_mux);
-#else
-        srs_warn("close http client for server not support http-api");
-        srs_close_stfd(client_stfd);
-        return ret;
-#endif
-    } else if (type == SrsListenerHttpStream) {
-#ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsResponseOnlyHttpConn(this, client_stfd, http_server);
-#else
-        srs_warn("close http client for server not support http-server");
-        srs_close_stfd(client_stfd);
-        return ret;
-#endif
-    } else {
-        // TODO: FIXME: handler others
+    SrsConnection* conn = fd2conn(type, stfd);
+    if (conn == NULL) {
+        srs_close_stfd(stfd);
+        return ERROR_SUCCESS;
     }
     srs_assert(conn);
     
@@ -1298,11 +1261,78 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if ((ret = conn->start()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("conn started success.");
-
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
     return ret;
+}
+
+SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int fd = st_netfd_fileno(stfd);
+    string ip = srs_get_peer_ip(fd);
+    
+    // for some keep alive application, for example, the keepalived,
+    // will send some tcp packet which we cann't got the ip,
+    // we just ignore it.
+    if (ip.empty()) {
+        srs_info("ignore empty ip client, fd=%d.", fd);
+        return NULL;
+    }
+
+    // check connection limitation.
+    int max_connections = _srs_config->get_max_connections();
+    if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
+        srs_error("handle accept client failed, drop client: clients=%d, max=%d, fd=%d. ret=%d", (int)conns.size(), max_connections, fd, ret);
+        return NULL;
+    }
+    if ((int)conns.size() >= max_connections) {
+        srs_error("exceed the max connections, drop client: clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
+        return NULL;
+    }
+    
+    // avoid fd leak when fork.
+    // @see https://github.com/ossrs/srs/issues/518
+    if (true) {
+        int val;
+        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
+            ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
+            srs_error("fnctl F_GETFD error! fd=%d. ret=%#x", fd, ret);
+            return NULL;
+        }
+        val |= FD_CLOEXEC;
+        if (fcntl(fd, F_SETFD, val) < 0) {
+            ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
+            srs_error("fcntl F_SETFD error! fd=%d ret=%#x", fd, ret);
+            return NULL;
+        }
+    }
+    
+    SrsConnection* conn = NULL;
+    
+    if (type == SrsListenerRtmpStream) {
+        conn = new SrsRtmpConn(this, kafka, stfd, ip);
+    } else if (type == SrsListenerHttpApi) {
+#ifdef SRS_AUTO_HTTP_API
+        conn = new SrsHttpApi(this, stfd, http_api_mux, ip);
+#else
+        srs_warn("close http client for server not support http-api");
+        srs_close_stfd(stfd);
+        return ret;
+#endif
+    } else if (type == SrsListenerHttpStream) {
+#ifdef SRS_AUTO_HTTP_SERVER
+        conn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
+#else
+        srs_warn("close http client for server not support http-server");
+        return NULL;
+#endif
+    } else {
+        // TODO: FIXME: handler others
+    }
+    
+    return conn;
 }
 
 void SrsServer::remove(SrsConnection* conn)

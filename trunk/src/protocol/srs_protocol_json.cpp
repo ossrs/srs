@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -477,8 +477,10 @@ SrsJsonAny* SrsJsonAny::loads(char* str)
     if (strlen(str) == 0) {
         return NULL;
     }
-    
-    const nx_json* o = nx_json_parse(str, 0);
+
+    // TODO: copy str for nx_json modify it.
+    string s = str;
+    const nx_json* o = nx_json_parse((char*)s.data(), 0);
     
     SrsJsonAny* json = srs_json_parse_tree_nx_json(o);
     
@@ -624,6 +626,21 @@ SrsJsonAny* SrsJsonObject::ensure_property_integer(string name)
     }
     
     if (!prop->is_integer()) {
+        return NULL;
+    }
+    
+    return prop;
+}
+
+SrsJsonAny* SrsJsonObject::ensure_property_number(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+    
+    if (!prop) {
+        return NULL;
+    }
+    
+    if (!prop->is_number()) {
         return NULL;
     }
     

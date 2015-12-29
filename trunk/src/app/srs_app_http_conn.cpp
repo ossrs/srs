@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -79,7 +79,7 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
-    srs_freep(iovss_cache);
+    srs_freepa(iovss_cache);
 }
 
 int SrsHttpResponseWriter::final_request()
@@ -191,7 +191,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     int nb_iovss = 3 + iovcnt;
     iovec* iovss = iovss_cache;
     if (nb_iovss_cache < nb_iovss) {
-        srs_freep(iovss_cache);
+        srs_freepa(iovss_cache);
         nb_iovss_cache = nb_iovss;
         iovss = iovss_cache = new iovec[nb_iovss];
     }
@@ -303,7 +303,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
 }
 
-SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io)
+SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io)
 {
     skt = io;
     owner = msg;
@@ -494,7 +494,7 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     return ret;
 }
 
-SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c) : ISrsHttpMessage()
+SrsHttpMessage::SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c) : ISrsHttpMessage()
 {
     conn = c;
     chunked = false;
@@ -509,7 +509,7 @@ SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
     srs_freep(_uri);
-    srs_freep(_http_ts_send_buffer);
+    srs_freepa(_http_ts_send_buffer);
 }
 
 int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, vector<SrsHttpHeaderField>& headers)
@@ -572,12 +572,7 @@ int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, Sr
     }
     
     // parse ext.
-    _ext = _uri->get_path();
-    if ((pos = _ext.rfind(".")) != string::npos) {
-        _ext = _ext.substr(pos);
-    } else {
-        _ext = "";
-    }
+    _ext = srs_path_filext(_uri->get_path());
     
     // parse jsonp request message.
     if (allow_jsonp) {
@@ -739,7 +734,7 @@ int SrsHttpMessage::body_read_all(string& body)
     
     // cache to read.
     char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
     
     // whatever, read util EOF.
     while (!_body->eof()) {
@@ -816,24 +811,29 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
 {
     SrsRequest* req = new SrsRequest();
     
-    req->app = _uri->get_path();
-    size_t pos = string::npos;
-    if ((pos = req->app.rfind("/")) != string::npos) {
-        req->stream = req->app.substr(pos + 1);
-        req->app = req->app.substr(0, pos);
-    }
-    if ((pos = req->stream.rfind(".")) != string::npos) {
-        req->stream = req->stream.substr(0, pos);
-    }
+    // http path, for instance, /live/livestream.flv, parse to
+    //      app: /live
+    //      stream: livestream.flv
+    srs_parse_rtmp_url(_uri->get_path(), req->app, req->stream);
     
-    req->tcUrl = "rtmp://" + vhost + req->app;
+    // trim the start slash, for instance, /live to live
+    req->app = srs_string_trim_start(req->app, "/");
+    
+    // remove the extension, for instance, livestream.flv to livestream
+    req->stream = srs_path_filename(req->stream);
+    
+    // generate others.
+    req->tcUrl = "rtmp://" + vhost + "/" + req->app;
     req->pageUrl = get_request_header("Referer");
     req->objectEncoding = 0;
     
-    srs_discovery_tc_url(req->tcUrl,
-                         req->schema, req->host, req->vhost, req->app, req->port,
-                         req->param);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
     req->strip();
+    
+    // reset the host to http request host.
+    if (req->host == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+        req->host = _uri->get_host();
+    }
     
     return req;
 }
@@ -875,7 +875,7 @@ int SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
     return ret;
 }
 
-int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttpMessage** ppmsg)
+int SrsHttpParser::parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
@@ -892,7 +892,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     header_parsed = 0;
     
     // do parse
-    if ((ret = parse_message_imp(skt)) != ERROR_SUCCESS) {
+    if ((ret = parse_message_imp(io)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("parse http msg failed. ret=%d", ret);
         }
@@ -900,7 +900,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     }
     
     // create msg
-    SrsHttpMessage* msg = new SrsHttpMessage(skt, conn);
+    SrsHttpMessage* msg = new SrsHttpMessage(io, conn);
     
     // initalize http msg, parse url.
     if ((ret = msg->update(url, jsonp, &header, buffer, headers)) != ERROR_SUCCESS) {
@@ -915,7 +915,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttp
     return ret;
 }
 
-int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
+int SrsHttpParser::parse_message_imp(ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
     
@@ -923,7 +923,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         ssize_t nparsed = 0;
         
         // when got entire http header, parse it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/400
+        // @see https://github.com/ossrs/srs/issues/400
         char* start = buffer->bytes();
         char* end = start + buffer->size();
         for (char* p = start; p <= end - 4; p++) {
@@ -949,7 +949,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         // when nothing parsed, read more to parse.
         if (nparsed == 0) {
             // when requires more, only grow 1bytes, but the buffer will cache more.
-            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+            if ((ret = buffer->grow(io, buffer->size() + 1)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("read body from server failed. ret=%d", ret);
                 }
@@ -1068,102 +1068,8 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-SrsHttpUri::SrsHttpUri()
-{
-    port = SRS_DEFAULT_HTTP_PORT;
-}
-
-SrsHttpUri::~SrsHttpUri()
-{
-}
-
-int SrsHttpUri::initialize(string _url)
-{
-    int ret = ERROR_SUCCESS;
-    
-    url = _url;
-    const char* purl = url.c_str();
-    
-    http_parser_url hp_u;
-    if((ret = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
-        int code = ret;
-        ret = ERROR_HTTP_PARSE_URI;
-        
-        srs_error("parse url %s failed, code=%d, ret=%d", purl, code, ret);
-        return ret;
-    }
-    
-    std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
-    if(!field.empty()){
-        schema = field;
-    }
-    
-    host = get_uri_field(url, &hp_u, UF_HOST);
-    
-    field = get_uri_field(url, &hp_u, UF_PORT);
-    if(!field.empty()){
-        port = atoi(field.c_str());
-    }
-    
-    path = get_uri_field(url, &hp_u, UF_PATH);
-    srs_info("parse url %s success", purl);
-    
-    query = get_uri_field(url, &hp_u, UF_QUERY);
-    srs_info("parse query %s success", query.c_str());
-    
-    return ret;
-}
-
-const char* SrsHttpUri::get_url()
-{
-    return url.data();
-}
-
-const char* SrsHttpUri::get_schema()
-{
-    return schema.data();
-}
-
-const char* SrsHttpUri::get_host()
-{
-    return host.data();
-}
-
-int SrsHttpUri::get_port()
-{
-    return port;
-}
-
-const char* SrsHttpUri::get_path()
-{
-    return path.data();
-}
-
-const char* SrsHttpUri::get_query()
-{
-    return query.data();
-}
-
-string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_url_fields field)
-{
-    if((hp_u->field_set & (1 << field)) == 0){
-        return "";
-    }
-    
-    srs_verbose("uri field matched, off=%d, len=%d, value=%.*s",
-                hp_u->field_data[field].off,
-                hp_u->field_data[field].len,
-                hp_u->field_data[field].len,
-                uri.c_str() + hp_u->field_data[field].off);
-    
-    int offset = hp_u->field_data[field].off;
-    int len = hp_u->field_data[field].len;
-    
-    return uri.substr(offset, len);
-}
-
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
-    : SrsConnection(cm, fd)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+    : SrsConnection(cm, fd, cip)
 {
     parser = new SrsHttpParser();
     http_mux = m;
@@ -1209,7 +1115,7 @@ int SrsHttpConn::do_cycle()
     }
 
     // set the recv timeout, for some clients never disconnect the connection.
-    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    // @see https://github.com/ossrs/srs/issues/398
     skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
 
     SrsRequest* last_req = NULL;
@@ -1247,7 +1153,7 @@ int SrsHttpConn::do_cycle()
         }
 
         // donot keep alive, disconnect it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }
@@ -1286,8 +1192,8 @@ int SrsHttpConn::on_disconnect(SrsRequest* req)
     return ret;
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m)
-    : SrsHttpConn(cm, fd, m)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+    : SrsHttpConn(cm, fd, m, cip)
 {
 }
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -110,7 +110,7 @@ protected:
      */
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, st_netfd_t c);
+    SrsConnection(IConnectionManager* cm, st_netfd_t c, std::string cip);
     virtual ~SrsConnection();
 // interface IKbpsDelta
 public:

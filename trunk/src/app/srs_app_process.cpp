@@ -1,7 +1,7 @@
 /*
  The MIT License (MIT)
  
- Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+ Copyright (c) 2013-2016 SRS(ossrs)
  
  Permission is hereby granted, free of charge, to any person obtaining a copy of
  this software and associated documentation files (the "Software"), to deal in
@@ -30,7 +30,7 @@
 #include <signal.h>
 #include <sys/types.h>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -76,15 +76,16 @@ int SrsProcess::initialize(string binary, vector<string> argv)
     
     for (int i = 0; i < (int)argv.size(); i++) {
         std::string ffp = argv[i];
+        std::string nffp = (i < (int)argv.size() -1)? argv[i + 1] : "";
         
         // remove the stdout and stderr.
-        if (ffp == "1") {
+        if (ffp == "1" && nffp == ">") {
             if (i + 2 < (int)argv.size()) {
                 stdout_file = argv[i + 2];
                 i += 2;
             }
             continue;
-        } else if (ffp == "2") {
+        } else if (ffp == "2" && nffp == ">") {
             if (i + 2 < (int)argv.size()) {
                 stderr_file = argv[i + 2];
                 i += 2;
@@ -121,6 +122,9 @@ int SrsProcess::start()
         return ret;
     }
     
+    // for osx(lldb) to debug the child process.
+    //kill(0, SIGSTOP);
+    
     // child process: ffmpeg encoder engine.
     if (pid == 0) {
         // ignore the SIGINT and SIGTERM
@@ -136,13 +140,13 @@ int SrsProcess::start()
             if ((stdout_fd = ::open(stdout_file.c_str(), flags, mode)) < 0) {
                 ret = ERROR_ENCODER_OPEN;
                 fprintf(stderr, "open process stdout %s failed. ret=%d", stdout_file.c_str(), ret);
-                return ret;
+                exit(ret);
             }
             
             if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
                 ret = ERROR_ENCODER_DUP2;
                 srs_error("dup2 process stdout failed. ret=%d", ret);
-                return ret;
+                exit(ret);
             }
         }
         
@@ -155,13 +159,13 @@ int SrsProcess::start()
             if ((stderr_fd = ::open(stderr_file.c_str(), flags, mode)) < 0) {
                 ret = ERROR_ENCODER_OPEN;
                 fprintf(stderr, "open process stderr %s failed. ret=%d", stderr_file.c_str(), ret);
-                return ret;
+                exit(ret);
             }
             
             if (dup2(stderr_fd, STDERR_FILENO) < 0) {
                 ret = ERROR_ENCODER_DUP2;
                 srs_error("dup2 process stderr failed. ret=%d", ret);
-                return ret;
+                exit(ret);
             }
         }
         

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -116,7 +116,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
         }
     }
     sh_data = new char[sh_size];
-    SrsAutoFree(char, sh_data);
+    SrsAutoFreeA(char, sh_data);
     if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -242,7 +242,7 @@ int SrsHttpStaticServer::initialize()
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
         // the dir mount must always ends with "/"
-        if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
+        if (mount != "/" && !srs_string_ends_with(mount, "/")) {
             mount += "/";
         }
         

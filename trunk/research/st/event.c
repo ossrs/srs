@@ -310,7 +310,7 @@ ST_HIDDEN void _st_epoll_dispatch(void)
 
     if (_st_epoll_data->pid != getpid()) {
         // WINLIN: remove it for bug introduced.
-        // @see: https://github.com/simple-rtmp-server/srs/issues/193
+        // @see: https://github.com/ossrs/srs/issues/193
         exit(-1);
     }
 

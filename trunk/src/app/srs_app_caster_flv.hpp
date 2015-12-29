@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -43,6 +43,8 @@ class SrsRequest;
 class SrsPithyPrint;
 class ISrsHttpResponseReader;
 class SrsFlvDecoder;
+class SrsTcpClient;
+class SrsSimpleRtmpClient;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -84,14 +86,9 @@ class SrsDynamicHttpConn : public SrsHttpConn
 private:
     std::string output;
     SrsPithyPrint* pprint;
-private:
-    SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
-    SrsRtmpClient* client;
-    int stream_id;
+    SrsSimpleRtmpClient* sdk;
 public:
-    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsDynamicHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);
@@ -99,14 +96,6 @@ public:
     virtual int proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
     virtual int do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
-private:
-    // connect to rtmp output url.
-    // @remark ignore when not connected, reconnect when disconnected.
-    virtual int connect();
-    virtual int connect_app(std::string ep_server, std::string ep_port);
-    // close the connected io and rtmp to ready to be re-connect.
-    virtual void close();
 };
 
 /**

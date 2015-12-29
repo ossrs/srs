@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -157,6 +157,7 @@ public:
     virtual SrsJsonAny* get_property(std::string name);
     virtual SrsJsonAny* ensure_property_string(std::string name);
     virtual SrsJsonAny* ensure_property_integer(std::string name);
+    virtual SrsJsonAny* ensure_property_number(std::string name);
     virtual SrsJsonAny* ensure_property_boolean(std::string name);
     virtual SrsJsonAny* ensure_property_object(std::string name);
     virtual SrsJsonAny* ensure_property_array(std::string name);

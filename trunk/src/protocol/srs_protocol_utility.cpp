@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -41,42 +41,14 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_protocol_io.hpp>
 
-void srs_discovery_tc_url(
-    string tcUrl, 
-    string& schema, string& host, string& vhost, 
-    string& app, int& port, std::string& param
-) {
-    size_t pos = std::string::npos;
-    std::string url = tcUrl;
-    
-    if ((pos = url.find("://")) != std::string::npos) {
-        schema = url.substr(0, pos);
-        url = url.substr(schema.length() + 3);
-        srs_info("discovery schema=%s", schema.c_str());
-    }
-    
-    if ((pos = url.find("/")) != std::string::npos) {
-        host = url.substr(0, pos);
-        url = url.substr(host.length() + 1);
-        srs_info("discovery host=%s", host.c_str());
-    }
-
-    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    if ((pos = host.find(":")) != std::string::npos) {
-        srs_parse_hostport(host, host, port);
-        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
-    }
-
-    if (url.empty()) {
-        app = SRS_CONSTS_RTMP_DEFAULT_APP;
-    } else {
-        app = url;
-    }
-
-    vhost = host;
-    srs_vhost_resolve(vhost, app, param);
-}
-
+/**
+ * resolve the vhost in query string
+ * @pram vhost, update the vhost if query contains the vhost.
+ * @param app, may contains the vhost in query string format:
+ *   app?vhost=request_vhost
+ *   app...vhost...request_vhost
+ * @param param, the query, for example, ?vhost=xxx
+ */
 void srs_vhost_resolve(string& vhost, string& app, string& param)
 {
     // get original param
@@ -107,6 +79,42 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     }
     
     /* others */
+}
+
+void srs_discovery_tc_url(
+    string tcUrl, 
+    string& schema, string& host, string& vhost, 
+    string& app, int& port, string& param
+) {
+    size_t pos = std::string::npos;
+    std::string url = tcUrl;
+    
+    if ((pos = url.find("://")) != std::string::npos) {
+        schema = url.substr(0, pos);
+        url = url.substr(schema.length() + 3);
+        srs_info("discovery schema=%s", schema.c_str());
+    }
+    
+    if ((pos = url.find("/")) != std::string::npos) {
+        host = url.substr(0, pos);
+        url = url.substr(host.length() + 1);
+        srs_info("discovery host=%s", host.c_str());
+    }
+
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    if ((pos = host.find(":")) != std::string::npos) {
+        srs_parse_hostport(host, host, port);
+        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
+    }
+
+    if (url.empty()) {
+        app = SRS_CONSTS_RTMP_DEFAULT_APP;
+    } else {
+        app = url;
+    }
+
+    vhost = host;
+    srs_vhost_resolve(vhost, app, param);
 }
 
 void srs_random_generate(char* bytes, int size)
@@ -222,14 +230,14 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
 
     // only when failed, we must free the data.
     if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
-        srs_freep(data);
+        srs_freepa(data);
         return ret;
     }
 
     return ret;
 }
 
-std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream) 
+string srs_generate_stream_url(string vhost, string app, string stream)
 {
     std::string url = "";
     
@@ -242,6 +250,18 @@ std::string srs_generate_stream_url(std::string vhost, std::string app, std::str
     url += stream;
 
     return url;
+}
+
+void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
+{
+    size_t pos;
+    
+    if ((pos = url.rfind("/")) != string::npos) {
+        stream = url.substr(pos + 1);
+        tcUrl = url.substr(0, pos);
+    } else {
+        tcUrl = url;
+    }
 }
 
 string srs_generate_rtmp_url(string server, int port, string vhost, string app, string stream)
@@ -265,7 +285,7 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     int ret = ERROR_SUCCESS;
     
     // the limits of writev iovs.
-    // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
     // for linux, generally it's 1024.
     static int limits = (int)sysconf(_SC_IOV_MAX);
@@ -298,5 +318,19 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     }
     
     return ret;
+}
+
+string srs_join_vector_string(vector<string>& vs, string separator)
+{
+    string str = "";
+    
+    for (int i = 0; i < (int)vs.size(); i++) {
+        str += vs.at(i);
+        if (i != (int)vs.size() - 1) {
+            str += separator;
+        }
+    }
+    
+    return str;
 }
 

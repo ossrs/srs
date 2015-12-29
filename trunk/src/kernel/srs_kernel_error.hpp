@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #define ERROR_SUCCESS                       0
 #endif
@@ -108,7 +108,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////
 #define ERROR_RTMP_PLAIN_REQUIRED           2000
 #define ERROR_RTMP_CHUNK_START              2001
-#define ERROR_RTMP_MSG_INVLIAD_SIZE         2002
+#define ERROR_RTMP_MSG_INVALID_SIZE         2002
 #define ERROR_RTMP_AMF0_DECODE              2003
 #define ERROR_RTMP_AMF0_INVALID             2004
 #define ERROR_RTMP_REQ_CONNECT              2005
@@ -175,7 +175,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HLS_AAC_FRAME_LENGTH          3005
 #define ERROR_HLS_AVC_SAMPLE_SIZE           3006
 #define ERROR_HTTP_PARSE_URI                3007
-#define ERROR_HTTP_DATA_INVLIAD             3008
+#define ERROR_HTTP_DATA_INVALID             3008
 #define ERROR_HTTP_PARSE_HEADER             3009
 #define ERROR_HTTP_HANDLER_MATCH_URL        3010
 #define ERROR_HTTP_HANDLER_INVALID          3011
@@ -236,14 +236,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_REQUEST_DATA                  3066
 
 ///////////////////////////////////////////////////////
-// HTTP/StreamCaster protocol error.
+// HTTP/StreamCaster/KAFKA protocol error.
 ///////////////////////////////////////////////////////
 #define ERROR_HTTP_PATTERN_EMPTY            4000
 #define ERROR_HTTP_PATTERN_DUPLICATED       4001
 #define ERROR_HTTP_URL_NOT_CLEAN            4002
 #define ERROR_HTTP_CONTENT_LENGTH           4003
 #define ERROR_HTTP_LIVE_STREAM_EXT          4004
-#define ERROR_HTTP_STATUS_INVLIAD           4005
+#define ERROR_HTTP_STATUS_INVALID           4005
 #define ERROR_KERNEL_AAC_STREAM_CLOSED      4006
 #define ERROR_AAC_DECODE_ERROR              4007
 #define ERROR_KERNEL_MP3_STREAM_CLOSED      4008
@@ -268,6 +268,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AVC_NALU_UEV                  4027
 #define ERROR_AAC_BYTES_INVALID             4028
 #define ERROR_HTTP_REQUEST_EOF              4029
+#define ERROR_KAFKA_CODEC_STRING            4030
+#define ERROR_KAFKA_CODEC_BYTES             4031
+#define ERROR_KAFKA_CODEC_REQUEST           4032
+#define ERROR_KAFKA_CODEC_RESPONSE          4033
+#define ERROR_KAFKA_CODEC_ARRAY             4034
+#define ERROR_KAFKA_CODEC_METADATA          4035
+#define ERROR_KAFKA_CODEC_MESSAGE           4036
+#define ERROR_KAFKA_CODEC_PRODUCER          4037
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

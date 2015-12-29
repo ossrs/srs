@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -40,7 +40,7 @@ SrsMessageArray::~SrsMessageArray()
     // we just free the msgs itself,
     // both delete and delete[] is ok,
     // for each msg in msgs is already freed by send_and_free_messages.
-    srs_freep(msgs);
+    srs_freepa(msgs);
 }
 
 void SrsMessageArray::free(int count)

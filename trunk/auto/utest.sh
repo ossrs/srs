@@ -58,8 +58,7 @@ USER_DIR = .
 CPPFLAGS += -I\$(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -O0
-CXXFLAGS += $EXTRA_DEFINES
+CXXFLAGS += -g -Wall -Wextra -O0 ${EXTRA_DEFINES}
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.

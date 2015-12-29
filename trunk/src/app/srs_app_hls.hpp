@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -255,12 +255,12 @@ private:
     /**
     * the current audio codec, when open new muxer,
     * set the muxer audio codec.
-    * @see https://github.com/simple-rtmp-server/srs/issues/301
+    * @see https://github.com/ossrs/srs/issues/301
     */
     SrsCodecAudio acodec;
     /**
      * the ts context, to keep cc continous between ts.
-     * @see https://github.com/simple-rtmp-server/srs/issues/375
+     * @see https://github.com/ossrs/srs/issues/375
      */
     SrsTsContext* context;
 public:
@@ -304,11 +304,15 @@ public:
     /**
     * whether segment absolutely overflow, for pure audio to reap segment,
     * that is whether the current segment duration>=2*(the segment in config)
-    * @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
+    * @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
     */
     virtual bool is_segment_absolutely_overflow();
 public:
     virtual int update_acodec(SrsCodecAudio ac);
+    /**
+     * whether current hls muxer is pure audio mode.
+     */
+    virtual bool pure_audio();
     virtual int flush_audio(SrsTsCache* cache);
     virtual int flush_video(SrsTsCache* cache);
     /**

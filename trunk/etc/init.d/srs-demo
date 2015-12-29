@@ -1,17 +1,17 @@
 #!/bin/bash
 
 ### BEGIN INIT INFO
-# Provides:          simple-rtmp-server(srs)
-# RequiRED-Start:    $all
-# RequiRED-Stop:     $all
+# Provides:          ossrs(srs)
+# Required-Start:    $all
+# Required-Stop:     $all
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: simple-rtmp-server(srs)
-# Description:       https://github.com/simple-rtmp-server/srs
+# Short-Description: ossrs(srs)
+# Description:       https://github.com/ossrs/srs
 ### END INIT INFO
 
 # the config of ROOT, user must modify it when start srs from other directory,
-# it's ok to use the script by command ./etc/init.d/simple-rtmp-server
+# it's ok to use the script by command ./etc/init.d/ossrs
 ROOT="./"
 APP="./objs/srs"
 CONFIG="./conf/demo.conf"

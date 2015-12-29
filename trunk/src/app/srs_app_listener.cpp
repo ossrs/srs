@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -94,7 +94,7 @@ SrsUdpListener::~SrsUdpListener()
     // close it manually.
     close(_fd);
 
-    srs_freep(buf);
+    srs_freepa(buf);
 }
 
 int SrsUdpListener::fd()
@@ -270,7 +270,9 @@ int SrsTcpListener::cycle()
     
     if(client_stfd == NULL){
         // ignore error.
-        srs_error("ignore accept thread stoppped for accept client error");
+        if (errno != EINTR) {
+            srs_error("ignore accept thread stoppped for accept client error");
+        }
         return ret;
     }
     srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));

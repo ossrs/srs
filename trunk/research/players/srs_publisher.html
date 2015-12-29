@@ -46,6 +46,9 @@
             发布地址:
             <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
             <button class="btn btn-primary" id="btn_publish">发布视频</button>
+            <label class="checkbox">
+                <input type="checkbox" id="cb_preview" checked>预览
+            </label>
         </div>
     </div>
     <div class="control-group">
@@ -258,7 +261,7 @@
         </div>
     </div>
     <footer>
-        <p><a href="https://github.com/simple-rtmp-server/srs">SRS Team &copy; 2013</a></p>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2013</a></p>
     </footer>
 </div>
 </body>
@@ -445,6 +448,10 @@
 
         info("开始推流到服务器");
         srs_publisher.publish(url, vcodec, acodec);
+
+        if (!$("#cb_preview").is(":checked")) {
+            return;
+        }
 
         if (realtime_player) {
             // directly play the url for the realtime player.

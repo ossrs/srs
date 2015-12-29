@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_core.hpp>
+
+#include <string>
 
 #include <st.h>
 
@@ -117,12 +119,12 @@ namespace internal
          * @param interval_us, the sleep interval when cycle finished.
          * @param joinable, if joinable, other thread must stop the thread.
          * @remark if joinable, thread never quit itself, or memory leak.
-         * @see: https://github.com/simple-rtmp-server/srs/issues/78
+         * @see: https://github.com/ossrs/srs/issues/78
          * @remark about st debug, see st-1.9/README, _st_iterate_threads_flag
          */
         /**
          * TODO: FIXME: maybe all thread must be reap by others threads,
-         * @see: https://github.com/simple-rtmp-server/srs/issues/77
+         * @see: https://github.com/ossrs/srs/issues/77
          */
         SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable);
         virtual ~SrsThread();
@@ -198,6 +200,52 @@ public:
     /**
      * @param nwrite, the actual write bytes, ignore if NULL.
      */
+    virtual int write(void* buf, size_t size, ssize_t* nwrite);
+    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+};
+
+/**
+ * the common tcp client, to connect to specified TCP server,
+ * reconnect and close the connection.
+ */
+class SrsTcpClient : public ISrsProtocolReaderWriter
+{
+private:
+    st_netfd_t stfd;
+    SrsStSocket* io;
+public:
+    SrsTcpClient();
+    virtual ~SrsTcpClient();
+public:
+    /**
+     * whether connected to server.
+     */
+    virtual bool connected();
+public:
+    /**
+     * connect to server over TCP.
+     * @param host the ip or hostname of server.
+     * @param port the port to connect to.
+     * @param timeout the timeout in us.
+     * @remark ignore when connected.
+     */
+    virtual int connect(std::string host, int port, int64_t timeout);
+    /**
+     * close the connection.
+     * @remark ignore when closed.
+     */
+    virtual void close();
+// interface ISrsProtocolReaderWriter
+public:
+    virtual bool is_never_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_timeout();
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_send_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual int read(void* buf, size_t size, ssize_t* nread);
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
     virtual int write(void* buf, size_t size, ssize_t* nwrite);
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };

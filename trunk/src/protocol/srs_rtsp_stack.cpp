@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -22,6 +22,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_rtsp_stack.hpp>
+
+#if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <stdlib.h>
 #include <map>
@@ -546,7 +548,7 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
                 }
 
                 char* tmp_sh = new char[item_value.length()];
-                SrsAutoFree(char, tmp_sh);
+                SrsAutoFreeA(char, tmp_sh);
                 int nb_tmp_sh = ff_hex_to_data((u_int8_t*)tmp_sh, item_value.c_str());
                 srs_assert(nb_tmp_sh > 0);
                 audio_sh.append(tmp_sh, nb_tmp_sh);
@@ -601,7 +603,7 @@ string SrsRtspSdp::base64_decode(string value)
 
     int nb_output = (int)(value.length() * 2);
     u_int8_t* output = new u_int8_t[nb_output];
-    SrsAutoFree(u_int8_t, output);
+    SrsAutoFreeA(u_int8_t, output);
 
     int ret = srs_av_base64_decode(output, (char*)value.c_str(), nb_output);
     if (ret <= 0) {
@@ -986,10 +988,7 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
     // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         size_t pos = string::npos;
-        std::string stream_id;
-        if ((pos = req->uri.rfind("/")) != string::npos) {
-            stream_id = req->uri.substr(pos + 1);
-        }
+        std::string stream_id = srs_path_basename(req->uri);
         if ((pos = stream_id.find("=")) != string::npos) {
             stream_id = stream_id.substr(pos + 1);
         }
@@ -1179,6 +1178,8 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
 
     return ret;
 }
+
+#endif
 
 #endif
 

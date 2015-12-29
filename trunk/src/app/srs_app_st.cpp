@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,8 +23,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
+#include <string>
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_app_utility.hpp>
 
 namespace internal
 {
@@ -71,7 +75,7 @@ namespace internal
         
         // in start(), the thread cycle method maybe stop and remove the thread itself,
         // and the thread start() is waiting for the _cid, and segment fault then.
-        // @see https://github.com/simple-rtmp-server/srs/issues/110
+        // @see https://github.com/ossrs/srs/issues/110
         // thread will set _cid, callback on_thread_start(), then wait for the can_run signal.
         can_run = false;
     }
@@ -101,11 +105,12 @@ namespace internal
             return ret;
         }
         
+        disposed = false;
         // we set to loop to true for thread to run.
         loop = true;
         
         // wait for cid to ready, for parent thread to get the cid.
-        while (_cid < 0 && loop) {
+        while (_cid < 0) {
             st_usleep(10 * 1000);
         }
         
@@ -125,6 +130,8 @@ namespace internal
         
         dispose();
         
+        _cid = -1;
+        can_run = false;
         tid = NULL;
     }
     
@@ -221,7 +228,7 @@ namespace internal
             }
             
             // to improve performance, donot sleep when interval is zero.
-            // @see: https://github.com/simple-rtmp-server/srs/issues/237
+            // @see: https://github.com/ossrs/srs/issues/237
             if (cycle_interval_us != 0) {
                 st_usleep(cycle_interval_us);
             }
@@ -230,11 +237,13 @@ namespace internal
         // readly terminated now.
         really_terminated = true;
         
+        // when thread terminated normally, also disposed.
+        // we must set to disposed before the on_thread_stop, which may free the thread.
+        // @see https://github.com/ossrs/srs/issues/546
+        disposed = true;
+        
         handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
-        
-        // when thread terminated normally, also disposed.
-        disposed = true;
     }
     
     void* SrsThread::thread_fun(void* arg)
@@ -309,7 +318,7 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     // (a value of 0 means the network connection is closed or end of file is reached).
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -339,7 +348,7 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     // (a value less than nbyte means the network connection is closed or end of file is reached)
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read != (ssize_t)size) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -368,7 +377,7 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -393,7 +402,7 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/simple-rtmp-server/srs/issues/200
+        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -404,6 +413,108 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     send_bytes += nb_write;
     
     return ret;
+}
+
+SrsTcpClient::SrsTcpClient()
+{
+    io = NULL;
+    stfd = NULL;
+}
+
+SrsTcpClient::~SrsTcpClient()
+{
+    close();
+}
+
+bool SrsTcpClient::connected()
+{
+    return io;
+}
+
+int SrsTcpClient::connect(string host, int port, int64_t timeout)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when connected, ignore.
+    if (io) {
+        return ret;
+    }
+    
+    // connect host.
+    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
+        srs_error("connect server %s:%d failed. ret=%d", host.c_str(), port, ret);
+        return ret;
+    }
+    
+    io = new SrsStSocket(stfd);
+    
+    return ret;
+}
+
+void SrsTcpClient::close()
+{
+    // when closed, ignore.
+    if (!io) {
+        return;
+    }
+    
+    srs_freep(io);
+    srs_close_stfd(stfd);
+}
+
+bool SrsTcpClient::is_never_timeout(int64_t timeout_us)
+{
+    return io->is_never_timeout(timeout_us);
+}
+
+void SrsTcpClient::set_recv_timeout(int64_t timeout_us)
+{
+    io->set_recv_timeout(timeout_us);
+}
+
+int64_t SrsTcpClient::get_recv_timeout()
+{
+    return io->get_recv_timeout();
+}
+
+void SrsTcpClient::set_send_timeout(int64_t timeout_us)
+{
+    io->set_send_timeout(timeout_us);
+}
+
+int64_t SrsTcpClient::get_send_timeout()
+{
+    return io->get_send_timeout();
+}
+
+int64_t SrsTcpClient::get_recv_bytes()
+{
+    return io->get_recv_bytes();
+}
+
+int64_t SrsTcpClient::get_send_bytes()
+{
+    return io->get_send_bytes();
+}
+
+int SrsTcpClient::read(void* buf, size_t size, ssize_t* nread)
+{
+    return io->read(buf, size, nread);
+}
+
+int SrsTcpClient::read_fully(void* buf, size_t size, ssize_t* nread)
+{
+    return io->read_fully(buf, size, nread);
+}
+
+int SrsTcpClient::write(void* buf, size_t size, ssize_t* nwrite)
+{
+    return io->write(buf, size, nwrite);
+}
+
+int SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+{
+    return io->writev(iov, iov_size, nwrite);
 }
 
 #ifdef __linux__
@@ -428,7 +539,7 @@ int srs_st_init()
     
 #ifdef __linux__
     // check epoll, some old linux donot support epoll.
-    // @see https://github.com/simple-rtmp-server/srs/issues/162
+    // @see https://github.com/ossrs/srs/issues/162
     if (!srs_st_epoll_is_supported()) {
         ret = ERROR_ST_SET_EPOLL;
         srs_error("epoll required on Linux. ret=%d", ret);

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_conn.hpp>
 
+using namespace std;
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
@@ -36,11 +38,12 @@ IConnectionManager::~IConnectionManager()
 {
 }
 
-SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
+SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
 {
     id = 0;
     manager = cm;
     stfd = c;
+    ip = cip;
     disposed = false;
     expired = false;
     create_time = srs_get_system_time_ms();
@@ -52,7 +55,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
     // the client thread should reap itself, 
     // so we never use joinable.
     // TODO: FIXME: maybe other thread need to stop it.
-    // @see: https://github.com/simple-rtmp-server/srs/issues/78
+    // @see: https://github.com/ossrs/srs/issues/78
     pthread = new SrsOneCycleThread("conn", this);
 }
 
@@ -111,8 +114,6 @@ int SrsConnection::cycle()
     
     _srs_context->generate_id();
     id = _srs_context->get_id();
-    
-    ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     
     int oret = ret = do_cycle();
     

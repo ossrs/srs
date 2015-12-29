@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -267,8 +267,13 @@ SrsGoApiSummaries::~SrsGoApiSummaries()
 
 int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    SrsStatistic* stat = SrsStatistic::instance();
+    
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::integer(stat->server_id()));
     
     srs_api_dump_summaries(obj);
     
@@ -838,7 +843,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         }
         
         client->conn->expire();
-        srs_warn("kickoff client id=%d", cid);
+        srs_warn("kickoff client id=%d ok", cid);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
@@ -1304,8 +1309,8 @@ int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return srs_api_response_code(w, r, 100);
 }
 
-SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
-    : SrsConnection(cm, fd)
+SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
+    : SrsConnection(cm, fd, cip)
 {
     mux = m;
     parser = new SrsHttpParser();
@@ -1359,7 +1364,7 @@ int SrsHttpApi::do_cycle()
     SrsStSocket skt(stfd);
     
     // set the recv timeout, for some clients never disconnect the connection.
-    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    // @see https://github.com/ossrs/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
     // initialize the crossdomain
@@ -1396,7 +1401,7 @@ int SrsHttpApi::do_cycle()
         }
 
         // donot keep alive, disconnect it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }

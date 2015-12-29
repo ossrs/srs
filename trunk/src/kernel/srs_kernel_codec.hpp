@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -246,12 +246,6 @@ extern int aac_sample_rates[];
 #define SRS_SRS_MAX_CODEC_SAMPLE 128
 #define SRS_AAC_SAMPLE_RATE_UNSET 15
 
-// in ms, for HLS aac flush the audio
-#define SRS_CONF_DEFAULT_AAC_DELAY 60
-
-// max PES packets size to flush the video.
-#define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 128 * 1024
-
 /**
 * the FLV/RTMP supported audio sample size.
 * Size of each audio sample. This parameter only pertains to
@@ -435,7 +429,7 @@ enum SrsAvcPayloadFormat
 
 /**
 * the aac profile, for ADTS(HLS/TS)
-* @see https://github.com/simple-rtmp-server/srs/issues/310
+* @see https://github.com/ossrs/srs/issues/310
 */
 enum SrsAacProfile
 {
@@ -524,6 +518,8 @@ enum SrsAvcLevel
     SrsAvcLevel_51 = 51,
 };
 std::string srs_codec_avc_level2str(SrsAvcLevel level);
+
+#if !defined(SRS_EXPORT_LIBRTMP)
 
 /**
 * the h264/avc and aac codec, for media stream.
@@ -663,3 +659,6 @@ private:
 };
 
 #endif
+
+#endif
+

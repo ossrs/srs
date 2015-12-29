@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <signal.h>
 #include <sys/types.h>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -47,16 +47,17 @@ using namespace std;
 
 #ifdef SRS_AUTO_FFMPEG_STUB
 
-#define SRS_RTMP_ENCODER_COPY           "copy"
-#define SRS_RTMP_ENCODER_NO_VIDEO       "vn"
-#define SRS_RTMP_ENCODER_NO_AUDIO       "an"
+#define SRS_RTMP_ENCODER_COPY "copy"
+#define SRS_RTMP_ENCODER_NO_VIDEO "vn"
+#define SRS_RTMP_ENCODER_NO_AUDIO "an"
 // only support libx264 encoder.
-#define SRS_RTMP_ENCODER_VCODEC         "libx264"
+#define SRS_RTMP_ENCODER_VCODEC_LIBX264 "libx264"
+#define SRS_RTMP_ENCODER_VCODEC_PNG "png"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
-#define SRS_RTMP_ENCODER_ACODEC         "aac"
-#define SRS_RTMP_ENCODER_LIBAACPLUS     "libaacplus"
-#define SRS_RTMP_ENCODER_LIBFDKAAC      "libfdk_aac"
+#define SRS_RTMP_ENCODER_ACODEC "aac"
+#define SRS_RTMP_ENCODER_LIBAACPLUS "libaacplus"
+#define SRS_RTMP_ENCODER_LIBFDKAAC "libfdk_aac"
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -139,11 +140,11 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         return ret;
     }
     
-    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
-        if (vcodec != SRS_RTMP_ENCODER_VCODEC) {
+    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO && vcodec != SRS_RTMP_ENCODER_VCODEC_PNG) {
+        if (vcodec != SRS_RTMP_ENCODER_VCODEC_LIBX264) {
             ret = ERROR_ENCODER_VCODEC;
             srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
-                SRS_RTMP_ENCODER_VCODEC, vcodec.c_str(), ret);
+                SRS_RTMP_ENCODER_VCODEC_LIBX264, vcodec.c_str(), ret);
             return ret;
         }
         if (vbitrate < 0) {
@@ -183,7 +184,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         }
     }
     
-    // @see, https://github.com/simple-rtmp-server/srs/issues/145
+    // @see, https://github.com/ossrs/srs/issues/145
     if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS && acodec != SRS_RTMP_ENCODER_LIBFDKAAC) {
         if (abitrate != 0 && (abitrate < 16 || abitrate > 72)) {
             ret = ERROR_ENCODER_ABITRATE;
@@ -217,8 +218,8 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     
     // for not rtmp input, donot append the iformat,
     // for example, "-f flv" before "-i udp://192.168.1.252:2222"
-    // @see https://github.com/simple-rtmp-server/srs/issues/290
-    if (input.find("rtmp://") != 0) {
+    // @see https://github.com/ossrs/srs/issues/290
+    if (!srs_string_starts_with(input, "rtmp://")) {
         iformat = "";
     }
     
@@ -319,11 +320,15 @@ int SrsFFMPEG::start()
             params.push_back(srs_int2str(vthreads));
         }
         
-        params.push_back("-profile:v");
-        params.push_back(vprofile);
+        if (!vprofile.empty()) {
+            params.push_back("-profile:v");
+            params.push_back(vprofile);
+        }
         
-        params.push_back("-preset");
-        params.push_back(vpreset);
+        if (!vpreset.empty()) {
+            params.push_back("-preset");
+            params.push_back(vpreset);
+        }
         
         // vparams
         if (!vparams.empty()) {

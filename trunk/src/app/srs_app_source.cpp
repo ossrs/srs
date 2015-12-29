@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -128,7 +128,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
     // if jitter detected, reset the delta.
     if (delta < CONST_MAX_JITTER_MS_NEG || delta > CONST_MAX_JITTER_MS) {
         // use default 10ms to notice the problem of stream.
-        // @see https://github.com/simple-rtmp-server/srs/issues/425
+        // @see https://github.com/ossrs/srs/issues/425
         delta = DEFAULT_FRAME_TIME_MS;
         
         srs_info("jitter detected, last_pts=%"PRId64", pts=%"PRId64", diff=%"PRId64", last_time=%"PRId64", time=%"PRId64", diff=%"PRId64"",
@@ -162,7 +162,7 @@ SrsFastVector::SrsFastVector()
 SrsFastVector::~SrsFastVector()
 {
     free();
-    srs_freep(msgs);
+    srs_freepa(msgs);
 }
 
 int SrsFastVector::size()
@@ -221,7 +221,7 @@ void SrsFastVector::push_back(SrsSharedPtrMessage* msg)
         srs_warn("fast vector incrase %d=>%d", nb_msgs, size);
         
         // use new array.
-        srs_freep(msgs);
+        srs_freepa(msgs);
         msgs = buf;
         nb_msgs = size;
     }
@@ -419,9 +419,10 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* _source)
+SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
 {
-    source = _source;
+    source = s;
+    conn = c;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -1407,6 +1408,11 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 
     SrsAmf0Any* prop = NULL;
     
+    // when exists the duration, remove it to make ExoPlayer happy.
+    if (metadata->metadata->get_property("duration") != NULL) {
+        metadata->metadata->remove("duration");
+    }
+    
     // generate metadata info to print
     std::stringstream ss;
     if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
@@ -1550,6 +1556,24 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     return ret;
 }
 
+bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage* msg)
+{
+    // only continue for decode error.
+    if (ret != ERROR_HLS_DECODE_ERROR) {
+        return false;
+    }
+    
+    // when video size equals to sequence header,
+    // the video actually maybe a sequence header,
+    // continue to make ffmpeg happy.
+    if (sh && sh->size == msg->size) {
+        srs_warn("the msg is actually a sequence header, ignore this packet.");
+        return true;
+    }
+    
+    return false;
+}
+
 int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
@@ -1599,7 +1623,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/simple-rtmp-server/srs/issues/264
+        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
@@ -1610,9 +1634,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
             // ignore.
             ret = ERROR_SUCCESS;
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            // compare the sequence header with audio, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg->size) {
-                srs_warn("the audio is actually a sequence header, ignore this packet.");
+            if (srs_hls_can_continue(ret, cache_sh_audio, msg)) {
                 ret = ERROR_SUCCESS;
             } else {
                 srs_warn("hls continue audio failed. ret=%d", ret);
@@ -1719,7 +1741,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     last_packet_time = shared_video->header.timestamp;
     
     // drop any unknown header video.
-    // @see https://github.com/simple-rtmp-server/srs/issues/421
+    // @see https://github.com/ossrs/srs/issues/421
     if (!SrsFlvCodec::video_is_acceptable(shared_video->payload, shared_video->size)) {
         char b0 = 0x00;
         if (shared_video->size > 0) {
@@ -1792,7 +1814,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         SrsAvcAacCodec codec;
         
         // user can disable the sps parse to workaround when parse sps failed.
-        // @see https://github.com/simple-rtmp-server/srs/issues/474
+        // @see https://github.com/ossrs/srs/issues/474
         codec.avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
         
         SrsCodecSample sample;
@@ -1817,7 +1839,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/simple-rtmp-server/srs/issues/264
+        // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
@@ -1828,9 +1850,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             // ignore.
             ret = ERROR_SUCCESS;
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            // compare the sequence header with video, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg->size) {
-                srs_warn("the video is actually a sequence header, ignore this packet.");
+            if (srs_hls_can_continue(ret, cache_sh_video, msg)) {
                 ret = ERROR_SUCCESS;
             } else {
                 srs_warn("hls continue video failed. ret=%d", ret);
@@ -2034,7 +2054,9 @@ int SrsSource::on_publish()
     
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
-    on_source_id_changed(_srs_context->get_id());
+    if ((ret = on_source_id_changed(_srs_context->get_id())) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // reset the mix queue.
     mix_queue->clear();
@@ -2138,11 +2160,11 @@ void SrsSource::on_unpublish()
     handler->on_unpublish(this, req);
 }
 
-int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg)
+int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
 {
     int ret = ERROR_SUCCESS;
     
-    consumer = new SrsConsumer(this);
+    consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
     double queue_size = _srs_config->get_queue_length(req->vhost);
@@ -2170,7 +2192,7 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/simple-rtmp-server/srs/issues/301
+    // @see https://github.com/ossrs/srs/issues/301
     if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, jitter_algorithm)) != ERROR_SUCCESS) {
         srs_error("dispatch audio sequence header failed. ret=%d", ret);
         return ret;

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -225,7 +225,11 @@ public:
     /**
     * do on_cycle while server doing cycle.
     */
-    virtual int on_cycle(int connections) = 0;
+    virtual int on_cycle() = 0;
+    /**
+     * callback the handler when got client.
+     */
+    virtual int on_accept_client(int conf_conns, int curr_conns) = 0;
 };
 
 /**
@@ -361,9 +365,11 @@ public:
     * when listener got a fd, notice server to accept it.
     * @param type, the client type, used to create concrete connection, 
     *       for instance RTMP connection to serve client.
-    * @param client_stfd, the client fd in st boxed, the underlayer fd.
+    * @param stfd, the client fd in st boxed, the underlayer fd.
     */
-    virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+    virtual int accept_client(SrsListenerType type, st_netfd_t stfd);
+private:
+    virtual SrsConnection* fd2conn(SrsListenerType type, st_netfd_t stfd);
 // IConnectionManager
 public:
     /**

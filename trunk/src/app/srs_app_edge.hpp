@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -47,6 +47,9 @@ class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
 class SrsKbps;
 class SrsLbRoundRobin;
+class SrsTcpClient;
+class SrsSimpleRtmpClient;
+class SrsPacket;
 
 /**
 * the state of edge, auto machine
@@ -74,27 +77,57 @@ enum SrsEdgeUserState
 };
 
 /**
+ * the upstream of edge, can be rtmp or http.
+ */
+class SrsEdgeUpstream
+{
+public:
+    SrsEdgeUpstream();
+    virtual ~SrsEdgeUpstream();
+public:
+    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb) = 0;
+    virtual int recv_message(SrsCommonMessage** pmsg) = 0;
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
+    virtual void close() = 0;
+public:
+    virtual void set_recv_timeout(int64_t timeout) = 0;
+    virtual void kbps_sample(const char* label, int64_t age) = 0;
+};
+
+class SrsEdgeRtmpUpstream : public SrsEdgeUpstream
+{
+private:
+    SrsSimpleRtmpClient* sdk;
+public:
+    SrsEdgeRtmpUpstream();
+    virtual ~SrsEdgeRtmpUpstream();
+public:
+    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb);
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual void close();
+public:
+    virtual void set_recv_timeout(int64_t timeout);
+    virtual void kbps_sample(const char* label, int64_t age);
+};
+
+/**
 * edge used to ingest stream from origin.
 */
 class SrsEdgeIngester : public ISrsReusableThread2Handler
 {
 private:
-    int stream_id;
-private:
-    SrsSource* _source;
-    SrsPlayEdge* _edge;
-    SrsRequest* _req;
+    SrsSource* source;
+    SrsPlayEdge* edge;
+    SrsRequest* req;
     SrsReusableThread2* pthread;
-    st_netfd_t stfd;
-    ISrsProtocolReaderWriter* io;
-    SrsKbps* kbps;
-    SrsRtmpClient* client;
     SrsLbRoundRobin* lb;
+    SrsEdgeUpstream* upstream;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual int initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
     virtual std::string get_curr_origin();
@@ -103,9 +136,6 @@ public:
     virtual int cycle();
 private:
     virtual int ingest();
-    virtual void close_underlayer_socket();
-    virtual int connect_server(std::string& ep_server, int& ep_port);
-    virtual int connect_app(std::string ep_server, int ep_port);
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
 
@@ -115,16 +145,11 @@ private:
 class SrsEdgeForwarder : public ISrsReusableThread2Handler
 {
 private:
-    int stream_id;
-private:
-    SrsSource* _source;
-    SrsPublishEdge* _edge;
-    SrsRequest* _req;
+    SrsSource* source;
+    SrsPublishEdge* edge;
+    SrsRequest* req;
     SrsReusableThread2* pthread;
-    st_netfd_t stfd;
-    ISrsProtocolReaderWriter* io;
-    SrsKbps* kbps;
-    SrsRtmpClient* client;
+    SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
     /**
     * we must ensure one thread one fd principle,
@@ -143,7 +168,7 @@ public:
 public:
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
 // interface ISrsReusableThread2Handler
@@ -151,10 +176,6 @@ public:
     virtual int cycle();
 public:
     virtual int proxy(SrsCommonMessage* msg);
-private:
-    virtual void close_underlayer_socket();
-    virtual int connect_server(std::string& ep_server, int& ep_port);
-    virtual int connect_app(std::string ep_server, int ep_port);
 };
 
 /**

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_aac.hpp>
 */
 #include <srs_core.hpp>
+
+#if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <string>
 
@@ -68,6 +70,8 @@ public:
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
 };
+
+#endif
 
 #endif
 

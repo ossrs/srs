@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2016 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,12 +29,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
 
 #include <string>
+#include <vector>
 
 #include <srs_kernel_consts.hpp>
 
@@ -59,18 +60,6 @@ extern void srs_discovery_tc_url(
     std::string tcUrl, 
     std::string& schema, std::string& host, std::string& vhost, 
     std::string& app, int& port, std::string& param
-);
-
-/**
-* resolve the vhost in query string
-* @pram vhost, update the vhost if query contains the vhost.
-* @param app, may contains the vhost in query string format:
-*   app?vhost=request_vhost
-*   app...vhost...request_vhost
-* @param param, the query, for example, ?vhost=xxx
-*/ 
-extern void srs_vhost_resolve(
-    std::string& vhost, std::string& app, std::string& param
 );
 
 /**
@@ -101,16 +90,37 @@ extern bool srs_bytes_equals(void* pa, void* pb, int size);
 * @param data the packet bytes. user should never free it.
 * @param ppmsg output the shared ptr message. user should free it.
 */
-extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg);
+extern int srs_rtmp_create_msg(
+    char type, u_int32_t timestamp, char* data, int size, int stream_id,
+    SrsSharedPtrMessage** ppmsg
+);
 
 // get the stream identify, vhost/app/stream.
-extern std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream);
+extern std::string srs_generate_stream_url(
+    std::string vhost, std::string app, std::string stream
+);
+
+// parse the rtmp url to tcUrl/stream,
+// for example, rtmp://v.ossrs.net/live/livestream to
+//      tcUrl: rtmp://v.ossrs.net/live
+//      stream: livestream
+extern void srs_parse_rtmp_url(
+    std::string url, std::string& tcUrl, std::string& stream
+);
 
 // genereate the rtmp url, for instance, rtmp://server:port/app...vhost...vhost/stream
-extern std::string srs_generate_rtmp_url(std::string server, int port, std::string vhost, std::string app, std::string stream);
+extern std::string srs_generate_rtmp_url(
+    std::string server, int port, std::string vhost, std::string app, std::string stream
+);
 
 // write large numbers of iovs.
-extern int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
+extern int srs_write_large_iovs(
+    ISrsProtocolReaderWriter* skt, iovec* iovs, int size,
+    ssize_t* pnwrite = NULL
+);
+
+// join string in vector with indicated separator
+extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);
 
 #endif
 
