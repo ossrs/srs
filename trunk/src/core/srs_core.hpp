@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,19 +31,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       2
 #define VERSION_MINOR       0
-#define VERSION_REVISION    192
+#define VERSION_REVISION    206
 
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_CODE "ZhouGuowen"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
 #define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(Simple RTMP Server)"
-#define RTMP_SIG_SRS_URL_SHORT "github.com/simple-rtmp-server/srs"
+#define RTMP_SIG_SRS_URL_SHORT "github.com/ossrs/srs"
 #define RTMP_SIG_SRS_URL "https://"RTMP_SIG_SRS_URL_SHORT
 #define RTMP_SIG_SRS_WEB "http://ossrs.net"
 #define RTMP_SIG_SRS_EMAIL "winlin@vip.126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
-#define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2015 SRS(simple-rtmp-server)"
+#define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2015 SRS(ossrs)"
 #define RTMP_SIG_SRS_PRIMARY "SRS/"VERSION_STABLE_BRANCH
 #define RTMP_SIG_SRS_AUTHROS "winlin,wenjie.zhao"
 #define RTMP_SIG_SRS_CONTRIBUTORS_URL RTMP_SIG_SRS_URL"/blob/master/AUTHORS.txt"
@@ -79,7 +79,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #define __STDC_FORMAT_MACROS
 #endif
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <inttypes.h>
 #endif
@@ -103,9 +103,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         p = NULL; \
     } \
     (void)0
-// sometimes, the freepa is useless,
-// it's recomments to free each elem explicit.
-// so we remove the srs_freepa utility.
+// please use the freepa(T[]) to free an array,
+// or the behavior is undefined.
+#define srs_freepa(pa) \
+    if (pa) { \
+        delete[] pa; \
+        pa = NULL; \
+    } \
+    (void)0
 
 /**
 * disable copy constructor of class,
@@ -128,7 +133,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__)
     #error "only support i386/amd64/x86_64/arm cpu"
 #endif
-#if defined(__arm__) && __GLIBC__ != 2 || __GLIBC_MINOR__ > 15
+#if defined(__arm__) && (__GLIBC__ != 2 || __GLIBC_MINOR__ > 15)
     #error "for arm, only support glibc <= 2.15"
 #endif
 

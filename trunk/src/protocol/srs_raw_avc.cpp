@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -157,7 +157,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
         + 3 + (int)sps.length() 
         + 3 + (int)pps.length();
     char* packet = new char[nb_packet];
-    SrsAutoFree(char, packet);
+    SrsAutoFreeA(char, packet);
 
     // use stream to generate the h264 packet.
     SrsStream stream;
@@ -236,7 +236,7 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     //      NALUnit
     int nb_packet = 4 + nb_frame;
     char* packet = new char[nb_packet];
-    SrsAutoFree(char, packet);
+    SrsAutoFreeA(char, packet);
     
     // use stream to generate the h264 packet.
     SrsStream stream;
@@ -320,7 +320,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         // decode the ADTS.
         // @see aac-iso-13818-7.pdf, page 26
         //      6.2 Audio Data Transport Stream, ADTS
-        // @see https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64145885
+        // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
         // byte_alignment()
         
         // adts_fixed_header:
@@ -383,7 +383,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         int8_t channel_configuration = (sfiv >> 6) & 0x07;
         /*int8_t original = (sfiv >> 5) & 0x01;*/
         /*int8_t home = (sfiv >> 4) & 0x01;*/
-        //int8_t Emphasis; @remark, Emphasis is removed, @see https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64154736
+        //int8_t Emphasis; @remark, Emphasis is removed, @see https://github.com/ossrs/srs/issues/212#issuecomment-64154736
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
         // copyright_identification_bit 1 bslbf
@@ -473,7 +473,7 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     char samplingFrequencyIndex = codec->sampling_frequency_index;
 
     // override the aac samplerate by user specified.
-    // @see https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64146899
+    // @see https://github.com/ossrs/srs/issues/212#issuecomment-64146899
     switch (codec->sound_rate) {
         case SrsCodecAudioSampleRate11025: 
             samplingFrequencyIndex = 0x0a; break;

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -200,12 +200,12 @@ namespace _srs_internal
         
         // maybe the key_size is 127, but dh will write all 128bytes pkey,
         // so, donot need to set/initialize the pkey.
-        // @see https://github.com/simple-rtmp-server/srs/issues/165
+        // @see https://github.com/ossrs/srs/issues/165
         key_size = BN_bn2bin(pdh->pub_key, (unsigned char*)pkey);
         srs_assert(key_size > 0);
         
         // output the size of public key.
-        // @see https://github.com/simple-rtmp-server/srs/issues/165
+        // @see https://github.com/ossrs/srs/issues/165
         srs_assert(key_size <= pkey_size);
         pkey_size = key_size;
         
@@ -225,7 +225,7 @@ namespace _srs_internal
         // if failed, donot return, do cleanup, @see ./test/dhtest.c:168
         // maybe the key_size is 127, but dh will write all 128bytes skey,
         // so, donot need to set/initialize the skey.
-        // @see https://github.com/simple-rtmp-server/srs/issues/165
+        // @see https://github.com/ossrs/srs/issues/165
         int32_t key_size = DH_compute_key((unsigned char*)skey, ppk, pdh);
         
         if (key_size < ppkey_size) {
@@ -319,8 +319,8 @@ namespace _srs_internal
     
     key_block::~key_block()
     {
-        srs_freep(random0);
-        srs_freep(random1);
+        srs_freepa(random0);
+        srs_freepa(random1);
     }
     
     int key_block::parse(SrsStream* stream)
@@ -342,7 +342,7 @@ namespace _srs_internal
         
         random0_size = valid_offset;
         if (random0_size > 0) {
-            srs_freep(random0);
+            srs_freepa(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -351,7 +351,7 @@ namespace _srs_internal
         
         random1_size = 764 - valid_offset - 128 - 4;
         if (random1_size > 0) {
-            srs_freep(random1);
+            srs_freepa(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -401,8 +401,8 @@ namespace _srs_internal
     
     digest_block::~digest_block()
     {
-        srs_freep(random0);
-        srs_freep(random1);
+        srs_freepa(random0);
+        srs_freepa(random1);
     }
 
     int digest_block::parse(SrsStream* stream)
@@ -419,7 +419,7 @@ namespace _srs_internal
         
         random0_size = valid_offset;
         if (random0_size > 0) {
-            srs_freep(random0);
+            srs_freepa(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -428,7 +428,7 @@ namespace _srs_internal
         
         random1_size = 764 - 4 - valid_offset - 32;
         if (random1_size > 0) {
-            srs_freep(random1);
+            srs_freepa(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -487,7 +487,7 @@ namespace _srs_internal
         }
         
         srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest);
+        SrsAutoFreeA(char, c1_digest);
         
         memcpy(digest.digest, c1_digest, 32);
         
@@ -506,7 +506,7 @@ namespace _srs_internal
         }
         
         srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest);
+        SrsAutoFreeA(char, c1_digest);
         
         is_valid = srs_bytes_equals(digest.digest, c1_digest, 32);
         
@@ -525,7 +525,7 @@ namespace _srs_internal
         }
         
         // directly generate the public key.
-        // @see: https://github.com/simple-rtmp-server/srs/issues/148
+        // @see: https://github.com/ossrs/srs/issues/148
         int pkey_size = 128;
         if ((ret = dh.copy_shared_key(c1->get_key(), 128, key.key, pkey_size)) != ERROR_SUCCESS) {
             srs_error("calc s1 key failed. ret=%d", ret);
@@ -546,7 +546,7 @@ namespace _srs_internal
         srs_verbose("calc s1 digest success.");
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
+        SrsAutoFreeA(char, s1_digest);
         
         memcpy(digest.digest, s1_digest, 32);
         srs_verbose("copy s1 key success.");
@@ -566,7 +566,7 @@ namespace _srs_internal
         }
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
+        SrsAutoFreeA(char, s1_digest);
         
         is_valid = srs_bytes_equals(digest.digest, s1_digest, 32);
         
@@ -585,14 +585,14 @@ namespace _srs_internal
         * @return a new allocated bytes, user must free it.
         */
         char* c1s1_joined_bytes = new char[1536 -32];
-        SrsAutoFree(char, c1s1_joined_bytes);
+        SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
             return ret;
         }
         
         c1_digest = new char[SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, c1_digest)) != ERROR_SUCCESS) {
-            srs_freep(c1_digest);
+            srs_freepa(c1_digest);
             srs_error("calc digest for c1 failed. ret=%d", ret);
             return ret;
         }
@@ -613,14 +613,14 @@ namespace _srs_internal
         * @return a new allocated bytes, user must free it.
         */
         char* c1s1_joined_bytes = new char[1536 -32];
-        SrsAutoFree(char, c1s1_joined_bytes);
+        SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
             return ret;
         }
         
         s1_digest = new char[SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, s1_digest)) != ERROR_SUCCESS) {
-            srs_freep(s1_digest);
+            srs_freepa(s1_digest);
             srs_error("calc digest for s1 failed. ret=%d", ret);
             return ret;
         }
@@ -1164,6 +1164,11 @@ int SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsP
     if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // for simple handshake, copy s1 to c2.
+    // @see https://github.com/ossrs/srs/issues/418
+    memcpy(hs_bytes->c2, hs_bytes->s0s1s2 + 1, 1536);
+    
     if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake write c2 failed. ret=%d", ret);
         return ret;

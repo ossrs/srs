@@ -1,7 +1,7 @@
 /*
  The MIT License (MIT)
  
- Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+ Copyright (c) 2013-2015 SRS(ossrs)
  
  Permission is hereby granted, free of charge, to any person obtaining a copy of
  this software and associated documentation files (the "Software"), to deal in
@@ -22,6 +22,8 @@
  */
 
 #include <srs_http_stack.hpp>
+
+#if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <stdlib.h>
 #include <sstream>
@@ -772,10 +774,13 @@ ISrsHttpMessage::ISrsHttpMessage()
 
 ISrsHttpMessage::~ISrsHttpMessage()
 {
-    srs_freep(_http_ts_send_buffer);
+    srs_freepa(_http_ts_send_buffer);
 }
 
 char* ISrsHttpMessage::http_ts_send_buffer()
 {
     return _http_ts_send_buffer;
 }
+
+#endif
+

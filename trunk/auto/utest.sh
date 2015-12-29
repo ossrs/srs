@@ -20,6 +20,15 @@ SRS_TRUNK_PREFIX=../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
 GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
 
+# the extra defines to compile utest.
+EXTRA_DEFINES=""
+
+# for osx to disable the error.
+# gtest/include/gtest/internal/gtest-port.h:499:13: fatal error: 'tr1/tuple' file not found
+if [ $SRS_OSX = YES ]; then
+    EXTRA_DEFINES="$EXTRA_DEFINES -DGTEST_HAS_TR1_TUPLE=0"
+fi
+
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS_DIR}/utest dir
 # at the same dir of Makefile.
@@ -49,7 +58,7 @@ USER_DIR = .
 CPPFLAGS += -I\$(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -O0
+CXXFLAGS += -g -Wall -Wextra -O0 ${EXTRA_DEFINES}
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.

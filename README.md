@@ -7,10 +7,11 @@ SRS is industrial-strength live streaming cluster, for the best conceptual integ
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
-Website for SRS/2.0, read SRS 2.0 [Chinese][srs2_CN] or [English][srs2_EN].
+Website for SRS/2.0, read SRS 2.0 [Chinese][srs_CN] or [English][srs_EN].
 
 [![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
 [![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Why SRS?
 
@@ -68,10 +69,10 @@ A big THANK YOU goes to:
 
 ## Mirrors
 
-Github: [https://github.com/simple-rtmp-server/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
+Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
-git clone https://github.com/simple-rtmp-server/srs.git
+git clone https://github.com/ossrs/srs.git
 ```
 
 CSDN: [https://code.csdn.net/winlinvip/srs-csdn][csdn], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
@@ -97,7 +98,7 @@ git clone https://gitlab.com/winlinvip/srs-gitlab.git
 <strong>Step 1:</strong> get SRS 
 
 <pre>
-git clone https://github.com/simple-rtmp-server/srs &&
+git clone https://github.com/ossrs/srs &&
 cd srs/trunk
 </pre>
 
@@ -152,7 +153,7 @@ Donation:<br/>
 [http://www.ossrs.net/srs.release/donation/index.html][donation1]
 
 Donations:<br/>
-[https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt][donations]
+[https://github.com/ossrs/srs/blob/develop/DONATIONS.txt][donations]
 
 ## System Requirements
 Supported operating systems and hardware:
@@ -307,6 +308,8 @@ Remark:
 
 ## Releases
 
+* 2015-12-23, [Release v2.0a3][r2.0a3], 2.0 alpha3, 2.0.205, 89544 lines.<br/>
+* 2015-10-08, [Release v2.0a2][r2.0a2], 2.0 alpha2, 2.0.195, 89358 lines.<br/>
 * 2015-09-14, [Release v2.0a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
 * 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
 * 2015-05-23, [Release v1.0r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.<br/>
@@ -335,6 +338,22 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
+* v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
+* v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
+* v2.0, 2015-12-22, for [#546][bug #546] thread terminate normally dispose bug. 2.0.203
+* v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
+* v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
+* v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
+* v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
+* v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
+* v2.0, 2015-10-27, for [#512][bug #512] partial hotfix the hls pure audio. 2.0.196
+* <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
+* v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
+* v2.0, 2015-10-01, for [#497][bug #497] response error when client not found to kickoff. 2.0.194
+* v2.0, 2015-10-01, for [#495][bug #495] decrease the srs-librtmp size. 2.0.193
 * v2.0, 2015-09-23, for [#485][bug #485] error when arm glibc 2.15+ or not i386/x86_64/amd64. 2.0.192
 * v2.0, 2015-09-23, for [#485][bug #485] srs for respberrypi and cubieboard. 2.0.191
 * v2.0, 2015-09-21, fix [#484][bug #484] hotfix the openssl build script 2.0.190
@@ -760,7 +779,9 @@ About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS t
 | 5147kbps  |   370s        |   195040      |   200280      |   2.68%       |
 | 5158kbps  |   1327s       |   835664      |   858092      |   2.68%       |
 
-The HLS overhead is calc by: (HLS - FLV) / FLV * 100%
+The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
+
+The overhead is larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
 
 ## Architecture
 
@@ -834,40 +855,40 @@ Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
 (2) MediaSource: any media source, which can be ingest by ffmpeg.
 (3) Ingester: SRS will fork a process to run ffmpeg(or your application) 
-to ingest any input to rtmp, push to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest">Ingest</a>.
+to ingest any input to rtmp, push to SRS. Read <a href="https://github.com/ossrs/srs/wiki/v1_CN_Ingest">Ingest</a>.
 (4) Streamer: SRS will listen for some protocol and accept stream push 
-over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer">Streamer</a>.
+over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/ossrs/srs/wiki/v2_CN_Streamer">Streamer</a>.
 </pre>
 
 Beijing, 2013.10<br/>
 Winlin
 
-[p1]: https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
-[p2]: https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
-[p3]: https://github.com/simple-rtmp-server/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff
-[p4]: https://github.com/simple-rtmp-server/srs/commit/f57801eb46c16755b173984b915a4166922df6a6
-[p5]: https://github.com/simple-rtmp-server/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da
-[p6]: https://github.com/simple-rtmp-server/srs/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be
-[p7]: https://github.com/simple-rtmp-server/srs/commit/8acd143a7a152885b815999162660fd4e7a3f247
-[p8]: https://github.com/simple-rtmp-server/srs/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1
-[p9]: https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
-[p10]: https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
-[p11]: https://github.com/simple-rtmp-server/srs/commit/9ee138746f83adc26f0e236ec017f4d68a300004
-[p12]: https://github.com/simple-rtmp-server/srs/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8
-[p13]: https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
-[p14]: https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
-[p15]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
-[p16]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
-[p17]: https://github.com/simple-rtmp-server/srs/commit/fc995473eb02c7cf64b5b212b456e11f34aa7984
-[p18]: https://github.com/simple-rtmp-server/srs/commit/960341b9b2b9646270ccfd113b4dd784d9826c73
-[p19]: https://github.com/simple-rtmp-server/srs/commit/4df19ba99a4e4d80cd89b304f9298d343497bec9
-[p20]: https://github.com/simple-rtmp-server/srs/commit/d12fc7fcc5b2e9e3c8ee5c7da01d0e41c8f8ca4a
-[p21]: https://github.com/simple-rtmp-server/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
-[p22]: https://github.com/simple-rtmp-server/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
-[p23]: https://github.com/simple-rtmp-server/srs/pull/239
+[p1]: https://github.com/ossrs/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
+[p2]: https://github.com/ossrs/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
+[p3]: https://github.com/ossrs/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff
+[p4]: https://github.com/ossrs/srs/commit/f57801eb46c16755b173984b915a4166922df6a6
+[p5]: https://github.com/ossrs/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da
+[p6]: https://github.com/ossrs/srs/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be
+[p7]: https://github.com/ossrs/srs/commit/8acd143a7a152885b815999162660fd4e7a3f247
+[p8]: https://github.com/ossrs/srs/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1
+[p9]: https://github.com/ossrs/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
+[p10]: https://github.com/ossrs/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
+[p11]: https://github.com/ossrs/srs/commit/9ee138746f83adc26f0e236ec017f4d68a300004
+[p12]: https://github.com/ossrs/srs/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8
+[p13]: https://github.com/ossrs/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
+[p14]: https://github.com/ossrs/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
+[p15]: https://github.com/ossrs/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
+[p16]: https://github.com/ossrs/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
+[p17]: https://github.com/ossrs/srs/commit/fc995473eb02c7cf64b5b212b456e11f34aa7984
+[p18]: https://github.com/ossrs/srs/commit/960341b9b2b9646270ccfd113b4dd784d9826c73
+[p19]: https://github.com/ossrs/srs/commit/4df19ba99a4e4d80cd89b304f9298d343497bec9
+[p20]: https://github.com/ossrs/srs/commit/d12fc7fcc5b2e9e3c8ee5c7da01d0e41c8f8ca4a
+[p21]: https://github.com/ossrs/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
+[p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
+[p23]: https://github.com/ossrs/srs/pull/239
 
-[authors]: https://github.com/simple-rtmp-server/srs/blob/develop/AUTHORS.txt
-[bigthanks]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#bigthanks
+[authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
+[bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
 [st2]: http://sourceforge.net/projects/state-threads/
 [state-threads]: http://sourceforge.net/projects/state-threads/
@@ -876,353 +897,368 @@ Winlin
 [nginx]: http://nginx.org/
 [FFMPEG]: http://ffmpeg.org/
 [libx264]: http://www.videolan.org/
-[srs]: https://github.com/simple-rtmp-server/srs
+[srs]: https://github.com/ossrs/srs
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
 [oschina]: http://git.oschina.net/winlinvip/srs.oschina
-[srs-dolphin]: https://github.com/simple-rtmp-server/srs-dolphin
-[srs-bench]: https://github.com/simple-rtmp-server/srs-bench
-[srs-ngb]: https://github.com/simple-rtmp-server/srs-ngb
-[srs-librtmp]: https://github.com/simple-rtmp-server/srs-librtmp
+[srs-dolphin]: https://github.com/ossrs/srs-dolphin
+[srs-bench]: https://github.com/ossrs/srs-bench
+[srs-ngb]: https://github.com/ossrs/srs-ngb
+[srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
 
-[v1_CN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Git
-[v1_EN_Git]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Git
-[v1_CN_SampleRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleRTMP
-[v1_EN_SampleRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRTMP
-[v1_CN_SampleRTMPCluster]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleRTMPCluster
-[v1_EN_SampleRTMPCluster]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRTMPCluster
-[v2_CN_SampleHLS]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHLS
-[v2_EN_SampleHLS]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHLS
-[v2_CN_SampleTranscode2HLS]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleTranscode2HLS
-[v2_EN_SampleTranscode2HLS]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleTranscode2HLS
-[v2_CN_SampleFFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleFFMPEG
-[v2_EN_SampleFFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleFFMPEG
-[v1_CN_SampleForward]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleForward
-[v1_EN_SampleForward]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleForward
-[v2_CN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleRealtime
-[v2_EN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleRealtime
-[v1_CN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleARM
-[v1_EN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleARM
-[v1_CN_SampleIngest]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest
-[v1_EN_SampleIngest]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleIngest
-[v1_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleHTTP
-[v1_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleHTTP
-[v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
-[v1_EN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo
-[v2_CN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
-[v2_EN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
-[v1_CN_Sample]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Sample
-[v1_EN_Sample]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Sample
-[v1_CN_Product]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product
-[v1_EN_Product]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Product
-[v1_CN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Home
-[v1_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home
-[v2_CN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
-[v2_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
+[v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
+[v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
+[v1_CN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v1_CN_SampleRTMP
+[v1_EN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v1_EN_SampleRTMP
+[v1_CN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v1_CN_SampleRTMPCluster
+[v1_EN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v1_EN_SampleRTMPCluster
+[v2_CN_SampleHLS]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHLS
+[v2_EN_SampleHLS]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHLS
+[v2_CN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v2_CN_SampleTranscode2HLS
+[v2_EN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v2_EN_SampleTranscode2HLS
+[v2_CN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v2_CN_SampleFFMPEG
+[v2_EN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v2_EN_SampleFFMPEG
+[v1_CN_SampleForward]: https://github.com/ossrs/srs/wiki/v1_CN_SampleForward
+[v1_EN_SampleForward]: https://github.com/ossrs/srs/wiki/v1_EN_SampleForward
+[v2_CN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v2_CN_SampleRealtime
+[v2_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v2_EN_SampleRealtime
+[v1_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v1_CN_SampleARM
+[v1_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v1_EN_SampleARM
+[v1_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v1_CN_SampleIngest
+[v1_EN_SampleIngest]: https://github.com/ossrs/srs/wiki/v1_EN_SampleIngest
+[v1_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v1_CN_SampleHTTP
+[v1_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v1_EN_SampleHTTP
+[v1_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
+[v1_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_EN_SampleDemo
+[v2_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
+[v2_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
+[v1_CN_Sample]: https://github.com/ossrs/srs/wiki/v1_CN_Sample
+[v1_EN_Sample]: https://github.com/ossrs/srs/wiki/v1_EN_Sample
+[v1_CN_Product]: https://github.com/ossrs/srs/wiki/v1_CN_Product
+[v1_EN_Product]: https://github.com/ossrs/srs/wiki/v1_EN_Product
+[v1_CN_Home]: https://github.com/ossrs/srs/wiki/v1_CN_Home
+[v1_EN_Home]: https://github.com/ossrs/srs/wiki/v1_EN_Home
+[v2_CN_Home]: https://github.com/ossrs/srs/wiki/v2_CN_Home
+[v2_EN_Home]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
 [donation1]: http://www.ossrs.net/srs.release/donation/index.html
-[donations]: https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
+[donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
-[v2_CN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Build
-[v2_EN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Build
-[v1_CN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance
-[v1_EN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance
-[v1_CN_DeliveryRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP
-[v1_EN_DeliveryRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP
-[v1_CN_Edge]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge
-[v1_EN_Edge]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Edge
-[v1_CN_RtmpUrlVhost]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost
-[v1_EN_RtmpUrlVhost]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RtmpUrlVhost
-[v1_CN_DeliveryHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS
-[v1_EN_DeliveryHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS
-[v1_CN_DeliveryHLS2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly
-[v1_EN_DeliveryHLS2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS#hlsaudioonly
-[v1_CN_Reload]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Reload
-[v1_EN_Reload]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Reload
-[v1_CN_LowLatency2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency#gop-cache
-[v1_EN_LowLatency2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LowLatency#gop-cache
-[v1_CN_Forward]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward
-[v1_EN_Forward]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Forward
-[v1_CN_FFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG
-[v1_EN_FFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG
-[v1_CN_HTTPCallback]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback
-[v1_EN_HTTPCallback]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPCallback
-[v1_CN_BandwidthTestTool]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_BandwidthTestTool
-[v1_EN_BandwidthTestTool]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_BandwidthTestTool
-[v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
-[v1_EN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo
-[v2_CN_SrsLibrtmp]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp
-[v2_EN_SrsLibrtmp]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp
-[v1_CN_SrsLinuxArm]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm
-[v1_EN_SrsLinuxArm]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLinuxArm
-[v1_CN_LinuxService]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService
-[v1_EN_LinuxService]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LinuxService
-[v1_CN_RTMP-ATC]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMP-ATC
-[v1_EN_RTMP-ATC]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RTMP-ATC
-[v1_CN_HTTPApi]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi
-[v1_EN_HTTPApi]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPApi
-[v1_CN_Ingest]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest
-[v1_EN_Ingest]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Ingest
-[v1_CN_DVR]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR
-[v1_EN_DVR]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DVR
-[v1_CN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog
-[v1_EN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLog
-[v1_CN_DRM2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse
-[v1_EN_DRM2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DRM#tokentraverse
-[v2_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHTTP
-[v2_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHTTP
-[v2_CN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_FlvVodStream
-[v2_EN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_FlvVodStream
-[v2_CN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
-[v2_EN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
-[v2_CN_SrsLibrtmp3]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream
-[v2_EN_SrsLibrtmp3]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream
-[v2_CN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Security
-[v2_EN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Security
-[v2_CN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHttpStream
-[v2_EN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_DeliveryHttpStream
-[v1_CN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS
-[v1_EN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS
-[v2_CN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
-[v2_EN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
-[v2_CN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlv
-[v2_EN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHttpFlv
-[v2_CN_SampleHttpFlvCluster]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlvCluster
-[v2_EN_SampleHttpFlvCluster]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHttpFlvCluster
-[v2_CN_LowLatency]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency
-[v2_EN_LowLatency]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency
-[v2_EN_LowLatency#merged-read]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency#merged-read
-[v1_CN_Performance#performancereport4k]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance#performancereport4k
-[v1_CN_DRM#tokentraverse]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse
-[v1_CN_RaspberryPi]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RaspberryPi
-[v1_CN_SrsLibrtmp]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLibrtmp
-[v1_CN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build
-[v1_CN_LowLatency]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency
-[v1_CN_HowToAskQuestion]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HowToAskQuestion
-[v1_CN_Build]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Build
-[v1_CN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance
-[v1_CN_RaspberryPi]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RaspberryPi
-[v2_CN_LowLatency#merged-read]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency#merged-read
-[v1_CN_Product]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product
-[v1_CN_ServerSideScript]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_ServerSideScript
-[v2_EN_LowLatency#merged-write]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency#merged-write
-[v1_CN_IDE]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_IDE
-[v2_CN_LowLatency#merged-write]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_LowLatency#merged-write
+[v2_CN_Build]: https://github.com/ossrs/srs/wiki/v2_CN_Build
+[v2_EN_Build]: https://github.com/ossrs/srs/wiki/v2_EN_Build
+[v1_CN_Performance]: https://github.com/ossrs/srs/wiki/v1_CN_Performance
+[v1_EN_Performance]: https://github.com/ossrs/srs/wiki/v1_EN_Performance
+[v1_CN_DeliveryRTMP]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryRTMP
+[v1_EN_DeliveryRTMP]: https://github.com/ossrs/srs/wiki/v1_EN_DeliveryRTMP
+[v1_CN_Edge]: https://github.com/ossrs/srs/wiki/v1_CN_Edge
+[v1_EN_Edge]: https://github.com/ossrs/srs/wiki/v1_EN_Edge
+[v1_CN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v1_CN_RtmpUrlVhost
+[v1_EN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v1_EN_RtmpUrlVhost
+[v1_CN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryHLS
+[v1_EN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v1_EN_DeliveryHLS
+[v1_CN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly
+[v1_EN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v1_EN_DeliveryHLS#hlsaudioonly
+[v1_CN_Reload]: https://github.com/ossrs/srs/wiki/v1_CN_Reload
+[v1_EN_Reload]: https://github.com/ossrs/srs/wiki/v1_EN_Reload
+[v1_CN_LowLatency2]: https://github.com/ossrs/srs/wiki/v1_CN_LowLatency#gop-cache
+[v1_EN_LowLatency2]: https://github.com/ossrs/srs/wiki/v1_EN_LowLatency#gop-cache
+[v1_CN_Forward]: https://github.com/ossrs/srs/wiki/v1_CN_Forward
+[v1_EN_Forward]: https://github.com/ossrs/srs/wiki/v1_EN_Forward
+[v1_CN_FFMPEG]: https://github.com/ossrs/srs/wiki/v1_CN_FFMPEG
+[v1_EN_FFMPEG]: https://github.com/ossrs/srs/wiki/v1_EN_FFMPEG
+[v1_CN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v1_CN_HTTPCallback
+[v1_EN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v1_EN_HTTPCallback
+[v1_CN_BandwidthTestTool]: https://github.com/ossrs/srs/wiki/v1_CN_BandwidthTestTool
+[v1_EN_BandwidthTestTool]: https://github.com/ossrs/srs/wiki/v1_EN_BandwidthTestTool
+[v1_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
+[v1_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_EN_SampleDemo
+[v2_CN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp
+[v2_EN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v2_EN_SrsLibrtmp
+[v1_CN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm
+[v1_EN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v1_EN_SrsLinuxArm
+[v1_CN_LinuxService]: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService
+[v1_EN_LinuxService]: https://github.com/ossrs/srs/wiki/v1_EN_LinuxService
+[v1_CN_RTMP-ATC]: https://github.com/ossrs/srs/wiki/v1_CN_RTMP-ATC
+[v1_EN_RTMP-ATC]: https://github.com/ossrs/srs/wiki/v1_EN_RTMP-ATC
+[v1_CN_HTTPApi]: https://github.com/ossrs/srs/wiki/v1_CN_HTTPApi
+[v1_EN_HTTPApi]: https://github.com/ossrs/srs/wiki/v1_EN_HTTPApi
+[v1_CN_Ingest]: https://github.com/ossrs/srs/wiki/v1_CN_Ingest
+[v1_EN_Ingest]: https://github.com/ossrs/srs/wiki/v1_EN_Ingest
+[v1_CN_DVR]: https://github.com/ossrs/srs/wiki/v1_CN_DVR
+[v1_EN_DVR]: https://github.com/ossrs/srs/wiki/v1_EN_DVR
+[v1_CN_SrsLog]: https://github.com/ossrs/srs/wiki/v1_CN_SrsLog
+[v1_EN_SrsLog]: https://github.com/ossrs/srs/wiki/v1_EN_SrsLog
+[v1_CN_DRM2]: https://github.com/ossrs/srs/wiki/v1_CN_DRM#tokentraverse
+[v1_EN_DRM2]: https://github.com/ossrs/srs/wiki/v1_EN_DRM#tokentraverse
+[v2_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHTTP
+[v2_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHTTP
+[v2_CN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v2_CN_FlvVodStream
+[v2_EN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v2_EN_FlvVodStream
+[v2_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
+[v2_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
+[v2_CN_SrsLibrtmp3]: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream
+[v2_EN_SrsLibrtmp3]: https://github.com/ossrs/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream
+[v2_CN_Security]: https://github.com/ossrs/srs/wiki/v2_CN_Security
+[v2_EN_Security]: https://github.com/ossrs/srs/wiki/v2_EN_Security
+[v2_CN_DeliveryHttpStream]: https://github.com/ossrs/srs/wiki/v2_CN_DeliveryHttpStream
+[v2_EN_DeliveryHttpStream]: https://github.com/ossrs/srs/wiki/v2_EN_DeliveryHttpStream
+[v1_CN_DeliveryHDS]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryHDS
+[v1_EN_DeliveryHDS]: https://github.com/ossrs/srs/wiki/v1_EN_DeliveryHDS
+[v2_CN_Streamer2]: https://github.com/ossrs/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
+[v2_EN_Streamer2]: https://github.com/ossrs/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
+[v2_CN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHttpFlv
+[v2_EN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHttpFlv
+[v2_CN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHttpFlvCluster
+[v2_EN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHttpFlvCluster
+[v2_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v2_CN_LowLatency
+[v2_EN_LowLatency]: https://github.com/ossrs/srs/wiki/v2_EN_LowLatency
+[v2_EN_LowLatency#merged-read]: https://github.com/ossrs/srs/wiki/v2_EN_LowLatency#merged-read
+[v1_CN_Performance#performancereport4k]: https://github.com/ossrs/srs/wiki/v1_CN_Performance#performancereport4k
+[v1_CN_DRM#tokentraverse]: https://github.com/ossrs/srs/wiki/v1_CN_DRM#tokentraverse
+[v1_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v1_CN_RaspberryPi
+[v1_CN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v1_CN_SrsLibrtmp
+[v1_CN_Build]: https://github.com/ossrs/srs/wiki/v1_CN_Build
+[v1_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v1_CN_LowLatency
+[v1_CN_HowToAskQuestion]: https://github.com/ossrs/srs/wiki/v1_CN_HowToAskQuestion
+[v1_CN_Build]: https://github.com/ossrs/srs/wiki/v1_CN_Build
+[v1_CN_Performance]: https://github.com/ossrs/srs/wiki/v1_CN_Performance
+[v1_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v1_CN_RaspberryPi
+[v2_CN_LowLatency#merged-read]: https://github.com/ossrs/srs/wiki/v2_CN_LowLatency#merged-read
+[v1_CN_Product]: https://github.com/ossrs/srs/wiki/v1_CN_Product
+[v1_CN_ServerSideScript]: https://github.com/ossrs/srs/wiki/v1_CN_ServerSideScript
+[v2_EN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v2_EN_LowLatency#merged-write
+[v1_CN_IDE]: https://github.com/ossrs/srs/wiki/v1_CN_IDE
+[v2_CN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v2_CN_LowLatency#merged-write
 
-[bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
-[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
-[bug #182]: https://github.com/simple-rtmp-server/srs/issues/182
-[bug #257]: https://github.com/simple-rtmp-server/srs/issues/257
-[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
-[bug #224]: https://github.com/simple-rtmp-server/srs/issues/224
-[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
-[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
-[bug #250]: https://github.com/simple-rtmp-server/srs/issues/250
-[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
-[bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
-[bug #380]: https://github.com/simple-rtmp-server/srs/issues/380
-[bug #474]: https://github.com/simple-rtmp-server/srs/issues/474
-[bug #484]: https://github.com/simple-rtmp-server/srs/issues/484
-[bug #485]: https://github.com/simple-rtmp-server/srs/issues/485
-[bug #475]: https://github.com/simple-rtmp-server/srs/issues/475
-[bug #458]: https://github.com/simple-rtmp-server/srs/issues/458
-[bug #454]: https://github.com/simple-rtmp-server/srs/issues/454
-[bug #442]: https://github.com/simple-rtmp-server/srs/issues/442
-[bug #169]: https://github.com/simple-rtmp-server/srs/issues/169
-[bug #441]: https://github.com/simple-rtmp-server/srs/issues/441
-[bug #433]: https://github.com/simple-rtmp-server/srs/issues/433
-[bug #425]: https://github.com/simple-rtmp-server/srs/issues/425
-[bug #424]: https://github.com/simple-rtmp-server/srs/issues/424
-[bug #421]: https://github.com/simple-rtmp-server/srs/issues/421
-[bug #435]: https://github.com/simple-rtmp-server/srs/issues/435
-[bug #420]: https://github.com/simple-rtmp-server/srs/issues/420
-[bug #209]: https://github.com/simple-rtmp-server/srs/issues/209
-[bug #409]: https://github.com/simple-rtmp-server/srs/issues/409
-[bug #404]: https://github.com/simple-rtmp-server/srs/issues/404
-[bug #391]: https://github.com/simple-rtmp-server/srs/issues/391
-[bug #397]: https://github.com/simple-rtmp-server/srs/issues/397
-[bug #400]: https://github.com/simple-rtmp-server/srs/issues/400
-[bug #383]: https://github.com/simple-rtmp-server/srs/issues/383
-[bug #381]: https://github.com/simple-rtmp-server/srs/issues/381
-[bug #375]: https://github.com/simple-rtmp-server/srs/issues/375
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #372]: https://github.com/simple-rtmp-server/srs/issues/372
-[bug #366]: https://github.com/simple-rtmp-server/srs/issues/366
-[bug #351]: https://github.com/simple-rtmp-server/srs/issues/351
-[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
-[bug #324]: https://github.com/simple-rtmp-server/srs/issues/324
-[bug #324]: https://github.com/simple-rtmp-server/srs/issues/324
-[bug #328]: https://github.com/simple-rtmp-server/srs/issues/328
-[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
-[bug #316]: https://github.com/simple-rtmp-server/srs/issues/316
-[bug #310]: https://github.com/simple-rtmp-server/srs/issues/310
-[bug #322]: https://github.com/simple-rtmp-server/srs/issues/322
-[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
-[bug #311]: https://github.com/simple-rtmp-server/srs/issues/311
-[bug #310]: https://github.com/simple-rtmp-server/srs/issues/310
-[bug #136]: https://github.com/simple-rtmp-server/srs/issues/136
-[bug #250]: https://github.com/simple-rtmp-server/srs/issues/250
-[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
-[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
-[bug #268]: https://github.com/simple-rtmp-server/srs/issues/268
-[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
-[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
-[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
-[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
-[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
-[bug #277]: https://github.com/simple-rtmp-server/srs/issues/277
-[bug #277]: https://github.com/simple-rtmp-server/srs/issues/277
-[bug #290]: https://github.com/simple-rtmp-server/srs/issues/290
-[bug #281]: https://github.com/simple-rtmp-server/srs/issues/281
-[bug #274]: https://github.com/simple-rtmp-server/srs/issues/274
-[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
-[bug #211]: https://github.com/simple-rtmp-server/srs/issues/211
-[bug #207]: https://github.com/simple-rtmp-server/srs/issues/207
-[bug #158]: https://github.com/simple-rtmp-server/srs/issues/158
-[bug #216]: https://github.com/simple-rtmp-server/srs/issues/216
-[bug #263]: https://github.com/simple-rtmp-server/srs/issues/263
-[bug #270]: https://github.com/simple-rtmp-server/srs/issues/270
-[bug #266]: https://github.com/simple-rtmp-server/srs/issues/266
-[bug #267]: https://github.com/simple-rtmp-server/srs/issues/267
-[bug #268]: https://github.com/simple-rtmp-server/srs/issues/268
-[bug #264]: https://github.com/simple-rtmp-server/srs/issues/264
-[bug #264]: https://github.com/simple-rtmp-server/srs/issues/264
-[bug #257]: https://github.com/simple-rtmp-server/srs/issues/257
-[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
-[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
-[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
-[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
-[bug #241]: https://github.com/simple-rtmp-server/srs/issues/241
-[bug #248]: https://github.com/simple-rtmp-server/srs/issues/248
-[bug #244]: https://github.com/simple-rtmp-server/srs/issues/244
-[bug #237]: https://github.com/simple-rtmp-server/srs/issues/237
-[bug #235]: https://github.com/simple-rtmp-server/srs/issues/235
-[bug #215]: https://github.com/simple-rtmp-server/srs/issues/215
-[bug #212]: https://github.com/simple-rtmp-server/srs/issues/212
-[bug #217]: https://github.com/simple-rtmp-server/srs/issues/217
-[bug #212]: https://github.com/simple-rtmp-server/srs/issues/212
-[bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
-[bug #204]: https://github.com/simple-rtmp-server/srs/issues/204
-[bug #203]: https://github.com/simple-rtmp-server/srs/issues/203
-[bug #202]: https://github.com/simple-rtmp-server/srs/issues/202
-[bug #200]: https://github.com/simple-rtmp-server/srs/issues/200
-[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
-[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
-[bug #195]: https://github.com/simple-rtmp-server/srs/issues/195
-[bug #191]: https://github.com/simple-rtmp-server/srs/issues/191
-[bug #66]: https://github.com/simple-rtmp-server/srs/issues/66
-[bug #185]: https://github.com/simple-rtmp-server/srs/issues/185
-[bug #186]: https://github.com/simple-rtmp-server/srs/issues/186
-[bug #184]: https://github.com/simple-rtmp-server/srs/issues/184
-[bug #151]: https://github.com/simple-rtmp-server/srs/issues/151
-[bug #162]: https://github.com/simple-rtmp-server/srs/issues/162
-[bug #180]: https://github.com/simple-rtmp-server/srs/issues/180
-[bug #177]: https://github.com/simple-rtmp-server/srs/issues/177
-[bug #167]: https://github.com/simple-rtmp-server/srs/issues/167
-[bug #150]: https://github.com/simple-rtmp-server/srs/issues/150
-[bug #165]: https://github.com/simple-rtmp-server/srs/issues/165
-[bug #160]: https://github.com/simple-rtmp-server/srs/issues/160
-[bug #155]: https://github.com/simple-rtmp-server/srs/issues/155
-[bug #148]: https://github.com/simple-rtmp-server/srs/issues/148
-[bug #147]: https://github.com/simple-rtmp-server/srs/issues/147
-[bug #79]: https://github.com/simple-rtmp-server/srs/issues/79
-[bug #57]: https://github.com/simple-rtmp-server/srs/issues/57
-[bug #85]: https://github.com/simple-rtmp-server/srs/issues/85
-[bug #145]: https://github.com/simple-rtmp-server/srs/issues/145
-[bug #143]: https://github.com/simple-rtmp-server/srs/issues/143
-[bug #138]: https://github.com/simple-rtmp-server/srs/issues/138
-[bug #142]: https://github.com/simple-rtmp-server/srs/issues/142
-[bug #141]: https://github.com/simple-rtmp-server/srs/issues/141
-[bug #124]: https://github.com/simple-rtmp-server/srs/issues/124
-[bug #121]: https://github.com/simple-rtmp-server/srs/issues/121
-[bug #119]: https://github.com/simple-rtmp-server/srs/issues/119
-[bug #81]: https://github.com/simple-rtmp-server/srs/issues/81
-[bug #103]: https://github.com/simple-rtmp-server/srs/issues/103
-[bug #111]: https://github.com/simple-rtmp-server/srs/issues/111
-[bug #110]: https://github.com/simple-rtmp-server/srs/issues/110
-[bug #109]: https://github.com/simple-rtmp-server/srs/issues/109
-[bug #108]: https://github.com/simple-rtmp-server/srs/issues/108
-[bug #98]: https://github.com/simple-rtmp-server/srs/issues/98
-[bug #87]: https://github.com/simple-rtmp-server/srs/issues/87
-[bug #84]: https://github.com/simple-rtmp-server/srs/issues/84
-[bug #89]: https://github.com/simple-rtmp-server/srs/issues/89
-[bug #76]: https://github.com/simple-rtmp-server/srs/issues/76
-[bug #78]: https://github.com/simple-rtmp-server/srs/issues/78
-[bug #74]: https://github.com/simple-rtmp-server/srs/issues/74
-[bug #72]: https://github.com/simple-rtmp-server/srs/issues/72
-[bug #67]: https://github.com/simple-rtmp-server/srs/issues/67
-[bug #64]: https://github.com/simple-rtmp-server/srs/issues/64
-[bug #36]: https://github.com/simple-rtmp-server/srs/issues/36
-[bug #60]: https://github.com/simple-rtmp-server/srs/issues/60
-[bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
-[bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
-[bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
-[bug #257-c0]: https://github.com/simple-rtmp-server/srs/issues/257#issuecomment-66864413
-[bug #110]: https://github.com/simple-rtmp-server/srs/issues/110
-[bug #109]: https://github.com/simple-rtmp-server/srs/issues/109
-[bug #108]: https://github.com/simple-rtmp-server/srs/issues/108
-[bug #104]: https://github.com/simple-rtmp-server/srs/issues/104
-[bug #98]: https://github.com/simple-rtmp-server/srs/issues/98
-[bug #87]: https://github.com/simple-rtmp-server/srs/issues/87
-[bug #84]: https://github.com/simple-rtmp-server/srs/issues/84
-[bug #89]: https://github.com/simple-rtmp-server/srs/issues/89
-[bug #76]: https://github.com/simple-rtmp-server/srs/issues/76
-[bug #78]: https://github.com/simple-rtmp-server/srs/issues/78
-[bug #74]: https://github.com/simple-rtmp-server/srs/issues/74
-[bug #72]: https://github.com/simple-rtmp-server/srs/issues/72
-[bug #67]: https://github.com/simple-rtmp-server/srs/issues/67
-[bug #64]: https://github.com/simple-rtmp-server/srs/issues/64
-[bug #36]: https://github.com/simple-rtmp-server/srs/issues/36
-[bug #60]: https://github.com/simple-rtmp-server/srs/issues/60
-[bug #59]: https://github.com/simple-rtmp-server/srs/issues/59
-[bug #50]: https://github.com/simple-rtmp-server/srs/issues/50
-[bug #34]: https://github.com/simple-rtmp-server/srs/issues/34
+[bug #213]: https://github.com/ossrs/srs/issues/213
+[bug #194]: https://github.com/ossrs/srs/issues/194
+[bug #182]: https://github.com/ossrs/srs/issues/182
+[bug #257]: https://github.com/ossrs/srs/issues/257
+[bug #179]: https://github.com/ossrs/srs/issues/179
+[bug #224]: https://github.com/ossrs/srs/issues/224
+[bug #251]: https://github.com/ossrs/srs/issues/251
+[bug #293]: https://github.com/ossrs/srs/issues/293
+[bug #250]: https://github.com/ossrs/srs/issues/250
+[bug #301]: https://github.com/ossrs/srs/issues/301
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #133]: https://github.com/ossrs/srs/issues/133
+[bug #92]: https://github.com/ossrs/srs/issues/92
+[bug #380]: https://github.com/ossrs/srs/issues/380
+[bug #474]: https://github.com/ossrs/srs/issues/474
+[bug #484]: https://github.com/ossrs/srs/issues/484
+[bug #485]: https://github.com/ossrs/srs/issues/485
+[bug #495]: https://github.com/ossrs/srs/issues/495
+[bug #497]: https://github.com/ossrs/srs/issues/497
+[bug #448]: https://github.com/ossrs/srs/issues/448
+[bug #475]: https://github.com/ossrs/srs/issues/475
+[bug #458]: https://github.com/ossrs/srs/issues/458
+[bug #454]: https://github.com/ossrs/srs/issues/454
+[bug #442]: https://github.com/ossrs/srs/issues/442
+[bug #169]: https://github.com/ossrs/srs/issues/169
+[bug #441]: https://github.com/ossrs/srs/issues/441
+[bug #433]: https://github.com/ossrs/srs/issues/433
+[bug #425]: https://github.com/ossrs/srs/issues/425
+[bug #424]: https://github.com/ossrs/srs/issues/424
+[bug #421]: https://github.com/ossrs/srs/issues/421
+[bug #435]: https://github.com/ossrs/srs/issues/435
+[bug #420]: https://github.com/ossrs/srs/issues/420
+[bug #209]: https://github.com/ossrs/srs/issues/209
+[bug #409]: https://github.com/ossrs/srs/issues/409
+[bug #404]: https://github.com/ossrs/srs/issues/404
+[bug #391]: https://github.com/ossrs/srs/issues/391
+[bug #397]: https://github.com/ossrs/srs/issues/397
+[bug #400]: https://github.com/ossrs/srs/issues/400
+[bug #383]: https://github.com/ossrs/srs/issues/383
+[bug #381]: https://github.com/ossrs/srs/issues/381
+[bug #375]: https://github.com/ossrs/srs/issues/375
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #372]: https://github.com/ossrs/srs/issues/372
+[bug #366]: https://github.com/ossrs/srs/issues/366
+[bug #351]: https://github.com/ossrs/srs/issues/351
+[bug #155]: https://github.com/ossrs/srs/issues/155
+[bug #324]: https://github.com/ossrs/srs/issues/324
+[bug #324]: https://github.com/ossrs/srs/issues/324
+[bug #328]: https://github.com/ossrs/srs/issues/328
+[bug #155]: https://github.com/ossrs/srs/issues/155
+[bug #316]: https://github.com/ossrs/srs/issues/316
+[bug #310]: https://github.com/ossrs/srs/issues/310
+[bug #322]: https://github.com/ossrs/srs/issues/322
+[bug #179]: https://github.com/ossrs/srs/issues/179
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #133]: https://github.com/ossrs/srs/issues/133
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #304]: https://github.com/ossrs/srs/issues/304
+[bug #311]: https://github.com/ossrs/srs/issues/311
+[bug #310]: https://github.com/ossrs/srs/issues/310
+[bug #136]: https://github.com/ossrs/srs/issues/136
+[bug #250]: https://github.com/ossrs/srs/issues/250
+[bug #301]: https://github.com/ossrs/srs/issues/301
+[bug #301]: https://github.com/ossrs/srs/issues/301
+[bug #268]: https://github.com/ossrs/srs/issues/268
+[bug #151]: https://github.com/ossrs/srs/issues/151
+[bug #151]: https://github.com/ossrs/srs/issues/151
+[bug #293]: https://github.com/ossrs/srs/issues/293
+[bug #293]: https://github.com/ossrs/srs/issues/293
+[bug #293]: https://github.com/ossrs/srs/issues/293
+[bug #277]: https://github.com/ossrs/srs/issues/277
+[bug #277]: https://github.com/ossrs/srs/issues/277
+[bug #290]: https://github.com/ossrs/srs/issues/290
+[bug #281]: https://github.com/ossrs/srs/issues/281
+[bug #274]: https://github.com/ossrs/srs/issues/274
+[bug #179]: https://github.com/ossrs/srs/issues/179
+[bug #211]: https://github.com/ossrs/srs/issues/211
+[bug #207]: https://github.com/ossrs/srs/issues/207
+[bug #158]: https://github.com/ossrs/srs/issues/158
+[bug #216]: https://github.com/ossrs/srs/issues/216
+[bug #263]: https://github.com/ossrs/srs/issues/263
+[bug #270]: https://github.com/ossrs/srs/issues/270
+[bug #266]: https://github.com/ossrs/srs/issues/266
+[bug #267]: https://github.com/ossrs/srs/issues/267
+[bug #268]: https://github.com/ossrs/srs/issues/268
+[bug #264]: https://github.com/ossrs/srs/issues/264
+[bug #264]: https://github.com/ossrs/srs/issues/264
+[bug #257]: https://github.com/ossrs/srs/issues/257
+[bug #251]: https://github.com/ossrs/srs/issues/251
+[bug #251]: https://github.com/ossrs/srs/issues/251
+[bug #241]: https://github.com/ossrs/srs/issues/241
+[bug #241]: https://github.com/ossrs/srs/issues/241
+[bug #241]: https://github.com/ossrs/srs/issues/241
+[bug #248]: https://github.com/ossrs/srs/issues/248
+[bug #244]: https://github.com/ossrs/srs/issues/244
+[bug #237]: https://github.com/ossrs/srs/issues/237
+[bug #235]: https://github.com/ossrs/srs/issues/235
+[bug #215]: https://github.com/ossrs/srs/issues/215
+[bug #212]: https://github.com/ossrs/srs/issues/212
+[bug #217]: https://github.com/ossrs/srs/issues/217
+[bug #212]: https://github.com/ossrs/srs/issues/212
+[bug #213]: https://github.com/ossrs/srs/issues/213
+[bug #204]: https://github.com/ossrs/srs/issues/204
+[bug #203]: https://github.com/ossrs/srs/issues/203
+[bug #202]: https://github.com/ossrs/srs/issues/202
+[bug #200]: https://github.com/ossrs/srs/issues/200
+[bug #194]: https://github.com/ossrs/srs/issues/194
+[bug #194]: https://github.com/ossrs/srs/issues/194
+[bug #195]: https://github.com/ossrs/srs/issues/195
+[bug #191]: https://github.com/ossrs/srs/issues/191
+[bug #66]: https://github.com/ossrs/srs/issues/66
+[bug #185]: https://github.com/ossrs/srs/issues/185
+[bug #186]: https://github.com/ossrs/srs/issues/186
+[bug #184]: https://github.com/ossrs/srs/issues/184
+[bug #151]: https://github.com/ossrs/srs/issues/151
+[bug #162]: https://github.com/ossrs/srs/issues/162
+[bug #180]: https://github.com/ossrs/srs/issues/180
+[bug #177]: https://github.com/ossrs/srs/issues/177
+[bug #167]: https://github.com/ossrs/srs/issues/167
+[bug #150]: https://github.com/ossrs/srs/issues/150
+[bug #165]: https://github.com/ossrs/srs/issues/165
+[bug #160]: https://github.com/ossrs/srs/issues/160
+[bug #155]: https://github.com/ossrs/srs/issues/155
+[bug #148]: https://github.com/ossrs/srs/issues/148
+[bug #147]: https://github.com/ossrs/srs/issues/147
+[bug #79]: https://github.com/ossrs/srs/issues/79
+[bug #57]: https://github.com/ossrs/srs/issues/57
+[bug #85]: https://github.com/ossrs/srs/issues/85
+[bug #145]: https://github.com/ossrs/srs/issues/145
+[bug #143]: https://github.com/ossrs/srs/issues/143
+[bug #138]: https://github.com/ossrs/srs/issues/138
+[bug #142]: https://github.com/ossrs/srs/issues/142
+[bug #141]: https://github.com/ossrs/srs/issues/141
+[bug #124]: https://github.com/ossrs/srs/issues/124
+[bug #121]: https://github.com/ossrs/srs/issues/121
+[bug #119]: https://github.com/ossrs/srs/issues/119
+[bug #81]: https://github.com/ossrs/srs/issues/81
+[bug #103]: https://github.com/ossrs/srs/issues/103
+[bug #111]: https://github.com/ossrs/srs/issues/111
+[bug #110]: https://github.com/ossrs/srs/issues/110
+[bug #109]: https://github.com/ossrs/srs/issues/109
+[bug #108]: https://github.com/ossrs/srs/issues/108
+[bug #98]: https://github.com/ossrs/srs/issues/98
+[bug #87]: https://github.com/ossrs/srs/issues/87
+[bug #84]: https://github.com/ossrs/srs/issues/84
+[bug #89]: https://github.com/ossrs/srs/issues/89
+[bug #76]: https://github.com/ossrs/srs/issues/76
+[bug #78]: https://github.com/ossrs/srs/issues/78
+[bug #74]: https://github.com/ossrs/srs/issues/74
+[bug #72]: https://github.com/ossrs/srs/issues/72
+[bug #67]: https://github.com/ossrs/srs/issues/67
+[bug #64]: https://github.com/ossrs/srs/issues/64
+[bug #36]: https://github.com/ossrs/srs/issues/36
+[bug #60]: https://github.com/ossrs/srs/issues/60
+[bug #59]: https://github.com/ossrs/srs/issues/59
+[bug #50]: https://github.com/ossrs/srs/issues/50
+[bug #34]: https://github.com/ossrs/srs/issues/34
+[bug #257-c0]: https://github.com/ossrs/srs/issues/257#issuecomment-66864413
+[bug #110]: https://github.com/ossrs/srs/issues/110
+[bug #109]: https://github.com/ossrs/srs/issues/109
+[bug #108]: https://github.com/ossrs/srs/issues/108
+[bug #104]: https://github.com/ossrs/srs/issues/104
+[bug #98]: https://github.com/ossrs/srs/issues/98
+[bug #87]: https://github.com/ossrs/srs/issues/87
+[bug #84]: https://github.com/ossrs/srs/issues/84
+[bug #89]: https://github.com/ossrs/srs/issues/89
+[bug #76]: https://github.com/ossrs/srs/issues/76
+[bug #78]: https://github.com/ossrs/srs/issues/78
+[bug #74]: https://github.com/ossrs/srs/issues/74
+[bug #72]: https://github.com/ossrs/srs/issues/72
+[bug #67]: https://github.com/ossrs/srs/issues/67
+[bug #64]: https://github.com/ossrs/srs/issues/64
+[bug #36]: https://github.com/ossrs/srs/issues/36
+[bug #60]: https://github.com/ossrs/srs/issues/60
+[bug #59]: https://github.com/ossrs/srs/issues/59
+[bug #50]: https://github.com/ossrs/srs/issues/50
+[bug #34]: https://github.com/ossrs/srs/issues/34
+[bug #512]: https://github.com/ossrs/srs/issues/512
+[bug #515]: https://github.com/ossrs/srs/issues/515
+[bug #511]: https://github.com/ossrs/srs/issues/511
+[bug #518]: https://github.com/ossrs/srs/issues/518
+[bug #541]: https://github.com/ossrs/srs/issues/541
+[bug #546]: https://github.com/ossrs/srs/issues/546
+[bug #418]: https://github.com/ossrs/srs/issues/418
+[bug #509]: https://github.com/ossrs/srs/issues/509
+[bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
-[r2.0a1]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a1
-[r2.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/2.0a0
-[r1.0r4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4
-[r1.0r3]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3
-[r1.0r2]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2
-[r1.0r1]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1
-[r1.0r0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0r0
-[r1.0b0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.beta
-[r1.0a7]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline7
-[r1.0a6]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline6
-[r1.0a5]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline5
-[r1.0a4]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline4
-[r1.0a3]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline3
-[r1.0a2]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline2
-[r1.0a0]: https://github.com/simple-rtmp-server/srs/releases/tag/1.0.mainline
-[r0.9]: https://github.com/simple-rtmp-server/srs/releases/tag/0.9
-[r0.8]: https://github.com/simple-rtmp-server/srs/releases/tag/0.8
-[r0.7]: https://github.com/simple-rtmp-server/srs/releases/tag/0.7
-[r0.6]: https://github.com/simple-rtmp-server/srs/releases/tag/0.6
-[r0.5]: https://github.com/simple-rtmp-server/srs/releases/tag/0.5
-[r0.4]: https://github.com/simple-rtmp-server/srs/releases/tag/0.4
-[r0.3]: https://github.com/simple-rtmp-server/srs/releases/tag/0.3
-[r0.2]: https://github.com/simple-rtmp-server/srs/releases/tag/0.2
-[r0.1]: https://github.com/simple-rtmp-server/srs/releases/tag/0.1
+[exo #828]: https://github.com/google/ExoPlayer/pull/828
+
+[r2.0a3]: https://github.com/ossrs/srs/releases/tag/v2.0-a3
+[r2.0a2]: https://github.com/ossrs/srs/releases/tag/v2.0-a2
+[r2.0a1]: https://github.com/ossrs/srs/releases/tag/2.0a1
+[r2.0a0]: https://github.com/ossrs/srs/releases/tag/2.0a0
+[r1.0r4]: https://github.com/ossrs/srs/releases/tag/1.0r4
+[r1.0r3]: https://github.com/ossrs/srs/releases/tag/1.0r3
+[r1.0r2]: https://github.com/ossrs/srs/releases/tag/1.0r2
+[r1.0r1]: https://github.com/ossrs/srs/releases/tag/1.0r1
+[r1.0r0]: https://github.com/ossrs/srs/releases/tag/1.0r0
+[r1.0b0]: https://github.com/ossrs/srs/releases/tag/1.0.beta
+[r1.0a7]: https://github.com/ossrs/srs/releases/tag/1.0.mainline7
+[r1.0a6]: https://github.com/ossrs/srs/releases/tag/1.0.mainline6
+[r1.0a5]: https://github.com/ossrs/srs/releases/tag/1.0.mainline5
+[r1.0a4]: https://github.com/ossrs/srs/releases/tag/1.0.mainline4
+[r1.0a3]: https://github.com/ossrs/srs/releases/tag/1.0.mainline3
+[r1.0a2]: https://github.com/ossrs/srs/releases/tag/1.0.mainline2
+[r1.0a0]: https://github.com/ossrs/srs/releases/tag/1.0.mainline
+[r0.9]: https://github.com/ossrs/srs/releases/tag/0.9
+[r0.8]: https://github.com/ossrs/srs/releases/tag/0.8
+[r0.7]: https://github.com/ossrs/srs/releases/tag/0.7
+[r0.6]: https://github.com/ossrs/srs/releases/tag/0.6
+[r0.5]: https://github.com/ossrs/srs/releases/tag/0.5
+[r0.4]: https://github.com/ossrs/srs/releases/tag/0.4
+[r0.3]: https://github.com/ossrs/srs/releases/tag/0.3
+[r0.2]: https://github.com/ossrs/srs/releases/tag/0.2
+[r0.1]: https://github.com/ossrs/srs/releases/tag/0.1
 
 
-[contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
+[contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
 
-[branch1]: https://github.com/simple-rtmp-server/srs/tree/1.0release
-[branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
-[release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
-[release3]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.189.zip
-
-[srs2_CN]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
-[srs2_EN]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
+[branch1]: https://github.com/ossrs/srs/tree/1.0release
+[branch2]: https://github.com/ossrs/srs/tree/2.0release
+[release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
+[release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.205.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.205.zip
+[srs_CN]: https://github.com/ossrs/srs/wiki/v2_CN_Home
+[srs_EN]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 

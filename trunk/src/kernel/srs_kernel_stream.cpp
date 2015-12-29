@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -60,7 +60,7 @@ int SrsStream::initialize(char* b, int nb)
 
     nb_bytes = nb;
     p = bytes = b;
-    srs_info("init stream ok, size=%d", size);
+    srs_info("init stream ok, size=%d", size());
 
     return ret;
 }
@@ -87,7 +87,7 @@ bool SrsStream::empty()
 
 bool SrsStream::require(int required_size)
 {
-    srs_assert(required_size > 0);
+    srs_assert(required_size >= 0);
     
     return required_size <= nb_bytes - (p - bytes);
 }

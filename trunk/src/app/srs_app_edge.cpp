@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -222,7 +222,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     }
     
     // notify server the edge identity,
-    // @see https://github.com/simple-rtmp-server/srs/issues/147
+    // @see https://github.com/ossrs/srs/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
@@ -246,7 +246,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
     // support vhost tranform for edge,
-    // @see https://github.com/simple-rtmp-server/srs/issues/372
+    // @see https://github.com/ossrs/srs/issues/372
     std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
     vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
     // generate the tcUrl
@@ -259,7 +259,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/simple-rtmp-server/srs/issues/160
+    // @see https://github.com/ossrs/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
     if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
@@ -342,7 +342,7 @@ int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
     
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
     
-    // @see https://github.com/simple-rtmp-server/srs/issues/79
+    // @see https://github.com/ossrs/srs/issues/79
     // when origin is error, for instance, server is shutdown,
     // then user remove the vhost then reload, the conf is empty.
     if (!conf) {
@@ -655,7 +655,7 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     }
     
     // notify server the edge identity,
-    // @see https://github.com/simple-rtmp-server/srs/issues/147
+    // @see https://github.com/ossrs/srs/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
@@ -679,7 +679,7 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
     // support vhost tranform for edge,
-    // @see https://github.com/simple-rtmp-server/srs/issues/372
+    // @see https://github.com/ossrs/srs/issues/372
     std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
     vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
     // generate the tcUrl
@@ -692,7 +692,7 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/simple-rtmp-server/srs/issues/160
+    // @see https://github.com/ossrs/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
     if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
@@ -816,7 +816,7 @@ int SrsPublishEdge::on_client_publish()
         return ret;
     }
     
-    // @see https://github.com/simple-rtmp-server/srs/issues/180
+    // @see https://github.com/ossrs/srs/issues/180
     // to avoid multiple publish the same stream on the same edge,
     // directly enter the publish stage.
     if (true) {
@@ -828,7 +828,7 @@ int SrsPublishEdge::on_client_publish()
     // start to forward stream to origin.
     ret = forwarder->start();
     
-    // @see https://github.com/simple-rtmp-server/srs/issues/180
+    // @see https://github.com/ossrs/srs/issues/180
     // when failed, revert to init
     if (ret != ERROR_SUCCESS) {
         SrsEdgeState pstate = state;

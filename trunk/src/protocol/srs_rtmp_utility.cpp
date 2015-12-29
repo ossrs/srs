@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtmp_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -217,7 +217,7 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
 
     // only when failed, we must free the data.
     if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
-        srs_freep(data);
+        srs_freepa(data);
         return ret;
     }
 
@@ -244,7 +244,7 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     int ret = ERROR_SUCCESS;
     
     // the limits of writev iovs.
-    // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
     // for linux, generally it's 1024.
     static int limits = (int)sysconf(_SC_IOV_MAX);

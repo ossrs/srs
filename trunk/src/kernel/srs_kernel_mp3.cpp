@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_mp3.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#if !defined(SRS_EXPORT_LIBRTMP)
+
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -124,4 +126,6 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     
     return writer->write(data + stream->pos(), size - stream->pos(), NULL);
 }
+
+#endif
 

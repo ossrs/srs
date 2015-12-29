@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -667,6 +667,21 @@ extern std::string srs_get_local_ip(int fd);
 extern int srs_get_local_port(int fd);
 // where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
+
+// whether the url is starts with http:// or https://
+extern bool srs_string_is_http(std::string url);
+
+// whether string is digit number
+//      is_digit("1234567890")  === true
+//      is_digit("0123456789")  === false
+//      is_digit("1234567890a") === false
+//      is_digit("a1234567890") === false
+extern bool srs_is_digit_number(const std::string& str);
+// whether string is boolean
+//      is_bool("true") == true
+//      is_bool("false") == true
+//      otherwise, false.
+extern bool srs_is_boolean(const std::string& str);
 
 // dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(std::stringstream& ss);

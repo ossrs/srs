@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -240,7 +240,7 @@ int SrsFlvSegment::write_metadata(SrsSharedPtrMessage* metadata)
     
     int size = name->total_size() + obj->total_size();
     char* payload = new char[size];
-    SrsAutoFree(char, payload);
+    SrsAutoFreeA(char, payload);
 
     // 11B flv header, 3B object EOF, 8B number value, 1B number flag.
     duration_offset = fs->tellg() + size + 11 - SrsAmf0Size::object_eof() - SrsAmf0Size::number();
@@ -355,7 +355,7 @@ int SrsFlvSegment::update_flv_metadata()
 
     // buffer to write the size.
     char* buf = new char[SrsAmf0Size::number()];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
 
     SrsStream stream;
     if ((ret = stream.initialize(buf, SrsAmf0Size::number())) != ERROR_SUCCESS) {
@@ -519,7 +519,7 @@ int SrsDvrAsyncCallOnDvr::call()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -928,7 +928,7 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     }
     
     // when wait keyframe, ignore if no frame arrived.
-    // @see https://github.com/simple-rtmp-server/srs/issues/177
+    // @see https://github.com/ossrs/srs/issues/177
     if (_srs_config->get_dvr_wait_keyframe(req->vhost)) {
         if (!msg->is_video()) {
             return ret;

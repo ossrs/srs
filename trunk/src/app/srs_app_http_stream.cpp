@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -116,7 +116,7 @@ int SrsStreamCache::cycle()
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer, false, false, true)) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(NULL, consumer, false, false, true)) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -483,7 +483,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -822,7 +822,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
-        // @see https://github.com/simple-rtmp-server/srs/issues/404
+        // @see https://github.com/ossrs/srs/issues/404
         if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
             srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
             return ret;

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -51,6 +51,7 @@ class SrsStSocket;
 class SrsRtmpServer;
 class SrsEdgeProxyContext;
 class SrsMessageArray;
+class SrsConnection;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -108,7 +109,7 @@ public:
 /**
 * to alloc and increase fixed space,
 * fast remove and insert for msgs sender.
-* @see https://github.com/simple-rtmp-server/srs/issues/251
+* @see https://github.com/ossrs/srs/issues/251
 */
 class SrsFastVector
 {
@@ -224,19 +225,21 @@ private:
     SrsRtmpJitter* jitter;
     SrsSource* source;
     SrsMessageQueue* queue;
+    // the owner connection for debug, maybe NULL.
+    SrsConnection* conn;
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // the cond wait for mw.
-    // @see https://github.com/simple-rtmp-server/srs/issues/251
+    // @see https://github.com/ossrs/srs/issues/251
     st_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
     int mw_duration;
 #endif
 public:
-    SrsConsumer(SrsSource* _source);
+    SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
     /**
@@ -316,7 +319,7 @@ private:
     * 
     * @remark, it is ok for performance, for when we clear the gop cache,
     *       gop cache is disabled for pure audio stream.
-    * @see: https://github.com/simple-rtmp-server/srs/issues/124
+    * @see: https://github.com/ossrs/srs/issues/124
     */
     int audio_after_last_video_count;
     /**
@@ -571,7 +574,7 @@ public:
     * @param dg, whether dumps the gop cache.
     */
     virtual int create_consumer(
-        SrsConsumer*& consumer, 
+        SrsConnection* conn, SrsConsumer*& consumer,
         bool ds = true, bool dm = true, bool dg = true
     );
     virtual void on_consumer_destroy(SrsConsumer* consumer);

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -146,7 +146,7 @@ int SrsStatisticStream::dumps(stringstream& ss)
         ss  << SRS_JFIELD_NAME("video") << SRS_JOBJECT_START
                 << SRS_JFIELD_STR("codec", srs_codec_video2str(vcodec)) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("profile", srs_codec_avc_profile2str(avc_profile)) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("level", srs_codec_avc_level2str(avc_level))
+                << SRS_JFIELD_STR("level", srs_codec_avc_level2str(avc_level))
                 << SRS_JOBJECT_END
             << SRS_JFIELD_CONT;
     }

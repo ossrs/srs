@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_ts.hpp>
 
-// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
+#if !defined(SRS_EXPORT_LIBRTMP)
+
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -385,7 +387,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
@@ -410,7 +412,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
@@ -457,14 +459,17 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
     while (p < end) {
         SrsTsPacket* pkt = NULL;
         if (p == start) {
-            // for pure audio stream, always write pcr.
+            // write pcr according to message.
             bool write_pcr = msg->write_pcr;
+            
+            // for pure audio, always write pcr.
+            // TODO: FIXME: maybe only need to write at begin and end of ts.
             if (pure_audio && msg->is_audio()) {
                 write_pcr = true;
             }
 
             // it's ok to set pcr equals to dts,
-            // @see https://github.com/simple-rtmp-server/srs/issues/311
+            // @see https://github.com/ossrs/srs/issues/311
             int64_t pcr = write_pcr? msg->dts : -1;
             
             // TODO: FIXME: finger it why use discontinuity of msg.
@@ -480,7 +485,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         SrsAutoFree(SrsTsPacket, pkt);
 
         char* buf = new char[SRS_TS_PACKET_SIZE];
-        SrsAutoFree(char, buf);
+        SrsAutoFreeA(char, buf);
 
         // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
@@ -910,7 +915,7 @@ SrsTsAdaptationField::SrsTsAdaptationField(SrsTsPacket* pkt)
 
 SrsTsAdaptationField::~SrsTsAdaptationField()
 {
-    srs_freep(transport_private_data);
+    srs_freepa(transport_private_data);
 }
 
 int SrsTsAdaptationField::decode(SrsStream* stream)
@@ -979,7 +984,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
         pp[0] = *p++;
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         program_clock_reference_extension = pcrv & 0x1ff;
         const1_value0 = (pcrv >> 9) & 0x3F;
         program_clock_reference_base = (pcrv >> 15) & 0x1ffffffffLL;
@@ -1006,7 +1011,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
         pp[0] = *p++;
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         original_program_clock_reference_extension = opcrv & 0x1ff;
         const1_value2 = (opcrv >> 9) & 0x3F;
         original_program_clock_reference_base = (opcrv >> 15) & 0x1ffffffffLL;
@@ -1035,7 +1040,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
                 srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
                 return ret;
             }
-            srs_freep(transport_private_data);
+            srs_freepa(transport_private_data);
             transport_private_data = new char[transport_private_data_length];
             stream->read_bytes(transport_private_data, transport_private_data_length);
         }
@@ -1186,7 +1191,7 @@ int SrsTsAdaptationField::encode(SrsStream* stream)
         stream->skip(6);
         
         // @remark, use pcr base and ignore the extension
-        // @see https://github.com/simple-rtmp-server/srs/issues/250#issuecomment-71349370
+        // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         int64_t pcrv = program_clock_reference_extension & 0x1ff;
         pcrv |= (const1_value0 << 9) & 0x7E00;
         pcrv |= (program_clock_reference_base << 15) & 0x1FFFFFFFF000000LL;
@@ -1320,9 +1325,9 @@ SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
 
 SrsTsPayloadPES::~SrsTsPayloadPES()
 {
-    srs_freep(PES_private_data);
-    srs_freep(pack_field);
-    srs_freep(PES_extension_field);
+    srs_freepa(PES_private_data);
+    srs_freepa(pack_field);
+    srs_freepa(PES_extension_field);
 }
 
 int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
@@ -1599,7 +1604,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
                 // 16B
                 if (PES_private_data_flag) {
-                    srs_freep(PES_private_data);
+                    srs_freepa(PES_private_data);
                     PES_private_data = new char[16];
                     stream->read_bytes(PES_private_data, 16);
                 }
@@ -1615,7 +1620,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext pack failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freep(pack_field);
+                        srs_freepa(pack_field);
                         pack_field = new char[pack_field_length];
                         stream->read_bytes(pack_field, pack_field_length);
                     }
@@ -1653,7 +1658,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext field failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freep(PES_extension_field);
+                        srs_freepa(PES_extension_field);
                         PES_extension_field = new char[PES_extension_field_length];
                         stream->read_bytes(PES_extension_field, PES_extension_field_length);
                     }
@@ -2416,7 +2421,7 @@ SrsTsPayloadPMTESInfo::SrsTsPayloadPMTESInfo(SrsTsStream st, int16_t epid)
 
 SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
 {
-    srs_freep(ES_info);
+    srs_freepa(ES_info);
 }
 
 int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
@@ -2446,7 +2451,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
             srs_error("ts: demux PMT es info data failed. ret=%d", ret);
             return ret;
         }
-        srs_freep(ES_info);
+        srs_freepa(ES_info);
         ES_info = new char[ES_info_length];
         stream->read_bytes(ES_info, ES_info_length);
     }
@@ -2503,7 +2508,7 @@ SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
 
 SrsTsPayloadPMT::~SrsTsPayloadPMT()
 {
-    srs_freep(program_info_desc);
+    srs_freepa(program_info_desc);
 
     std::vector<SrsTsPayloadPMTESInfo*>::iterator it;
     for (it = infos.begin(); it != infos.end(); ++it) {
@@ -2557,7 +2562,7 @@ int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
             return ret;
         }
 
-        srs_freep(program_info_desc);
+        srs_freepa(program_info_desc);
         program_info_desc = new char[program_info_length];
         stream->read_bytes(program_info_desc, program_info_length);
     }
@@ -2758,6 +2763,11 @@ void SrsTSMuxer::close()
     writer->close();
 }
 
+SrsCodecVideo SrsTSMuxer::video_codec()
+{
+    return vcodec;
+}
+
 SrsTsCache::SrsTsCache()
 {
     audio = NULL;
@@ -2778,11 +2788,12 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     if (!audio) {
         audio = new SrsTsMessage();
         audio->write_pcr = false;
-        audio->start_pts = dts;
+        audio->dts = audio->pts = audio->start_pts = dts;
     }
 
-    audio->dts = dts;
-    audio->pts = audio->dts;
+    // TODO: FIXME: refine code.
+    //audio->dts = dts;
+    //audio->pts = audio->dts;
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
@@ -3132,20 +3143,11 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    // flush if buffer exceed max size.
-    if (cache->audio->payload->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        return flush_video();
-    }
-
-    // TODO: config it.
-    // in ms, audio delay to flush the audios.
-    int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-    // flush if audio delay exceed
-    if (dts - cache->audio->start_pts > audio_delay * 90) {
-        return flush_audio();
-    }
-
-    return ret;
+    // TODO: FIXME: for pure audio, aggregate some frame to one.
+    
+    // always flush audio frame by frame.
+    // @see https://github.com/ossrs/srs/issues/512
+    return flush_audio();
 }
 
 int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
@@ -3159,7 +3161,7 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     }
     
     // ignore info frame,
-    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
+    // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
@@ -3212,4 +3214,5 @@ int SrsTsEncoder::flush_video()
     return ret;
 }
 
+#endif
 

@@ -8,7 +8,7 @@ RED="\\033[31m"
 GREEN="\\033[32m"
 YELLOW="\\033[33m"
 BLACK="\\033[0m"
-POS="\\033[103G"
+POS="\\033[94G"
 
 # if need to log to file, change the log path.
 if [[ ! $log ]]; then

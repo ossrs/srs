@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -76,7 +76,7 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
-    srs_freep(iovss_cache);
+    srs_freepa(iovss_cache);
 }
 
 int SrsHttpResponseWriter::final_request()
@@ -188,7 +188,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     int nb_iovss = 3 + iovcnt;
     iovec* iovss = iovss_cache;
     if (nb_iovss_cache < nb_iovss) {
-        srs_freep(iovss_cache);
+        srs_freepa(iovss_cache);
         nb_iovss_cache = nb_iovss;
         iovss = iovss_cache = new iovec[nb_iovss];
     }
@@ -506,7 +506,7 @@ SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
     srs_freep(_uri);
-    srs_freep(_http_ts_send_buffer);
+    srs_freepa(_http_ts_send_buffer);
 }
 
 int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
@@ -734,7 +734,7 @@ int SrsHttpMessage::body_read_all(string& body)
     
     // cache to read.
     char* buf = new char[SRS_HTTP_READ_CACHE_BYTES];
-    SrsAutoFree(char, buf);
+    SrsAutoFreeA(char, buf);
     
     // whatever, read util EOF.
     while (!_body->eof()) {
@@ -916,7 +916,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         ssize_t nparsed = 0;
         
         // when got entire http header, parse it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/400
+        // @see https://github.com/ossrs/srs/issues/400
         char* start = buffer->bytes();
         char* end = start + buffer->size();
         for (char* p = start; p <= end - 4; p++) {
@@ -1205,7 +1205,7 @@ int SrsHttpConn::do_cycle()
     SrsStSocket skt(stfd);
     
     // set the recv timeout, for some clients never disconnect the connection.
-    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    // @see https://github.com/ossrs/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
     // process http messages.
@@ -1235,7 +1235,7 @@ int SrsHttpConn::do_cycle()
         }
         
         // donot keep alive, disconnect it.
-        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }

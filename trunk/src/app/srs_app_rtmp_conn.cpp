@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -373,7 +373,7 @@ int SrsRtmpConn::service_cycle()
     }
     
     // do token traverse before serve it.
-    // @see https://github.com/simple-rtmp-server/srs/pull/239
+    // @see https://github.com/ossrs/srs/pull/239
     if (true) {
         bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
         bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
@@ -387,7 +387,7 @@ int SrsRtmpConn::service_cycle()
     
     // set chunk size to larger.
     // set the chunk size before any larger response greater than 128,
-    // to make OBS happy, @see https://github.com/simple-rtmp-server/srs/issues/454
+    // to make OBS happy, @see https://github.com/ossrs/srs/issues/454
     int chunk_size = _srs_config->get_chunk_size(req->vhost);
     if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
         srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
@@ -439,7 +439,7 @@ int SrsRtmpConn::service_cycle()
         // logical accept and retry stream service.
         if (ret == ERROR_CONTROL_RTMP_CLOSE) {
             // TODO: FIXME: use ping message to anti-death of socket.
-            // @see: https://github.com/simple-rtmp-server/srs/issues/39
+            // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
             rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT_US);
             rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
@@ -598,7 +598,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // create consumer of souce.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(this, consumer)) != ERROR_SUCCESS) {
         srs_error("create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -606,7 +606,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     srs_verbose("consumer created success.");
 
     // use isolate thread to recv, 
-    // @see: https://github.com/simple-rtmp-server/srs/issues/217
+    // @see: https://github.com/ossrs/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
     
     // start isolate recv thread.
@@ -678,8 +678,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
 
         // to use isolate thread to recv, can improve about 33% performance.
-        // @see: https://github.com/simple-rtmp-server/srs/issues/196
-        // @see: https://github.com/simple-rtmp-server/srs/issues/217
+        // @see: https://github.com/ossrs/srs/issues/196
+        // @see: https://github.com/ossrs/srs/issues/217
         while (!trd->empty()) {
             SrsCommonMessage* msg = trd->pump();
             srs_verbose("pump client message to process.");
@@ -705,8 +705,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         srs_verbose("send thread now=%"PRId64"us, wait %dms", srs_update_system_time_ms(), mw_sleep);
         
         // wait for message to incoming.
-        // @see https://github.com/simple-rtmp-server/srs/issues/251
-        // @see https://github.com/simple-rtmp-server/srs/issues/257
+        // @see https://github.com/ossrs/srs/issues/251
+        // @see https://github.com/ossrs/srs/issues/257
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
             consumer->wait(0, mw_sleep);
@@ -789,7 +789,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
         
         // if duration specified, and exceed it, stop play live.
-        // @see: https://github.com/simple-rtmp-server/srs/issues/45
+        // @see: https://github.com/ossrs/srs/issues/45
         if (user_specified_duration_to_stop) {
             if (duration >= (int64_t)req->duration) {
                 ret = ERROR_RTMP_DURATION_EXCEED;
@@ -825,7 +825,7 @@ int SrsRtmpConn::publishing(SrsSource* source)
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     if ((ret = acquire_publish(source, vhost_is_edge)) == ERROR_SUCCESS) {
         // use isolate thread to recv,
-        // @see: https://github.com/simple-rtmp-server/srs/issues/237
+        // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread trd(rtmp, req, 
             st_netfd_fileno(stfd), 0, this, source, true, vhost_is_edge);
 
@@ -839,7 +839,7 @@ int SrsRtmpConn::publishing(SrsSource* source)
     // whatever the acquire publish, always release publish.
     // when the acquire error in the midlle-way, the publish state changed,
     // but failed, so we must cleanup it.
-    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    // @see https://github.com/ossrs/srs/issues/474
     // @remark when stream is busy, should never release it.
     if (ret != ERROR_SYSTEM_STREAM_BUSY) {
         release_publish(source, vhost_is_edge);
@@ -896,7 +896,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
-            // @see https://github.com/simple-rtmp-server/srs/issues/441
+            // @see https://github.com/ossrs/srs/issues/441
             trd->wait(publish_1stpkt_timeout);
         } else {
             trd->wait(publish_normal_timeout);
@@ -1107,7 +1107,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
     SrsAutoFree(SrsPacket, pkt);
     
     // for jwplayer/flowplayer, which send close as pause message.
-    // @see https://github.com/simple-rtmp-server/srs/issues/6
+    // @see https://github.com/ossrs/srs/issues/6
     SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(pkt);
     if (close) {
         ret = ERROR_CONTROL_RTMP_CLOSE;
@@ -1117,7 +1117,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
     
     // call msg,
     // support response null first,
-    // @see https://github.com/simple-rtmp-server/srs/issues/106
+    // @see https://github.com/ossrs/srs/issues/106
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
     if (call) {
@@ -1337,7 +1337,7 @@ int SrsRtmpConn::http_hooks_on_connect()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -1372,7 +1372,7 @@ void SrsRtmpConn::http_hooks_on_close()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -1404,7 +1404,7 @@ int SrsRtmpConn::http_hooks_on_publish()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -1439,7 +1439,7 @@ void SrsRtmpConn::http_hooks_on_unpublish()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -1471,7 +1471,7 @@ int SrsRtmpConn::http_hooks_on_play()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {
@@ -1506,7 +1506,7 @@ void SrsRtmpConn::http_hooks_on_stop()
     
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/simple-rtmp-server/srs/issues/475
+    // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
     
     if (true) {

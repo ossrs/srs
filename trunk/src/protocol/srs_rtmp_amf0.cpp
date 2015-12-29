@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -513,6 +513,24 @@ SrsAmf0Any* SrsUnSortedHashtable::ensure_property_number(string name)
     return prop;
 }
 
+void SrsUnSortedHashtable::remove(string name)
+{
+    std::vector<SrsAmf0ObjectPropertyType>::iterator it;
+    
+    for (it = properties.begin(); it != properties.end();) {
+        std::string key = it->first;
+        SrsAmf0Any* any = it->second;
+        
+        if (key == name) {
+            srs_freep(any);
+            
+            it = properties.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void SrsUnSortedHashtable::copy(SrsUnSortedHashtable* src)
 {
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
@@ -785,6 +803,11 @@ SrsAmf0Any* SrsAmf0Object::ensure_property_string(string name)
 SrsAmf0Any* SrsAmf0Object::ensure_property_number(string name)
 {
     return properties->ensure_property_number(name);
+}
+
+void SrsAmf0Object::remove(string name)
+{
+    properties->remove(name);
 }
 
 SrsAmf0EcmaArray::SrsAmf0EcmaArray()

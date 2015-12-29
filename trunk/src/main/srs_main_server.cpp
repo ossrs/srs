@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -290,7 +290,7 @@ int main(int argc, char** argv)
         return ret;
     }
     
-    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
+    srs_trace("srs(ossrs) "RTMP_SIG_SRS_VERSION);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
     srs_trace("primary/master: "RTMP_SIG_SRS_PRIMARY);
     srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);

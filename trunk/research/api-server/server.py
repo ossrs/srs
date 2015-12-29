@@ -2,7 +2,7 @@
 '''
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -527,6 +527,7 @@ class ArmServer:
         self.id = str(global_arm_server_id)
         self.ip = None
         self.device_id = None
+        self.summaries = None
         
         self.public_ip = cherrypy.request.remote.ip
         self.heartbeat = time.time()
@@ -544,10 +545,11 @@ class ArmServer:
         data["id"] = self.id
         data["ip"] = self.ip
         data["device_id"] = self.device_id
+        data["summaries"] = self.summaries
         data["public_ip"] = self.public_ip
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
-        data["summaries"] = "http://%s:1985/api/v1/summaries"%(self.ip)
+        data["api"] = "http://%s:1985/api/v1/summaries"%(self.ip)
         data["console"] = "http://ossrs.net/console/ng_index.html#/summaries?host=%s&port=1985"%(self.ip)
         return data
         
@@ -606,6 +608,8 @@ class RESTServers(object):
                 self.__nodes.append(node)
                 
             node.ip = json_req["ip"]
+            if "summaries" in json_req:
+                node.summaries = json_req["summaries"]
             node.device_id = device_id
             node.public_ip = cherrypy.request.remote.ip
             node.heartbeat = time.time()
@@ -617,7 +621,7 @@ class RESTServers(object):
     '''
     get all servers which report to this api-server.
     '''
-    def GET(self):
+    def GET(self, id=None):
         enable_crossdomain()
         
         try:
@@ -627,7 +631,8 @@ class RESTServers(object):
             
             data = []
             for node in self.__nodes:
-                data.append(node.json_dump())
+                if id == None or node.id == str(id) or node.device_id == str(id):
+                    data.append(node.json_dump())
             
             return json.dumps(data)
         finally:
@@ -835,13 +840,13 @@ if __name__ != "__main__":
 
 # check the user options
 if len(sys.argv) <= 1:
-    print "SRS api callback server, Copyright (c) 2013-2015 SRS(simple-rtmp-server)"
+    print "SRS api callback server, Copyright (c) 2013-2015 SRS(ossrs)"
     print "Usage: python %s <port>"%(sys.argv[0])
     print "    port: the port to listen at."
     print "For example:"
     print "    python %s 8085"%(sys.argv[0])
     print ""
-    print "See also: https://github.com/simple-rtmp-server/srs"
+    print "See also: https://github.com/ossrs/srs"
     sys.exit(1)
 
 # parse port from user options.

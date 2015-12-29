@@ -37,6 +37,11 @@ fi
 if [ $SRS_CUBIE = YES ]; then
     echo "#define SRS_CUBIE" >> $SRS_AUTO_HEADERS_H
 fi
+if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
+    echo "#define SRS_EXPORT_LIBRTMP" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_EXPORT_LIBRTMP" >> $SRS_AUTO_HEADERS_H
+fi
 
 echo "" >> $SRS_AUTO_HEADERS_H
 

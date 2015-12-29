@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(simple-rtmp-server)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -380,6 +380,8 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
     return ret;
 }
 
+#if !defined(SRS_EXPORT_LIBRTMP)
+
 SrsAvcAacCodec::SrsAvcAacCodec()
 {
     avc_parse_sps               = true;
@@ -417,12 +419,12 @@ SrsAvcAacCodec::SrsAvcAacCodec()
 
 SrsAvcAacCodec::~SrsAvcAacCodec()
 {
-    srs_freep(avc_extra_data);
-    srs_freep(aac_extra_data);
+    srs_freepa(avc_extra_data);
+    srs_freepa(aac_extra_data);
 
     srs_freep(stream);
-    srs_freep(sequenceParameterSetNALUnit);
-    srs_freep(pictureParameterSetNALUnit);
+    srs_freepa(sequenceParameterSetNALUnit);
+    srs_freepa(pictureParameterSetNALUnit);
 }
 
 bool SrsAvcAacCodec::is_avc_codec_ok()
@@ -498,7 +500,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
         aac_extra_size = stream->size() - stream->pos();
         if (aac_extra_size > 0) {
-            srs_freep(aac_extra_data);
+            srs_freepa(aac_extra_data);
             aac_extra_data = new char[aac_extra_size];
             memcpy(aac_extra_data, stream->data() + stream->pos(), aac_extra_size);
 
@@ -617,7 +619,7 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
     // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
     // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
     // 
-    // donot force to LC, @see: https://github.com/simple-rtmp-server/srs/issues/81
+    // donot force to LC, @see: https://github.com/ossrs/srs/issues/81
     // the source will print the sequence header info.
     //if (aac_profile > 3) {
         // Mark all extended profiles as LC
@@ -659,7 +661,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
     
     // ignore info frame without error,
-    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
+    // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         srs_warn("avc igone the info frame, ret=%d", ret);
         return ret;
@@ -762,7 +764,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
     // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
     avc_extra_size = stream->size() - stream->pos();
     if (avc_extra_size > 0) {
-        srs_freep(avc_extra_data);
+        srs_freepa(avc_extra_data);
         avc_extra_data = new char[avc_extra_size];
         memcpy(avc_extra_data, stream->data() + stream->pos(), avc_extra_size);
     }
@@ -823,7 +825,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
         return ret;
     }
     if (sequenceParameterSetLength > 0) {
-        srs_freep(sequenceParameterSetNALUnit);
+        srs_freepa(sequenceParameterSetNALUnit);
         sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
         stream->read_bytes(sequenceParameterSetNALUnit, sequenceParameterSetLength);
     }
@@ -852,7 +854,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
         return ret;
     }
     if (pictureParameterSetLength > 0) {
-        srs_freep(pictureParameterSetNALUnit);
+        srs_freepa(pictureParameterSetNALUnit);
         pictureParameterSetNALUnit = new char[pictureParameterSetLength];
         stream->read_bytes(pictureParameterSetNALUnit, pictureParameterSetLength);
     }
@@ -912,7 +914,7 @@ int SrsAvcAacCodec::avc_demux_sps()
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     int8_t* rbsp = new int8_t[sequenceParameterSetLength];
-    SrsAutoFree(int8_t, rbsp);
+    SrsAutoFreeA(int8_t, rbsp);
     
     int nb_rbsp = 0;
     while (!stream.empty()) {
@@ -942,7 +944,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     int ret = ERROR_SUCCESS;
     
     // we donot parse the detail of sps.
-    // @see https://github.com/simple-rtmp-server/srs/issues/474
+    // @see https://github.com/ossrs/srs/issues/474
     if (!avc_parse_sps) {
         return ret;
     }
@@ -1199,7 +1201,7 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sam
         }
         
         // maybe stream is invalid format.
-        // see: https://github.com/simple-rtmp-server/srs/issues/183
+        // see: https://github.com/ossrs/srs/issues/183
         if (NALUnitLength < 0) {
             ret = ERROR_HLS_DECODE_ERROR;
             srs_error("maybe stream is AnnexB format. ret=%d", ret);
@@ -1224,4 +1226,6 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sam
     
     return ret;
 }
+
+#endif
 
