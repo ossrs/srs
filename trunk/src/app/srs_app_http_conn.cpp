@@ -344,6 +344,12 @@ int SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
         return ret;
     }
     
+    // for some server, content-length is -1, while not chunked, directly read
+    // everything as body.
+    if (owner->content_length() == -1 && !owner->is_chunked()) {
+        return read_specified(data, nb_data, nb_read);
+    }
+    
     // chunked encoding.
     if (owner->is_chunked()) {
         return read_chunked(data, nb_data, nb_read);
@@ -483,8 +489,8 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     // increase the total read to determine whether EOF.
     nb_total_read += nb_bytes;
     
-    // for not chunked
-    if (!owner->is_chunked()) {
+    // for not chunked and specified content length.
+    if (!owner->is_chunked() && owner->content_length() != -1) {
         // when read completed, eof.
         if (nb_total_read >= (int)owner->content_length()) {
             is_eof = true;
@@ -1206,6 +1212,11 @@ int SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     int ret = ERROR_SUCCESS;
     
     ISrsHttpResponseReader* br = msg->body_reader();
+    
+    // when not specified the content length, ignore.
+    if (msg->content_length() == -1) {
+        return ret;
+    }
     
     // drop all request body.
     while (!br->eof()) {

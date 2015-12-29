@@ -289,6 +289,14 @@ public:
      * alloc the payload to specified size of bytes.
      */
     virtual void create_payload(int size);
+public:
+    /**
+     * create common message,
+     * from the header and body.
+     * @remark user should never free the body.
+     * @param pheader, the header to copy to the message. NULL to ignore.
+     */
+    virtual int create(SrsMessageHeader* pheader, char* body, int size);
 };
 
 /**

@@ -327,6 +327,7 @@ public:
      * that is, the *ppmsg always NOT-NULL when return success.
      * or error and *ppmsg must be NULL.
      * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
+     * @remark user must free the ppmsg if not NULL.
      */
     virtual int parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
 private:

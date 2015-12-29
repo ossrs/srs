@@ -4522,19 +4522,21 @@ bool SrsConfig::get_mix_correct(string vhost)
 
 double SrsConfig::get_queue_length(string vhost)
 {
+    static double DEFAULT = SRS_PERF_PLAY_QUEUE;
+    
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return SRS_PERF_PLAY_QUEUE;
+        return DEFAULT;
     }
     
     conf = conf->get("play");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_GOP_CACHE;
+        return DEFAULT;
     }
     
     conf = conf->get("queue_length");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_PLAY_QUEUE;
+        return DEFAULT;
     }
     
     return ::atoi(conf->arg0().c_str());

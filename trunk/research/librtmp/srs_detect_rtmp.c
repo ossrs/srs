@@ -147,7 +147,7 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
-        if ((timestamp - basetime) > duration * 1000) {
+        if (timestamp > basetime && (timestamp - basetime) > duration * 1000) {
             srs_human_trace("duration exceed, terminate.");
             goto rtmp_destroy;
         }

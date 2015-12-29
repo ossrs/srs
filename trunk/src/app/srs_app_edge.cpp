@@ -48,16 +48,16 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
+#define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_INGESTER_TIMEOUT_US (int64_t)(3*1000*1000LL)
+#define SRS_EDGE_INGESTER_TIMEOUT_US (int64_t)(5*1000*1000LL)
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_FORWARDER_SLEEP_US (int64_t)(1*1000*1000LL)
+#define SRS_EDGE_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_FORWARDER_TIMEOUT_US (int64_t)(3*1000*1000LL)
+#define SRS_EDGE_FORWARDER_TIMEOUT_US (int64_t)(5*1000*1000LL)
 
 // when edge error, wait for quit
 #define SRS_EDGE_FORWARDER_ERROR_US (int64_t)(50*1000LL)

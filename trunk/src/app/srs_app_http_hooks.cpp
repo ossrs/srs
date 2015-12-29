@@ -334,7 +334,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     obj->set("duration", SrsJsonAny::number(duration));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
-    obj->set("url", SrsJsonAny::str(url.c_str()));
+    obj->set("url", SrsJsonAny::str(ts_url.c_str()));
     obj->set("m3u8", SrsJsonAny::str(m3u8.c_str()));
     obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
     obj->set("seq_no", SrsJsonAny::integer(sn));
@@ -453,7 +453,7 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     
     // ensure the http status is ok.
     // https://github.com/ossrs/srs/issues/158
-    if (code != SRS_CONSTS_HTTP_OK) {
+    if (code != SRS_CONSTS_HTTP_OK && code != SRS_CONSTS_HTTP_Created) {
         ret = ERROR_HTTP_STATUS_INVALID;
         srs_error("invalid response status=%d. ret=%d", code, ret);
         return ret;

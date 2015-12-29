@@ -178,6 +178,20 @@ void SrsCommonMessage::create_payload(int size)
 #endif
 }
 
+int SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // drop previous payload.
+    srs_freepa(payload);
+    
+    this->header = *pheader;
+    this->payload = body;
+    this->size = size;
+    
+    return ret;
+}
+
 SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;

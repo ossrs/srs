@@ -102,6 +102,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_CONFIG_RAW_DISABLED    1061
 #define ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED 1062
 #define ERROR_SYSTEM_CONFIG_RAW_PARAMS      1063
+#define ERROR_SYSTEM_FILE_NOT_EXISTS        1064
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
@@ -234,6 +235,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RESPONSE_CODE                 3064
 #define ERROR_RESPONSE_DATA                 3065
 #define ERROR_REQUEST_DATA                  3066
+#define ERROR_EDGE_PORT_INVALID             3067
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.
@@ -276,6 +278,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_KAFKA_CODEC_METADATA          4035
 #define ERROR_KAFKA_CODEC_MESSAGE           4036
 #define ERROR_KAFKA_CODEC_PRODUCER          4037
+#define ERROR_HTTP_302_INVALID              4038
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

@@ -213,6 +213,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////////
 // HTTP consts values
 ///////////////////////////////////////////////////////////
+// the default http port.
+#define SRS_CONSTS_HTTP_DEFAULT_PORT 80
 // linux path seprator
 #define SRS_CONSTS_HTTP_PATH_SEP '/'
 // query string seprator
