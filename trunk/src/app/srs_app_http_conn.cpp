@@ -279,7 +279,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     
     // set server if not set.
     if (hdr->get("Server").empty()) {
-        hdr->set("Server", RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION);
+        hdr->set("Server", RTMP_SIG_SRS_SERVER);
     }
     
     // chunked encoding

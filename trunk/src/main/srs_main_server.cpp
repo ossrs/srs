@@ -248,6 +248,9 @@ void check_macro_features()
 int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
+    
+    // first hello message.
+    srs_trace(RTMP_SIG_SRS_SERVER);
 
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -290,7 +293,7 @@ int main(int argc, char** argv)
         return ret;
     }
     
-    srs_trace("srs(ossrs) "RTMP_SIG_SRS_VERSION);
+    srs_trace(RTMP_SIG_SRS_SERVER", stable is "RTMP_SIG_SRS_PRIMARY);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
     srs_trace("primary/master: "RTMP_SIG_SRS_PRIMARY);
     srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);

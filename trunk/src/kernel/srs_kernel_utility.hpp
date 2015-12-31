@@ -70,6 +70,8 @@ extern bool srs_string_starts_with(std::string str, std::string flag);
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
+extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1);
+extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1, std::string flag2);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);
