@@ -348,6 +348,16 @@ bool srs_string_contains(string str, string flag)
     return str.find(flag) != string::npos;
 }
 
+bool srs_string_contains(string str, string flag0, string flag1)
+{
+    return str.find(flag0) != string::npos || str.find(flag1) != string::npos;
+}
+
+bool srs_string_contains(string str, string flag0, string flag1, string flag2)
+{
+    return str.find(flag0) != string::npos || str.find(flag1) != string::npos || str.find(flag2) != string::npos;
+}
+
 vector<string> srs_string_split(string str, string flag)
 {
     vector<string> arr;

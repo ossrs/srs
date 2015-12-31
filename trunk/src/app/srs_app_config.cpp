@@ -3440,7 +3440,7 @@ int SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-        RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
+        RTMP_SIG_SRS_SERVER" "RTMP_SIG_SRS_COPYRIGHT"\n"
         "License: "RTMP_SIG_SRS_LICENSE"\n"
         "Primary: "RTMP_SIG_SRS_PRIMARY"\n"
         "Authors: "RTMP_SIG_SRS_AUTHROS"\n"

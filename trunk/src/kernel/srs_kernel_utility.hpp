@@ -88,6 +88,8 @@ extern bool srs_string_starts_with(std::string str, std::string flag0, std::stri
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
 // whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
+extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1);
+extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1, std::string flag2);
 // find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
 // split the string by flag to array.
