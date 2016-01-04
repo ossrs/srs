@@ -1359,6 +1359,9 @@ int SrsConfig::parse_options(int argc, char** argv)
         exit(0);
     }
     
+    // first hello message.
+    srs_trace(RTMP_SIG_SRS_SERVER);
+    
     if (config_file.empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("config file not specified, see help: %s -h, ret=%d", argv[0], ret);
