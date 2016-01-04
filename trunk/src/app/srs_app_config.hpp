@@ -322,6 +322,10 @@ private:
     * whether show SRS version and exit.
     */
     bool show_version;
+    /**
+     * whether show SRS signature and exit.
+     */
+    bool show_signature;
 // global env variables.
 private:
     /**

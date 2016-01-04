@@ -68,15 +68,19 @@ __mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
 done
 
 # variables for makefile for all modules.
-__mphonys="" && __mdefaults="" && __mcleanups=""
+__mphonys="" && __mdefaults="" && __mcleanups="" && __makefiles=""
 # add each modules for application
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo "install module at: $SRS_MODULE"
     . $SRS_MODULE/config
-    if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
-    __mphonys="$__mphonys $SRS_MODULE_NAME"
-    __mdefaults="$__mdefaults $SRS_MODULE_NAME"
-    __mcleanups="$__mcleanups $SRS_MODULE_NAME"
+    if [[ $SRS_MODULE_MAKEFILE != "" ]]; then
+        __makefiles="$__makefiles $SRS_MODULE_MAKEFILE"
+    fi
+    if [[ 0 -ne ${#SRS_MODULE_MAIN[@]} ]]; then
+        __mphonys="$__mphonys $SRS_MODULE_NAME"
+        __mdefaults="$__mdefaults $SRS_MODULE_NAME"
+        __mcleanups="$__mcleanups $SRS_MODULE_NAME"
+    fi
 done
 
 #####################################################################################
@@ -203,10 +207,12 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=("srs_main_server" "srs_main_ingest_hls")
+    DEFINES=""
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
         MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
+        DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -305,7 +311,7 @@ fi
 #       the server, librtmp and utest
 # where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server srs_ingest_hls librtmp utest $__mdefaults
+_default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
@@ -332,6 +338,14 @@ clean:
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 END
+
+# for Makefile of all modules.
+# depends on server, for some modules maybe use srs files.
+echo "__modules: server" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+for MMF in ${__makefiles[*]}; do
+    echo "	\$(MAKE) -f $MMF" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+done
+echo "" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 # if export librtmp, donot build the srs server.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then

@@ -1924,6 +1924,13 @@ int SrsConfig::parse_options(int argc, char** argv)
         fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
         exit(0);
     }
+    if (show_signature) {
+        fprintf(stderr, "%s\n", RTMP_SIG_SRS_SERVER);
+        exit(0);
+    }
+    
+    // first hello message.
+    srs_trace(RTMP_SIG_SRS_SERVER);
     
     if (config_file.empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -3414,6 +3421,11 @@ int SrsConfig::parse_argv(int& i, char** argv)
                 show_help = false;
                 show_version = true;
                 break;
+            case 'g':
+            case 'G':
+                show_help = false;
+                show_signature = true;
+                break;
             case 'c':
                 show_help = false;
                 if (*p) {
@@ -3446,11 +3458,12 @@ void SrsConfig::print_help(char** argv)
         "Authors: "RTMP_SIG_SRS_AUTHROS"\n"
         "Build: "SRS_AUTO_BUILD_DATE" Configuration:"SRS_AUTO_USER_CONFIGURE"\n"
         "Features:"SRS_AUTO_CONFIGURE"\n""\n"
-        "Usage: %s [-h?vV] [[-t] -c <filename>]\n" 
+        "Usage: %s [-h?vVsS] [[-t] -c <filename>]\n"
         "\n"
         "Options:\n"
         "   -?, -h              : show this help and exit(0)\n"
         "   -v, -V              : show version and exit(0)\n"
+        "   -g, -G              : show server signature and exit(0)\n"
         "   -t                  : test configuration file, exit(error_code).\n"
         "   -c filename         : use configuration file for SRS\n"
         "For srs-dolphin:\n"

@@ -228,9 +228,6 @@ void show_macro_features()
 int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
-    
-    // first hello message.
-    srs_trace(RTMP_SIG_SRS_SERVER);
 
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());

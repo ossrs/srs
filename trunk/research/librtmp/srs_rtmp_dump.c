@@ -83,6 +83,15 @@ int main(int argc, char** argv)
     srs_flv_t flv = NULL;
     srs_rtmp_t rtmp = NULL;
     
+    // srs debug info.
+    char srs_server_ip[128];
+    char srs_server[128];
+    char srs_primary[128];
+    char srs_authors[128];
+    char srs_version[32];
+    int srs_id = 0;
+    int srs_pid = 0;
+    
     printf("dump rtmp stream to flv file\n");
     printf("srs(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
@@ -108,6 +117,13 @@ int main(int argc, char** argv)
     const char* tcUrl = NULL;
     const char* pageUrl = NULL;
     srs_amf0_t args = NULL;
+    
+    // set to zero.
+    srs_server_ip[0] = 0;
+    srs_server[0] = 0;
+    srs_primary[0] = 0;
+    srs_authors[0] = 0;
+    srs_version[0] = 0;
     
     int opt = 0;
     int option_index = 0;
@@ -218,11 +234,14 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     
-    if (srs_rtmp_connect_app(rtmp) != 0) {
+    
+    if (srs_rtmp_connect_app2(rtmp,
+        srs_server_ip, srs_server, srs_primary, srs_authors, srs_version,
+        &srs_id, &srs_pid) != 0) {
         srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_human_trace("connect vhost/app success");
+    srs_human_trace("connect ok, ip=%s, server=%s/%s, pid=%d, cid=%d", srs_server_ip, srs_server, srs_version, srs_pid, srs_id);
     
     if (srs_rtmp_play_stream(rtmp) != 0) {
         srs_human_trace("play stream failed.");
