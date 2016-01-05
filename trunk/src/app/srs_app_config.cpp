@@ -49,6 +49,9 @@ using namespace std;
 
 using namespace _srs_internal;
 
+// the version to identify the core.
+const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
+
 #define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
 
 // when user config an invalid value, macros to perfer true or false.
@@ -1360,7 +1363,7 @@ int SrsConfig::parse_options(int argc, char** argv)
     }
     
     // first hello message.
-    srs_trace(RTMP_SIG_SRS_SERVER);
+    srs_trace(_srs_version);
     
     if (config_file.empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;

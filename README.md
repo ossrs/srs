@@ -338,6 +338,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-01-05, add keyword XCORE for coredump to identify the version. 2.0.207
 * <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
 * v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
 * v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
