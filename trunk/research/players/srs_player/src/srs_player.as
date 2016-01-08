@@ -137,7 +137,7 @@ package
 			var ms:NetStream = this.media_stream;
 			
             if (!ms) {
-                log("stream is null, ignore timer event.");
+                //log("stream is null, ignore timer event.");
                 return;
             }
 			
@@ -395,6 +395,26 @@ package
                     }
                     update_context_items();
                 }
+				 
+				// reject by server, maybe redirect.
+				if (evt.info.code == "NetConnection.Connect.Rejected") {
+					// RTMP 302 redirect.
+					if (evt.info.hasOwnProperty("ex") && evt.info.ex.code == 302) {
+						var streamName:String = url.substr(url.lastIndexOf("/") + 1);
+						url = evt.info.ex.redirect + "/" + streamName;
+						log("Async RTMP 302 Redirect to: " + url);
+						
+						// notify server.
+						media_conn.call("Redirected", null, evt.info.ex.redirect);
+						
+						// do 302.
+						setTimeout(function(){
+							log("Async RTMP 302 Redirected.");
+							js_call_play(url, _width, _height, buffer_time, max_buffer_time, volume);
+						}, 1000);
+						return;
+					}
+				}
                 
                 // TODO: FIXME: failed event.
                 if (evt.info.code != "NetConnection.Connect.Success") {

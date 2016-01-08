@@ -26,7 +26,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 bool srs_is_system_control_error(int error_code)
 {
     return error_code == ERROR_CONTROL_RTMP_CLOSE
-        || error_code == ERROR_CONTROL_REPUBLISH;
+        || error_code == ERROR_CONTROL_REPUBLISH
+        || error_code == ERROR_CONTROL_REDIRECT;
 }
 
 bool srs_is_client_gracefully_close(int error_code)

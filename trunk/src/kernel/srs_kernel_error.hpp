@@ -161,6 +161,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //                                           
 // system control message, 
 // not an error, but special control logic.
+//
+// connection is redirect to another server.
+#define ERROR_CONTROL_REDIRECT              2997
 // sys ctl: rtmp close stream, support replay.
 #define ERROR_CONTROL_RTMP_CLOSE            2998
 // FMLE stop publish and republish.

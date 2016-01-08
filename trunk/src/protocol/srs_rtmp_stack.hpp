@@ -930,6 +930,12 @@ public:
      */
     virtual int response_connect_app(SrsRequest* req, const char* server_ip = NULL);
     /**
+     * redirect the connection to another rtmp server.
+     * @param the hostname or ip of target.
+     * @param whether the client accept the redirect.
+     */
+    virtual int redirect(SrsRequest* r, std::string host, int port, bool& accepted);
+    /**
      * reject the connect app request.
      */
     virtual void response_connect_reject(SrsRequest* req, const char* desc);

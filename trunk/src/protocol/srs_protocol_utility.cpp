@@ -306,7 +306,9 @@ string srs_generate_rtmp_url(string server, int port, string vhost, string app, 
         ss << "...vhost..." << vhost;
     }
     
-    ss << "/" << stream;
+    if (!stream.empty()) {
+        ss << "/" << stream;
+    }
     
     return ss.str();
 }

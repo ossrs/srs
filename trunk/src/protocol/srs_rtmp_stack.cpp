@@ -2575,6 +2575,57 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     return ret;
 }
 
+#define SRS_RTMP_REDIRECT_TIMEOUT 3000
+int SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (true) {
+        string url = srs_generate_rtmp_url(host, port, r->vhost, r->app, "");
+        
+        SrsAmf0Object* ex = SrsAmf0Any::object();
+        ex->set("code", SrsAmf0Any::number(302));
+        ex->set("redirect", SrsAmf0Any::str(url.c_str()));
+        
+        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+        
+        pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
+        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
+        pkt->data->set(StatusDescription, SrsAmf0Any::str("RTMP 302 Redirect"));
+        pkt->data->set("ex", ex);
+        
+        if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+            srs_error("send redirect/rejected message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("send redirect/rejected message success.");
+    }
+    
+    // client must response a call message.
+    // or we never know whether the client is ok to redirect.
+    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TIMEOUT * 1000);
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        SrsCallPacket* pkt = NULL;
+        if ((ret = expect_message<SrsCallPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+            // ignore any error of redirect response.
+            return ERROR_SUCCESS;
+        }
+        SrsAutoFree(SrsCommonMessage, msg);
+        SrsAutoFree(SrsCallPacket, pkt);
+        
+        string message;
+        if (pkt->arguments && pkt->arguments->is_string()) {
+            message = pkt->arguments->to_str();
+            srs_info("confirm redirected to %s", message.c_str());
+            accepted = true;
+        }
+        srs_info("get redirect response message");
+    }
+    
+    return ret;
+}
+
 void SrsRtmpServer::response_connect_reject(SrsRequest* /*req*/, const char* desc)
 {
     int ret = ERROR_SUCCESS;
