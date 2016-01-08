@@ -61,10 +61,15 @@ private:
     std::vector<std::string> params;
     // the cli to fork process.
     std::string cli;
+    std::string actual_cli;
 public:
     SrsProcess();
     virtual ~SrsProcess();
 public:
+    /**
+     * get pid of process.
+     */
+    virtual int get_pid();
     /**
      * whether process is already started.
      */
@@ -73,6 +78,7 @@ public:
      * initialize the process with binary and argv.
      * @param binary the binary path to exec.
      * @param argv the argv for binary path, the argv[0] generally is the binary.
+     * @remark the argv[0] must be the binary.
      */
     virtual int initialize(std::string binary, std::vector<std::string> argv);
 public:

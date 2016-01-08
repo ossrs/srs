@@ -1905,11 +1905,6 @@ int SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
-    // cwd
-    char cwd[256];
-    getcwd(cwd, sizeof(cwd));
-    _cwd = cwd;
-    
     // config
     show_help = true;
     for (int i = 1; i < argc; i++) {
@@ -1984,6 +1979,18 @@ int SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
+    return ret;
+}
+
+int SrsConfig::initialize_cwd()
+{
+    int ret = ERROR_SUCCESS;
+
+    // cwd
+    char cwd[256];
+    getcwd(cwd, sizeof(cwd));
+    _cwd = cwd;
+
     return ret;
 }
 
@@ -3529,7 +3536,7 @@ int SrsConfig::check_config()
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster" && n != "kafka"
-            && n != "utc_time"
+            && n != "utc_time" && n != "work_dir"
         ) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
@@ -4177,6 +4184,17 @@ bool SrsConfig::get_utc_time()
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_work_dir() {
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("work_dir");
+    if( !conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

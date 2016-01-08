@@ -78,7 +78,7 @@ start() {
     if [[ -z $log_file ]]; then
         (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
     else
-        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file 2>&1)
+        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file.sys 2>&1)
     fi
     
     # check again after start server

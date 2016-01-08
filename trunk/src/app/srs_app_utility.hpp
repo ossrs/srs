@@ -664,6 +664,7 @@ extern std::string srs_get_peer_ip(int fd);
 
 // whether the url is starts with http:// or https://
 extern bool srs_string_is_http(std::string url);
+extern bool srs_string_is_rtmp(std::string url);
 
 // whether string is digit number
 //      is_digit("1234567890")  === true

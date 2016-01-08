@@ -36,11 +36,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include <srs_kernel_consts.hpp>
 
 class SrsMessageHeader;
 class SrsSharedPtrMessage;
+class SrsCommonMessage;
 class ISrsProtocolReaderWriter;
 
 /**
@@ -62,6 +64,10 @@ extern void srs_discovery_tc_url(
     std::string& app, int& port, std::string& param
 );
 
+// parse query string to map(k,v).
+// must format as key=value&...&keyN=valueN
+extern void srs_parse_query_string(std::string q, std::map<std::string, std::string>& query);
+
 /**
 * generate ramdom data for handshake.
 */
@@ -80,6 +86,24 @@ extern std::string srs_generate_tc_url(
 );
 
 /**
+ * srs_detect_tools generate the normal tcUrl
+ */
+extern std::string srs_generate_normal_tc_url(
+        std::string ip, std::string vhost, std::string app, int port);
+
+/**
+ * srs_detect_tools generate the normal tcUrl
+ */
+extern std::string srs_generate_via_tc_url(
+        std::string ip, std::string vhost, std::string app, int port);
+
+/**
+ * srs_detect_tools generate the vis/vis2 tcUrl
+ */
+extern std::string srs_generate_vis_tc_url(
+        std::string ip, std::string vhost, std::string app, int port);
+
+/**
 * compare the memory in bytes.
 * @return true if completely equal; otherwise, false.
 */
@@ -93,6 +117,10 @@ extern bool srs_bytes_equals(void* pa, void* pb, int size);
 extern int srs_rtmp_create_msg(
     char type, u_int32_t timestamp, char* data, int size, int stream_id,
     SrsSharedPtrMessage** ppmsg
+);
+extern int srs_rtmp_create_msg(
+    char type, u_int32_t timestamp, char* data, int size, int stream_id,
+    SrsCommonMessage** ppmsg
 );
 
 // get the stream identify, vhost/app/stream.

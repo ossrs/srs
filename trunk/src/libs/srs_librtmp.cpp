@@ -467,6 +467,8 @@ int srs_librtmp_context_parse_uri(Context* context)
     std::string schema;
     
     srs_parse_rtmp_url(context->url, context->tcUrl, context->stream);
+
+    // when connect, we only need to parse the tcUrl
     srs_discovery_tc_url(context->tcUrl, 
         schema, context->host, context->vhost, context->app, context->port,
         context->param);
@@ -688,11 +690,11 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
-    
+
     string tcUrl = srs_generate_tc_url(
-        context->ip, context->vhost, context->app, context->port,
-        context->param
-    );
+            context->ip, context->vhost, context->app, context->port,
+            context->param
+        );
     
     if ((ret = context->rtmp->connect_app(
         context->app, tcUrl, context->req, true)) != ERROR_SUCCESS) 
@@ -739,6 +741,38 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     snprintf(srs_authors, 128, "%s", sauthors.c_str());
     snprintf(srs_version, 32, "%s", sversion.c_str());
     
+    return ret;
+}
+
+int srs_rtmp_connect_app3(srs_rtmp_t rtmp, enum srs_url_schema sus)
+{
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+
+    string tcUrl;
+    switch(sus) {
+        case srs_url_schema_normal:
+            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_via:
+            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_vis:
+        case srs_url_schema_vis2:
+            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        default:
+            break;
+    }
+
+    if ((ret = context->rtmp->connect_app(
+            context->app, tcUrl, context->req, true)) != ERROR_SUCCESS)
+    {
+        return ret;
+    }
+
     return ret;
 }
 

@@ -26,6 +26,7 @@ gcc srs_detect_rtmp.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_detect
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../../objs/include/srs_librtmp.h"
 
@@ -41,8 +42,6 @@ int main(int argc, char** argv)
     int64_t time_play_stream = 0;
     int64_t time_first_packet = 0;
     int64_t time_cleanup = 0;
-    // delay = actual - expect time when quit.
-    int delay = 0;
     // bytes
     int64_t bytes_nsend = 0;
     int time_duration = 0;
@@ -59,6 +58,7 @@ int main(int argc, char** argv)
     const char* rtmp_url = NULL;
     int duration = 0;
     int timeout = 0;
+    enum srs_url_schema sus;
 
     printf("detect rtmp stream\n");
     printf("srs(ossrs) client librtmp library.\n");
@@ -66,12 +66,17 @@ int main(int argc, char** argv)
     
     if (argc <= 3) {
         printf("detect stream on RTMP server, print result to stderr.\n"
-            "Usage: %s <rtmp_url> <duration> <timeout>\n"
+            "Usage: %s <rtmp_url> <duration> <timeout> [url_schema]\n"
             "   rtmp_url     RTMP stream url to play\n"
             "   duration     how long to play, in seconds, stream time.\n"
             "   timeout      how long to timeout, in seconds, system time.\n"
+            "   url_schema   the schema of url, default to vis, can be:\n"
+            "                    normal:    rtmp://vhost:port/app/stream\n"
+            "                    via   :    rtmp://ip:port/vhost/app/stream\n"
+            "                    vis   :    rtmp://ip:port/app/stream?vhost=xxx\n"
+            "                    vis2  :    rtmp://ip:port/app/stream?domain=xxx\n"
             "For example:\n"
-            "   %s rtmp://127.0.0.1:1935/live/livestream 3 10\n",
+            "   %s rtmp://127.0.0.1:1935/bravo.chnvideo.com/live/livestream 3 10\n",
             argv[0], argv[0]);
         exit(-1);
     }
@@ -79,15 +84,36 @@ int main(int argc, char** argv)
     rtmp_url = argv[1];
     duration = atoi(argv[2]);
     timeout = atoi(argv[3]);
-    
+
+    if (1) {
+        char *p = "vis";
+        if (argc > 4) {
+            p = argv[4];
+        }
+        
+        if (strcmp(p, "normal") == 0) {
+            sus = srs_url_schema_normal;
+        } else if (strcmp(p, "via") == 0) {
+            sus = srs_url_schema_via;
+        } else if (strcmp(p, "vis") == 0) {
+            sus = srs_url_schema_vis;
+        } else if (strcmp(p, "vis2") == 0){
+            sus = srs_url_schema_vis2;
+        } else {
+            srs_human_trace("url_schema must be normal/via/vis/vis2");
+            exit(-2);
+        }
+        srs_human_trace("url schema: %s", p);
+    }
+
     srs_human_trace("rtmp url: %s", rtmp_url);
     srs_human_trace("duration: %ds, timeout:%ds", duration, timeout);
     
     if (duration <= 0 || timeout <= 0) {
         srs_human_trace("duration and timeout must be positive.");
-        exit(-2);
+        exit(-3);
     }
-    
+
     rtmp = srs_rtmp_create(rtmp_url);
     
     if ((ret = srs_rtmp_dns_resolve(rtmp)) != 0) {
@@ -109,8 +135,8 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     srs_human_trace("do simple handshake success");
-    
-    if ((ret = srs_rtmp_connect_app(rtmp)) != 0) {
+
+    if ((ret = srs_rtmp_connect_app3(rtmp, sus)) != 0) {
         srs_human_trace("connect vhost/app failed. ret=%d", ret);
         goto rtmp_destroy;
     }

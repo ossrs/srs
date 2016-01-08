@@ -41,6 +41,9 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_app_utility.hpp>
 
 SrsProcess::SrsProcess()
 {
@@ -51,6 +54,11 @@ SrsProcess::SrsProcess()
 
 SrsProcess::~SrsProcess()
 {
+}
+
+int SrsProcess::get_pid()
+{
+    return pid;
 }
 
 bool SrsProcess::started()
@@ -64,38 +72,65 @@ int SrsProcess::initialize(string binary, vector<string> argv)
     
     bin = binary;
     cli = "";
+    actual_cli = "";
     params.clear();
     
     for (int i = 0; i < (int)argv.size(); i++) {
         std::string ffp = argv[i];
-        cli += ffp;
-        if (i < (int)argv.size() - 1) {
-            cli += " ";
-        }
-    }
-    
-    for (int i = 0; i < (int)argv.size(); i++) {
-        std::string ffp = argv[i];
-        std::string nffp = (i < (int)argv.size() -1)? argv[i + 1] : "";
+        std::string nffp = (i < (int)argv.size() - 1)? argv[i + 1] : "";
+        std::string nnffp = (i < (int)argv.size() - 2)? argv[i + 2] : "";
         
-        // remove the stdout and stderr.
-        if (ffp == "1" && nffp == ">") {
-            if (i + 2 < (int)argv.size()) {
-                stdout_file = argv[i + 2];
-                i += 2;
-            }
-            continue;
-        } else if (ffp == "2" && nffp == ">") {
-            if (i + 2 < (int)argv.size()) {
-                stderr_file = argv[i + 2];
-                i += 2;
-            }
+        // 1>file
+        if (srs_string_starts_with(ffp, "1>")) {
+            stdout_file = ffp.substr(2);
             continue;
         }
         
-        // startup params.
+        // 2>file
+        if (srs_string_starts_with(ffp, "2>")) {
+            stderr_file = ffp.substr(2);
+            continue;
+        }
+        
+        // 1 >X
+        if (ffp == "1" && srs_string_starts_with(nffp, ">")) {
+            if (nffp == ">") {
+                // 1 > file
+                if (!nnffp.empty()) {
+                    stderr_file = nnffp;
+                    i++;
+                }
+            } else {
+                // 1 >file
+                stdout_file = srs_string_trim_start(nffp, ">");
+            }
+            // skip the >
+            i++;
+            continue;
+        }
+        
+        // 2 >X
+        if (ffp == "2" && srs_string_starts_with(nffp, ">")) {
+            if (nffp == ">") {
+                // 2 > file
+                if (!nnffp.empty()) {
+                    stderr_file = nnffp;
+                    i++;
+                }
+            } else {
+                // 2 >file
+                stderr_file = srs_string_trim_start(nffp, ">");
+            }
+            // skip the >
+            i++;
+            continue;
+        }
+        
         params.push_back(ffp);
     }
+    
+    actual_cli = srs_join_vector_string(params, " ");
+    cli = srs_join_vector_string(argv, " ");
     
     return ret;
 }
@@ -109,7 +144,7 @@ int SrsProcess::start()
     }
     
     // generate the argv of process.
-    srs_trace("fork process: %s", cli.c_str());
+    srs_info("fork process: %s", cli.c_str());
     
     // for log
     int cid = _srs_context->get_id();
@@ -118,11 +153,12 @@ int SrsProcess::start()
     // TODO: fork or vfork?
     if ((pid = fork()) < 0) {
         ret = ERROR_ENCODER_FORK;
-        srs_error("vfork process failed. ret=%d", ret);
+        srs_error("vfork process failed, cli=%s. ret=%d", cli.c_str(), ret);
         return ret;
     }
     
     // for osx(lldb) to debug the child process.
+    // user can use "lldb -p <pid>" to resume the parent or child process.
     //kill(0, SIGSTOP);
     
     // child process: ffmpeg encoder engine.
@@ -176,6 +212,7 @@ int SrsProcess::start()
             fprintf(stderr, "process parent cid=%d\n", cid);
             fprintf(stderr, "process binary=%s\n", bin.c_str());
             fprintf(stderr, "process cli: %s\n", cli.c_str());
+            fprintf(stderr, "process actual cli: %s\n", actual_cli.c_str());
         }
         
         // close other fds
@@ -204,7 +241,8 @@ int SrsProcess::start()
     // parent.
     if (pid > 0) {
         is_started = true;
-        srs_trace("vfored process, pid=%d, bin=%s", pid, bin.c_str());
+        srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
+            pid, bin.c_str(), stdout_file.c_str(), stdout_file.c_str(), actual_cli.c_str());
         return ret;
     }
     
@@ -238,7 +276,7 @@ int SrsProcess::cycle()
         return ret;
     }
     
-    srs_trace("process pid=%d terminate, restart it.", pid);
+    srs_trace("process pid=%d terminate, please restart it.", pid);
     is_started = false;
     
     return ret;

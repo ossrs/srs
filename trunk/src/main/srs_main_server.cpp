@@ -261,7 +261,17 @@ int main(int argc, char** argv)
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
         return ret;
     }
-    
+
+    // change the work dir and set cwd.
+    string cwd = _srs_config->get_work_dir();
+    if (!cwd.empty() && (ret = chdir(cwd.c_str())) != ERROR_SUCCESS) {
+        srs_error("change cwd to %s failed. ret=%d", cwd.c_str(), ret);
+        return ret;
+    }
+    if ((ret = _srs_config->initialize_cwd()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
     // config parsed, initialize log.
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
@@ -276,6 +286,24 @@ int main(int argc, char** argv)
     srs_trace("configure detail: "SRS_AUTO_CONFIGURE);
 #ifdef SRS_AUTO_EMBEDED_TOOL_CHAIN
     srs_trace("crossbuild tool chain: "SRS_AUTO_EMBEDED_TOOL_CHAIN);
+#endif
+    srs_trace("cwd=%s, work_dir=%s", _srs_config->cwd().c_str(), cwd.c_str());
+    
+#ifdef SRS_PERF_GLIBC_MEMORY_CHECK
+    // ensure glibc write error to stderr.
+    setenv("LIBC_FATAL_STDERR_", "1", 1);
+    // ensure glibc to do alloc check.
+    setenv("MALLOC_CHECK_", "1", 1);
+    srs_trace("env MALLOC_CHECK_=1 LIBC_FATAL_STDERR_=1");
+#endif
+    
+#ifdef SRS_AUTO_GPERF_MD
+    char* TCMALLOC_PAGE_FENCE = getenv("TCMALLOC_PAGE_FENCE");
+    if (!TCMALLOC_PAGE_FENCE || strcmp(TCMALLOC_PAGE_FENCE, "1")) {
+        srs_trace("gmd enabled without env TCMALLOC_PAGE_FENCE=1");
+    } else {
+        srs_trace("env TCMALLOC_PAGE_FENCE=1");
+    }
 #endif
 
     // we check the config when the log initialized.

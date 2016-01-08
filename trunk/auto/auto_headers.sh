@@ -195,6 +195,11 @@ if [ $SRS_GPERF_MC = YES ]; then
 else
     srs_undefine_macro "SRS_AUTO_GPERF_MC" $SRS_AUTO_HEADERS_H
 fi
+if [ $SRS_GPERF_MD = YES ]; then
+    srs_define_macro "SRS_AUTO_GPERF_MD" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_GPERF_MD" $SRS_AUTO_HEADERS_H
+fi
 if [ $SRS_GPERF_MP = YES ]; then
     srs_define_macro "SRS_AUTO_GPERF_MP" $SRS_AUTO_HEADERS_H
 else

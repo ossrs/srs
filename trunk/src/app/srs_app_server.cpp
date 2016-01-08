@@ -959,6 +959,7 @@ int SrsServer::do_cycle()
 #endif
     
     // the deamon thread, update the time cache
+    // TODO: FIXME: use SrsHourGlass.
     while (true) {
         if (handler && (ret = handler->on_cycle()) != ERROR_SUCCESS) {
             srs_error("cycle handle failed. ret=%d", ret);

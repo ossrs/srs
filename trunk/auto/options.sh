@@ -36,6 +36,8 @@ SRS_UTEST=RESERVED
 SRS_GPERF=RESERVED
 # gperf memory check
 SRS_GPERF_MC=RESERVED
+# gperf memory defence
+SRS_GPERF_MD=RESERVED
 # gperf memory profile
 SRS_GPERF_MP=RESERVED
 # gperf cpu profile
@@ -130,8 +132,9 @@ Options:
   --with-librtmp            enable srs-librtmp, library for client.
   --with-research           build the research tools.
   --with-utest              build the utest for SRS.
-  --with-gperf              build SRS with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
+  --with-gperf              build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
   --with-gmc                build memory check for SRS with gperf tools.
+  --with-gmd                build memory defense(corrupt memory) for SRS with gperf tools.
   --with-gmp                build memory profile for SRS with gperf tools.
   --with-gcp                build cpu profile for SRS with gperf tools.
   --with-gprof              build SRS with gprof(GNU profile tool).
@@ -155,8 +158,9 @@ Options:
   --without-librtmp         disable srs-librtmp, library for client.
   --without-research        do not build the research tools.
   --without-utest           do not build the utest for SRS.
-  --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmc/gmp/gcp).
+  --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmd/gmc/gmp/gcp).
   --without-gmc             do not build memory check for SRS with gperf tools.
+  --without-gmd             do not build memory defense for SRS with gperf tools.
   --without-gmp             do not build memory profile for SRS with gperf tools.
   --without-gcp             do not build cpu profile for SRS with gperf tools.
   --without-gprof           do not build srs with gprof(GNU profile tool).
@@ -241,6 +245,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
+        --with-gmd)                     SRS_GPERF_MD=YES            ;;
         --with-gmp)                     SRS_GPERF_MP=YES            ;;
         --with-gcp)                     SRS_GPERF_CP=YES            ;;
         --with-gprof)                   SRS_GPROF=YES               ;;
@@ -266,6 +271,7 @@ function parse_user_option() {
         --without-utest)                SRS_UTEST=NO                ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
+        --without-gmd)                  SRS_GPERF_MD=NO             ;;
         --without-gmp)                  SRS_GPERF_MP=NO             ;;
         --without-gcp)                  SRS_GPERF_CP=NO             ;;
         --without-gprof)                SRS_GPROF=NO                ;;
@@ -401,6 +407,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -429,6 +436,7 @@ function apply_user_presets() {
         SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -457,6 +465,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -485,6 +494,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -513,6 +523,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -533,7 +544,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -541,6 +552,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -562,7 +574,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -570,6 +582,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -590,7 +603,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -598,6 +611,7 @@ function apply_user_presets() {
         SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -618,7 +632,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -626,6 +640,7 @@ function apply_user_presets() {
         SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -646,7 +661,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -654,6 +669,7 @@ function apply_user_presets() {
         SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -674,7 +690,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=NO
@@ -682,6 +698,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -702,7 +719,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -710,6 +727,7 @@ function apply_user_presets() {
         SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -730,7 +748,7 @@ function apply_user_presets() {
         SRS_HTTP_CORE=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=NO
+        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
@@ -738,6 +756,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -766,6 +785,7 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -829,6 +849,7 @@ function apply_user_detail_options() {
         SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
+        SRS_GPERF_MD=NO
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
@@ -861,6 +882,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
+    if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi
     if [ $SRS_GPERF_MP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmp"; fi
     if [ $SRS_GPERF_CP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gcp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gcp"; fi
     if [ $SRS_GPROF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gprof"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gprof"; fi
@@ -882,6 +904,7 @@ function check_option_conflicts() {
     # check conflict
     if [ $SRS_GPERF = NO ]; then
         if [ $SRS_GPERF_MC = YES ]; then echo "gperf-mc depends on gperf, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_MD = YES ]; then echo "gperf-md depends on gperf, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_MP = YES ]; then echo "gperf-mp depends on gperf, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_CP = YES ]; then echo "gperf-cp depends on gperf, see: ./configure --help"; __check_ok=NO; fi
     fi
@@ -897,6 +920,7 @@ function check_option_conflicts() {
     # generate the group option: SRS_GPERF
     __gperf_slow=NO
     if [ $SRS_GPERF_MC = YES ]; then SRS_GPERF=YES; __gperf_slow=YES; fi
+    if [ $SRS_GPERF_MD = YES ]; then SRS_GPERF=YES; __gperf_slow=YES; fi
     if [ $SRS_GPERF_MP = YES ]; then SRS_GPERF=YES; __gperf_slow=YES; fi
     if [ $SRS_GPERF_CP = YES ]; then SRS_GPERF=YES; __gperf_slow=YES; fi
     if [ $__gperf_slow = YES ]; then if [ $SRS_GPROF = YES ]; then 
@@ -910,14 +934,24 @@ function check_option_conflicts() {
         if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_MC = YES ]; then echo "gmc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_MD = YES ]; then echo "gmd for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_MP = YES ]; then echo "gmp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPERF_CP = YES ]; then echo "gcp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_GPROF = YES ]; then echo "gprof for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     fi
 
-    # if x86/x64 or directly build, never use static
-    if [[ $SRS_X86_X64 = YES &&  $SRS_STATIC = YES ]]; then
-        echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
+    # osx not support gperf.
+    if [ $SRS_OSX = YES ]; then
+        if [ $SRS_GPERF = YES ]; then echo "gperf for osx is not available, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_MC = YES ]; then echo "gmc for osx is not available, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_MD = YES ]; then echo "gmd for osx is not available, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_MP = YES ]; then echo "gmp for osx is not available, see: ./configure --help"; __check_ok=NO; fi
+        if [ $SRS_GPERF_CP = YES ]; then echo "gcp for osx is not available, see: ./configure --help"; __check_ok=NO; fi
+    fi
+
+    # if osx, never use static
+    if [[ $SRS_OSX = YES && $SRS_STATIC = YES ]]; then
+        echo "osx should never use static, see: ./configure --help"; __check_ok=NO;
     fi
     
     # TODO: FIXME: check more os.
@@ -939,6 +973,7 @@ function check_option_conflicts() {
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF = RESERVED ]; then echo "you must specifies the gperf, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MC = RESERVED ]; then echo "you must specifies the gperf-mc, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPERF_MD = RESERVED ]; then echo "you must specifies the gperf-md, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MP = RESERVED ]; then echo "you must specifies the gperf-mp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_CP = RESERVED ]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi

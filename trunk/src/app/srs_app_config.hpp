@@ -417,6 +417,11 @@ public:
      */
     virtual int parse_options(int argc, char** argv);
     /**
+     * initialize the cwd for server,
+     * because we may change the workdir.
+     */
+    virtual int initialize_cwd();
+    /**
      * persistence current config to file.
      */
     virtual int persistence();
@@ -607,6 +612,11 @@ public:
      * whether use utc-time to format the time.
      */
     virtual bool                get_utc_time();
+    /**
+     * get the configed work dir.
+     * ignore if empty string.
+     */
+    virtual std::string         get_work_dir();
 // stream_caster section
 public:
     /**

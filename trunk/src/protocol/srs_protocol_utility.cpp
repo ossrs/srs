@@ -149,9 +149,26 @@ string srs_generate_tc_url(string ip, string vhost, string app, int port, string
     
     tcUrl += "/";
     tcUrl += app;
-    tcUrl += param;
+    if (!param.empty()) {
+        tcUrl += "?" + param;
+    }
     
     return tcUrl;
+}
+
+string srs_generate_normal_tc_url(string ip, string vhost, string app, int port)
+{
+    return "rtmp://" + vhost + ":" + srs_int2str(port) + "/" + app;
+}
+
+string srs_generate_via_tc_url(string ip, string vhost, string app, int port)
+{
+    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + vhost + "/" + app;
+}
+
+string srs_generate_vis_tc_url(string ip, string vhost, string app, int port)
+{
+    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + app;
 }
 
 /**
@@ -179,18 +196,19 @@ bool srs_bytes_equals(void* pa, void* pb, int size)
     return true;
 }
 
-int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+template<typename T>
+int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, T** ppmsg)
 {
     int ret = ERROR_SUCCESS;
     
     *ppmsg = NULL;
-    SrsSharedPtrMessage* msg = NULL;
+    T* msg = NULL;
     
     if (type == SrsCodecFlvTagAudio) {
         SrsMessageHeader header;
         header.initialize_audio(size, timestamp, stream_id);
         
-        msg = new SrsSharedPtrMessage();
+        msg = new T();
         if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(msg);
             return ret;
@@ -199,7 +217,7 @@ int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size,
         SrsMessageHeader header;
         header.initialize_video(size, timestamp, stream_id);
         
-        msg = new SrsSharedPtrMessage();
+        msg = new T();
         if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(msg);
             return ret;
@@ -208,7 +226,7 @@ int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size,
         SrsMessageHeader header;
         header.initialize_amf0_script(size, stream_id);
         
-        msg = new SrsSharedPtrMessage();
+        msg = new T();
         if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(msg);
             return ret;
@@ -234,6 +252,19 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
         return ret;
     }
 
+    return ret;
+}
+
+int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsCommonMessage** ppmsg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // only when failed, we must free the data.
+    if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
+        srs_freepa(data);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -332,5 +363,22 @@ string srs_join_vector_string(vector<string>& vs, string separator)
     }
     
     return str;
+}
+
+bool srs_is_ipv4(string domain)
+{
+    for (int i = 0; i < (int)domain.length(); i++) {
+        char ch = domain.at(i);
+        if (ch == '.') {
+            continue;
+        }
+        if (ch >= '0' && ch <= '9') {
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return true;
 }
 

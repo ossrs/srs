@@ -234,7 +234,6 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     
-    
     if (srs_rtmp_connect_app2(rtmp,
         srs_server_ip, srs_server, srs_primary, srs_authors, srs_version,
         &srs_id, &srs_pid) != 0) {

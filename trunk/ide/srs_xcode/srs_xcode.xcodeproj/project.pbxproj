@@ -75,6 +75,8 @@
 		3C1232ED1AAEA70F00CE8F6C /* libhttp_parser.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C1232EC1AAEA70F00CE8F6C /* libhttp_parser.a */; };
 		3C1EE6AE1AB1055800576EE9 /* srs_app_hds.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1EE6AC1AB1055800576EE9 /* srs_app_hds.cpp */; };
 		3C1EE6D71AB1367D00576EE9 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 3C1EE6D61AB1367D00576EE9 /* README.md */; };
+		3C24ECCD1C3B824800460622 /* memory.error.notcmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C24ECCB1C3B824800460622 /* memory.error.notcmalloc.cpp */; };
+		3C24ECCE1C3B824800460622 /* memory.error.tcmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C24ECCC1C3B824800460622 /* memory.error.tcmalloc.cpp */; };
 		3C26E3C61BB146FF00D0F9DB /* srs_app_kafka.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C26E3C41BB146FF00D0F9DB /* srs_app_kafka.cpp */; };
 		3C28EDDF1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C28EDDD1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp */; };
 		3C36DB5B1ABD1CB90066CCAF /* srs_lib_bandwidth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C36DB551ABD1CB90066CCAF /* srs_lib_bandwidth.cpp */; };
@@ -103,6 +105,7 @@
 		3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9C1AB6AAC800C9CEEE /* stk.c */; };
 		3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9D1AB6AAC800C9CEEE /* sync.c */; };
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
+		3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */; };
 		3CB25C2A1BB269FD00C97A63 /* jmp_sp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */; };
 		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
 		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
@@ -326,6 +329,8 @@
 		3C1EE6D41AB1367D00576EE9 /* DONATIONS.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DONATIONS.txt; path = ../../../DONATIONS.txt; sourceTree = "<group>"; };
 		3C1EE6D51AB1367D00576EE9 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = LICENSE; path = ../../../LICENSE; sourceTree = "<group>"; };
 		3C1EE6D61AB1367D00576EE9 /* README.md */ = {isa = PBXFileReference; explicitFileType = net.daringfireball.markdown; fileEncoding = 4; name = README.md; path = ../../../README.md; sourceTree = "<group>"; wrapsLines = 0; };
+		3C24ECCB1C3B824800460622 /* memory.error.notcmalloc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.error.notcmalloc.cpp; path = ../../../research/gperftools/memory.error.notcmalloc.cpp; sourceTree = "<group>"; };
+		3C24ECCC1C3B824800460622 /* memory.error.tcmalloc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.error.tcmalloc.cpp; path = ../../../research/gperftools/memory.error.tcmalloc.cpp; sourceTree = "<group>"; };
 		3C26E3C41BB146FF00D0F9DB /* srs_app_kafka.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_kafka.cpp; path = ../../../src/app/srs_app_kafka.cpp; sourceTree = "<group>"; };
 		3C26E3C51BB146FF00D0F9DB /* srs_app_kafka.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_kafka.hpp; path = ../../../src/app/srs_app_kafka.hpp; sourceTree = "<group>"; };
 		3C28EDDD1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_caster_flv.cpp; path = ../../../src/app/srs_app_caster_flv.cpp; sourceTree = "<group>"; };
@@ -374,6 +379,8 @@
 		3C8280291BAFF896004A1794 /* transform.edge.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transform.edge.conf; path = ../../../conf/transform.edge.conf; sourceTree = "<group>"; };
 		3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kafka_stack.cpp; path = ../../../src/protocol/srs_kafka_stack.cpp; sourceTree = "<group>"; };
 		3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kafka_stack.hpp; path = ../../../src/protocol/srs_kafka_stack.hpp; sourceTree = "<group>"; };
+		3C8CE01C1C3F482100548CC6 /* srs_app_hourglass.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_hourglass.hpp; path = ../../../src/app/srs_app_hourglass.hpp; sourceTree = "<group>"; };
+		3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_hourglass.cpp; path = ../../../src/app/srs_app_hourglass.cpp; sourceTree = "<group>"; };
 		3CB25C281BB2596300C97A63 /* setup_variables.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = setup_variables.sh; path = ../../../auto/setup_variables.sh; sourceTree = "<group>"; };
 		3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = jmp_sp.cpp; path = ../../../research/arm/jmp_sp.cpp; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
@@ -444,6 +451,7 @@
 				3C1232041AAE80CB00CE8F6C /* main */,
 				3C1231F91AAE670E00CE8F6C /* objs */,
 				3C1232BA1AAE826F00CE8F6C /* auto */,
+				3C96ADC41B00A71000885304 /* modules */,
 				3C1232B91AAE825100CE8F6C /* scripts */,
 				3C1EE6AF1AB107EE00576EE9 /* conf */,
 				3C36DB541ABD1CA70066CCAF /* libs */,
@@ -581,6 +589,8 @@
 				3C12325F1AAE81D900CE8F6C /* srs_app_heartbeat.hpp */,
 				3C1232601AAE81D900CE8F6C /* srs_app_hls.cpp */,
 				3C1232611AAE81D900CE8F6C /* srs_app_hls.hpp */,
+				3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */,
+				3C8CE01C1C3F482100548CC6 /* srs_app_hourglass.hpp */,
 				3C1232621AAE81D900CE8F6C /* srs_app_http_api.cpp */,
 				3C1232631AAE81D900CE8F6C /* srs_app_http_api.hpp */,
 				3C1232641AAE81D900CE8F6C /* srs_app_http_client.cpp */,
@@ -782,6 +792,8 @@
 			isa = PBXGroup;
 			children = (
 				3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */,
+				3C24ECCB1C3B824800460622 /* memory.error.notcmalloc.cpp */,
+				3C24ECCC1C3B824800460622 /* memory.error.tcmalloc.cpp */,
 				3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */,
 				3C663F031AB0155100286D8B /* srs_audio_raw_publish.c */,
 				3C663F041AB0155100286D8B /* srs_bandwidth_check.c */,
@@ -814,6 +826,14 @@
 				3C689F951AB6AAAC00C9CEEE /* md.h */,
 			);
 			name = "st-1.9";
+			sourceTree = "<group>";
+		};
+		3C96ADC41B00A71000885304 /* modules */ = {
+			isa = PBXGroup;
+			children = (
+				3C24ECCA1C3A42D800460622 /* readme.txt */,
+			);
+			name = modules;
 			sourceTree = "<group>";
 		};
 		3CC52DC91ACE4006006FEB01 /* utest */ = {
@@ -904,6 +924,7 @@
 				3C663F171AB0155100286D8B /* srs_ingest_rtmp.c in Sources */,
 				3C26E3C61BB146FF00D0F9DB /* srs_app_kafka.cpp in Sources */,
 				3C663F131AB0155100286D8B /* srs_flv_injecter.c in Sources */,
+				3C24ECCD1C3B824800460622 /* memory.error.notcmalloc.cpp in Sources */,
 				3C1232971AAE81D900CE8F6C /* srs_app_dvr.cpp in Sources */,
 				3CD247C31BB3F14100DC1922 /* srs_kernel_balance.cpp in Sources */,
 				3C1232271AAE814D00CE8F6C /* srs_kernel_log.cpp in Sources */,
@@ -928,6 +949,7 @@
 				3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */,
 				3C36DB5C1ABD1CB90066CCAF /* srs_lib_simple_socket.cpp in Sources */,
 				3C1232201AAE814D00CE8F6C /* srs_kernel_aac.cpp in Sources */,
+				3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */,
 				3C1232941AAE81D900CE8F6C /* srs_app_bandwidth.cpp in Sources */,
 				3C1232221AAE814D00CE8F6C /* srs_kernel_codec.cpp in Sources */,
 				3C1232B71AAE81D900CE8F6C /* srs_app_utility.cpp in Sources */,
@@ -958,6 +980,7 @@
 				3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */,
 				3C1232061AAE812C00CE8F6C /* srs_main_server.cpp in Sources */,
 				3C1232281AAE814D00CE8F6C /* srs_kernel_mp3.cpp in Sources */,
+				3C24ECCE1C3B824800460622 /* memory.error.tcmalloc.cpp in Sources */,
 				3C1232B21AAE81D900CE8F6C /* srs_app_source.cpp in Sources */,
 				3C1231F71AAE652D00CE8F6C /* srs_core_performance.cpp in Sources */,
 				3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */,

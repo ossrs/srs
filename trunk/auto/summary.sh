@@ -19,6 +19,7 @@ SrsResearchSummaryColor="\${GREEN}{disabled} "; if [ $SRS_RESEARCH = YES ]; then
 SrsUtestSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\${GREEN}"; fi
 SrsGperfSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\${GREEN}"; fi
 SrsGperfMCSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\${YELLOW}"; fi
+SrsGperfMDSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MD = YES ]; then SrsGperfMDSummaryColor="\${YELLOW}"; fi
 SrsGperfMPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\${YELLOW}"; fi
 SrsGperfCPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
 SrsGprofSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
@@ -37,6 +38,9 @@ BLACK="\\${BLACK}"
 echo -e "\${GREEN}build summary:\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "     |${SrsGperfSummaryColor}gperf @see: https://github.com/ossrs/srs/wiki/v1_CN_GPERF\${BLACK}"
+echo -e "     |     ${SrsGperfMDSummaryColor}gmd @see: http://blog.csdn.net/win_lin/article/details/50461709\${BLACK}"
+echo -e "     |     ${SrsGperfMDSummaryColor}gmd: gperf memory defense, or memory corrupt detect\${BLACK}"
+echo -e "     |             ${SrsGperfMDSummaryColor}env TCMALLOC_PAGE_FENCE=1 ./objs/srs -c conf/console.conf\${BLACK}"
 echo -e "     |     ${SrsGperfMCSummaryColor}gmc @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\${BLACK}"
 echo -e "     |     ${SrsGperfMCSummaryColor}gmc: gperf memory check, or memory leak detect\${BLACK}"
 echo -e "     |             ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/console.conf 2>gmc.log # start gmc\${BLACK}"

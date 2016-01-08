@@ -68,6 +68,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C"{
 #endif
 
+/**
+* the schema of url, now bravo support 4 kinds of url:
+*     srs_url_schema_normal:    rtmp://vhost:port/app/stream
+*     srs_url_schema_via   :    rtmp://ip:port/vhost/app/stream
+*     srs_url_schema_vis   :    rtmp://ip:port/app/stream?vhost=xxx
+*     srs_url_schema_vis2  :    rtmp://ip:port/app/stream?domain=xxx
+*/
+enum srs_url_schema{
+    srs_url_schema_normal = 0,
+    srs_url_schema_via,
+    srs_url_schema_vis,
+    srs_url_schema_vis2
+};
+
 // typedefs
 typedef int srs_bool;
 
@@ -186,6 +200,16 @@ extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     char srs_primary[128], char srs_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 );
+
+/**
+* connect to rtmp vhost/app
+* category: publish/play
+* previous: handshake
+* next: publish or play
+*
+* @return 0, success; otherswise, failed.
+*/
+extern int srs_rtmp_connect_app3(srs_rtmp_t rtmp, enum srs_url_schema sus);
 
 /**
 * play a live/vod stream.
