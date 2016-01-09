@@ -60,9 +60,9 @@ SrsHttpHooks::~SrsHttpHooks()
 int SrsHttpHooks::on_connect(string url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_connect") << SRS_JFIELD_CONT
@@ -73,7 +73,7 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
         << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("pageUrl", req->pageUrl)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -83,20 +83,20 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
-
+    
     srs_trace("http hook on_connect success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return ret;
 }
 
 void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int64_t recv_bytes)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_close") << SRS_JFIELD_CONT
@@ -107,7 +107,7 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
         << SRS_JFIELD_ORG("recv_bytes", recv_bytes) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -117,20 +117,20 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
-
+    
     srs_trace("http hook on_close success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return;
 }
 
 int SrsHttpHooks::on_publish(string url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_publish") << SRS_JFIELD_CONT
@@ -141,7 +141,7 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
         << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT  // Add tcUrl for auth publish rtmp stream client
         << SRS_JFIELD_STR("stream", req->stream)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -151,20 +151,20 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
-
+    
     srs_trace("http hook on_publish success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return ret;
 }
 
 void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_unpublish") << SRS_JFIELD_CONT
@@ -174,7 +174,7 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -184,20 +184,20 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
-
+    
     srs_trace("http hook on_unpublish success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return;
 }
 
 int SrsHttpHooks::on_play(string url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_play") << SRS_JFIELD_CONT
@@ -208,7 +208,7 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
         << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("pageUrl", req->pageUrl)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -218,20 +218,20 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
-
+    
     srs_trace("http hook on_play success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return ret;
 }
 
 void SrsHttpHooks::on_stop(string url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = _srs_context->get_id();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_stop") << SRS_JFIELD_CONT
@@ -241,7 +241,7 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -251,21 +251,21 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
-
+    
     srs_trace("http hook on_stop success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return;
 }
 
 int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_dvr") << SRS_JFIELD_CONT
@@ -277,7 +277,7 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
         << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("file", file)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -287,27 +287,27 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
-
+    
     srs_trace("http hook on_dvr success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return ret;
 }
 
 int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, double duration)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
-
+    
     // the ts_url is under the same dir of m3u8_url.
     string prefix = srs_path_dirname(m3u8_url);
     if (!prefix.empty() && !srs_string_is_http(ts_url)) {
         ts_url = prefix + "/" + ts_url;
     }
-
+    
     std::stringstream ss;
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_STR("action", "on_hls") << SRS_JFIELD_CONT
@@ -324,7 +324,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
         << SRS_JFIELD_STR("m3u8_url", m3u8_url) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("seq_no", sn)
         << SRS_JOBJECT_END;
-
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
@@ -334,42 +334,42 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
-
+    
     srs_trace("http hook on_hls success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-
+    
     return ret;
 }
 
 int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
-
+    
     if (srs_string_is_http(ts_url)) {
         url = ts_url;
     }
-
+    
     url = srs_string_replace(url, "[app]", req->app);
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
-
+    
     int64_t starttime = srs_update_system_time_ms();
-
+    
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
         srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
         return ret;
     }
-
+    
     SrsHttpClient http;
     if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT_US)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     std::string path = uri.get_query();
     if (path.empty()) {
         path = uri.get_path();
@@ -379,17 +379,17 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
         path += uri.get_query();
     }
     srs_warn("GET %s", path.c_str());
-
+    
     ISrsHttpMessage* msg = NULL;
     if ((ret = http.get(path.c_str(), "", &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
-
+    
     int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
     char* buf = new char[nb_buf];
     SrsAutoFreeA(char, buf);
-
+    
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
@@ -399,43 +399,43 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
         }
         nb_read += nb_bytes;
     }
-
+    
     int spenttime = (int)(srs_update_system_time_ms() - starttime);
     srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, ret=%d",
         client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
-
+    
     // ignore any error for on_hls_notify.
     ret = ERROR_SUCCESS;
-
+    
     return ret;
 }
 
 int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& res)
 {
     int ret = ERROR_SUCCESS;
-
+    
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
         srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
         return ret;
     }
-
+    
     SrsHttpClient http;
     if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     ISrsHttpMessage* msg = NULL;
     if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
-
+    
     code = msg->status_code();
     if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // ensure the http status is ok.
     // https://github.com/ossrs/srs/issues/158
     if (code != SRS_CONSTS_HTTP_OK) {
@@ -443,14 +443,14 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         srs_error("invalid response status=%d. ret=%d", code, ret);
         return ret;
     }
-
+    
     // should never be empty.
     if (res.empty()) {
         ret = ERROR_HTTP_DATA_INVALID;
         srs_error("invalid empty response. ret=%d", ret);
         return ret;
     }
-
+    
     // parse string res to json.
     SrsJsonAny* info = SrsJsonAny::loads((char*)res.c_str());
     if (!info) {
@@ -459,7 +459,7 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         return ret;
     }
     SrsAutoFree(SrsJsonAny, info);
-
+    
     // response error code in string.
     if (!info->is_object()) {
         if (res != SRS_HTTP_RESPONSE_OK) {
@@ -469,7 +469,7 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         }
         return ret;
     }
-
+    
     // response standard object, format in json: {"code": 0, "data": ""}
     SrsJsonObject* res_info = info->to_object();
     SrsJsonAny* res_code = NULL;
