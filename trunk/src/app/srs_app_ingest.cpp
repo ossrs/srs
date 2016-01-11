@@ -252,6 +252,11 @@ int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
 {
     int ret = ERROR_SUCCESS;
     
+    // when vhost disabled, ignore any ingesters.
+    if (!_srs_config->get_vhost_enabled(vhost)) {
+        return ret;
+    }
+    
     std::vector<SrsConfDirective*> ingesters = _srs_config->get_ingesters(vhost->arg0());
     
     // create engine
