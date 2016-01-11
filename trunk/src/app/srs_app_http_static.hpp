@@ -65,8 +65,11 @@ public:
     virtual ~SrsHttpStaticServer();
 public:
     virtual int initialize();
+private:
+    virtual int mount_vhost(std::string vhost, std::string& pmount);
 // interface ISrsReloadHandler.
 public:
+    virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_http_updated();
 };
 
