@@ -97,9 +97,13 @@ public:
 class SrsEdgeRtmpUpstream : public SrsEdgeUpstream
 {
 private:
+    // for RTMP 302, if not empty,
+    // use this <ip[:port]> as upstream.
+    std::string redirect;
     SrsSimpleRtmpClient* sdk;
 public:
-    SrsEdgeRtmpUpstream();
+    // @param rediect, override the server. ignore if empty.
+    SrsEdgeRtmpUpstream(std::string r);
     virtual ~SrsEdgeRtmpUpstream();
 public:
     virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb);
@@ -123,6 +127,8 @@ private:
     SrsReusableThread2* pthread;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
+    // for RTMP 302 redirect.
+    std::string redirect;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
