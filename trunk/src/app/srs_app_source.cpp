@@ -1440,6 +1440,44 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
             }
         }
     }
+
+    // when got metadata stream info. @see issue 561
+    SrsStatistic* stat = SrsStatistic::instance();
+    int stream_width = 0;
+    int stream_height = 0;
+    int stream_frame_rate = 0;
+    int stream_video_codec_id = 0;
+    int stream_video_data_rate = 0;
+    int stream_audio_codec_id = 0;
+    int stream_audio_data_rate = 0;
+    if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
+        stream_width = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("height")) != NULL) {
+        stream_height = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("framerate")) != NULL) {
+        stream_frame_rate = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("videocodecid")) != NULL) {
+        stream_video_codec_id = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("videodatarate")) != NULL) {
+        stream_video_data_rate = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
+        stream_audio_codec_id = (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("audiodatarate")) != NULL) {
+        stream_audio_data_rate = (int)prop->to_number();
+    }
+
+
+    if (ret = stat->on_metadata_info(_req, stream_width, stream_height, stream_frame_rate, stream_video_codec_id,
+                                     stream_video_data_rate, stream_audio_codec_id, stream_audio_data_rate) != ERROR_SUCCESS) {
+        return ret;
+    }
+
     
     // encode the metadata to payload
     int size = 0;

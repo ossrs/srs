@@ -95,6 +95,19 @@ public:
     */
     SrsAacObjectType aac_object;
 public:
+    /**
+    * metadata specified
+    */
+    int             width;
+    int             height;
+    int             frame_rate;
+    // @see: SrsCodecVideo
+    int             video_codec_id;
+    int             video_data_rate; // in bps
+    // @see: SrsCod ecAudioType
+    int             audio_codec_id;
+    int             audio_data_rate; // in bps
+public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
@@ -172,6 +185,11 @@ public:
         SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
         SrsAacObjectType aac_object
     );
+    /*
+     * when got metadata info for stream.
+     */
+    virtual int on_metadata_info(SrsRequest *req, int width, int height, int frame_rate, int video_codec_id,
+                                 int video_data_rate, int audio_codec_id, int audio_data_rate);
     /**
      * when publish stream.
      * @param req the request object of publish connection.
