@@ -935,6 +935,8 @@ Winlin
 [p21]: https://github.com/ossrs/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
 [p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
 [p23]: https://github.com/ossrs/srs/pull/239
+[pr #558]: https://github.com/ossrs/srs/pull/558
+[pr #559]: https://github.com/ossrs/srs/pull/559
 
 [authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
