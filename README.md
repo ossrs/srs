@@ -338,6 +338,8 @@ Remark:
 
 ## History
 
+* v2.0, 2016-01-09, merge [#559][pr #559] fix memory leak bug. 2.0.208
+* v2.0, 2016-01-09, merge [#558][pr #558] add tcUrl for on_publish.
 * v2.0, 2016-01-05, add keyword XCORE for coredump to identify the version. 2.0.207
 * <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
 * v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
@@ -887,6 +889,8 @@ Winlin
 [p21]: https://github.com/ossrs/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
 [p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
 [p23]: https://github.com/ossrs/srs/pull/239
+[pr #558]: https://github.com/ossrs/srs/pull/558
+[pr #559]: https://github.com/ossrs/srs/pull/559
 
 [authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
