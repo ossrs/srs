@@ -117,6 +117,27 @@ void srs_discovery_tc_url(
     srs_vhost_resolve(vhost, app, param);
 }
 
+void srs_parse_query_string(string q, map<string,string>& query)
+{
+    // query string flags.
+    static vector<string> flags;
+    if (flags.empty()) {
+        flags.push_back("=");
+        flags.push_back(",");
+        flags.push_back("&&");
+        flags.push_back("&");
+        flags.push_back(";");
+    }
+    
+    vector<string> kvs = srs_string_split(q, flags);
+    for (int i = 0; i < (int)kvs.size(); i+=2) {
+        string k = kvs.at(i);
+        string v = (i < (int)kvs.size() - 1)? kvs.at(i+1):"";
+        
+        query[k] = v;
+    }
+}
+
 void srs_random_generate(char* bytes, int size)
 {
     static bool _random_initialized = false;

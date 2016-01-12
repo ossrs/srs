@@ -58,6 +58,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_utility.hpp>
 
 #endif
 
@@ -541,11 +542,10 @@ int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, Sr
     // parse uri from url.
     std::string host = get_request_header("Host");
     
-    // donot parse the empty host for uri,
-    // for example, the response contains no host,
-    // ignore it is ok.
+    // use server public ip when no host specified.
+    // to make telnet happy.
     if (host.empty()) {
-        return ret;
+        host= srs_get_public_internet_address();
     }
     
     // parse uri to schema/server:port/path?query
@@ -554,31 +554,11 @@ int SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, Sr
         return ret;
     }
     
-    // must format as key=value&...&keyN=valueN
-    std::string q = _uri->get_query();
-    size_t pos = string::npos;
-    while (!q.empty()) {
-        std::string k = q;
-        if ((pos = q.find("=")) != string::npos) {
-            k = q.substr(0, pos);
-            q = q.substr(pos + 1);
-        } else {
-            q = "";
-        }
-        
-        std::string v = q;
-        if ((pos = q.find("&")) != string::npos) {
-            v = q.substr(0, pos);
-            q = q.substr(pos + 1);
-        } else {
-            q = "";
-        }
-        
-        _query[k] = v;
-    }
-    
     // parse ext.
     _ext = srs_path_filext(_uri->get_path());
+    
+    // parse query string.
+    srs_parse_query_string(_uri->get_query(), _query);
     
     // parse jsonp request message.
     if (allow_jsonp) {
