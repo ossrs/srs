@@ -345,12 +345,6 @@ int SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
         return ret;
     }
     
-    // for some server, content-length is -1, while not chunked, directly read
-    // everything as body.
-    if (owner->content_length() == -1 && !owner->is_chunked()) {
-        return read_specified(data, nb_data, nb_read);
-    }
-    
     // chunked encoding.
     if (owner->is_chunked()) {
         return read_chunked(data, nb_data, nb_read);
