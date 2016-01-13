@@ -357,15 +357,29 @@ int SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     }
     
     // read by specified content-length
-    int max = (int)owner->content_length() - (int)nb_total_read;
-    if (max <= 0) {
-        is_eof = true;
-        return ret;
+    if (owner->content_length() != -1) {
+        int max = (int)owner->content_length() - (int)nb_total_read;
+        if (max <= 0) {
+            is_eof = true;
+            return ret;
+        }
+        
+        // change the max to read.
+        nb_data = srs_min(nb_data, max);
+        return read_specified(data, nb_data, nb_read);
     }
     
-    // change the max to read.
-    nb_data = srs_min(nb_data, max);
-    return read_specified(data, nb_data, nb_read);
+    // infinite chunked mode, directly read.
+    if (owner->is_infinite_chunked()) {
+        srs_assert(!owner->is_chunked() && owner->content_length() == -1);
+        return read_specified(data, nb_data, nb_read);
+    }
+    
+    // infinite chunked mode, but user not set it,
+    // we think there is no data left.
+    is_eof = true;
+    
+    return ret;
 }
 
 int SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb_read)
@@ -505,6 +519,7 @@ SrsHttpMessage::SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c) :
 {
     conn = c;
     chunked = false;
+    infinite_chunked = false;
     keep_alive = true;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
@@ -660,6 +675,11 @@ bool SrsHttpMessage::is_keep_alive()
     return keep_alive;
 }
 
+bool SrsHttpMessage::is_infinite_chunked()
+{
+    return infinite_chunked;
+}
+
 string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
@@ -712,6 +732,25 @@ int SrsHttpMessage::parse_rest_id(string pattern)
     }
     
     return -1;
+}
+
+int SrsHttpMessage::enter_infinite_chunked()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (infinite_chunked) {
+        return ret;
+    }
+    
+    if (is_chunked() || content_length() != -1) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        srs_error("infinite chunkted not supported in specified codec. ret=%d", ret);
+        return ret;
+    }
+    
+    infinite_chunked = true;
+    
+    return ret;
 }
 
 int SrsHttpMessage::body_read_all(string& body)

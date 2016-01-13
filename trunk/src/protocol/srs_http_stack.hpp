@@ -231,6 +231,12 @@ public:
      * @param nb_data, the max size of data buffer.
      * @param nb_read, the actual read size of bytes. NULL to ignore.
      * @remark when eof(), return error.
+     * @remark for some server, the content-length not specified and not chunked,
+     *      which is actually the infinite chunked encoding, which after http header 
+     *      is http response data, it's ok for browser. that is,
+     *      when user call this read, please ensure there is data to read(by content-length
+     *      or by chunked), because the sdk never know whether there is no data or 
+     *      infinite chunked.
      */
     virtual int read(char* data, int nb_data, int* nb_read) = 0;
 };
@@ -445,9 +451,19 @@ typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 // The field semantics differ slightly between client and server
 // usage. In addition to the notes on the fields below, see the
 // documentation for Request.Write and RoundTripper.
-/**
- * the http message, request or response.
- */
+//
+// There are some modes to determine the length of body:
+//      1. content-length and chunked.
+//      2. user confirmed infinite chunked.
+//      3. no body or user not confirmed infinite chunked.
+// For example:
+//      ISrsHttpMessage* r = ...;
+//      while (!r->eof()) r->read(); // read in mode 1 or 3.
+// For some server, we can confirm the body is infinite chunked:
+//      ISrsHttpMessage* r = ...;
+//      r->enter_infinite_chunked();
+//      while (!r->eof()) r->read(); // read in mode 2
+// @rmark for mode 2, the infinite chunked, all left data is body.
 class ISrsHttpMessage
 {
 private:
@@ -502,6 +518,12 @@ public:
      */
     virtual int parse_rest_id(std::string pattern) = 0;
 public:
+    /**
+     * the left all data is chunked body, the infinite chunked mode,
+     * which is chunked encoding without chunked header.
+     * @remark error when message is in chunked or content-length specified.
+     */
+    virtual int enter_infinite_chunked() = 0;
     /**
      * read body to string.
      * @remark for small http body.

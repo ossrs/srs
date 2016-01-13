@@ -152,9 +152,6 @@ typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 // The field semantics differ slightly between client and server
 // usage. In addition to the notes on the fields below, see the
 // documentation for Request.Write and RoundTripper.
-/**
- * the http message, request or response.
- */
 class SrsHttpMessage : public ISrsHttpMessage
 {
 private:
@@ -179,6 +176,10 @@ private:
      * whether the body is chunked.
      */
     bool chunked;
+    /**
+     * whether the body is infinite chunked.
+     */
+     bool infinite_chunked;
     /**
      * whether the request indicates should keep alive
      * for the http connection.
@@ -232,6 +233,11 @@ public:
      */
     virtual bool is_chunked();
     /**
+     * whether body is infinite chunked encoding.
+     * @remark set by enter_infinite_chunked.
+     */
+     virtual bool is_infinite_chunked();
+    /**
      * whether should keep the connection alive.
      */
     virtual bool is_keep_alive();
@@ -251,6 +257,8 @@ public:
      * get the RESTful matched id.
      */
     virtual int parse_rest_id(std::string pattern);
+public:
+    virtual int enter_infinite_chunked();
 public:
     /**
      * read body to string.

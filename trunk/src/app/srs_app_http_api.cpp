@@ -1414,8 +1414,12 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("HTTP %s %s, content-length=%"PRId64"", 
-        r->method_str().c_str(), r->url().c_str(), r->content_length());
+    SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(r);
+    srs_assert(hm);
+    
+    srs_trace("HTTP API %s %s, content-length=%"PRId64", chunked=%d/%d",
+        r->method_str().c_str(), r->url().c_str(), r->content_length(),
+        hm->is_chunked(), hm->is_infinite_chunked());
     
     // method is OPTIONS and enable crossdomain, required crossdomain header.
     if (r->is_http_options() && _srs_config->get_http_api_crossdomain()) {
