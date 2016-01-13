@@ -97,7 +97,7 @@ int SrsProcess::initialize(string binary, vector<string> argv)
             if (nffp == ">") {
                 // 1 > file
                 if (!nnffp.empty()) {
-                    stderr_file = nnffp;
+                    stdout_file = nnffp;
                     i++;
                 }
             } else {
@@ -208,8 +208,7 @@ int SrsProcess::start()
         // log basic info
         if (true) {
             fprintf(stderr, "\n");
-            fprintf(stderr, "process parent pid=%d\n", ppid);
-            fprintf(stderr, "process parent cid=%d\n", cid);
+            fprintf(stderr, "process ppid=%d, cid=%d, pid=%d\n", ppid, cid, getpid());
             fprintf(stderr, "process binary=%s\n", bin.c_str());
             fprintf(stderr, "process cli: %s\n", cli.c_str());
             fprintf(stderr, "process actual cli: %s\n", actual_cli.c_str());
