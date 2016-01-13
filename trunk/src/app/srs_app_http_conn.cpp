@@ -55,6 +55,7 @@ using namespace std;
 #include <srs_app_http_static.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_http_api.hpp>
+#include <srs_app_utility.hpp>
 
 #endif
 
@@ -347,15 +348,29 @@ int SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     }
     
     // read by specified content-length
-    int max = (int)owner->content_length() - (int)nb_total_read;
-    if (max <= 0) {
-        is_eof = true;
-        return ret;
+    if (owner->content_length() != -1) {
+        int max = (int)owner->content_length() - (int)nb_total_read;
+        if (max <= 0) {
+            is_eof = true;
+            return ret;
+        }
+        
+        // change the max to read.
+        nb_data = srs_min(nb_data, max);
+        return read_specified(data, nb_data, nb_read);
     }
     
-    // change the max to read.
-    nb_data = srs_min(nb_data, max);
-    return read_specified(data, nb_data, nb_read);
+    // infinite chunked mode, directly read.
+    if (owner->is_infinite_chunked()) {
+        srs_assert(!owner->is_chunked() && owner->content_length() == -1);
+        return read_specified(data, nb_data, nb_read);
+    }
+    
+    // infinite chunked mode, but user not set it,
+    // we think there is no data left.
+    is_eof = true;
+    
+    return ret;
 }
 
 int SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb_read)
@@ -480,8 +495,8 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     // increase the total read to determine whether EOF.
     nb_total_read += nb_bytes;
     
-    // for not chunked
-    if (!owner->is_chunked()) {
+    // for not chunked and specified content length.
+    if (!owner->is_chunked() && owner->content_length() != -1) {
         // when read completed, eof.
         if (nb_total_read >= (int)owner->content_length()) {
             is_eof = true;
@@ -495,6 +510,7 @@ SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c) : ISrsHttpMess
 {
     conn = c;
     chunked = false;
+    infinite_chunked = false;
     keep_alive = true;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
@@ -532,11 +548,10 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
     // parse uri from url.
     std::string host = get_request_header("Host");
     
-    // donot parse the empty host for uri,
-    // for example, the response contains no host,
-    // ignore it is ok.
+    // use server public ip when no host specified.
+    // to make telnet happy.
     if (host.empty()) {
-        return ret;
+        host= srs_get_public_internet_address();
     }
     
     // parse uri to schema/server:port/path?query
@@ -674,6 +689,11 @@ bool SrsHttpMessage::is_keep_alive()
     return keep_alive;
 }
 
+bool SrsHttpMessage::is_infinite_chunked()
+{
+    return infinite_chunked;
+}
+
 string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
@@ -726,6 +746,25 @@ int SrsHttpMessage::parse_rest_id(string pattern)
     }
     
     return -1;
+}
+
+int SrsHttpMessage::enter_infinite_chunked()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (infinite_chunked) {
+        return ret;
+    }
+    
+    if (is_chunked() || content_length() != -1) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        srs_error("infinite chunkted not supported in specified codec. ret=%d", ret);
+        return ret;
+    }
+    
+    infinite_chunked = true;
+    
+    return ret;
 }
 
 int SrsHttpMessage::body_read_all(string& body)

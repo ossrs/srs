@@ -485,7 +485,7 @@ void srs_update_proc_stat()
     static int user_hz = 0;
     if (user_hz <= 0) {
         user_hz = (int)sysconf(_SC_CLK_TCK);
-        srs_trace("USER_HZ=%d", user_hz);
+        srs_info("USER_HZ=%d", user_hz);
         srs_assert(user_hz > 0);
     }
     
@@ -1277,6 +1277,66 @@ vector<string>& srs_get_local_ipv4_ips()
     }
 
     return _srs_system_ipv4_ips;
+}
+
+std::string _public_internet_address;
+
+string srs_get_public_internet_address()
+{
+    if (!_public_internet_address.empty()) {
+        return _public_internet_address;
+    }
+    
+    std::vector<std::string>& ips = srs_get_local_ipv4_ips();
+    
+    // find the best match public address.
+    for (int i = 0; i < (int)ips.size(); i++) {
+        std::string ip = ips[i];
+        in_addr_t addr = inet_addr(ip.c_str());
+        u_int32_t addr_h = ntohl(addr);
+        // lo, 127.0.0.0-127.0.0.1
+        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
+            srs_trace("ignore private address: %s", ip.c_str());
+            continue;
+        }
+        // Class A 10.0.0.0-10.255.255.255
+        if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
+            srs_trace("ignore private address: %s", ip.c_str());
+            continue;
+        }
+        // Class B 172.16.0.0-172.31.255.255
+        if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
+            srs_trace("ignore private address: %s", ip.c_str());
+            continue;
+        }
+        // Class C 192.168.0.0-192.168.255.255
+        if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
+            srs_trace("ignore private address: %s", ip.c_str());
+            continue;
+        }
+        srs_warn("use public address as ip: %s", ip.c_str());
+        
+        _public_internet_address = ip;
+        return ip;
+    }
+    
+    // no public address, use private address.
+    for (int i = 0; i < (int)ips.size(); i++) {
+        std::string ip = ips[i];
+        in_addr_t addr = inet_addr(ip.c_str());
+        u_int32_t addr_h = ntohl(addr);
+        // lo, 127.0.0.0-127.0.0.1
+        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
+            srs_trace("ignore private address: %s", ip.c_str());
+            continue;
+        }
+        srs_warn("use private address as ip: %s", ip.c_str());
+        
+        _public_internet_address = ip;
+        return ip;
+    }
+    
+    return "";
 }
 
 string srs_get_local_ip(int fd)
