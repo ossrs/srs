@@ -491,7 +491,7 @@
 
             srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
             srs_player.on_player_ready = function() {
-                select_buffer(0.2);
+                select_buffer(0.5);
                 this.play(url);
             };
             srs_player.on_player_metadata = function(metadata) {
