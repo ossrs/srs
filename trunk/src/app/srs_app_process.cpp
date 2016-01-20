@@ -150,12 +150,6 @@ int srs_redirect_output(string from_file, int to_fd)
         return ret;
     }
     
-    // disable output.
-    if (from_file == SRS_CONSTS_NULL_FILE) {
-        ::close(to_fd);
-        return ret;
-    }
-    
     // redirect the fd to file.
     int fd = -1;
     int flags = O_CREAT|O_WRONLY|O_APPEND;
