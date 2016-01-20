@@ -80,6 +80,12 @@ int SrsProcess::initialize(string binary, vector<string> argv)
         std::string nffp = (i < (int)argv.size() - 1)? argv[i + 1] : "";
         std::string nnffp = (i < (int)argv.size() - 2)? argv[i + 2] : "";
         
+        // >file
+        if (srs_string_starts_with(ffp, ">")) {
+            stdout_file = ffp.substr(1);
+            continue;
+        }
+        
         // 1>file
         if (srs_string_starts_with(ffp, "1>")) {
             stdout_file = ffp.substr(2);
