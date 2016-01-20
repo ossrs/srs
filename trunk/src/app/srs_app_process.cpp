@@ -211,6 +211,9 @@ int SrsProcess::start()
             }
         }
         
+        // should never close the fd 3+, for it myabe used.
+        // for fd should close at exec, use fnctl to set it.
+
         // log basic info
         if (true) {
             fprintf(stderr, "\n");
@@ -218,12 +221,6 @@ int SrsProcess::start()
             fprintf(stderr, "process binary=%s\n", bin.c_str());
             fprintf(stderr, "process cli: %s\n", cli.c_str());
             fprintf(stderr, "process actual cli: %s\n", actual_cli.c_str());
-        }
-        
-        // close other fds
-        // TODO: do in right way.
-        for (int i = 3; i < 1024; i++) {
-            ::close(i);
         }
         
         // memory leak in child process, it's ok.
