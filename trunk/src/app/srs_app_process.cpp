@@ -227,27 +227,28 @@ int SrsProcess::start()
         
         // should never close the fd 3+, for it myabe used.
         // for fd should close at exec, use fnctl to set it.
-
-        // log basic info
+        
+        // log basic info to stderr.
         if (true) {
             fprintf(stderr, "\n");
             fprintf(stderr, "process ppid=%d, cid=%d, pid=%d\n", ppid, cid, getpid());
-            fprintf(stderr, "process binary=%s\n", bin.c_str());
-            fprintf(stderr, "process cli: %s\n", cli.c_str());
+            fprintf(stderr, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
             fprintf(stderr, "process actual cli: %s\n", actual_cli.c_str());
         }
         
         // memory leak in child process, it's ok.
-        char** charpv_params = new char*[params.size() + 1];
+        char** argv = new char*[params.size() + 1];
         for (int i = 0; i < (int)params.size(); i++) {
             std::string& p = params[i];
-            charpv_params[i] = (char*)p.data();
+            
+            // memory leak in child process, it's ok.
+            char* v = new char[p.length() + 1];
+            argv[i] = strcpy(v, p.data());
         }
-        // EOF: NULL
-        charpv_params[params.size()] = NULL;
+        argv[params.size()] = NULL;
         
-        // TODO: execv or execvp
-        ret = execv(bin.c_str(), charpv_params);
+        // use execv to start the program.
+        ret = execv(bin.c_str(), argv);
         if (ret < 0) {
             fprintf(stderr, "fork process failed, errno=%d(%s)", errno, strerror(errno));
         }
@@ -258,7 +259,7 @@ int SrsProcess::start()
     if (pid > 0) {
         is_started = true;
         srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
-            pid, bin.c_str(), stdout_file.c_str(), stdout_file.c_str(), actual_cli.c_str());
+            pid, bin.c_str(), stdout_file.c_str(), stderr_file.c_str(), actual_cli.c_str());
         return ret;
     }
     
