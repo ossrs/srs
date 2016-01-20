@@ -141,6 +141,43 @@ int SrsProcess::initialize(string binary, vector<string> argv)
     return ret;
 }
 
+int srs_redirect_output(string from_file, int to_fd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // use default output.
+    if (from_file.empty()) {
+        return ret;
+    }
+    
+    // disable output.
+    if (from_file == SRS_CONSTS_NULL_FILE) {
+        ::close(to_fd);
+        return ret;
+    }
+    
+    // redirect the fd to file.
+    int fd = -1;
+    int flags = O_CREAT|O_WRONLY|O_APPEND;
+    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+    
+    if ((fd = ::open(from_file.c_str(), flags, mode)) < 0) {
+        ret = ERROR_FORK_OPEN_LOG;
+        fprintf(stderr, "open process %d %s failed. ret=%d", to_fd, from_file.c_str(), ret);
+        exit(ret);
+    }
+    
+    if (dup2(fd, to_fd) < 0) {
+        ret = ERROR_FORK_DUP2_LOG;
+        srs_error("dup2 process %d failed. ret=%d", to_fd, ret);
+        exit(ret);
+    }
+    
+    ::close(fd);
+    
+    return ret;
+}
+
 int SrsProcess::start()
 {
     int ret = ERROR_SUCCESS;
@@ -173,42 +210,19 @@ int SrsProcess::start()
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
         
-        // redirect stdout to file.
-        if (!stdout_file.empty()) {
-            int stdout_fd = -1;
-            int flags = O_CREAT|O_WRONLY|O_APPEND;
-            mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-            
-            if ((stdout_fd = ::open(stdout_file.c_str(), flags, mode)) < 0) {
-                ret = ERROR_ENCODER_OPEN;
-                fprintf(stderr, "open process stdout %s failed. ret=%d", stdout_file.c_str(), ret);
-                exit(ret);
-            }
-            
-            if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
-                ret = ERROR_ENCODER_DUP2;
-                srs_error("dup2 process stdout failed. ret=%d", ret);
-                exit(ret);
-            }
+        // for the stdin,
+        // should never close it or ffmpeg will error.
+        
+        // for the stdout, ignore when not specified.
+        // redirect stdout to file if possible.
+        if ((ret = srs_redirect_output(stdout_file, STDOUT_FILENO)) != ERROR_SUCCESS) {
+            return ret;
         }
         
-        // redirect stderr to file.
-        if (!stderr_file.empty()) {
-            int stderr_fd = -1;
-            int flags = O_CREAT|O_WRONLY|O_APPEND;
-            mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-            
-            if ((stderr_fd = ::open(stderr_file.c_str(), flags, mode)) < 0) {
-                ret = ERROR_ENCODER_OPEN;
-                fprintf(stderr, "open process stderr %s failed. ret=%d", stderr_file.c_str(), ret);
-                exit(ret);
-            }
-            
-            if (dup2(stderr_fd, STDERR_FILENO) < 0) {
-                ret = ERROR_ENCODER_DUP2;
-                srs_error("dup2 process stderr failed. ret=%d", ret);
-                exit(ret);
-            }
+        // for the stderr, ignore when not specified.
+        // redirect stderr to file if possible.
+        if ((ret = srs_redirect_output(stderr_file, STDERR_FILENO)) != ERROR_SUCCESS) {
+            return ret;
         }
         
         // should never close the fd 3+, for it myabe used.

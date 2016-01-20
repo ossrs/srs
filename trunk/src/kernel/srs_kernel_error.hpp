@@ -202,8 +202,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_ENCODER_VBITRATE              3027
 #define ERROR_ENCODER_FORK                  3028
 #define ERROR_ENCODER_LOOP                  3029
-#define ERROR_ENCODER_OPEN                  3030
-#define ERROR_ENCODER_DUP2                  3031
+#define ERROR_FORK_OPEN_LOG                 3030
+#define ERROR_FORK_DUP2_LOG                 3031
 #define ERROR_ENCODER_PARSE                 3032
 #define ERROR_ENCODER_NO_INPUT              3033
 #define ERROR_ENCODER_NO_OUTPUT             3034
