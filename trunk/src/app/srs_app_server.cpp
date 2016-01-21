@@ -642,11 +642,12 @@ int SrsServer::initialize_st()
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
-    if (_srs_config->get_max_connections() > 32756) {
+    #define __MMAP_MAX_CONNECTIONS 32756
+    if (_srs_config->get_max_connections() > __MMAP_MAX_CONNECTIONS) {
         ret = ERROR_ST_EXCEED_THREADS;
         srs_error("st mmap for stack allocation must <= %d threads, "
                   "@see Makefile of st for MALLOC_STACK, please build st manually by "
-                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", ret);
+                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", __MMAP_MAX_CONNECTIONS, ret);
         return ret;
     }
     
