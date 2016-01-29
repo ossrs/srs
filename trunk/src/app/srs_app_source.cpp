@@ -418,9 +418,10 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* _source)
+SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
 {
-    source = _source;
+    source = s;
+    conn = c;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -1548,6 +1549,24 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     return ret;
 }
 
+bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage* msg)
+{
+    // only continue for decode error.
+    if (ret != ERROR_HLS_DECODE_ERROR) {
+        return false;
+    }
+    
+    // when video size equals to sequence header,
+    // the video actually maybe a sequence header,
+    // continue to make ffmpeg happy.
+    if (sh && sh->size == msg->size) {
+        srs_warn("the msg is actually a sequence header, ignore this packet.");
+        return true;
+    }
+    
+    return false;
+}
+
 int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
@@ -1608,9 +1627,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
             // ignore.
             ret = ERROR_SUCCESS;
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            // compare the sequence header with audio, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg->size) {
-                srs_warn("the audio is actually a sequence header, ignore this packet.");
+            if (srs_hls_can_continue(ret, cache_sh_audio, msg)) {
                 ret = ERROR_SUCCESS;
             } else {
                 srs_warn("hls continue audio failed. ret=%d", ret);
@@ -1826,9 +1843,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             // ignore.
             ret = ERROR_SUCCESS;
         } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            // compare the sequence header with video, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg->size) {
-                srs_warn("the video is actually a sequence header, ignore this packet.");
+            if (srs_hls_can_continue(ret, cache_sh_video, msg)) {
                 ret = ERROR_SUCCESS;
             } else {
                 srs_warn("hls continue video failed. ret=%d", ret);
@@ -2129,11 +2144,11 @@ void SrsSource::on_unpublish()
     handler->on_unpublish(this, _req);
 }
 
-int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg)
+int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
 {
     int ret = ERROR_SUCCESS;
     
-    consumer = new SrsConsumer(this);
+    consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
     double queue_size = _srs_config->get_queue_length(_req->vhost);

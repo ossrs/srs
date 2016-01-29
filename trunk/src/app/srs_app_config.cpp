@@ -49,6 +49,9 @@ using namespace std;
 
 using namespace _srs_internal;
 
+// the version to identify the core.
+const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
+
 #define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
 
 // when user config an invalid value, macros to perfer true or false.
@@ -75,7 +78,7 @@ using namespace _srs_internal;
 #define SRS_CONF_DEFAULT_HLS_TD_RATIO 1.5
 #define SRS_CONF_DEFAULT_HLS_AOF_RATIO 2.0
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
-#define SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE "ignore"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE "continue"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE "continue"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
@@ -1359,6 +1362,9 @@ int SrsConfig::parse_options(int argc, char** argv)
         exit(0);
     }
     
+    // first hello message.
+    srs_trace(_srs_version);
+    
     if (config_file.empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("config file not specified, see help: %s -h, ret=%d", argv[0], ret);
@@ -1488,7 +1494,7 @@ int SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-        RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
+        RTMP_SIG_SRS_SERVER" "RTMP_SIG_SRS_COPYRIGHT"\n"
         "License: "RTMP_SIG_SRS_LICENSE"\n"
         "Primary: "RTMP_SIG_SRS_PRIMARY"\n"
         "Authors: "RTMP_SIG_SRS_AUTHROS"\n"

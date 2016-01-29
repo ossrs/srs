@@ -2,15 +2,17 @@
 
 SRS/2.0, [ZhouGuowen][release2]
 
+[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
+[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![LinkedIn](http://s.c.lnkd.licdn.com/scds/common/u/img/webpromo/btn_liprofile_blue_80x15.png)](http://cn.linkedin.com/in/winlinvip)
+
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
 SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 Website for SRS/2.0, read SRS 2.0 [Chinese][srs_CN] or [English][srs_EN].
-
-[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)](http://www.ossrs.net/srs.release/donation/index.html)
-[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)](http://www.ossrs.net/srs.release/donation/paypal.html)
 
 ## Why SRS?
 
@@ -307,6 +309,7 @@ Remark:
 
 ## Releases
 
+* 2015-12-23, [Release v2.0a3][r2.0a3], 2.0 alpha3, 2.0.205, 89544 lines.<br/>
 * 2015-10-08, [Release v2.0a2][r2.0a2], 2.0 alpha2, 2.0.195, 89358 lines.<br/>
 * 2015-09-14, [Release v2.0a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
 * 2015-08-23, [Release v2.0a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
@@ -336,6 +339,16 @@ Remark:
 
 ## History
 
+* v2.0, 2016-01-13, fix http reader bug, support infinite chunkted. 2.0.209
+* v2.0, 2016-01-09, merge [#559][pr #559] fix memory leak bug. 2.0.208
+* v2.0, 2016-01-09, merge [#558][pr #558] add tcUrl for on_publish.
+* v2.0, 2016-01-05, add keyword XCORE for coredump to identify the version. 2.0.207
+* <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
+* v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
+* v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
+* v2.0, 2015-12-22, for [#546][bug #546] thread terminate normally dispose bug. 2.0.203
+* v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
+* v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
 * v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
 * v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
 * v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
@@ -878,6 +891,8 @@ Winlin
 [p21]: https://github.com/ossrs/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
 [p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
 [p23]: https://github.com/ossrs/srs/pull/239
+[pr #558]: https://github.com/ossrs/srs/pull/558
+[pr #559]: https://github.com/ossrs/srs/pull/559
 
 [authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
@@ -1205,10 +1220,15 @@ Winlin
 [bug #515]: https://github.com/ossrs/srs/issues/515
 [bug #511]: https://github.com/ossrs/srs/issues/511
 [bug #518]: https://github.com/ossrs/srs/issues/518
+[bug #541]: https://github.com/ossrs/srs/issues/541
+[bug #546]: https://github.com/ossrs/srs/issues/546
+[bug #418]: https://github.com/ossrs/srs/issues/418
+[bug #509]: https://github.com/ossrs/srs/issues/509
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0a3]: https://github.com/ossrs/srs/releases/tag/v2.0-a3
 [r2.0a2]: https://github.com/ossrs/srs/releases/tag/v2.0-a2
 [r2.0a1]: https://github.com/ossrs/srs/releases/tag/2.0a1
 [r2.0a0]: https://github.com/ossrs/srs/releases/tag/2.0a0
@@ -1244,8 +1264,8 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.195.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.195.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.205.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.205.zip
 [srs_CN]: https://github.com/ossrs/srs/wiki/v2_CN_Home
 [srs_EN]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 

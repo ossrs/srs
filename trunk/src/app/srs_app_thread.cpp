@@ -234,9 +234,6 @@ namespace internal {
         
         handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
-        
-        // when thread terminated normally, also disposed.
-        disposed = true;
     }
     
     void* SrsThread::thread_fun(void* arg)

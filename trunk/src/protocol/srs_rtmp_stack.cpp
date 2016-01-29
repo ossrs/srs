@@ -1514,10 +1514,17 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             {
                 srs_warn("accept chunk size %d, but should in [%d, %d], "
                     "@see: https://github.com/ossrs/srs/issues/160",
-                    pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
-                    SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
+                    pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE,  SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
             }
 
+            // @see: https://github.com/ossrs/srs/issues/541
+            if (pkt->chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE) {
+                ret = ERROR_RTMP_CHUNK_SIZE;
+                srs_error("chunk size should be %d+, value=%d. ret=%d",
+                    SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, pkt->chunk_size, ret);
+                return ret;
+            }
+            
             in_chunk_size = pkt->chunk_size;
             srs_trace("input chunk size to %d", pkt->chunk_size);
 
@@ -1974,11 +1981,19 @@ int SrsRtmpClient::handshake()
     
     srs_assert(hs_bytes);
     
-    SrsComplexHandshake complex_hs;
-    if ((ret = complex_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+    // maybe st has problem when alloc object on stack, always alloc object at heap.
+    // @see https://github.com/ossrs/srs/issues/509
+    SrsComplexHandshake* complex_hs = new SrsComplexHandshake();
+    SrsAutoFree(SrsComplexHandshake, complex_hs);
+    
+    if ((ret = complex_hs->handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
         if (ret == ERROR_RTMP_TRY_SIMPLE_HS) {
-            SrsSimpleHandshake simple_hs;
-            if ((ret = simple_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+            // always alloc object at heap.
+            // @see https://github.com/ossrs/srs/issues/509
+            SrsSimpleHandshake* simple_hs = new SrsSimpleHandshake();
+            SrsAutoFree(SrsSimpleHandshake, simple_hs);
+            
+            if ((ret = simple_hs->handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
@@ -3282,9 +3297,24 @@ int SrsConnectAppResPacket::decode(SrsStream* stream)
         ret = ERROR_SUCCESS;
     }
     
-    if ((ret = props->read(stream)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode connect props failed. ret=%d", ret);
-        return ret;
+    // for RED5(1.0.6), the props is NULL, we must ignore it.
+    // @see https://github.com/ossrs/srs/issues/418
+    if (!stream->empty()) {
+        SrsAmf0Any* p = NULL;
+        if ((ret = srs_amf0_read_any(stream, &p)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode connect props failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // ignore when props is not amf0 object.
+        if (!p->is_object()) {
+            srs_warn("ignore connect response props marker=%#x.", (u_int8_t)p->marker);
+            srs_freep(p);
+        } else {
+            srs_freep(props);
+            props = p->to_object();
+            srs_info("accept amf0 object connect response props");
+        }
     }
     
     if ((ret = info->read(stream)) != ERROR_SUCCESS) {

@@ -21,4 +21,9 @@ CONTRIBUTORS ordered by first contribution.
 * allspace<allspace@gmail.com> "The srs-librtmp windows support"
 * niesongsong<nie950@gmail.com> "Configure support relative path"
 * rudeb0t<nimrod@themanxgroup.tw> "Bug fixed"
+* CallMeNP<np.liamg@gmail.com> "Bug fixed"
+* synote<synote@qq.com> "Bug fixed"
+* lovecat<littlefawn@163.com> "Bug fixed"
+* panda1986<542638787@qq.com> "Bug fixed"
+* YueHonghui<hongf.yue@hotmail.com> "Bug fixed"
 

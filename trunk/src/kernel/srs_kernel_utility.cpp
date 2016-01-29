@@ -279,9 +279,24 @@ bool srs_string_starts_with(string str, string flag)
     return str.find(flag) == 0;
 }
 
+bool srs_string_starts_with(string str, string flag0, string flag1)
+{
+    return srs_string_starts_with(str, flag0) || srs_string_starts_with(str, flag1);
+}
+
 bool srs_string_contains(string str, string flag)
 {
     return str.find(flag) != string::npos;
+}
+
+bool srs_string_contains(string str, string flag0, string flag1)
+{
+    return str.find(flag0) != string::npos || str.find(flag1) != string::npos;
+}
+
+bool srs_string_contains(string str, string flag0, string flag1, string flag2)
+{
+    return str.find(flag0) != string::npos || str.find(flag1) != string::npos || str.find(flag2) != string::npos;
 }
 
 int srs_do_create_dir_recursively(string dir)

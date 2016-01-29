@@ -54,6 +54,8 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 // app module.
 SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = new SrsServer();
+// version of srs, which can grep keyword "XCORE"
+extern const char* _srs_version;
 
 /**
 * show the features by macro, the actual macro values.
@@ -290,7 +292,7 @@ int main(int argc, char** argv)
         return ret;
     }
     
-    srs_trace("srs(ossrs) "RTMP_SIG_SRS_VERSION);
+    srs_trace(RTMP_SIG_SRS_SERVER", stable is "RTMP_SIG_SRS_PRIMARY);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
     srs_trace("primary/master: "RTMP_SIG_SRS_PRIMARY);
     srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);

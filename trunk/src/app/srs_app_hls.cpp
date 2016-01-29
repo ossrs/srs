@@ -557,6 +557,12 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     current->uri += hls_entry_prefix;
     if (!hls_entry_prefix.empty() && !srs_string_ends_with(hls_entry_prefix, "/")) {
         current->uri += "/";
+        
+        // add the http dir to uri.
+        string http_dir = srs_path_dirname(m3u8_url);
+        if (!http_dir.empty()) {
+            current->uri += http_dir + "/";
+        }
     }
     current->uri += ts_url;
     
