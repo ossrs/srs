@@ -1,4 +1,7 @@
-simple-rtmp-server
+Simple RTMP Server
 ==================
 
-simple rtmp origin/edge live server over state-threads.
+SRS(2013-2016) is closed, thanks~
+
+Winlin
+
