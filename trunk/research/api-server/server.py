@@ -528,6 +528,7 @@ class ArmServer:
         self.ip = None
         self.device_id = None
         self.summaries = None
+        self.devices = None
         
         self.public_ip = cherrypy.request.remote.ip
         self.heartbeat = time.time()
@@ -546,6 +547,7 @@ class ArmServer:
         data["ip"] = self.ip
         data["device_id"] = self.device_id
         data["summaries"] = self.summaries
+        data["devices"] = self.devices
         data["public_ip"] = self.public_ip
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
@@ -610,6 +612,8 @@ class RESTServers(object):
             node.ip = json_req["ip"]
             if "summaries" in json_req:
                 node.summaries = json_req["summaries"]
+            if "devices" in json_req:
+                node.devices = json_req["devices"]
             node.device_id = device_id
             node.public_ip = cherrypy.request.remote.ip
             node.heartbeat = time.time()
