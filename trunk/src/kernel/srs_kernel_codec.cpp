@@ -1040,11 +1040,6 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
                 if ((ret = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag_i)) != ERROR_SUCCESS) {
                     return ret;
                 }
-                if (seq_scaling_matrix_present_flag_i) {
-                    ret = ERROR_HLS_DECODE_ERROR;
-                    srs_error("sps the seq_scaling_matrix_present_flag invalid, i=%d, nb_scmpfs=%d. ret=%d", i, nb_scmpfs, ret);
-                    return ret;
-                }
             }
         }
     }
@@ -1084,10 +1079,16 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         if ((ret = srs_avc_nalu_read_uev(&bs, num_ref_frames_in_pic_order_cnt_cycle)) != ERROR_SUCCESS) {
             return ret;
         }
-        if (num_ref_frames_in_pic_order_cnt_cycle) {
+        if (num_ref_frames_in_pic_order_cnt_cycle < 0) {
             ret = ERROR_HLS_DECODE_ERROR;
             srs_error("sps the num_ref_frames_in_pic_order_cnt_cycle invalid. ret=%d", ret);
             return ret;
+        }
+        for (int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++) {
+            int32_t offset_for_ref_frame_i = -1;
+            if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_ref_frame_i)) != ERROR_SUCCESS) {
+                return ret;
+            }
         }
     }
     
