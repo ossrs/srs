@@ -362,7 +362,23 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 # the sed command
-SED="sed -i" && if [ $OS_IS_OSX = YES ]; then SED="sed -i ''"; fi
+function sed_utility() {
+    if [ $OS_IS_OSX = YES ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+    
+    ret=$?; if [[ $ret -ne 0 ]]; then
+        if [ $OS_IS_OSX = YES ]; then
+            echo "sed -i '' \"$@\""
+        else
+            echo "sed -i \"$@\""
+        fi
+        return $ret
+    fi
+}
+SED="sed_utility" && echo "SED is $SED"
 
 #####################################################################################
 # check the os.
