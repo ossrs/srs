@@ -384,6 +384,9 @@
                     <input class="span2" style="width:135px" id="player_clock" type="text" placeholder="年-月-日 时:分:秒">
                 </div>
             </div>
+            <div>
+                <span id="debug_info"></span>
+            </div>
         </div>
     </div>
     <footer>
@@ -466,6 +469,19 @@
         __active_mbt.addClass("active");
     }
 
+    /****
+    * The parameters for this page:
+    *       schema, the protocol schema, rtmp or http.
+    *       server, the ip of the url.
+    *       port, the rtmp port of url.
+    *       vhost, the vhost of url, can equals to server.
+    *       app, the app of url.
+    *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
+    *       autostart, whether auto play the stream.
+    * for example:
+    *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream&server=ossrs.net&port=1935&autostart=true&schema=rtmp
+    *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream.flv&server=ossrs.net&port=8080&autostart=true&schema=http
+    */
     $(function(){
         var query = parse_query_string();
 
@@ -496,6 +512,9 @@
             };
             srs_player.on_player_metadata = function(metadata) {
                 $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
+                if (metadata.ip && metadata.pid && metadata.cid) {
+                    $("#debug_info").text("DEBUG: " + metadata.ip + ' grep -in "\\[' + metadata.pid + '\\]\\[' + metadata.cid + '\\]"');
+                }
                 select_dar("#btn_dar_original", 0, 0);
                 select_fs_size("#btn_fs_size_screen_100", "screen", 100);
             };
@@ -551,6 +570,9 @@
                     + "vhost=" + rtmp.vhost + "&app=" + rtmp.app + "&stream=" + rtmp.stream
                     + "&server=" + rtmp.server + "&port=" + rtmp.port
                     + "&autostart=true";
+            if (rtmp.schema == "http") {
+                url += "&schema=http";
+            }
             $("#player_url").text($("#txt_url").val()).attr("href", url);
 
             $("#link_server").text(rtmp.server);
