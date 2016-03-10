@@ -3671,9 +3671,9 @@ int SrsConfig::check_config()
                 "total=%d(max_connections=%d, nb_consumed_fds=%d), ret=%d. "
                 "you can change max_connections from %d to %d, or "
                 "you can login as root and set the limit: ulimit -HSn %d", 
-                nb_connections, nb_total + 1, max_open_files, 
+                nb_connections, nb_total + 100, max_open_files, 
                 nb_total, nb_connections, nb_consumed_fds,
-                ret, nb_connections, nb_canbe, nb_total + 1);
+                ret, nb_connections, nb_canbe, nb_total + 100);
             return ret;
         }
     }
