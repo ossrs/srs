@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://code.csdn.net/snippets/147103
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.14
+ * v 1.0.15
  */
 
 /**
@@ -306,10 +306,16 @@ function parse_rtmp_url(rtmp_url) {
             vhost = "__defaultVhost__";
         }
     }
+    
+    // parse the schema
+    var schema = "rtmp";
+    if (rtmp_url.indexOf("://") > 0) {
+        schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
+    }
 
     var ret = {
         url: rtmp_url,
-        schema: a.protocol.replace(":", ""),
+        schema: schema,
         server: a.hostname, port: port,
         vhost: vhost, app: app, stream: stream
     };
