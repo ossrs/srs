@@ -121,13 +121,13 @@ package
             
             // for directly run swf.
             if (!conf.id) {
-                trace("directly run swf, load default url: " + this.default_url);
+                log("directly run swf, load default url: " + this.default_url);
                 this.bandwidth.check_bandwidth(this.default_url);
             }
             
         }
         private function on_progress(percent:Number):void {
-            trace("progress:" + percent + "%");
+            log("progress:" + percent + "%");
         }
         private function update_context_items(
             srs_server:String, srs_primary:String, srs_authors:String, 
@@ -156,31 +156,31 @@ package
             contextMenu.customItems = customItems;
         }
         public function on_status_change(code:String, data:String): void {
-            trace(code);
+            log(code);
             switch(code){
                 case "NetConnection.Connect.Failed":
-                    trace("连接服务器失败！");
+                    log("连接服务器失败！");
                     break;
                 case "NetConnection.Connect.Rejected":
-                    trace("服务器拒绝连接！");
+                    log("服务器拒绝连接！");
                     break;
                 case "NetConnection.Connect.Success":
-                    trace("连接服务器成功!");
+                    log("连接服务器成功!");
                     break;
                 case SrsBandwidth.StatusSrsBwtcPlayStart:
-                    trace("开始测试下行带宽");
+                    log("开始测试下行带宽");
                     break;
                 case SrsBandwidth.StatusSrsBwtcPlayStop:
-                    trace("下行带宽测试完毕，" + data + "kbps，开始测试上行带宽。");
+                    log("下行带宽测试完毕，" + data + "kbps，开始测试上行带宽。");
                     break;
                 case SrsBandwidth.StatusSrsBwtcPublishStart:
-                    trace("开始测试上行带宽");
+                    log("开始测试上行带宽");
                     break;
                 case SrsBandwidth.StatusSrsBwtcPublishStop:
-                    trace("上行带宽测试完毕，" + data + "kbps，");
+                    log("上行带宽测试完毕，" + data + "kbps，");
                     break;
                 case "NetConnection.Connect.Closed":
-                    trace("连接已断开!");
+                    log("连接已断开!");
                     break;
             }
         }
@@ -190,7 +190,14 @@ package
         ):void {
             var status:String = "检测结束: 上行: " + publish_kbps + " kbps" + " 下行: " + play_kbps + " kbps"
                 + " 测试时间: " + Number((end_time - start_time) / 1000).toFixed(1) + " 秒";
-            trace(status);
+            log(status);
         }
+		
+		private function log(msg:String):void {
+			trace(msg);
+			if (ExternalInterface.available) {
+				ExternalInterface.call("console.log", msg);
+			}
+		}
     }
 }

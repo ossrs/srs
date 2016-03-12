@@ -25,6 +25,7 @@ package
     import flash.events.NetStatusEvent;
     import flash.external.ExternalInterface;
     import flash.net.NetConnection;
+    import flash.net.NetStream;
     import flash.net.ObjectEncoding;
     import flash.utils.clearTimeout;
     import flash.utils.setTimeout;
@@ -92,7 +93,7 @@ package
         *       srs_server: the srs server info.
         *       srs_primary: the srs primary authors info.
         *       srs_authors: the srs authors info.
-        *       srs_id: the tracable log id, to direclty grep the log..
+        *       srs_id: the tracable log id, to direclty grep the log.
         *       srs_pid: the srs process id, to direclty grep the log.
         *       srs_server_ip: the srs server ip, where client connected at.
         * @param as_on_complete, function(start_time:Number, end_time:Number, play_kbps:Number, publish_kbps:Number, play_bytes:Number, publish_bytes:Number, play_time:Number, publish_time:Number):void, where
@@ -280,6 +281,8 @@ package
         * check/test with server.
         */
         private var connection:NetConnection = null;
+		// for bms4, use stream to play then do bandwidth test.
+		private var stream:NetStream = null;
         
         /**
          * use timeout to sendout publish call packets.
@@ -293,7 +296,7 @@ package
          */
         private function system_on_js_ready():void {
             if (!flash.external.ExternalInterface.available) {
-                trace("js not ready, try later.");
+                log("js not ready, try later.");
                 flash.utils.setTimeout(this.system_on_js_ready, 100);
                 return;
             }
@@ -318,6 +321,7 @@ package
             __on_progress_change(0);
             
             // init connection
+			log("create connection for bandwidth check");
             connection = new NetConnection;
             connection.objectEncoding = ObjectEncoding.AMF0;
             connection.client = {
@@ -350,7 +354,7 @@ package
         private function onSrsBandCheckStartPlayBytes(evt:Object):void{
             var duration_ms:Number = evt.duration_ms;
             var interval_ms:Number = evt.interval_ms;
-            trace("start play test, duration=" + duration_ms + ", interval=" + interval_ms);
+            log("start play test, duration=" + duration_ms + ", interval=" + interval_ms);
             
             connection.call("onSrsBandCheckStartingPlayBytes", null);
             __on_status_change(SrsBandwidth.StatusSrsBwtcPlayStart);
@@ -482,8 +486,9 @@ package
         * get NetConnection NetStatusEvent
         */
         private function onStatus(evt:NetStatusEvent): void {
-            trace(evt.info.code);
+            log(evt.info.code);
             
+			var srs_version:String = null;
             if (evt.info.hasOwnProperty("data") && evt.info.data) {
                 if (evt.info.data.hasOwnProperty("srs_server")) {
                     srs_server = evt.info.data.srs_server;
@@ -503,6 +508,9 @@ package
                 if (evt.info.data.hasOwnProperty("srs_server_ip")) {
                     srs_server_ip = evt.info.data.srs_server_ip;
                 }
+				if (evt.info.data.hasOwnProperty("srs_version")) {
+					srs_version = evt.info.data.srs_version;
+				}
                 
                 if (this.as_on_srs_info != null) {
                     this.as_on_srs_info(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
@@ -511,16 +519,46 @@ package
                     flash.external.ExternalInterface.call(this.js_on_srs_info, this.js_id, 
                         srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
                 }
-            }
-            if (evt.info.code) {
-                __on_status_change(evt.info.code);
-            }
-            switch(evt.info.code){
-                case "NetConnection.Connect.Success":
-                    __on_progress_change(8);
-                    break;
-            }
-            
+			}
+			
+			var e:NetStatusEvent = evt;
+			var foo:Function = function():void{
+				var evt:NetStatusEvent = e;
+				if (evt.info.code) {
+					__on_status_change(evt.info.code);
+				}
+				switch(evt.info.code){
+					case "NetConnection.Connect.Success":
+						__on_progress_change(8);
+						break;
+				}
+			};
+			foo();
+			
+			// for bms4, play stream to trigger the bandwidth check.
+			if (evt.info.code != "NetConnection.Connect.Success") {
+				return;
+			}
+			if (stream != null) {
+				return;
+			}
+			
+			var is_bms:Boolean = false;
+			if (srs_server.indexOf("BMS/") == 0 || srs_server.indexOf("UPYUN/") == 0) {
+				is_bms = true;
+			}
+			if (parseInt(srs_version.charAt(0)) >= 4 && is_bms) {
+				stream = new NetStream(connection);
+				stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void{
+					log(evt.info.code);
+					
+					if (evt.info.code == "NetStream.Play.Start") {
+					}
+				});
+				stream.play("test");
+				log("play stream for " + srs_server + " " + srs_version);
+				return;
+			}
         }
         
         /**
@@ -544,5 +582,12 @@ package
                     code, data);
             }
         }
+		
+		private function log(msg:String):void {
+			trace(msg);
+			if (ExternalInterface.available) {
+				ExternalInterface.call("console.log", msg);
+			}
+		}
     }
 }
