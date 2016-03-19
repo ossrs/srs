@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.28"; }
+function srs_get_version_code() { return "1.29"; }
 
 /**
 * player specified size.
@@ -56,7 +56,7 @@ function build_default_rtmp_url() {
 
     var schema = (query.schema == undefined)? "rtmp":query.schema;
     var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? 1935:query.port;
+    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "demo":query.stream;
@@ -82,7 +82,7 @@ function build_default_publish_rtmp_url() {
 
     var schema = (query.schema == undefined)? "rtmp":query.schema;
     var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? 1935:query.port;
+    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "demo":query.stream;
