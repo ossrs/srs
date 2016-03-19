@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://code.csdn.net/snippets/147103
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.16
+ * v 1.0.17
  */
 
 /**
@@ -296,7 +296,6 @@ function parse_rtmp_url(rtmp_url) {
     a.href = rtmp_url.replace("rtmp://", "http://");
 
     var vhost = a.hostname;
-    var port = (a.port == "")? "1935":a.port;
     var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
     var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
 
@@ -328,6 +327,7 @@ function parse_rtmp_url(rtmp_url) {
     if (rtmp_url.indexOf("://") > 0) {
         schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
     }
+    var port = (a.port == "")? (schema=="http"?"80":"1935"):a.port;
 
     var ret = {
         url: rtmp_url,
