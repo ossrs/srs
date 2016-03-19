@@ -9,6 +9,11 @@ package
     public class Utility
     {
         /**
+         * total log.
+         */
+        public static var logData:String = "";
+
+        /**
          * initialize the player by flashvars for config.
          * @param flashvars the config.
          */
@@ -22,6 +27,8 @@ package
          */
         public static function log(js_id:String, msg:String):void {
             msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
+
+            logData += msg + "\n";
 
             trace(msg);
 

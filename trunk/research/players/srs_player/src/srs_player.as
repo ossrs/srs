@@ -131,6 +131,7 @@ package
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
             flash.external.ExternalInterface.addCallback("__set_mbt", this.js_call_set_mbt);
+            flash.external.ExternalInterface.addCallback("__dump_log", this.js_call_dump_log);
             
             flash.external.ExternalInterface.call(this.js_on_player_ready, this.js_id);
         }
@@ -272,6 +273,13 @@ package
                 player.stream().resume();
                 log("user resume play");
             }
+        }
+
+        /**
+         * dumps all log data.
+         */
+        private function js_call_dump_log():String {
+            return Utility.logData;
         }
         
         /**

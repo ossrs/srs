@@ -164,6 +164,12 @@ SrsPlayer.prototype.empty_count = function() {
     return this.__fluency.total_empty_count;
 }
 /**
+ * get all log data.
+ */
+SrsPlayer.prototype.dump_log = function() {
+    return this.callbackObj.ref.__dump_log();
+}
+/**
 * to set the DAR, for example, DAR=16:9 where num=16,den=9.
 * @param num, for example, 16. 
 *       use metadata width if 0.
