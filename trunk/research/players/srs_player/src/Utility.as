@@ -32,14 +32,16 @@ package
          * @param msg the log message.
          */
         public static function log(js_id:String, msg:String):void {
-            msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
+			if (js_id) {
+            	msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
+			}
 
             logData += msg + "\n";
 
             trace(msg);
 
             if (!flash.external.ExternalInterface.available) {
-                flash.utils.setTimeout(log, 300, msg);
+                flash.utils.setTimeout(log, 300, null, msg);
                 return;
             }
 

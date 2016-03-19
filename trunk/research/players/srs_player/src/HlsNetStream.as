@@ -1,286 +1,865 @@
 package
 {
     import flash.events.Event;
+    import flash.events.ProgressEvent;
+    import flash.external.ExternalInterface;
+    import flash.net.NetConnection;
+    import flash.net.NetStream;
+    import flash.net.NetStreamAppendBytesAction;
     import flash.net.URLLoader;
+    import flash.net.URLLoaderDataFormat;
     import flash.net.URLRequest;
+    import flash.net.URLRequestHeader;
     import flash.net.URLRequestMethod;
+    import flash.net.URLStream;
+    import flash.net.URLVariables;
     import flash.utils.ByteArray;
+    import flash.utils.setTimeout;
+
+    // the NetStream to play hls or hls+.
+    public class HlsNetStream extends NetStream
+    {
+        private var hls:HlsCodec = null; // parse m3u8 and ts
+
+        // for hls codec.
+        public var m3u8_refresh_ratio:Number;
+        public var ts_parse_async_interval:Number;
+		
+		// play param url.
+		private var user_url:String = null;
+
+		/**
+		 * create stream to play hls.
+		 * @param m3u8_refresh_ratio, for example, 0.5, fetch m3u8 every 0.5*ts_duration.
+		 * @param ts_parse_async_interval, for example, 80ms to parse ts async.
+		 */
+        public function HlsNetStream(m3u8_refresh_ratio:Number, ts_parse_async_interval:Number, conn:NetConnection)
+        {
+            super(conn);
+			
+			this.m3u8_refresh_ratio = m3u8_refresh_ratio;
+			this.ts_parse_async_interval = ts_parse_async_interval;
+			hls = new HlsCodec(this);
+        }
+		
+		/**
+		 * to play the hls stream.
+		 * for example, HlsNetStream.play("http://ossrs.net:8080/live/livestream.m3u8").
+		 * user can set the metadata callback by:
+		 * 		var ns:NetStream = new HlsNetStream(...);
+		 * 		ns.client = {};
+		 * 		ns.client.onMetaData = system_on_metadata;
+		 */
+		public override function play(... params):void 
+		{
+			super.play(null);
+			user_url = params[0] as String;
+			refresh_m3u8();
+		}
+		
+		/////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////Private Section//////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////////////////
+		
+		private var parsed_ts_seq_no:Number = -1;
+		private function refresh_m3u8():void {
+			download(user_url, function(stream:ByteArray):void {
+				var m3u8:String = stream.toString();
+				hls.parse(user_url, m3u8);
+				
+				// redirect by variant m3u8.
+				if (hls.variant) {
+					var smu:String = hls.getTsUrl(0);
+					log("variant hls=" + user_url + ", redirect2=" + smu);
+					user_url = smu;
+					setTimeout(refresh_m3u8, 0);
+					return;
+				}
+				
+				// fetch from the last one.
+				if (parsed_ts_seq_no == -1) {
+					parsed_ts_seq_no = hls.seq_no + hls.tsCount - 1;
+				}
+				
+				// not changed.
+				if (parsed_ts_seq_no >= hls.seq_no + hls.tsCount) {
+					refresh_ts();
+					return;
+				}
+				
+				// parse each ts.
+				var nb_ts:Number = hls.seq_no + hls.tsCount - parsed_ts_seq_no;
+				log("m3u8 changed, got " + nb_ts + " new ts, count=" + hls.tsCount + ", seqno=" + hls.seq_no + ", parsed=" + parsed_ts_seq_no);
+				
+				refresh_ts();
+			})
+		}
+		private function refresh_ts():void {
+			// all ts parsed.
+			if (parsed_ts_seq_no >= hls.seq_no + hls.tsCount) {
+				var to:Number = 1000;
+				if (hls.tsCount > 0) {
+					to = hls.duration * 1000 / hls.tsCount * m3u8_refresh_ratio;
+				}
+				setTimeout(refresh_m3u8, to);
+				log("m3u8 not changed, retry after " + to.toFixed(2) + "ms");
+				return;
+			}
+			
+			// parse current ts.
+			var uri:String = hls.getTsUrl(parsed_ts_seq_no - hls.seq_no);
+			
+			// parse metadata from uri.
+			if (uri.indexOf("?") >= 0) {
+				var uv:URLVariables = new URLVariables(uri.substr(uri.indexOf("?") + 1));
+				var obj:Object = {};
+				for (var k:String in uv) {
+					var v:String = uv[k];
+					if (k == "shp_sip1") {
+						obj.srs_server_ip = v;
+					} else if (k == "shp_cid") {
+						obj.srs_id = v;
+					} else if (k == "shp_pid") {
+						obj.srs_pid = v;
+					}
+					//log("uv[" + k + "]=" + v);
+				}
+				
+				if (client && client.hasOwnProperty("onMetaData")) {
+					client.onMetaData(obj);
+				}
+			}
+			
+			download(uri, function(stream:ByteArray):void{
+				log("got ts seqno=" + parsed_ts_seq_no + ", " + stream.length + " bytes");
+				
+				var flv:FlvPiece = new FlvPiece(parsed_ts_seq_no);
+				var body:ByteArray = new ByteArray();
+				stream.position = 0;
+				hls.parseBodyAsync(flv, stream, body, function():void{
+					body.position = 0;
+					//log("ts parsed, seqno=" + parsed_ts_seq_no + ", flv=" + body.length + "B");
+					onFlvBody(uri, body);
+					
+					parsed_ts_seq_no++;
+					setTimeout(refresh_ts, 0);
+				});
+			});
+		}
+		private function download(uri:String, completed:Function):void {
+			// http get.
+			var url:URLStream = new URLStream();
+			var stream:ByteArray = new ByteArray();
+			
+			url.addEventListener(ProgressEvent.PROGRESS, function(evt:ProgressEvent):void {
+				if (url.bytesAvailable <= 0) {
+					return;
+				}
+				
+				//log(uri + " total=" + evt.bytesTotal + ", loaded=" + evt.bytesLoaded + ", available=" + url.bytesAvailable);
+				var bytes:ByteArray = new ByteArray();
+				url.readBytes(bytes, 0, url.bytesAvailable);
+				stream.writeBytes(bytes);
+			});
+			
+			url.addEventListener(Event.COMPLETE, function(evt:Event):void {
+				log(uri + " completed, total=" + stream.length + "bytes");
+				if (url.bytesAvailable <= 0) {
+					completed(stream);
+					return;
+				}
+				
+				//log(uri + " completed" + ", available=" + url.bytesAvailable);
+				var bytes:ByteArray = new ByteArray();
+				url.readBytes(bytes, 0, url.bytesAvailable);
+				stream.writeBytes(bytes);
+				
+				completed(stream);
+			});
+			
+			// we set to the query.
+			uri += ((uri.indexOf("?") == -1)? "?":"&") + "shp_xpsid=" + XPlaybackSessionId;
+			var r:URLRequest = new URLRequest(uri);
+			// seems flash not allow set this header.
+			// @remark disable it for it will cause security exception.
+			//r.requestHeaders.push(new URLRequestHeader("X-Playback-Session-Id", XPlaybackSessionId));
+
+			log("start download " + uri);
+			url.load(r);
+		}
+
+        // the uuid similar to Safari, to identify this play session.
+        // @see https://github.com/winlinvip/srs-plus/blob/bms/trunk/src/app/srs_app_http_stream.cpp#L45
+        public var XPlaybackSessionId:String = createRandomIdentifier(32);
+
+        private function createRandomIdentifier(length:uint, radix:uint = 61):String {
+            var characters:Array = new Array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+                'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+                'z');
+            var id:Array  = new Array();
+            radix = (radix > 61) ? 61 : radix;
+            while (length--) {
+                id.push(characters[randomIntegerWithinRange(0, radix)]);
+            }
+            return id.join('');
+        }
+
+        private function randomIntegerWithinRange(min:int, max:int):int {
+            return Math.floor(Math.random() * (1 + max - min) + min);
+        }
+
+        // callback for hls.
+        public var flvHeader:ByteArray = null;
+        public function onSequenceHeader():void {
+            var s:NetStream = super;
+            s.appendBytesAction(NetStreamAppendBytesAction.RESET_BEGIN);
+            s.appendBytes(flvHeader);
+            log("FLV: sps/pps " + flvHeader.length + " bytes");
+
+            writeFlv(flvHeader);
+        }
+
+        private function onFlvBody(uri:String, flv:ByteArray):void {
+            if (!flvHeader) {
+                return;
+            }
+
+            var s:NetStream = super;
+            s.appendBytes(flv);
+            log("FLV: ts " + uri + " parsed to flv " + flv.length + " bytes");
+
+            writeFlv(flv);
+        }
+
+        private function writeFlv(data:ByteArray):void {
+            return;
+
+            var r:URLRequest = new URLRequest("http://192.168.1.117:8088/api/v1/flv");
+            r.method = URLRequestMethod.POST;
+            r.data = data;
+
+            var pf:URLLoader = new URLLoader();
+            pf.dataFormat = URLLoaderDataFormat.BINARY;
+            pf.load(r);
+        }
+		
+		private function log(msg:String):void {
+			msg = "[" + new Date() +"][srs-player] " + msg;
+			
+			trace(msg);
+			
+			if (!flash.external.ExternalInterface.available) {
+				return;
+			}
+			
+			ExternalInterface.call("console.log", msg);
+		}
+    }
+}
+
+import flash.events.Event;
+import flash.net.URLLoader;
+import flash.net.URLRequest;
+import flash.net.URLRequestMethod;
+import flash.utils.ByteArray;
+
+/**
+ * the hls main class.
+ */
+class HlsCodec
+{
+    private var m3u8:M3u8;
+
+    private var avc:SrsRawH264Stream;
+    private var h264_sps:ByteArray;
+    private var h264_pps:ByteArray;
+
+    private var aac:SrsRawAacStream;
+    private var aac_specific_config:ByteArray;
+    private var width:int;
+    private var height:int;
+
+    private var video_sh_tag:ByteArray;
+    private var audio_sh_tag:ByteArray;
+
+    private var owner:HlsNetStream;
+    private var _log:ILogger = new TraceLogger("HLS");
+
+    public static const SRS_TS_PACKET_SIZE:int = 188;
+
+    public function HlsCodec(o:HlsNetStream)
+    {
+        owner = o;
+        m3u8 = new M3u8(this);
+
+        reset();
+    }
 
     /**
-     * the hls main class.
+     * parse the m3u8.
+     * @param url, the m3u8 url, for m3u8 to generate the ts url.
+     * @param v, the m3u8 string.
      */
-    public class Hls
+    public function parse(url:String, v:String):void
     {
-        private var m3u8:M3u8;
-        
-        private var avc:SrsRawH264Stream;
-        private var h264_sps:ByteArray;
-        private var h264_pps:ByteArray;
-        
-        private var aac:SrsRawAacStream;
-        private var aac_specific_config:ByteArray;
-        private var width:int;
-        private var height:int;
-        
-        private var video_sh_tag:ByteArray;
-        private var audio_sh_tag:ByteArray;
+        // TODO: FIXME: reset the hls when parse.
+        m3u8.parse(url, v);
+    }
 
-        private var owner:M3u8Player;
-        private var _log:ILogger = new TraceLogger("HLS");
-        
-        public static const SRS_TS_PACKET_SIZE:int = 188;
-        
-        public function Hls(o:M3u8Player)
-        {
-            owner = o;
-            m3u8 = new M3u8(this);
-            
-            reset();
-        }
-        
-        /**
-         * parse the m3u8.
-         * @param url, the m3u8 url, for m3u8 to generate the ts url.
-         * @param v, the m3u8 string.
-         */
-        public function parse(url:String, v:String):void
-        {
-            // TODO: FIXME: reset the hls when parse.
-            m3u8.parse(url, v);
-        }
-        
-        /**
-         * get the total count of ts in m3u8.
-         */
-        public function get tsCount():Number
-        {
-            return m3u8.tsCount;
-        }
-       
-        /**
-        * get the total duration in seconds of m3u8.
-        */
-        public function get duration():Number
-        {
-            return m3u8.duration;
-        }
+    /**
+     * get the total count of ts in m3u8.
+     */
+    public function get tsCount():Number
+    {
+        return m3u8.tsCount;
+    }
 
-        /**
-         * get the sequence number, the id of first ts.
-         */
-        public function get seq_no():Number
-        {
-            return m3u8.seq_no;
-        }
+    /**
+    * get the total duration in seconds of m3u8.
+    */
+    public function get duration():Number
+    {
+        return m3u8.duration;
+    }
 
-        /**
-         * whether the m3u8 contains variant m3u8.
-         */
-        public function get variant():Boolean
-        {
-            return m3u8.variant;
+    /**
+     * get the sequence number, the id of first ts.
+     */
+    public function get seq_no():Number
+    {
+        return m3u8.seq_no;
+    }
+
+    /**
+     * whether the m3u8 contains variant m3u8.
+     */
+    public function get variant():Boolean
+    {
+        return m3u8.variant;
+    }
+
+    /**
+    * dumps the metadata, for example, set the width and height,
+    * which is decoded from sps.
+    */
+    public function dumpMetaData(metadata:Object):void
+    {
+        if (width > 0) {
+            metadata.width = width;
         }
-        
-        /**
-        * dumps the metadata, for example, set the width and height,
-        * which is decoded from sps.
-        */
-        public function dumpMetaData(metadata:Object):void
-        {
-            if (width > 0) {
-                metadata.width = width;
+        if (height > 0) {
+            metadata.height = height;
+        }
+    }
+
+    /**
+    * get the ts url by piece id, which is actually the piece index.
+    */
+    public function getTsUrl(pieceId:Number):String
+    {
+        return m3u8.getTsUrl(pieceId);
+    }
+
+    /**
+    * reset the HLS when parse m3u8.
+    */
+    public function reset():void
+    {
+        avc = new SrsRawH264Stream();
+        h264_sps = new ByteArray();
+        h264_pps = new ByteArray();
+
+        aac = new SrsRawAacStream();
+        aac_specific_config = new ByteArray();
+
+        width = 0;
+        height = 0;
+
+        video_sh_tag = new ByteArray();
+        audio_sh_tag = new ByteArray();
+    }
+
+    /**
+     * parse the piece in hls format,
+     * set the piece.skip if error.
+     * @param onParsed, a function(piece:FlvPiece, body:ByteArray):void callback.
+     */
+    public function parseBodyAsync(piece:FlvPiece, data:ByteArray, body:ByteArray, onParsed:Function):void
+    {
+        var handler:SrsTsHanlder = new SrsTsHanlder(
+            avc, aac,
+            h264_sps, h264_pps,
+            aac_specific_config,
+            video_sh_tag, audio_sh_tag,
+            this, body,
+            _on_size_changed, _on_sequence_changed
+        );
+
+        // the context used to parse the whole ts file.
+        var context:SrsTsContext = new SrsTsContext(this);
+
+        // we assumpt to parse the piece in 10 times.
+        // the total parse time is 10*AlgP2P.HlsAsyncParseTimeout
+        var ts_packets:uint = data.length / SRS_TS_PACKET_SIZE;
+        var each_parse:uint = ts_packets / 10;
+        var nb_parsed:uint = 0;
+        var aysncParse:Function = function():void {
+            try {
+                // do the parse.
+                doParseBody(piece, data, body, handler, context, each_parse);
+
+                // check whether parsed.
+                nb_parsed += each_parse;
+
+                if (nb_parsed < ts_packets) {
+                    flash.utils.setTimeout(aysncParse, owner.ts_parse_async_interval);
+                    return;
+                }
+
+                // flush the messages in queue.
+                handler.flush_message_queue(body);
+
+                __report(body);
+                _log.info("hls async parsed to flv, piece={0}, hls={1}B, flv={2}B", piece.pieceId, data.length, body.length);
+            } catch (e:Error) {
+                piece.skip = true;
+                _log.error("hls async parse piece={0}, exception={1}, stack={2}",
+                    piece.pieceId, e.message, e.getStackTrace());
             }
-            if (height > 0) {
-                metadata.height = height;
-            }
-        }
-        
-        /**
-        * get the ts url by piece id, which is actually the piece index.
-        */
-        public function getTsUrl(pieceId:Number):String
-        {
-            return m3u8.getTsUrl(pieceId);
-        }
-        
-        /**
-        * reset the HLS when parse m3u8.
-        */
-        public function reset():void
-        {
-            avc = new SrsRawH264Stream();
-            h264_sps = new ByteArray();
-            h264_pps = new ByteArray();
-            
-            aac = new SrsRawAacStream();
-            aac_specific_config = new ByteArray();
-            
-            width = 0;
-            height = 0;
-            
-            video_sh_tag = new ByteArray();
-            audio_sh_tag = new ByteArray();
-        }
-        
-        /**
-         * parse the piece in hls format,
-         * set the piece.skip if error.
-         * @param onParsed, a function(piece:FlvPiece, body:ByteArray):void callback.
-         */
-        public function parseBodyAsync(piece:FlvPiece, data:ByteArray, body:ByteArray, onParsed:Function):void 
-        {
+
+            onParsed(piece, body);
+        };
+
+        aysncParse();
+    }
+
+    /**
+     * parse the piece in hls format,
+     * set the piece.skip if error.
+     */
+    public function parseBody(piece:FlvPiece, data:ByteArray, body:ByteArray):void
+    {
+        try {
             var handler:SrsTsHanlder = new SrsTsHanlder(
                 avc, aac,
                 h264_sps, h264_pps,
                 aac_specific_config,
-                video_sh_tag, audio_sh_tag, 
+                video_sh_tag, audio_sh_tag,
                 this, body,
                 _on_size_changed, _on_sequence_changed
             );
-            
+
             // the context used to parse the whole ts file.
             var context:SrsTsContext = new SrsTsContext(this);
-            
-            // we assumpt to parse the piece in 10 times.
-            // the total parse time is 10*AlgP2P.HlsAsyncParseTimeout
-            var ts_packets:uint = data.length / SRS_TS_PACKET_SIZE;
-            var each_parse:uint = ts_packets / 10;
-            var nb_parsed:uint = 0;
-            var aysncParse:Function = function():void {
-                try {
-                    // do the parse.
-                    doParseBody(piece, data, body, handler, context, each_parse);
-                    
-                    // check whether parsed.
-                    nb_parsed += each_parse;
-                    
-                    if (nb_parsed < ts_packets) {
-                        flash.utils.setTimeout(aysncParse, Consts.TsParseAsyncInterval);
-                        return;
-                    }
-                    
-                    // flush the messages in queue.
-                    handler.flush_message_queue(body);
-                    
-                    __report(body);
-                    _log.info("hls async parsed to flv, piece={0}, hls={1}B, flv={2}B", piece.pieceId, data.length, body.length);
-                } catch (e:Error) {
-                    piece.skip = true;
-                    _log.error("hls async parse piece={0}, exception={1}, stack={2}", 
-                        piece.pieceId, e.message, e.getStackTrace());
-                }
-                
-                onParsed(piece, body);
-            };
-            
-            aysncParse();
-        }
-        
-        /**
-         * parse the piece in hls format,
-         * set the piece.skip if error.
-         */
-        public function parseBody(piece:FlvPiece, data:ByteArray, body:ByteArray):void 
-        {
-            try {
-                var handler:SrsTsHanlder = new SrsTsHanlder(
-                    avc, aac,
-                    h264_sps, h264_pps,
-                    aac_specific_config,
-                    video_sh_tag, audio_sh_tag, 
-                    this, body,
-                    _on_size_changed, _on_sequence_changed
-                );
-                
-                // the context used to parse the whole ts file.
-                var context:SrsTsContext = new SrsTsContext(this);
-                
-                // do the parse.
-                doParseBody(piece, data, body, handler, context, -1);
-                
-                // flush the messages in queue.
-                handler.flush_message_queue(body);
-                
-                __report(body);
-                _log.info("hls sync parsed to flv, piece={0}, hls={1}B, flv={2}B", piece.pieceId, data.length, body.length);
-            } catch (e:Error) {
-                piece.skip = true;
-                _log.error("hls sync parse piece={0}, exception={1}, stack={2}", 
-                    piece.pieceId, e.message, e.getStackTrace());
-            }
-        }
-        
-        private function _on_size_changed(w:int, h:int):void
-        {
-            width = w;
-            height = h;
-        }
-        
-        private function _on_sequence_changed(
-            pavc:SrsRawH264Stream, paac:SrsRawAacStream, 
-            ph264_sps:ByteArray, ph264_pps:ByteArray, 
-            paac_specific_config:ByteArray,
-            pvideo_sh_tag:ByteArray, paudio_sh_tag:ByteArray, 
-            sh:ByteArray):void
-        {
-            // when sequence header not changed, ignore.
-            if (SrsUtils.array_equals(h264_sps, ph264_sps)) {
-                if (SrsUtils.array_equals(h264_pps, ph264_pps)) {
-                    if (SrsUtils.array_equals(aac_specific_config, paac_specific_config)) {
-                        return;
-                    }
-                }
-            }
-            
-            avc = pavc;
-            h264_sps = ph264_sps;
-            h264_pps = ph264_pps;
-            
-            aac = paac;
-            aac_specific_config = paac_specific_config;
-            
-            video_sh_tag = pvideo_sh_tag;
-            audio_sh_tag = paudio_sh_tag;
-            
-            _log.info("hls: got sequence header, ash={0}B, bsh={1}B", audio_sh_tag.length, video_sh_tag.length);
-            owner.flvHeader = sh;
-            owner.onSequenceHeader();
-            
-            __report(sh);
-        }
-        
-        /**
-        * do the parse.
-        * @maxTsPackets the max ts packets to parse, stop when exceed this ts packet.
-        *       -1 to parse all packets.
-        */
-        private function doParseBody(
-            piece:FlvPiece, data:ByteArray, body:ByteArray, 
-            handler:SrsTsHanlder, context:SrsTsContext, maxTsPackets:int):void 
-        {
-            for (var i:int = 0; (maxTsPackets == -1 || i < maxTsPackets) && data.bytesAvailable > 0; i++) {
-                var tsBytes:ByteArray = new ByteArray();
-                data.readBytes(tsBytes, 0, Hls.SRS_TS_PACKET_SIZE);
-                context.decode(tsBytes, handler);
-            }
-        }
-        
-        private function __report(flv:ByteArray):void
-        {
-            // report only for debug.
-            return;
-            
-            var url:URLRequest = new URLRequest("http://192.168.10.108:1980/api/v3/file");
-            url.data = flv;
-            url.method = URLRequestMethod.POST;
-            
-            var loader:URLLoader = new URLLoader();
-            loader.addEventListener(Event.COMPLETE, function(e:Event):void {
-                loader.close();
-            });
-            loader.load(url);
+
+            // do the parse.
+            doParseBody(piece, data, body, handler, context, -1);
+
+            // flush the messages in queue.
+            handler.flush_message_queue(body);
+
+            __report(body);
+            _log.info("hls sync parsed to flv, piece={0}, hls={1}B, flv={2}B", piece.pieceId, data.length, body.length);
+        } catch (e:Error) {
+            piece.skip = true;
+            _log.error("hls sync parse piece={0}, exception={1}, stack={2}",
+                piece.pieceId, e.message, e.getStackTrace());
         }
     }
+
+    private function _on_size_changed(w:int, h:int):void
+    {
+        width = w;
+        height = h;
+    }
+
+    private function _on_sequence_changed(
+        pavc:SrsRawH264Stream, paac:SrsRawAacStream,
+        ph264_sps:ByteArray, ph264_pps:ByteArray,
+        paac_specific_config:ByteArray,
+        pvideo_sh_tag:ByteArray, paudio_sh_tag:ByteArray,
+        sh:ByteArray):void
+    {
+        // when sequence header not changed, ignore.
+        if (SrsUtils.array_equals(h264_sps, ph264_sps)) {
+            if (SrsUtils.array_equals(h264_pps, ph264_pps)) {
+                if (SrsUtils.array_equals(aac_specific_config, paac_specific_config)) {
+                    return;
+                }
+            }
+        }
+
+        avc = pavc;
+        h264_sps = ph264_sps;
+        h264_pps = ph264_pps;
+
+        aac = paac;
+        aac_specific_config = paac_specific_config;
+
+        video_sh_tag = pvideo_sh_tag;
+        audio_sh_tag = paudio_sh_tag;
+
+        _log.info("hls: got sequence header, ash={0}B, bsh={1}B", audio_sh_tag.length, video_sh_tag.length);
+        owner.flvHeader = sh;
+        owner.onSequenceHeader();
+
+        __report(sh);
+    }
+
+    /**
+    * do the parse.
+    * @maxTsPackets the max ts packets to parse, stop when exceed this ts packet.
+    *       -1 to parse all packets.
+    */
+    private function doParseBody(
+        piece:FlvPiece, data:ByteArray, body:ByteArray,
+        handler:SrsTsHanlder, context:SrsTsContext, maxTsPackets:int):void
+    {
+        for (var i:int = 0; (maxTsPackets == -1 || i < maxTsPackets) && data.bytesAvailable > 0; i++) {
+            var tsBytes:ByteArray = new ByteArray();
+            data.readBytes(tsBytes, 0, HlsCodec.SRS_TS_PACKET_SIZE);
+            context.decode(tsBytes, handler);
+        }
+    }
+
+    private function __report(flv:ByteArray):void
+    {
+        // report only for debug.
+        return;
+
+        var url:URLRequest = new URLRequest("http://192.168.10.108:1980/api/v3/file");
+        url.data = flv;
+        url.method = URLRequestMethod.POST;
+
+        var loader:URLLoader = new URLLoader();
+        loader.addEventListener(Event.COMPLETE, function(e:Event):void {
+            loader.close();
+        });
+        loader.load(url);
+    }
+}
+
+import flash.utils.Dictionary;
+
+class Dict
+{
+    private var _dict:Dictionary;
+    private var _size:uint;
+
+    public function Dict()
+    {
+        clear();
+    }
+
+    /**
+     * get the underlayer dict.
+     * @remark for core-ng.
+     */
+    public function get dict():Dictionary
+    {
+        return _dict;
+    }
+
+    public function has(key:Object):Boolean
+    {
+        return (key in _dict);
+    }
+
+    public function get(key:Object):Object
+    {
+        return ((key in _dict) ? _dict[key] : null);
+    }
+
+    public function set(key:Object, object:Object):void
+    {
+        if (!(key in _dict))
+        {
+            _size++;
+        }
+        _dict[key] = object;
+    }
+
+    public function remove(key:Object):Object
+    {
+        var object:Object;
+        if (key in _dict)
+        {
+            object = _dict[key];
+            delete _dict[key];
+            _size--;
+        }
+        return (object);
+    }
+
+    public function keys():Array
+    {
+        var array:Array = new Array(_size);
+        var index:int;
+        for (var key:Object in _dict)
+        {
+            var _local6:int = index++;
+            array[_local6] = key;
+        }
+        return (array);
+    }
+
+    public function values():Array
+    {
+        var array:Array = new Array(_size);
+        var index:int;
+        for each (var value:Object in _dict)
+        {
+            var _local6:int = index++;
+            array[_local6] = value;
+        };
+        return (array);
+    }
+
+    public function clear():void
+    {
+        _dict = new Dictionary();
+        _size = 0;
+    }
+
+    public function toArray():Array
+    {
+        var array:Array = new Array(_size * 2);
+        var index:int;
+        for (var key:Object in _dict)
+        {
+            var _local6:int = index++;
+            array[_local6] = key;
+            var _local7:int = index++;
+            array[_local7] = _dict[key];
+        };
+        return (array);
+    }
+
+    public function toObject():Object
+    {
+        return (toArray());
+    }
+
+    public function fromObject(object:Object):void
+    {
+        clear();
+        var index:uint;
+        while (index < (object as Array).length) {
+            set((object as Array)[index], (object as Array)[(index + 1)]);
+            index += 2;
+        };
+    }
+
+    public function get size():uint
+    {
+        return (_size);
+    }
+
+}
+
+import flash.utils.ByteArray;
+
+/**
+ * a piece of flv, fetch from cdn or p2p.
+ */
+class FlvPiece
+{
+    private var _pieceId:Number;
+    protected var _flv:ByteArray;
+    /**
+     * the private object for the channel,
+     * for example, the cdn channel will set to CdnEdge object.
+     */
+    private var _privateObject:Object;
+    /**
+     * when encoder error, this piece cannot be generated,
+     * and it should be skip. default to false.
+     */
+    private var _skip:Boolean;
+
+    public function FlvPiece(pieceId:Number)
+    {
+        _pieceId = pieceId;
+        _flv = null;
+        _skip = false;
+    }
+
+    /**
+     * when piece is fetch ok.
+     */
+    public function onPieceDone(flv:ByteArray):void
+    {
+        // save body.
+        _flv = flv;
+    }
+
+    /**
+     * when piece is fetch error.
+     */
+    public function onPieceError():void
+    {
+    }
+
+    /**
+     * when piece is empty.
+     */
+    public function onPieceEmpty():void
+    {
+    }
+
+    /**
+     * destroy the object, set reference to null.
+     */
+    public function destroy():void
+    {
+        _privateObject = null;
+        _flv = null;
+    }
+
+    public function get privateObject():Object
+    {
+        return _privateObject;
+    }
+
+    public function set privateObject(v:Object):void
+    {
+        _privateObject = v;
+    }
+
+    public function get skip():Boolean
+    {
+        return _skip;
+    }
+
+    public function set skip(v:Boolean):void
+    {
+        _skip = v;
+    }
+
+    public function get pieceId():Number
+    {
+        return _pieceId;
+    }
+
+    public function get flv():ByteArray
+    {
+        return _flv;
+    }
+
+    public function get completed():Boolean
+    {
+        return _flv != null;
+    }
+}
+
+interface ILogger
+{
+    function debug0(message:String, ... rest):void;
+    function debug(message:String, ... rest):void;
+    function info(message:String, ... rest):void;
+    function warn(message:String, ... rest):void;
+    function error(message:String, ... rest):void;
+    function fatal(message:String, ... rest):void;
+}
+
+import flash.globalization.DateTimeFormatter;
+import flash.external.ExternalInterface;
+
+class TraceLogger implements ILogger
+{
+    private var _category:String;
+
+    public function get category():String
+    {
+        return _category;
+    }
+    public function TraceLogger(category:String)
+    {
+        _category = category;
+    }
+    public function debug0(message:String, ...rest):void
+    {
+    }
+
+    public function debug(message:String, ...rest):void
+    {
+    }
+
+    public function info(message:String, ...rest):void
+    {
+        logMessage(LEVEL_INFO, message, rest);
+    }
+
+    public function warn(message:String, ...rest):void
+    {
+        logMessage(LEVEL_WARN, message, rest);
+    }
+
+    public function error(message:String, ...rest):void
+    {
+        logMessage(LEVEL_ERROR, message, rest);
+    }
+
+    public function fatal(message:String, ...rest):void
+    {
+        logMessage(LEVEL_FATAL, message, rest);
+    }
+    protected function logMessage(level:String, message:String, params:Array):void
+    {
+        var msg:String = "";
+
+        // add datetime
+        var date:Date = new Date();
+        var dtf:DateTimeFormatter = new DateTimeFormatter("UTC");
+        dtf.setDateTimePattern("yyyy-MM-dd HH:mm:ss");
+
+        // TODO: FIXME: the SSS format not run, use date.milliseconds instead.
+        msg += '[' + dtf.format(date) + "." + date.milliseconds + ']';
+        msg += " [" + level + "] ";
+
+        // add category and params
+        msg += "[" + category + "] " + applyParams(message, params);
+
+        // trace the message
+        trace(msg);
+
+        if (!flash.external.ExternalInterface.available) {
+            return;
+        }
+
+        ExternalInterface.call("console.log", msg);
+    }
+    private function leadingZeros(x:Number):String
+    {
+        if (x < 10) {
+            return "00" + x.toString();
+        }
+
+        if (x < 100) {
+            return "0" + x.toString();
+        }
+
+        return x.toString();
+    }
+    private function applyParams(message:String, params:Array):String
+    {
+        var result:String = message;
+
+        var numParams:int = params.length;
+
+        for (var i:int = 0; i < numParams; i++) {
+            result = result.replace(new RegExp("\\{" + i + "\\}", "g"), params[i]);
+        }
+        return result;
+    }
+
+    private static const LEVEL_DEBUG:String = "DEBUG";
+    private static const LEVEL_WARN:String = "WARN";
+    private static const LEVEL_INFO:String = "INFO";
+    private static const LEVEL_ERROR:String = "ERROR";
+    private static const LEVEL_FATAL:String = "FATAL";
 }
 
 import flash.utils.ByteArray;
@@ -304,7 +883,7 @@ class SrsTsHanlder implements ISrsTsHandler
     private var queue:Array;
     
     // hls data.
-    private var _hls:Hls;
+    private var _hls:HlsCodec;
     private var _body:ByteArray;
     private var _on_size_changed:Function;
     private var _on_sequence_changed:Function;
@@ -316,7 +895,7 @@ class SrsTsHanlder implements ISrsTsHandler
         ph264_sps:ByteArray, ph264_pps:ByteArray, 
         paac_specific_config:ByteArray,
         pvideo_sh_tag:ByteArray, paudio_sh_tag:ByteArray, 
-        hls:Hls, body:ByteArray, oszc:Function, oshc:Function)
+        hls:HlsCodec, body:ByteArray, oszc:Function, oshc:Function)
     {
         _hls = hls;
         _body = body;
@@ -2383,7 +2962,7 @@ interface ISrsTsHandler
  */
 class SrsTsContext
 {
-    private var _hls:Hls;
+    private var _hls:HlsCodec;
     
     // codec
     //      key, a Number indicates the pid,
@@ -2393,7 +2972,7 @@ class SrsTsContext
     // whether hls pure audio stream.
     private var _pure_audio:Boolean;
     
-    public function SrsTsContext(hls:Hls)
+    public function SrsTsContext(hls:HlsCodec)
     {
         _hls = hls;
         _pure_audio = false;
@@ -2620,7 +3199,7 @@ class SrsTsPacket
         }
         
         // calc the user defined data size for payload.
-        var nb_payload:int = Hls.SRS_TS_PACKET_SIZE - (stream.position - pos);
+        var nb_payload:int = HlsCodec.SRS_TS_PACKET_SIZE - (stream.position - pos);
         
         // optional: payload.
         if (adaption_field_control == SrsTsAdaptationFieldType.PayloadOnly 
@@ -4583,7 +5162,7 @@ class SrsTsPayloadPMT extends SrsTsPayloadPSI
  */
 class M3u8
 {
-    private var _hls:Hls;
+    private var _hls:HlsCodec;
     private var _log:ILogger = new TraceLogger("HLS");
     
     private var _tses:Array;
@@ -4593,7 +5172,7 @@ class M3u8
     // when variant, all ts url is sub m3u8 url.
     private var _variant:Boolean;
     
-    public function M3u8(hls:Hls)
+    public function M3u8(hls:HlsCodec)
     {
         _hls = hls;
         _tses = new Array();

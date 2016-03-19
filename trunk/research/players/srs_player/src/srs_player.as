@@ -58,7 +58,7 @@ package
         private var control_fs_mask:Sprite = new Sprite();
 
         // the common player to play stream.
-        private var player:IPlayer = null;
+        private var player:Player = null;
         // the flashvars config.
         private var config:Object = null;
         
@@ -438,13 +438,7 @@ package
 			}
 
             // create player.
-            if (url.indexOf(".m3u8") > 0 && Utility.stringStartswith(url, "http://")) {
-                player = new M3u8Player(this);
-                log("create M3U8 player.");
-            } else {
-                player = new CommonPlayer(this);
-                log("create Common player.");
-            }
+            player = new Player(this);
 
             // init player by config.
             player.init(config);

@@ -28,8 +28,14 @@ package
      * common player to play rtmp/flv stream,
      * use system NetStream.
      */
-    public class CommonPlayer implements IPlayer
+    public class Player
     {
+		// refresh every ts_fragment_seconds*M3u8RefreshRatio
+		public static var M3u8RefreshRatio:Number = 0.5;
+		
+		// parse ts every this ms.
+		public static var TsParseAsyncInterval:Number = 80;
+		
         private var js_id:String = null;
 
         // play param url.
@@ -40,7 +46,7 @@ package
 
         private var owner:srs_player = null;
 
-        public function CommonPlayer(o:srs_player) {
+        public function Player(o:srs_player) {
             owner = o;
         }
 
@@ -88,7 +94,11 @@ package
                     return;
                 }
 
-                media_stream = new NetStream(media_conn);
+				if (url.indexOf(".m3u8") > 0) {
+					media_stream = new HlsNetStream(M3u8RefreshRatio, TsParseAsyncInterval, media_conn);
+				} else {
+                	media_stream = new NetStream(media_conn);
+				}
                 media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                     log("NetStream: code=" + evt.info.code);
 
