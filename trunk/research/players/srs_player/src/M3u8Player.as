@@ -16,7 +16,10 @@ package
     import flash.net.NetConnection;
     import flash.net.NetStream;
     import flash.net.NetStreamAppendBytesAction;
+    import flash.net.URLLoader;
+    import flash.net.URLLoaderDataFormat;
     import flash.net.URLRequest;
+    import flash.net.URLRequestMethod;
     import flash.net.URLStream;
     import flash.net.URLVariables;
     import flash.system.Security;
@@ -46,12 +49,8 @@ package
         private var hls:Hls = null; // parse m3u8 and ts
 		
 		// callback for hls.
-        private var shok:Boolean = false;
 		public var flvHeader:ByteArray = null;
 		public function onSequenceHeader():void {
-            if (shok) {
-                return;
-            }
 			if (!media_stream) {
 				setTimeout(onSequenceHeader, 1000);
 				return;
@@ -61,16 +60,30 @@ package
 			s.appendBytesAction(NetStreamAppendBytesAction.RESET_BEGIN);
 			s.appendBytes(flvHeader);
 			log("FLV: sps/pps " + flvHeader.length + " bytes");
-            shok = true;
+			
+			writeFlv(flvHeader);
 		}
-		public function onFlvBody(flv:ByteArray):void {
+		public function onFlvBody(uri:String, flv:ByteArray):void {
 			if (!media_stream) {
 				return;
 			}
 			
 			var s:NetStream = media_stream;
 			s.appendBytes(flv);
-			log("FLV: AV " + flv.length + " bytes");
+			log("FLV: ts " + uri + " parsed to flv " + flv.length + " bytes");
+			
+			writeFlv(flv);
+		}
+		private function writeFlv(data:ByteArray):void {
+            return;
+            
+			var r:URLRequest = new URLRequest("http://192.168.1.117:8088/api/v1/flv");
+			r.method = URLRequestMethod.POST;
+			r.data = data;
+			
+			var pf:URLLoader = new URLLoader();
+			pf.dataFormat = URLLoaderDataFormat.BINARY;
+			pf.load(r);
 		}
 
         public function M3u8Player(o:srs_player) {
@@ -178,7 +191,7 @@ package
             if (parsed_ts_seq_no >= hls.seq_no + hls.tsCount) {
                 var to:Number = 1000;
                 if (hls.tsCount > 0) {
-                    to = hls.duration * 1000 / hls.tsCount * 0.5;
+                    to = hls.duration * 1000 / hls.tsCount * Consts.M3u8RefreshRatio;
                 }
                 setTimeout(refresh_m3u8, to);
                 log("m3u8 not changed, retry after " + to.toFixed(2) + "ms");
@@ -208,8 +221,6 @@ package
 			
             download(uri, function(stream:ByteArray):void{
                 log("got ts seqno=" + parsed_ts_seq_no + ", " + stream.length + " bytes");
-                // reset and start to parse this ts.
-                hls.reset();
 
                 var flv:FlvPiece = new FlvPiece(parsed_ts_seq_no);
                 var body:ByteArray = new ByteArray();
@@ -217,7 +228,7 @@ package
                 hls.parseBodyAsync(flv, stream, body, function():void{
 					body.position = 0;
                     //log("ts parsed, seqno=" + parsed_ts_seq_no + ", flv=" + body.length + "B");
-					onFlvBody(body);
+					onFlvBody(uri, body);
                     
                     parsed_ts_seq_no++;
                     setTimeout(refresh_ts, 0);

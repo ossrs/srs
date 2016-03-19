@@ -155,7 +155,7 @@ package
                     nb_parsed += each_parse;
                     
                     if (nb_parsed < ts_packets) {
-                        flash.utils.setTimeout(aysncParse, 80);
+                        flash.utils.setTimeout(aysncParse, Consts.TsParseAsyncInterval);
                         return;
                     }
                     
