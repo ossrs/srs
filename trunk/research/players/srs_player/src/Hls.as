@@ -793,7 +793,7 @@ class SrsTsHanlder implements ISrsTsHandler
         packet.writeUnsignedInt(size);
         
         if (false) {
-            _log.info("mux flv type={0}, time={1}, size={3}", type, timestamp, dts, packet.length);
+            _log.info("FLV: mux flv type={0}, time={1}, size={3}", type, timestamp, dts, packet.length);
         } else {
             _log.debug("mux flv type={0}, time={1}, size={3}", type, timestamp, dts, packet.length);
         }

@@ -19,6 +19,7 @@ package
     import flash.net.URLLoader;
     import flash.net.URLLoaderDataFormat;
     import flash.net.URLRequest;
+    import flash.net.URLRequestHeader;
     import flash.net.URLRequestMethod;
     import flash.net.URLStream;
     import flash.net.URLVariables;
@@ -47,6 +48,26 @@ package
 
         private var owner:srs_player = null;
         private var hls:Hls = null; // parse m3u8 and ts
+
+        // the uuid similar to Safari, to identify this play session.
+        // @see https://github.com/winlinvip/srs-plus/blob/bms/trunk/src/app/srs_app_http_stream.cpp#L45
+        public var XPlaybackSessionId:String = createRandomIdentifier(32);
+        private function createRandomIdentifier(length:uint, radix:uint = 61):String {
+            var characters:Array = new Array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+                'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+                'z');
+            var id:Array  = new Array();
+            radix = (radix > 61) ? 61 : radix;
+            while (length--) {
+                id.push(characters[randomIntegerWithinRange(0, radix)]);
+            }
+            return id.join('');
+        }
+        private function randomIntegerWithinRange(min:int, max:int):int {
+            return Math.floor(Math.random() * (1 + max - min) + min);
+        }
 		
 		// callback for hls.
 		public var flvHeader:ByteArray = null;
@@ -65,6 +86,10 @@ package
 		}
 		public function onFlvBody(uri:String, flv:ByteArray):void {
 			if (!media_stream) {
+				return;
+			}
+			
+			if (!flvHeader) {
 				return;
 			}
 			
@@ -265,8 +290,14 @@ package
                 completed(stream);
             });
 
+            // we set to the query.
+            uri += ((uri.indexOf("?") == -1)? "?":"&") + "shp_xpsid=" + XPlaybackSessionId;
+            var r:URLRequest = new URLRequest(uri);
+            // seems flash not allow set this header.
+			r.requestHeaders.push(new URLRequestHeader("X-Playback-Session-Id", XPlaybackSessionId));
+
             log("start download " + uri);
-            url.load(new URLRequest(uri));
+            url.load(r);
         }
 
         private function log(msg:String):void {
