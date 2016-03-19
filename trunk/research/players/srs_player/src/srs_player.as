@@ -183,13 +183,17 @@ package
          * or got video dimension change event(the DAR notification), to update the metadata manually.
          */
         private function system_on_metadata(metadata:Object):void {
-            this.media_metadata = metadata;
-            
-            // update the debug info.
-            if (metadata) {
-                on_debug_info(metadata);
+            if (!media_metadata) {
+                media_metadata = {};
             }
-            
+            for (var k:String in metadata) {
+                media_metadata[k] = metadata[k];
+            }
+
+            // update the debug info.
+            on_debug_info(media_metadata);
+            update_context_items();
+
             // for js.
             var obj:Object = __get_video_size_object();
             
@@ -427,9 +431,14 @@ package
             );
             
             js_call_stop();
+			
+			// trim last ?
+			while (Utility.stringEndswith(url, "?")) {
+				url = url.substr(0, url.length - 1);
+			}
 
             // create player.
-            if (Utility.stringEndswith(url, ".m3u8") && Utility.stringStartswith(url, "http://")) {
+            if (url.indexOf(".m3u8") > 0 && Utility.stringStartswith(url, "http://")) {
                 player = new M3u8Player(this);
                 log("create M3U8 player.");
             } else {
@@ -477,8 +486,7 @@ package
             setChildIndex(media_video, 0);
         }
         public function on_player_metadata(data:Object):void {
-            on_debug_info(data);
-            update_context_items();
+            system_on_metadata(data);
         }
         public function on_player_302(url:String):void {
             setTimeout(function():void{
@@ -503,6 +511,9 @@ package
         * 3. override with codec size if specified.
         */
         private function __get_video_size_object():Object {
+			if (!media_video) {
+				return {};
+			}
             var obj:Object = {
                 width: media_video.width,
                 height: media_video.height

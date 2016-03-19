@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://code.csdn.net/snippets/147103
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.15
+ * v 1.0.16
  */
 
 /**
@@ -243,8 +243,21 @@ function parse_query_string(){
         }
     }
 
+    __fill_query(query_string, obj);
+
+    return obj;
+}
+
+function __fill_query(query_string, obj) {
+    // pure user query object.
+    obj.user_query = {};
+
+    if (query_string.length == 0) {
+        return;
+    }
+
     // split again for angularjs.
-    if (query_string.indexOf("?") > 0) {
+    if (query_string.indexOf("?") >= 0) {
         query_string = query_string.split("?")[1];
     }
 
@@ -257,7 +270,10 @@ function parse_query_string(){
         obj.user_query[query[0]] = query[1];
     }
 
-    return obj;
+    // alias domain for vhost.
+    if (obj.domain) {
+        obj.vhost = obj.domain;
+    }
 }
 
 /**
@@ -277,7 +293,7 @@ function parse_query_string(){
 function parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
-    a.href = rtmp_url.replace("rtmp://", "http://").replace("?", "...").replace("=", "...");
+    a.href = rtmp_url.replace("rtmp://", "http://");
 
     var vhost = a.hostname;
     var port = (a.port == "")? "1935":a.port;
@@ -319,6 +335,7 @@ function parse_rtmp_url(rtmp_url) {
         server: a.hostname, port: port,
         vhost: vhost, app: app, stream: stream
     };
+    __fill_query(a.search, ret);
 
     return ret;
 }

@@ -479,6 +479,8 @@
     *       app, the app of url.
     *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
     *       autostart, whether auto play the stream.
+    * extra params:
+    *       shp_identify, hls+ param.
     * for example:
     *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream&server=ossrs.net&port=1935&autostart=true&schema=rtmp
     *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream.flv&server=ossrs.net&port=8080&autostart=true&schema=http
@@ -572,9 +574,17 @@
         var apply_url_change = function() {
             var rtmp = parse_rtmp_url($("#txt_url").val());
             var url = "http://" + query.host + query.pathname + "?"
-                    + "vhost=" + rtmp.vhost + "&app=" + rtmp.app + "&stream=" + rtmp.stream
+                    + "app=" + rtmp.app + "&stream=" + rtmp.stream
                     + "&server=" + rtmp.server + "&port=" + rtmp.port
                     + "&autostart=true";
+            if (query.shp_identify) {
+                url += "&shp_identify=" + query.shp_identify;
+            }
+            if (rtmp.vhost == "__defaultVhost__") {
+                url += "&vhost=" + rtmp.server;
+            } else {
+                url += "&vhost=" + rtmp.vhost;
+            }
             if (rtmp.schema == "http") {
                 url += "&schema=http";
             }

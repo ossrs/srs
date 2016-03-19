@@ -14,6 +14,7 @@ package
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
+    import flash.net.URLVariables;
     import flash.system.Security;
     import flash.ui.ContextMenu;
     import flash.ui.ContextMenuItem;
@@ -119,6 +120,20 @@ package
                 this.media_conn.connect(null);
             } else {
                 var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
+				streamName = url.substr(url.lastIndexOf("/") + 1);
+				
+                // parse vhost from stream query.
+				if (streamName.indexOf("?") >= 0) {
+					var uv:URLVariables = new URLVariables(user_url.substr(user_url.indexOf("?") + 1));	
+					var domain:String = uv["domain"];
+					if (!domain) {
+						domain = uv["vhost"];
+					}
+					if (domain) {
+						tcUrl += "?vhost=" + domain;
+					}
+				}
+				
                 this.media_conn.connect(tcUrl);
             }
         }
