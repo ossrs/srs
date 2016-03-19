@@ -33,12 +33,13 @@ package
         private var js_on_player_timer:String = null;
         private var js_on_player_empty:String = null;
         private var js_on_player_full:String = null;
-        
-        // play param url.
-        private var user_url:String = null;
+
         // play param, user set width and height
         private var user_w:int = 0;
         private var user_h:int = 0;
+        private var user_buffer_time:Number = 0;
+        private var user_max_buffer_time:Number = 0;
+        private var user_volume:Number = 0;
         // user set dar den:num
         private var user_dar_den:int = 0;
         private var user_dar_num:int = 0;
@@ -47,8 +48,6 @@ package
         private var user_fs_percent:int = 0;
         
         // media specified.
-        private var media_conn:NetConnection = null;
-        private var media_stream:NetStream = null;
         private var media_video:Video = null;
         private var media_metadata:Object = {};
         private var media_timer:Timer = new Timer(300);
@@ -57,6 +56,11 @@ package
         // flash donot allow js to set to fullscreen,
         // only allow user click to enter fullscreen.
         private var control_fs_mask:Sprite = new Sprite();
+
+        // the common player to play stream.
+        private var player:IPlayer = null;
+        // the flashvars config.
+        private var config:Object = null;
         
         public function srs_player()
         {
@@ -93,7 +97,8 @@ package
             if (!flashvars.hasOwnProperty("id")) {
                 throw new Error("must specifies the id");
             }
-            
+
+            this.config = flashvars;
             this.js_id = flashvars.id;
             this.js_on_player_ready = flashvars.on_player_ready;
             this.js_on_player_metadata = flashvars.on_player_metadata;
@@ -134,7 +139,11 @@ package
         * system callack event, timer to do some regular tasks.
         */
         private function system_on_timer(evt:TimerEvent):void {
-            var ms:NetStream = this.media_stream;
+            if (!player) {
+                return;
+            }
+
+            var ms:NetStream = player.stream();
             
             if (!ms) {
                 //log("stream is null, ignore timer event.");
@@ -249,8 +258,8 @@ package
          * function for js to call: to pause the stream. ignore if not play.
          */
         private function js_call_pause():void {
-            if (this.media_stream) {
-                this.media_stream.pause();
+            if (player && player.stream()) {
+                player.stream().pause();
                 log("user pause play");
             }
         }
@@ -259,8 +268,8 @@ package
          * function for js to call: to resume the stream. ignore if not play.
          */
         private function js_call_resume():void {
-            if (this.media_stream) {
-                this.media_stream.resume();
+            if (player && player.stream()) {
+                player.stream().resume();
                 log("user resume play");
             }
         }
@@ -301,8 +310,8 @@ package
          * @buffer_time the buffer time in seconds.
          */
         private function js_call_set_bt(buffer_time:Number):void {
-            if (this.media_stream) {
-                this.media_stream.bufferTime = buffer_time;
+            if (player && player.stream()) {
+                player.stream().bufferTime = buffer_time;
                 log("user set bufferTime to " + buffer_time.toFixed(2) + "s");
             }
         }
@@ -313,8 +322,8 @@ package
          * @remark this is the key feature for realtime communication by flash.
          */
         private function js_call_set_mbt(max_buffer_time:Number):void {
-            if (this.media_stream) {
-                this.media_stream.bufferTimeMax = max_buffer_time;
+            if (player && player.stream()) {
+                player.stream().bufferTimeMax = max_buffer_time;
                 log("user set bufferTimeMax to " + max_buffer_time.toFixed(2) + "s");
             }
         }
@@ -327,13 +336,10 @@ package
                 this.removeChild(this.media_video);
                 this.media_video = null;
             }
-            if (this.media_stream) {
-                this.media_stream.close();
-                this.media_stream = null;
-            }
-            if (this.media_conn) {
-                this.media_conn.close();
-                this.media_conn = null;
+
+            if (player) {
+                player.close();
+                player = null;
             }
             log("player stopped");
         }
@@ -403,97 +409,83 @@ package
          * @param volume, the volume, 0 is mute, 1 is 100%, 2 is 200%.
          */
         private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, max_buffer_time:Number, volume:Number):void {
-            this.user_url = url;
             this.user_w = _width;
             this.user_h = _height;
-            log("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h
+            this.user_buffer_time = buffer_time;
+            this.user_max_buffer_time = max_buffer_time;
+            this.user_volume = volume;
+            log("start to play url: " + url + ", w=" + this.user_w + ", h=" + this.user_h
                 + ", buffer=" + buffer_time.toFixed(2) + "s, max_buffer=" + max_buffer_time.toFixed(2) + "s, volume=" + volume.toFixed(2)
             );
             
             js_call_stop();
-            
-            this.media_conn = new NetConnection();
-            this.media_conn.client = {};
-            this.media_conn.client.onBWDone = function():void {};
-            this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                log("NetConnection: code=" + evt.info.code);
-                
-                if (evt.info.hasOwnProperty("data") && evt.info.data) {
-                    on_debug_info(evt.info.data);
-                    update_context_items();
-                }
-                 
-                // reject by server, maybe redirect.
-                if (evt.info.code == "NetConnection.Connect.Rejected") {
-                    // RTMP 302 redirect.
-                    if (evt.info.hasOwnProperty("ex") && evt.info.ex.code == 302) {
-                        var streamName:String = url.substr(url.lastIndexOf("/") + 1);
-                        url = evt.info.ex.redirect + "/" + streamName;
-                        log("Async RTMP 302 Redirect to: " + url);
-                        
-                        // notify server.
-                        media_conn.call("Redirected", null, evt.info.ex.redirect);
-                        
-                        // do 302.
-                        setTimeout(function(){
-                            log("Async RTMP 302 Redirected.");
-                            js_call_play(url, _width, _height, buffer_time, max_buffer_time, volume);
-                        }, 1000);
-                        return;
-                    }
-                }
-                
-                // TODO: FIXME: failed event.
-                if (evt.info.code != "NetConnection.Connect.Success") {
-                    return;
-                }
-                
-                media_stream = new NetStream(media_conn);
-                media_stream.soundTransform = new SoundTransform(volume);
-                media_stream.bufferTime = buffer_time;
-                media_stream.bufferTimeMax = max_buffer_time;
-                media_stream.client = {};
-                media_stream.client.onMetaData = system_on_metadata;
-                media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                    log("NetStream: code=" + evt.info.code);
-                    
-                    if (evt.info.code == "NetStream.Video.DimensionChange") {
-                        system_on_metadata(media_metadata);
-                    } else if (evt.info.code == "NetStream.Buffer.Empty") {
-                        system_on_buffer_empty();
-                    } else if (evt.info.code == "NetStream.Buffer.Full") {
-                        system_on_buffer_full();
-                    }
-                    
-                    // TODO: FIXME: failed event.
-                });
-                
-                if (url.indexOf("http") == 0) {
-                    media_stream.play(url);
-                } else {
-                    var streamName:String = url.substr(url.lastIndexOf("/") + 1);
-                    media_stream.play(streamName);
-                }
-                
-                media_video = new Video();
-                media_video.width = _width;
-                media_video.height = _height;
-                media_video.attachNetStream(media_stream);
-                media_video.smoothing = true;
-                addChild(media_video);
-                
-                __draw_black_background(_width, _height);
-                
-                // lowest layer, for mask to cover it.
-                setChildIndex(media_video, 0);
-            });
-            
-            if (url.indexOf("http") == 0) {
-                this.media_conn.connect(null);
+
+            // create player.
+            if (Utility.stringEndswith(url, ".m3u8")) {
+                player = new M3u8Player(this);
+                log("create M3U8 player.");
             } else {
-                var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
-                this.media_conn.connect(tcUrl);
+                player = new CommonPlayer(this);
+                log("create Common player.");
             }
+
+            // init player by config.
+            player.init(config);
+
+            // play the url.
+            player.play(url);
+        }
+        public function on_player_before_play():void {
+            if (!player) {
+                return;
+            }
+
+            var ms:NetStream = player.stream();
+            if (!ms) {
+                return;
+            }
+
+            ms.soundTransform = new SoundTransform(user_volume);
+            ms.bufferTime = user_buffer_time;
+            ms.bufferTimeMax = user_max_buffer_time;
+            ms.client = {};
+            ms.client.onMetaData = system_on_metadata;
+        }
+        public function on_player_play():void {
+            if (!player) {
+                return;
+            }
+
+            media_video = new Video();
+            media_video.width = user_w;
+            media_video.height = user_h;
+            media_video.attachNetStream(player.stream());
+            media_video.smoothing = true;
+            addChild(media_video);
+
+            __draw_black_background(user_w, user_h);
+
+            // lowest layer, for mask to cover it.
+            setChildIndex(media_video, 0);
+        }
+        public function on_player_metadata(data:Object):void {
+            on_debug_info(data);
+            update_context_items();
+        }
+        public function on_player_302(url:String):void {
+            setTimeout(function():void{
+                log("Async RTMP 302 Redirected.");
+                js_call_play(url, user_w, user_h, user_buffer_time, user_max_buffer_time, user_volume);
+            }, 1000);
+        }
+        public function on_player_dimension_change():void {
+            system_on_metadata(media_metadata);
+        }
+        public function on_player_buffer_empty():void {
+            system_on_buffer_empty();
+        }
+        public function on_player_buffer_full():void {
+            system_on_buffer_full();
         }
         
         /**
@@ -650,16 +642,7 @@ package
         }
         
         private function log(msg:String):void {
-            msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
-            
-            trace(msg);
-            
-            if (!flash.external.ExternalInterface.available) {
-                flash.utils.setTimeout(log, 300, msg);
-                return;
-            }
-            
-            ExternalInterface.call("console.log", msg);
+            Utility.log(js_id, msg);
         }
     }
 }

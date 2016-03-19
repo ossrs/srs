@@ -12,6 +12,9 @@
             margin-top: -20px;
             padding-top: 3px;
         }
+        #main_modal {
+            margin-top: -60px;
+        }
         .div_play_time {
             margin-top: 10px;
         }
@@ -378,14 +381,12 @@
                 </div>
             </div>
             <div style="margin-top:-12px;">
+                <span id="debug_info"></span>
                 URL: <a href="#" id="player_url"></a>
                 <div class="input-prepend div_play_time" title="当前时间：年-月-日 时:分:秒">
                     <span class="add-on">@N</span>
                     <input class="span2" style="width:135px" id="player_clock" type="text" placeholder="年-月-日 时:分:秒">
                 </div>
-            </div>
-            <div>
-                <span id="debug_info"></span>
             </div>
         </div>
     </div>
@@ -496,6 +497,7 @@
             }
 
             $("#div_container").remove();
+            $("#debug_info").text("");
 
             var div_container = $("<div/>");
             $(div_container).attr("id", "div_container");
@@ -513,7 +515,7 @@
             srs_player.on_player_metadata = function(metadata) {
                 $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                 if (metadata.ip && metadata.pid && metadata.cid) {
-                    $("#debug_info").text("DEBUG: " + metadata.ip + ' grep -in "\\[' + metadata.pid + '\\]\\[' + metadata.cid + '\\]"');
+                    $("#debug_info").text("ID:" + metadata.ip + '/' + metadata.pid + '/' + metadata.cid + '');
                 }
                 select_dar("#btn_dar_original", 0, 0);
                 select_fs_size("#btn_fs_size_screen_100", "screen", 100);
