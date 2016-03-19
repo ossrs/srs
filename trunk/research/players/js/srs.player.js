@@ -5,6 +5,22 @@
 * @param height a float value specifies the height of player.
 * @param private_object [optional] an object that used as private object, 
 *       for example, the logic chat object which owner this player.
+* Usage:
+        <script type="text/javascript" src="js/swfobject.js"></script>
+        <script type="text/javascript" src="js/srs.player.js"></script>
+        <div id="player"></div>
+        var p = new SrsPlayer("player", 640, 480);
+        p.set_srs_player_url("srs_player.swf?v=1.0.0");
+        p.on_player_ready = function() {
+            p.set_bt(0.8);
+            p.set_mbt(1.2);
+            p.play("rtmp://ossrs.net/live/livestream");
+        };
+        p.on_player_metadata = function(metadata) {
+            console.log(metadata);
+            console.log(p.dump_log());
+        };
+        p.start();
 */
 function SrsPlayer(container, width, height, private_object) {
     if (!SrsPlayer.__id) {
@@ -63,8 +79,12 @@ function SrsPlayer(container, width, height, private_object) {
 * user can set some callback, then start the player.
 * @param url the default url.
 * callbacks:
-*      on_player_ready():int, when srs player ready, user can play.
+*      on_player_ready():int, when srs player ready, user can play().
 *      on_player_metadata(metadata:Object):int, when srs player get metadata.
+* methods:
+*      set_bt(t:Number):void, set the buffer time in seconds.
+*      set_mbt(t:Number):void, set the max buffer time in seconds.
+*      dump_log():String, get all logs of player.
 */
 SrsPlayer.prototype.start = function(url) {
     if (url) {

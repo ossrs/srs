@@ -429,7 +429,7 @@ package
             js_call_stop();
 
             // create player.
-            if (Utility.stringEndswith(url, ".m3u8")) {
+            if (Utility.stringEndswith(url, ".m3u8") && Utility.stringStartswith(url, "http://")) {
                 player = new M3u8Player(this);
                 log("create M3U8 player.");
             } else {

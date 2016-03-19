@@ -14,11 +14,17 @@ package
         public static var logData:String = "";
 
         /**
-         * initialize the player by flashvars for config.
-         * @param flashvars the config.
+         * whether string s endswith f.
          */
         public static function stringEndswith(s:String, f:String):Boolean {
             return s && f && s.indexOf(f) == s.length - f.length;
+        }
+
+        /**
+         * whether string s startswith f.
+         */
+        public static function stringStartswith(s:String, f:String):Boolean {
+            return s && f && s.indexOf(f) == 0;
         }
 
         /**
