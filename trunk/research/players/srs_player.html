@@ -514,6 +514,9 @@
                 select_buffer(0.5);
                 this.play(url);
             };
+            srs_player.on_player_status = function(code, desc) {
+                //console.log("[播放器状态] code=" + code + ", desc=" + desc);
+            };
             srs_player.on_player_metadata = function(metadata) {
                 $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                 if (metadata.ip && metadata.pid && metadata.cid) {

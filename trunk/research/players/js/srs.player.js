@@ -99,6 +99,7 @@ SrsPlayer.prototype.start = function(url) {
     flashvars.on_player_timer = "__srs_on_player_timer";
     flashvars.on_player_empty = "__srs_on_player_empty";
     flashvars.on_player_full = "__srs_on_player_full";
+    flashvars.on_player_status = "__srs_on_player_status";
     
     var params = {};
     params.wmode = "opaque";
@@ -146,17 +147,6 @@ SrsPlayer.prototype.play = function(url, volume) {
  * stop play stream.
  */
 SrsPlayer.prototype.stop = function() {
-    for (var i = 0; i < SrsPlayer.__players.length; i++) {
-        var player = SrsPlayer.__players[i];
-        
-        if (player.id != this.id) {
-            continue;
-        }
-        
-        SrsPlayer.__players.splice(i, 1);
-        break;
-    }
-    
     this.callbackObj.ref.__stop();
 }
 /**
@@ -301,6 +291,16 @@ SrsPlayer.prototype.on_player_empty = function(time) {
 SrsPlayer.prototype.on_player_full = function(time) {
     // ignore.
 }
+/**
+ * the callback when player status change.
+ * @param code the status code, "init", "connected", "play", "closed", "rejected", "failed".
+ *      init => connected/rejected/failed
+ *      connected => play/rejected => closed
+ * @param desc the description for the status.
+ */
+SrsPlayer.prototype.on_player_status = function(code, desc) {
+    // ignore.
+}
 
 /**
  * helpers.
@@ -358,4 +358,22 @@ function __srs_on_player_full(id, time) {
     var player = __srs_find_player(id);
     player.__fluency.on_stream_full(time);
     player.on_player_full(time);
+}
+function __srs_on_player_status(id, code, desc) {
+    var player = __srs_find_player(id);
+    player.on_player_status(code, desc);
+
+    if (code != "closed") {
+        return;
+    }
+    for (var i = 0; i < SrsPlayer.__players.length; i++) {
+        var player = SrsPlayer.__players[i];
+
+        if (player.id != this.id) {
+            continue;
+        }
+
+        SrsPlayer.__players.splice(i, 1);
+        break;
+    }
 }

@@ -1,7 +1,10 @@
 package
 {
     import flash.events.Event;
+    import flash.events.IOErrorEvent;
+    import flash.events.NetStatusEvent;
     import flash.events.ProgressEvent;
+    import flash.events.SecurityErrorEvent;
     import flash.external.ExternalInterface;
     import flash.net.NetConnection;
     import flash.net.NetStream;
@@ -27,6 +30,8 @@ package
 		
 		// play param url.
 		private var user_url:String = null;
+		
+		private var conn:NetConnection = null;
 
 		/**
 		 * create stream to play hls.
@@ -40,6 +45,7 @@ package
 			this.m3u8_refresh_ratio = m3u8_refresh_ratio;
 			this.ts_parse_async_interval = ts_parse_async_interval;
 			hls = new HlsCodec(this);
+			this.conn = conn;
         }
 		
 		/**
@@ -94,6 +100,8 @@ package
 				refresh_ts();
 			})
 		}
+		
+		private var metadata:Object = null;
 		private function refresh_ts():void {
 			// all ts parsed.
 			if (parsed_ts_seq_no >= hls.seq_no + hls.tsCount) {
@@ -125,9 +133,14 @@ package
 					//log("uv[" + k + "]=" + v);
 				}
 				
-				if (client && client.hasOwnProperty("onMetaData")) {
-					client.onMetaData(obj);
+				// ignore when not changed.
+				if (!metadata || metadata.srs_server_ip != obj.srs_server_ip || metadata.srs_id != obj.srs_id || metadata.srs_pid != obj.srs_pid) {
+					if (client && client.hasOwnProperty("onMetaData")) {
+						log("got metadata for url " + uri);
+						client.onMetaData(obj);
+					}
 				}
+				metadata = obj;
 			}
 			
 			download(uri, function(stream:ByteArray):void{
@@ -177,6 +190,14 @@ package
 				completed(stream);
 			});
 			
+			url.addEventListener(IOErrorEvent.IO_ERROR, function(evt:IOErrorEvent):void{
+				onPlayFailed(evt);
+			});
+			
+			url.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(evt:SecurityErrorEvent):void{
+				onPlayRejected(evt);
+			});
+			
 			// we set to the query.
 			uri += ((uri.indexOf("?") == -1)? "?":"&") + "shp_xpsid=" + XPlaybackSessionId;
 			var r:URLRequest = new URLRequest(uri);
@@ -219,7 +240,35 @@ package
             log("FLV: sps/pps " + flvHeader.length + " bytes");
 
             writeFlv(flvHeader);
+			onPlayStart();
         }
+		
+		private function onPlayStart():void {
+			log("dispatch NetStream.Play.Start.");
+			dispatchEvent(new NetStatusEvent(NetStatusEvent.NET_STATUS, false, false, {
+				code: "NetStream.Play.Start",
+				stream: user_url,
+				descrption: "play start"
+			}));
+		}
+		
+		private function onPlayFailed(evt:IOErrorEvent):void {
+			log("dispatch NetConnection.Connect.Failed.");
+			this.conn.dispatchEvent(new NetStatusEvent(NetStatusEvent.NET_STATUS, false, false, {
+				code: "NetConnection.Connect.Failed",
+				stream: user_url,
+				descrption: evt.text
+			}));
+		}
+		
+		private function onPlayRejected(evt:SecurityErrorEvent):void {
+			log("dispatch NetConnection.Connect.Rejected.");
+			this.conn.dispatchEvent(new NetStatusEvent(NetStatusEvent.NET_STATUS, false, false, {
+				code: "NetConnection.Connect.Rejected",
+				stream: user_url,
+				descrption: evt.text
+			}));
+		}
 
         private function onFlvBody(uri:String, flv:ByteArray):void {
             if (!flvHeader) {

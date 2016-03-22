@@ -33,6 +33,7 @@ package
         private var js_on_player_timer:String = null;
         private var js_on_player_empty:String = null;
         private var js_on_player_full:String = null;
+		private var js_on_player_status:String = null;
 
         // play param, user set width and height
         private var user_w:int = 0;
@@ -105,6 +106,7 @@ package
             this.js_on_player_timer = flashvars.on_player_timer;
             this.js_on_player_empty = flashvars.on_player_empty;
             this.js_on_player_full = flashvars.on_player_full;
+			this.js_on_player_status = flashvars.on_player_status;
             
             this.media_timer.addEventListener(TimerEvent.TIMER, this.system_on_timer);
             this.media_timer.start();
@@ -497,6 +499,11 @@ package
         public function on_player_buffer_full():void {
             system_on_buffer_full();
         }
+		
+		public function on_player_status(code:String, desc:String):void {
+			log("[STATUS] code=" + code + ", desc=" + desc);
+			flash.external.ExternalInterface.call(this.js_on_player_status, this.js_id, code, desc);
+		}
         
         /**
         * get the "right" size of video,

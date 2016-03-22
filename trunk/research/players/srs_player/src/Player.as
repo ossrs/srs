@@ -57,8 +57,19 @@ package
         public function stream():NetStream {
             return this.media_stream;
         }
+		
+		private function dumps_object(obj:Object):String {
+			var smr:String = "";
+			for (var k:String in obj) {
+				smr += k + "=" + obj[k] + ", ";
+			}
+			
+			return smr;
+		}
 
         public function play(url:String):void {
+			owner.on_player_status("init", "Ready to play");
+			
 			var streamName:String;
             this.user_url = url;
 
@@ -66,7 +77,8 @@ package
             this.media_conn.client = {};
             this.media_conn.client.onBWDone = function():void {};
             this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                log("NetConnection: code=" + evt.info.code);
+                log("NetConnection: type=" + evt.type + ", bub=" + evt.bubbles + ", can=" + evt.cancelable 
+					+ ", info is " + dumps_object(evt.info));
 
                 if (evt.info.hasOwnProperty("data") && evt.info.data) {
                     owner.on_player_metadata(evt.info.data);
@@ -87,7 +99,21 @@ package
                         owner.on_player_302(url);
                         return;
                     }
+					
+					owner.on_player_status("rejected", "Server reject play");
+					close();
                 }
+				
+				if (evt.info.code == "NetConnection.Connect.Success") {
+					owner.on_player_status("connected", "Connected at server");
+				}
+				if (evt.info.code == "NetConnection.Connect.Closed") {
+					close();
+				}
+				if (evt.info.code == "NetConnection.Connect.Failed") {
+					owner.on_player_status("failed", "Connect to server failed.");
+					close();
+				}
 
                 // TODO: FIXME: failed event.
                 if (evt.info.code != "NetConnection.Connect.Success") {
@@ -100,7 +126,16 @@ package
                 	media_stream = new NetStream(media_conn);
 				}
                 media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                    log("NetStream: code=" + evt.info.code);
+					log("NetStream: type=" + evt.type + ", bub=" + evt.bubbles + ", can=" + evt.cancelable 
+						+ ", info is " + dumps_object(evt.info));
+					
+					if (evt.info.code == "NetStream.Play.Start") {
+						owner.on_player_status("play", "Start to play stream");
+					}
+					if (evt.info.code == "NetStream.Play.StreamNotFound") {
+						owner.on_player_status("rejected", "Stream not found");
+						close();
+					}
 
                     if (evt.info.code == "NetStream.Video.DimensionChange") {
                         owner.on_player_dimension_change();
@@ -149,14 +184,23 @@ package
         }
 
         public function close():void {
+			var notify:Boolean = false;
+			
             if (this.media_stream) {
                 this.media_stream.close();
                 this.media_stream = null;
+				notify = true;
             }
+			
             if (this.media_conn) {
                 this.media_conn.close();
                 this.media_conn = null;
+				notify = true;
             }
+			
+			if (notify) {
+				owner.on_player_status("closed", "Server closed.");
+			}
         }
 
         private function log(msg:String):void {
