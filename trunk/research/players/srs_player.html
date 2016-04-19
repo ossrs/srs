@@ -319,8 +319,13 @@
                         <li><a id="btn_bt_1_0" href="#">1秒(低延迟)</a></li>
                         <li><a id="btn_bt_2_0" href="#">2秒(较低延时)</a></li>
                         <li><a id="btn_bt_3_0" href="#">3秒(流畅播放)</a></li>
+                        <li><a id="btn_bt_4_0" href="#">4秒(流畅播放)</a></li>
                         <li><a id="btn_bt_5_0" href="#">5秒(网速较低)</a></li>
+                        <li><a id="btn_bt_6_0" href="#">6秒(网速较低)</a></li>
+                        <li><a id="btn_bt_8_0" href="#">8秒(网速较低)</a></li>
                         <li><a id="btn_bt_10_0" href="#">10秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_15_0" href="#">15秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_20_0" href="#">20秒(无所谓延迟)</a></li>
                         <li><a id="btn_bt_30_0" href="#">30秒(流畅第一)</a></li>
                     </ul>
                 </div>
@@ -334,8 +339,13 @@
                         <li><a id="btn_mbt_3_0" href="#">3秒(低延迟)</a></li>
                         <li><a id="btn_mbt_6_0" href="#">6秒(较低延时)</a></li>
                         <li><a id="btn_mbt_9_0" href="#">9秒(流畅播放)</a></li>
+                        <li><a id="btn_mbt_12_0" href="#">12秒(流畅播放)</a></li>
                         <li><a id="btn_mbt_15_0" href="#">15秒(网速较低)</a></li>
+                        <li><a id="btn_mbt_18_0" href="#">18秒(网速较低)</a></li>
+                        <li><a id="btn_mbt_24_0" href="#">24秒(网速较低)</a></li>
                         <li><a id="btn_mbt_30_0" href="#">30秒(无所谓延迟)</a></li>
+                        <li><a id="btn_mbt_45_0" href="#">45秒(无所谓延迟)</a></li>
+                        <li><a id="btn_mbt_60_0" href="#">60秒(无所谓延迟)</a></li>
                         <li><a id="btn_mbt_90_0" href="#">90秒(流畅第一)</a></li>
                     </ul>
                 </div>
@@ -479,6 +489,7 @@
     *       app, the app of url.
     *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
     *       autostart, whether auto play the stream.
+    *       buffer, the buffer time in seconds.
     * extra params:
     *       shp_identify, hls+ param.
     * for example:
@@ -492,6 +503,10 @@
         // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
         // url set to: rtmp://demo:1935/live/livestream
         srs_init_rtmp("#txt_url", "#main_modal");
+
+        // consts for buffer and max buffer.
+        var bts = [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30];
+        var mbts = [0.6, 0.9, 1.5, 2.4, 3, 6, 9, 12, 15, 18, 24, 30, 45, 60, 90];
 
         $("#main_modal").on("show", function(){
             if (srs_player) {
@@ -511,7 +526,20 @@
 
             srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
             srs_player.on_player_ready = function() {
-                select_buffer(0.5);
+                var buffer_time = 0.5;
+
+                if (query.buffer) {
+                    for (var i = 0; i < bts.length - 1; i++) {
+                        var cur = bts[i];
+                        var next = bts[i+1];
+                        if (Number(query.buffer) >= cur && Number(query.buffer) < next) {
+                            buffer_time = cur;
+                            break;
+                        }
+                    }
+                }
+
+                select_buffer(buffer_time);
                 this.play(url);
             };
             srs_player.on_player_status = function(code, desc) {
@@ -590,6 +618,9 @@
             }
             if (rtmp.schema == "http") {
                 url += "&schema=http";
+            }
+            if (query.buffer) {
+                url += "&buffer=" + query.buffer;
             }
             $("#player_url").text($("#txt_url").val()).attr("href", url);
 
@@ -708,7 +739,6 @@
         }
 
         if (true) {
-            var bts = [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 5, 10, 30];
             for (var i = 0; i < bts.length; i++) {
                 var bt = bts[i];
                 var bt_id = "#btn_bt_" + bt.toFixed(1).replace(".", "_");
@@ -716,13 +746,19 @@
                 var bt_fun = function(id, v){
                     $(bt_id).click(function(){
                         select_buffer_time(id, v);
+
+                        // remember the chagned buffer.
+                        if (Number(query.buffer) != srs_player.buffer_time) {
+                            query.buffer = srs_player.buffer_time;
+                            apply_url_change();
+                        }
+
                     });
                 };
                 bt_fun(bt_id, bt);
             }
         }
         if (true) {
-            var mbts = [0.6, 0.9, 1.5, 2.4, 3, 6, 9, 15, 30, 90];
             for (var i = 0; i < mbts.length; i++) {
                 var mbt = mbts[i];
                 var mbt_id = "#btn_mbt_" + mbt.toFixed(1).replace(".", "_");
