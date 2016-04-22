@@ -398,6 +398,12 @@
                     <input class="span2" style="width:135px" id="player_clock" type="text" placeholder="年-月-日 时:分:秒">
                 </div>
             </div>
+            <div>
+                <div class="input-prepend" title="首播时间，点播放到开始播放的时间，秒">
+                    <span class="add-on">@PST</span>
+                    <input class="span1" style="width:60px" id="txt_pst" type="text" placeholder="N秒">
+                </div>
+            </div>
         </div>
     </div>
     <footer>
@@ -508,6 +514,9 @@
         var bts = [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30];
         var mbts = [0.6, 0.9, 1.5, 2.4, 3, 6, 9, 12, 15, 18, 24, 30, 45, 60, 90];
 
+        // the play startup time.
+        var pst = new Date();
+
         $("#main_modal").on("show", function(){
             if (srs_player) {
                 return;
@@ -541,6 +550,8 @@
 
                 select_buffer(buffer_time);
                 this.play(url);
+
+                pst = new Date();
             };
             srs_player.on_player_status = function(code, desc) {
                 //console.log("[播放器状态] code=" + code + ", desc=" + desc);
@@ -554,6 +565,12 @@
                 select_fs_size("#btn_fs_size_screen_100", "screen", 100);
             };
             srs_player.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
+                if (time > 0 && pst) {
+                    var diff = (new Date().getTime() - pst.getTime()) / 1000.0;
+                    $("#txt_pst").val(Number(diff).toFixed(2) + "秒");
+                    pst = null;
+                }
+
                 var buffer = buffer_length / this.max_buffer_time * 100;
                 $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
 
