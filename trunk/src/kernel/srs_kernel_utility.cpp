@@ -77,7 +77,7 @@ int srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
     v = (1 << leadingZeroBits) - 1;
     for (int i = 0; i < leadingZeroBits; i++) {
         int32_t b = stream->read_bit();
-        v += b << (leadingZeroBits - 1);
+        v += b << (leadingZeroBits - 1 - i);
     }
     
     return ret;
