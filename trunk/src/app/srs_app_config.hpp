@@ -97,6 +97,7 @@ extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
 extern bool srs_config_hls_is_on_error_continue(std::string strategy);
 extern bool srs_config_ingest_is_file(std::string type);
 extern bool srs_config_ingest_is_stream(std::string type);
+extern bool srs_config_ingest_is_tcp(std::string transport);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_config_dvr_is_plan_append(std::string plan);
@@ -1101,6 +1102,10 @@ public:
     * get the ingest input url.
     */
     virtual std::string         get_ingest_input_url(SrsConfDirective* conf);
+    /**
+     * get the ingest input transport.
+     */
+     virtual std::string         get_ingest_input_transport(SrsConfDirective* ingest);
 // log section
 public:
     /**

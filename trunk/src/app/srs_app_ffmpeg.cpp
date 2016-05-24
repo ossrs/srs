@@ -262,6 +262,9 @@ int SrsFFMPEG::start()
     // input params
     if (!_iparams.empty()) {
         params.push_back(_iparams);
+        if (_iparams == "-rtsp_transport") {
+            params.push_back("tcp");
+         }
     }
     
     // input.

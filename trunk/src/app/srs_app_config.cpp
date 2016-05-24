@@ -273,6 +273,11 @@ bool srs_config_ingest_is_stream(string type)
     return type == "stream";
 }
 
+bool srs_config_ingest_is_tcp(string transport)
+{
+    return transport == "tcp";
+}
+
 bool srs_config_dvr_is_plan_segment(string plan)
 {
     return plan == "segment";
@@ -5797,6 +5802,27 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
         return DEFAULT;
     }
     
+    return conf->arg0();
+}
+
+string SrsConfig::get_ingest_input_transport(SrsConfDirective* conf)
+{
+    static string DEFAULT = "";
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("input");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("transport");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 
