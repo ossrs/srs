@@ -1,3 +1,10 @@
+# Qt Creator Project
+srs.config
+srs.files
+srs.includes
+srs.creator
+srs.creator.user
+
 # Compiled Object files
 *.slo
 *.lo

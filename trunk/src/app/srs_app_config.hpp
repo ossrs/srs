@@ -506,6 +506,26 @@ public:
      */
     virtual int raw_enable_vhost(std::string vhost, bool& applied);
     /**
+     * raw create the new ingest form vhost.
+     */
+    virtual int raw_create_ingest(std::string vhost, std::string data, bool& applied);
+    /**
+     * raw update the disabled ingest param form vhost.
+     */
+    virtual int raw_update_ingest(std::string vhost, std::string data, bool& applied);
+    /**
+     * raw delete the disabled ingest form vhost.
+     */
+    virtual int raw_delete_ingest(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw disable the enabled ingest form vhost.
+     */
+    virtual int raw_disable_ingest(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw enable the disabled ingest form vhost.
+     */
+    virtual int raw_enable_ingest(std::string vhost, std::string name, bool& applied);
+    /**
      * raw enable the dvr of stream of vhost.
      */
     virtual int raw_enable_dvr(std::string vhost, std::string stream, bool& applied);
@@ -1105,7 +1125,7 @@ public:
     /**
      * get the ingest input transport.
      */
-     virtual std::string         get_ingest_input_transport(SrsConfDirective* ingest);
+     virtual std::string         get_ingest_input_transport(SrsConfDirective* conf);
 // log section
 public:
     /**

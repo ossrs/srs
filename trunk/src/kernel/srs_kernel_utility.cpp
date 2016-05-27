@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_core_autofree.hpp>
 
 // this value must:
 // equals to (SRS_SYS_CYCLE_INTERVAL*SRS_SYS_TIME_RESOLUTION_MS_TIMES)*1000
@@ -1141,3 +1142,16 @@ int srs_chunk_header_c3(
     return p - cache;
 }
 
+std::string srs_av_base64_decode(std::string in) {
+        int nb_output = (int)(in.length() * 2);
+        u_int8_t* output = new u_int8_t[nb_output];
+        SrsAutoFreeA(u_int8_t, output);
+        int ret = srs_av_base64_decode(output, (char*)in.c_str(), nb_output);
+        if (ret <= 0) {
+            return "";
+        }
+
+        std::string rval;
+        rval.append((char*)output, ret);
+        return rval;
+}
