@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_rtmp_handshake.hpp>
+#include <openssl/md5.h>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -2459,16 +2460,46 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     SrsAutoFree(SrsCommonMessage, msg);
     SrsAutoFree(SrsConnectAppPacket, pkt);
     srs_info("get connect app message");
-    
+
     SrsAmf0Any* prop = NULL;
     
     if ((prop = pkt->command_object->ensure_property_string("tcUrl")) == NULL) {
         ret = ERROR_RTMP_REQ_CONNECT;
         srs_error("invalid request, must specifies the tcUrl. ret=%d", ret);
         return ret;
+    }  
+
+     //Reference: https://github.com/ossrs/srs/wiki/v1_CN_DRM#token-authentication
+    /*
+    char data[100]={'\0'}, token[33]={'\0'}, tmp[3]={'\0'};
+    unsigned char md[16];
+
+    time_t timestamp = time(NULL);
+    u_int32_t expire = 3600;
+    snprintf(data, sizeof(data), "%d%d%s%d", timestamp, _srs_context->get_id(), "admin", expire);
+
+    MD5_CTX ctx;
+    MD5_Init(&ctx);
+    MD5_Update(&ctx, data, strlen(data));
+    MD5_Final(md,&ctx);
+
+    for(int i=0; i<sizeof(md); i++ ) {
+        sprintf(tmp,"%02x",md[i]);
+        strcat(token,tmp);
     }
-    req->tcUrl = prop->to_str();
-    
+
+    std::string tcUrl = prop->to_str();
+    if (tcUrl.find("?") != std::string::npos)
+         sprintf(data,  "&time=%d&expire=%d&token=%s",  timestamp, expire, token);
+    else
+         sprintf(data,  "?time=%d&expire=%d&token=%s",  timestamp, expire, token);
+
+    srs_info("token: %s", data, strlen(data));
+    req->tcUrl = tcUrl + data;
+    srs_info("tcUrl: %s", req->tcUrl.c_str());
+    */
+    req->tcUrl =  prop->to_str();
+
     if ((prop = pkt->command_object->ensure_property_string("pageUrl")) != NULL) {
         req->pageUrl = prop->to_str();
     }

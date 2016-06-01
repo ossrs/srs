@@ -4701,7 +4701,7 @@ string SrsConfig::get_kafka_topic()
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
-    
+
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
         
@@ -4713,7 +4713,7 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
             return conf;
         }
     }
-    
+
     if (try_default_vhost && vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         return get_vhost(SRS_CONSTS_RTMP_DEFAULT_VHOST);
     }
