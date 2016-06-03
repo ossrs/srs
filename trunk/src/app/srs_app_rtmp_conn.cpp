@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <math.h>
 
 using namespace std;
 
@@ -389,7 +390,7 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
     srs_verbose("rtmp handshake success");
-    
+
     if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
         srs_error("rtmp connect vhost/app failed. ret=%d", ret);
         return ret;
@@ -423,6 +424,61 @@ int SrsRtmpConn::do_cycle()
     }
     srs_verbose("check vhost success.");
     
+    //Reference:  https://github.com/ossrs/srs/wiki/v1_CN_DRM#token-authentication
+    if (_srs_config->get_vhost_auth_enabled(req->vhost)) {
+        string nonce, token, expire = "3600";
+        map<string, string>::iterator iter;
+        map<string,string> query;
+        srs_parse_query_string(req->param, query);
+        iter = query.find("nonce");
+        if (iter != query.end()) {
+              nonce = iter->second;
+         }
+
+         iter = query.find("expire");
+         if (iter != query.end()){
+             expire = iter->second;
+         }
+
+         iter = query.find("token");
+         if (iter != query.end()){
+             token = iter->second;
+         }
+
+         if ((nonce.empty() || token.empty() || query.empty()) &&
+                 _srs_config->get_vhost_auth_publisher_enabled(req->vhost)
+                 && _srs_config->get_vhost_auth_player_enabled(req->vhost)) {
+             ret = ERROR_RTMP_CLIENT_NEED_AUTH;
+             srs_error("RTMP need token authentication. "
+                                   "tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
+             return ret;
+         }
+
+         std::string md5 = srs_auth_token_md5_encode(nonce, _srs_config->get_vhost_auth_password(req->vhost), expire);
+         //check publish ( timestamp > 20yesrs) or player
+         long timestamp;
+         stringstream ss(nonce);
+         ss >> timestamp;
+         if (timestamp > 20 * pow(10,11)) {
+              //srs_trace("\r\nThis client is publish!  nonce:%ld\r\n", timestamp);
+              if (_srs_config->get_vhost_auth_publisher_enabled(req->vhost) && md5 != token) {
+                  ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
+                  srs_error("RTMP publisher token authentication fail. "
+                                        "tcUrl=%s, token=%s, ret=%d", req->tcUrl.c_str(), md5.c_str(), ret);
+                  return ret;
+              }
+         } else {
+              //srs_trace("\r\nThis client is player!  nonce:%ld\r\n", timestamp);
+              if (_srs_config->get_vhost_auth_player_enabled(req->vhost) && md5 != token) {
+                  ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
+                  srs_error("RTMP player token authentication fail. "
+                                        "tcUrl=%s, token=%s, ret=%d", req->tcUrl.c_str(), md5.c_str(), ret);
+                  return ret;
+              }
+         }
+    }
+    //end token-authentication
+
     srs_trace("connect app, "
         "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s", 
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 

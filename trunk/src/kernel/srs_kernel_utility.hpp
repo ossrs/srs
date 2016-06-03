@@ -197,5 +197,6 @@ extern int srs_chunk_header_c3(
     char* cache, int nb_cache
     );
 
+extern std::string srs_auth_token_md5_encode(std::string nonce, std::string password, std::string expire);
 #endif
 

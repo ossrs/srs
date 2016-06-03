@@ -36,7 +36,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <fcntl.h>
 #include <stdlib.h>
 
-#include <vector>
+#include <openssl/md5.h>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -1142,7 +1143,7 @@ int srs_chunk_header_c3(
     return p - cache;
 }
 
-std::string srs_av_base64_decode(std::string in) {
+string srs_av_base64_decode(std::string in) {
         int nb_output = (int)(in.length() * 2);
         u_int8_t* output = new u_int8_t[nb_output];
         SrsAutoFreeA(u_int8_t, output);
@@ -1154,4 +1155,26 @@ std::string srs_av_base64_decode(std::string in) {
         std::string rval;
         rval.append((char*)output, ret);
         return rval;
+}
+
+string srs_auth_token_md5_encode(std::string nonce, std::string password, std::string expire) {
+        char tmp[3]={'\0'}, token[33]={'\0'};
+        unsigned char md[16];
+
+        std::stringstream ss;
+        std::string data;
+        ss << nonce << password << expire;
+        ss >> data;
+
+        MD5_CTX ctx;
+        MD5_Init(&ctx);
+        MD5_Update(&ctx, data.c_str(), data.length());
+        MD5_Final(md,&ctx);
+
+        for(int i=0; i<sizeof(md); i++ ) {
+                sprintf(tmp,"%02x",md[i]);
+                strcat(token,tmp);
+        }
+        //srs_info("nonce=%d&token=%s", nonce, token);
+        return token;
 }

@@ -1434,6 +1434,28 @@ public:
     * @return the disk device name to stat. NULL if not configed.
     */
     virtual SrsConfDirective*   get_stats_disk_device();
+private:
+    /**
+    * get the auth directive of vhost.
+    */
+    virtual SrsConfDirective*   get_vhost_auth(std::string vhost);
+public:
+    /**
+    * get whether vhost enabled auth
+    */
+    virtual bool                get_vhost_auth_enabled(std::string vhost);
+    /**
+    * get the auth password for vhost.
+    */
+    virtual std::string       get_vhost_auth_password(std::string vhost);
+    /**
+    * get whether whost publisher auth  enabled.
+    */
+    virtual bool   get_vhost_auth_publisher_enabled(std::string vhost);
+    /**
+    * get whether whost player auth  enabled.
+    */
+    virtual bool   get_vhost_auth_player_enabled(std::string vhost);
 };
 
 #endif

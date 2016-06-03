@@ -4143,7 +4143,7 @@ int SrsConfig::check_config()
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux"
-                && n != "http_static" && n != "hds" && n != "exec"
+                && n != "http_static" && n != "hds" && n != "exec" && n != "auth"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -7237,4 +7237,76 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     }
     
     return conf;
+}
+
+SrsConfDirective* SrsConfig::get_vhost_auth(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("auth");
+}
+
+bool SrsConfig::get_vhost_auth_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_vhost_auth_password(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    conf = conf->get("password");
+    if (!conf || conf->arg0().empty()) {
+        return NULL;
+    }
+
+    return conf->arg0();
+}
+
+bool  SrsConfig::get_vhost_auth_publisher_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("publisher");
+    if (!conf || conf->arg0().empty()) {
+        return true;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool  SrsConfig::get_vhost_auth_player_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("player");
+    if (!conf || conf->arg0().empty()) {
+        return true;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
