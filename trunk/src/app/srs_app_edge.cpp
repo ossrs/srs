@@ -122,7 +122,6 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         // @see https://github.com/ossrs/srs/issues/372
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
-        
         url = srs_generate_rtmp_url(server, port, vhost, req->app, req->stream);
     }
     
@@ -230,7 +229,7 @@ int SrsEdgeIngester::cycle()
     for (;;) {
         srs_freep(upstream);
         upstream = new SrsEdgeRtmpUpstream(redirect);
-        
+       
         // we only use the redict once.
         // reset the redirect to empty, for maybe the origin changed.
         redirect = "";
@@ -248,7 +247,6 @@ int SrsEdgeIngester::cycle()
         }
         
         ret = ingest();
-        
         // retry for rtmp 302 immediately.
         if (ret == ERROR_CONTROL_REDIRECT) {
             ret = ERROR_SUCCESS;
@@ -259,6 +257,7 @@ int SrsEdgeIngester::cycle()
             srs_warn("origin disconnected, retry. ret=%d", ret);
             ret = ERROR_SUCCESS;
         }
+
         break;
     }
     
@@ -277,12 +276,12 @@ int SrsEdgeIngester::ingest()
     
     while (!pthread->interrupted()) {
         pprint->elapse();
-        
+
         // pithy print
         if (pprint->can_print()) {
             upstream->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
         }
-        
+
         // read from client.
         SrsCommonMessage* msg = NULL;
         if ((ret = upstream->recv_message(&msg)) != ERROR_SUCCESS) {
@@ -293,6 +292,10 @@ int SrsEdgeIngester::ingest()
         }
         srs_verbose("edge loop recv message. ret=%d", ret);
         
+        if (msg == NULL) {
+            srs_trace("\r\nmsg  is NULL\r\n");
+        }
+
         srs_assert(msg);
         SrsAutoFree(SrsCommonMessage, msg);
         

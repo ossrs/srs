@@ -336,7 +336,8 @@ string srs_generate_rtmp_url(string server, int port, string vhost, string app, 
     
     // when default or server is vhost, donot specifies the vhost in params.
     if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost && server != vhost) {
-        ss << "...vhost..." << vhost;
+        //ss << "...vhost..." << vhost;
+        ss << "?vhost=" << vhost;
     }
     
     if (!stream.empty()) {
