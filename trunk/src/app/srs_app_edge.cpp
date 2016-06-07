@@ -247,6 +247,7 @@ int SrsEdgeIngester::cycle()
         }
         
         ret = ingest();
+ 
         // retry for rtmp 302 immediately.
         if (ret == ERROR_CONTROL_REDIRECT) {
             ret = ERROR_SUCCESS;
@@ -276,12 +277,12 @@ int SrsEdgeIngester::ingest()
     
     while (!pthread->interrupted()) {
         pprint->elapse();
-
+        
         // pithy print
         if (pprint->can_print()) {
             upstream->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
         }
-
+        
         // read from client.
         SrsCommonMessage* msg = NULL;
         if ((ret = upstream->recv_message(&msg)) != ERROR_SUCCESS) {
@@ -291,11 +292,7 @@ int SrsEdgeIngester::ingest()
             return ret;
         }
         srs_verbose("edge loop recv message. ret=%d", ret);
-        
-        if (msg == NULL) {
-            srs_trace("\r\nmsg  is NULL\r\n");
-        }
-
+     
         srs_assert(msg);
         SrsAutoFree(SrsCommonMessage, msg);
         

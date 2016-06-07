@@ -241,15 +241,14 @@ int SrsSimpleRtmpClient::play()
 void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
 {
     kbps->sample();
-    
+
     int sr = kbps->get_send_kbps();
     int sr30s = kbps->get_send_kbps_30s();
     int sr5m = kbps->get_send_kbps_5m();
     int rr = kbps->get_recv_kbps();
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
 void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
