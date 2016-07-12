@@ -424,57 +424,56 @@ int SrsRtmpConn::do_cycle()
     srs_verbose("check vhost success.");
     
     //Reference:  https://github.com/ossrs/srs/wiki/v1_CN_DRM#token-authentication
-    if (_srs_config->get_vhost_auth_enabled(req->vhost) && ip != "127.0.0.1" && ip != "localhost") {
-        string nonce, token, expire = "3600";
-        map<string, string>::iterator iter;
-        map<string,string> query;
-        srs_parse_query_string(req->param, query);
-        iter = query.find("nonce");
-        if (iter != query.end()) {
-              nonce = iter->second;
-         }
+		if (req->ip != "localhost" && req->ip != "127.0.0.1" && _srs_config->get_vhost_auth_enabled(req->vhost)) {
+			string nonce, token, expire = "-1";
+			map<string, string>::iterator iter;
+			map<string,string> query;
+			srs_parse_query_string(req->param, query);
+			iter = query.find("nonce");
+			if (iter != query.end()) {
+				  nonce = iter->second;
+			 }
 
-         iter = query.find("expire");
-         if (iter != query.end()){
-             expire = iter->second;
-         }
+			 iter = query.find("expire");
+			 if (iter != query.end()){
+				 expire = iter->second;
+			 }
 
-         iter = query.find("token");
-         if (iter != query.end()){
-             token = iter->second;
-         }
+			 iter = query.find("token");
+			 if (iter != query.end()){
+				 token = iter->second;
+			 }
 
-         if ((nonce.empty() || token.empty() || query.empty()) &&
-                 _srs_config->get_vhost_auth_publisher_enabled(req->vhost)
-                 && _srs_config->get_vhost_auth_player_enabled(req->vhost)) {
-             ret = ERROR_RTMP_CLIENT_NEED_AUTH;
-             srs_error("RTMP need token authentication. "
-                                   "tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
-             return ret;
-         }
+			 if (expire == "-1" && _srs_config->get_vhost_auth_publisher_enabled(req->vhost)) {
+				 if(nonce.empty() || token.empty() || query.empty()) {
+					 ret = ERROR_RTMP_CLIENT_NEED_AUTH;
+					 srs_error("RTMP need token authentication. "
+					 				"tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
+					 return ret;
+				 }
 
-         std::string md5 = srs_auth_token_md5_encode(nonce, _srs_config->get_vhost_auth_password(req->vhost), expire);
-         //check publish ( timestamp > 20yesrs) or player
-         long timestamp;
-         stringstream ss(nonce);
-         ss >> timestamp;
-         if (timestamp > 20 * pow(10,11)) {
-              //srs_trace("\r\nThis client is publish!  nonce:%ld\r\n", timestamp);
-              if (_srs_config->get_vhost_auth_publisher_enabled(req->vhost) && md5 != token) {
-                  ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
-                  srs_error("RTMP publisher token authentication fail. "
-                                        "tcUrl=%s, token=%s, ret=%d", req->tcUrl.c_str(), md5.c_str(), ret);
-                  return ret;
-              }
-         } else {
-              //srs_trace("\r\nThis client is player!  nonce:%ld\r\n", timestamp);
-              if (_srs_config->get_vhost_auth_player_enabled(req->vhost) && md5 != token) {
-                  ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
-                  srs_error("RTMP player token authentication fail. "
-                                        "tcUrl=%s, token=%s, ret=%d", req->tcUrl.c_str(), md5.c_str(), ret);
-                  return ret;
-              }
-         }
+				 if(srs_auth_token_md5_encode(nonce, _srs_config->get_vhost_auth_password(req->vhost), expire) != token) {
+					 ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
+					 srs_error("RTMP publisher token authentication fail. "
+					 				"tcUrl=%s, ret=%d", req->tcUrl.c_str(), ret);
+					 return ret;
+				 }
+			 } else if(_srs_config->get_vhost_auth_player_enabled(req->vhost)) {
+				 if(nonce.empty() || token.empty() || query.empty()) {
+					 ret = ERROR_RTMP_CLIENT_NEED_AUTH;
+					 srs_error("RTMP need token authentication. "
+					 				"tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
+					 return ret;
+				 }
+
+				 if(srs_auth_token_md5_encode(nonce, _srs_config->get_vhost_auth_password(req->vhost), expire) != token) {
+					 ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
+					 srs_error("RTMP publisher token authentication fail. "
+					 				"tcUrl=%s, ret=%d", req->tcUrl.c_str(), ret);
+					 return ret;
+				 }
+			 }
+		}
     }
     //end token-authentication
 
