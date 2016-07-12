@@ -424,7 +424,7 @@ int SrsRtmpConn::do_cycle()
     srs_verbose("check vhost success.");
     
     //Reference:  https://github.com/ossrs/srs/wiki/v1_CN_DRM#token-authentication
-    if (_srs_config->get_vhost_auth_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_auth_enabled(req->vhost) && ip != "127.0.0.1" && ip != "localhost") {
         string nonce, token, expire = "3600";
         map<string, string>::iterator iter;
         map<string,string> query;
