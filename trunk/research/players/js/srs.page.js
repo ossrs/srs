@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.30"; }
+function srs_get_version_code() { return "1.31"; }
 
 /**
 * player specified size.

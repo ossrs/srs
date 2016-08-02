@@ -31,7 +31,7 @@ package
     public class Player
     {
 		// refresh every ts_fragment_seconds*M3u8RefreshRatio
-		public static var M3u8RefreshRatio:Number = 0.45;
+		public static var M3u8RefreshRatio:Number = 0.3;
 		
 		// parse ts every this ms.
 		public static var TsParseAsyncInterval:Number = 80;
