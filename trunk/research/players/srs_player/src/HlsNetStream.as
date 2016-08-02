@@ -110,7 +110,9 @@ package
 					to = hls.duration * 1000 / hls.tsCount * m3u8_refresh_ratio;
 				}
 				setTimeout(refresh_m3u8, to);
-				log("m3u8 not changed, retry after " + to.toFixed(2) + "ms");
+				log("m3u8 not changed, retry after " + to.toFixed(2) + "ms, duration=" 
+					+ hls.duration.toFixed(2) + "s, count=" + hls.tsCount.toFixed(0) 
+					+ ", refresh-ratio=" + m3u8_refresh_ratio.toFixed(2));
 				return;
 			}
 			

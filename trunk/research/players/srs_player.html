@@ -536,6 +536,9 @@
             srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
             srs_player.on_player_ready = function() {
                 var buffer_time = 0.5;
+                if (url.indexOf('.m3u8') > 0) {
+                    buffer_time = 2;
+                }
 
                 if (query.buffer) {
                     for (var i = 0; i < bts.length - 1; i++) {
