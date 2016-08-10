@@ -164,8 +164,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
-        int sec = timeout_us / (1000 * 1000LL);
-        int microsec = timeout_us / 1000LL % 1000;
+        int sec = (int)(timeout_us / 1000000LL);
+        int microsec = (int)(timeout_us % 1000000LL);
         
         sec = srs_max(0, sec);
         microsec = srs_max(0, microsec);
@@ -192,8 +192,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
-        int sec = timeout_us / (1000 * 1000LL);
-        int microsec = timeout_us / 1000LL % 1000;
+        int sec = (int)(timeout_us / 1000000LL);
+        int microsec = (int)(timeout_us % 1000000LL);
 
         sec = srs_max(0, sec);
         microsec = srs_max(0, microsec);
