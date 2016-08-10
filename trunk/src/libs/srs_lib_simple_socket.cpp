@@ -27,7 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
-    #define SOCKET_ETIME ETIME
+    #define SOCKET_ETIME EWOULDBLOCK
     #define SOCKET_ECONNRESET ECONNRESET
 
     #define SOCKET_ERRNO() errno
@@ -160,10 +160,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         
         return ret;
     }
-    void srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
+    int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
+        
+        int sec = timeout_us / (1000 * 1000LL);
+        int microsec = timeout_us / 1000LL % 1000;
+        
+        sec = srs_max(0, sec);
+        microsec = srs_max(0, microsec);
+        
+        struct timeval tv = { sec , microsec };
+        if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+            return SOCKET_ERRNO();
+        }
         skt->recv_timeout = timeout_us;
+        
+        return ERROR_SUCCESS;
     }
     int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx)
     {
@@ -175,10 +188,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         return skt->recv_bytes;
     }
-    void srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
+    int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
+        
+        int sec = timeout_us / (1000 * 1000LL);
+        int microsec = timeout_us / 1000LL % 1000;
+
+        sec = srs_max(0, sec);
+        microsec = srs_max(0, microsec);
+
+        struct timeval tv = { sec , microsec };
+        if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
+            return SOCKET_ERRNO();
+        }
+
         skt->send_timeout = timeout_us;
+        
+        return ERROR_SUCCESS;
     }
     int64_t srs_hijack_io_get_send_timeout(srs_hijack_io_t ctx)
     {

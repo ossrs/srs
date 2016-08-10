@@ -113,8 +113,16 @@ int main(int argc, char** argv)
         srs_human_trace("duration and timeout must be positive.");
         exit(-3);
     }
-
-    rtmp = srs_rtmp_create(rtmp_url);
+    
+    if ((rtmp = srs_rtmp_create(rtmp_url)) == NULL) {
+        srs_human_trace("create rtmp failed");
+        ret = -1;
+        goto rtmp_destroy;
+    }
+    if ((ret = srs_rtmp_set_timeout(rtmp, timeout * 1000, timeout * 1000)) != 0) {
+        srs_human_trace("set timeout for rtmp failed. errno=%d", ret);
+        goto rtmp_destroy;
+    }
     
     if ((ret = srs_rtmp_dns_resolve(rtmp)) != 0) {
         srs_human_trace("dns resolve failed. ret=%d", ret);

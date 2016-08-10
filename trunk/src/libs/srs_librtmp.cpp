@@ -480,14 +480,6 @@ int srs_librtmp_context_resolve_host(Context* context)
 {
     int ret = ERROR_SUCCESS;
     
-    // create socket
-    srs_freep(context->skt);
-    context->skt = new SimpleSocketStream();
-    
-    if ((ret = context->skt->create_socket()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
     // connect to server:port
     context->ip = srs_dns_resolve(context->host);
     if (context->ip.empty()) {
@@ -534,6 +526,17 @@ srs_rtmp_t srs_rtmp_create(const char* url)
 {
     Context* context = new Context();
     context->url = url;
+
+    // create socket
+    srs_freep(context->skt);
+    context->skt = new SimpleSocketStream();
+
+    if (context->skt->create_socket() != ERROR_SUCCESS) {
+        // free the context and return NULL
+        srs_freep(context);
+        return NULL;
+    }
+    
     return context;
 }
 
@@ -546,7 +549,33 @@ srs_rtmp_t srs_rtmp_create2(const char* url)
     // auto append stream.
     context->url += "/livestream";
     
+    // create socket
+    srs_freep(context->skt);
+    context->skt = new SimpleSocketStream();
+    
+    if (context->skt->create_socket() != ERROR_SUCCESS) {
+        // free the context and return NULL
+        srs_freep(context);
+        return NULL;
+    }
+    
     return context;
+}
+   
+int srs_rtmp_set_timeout(srs_rtmp_t rtmp, int recv_timeout_ms, int send_timeout_ms)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!rtmp) {
+        return ret;
+    }
+
+    Context* context = (Context*)rtmp;
+
+    context->skt->set_recv_timeout(recv_timeout_ms * 1000LL);
+    context->skt->set_send_timeout(send_timeout_ms * 1000LL);
+
+    return ret;
 }
 
 void srs_rtmp_destroy(srs_rtmp_t rtmp)
