@@ -54,6 +54,9 @@ using namespace std;
 ISrsLog* _srs_log = new ISrsLog();
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
 
+// use this default timeout in us, if user not set.
+#define SRS_SOCKET_DEFAULT_TIMEOUT 30 * 1000 * 1000LL
+
 /**
 * export runtime context.
 */
@@ -105,6 +108,10 @@ struct Context
     // the aac sequence header.
     std::string aac_specific_config;
     
+    // user set timeout, in us.
+    int64_t stimeout;
+    int64_t rtimeout;
+    
     Context() {
         rtmp = NULL;
         skt = NULL;
@@ -113,6 +120,7 @@ struct Context
         h264_sps_pps_sent = false;
         h264_sps_changed = false;
         h264_pps_changed = false;
+        rtimeout = stimeout = -1;
     }
     virtual ~Context() {
         srs_freep(req);
@@ -571,9 +579,12 @@ int srs_rtmp_set_timeout(srs_rtmp_t rtmp, int recv_timeout_ms, int send_timeout_
     }
 
     Context* context = (Context*)rtmp;
+    
+    context->stimeout = send_timeout_ms * 1000;
+    context->rtimeout = recv_timeout_ms * 1000;
 
-    context->skt->set_recv_timeout(recv_timeout_ms * 1000LL);
-    context->skt->set_send_timeout(send_timeout_ms * 1000LL);
+    context->skt->set_recv_timeout(context->rtimeout);
+    context->skt->set_send_timeout(context->stimeout);
 
     return ret;
 }
@@ -633,6 +644,16 @@ int srs_rtmp_connect_server(srs_rtmp_t rtmp)
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
+    
+    // set timeout if user not set.
+    if (context->stimeout == -1) {
+        context->stimeout = SRS_SOCKET_DEFAULT_TIMEOUT;
+        context->skt->set_send_timeout(context->stimeout);
+    }
+    if (context->rtimeout == -1) {
+        context->rtimeout = SRS_SOCKET_DEFAULT_TIMEOUT;
+        context->skt->set_recv_timeout(context->rtimeout);
+    }
     
     if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
         return ret;
