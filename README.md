@@ -340,6 +340,8 @@ Remark:
 
 ## History
 
+* v2.0, 2016-08-10, fix socket timeout for librtmp.
+* v2.0, 2016-08-08, fix the crash by srs_info log.
 * <strong>v2.0, 2016-08-06, [2.0 beta0(2.0.210)][r2.0b0] released. 89704 lines.</strong>
 * v2.0, 2016-05-17, fix the sps pps parse bug.
 * v2.0, 2016-01-13, fix http reader bug, support infinite chunkted. 2.0.209
