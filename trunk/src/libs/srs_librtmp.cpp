@@ -1407,9 +1407,12 @@ int srs_write_h264_raw_frame(Context* context,
     // ignore others.
     // 5bits, 7.3.1 NAL unit syntax,
     // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 9: AUD
     SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
-    if (nut != SrsAvcNaluTypeSPS && nut != SrsAvcNaluTypePPS && nut != SrsAvcNaluTypeIDR && nut != SrsAvcNaluTypeNonIDR) {
+    if (nut != SrsAvcNaluTypeSPS && nut != SrsAvcNaluTypePPS
+        && nut != SrsAvcNaluTypeIDR && nut != SrsAvcNaluTypeNonIDR
+        && nut != SrsAvcNaluTypeAccessUnitDelimiter
+    ) {
         return ret;
     }
     
