@@ -1366,6 +1366,11 @@ int srs_write_h264_raw_frame(Context* context,
     char* frame, int frame_size, u_int32_t dts, u_int32_t pts
 ) {
     int ret = ERROR_SUCCESS;
+    
+    // empty frame.
+    if (frame_size <= 0) {
+        return ret;
+    }
 
     // for sps
     if (context->avc_raw.is_sps(frame, frame_size)) {
@@ -1396,6 +1401,15 @@ int srs_write_h264_raw_frame(Context* context,
         context->h264_pps_changed = true;
         context->h264_pps = pps;
         
+        return ret;
+    }
+    
+    // ignore others.
+    // 5bits, 7.3.1 NAL unit syntax,
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
+    if (nut != SrsAvcNaluTypeSPS && nut != SrsAvcNaluTypePPS && nut != SrsAvcNaluTypeIDR && nut != SrsAvcNaluTypeNonIDR) {
         return ret;
     }
     
