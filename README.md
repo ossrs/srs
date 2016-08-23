@@ -1,15 +1,15 @@
 Simple RTMP Server
 ==================
 
-SRS(2013-2016) is closed, thanks~
+SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation.
 
-## Open Branches
+## Branches
 
-The following is open branches:
+The branches of srs:
 
-1. [release 1.0](https://github.com/ossrs/srs/tree/1.0release)
-1. [release 2.0](https://github.com/ossrs/srs/tree/2.0release)
-1. [develop](https://github.com/ossrs/srs/tree/develop)
+1. [Release 1.0, Basic feature for rtmp/hls streaming cluster](https://github.com/ossrs/srs/tree/1.0release)
+1. [Release 2.0, Advanced rtmp/flv/hls streaming cluster](https://github.com/ossrs/srs/tree/2.0release)
+1. Master and develop branch are closed.
 
 ## Links
 
