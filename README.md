@@ -15,9 +15,9 @@ The branches of srs:
 
 Server side:
 
-1. [srs-console, a web console to manage srs](https://github.com/ossrs/srs-ngb/tree/master/trunk/research/srs-console)
 1. [oryx(srs+), the srs+ streaming cluster](https://github.com/ossrs/go-oryx)
 1. [oryx-lib, the library for oryx](https://github.com/ossrs/go-oryx-lib)
+1. [srs-console, a web console to manage srs](https://github.com/ossrs/srs-ngb/tree/master/trunk/research/srs-console)
 
 Client side:
 
