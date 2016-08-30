@@ -480,6 +480,14 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
 
             // it's ok to set pcr equals to dts,
             // @see https://github.com/ossrs/srs/issues/311
+            // Fig. 3.18. Program Clock Reference of Digital-Video-and-Audio-Broadcasting-Technology, page 65
+            // In MPEG-2, these are the "Program Clock Refer- ence" (PCR) values which are
+            // nothing else than an up-to-date copy of the STC counter fed into the transport
+            // stream at a certain time. The data stream thus carries an accurate internal
+            // "clock time". All coding and de- coding processes are controlled by this clock
+            // time. To do this, the receiver, i.e. the MPEG decoder, must read out the
+            // "clock time", namely the PCR values, and compare them with its own internal
+            // system clock, that is to say its own 42 bit counter.
             int64_t pcr = write_pcr? msg->dts : -1;
             
             // TODO: FIXME: finger it why use discontinuity of msg.

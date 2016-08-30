@@ -403,6 +403,7 @@ Remark:
 =======
 ## History
 
+* v2.0, 2016-08-30, comment the pcr.
 * v2.0, 2016-08-18, fix [srs-librtmp#4](https://github.com/ossrs/srs-librtmp/issues/4) filter frame.
 * v2.0, 2016-08-10, fix socket timeout for librtmp.
 * v2.0, 2016-08-08, fix the crash by srs_info log.
