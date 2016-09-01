@@ -403,6 +403,7 @@ Remark:
 =======
 ## History
 
+* v2.0, 2016-09-01, workaround [bug #511] the fly stfd in close. 2.0.211
 * v2.0, 2016-08-30, comment the pcr.
 * v2.0, 2016-08-18, fix [srs-librtmp#4](https://github.com/ossrs/srs-librtmp/issues/4) filter frame.
 * v2.0, 2016-08-10, fix socket timeout for librtmp.
@@ -1312,6 +1313,7 @@ Winlin
 [bug #546]: https://github.com/ossrs/srs/issues/546
 [bug #418]: https://github.com/ossrs/srs/issues/418
 [bug #509]: https://github.com/ossrs/srs/issues/509
+[bug #511]: https://github.com/ossrs/srs/issues/511
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

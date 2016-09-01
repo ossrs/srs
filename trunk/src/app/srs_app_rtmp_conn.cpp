@@ -479,8 +479,11 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     // if the vhost connected is removed, disconnect the client.
     srs_trace("vhost %s removed/disabled, close client url=%s", 
         vhost.c_str(), req->get_stream_url().c_str());
-        
-    srs_close_stfd(stfd);
+    
+    // should never close the fd in another thread,
+    // one fd should managed by one thread, we should use interrupt instead.
+    // so we just ignore the vhost enabled event.
+    //srs_close_stfd(stfd);
     
     return ret;
 }

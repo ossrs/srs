@@ -254,6 +254,7 @@ public:
 extern int srs_st_init();
 
 // close the netfd, and close the underlayer fd.
+// @remark when close, user must ensure io completed.
 extern void srs_close_stfd(st_netfd_t& stfd);
 
 #endif
