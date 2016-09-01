@@ -387,7 +387,6 @@ Remark:
 * 2013-10-23, [Release v0.1][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
 
-<<<<<<< HEAD
 ### History
 
 * v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
@@ -400,21 +399,7 @@ Remark:
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
-=======
-## History
-
-* v2.0, 2016-09-01, workaround [bug #511] the fly stfd in close. 2.0.211
-* v2.0, 2016-08-30, comment the pcr.
-* v2.0, 2016-08-18, fix [srs-librtmp#4](https://github.com/ossrs/srs-librtmp/issues/4) filter frame.
-* v2.0, 2016-08-10, fix socket timeout for librtmp.
-* v2.0, 2016-08-08, fix the crash by srs_info log.
 * <strong>v2.0, 2016-08-06, [2.0 beta0(2.0.210)][r2.0b0] released. 89704 lines.</strong>
-* v2.0, 2016-05-17, fix the sps pps parse bug.
-* v2.0, 2016-01-13, fix http reader bug, support infinite chunkted. 2.0.209
-* v2.0, 2016-01-09, merge [#559][pr #559] fix memory leak bug. 2.0.208
-* v2.0, 2016-01-09, merge [#558][pr #558] add tcUrl for on_publish.
-* v2.0, 2016-01-05, add keyword XCORE for coredump to identify the version. 2.0.207
->>>>>>> 2.0release
 * <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
 * <strong>v2.0, 2015-09-14, [2.0 alpha1(2.0.189)][r2.0a1] released. 89269 lines.</strong>
