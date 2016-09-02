@@ -65,8 +65,6 @@ SrsForwarder::SrsForwarder(SrsSource* s)
 
 SrsForwarder::~SrsForwarder()
 {
-    on_unpublish();
-    
     srs_freep(sdk);
     srs_freep(pthread);
     srs_freep(queue);
