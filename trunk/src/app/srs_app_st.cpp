@@ -237,6 +237,7 @@ void srs_close_stfd(st_netfd_t& stfd)
         // we must ensure the close is ok.
         int err = st_netfd_close(stfd);
         srs_assert(err != -1);
+        stfd = NULL;
     }
 }
 
