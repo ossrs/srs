@@ -68,8 +68,6 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
 
 SrsForwarder::~SrsForwarder()
 {
-    on_unpublish();
-    
     srs_freep(pthread);
     srs_freep(queue);
     srs_freep(jitter);
