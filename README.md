@@ -340,6 +340,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-09-03, support all arm for [patched st](https://github.com/ossrs/state-threads/issues/1). 2.0.212
 * v2.0, 2016-09-01, workaround [#511][bug #511] the fly stfd in close. 2.0.211
 * v2.0, 2016-08-30, comment the pcr.
 * v2.0, 2016-08-18, fix [srs-librtmp#4](https://github.com/ossrs/srs-librtmp/issues/4) filter frame.
