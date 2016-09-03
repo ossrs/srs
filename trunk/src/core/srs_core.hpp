@@ -129,9 +129,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
  * important check for st(state-threads),
- * only support the following cpus:
- *      1. i386/amd64/x86_64
- *      2. arm, glibc <= 2.15
+ * only support the following cpus: i386/amd64/x86_64/arm
+ * @reamrk to patch ST for arm, read https://github.com/ossrs/state-threads/issues/1
  */
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__)
     #error "only support i386/amd64/x86_64/arm cpu"
