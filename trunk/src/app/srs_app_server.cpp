@@ -903,6 +903,11 @@ int SrsServer::cycle()
     srs_warn("main cycle terminated, system quit normally.");
     dispose();
     srs_trace("srs terminated");
+    
+    // for valgrind to detect.
+    srs_freep(_srs_config);
+    srs_freep(_srs_log);
+    
     exit(0);
 #endif
     

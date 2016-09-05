@@ -441,6 +441,9 @@ public:
      */
     static void dispose_all();
     static int cycle_all();
+private:
+    static int do_cycle_all();
+public:
     /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
@@ -453,6 +456,8 @@ private:
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_id_changed() to let all clients know.
     int _source_id;
+    // previous source id.
+    int _pre_source_id;
     // deep copy of client request.
     SrsRequest* req;
     // to delivery stream to clients.
@@ -508,6 +513,9 @@ private:
     * can publish, true when is not streaming
     */
     bool _can_publish;
+    // last die time, when all consumers quit and no publisher,
+    // we will remove the source when source die.
+    int64_t die_at;
 private:
     SrsSharedPtrMessage* cache_metadata;
     // the cached video sequence header.
@@ -520,6 +528,8 @@ public:
 public:
     virtual void dispose();
     virtual int cycle();
+    // remove source when expired.
+    virtual bool expired();
 // initialize, get and setter.
 public:
     /**
@@ -547,6 +557,7 @@ public:
     virtual int on_source_id_changed(int id);
     // get current source id.
     virtual int source_id();
+    virtual int pre_source_id();
 // logic data methods
 public:
     virtual bool can_publish(bool is_edge);
