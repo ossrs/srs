@@ -59,6 +59,8 @@ namespace _srs_internal
     public:
         SrsDH();
         virtual ~SrsDH();
+    private:
+        virtual void close();
     public:
         /**
         * initialize dh, generate the public and private key.
