@@ -1030,7 +1030,18 @@ int SrsSource::cycle()
 
 bool SrsSource::expired()
 {
-    if (!consumers.empty() || die_at == -1) {
+    // unknown state?
+    if (die_at == -1) {
+        return false;
+    }
+    
+    // still publishing?
+    if (!_can_publish) {
+        return false;
+    }
+    
+    // has any consumers?
+    if (!consumers.empty()) {
         return false;
     }
     
@@ -2210,7 +2221,6 @@ int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool
 {
     int ret = ERROR_SUCCESS;
     
-    die_at = -1;
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
