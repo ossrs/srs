@@ -152,6 +152,11 @@ namespace _srs_internal
     
     SrsDH::~SrsDH()
     {
+        close();
+    }
+    
+    void SrsDH::close()
+    {
         if (pdh != NULL) {
             if (pdh->p != NULL) {
                 BN_free(pdh->p);
@@ -249,7 +254,9 @@ namespace _srs_internal
     {
         int ret = ERROR_SUCCESS;
         
-        int32_t bits_count = 1024; 
+        int32_t bits_count = 1024;
+        
+        close();
         
         //1. Create the DH
         if ((pdh = DH_new()) == NULL) {
