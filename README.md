@@ -340,6 +340,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-09-05, fix memory leak at source. 2.0.214
 * v2.0, 2016-09-05, fix memory leak at handshake. 2.0.213
 * v2.0, 2016-09-04, support valgrind for [patched st](https://github.com/ossrs/state-threads/issues/2).
 * v2.0, 2016-09-03, support all arm for [patched st](https://github.com/ossrs/state-threads/issues/1). 2.0.212

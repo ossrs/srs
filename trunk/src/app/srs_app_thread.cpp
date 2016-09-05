@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_app_log.hpp>
 
 namespace internal {
     ISrsThreadHandler::ISrsThreadHandler()
@@ -242,6 +243,12 @@ namespace internal {
         srs_assert(obj);
         
         obj->thread_cycle();
+        
+        // for valgrind to detect.
+        SrsThreadContext* ctx = dynamic_cast<SrsThreadContext*>(_srs_context);
+        if (ctx) {
+            ctx->clear_cid();
+        }
         
         st_thread_exit(NULL);
         

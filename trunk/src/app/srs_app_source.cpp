@@ -58,6 +58,9 @@ using namespace std;
 // when got these videos or audios, pure audio or video, mix ok.
 #define SRS_MIX_CORRECT_PURE_AV 10
 
+// the time to cleanup source in ms.
+#define SRS_SOURCE_CLEANUP 30000
+
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
     if (time_jitter == "full") {
@@ -797,14 +800,37 @@ void SrsSource::dispose_all()
 
 int SrsSource::cycle_all()
 {
+    int cid = _srs_context->get_id();
+    int ret = do_cycle_all();
+    _srs_context->set_id(cid);
+    return ret;
+}
+
+int SrsSource::do_cycle_all()
+{
     int ret = ERROR_SUCCESS;
     
-    // TODO: FIXME: support remove dead source for a long time.
     std::map<std::string, SrsSource*>::iterator it;
-    for (it = pool.begin(); it != pool.end(); ++it) {
+    for (it = pool.begin(); it != pool.end();) {
         SrsSource* source = it->second;
         if ((ret = source->cycle()) != ERROR_SUCCESS) {
             return ret;
+        }
+        
+        if (source->expired()) {
+            int cid = source->source_id();
+            if (cid == -1 && source->pre_source_id() > 0) {
+                cid = source->pre_source_id();
+            }
+            if (cid > 0) {
+                _srs_context->set_id(cid);
+            }
+            srs_trace("cleanup die source, total=%d", (int)pool.size());
+            
+            srs_freep(source);
+            pool.erase(it++);
+        } else {
+            ++it;
         }
     }
     
@@ -916,7 +942,8 @@ SrsSource::SrsSource()
     cache_metadata = cache_sh_video = cache_sh_audio = NULL;
     
     _can_publish = true;
-    _source_id = -1;
+    _pre_source_id = _source_id = -1;
+    die_at = -1;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -999,6 +1026,20 @@ int SrsSource::cycle()
 #endif
     
     return ret;
+}
+
+bool SrsSource::expired()
+{
+    if (!consumers.empty() || die_at == -1) {
+        return false;
+    }
+    
+    int64_t now = srs_get_system_time_ms();
+    if (now > die_at + SRS_SOURCE_CLEANUP) {
+        return true;
+    }
+    
+    return false;
 }
 
 int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh)
@@ -1355,6 +1396,12 @@ int SrsSource::on_source_id_changed(int id)
         return ret;
     }
     
+    if (_pre_source_id == -1) {
+        _pre_source_id = id;
+    } else if (_pre_source_id != _source_id) {
+        _pre_source_id = _source_id;
+    }
+    
     _source_id = id;
     
     // notice all consumer
@@ -1370,6 +1417,11 @@ int SrsSource::on_source_id_changed(int id)
 int SrsSource::source_id()
 {
     return _source_id;
+}
+
+int SrsSource::pre_source_id()
+{
+    return _pre_source_id;
 }
 
 bool SrsSource::can_publish(bool is_edge)
@@ -2107,6 +2159,11 @@ int SrsSource::on_publish()
 
 void SrsSource::on_unpublish()
 {
+    // ignore when already unpublished.
+    if (_can_publish) {
+        return;
+    }
+    
     // destroy all forwarders
     destroy_forwarders();
 
@@ -2142,12 +2199,18 @@ void SrsSource::on_unpublish()
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(_req);
     handler->on_unpublish(this, _req);
+    
+    // no consumer, stream is die.
+    if (consumers.empty()) {
+        die_at = srs_get_system_time_ms();
+    }
 }
 
 int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
 {
     int ret = ERROR_SUCCESS;
     
+    die_at = -1;
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
@@ -2224,6 +2287,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
     
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
+        die_at = srs_get_system_time_ms();
     }
 }
 

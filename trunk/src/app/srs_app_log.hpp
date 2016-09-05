@@ -54,6 +54,8 @@ public:
     virtual int generate_id();
     virtual int get_id();
     virtual int set_id(int v);
+public:
+    virtual void clear_cid();
 };
 
 /**
