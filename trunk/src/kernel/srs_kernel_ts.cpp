@@ -2972,18 +2972,19 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
      *      19, Coded slice of an auxiliary coded picture without partitioning slice_layer_without_partitioning_rbsp( )
      *      20, Coded slice extension slice_layer_extension_rbsp( )
      * the first ts message of apple sample:
-     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)
-     *      annexb 4B header, 19B sps(nal_unit_type:7)
-     *      annexb 3B header, 4B pps(nal_unit_type:8)
-     *      annexb 3B header, 12B nalu(nal_unit_type:6)
-     *      annexb 3B header, 21B nalu(nal_unit_type:6)
-     *      annexb 3B header, 2762B nalu(nal_unit_type:5)
-     *      annexb 3B header, 3535B nalu(nal_unit_type:5)
+     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)(AUD)
+     *      annexb 4B header, 19B sps(nal_unit_type:7)(SPS)
+     *      annexb 3B header, 4B pps(nal_unit_type:8)(PPS)
+     *      annexb 3B header, 12B nalu(nal_unit_type:6)(SEI)
+     *      annexb 3B header, 21B nalu(nal_unit_type:6)(SEI)
+     *      annexb 3B header, 2762B nalu(nal_unit_type:5)(IDR)
+     *      annexb 3B header, 3535B nalu(nal_unit_type:5)(IDR)
      * the second ts message of apple ts sample:
-     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)
-     *      annexb 3B header, 21B nalu(nal_unit_type:6)
-     *      annexb 3B header, 379B nalu(nal_unit_type:1)
-     *      annexb 3B header, 406B nalu(nal_unit_type:1)
+     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)(AUD)
+     *      annexb 3B header, 21B nalu(nal_unit_type:6)(SEI)
+     *      annexb 3B header, 379B nalu(nal_unit_type:1)(non-IDR,P/B)
+     *      annexb 3B header, 406B nalu(nal_unit_type:1)(non-IDR,P/B)
+     * @remark we use the sequence of apple samples http://ossrs.net/apple-sample/bipbopall.m3u8
      */
     static u_int8_t fresh_nalu_header[] = { 0x00, 0x00, 0x00, 0x01 };
     static u_int8_t cont_nalu_header[] = { 0x00, 0x00, 0x01 };
