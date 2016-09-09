@@ -358,34 +358,35 @@ Remark:
 
 ### Releases
 
-* 2015-12-23, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.<br/>
-* 2015-12-23, [Release v2.0-a3][r2.0a3], 2.0 alpha3, 2.0.205, 89544 lines.<br/>
-* 2015-10-08, [Release v2.0-a2][r2.0a2], 2.0 alpha2, 2.0.195, 89358 lines.<br/>
-* 2015-09-14, [Release v2.0-a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.<br/>
-* 2015-08-23, [Release v2.0-a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.<br/>
-* 2015-05-23, [Release v1.0-r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.<br/>
-* 2015-03-19, [Release v1.0-r3][r1.0r3], bug fixed, 1.0.30, 59511 lines.<br/>
-* 2015-02-12, [Release v1.0-r2][r1.0r2], bug fixed, 1.0.27, 59507 lines.<br/>
-* 2015-01-15, [Release v1.0-r1][r1.0r1], bug fixed, 1.0.21, 59472 lines.<br/>
-* 2014-12-05, [Release v1.0-r0][r1.0r0], all bug fixed, 1.0.10, 59391 lines.<br/>
-* 2014-10-09, [Release v0.9.8][r1.0b0], all bug fixed, 1.0.0, 59316 lines.<br/>
-* 2014-08-03, [Release v0.9.7][r1.0a7], config utest, all bug fixed. 57432 lines.<br/>
-* 2014-07-13, [Release v0.9.6][r1.0a6], core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
-* 2014-06-27, [Release v0.9.5][r1.0a5], refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
-* 2014-05-28, [Release v0.9.4][r1.0a4], support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
-* 2014-05-18, [Release v0.9.3][r1.0a3], support mips, fms origin, json(http-api). 37594 lines.<br/>
-* 2014-04-28, [Release v0.9.2][r1.0a2], support [dvr][v1_CN_DVR], android, [edge][v1_CN_Edge]. 35255 lines.<br/>
-* 2014-04-07, [Release v0.9.1][r1.0a0], support [arm][v1_CN_SrsLinuxArm], [init.d][v1_CN_LinuxService], http [server][v1_CN_HTTPServer]/[api][v1_CN_HTTPApi], [ingest][v1_CN_SampleIngest]. 30000 lines.<br/>
-* 2013-12-25, [Release v0.9.0][r0.9], support bandwidth test, player/encoder/chat [demos][v1_CN_SampleDemo]. 20926 lines.<br/>
-* 2013-12-08, [Release v0.8.0][r0.8], support [http hooks callback][v1_CN_HTTPCallback], update [SB][srs-bench]. 19186 lines.<br/>
-* 2013-12-03, [Release v0.7.0][r0.7], support [live stream transcoding][v1_CN_FFMPEG]. 17605 lines.<br/>
-* 2013-11-29, [Release v0.6.0][r0.6], support [forward][v1_CN_Forward] stream to origin/edge. 16094 lines.<br/>
-* 2013-11-26, [Release v0.5.0][r0.5], support [HLS(m3u8)][v1_CN_DeliveryHLS], fragment and window. 14449 lines.<br/>
-* 2013-11-10, [Release v0.4.0][r0.4], support [reload][v1_CN_Reload] config, pause, longtime publish/play. 12500 lines.<br/>
-* 2013-11-04, [Release v0.3.0][r0.3], support [vhost][v1_CN_RtmpUrlVhost], refer, gop cache, listen multiple ports. 11773 lines.<br/>
-* 2013-10-25, [Release v0.2.0][r0.2], support [rtmp][v1_CN_RTMPHandshake] flash publish, h264, time jitter correct. 10125 lines.<br/>
-* 2013-10-23, [Release v0.1.0][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.<br/>
-* 2013-10-17, Created.<br/>
+* 2016-09-09, [Release v2.0-b1][r2.0b1], 2.0 beta1, 2.0.215, 89941 lines.
+* 2016-08-06, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.
+* 2015-12-23, [Release v2.0-a3][r2.0a3], 2.0 alpha3, 2.0.205, 89544 lines.
+* 2015-10-08, [Release v2.0-a2][r2.0a2], 2.0 alpha2, 2.0.195, 89358 lines.
+* 2015-09-14, [Release v2.0-a1][r2.0a1], 2.0 alpha1, 2.0.189, 89269 lines.
+* 2015-08-23, [Release v2.0-a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.
+* 2015-05-23, [Release v1.0-r4][r1.0r4], bug fixed, 1.0.32, 59509 lines.
+* 2015-03-19, [Release v1.0-r3][r1.0r3], bug fixed, 1.0.30, 59511 lines.
+* 2015-02-12, [Release v1.0-r2][r1.0r2], bug fixed, 1.0.27, 59507 lines.
+* 2015-01-15, [Release v1.0-r1][r1.0r1], bug fixed, 1.0.21, 59472 lines.
+* 2014-12-05, [Release v1.0-r0][r1.0r0], all bug fixed, 1.0.10, 59391 lines.
+* 2014-10-09, [Release v0.9.8][r1.0b0], all bug fixed, 1.0.0, 59316 lines.
+* 2014-08-03, [Release v0.9.7][r1.0a7], config utest, all bug fixed. 57432 lines.
+* 2014-07-13, [Release v0.9.6][r1.0a6], core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.
+* 2014-06-27, [Release v0.9.5][r1.0a5], refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.
+* 2014-05-28, [Release v0.9.4][r1.0a4], support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.
+* 2014-05-18, [Release v0.9.3][r1.0a3], support mips, fms origin, json(http-api). 37594 lines.
+* 2014-04-28, [Release v0.9.2][r1.0a2], support [dvr][v1_CN_DVR], android, [edge][v1_CN_Edge]. 35255 lines.
+* 2014-04-07, [Release v0.9.1][r1.0a0], support [arm][v1_CN_SrsLinuxArm], [init.d][v1_CN_LinuxService], http [server][v1_CN_HTTPServer]/[api][v1_CN_HTTPApi], [ingest][v1_CN_SampleIngest]. 30000 lines.
+* 2013-12-25, [Release v0.9.0][r0.9], support bandwidth test, player/encoder/chat [demos][v1_CN_SampleDemo]. 20926 lines.
+* 2013-12-08, [Release v0.8.0][r0.8], support [http hooks callback][v1_CN_HTTPCallback], update [SB][srs-bench]. 19186 lines.
+* 2013-12-03, [Release v0.7.0][r0.7], support [live stream transcoding][v1_CN_FFMPEG]. 17605 lines.
+* 2013-11-29, [Release v0.6.0][r0.6], support [forward][v1_CN_Forward] stream to origin/edge. 16094 lines.
+* 2013-11-26, [Release v0.5.0][r0.5], support [HLS(m3u8)][v1_CN_DeliveryHLS], fragment and window. 14449 lines.
+* 2013-11-10, [Release v0.4.0][r0.4], support [reload][v1_CN_Reload] config, pause, longtime publish/play. 12500 lines.
+* 2013-11-04, [Release v0.3.0][r0.3], support [vhost][v1_CN_RtmpUrlVhost], refer, gop cache, listen multiple ports. 11773 lines.
+* 2013-10-25, [Release v0.2.0][r0.2], support [rtmp][v1_CN_RTMPHandshake] flash publish, h264, time jitter correct. 10125 lines.
+* 2013-10-23, [Release v0.1.0][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.
+* 2013-10-17, Created.
 
 ### History
 
@@ -399,6 +400,7 @@ Remark:
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
+* <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
 * <strong>v2.0, 2016-08-06, [2.0 beta0(2.0.210)][r2.0b0] released. 89704 lines.</strong>
 * <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
@@ -1303,6 +1305,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0b1]: https://github.com/ossrs/srs/releases/tag/v2.0-b1
 [r2.0b0]: https://github.com/ossrs/srs/releases/tag/v2.0-b0
 [r2.0a3]: https://github.com/ossrs/srs/releases/tag/v2.0-a3
 [r2.0a2]: https://github.com/ossrs/srs/releases/tag/v2.0-a2
