@@ -1323,9 +1323,10 @@ int srs_write_h264_ipb_frame(Context* context,
     // 5bits, 7.3.1 NAL unit syntax,
     // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
     //  5: I Frame, 1: P/B Frame
-    // @remark for rtmp, we only need to send the I/P/B frames to server,
-    //      the aud is used for server to remux stream to annexb.
-    // TODO: FIXME: we must group NALUs between AUD to a frame.
+    // @remark we already group sps/pps to sequence header frame;
+    //      for I/P NALU, we send them in isolate frame, each NALU in a frame;
+    //      for other NALU, for example, AUD/SEI, we just ignore them, because
+    //      AUD used in annexb to split frame, while SEI generally we can ignore it.
     SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
     if (nut != SrsAvcNaluTypeIDR && nut != SrsAvcNaluTypeNonIDR) {
         return ret;
