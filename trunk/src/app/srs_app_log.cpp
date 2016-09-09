@@ -382,6 +382,7 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
         } else{
             printf("\033[31m%.*s\033[0m", size, str_log);
         }
+        fflush(stdout);
 
         return;
     }
