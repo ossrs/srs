@@ -82,20 +82,24 @@ int main(int argc, char** argv)
     printf("SRS(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
-    if (argc <= 2) {
-        printf("Usage: %s <h264_raw_file> <rtmp_publish_url>\n", argv[0]);
+    if (argc <= 3) {
+        printf("Usage: %s <h264_raw_file> <rtmp_publish_url> <fps>\n", argv[0]);
         printf("     h264_raw_file: the h264 raw steam file.\n");
         printf("     rtmp_publish_url: the rtmp publish url.\n");
+        printf("     fps: the video average fps, for example, 25.\n");
         printf("For example:\n");
-        printf("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
+        printf("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream 25\n", argv[0]);
         printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw\n");
-        printf("See: https://github.com/ossrs/srs/issues/66\n");
+        printf("     See: https://github.com/ossrs/srs/issues/66\n");
         exit(-1);
     }
     
     const char* raw_file = argv[1];
     const char* rtmp_url = argv[2];
-    srs_human_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
+    // @remark, the dts and pts if read from device, for instance, the encode lib,
+    // so we assume the fps is 25, and each h264 frame is 1000ms/25fps=40ms/f.
+    double fps = atof(argv[3]);
+    srs_human_trace("raw_file=%s, rtmp_url=%s, fps=%.2f", raw_file, rtmp_url, fps);
     
     // open file
     int raw_fd = open(raw_file, O_RDONLY);
@@ -148,12 +152,9 @@ int main(int argc, char** argv)
     
     int dts = 0;
     int pts = 0;
-    // @remark, the dts and pts if read from device, for instance, the encode lib,
-    // so we assume the fps is 25, and each h264 frame is 1000ms/25fps=40ms/f.
-    int fps = 25;
     // @remark, to decode the file.
     char* p = h264_raw;
-    for (;p < h264_raw + file_size;) {
+    for (int count = 0; p < h264_raw + file_size; count++) {
         // @remark, read a frame from file buffer.
         char* data = NULL;
         int size = 0;
@@ -178,15 +179,19 @@ int main(int argc, char** argv)
             }
         }
         
-        // 5bits, 7.3.1 NAL unit syntax, 
+        // 5bits, 7.3.1 NAL unit syntax,
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 9: AUD
         u_int8_t nut = (char)data[nb_start_code] & 0x1f;
-        srs_human_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[%d]=%#x(%s)", 
+        srs_human_trace("sent packet: type=%s, time=%d, size=%d, fps=%.2f, b[%d]=%#x(%s)",
             srs_human_flv_tag_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, nb_start_code, (char)data[nb_start_code],
-            (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))));
+            (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":(nut == 9? "AUD":"Unknown"))))));
         
         // @remark, when use encode device, it not need to sleep.
-        usleep(1000 / fps * 1000);
+        if (count == 10) {
+            usleep(1000 * 1000 * count / fps);
+            count = 0;
+        }
     }
     srs_human_trace("h264 raw data completed");
     
