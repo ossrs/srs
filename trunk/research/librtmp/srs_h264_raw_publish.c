@@ -154,7 +154,8 @@ int main(int argc, char** argv)
     int pts = 0;
     // @remark, to decode the file.
     char* p = h264_raw;
-    for (int count = 0; p < h264_raw + file_size; count++) {
+    int count = 0;
+    for (; p < h264_raw + file_size;) {
         // @remark, read a frame from file buffer.
         char* data = NULL;
         int size = 0;
@@ -188,7 +189,7 @@ int main(int argc, char** argv)
             (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":(nut == 9? "AUD":(nut == 6? "SEI":"Unknown")))))));
         
         // @remark, when use encode device, it not need to sleep.
-        if (count == 10) {
+        if (count++ == 9) {
             usleep(1000 * 1000 * count / fps);
             count = 0;
         }
