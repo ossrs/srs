@@ -1301,6 +1301,7 @@ int srs_write_h264_ipb_frame(Context* context,
     //      for I/P NALU, we send them in isolate frame, each NALU in a frame;
     //      for other NALU, for example, AUD/SEI, we just ignore them, because
     //      AUD used in annexb to split frame, while SEI generally we can ignore it.
+    // TODO: maybe we should group all NALUs split by AUD to a frame.
     SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
     if (nut != SrsAvcNaluTypeIDR && nut != SrsAvcNaluTypeNonIDR) {
         return ret;
