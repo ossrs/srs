@@ -1278,12 +1278,12 @@ Winlin
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
 
+[srs_CN]: https://github.com/ossrs/srs/wiki/v2_CN_Home
+[srs_EN]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 [branch1]: https://github.com/ossrs/srs/tree/1.0release
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.215.zip
 [centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.215.zip
-[srs_CN]: https://github.com/ossrs/srs/wiki/v2_CN_Home
-[srs_EN]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 
