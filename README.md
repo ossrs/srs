@@ -238,7 +238,7 @@ The `features`, `compare`, `release` and `performance` of SRS.
 1. Stable [1.0release branch][branch1].
 1. Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2]) by srs-librtmp.
 1. Support [6k+ clients][bug #194], 3Gbps per process.
-1. Suppport [English wiki][v1_EN_Home).
+1. Suppport [English wiki][v1_EN_Home].
 1. Research and simplify st, [bug #182][bug #182].
 1. Support compile [srs-librtmp on windows][srs-librtmp], [bug #213][bug #213].
 1. Support [10k+ clients][bug #251], 4Gbps per process.
@@ -1016,6 +1016,10 @@ Winlin
 [v1_EN_Edge]: https://github.com/ossrs/srs/wiki/v1_EN_Edge
 [v1_CN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v1_CN_RtmpUrlVhost
 [v1_EN_RtmpUrlVhost]: https://github.com/ossrs/srs/wiki/v1_EN_RtmpUrlVhost
+[v1_CN_RTMPHandshake]: https://github.com/ossrs/srs/wiki/v1_CN_RTMPHandshake
+[v1_EN_RTMPHandshake]: https://github.com/ossrs/srs/wiki/v1_EN_RTMPHandshake
+[v1_CN_HTTPServer]: https://github.com/ossrs/srs/wiki/v1_CN_HTTPServer
+[v1_EN_HTTPServer]: https://github.com/ossrs/srs/wiki/v1_EN_HTTPServer
 [v1_CN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryHLS
 [v1_EN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v1_EN_DeliveryHLS
 [v1_CN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly
