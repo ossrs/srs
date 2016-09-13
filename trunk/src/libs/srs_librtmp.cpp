@@ -2028,6 +2028,9 @@ int64_t srs_utils_send_bytes(srs_rtmp_t rtmp)
 {
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
+    if (!context->rtmp) {
+        return 0;
+    }
     return context->rtmp->get_send_bytes();
 }
 
@@ -2035,6 +2038,9 @@ int64_t srs_utils_recv_bytes(srs_rtmp_t rtmp)
 {
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
+    if (!context->rtmp) {
+        return 0;
+    }
     return context->rtmp->get_recv_bytes();
 }
 
