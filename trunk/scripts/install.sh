@@ -20,6 +20,11 @@ product_dir=$work_dir
 log="${work_dir}/logs/package.`date +%s`.log" && . ${product_dir}/scripts/_log.sh && check_log
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 
+# check lsb_release
+ok_msg "check tools"
+lsb_release -v >/dev/null 2>&1; ret=$?
+if [[ $ret -ne 0 ]]; then failed_msg "abort, please install lsb_release"; exit $ret; fi
+
 # user must stop service first.
 ok_msg "check previous install"
 if [[ -f /etc/init.d/srs ]]; then
