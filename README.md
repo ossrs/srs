@@ -25,6 +25,7 @@ Client side:
 1. [librtmp, client rtmp library, integrated with srs](https://github.com/ossrs/librtmp)
 1. [yasea, RTMP streaming client for Android](https://github.com/begeekmyfriend/yasea)
 1. [exoplayer, An extensible media player for Android](https://github.com/google/ExoPlayer)
+1. [videojs](https://github.com/videojs/video.js) and [videojs-flow(flv live over websocet)](https://github.com/winlinvip/videojs-flow) plugin.
 1. [srs-bench, SB(SRS Bench) is a http/rtmp/hls load benchmark tool base on ST and srs-librtmp.](https://github.com/ossrs/srs-bench)
 
 Winlin
