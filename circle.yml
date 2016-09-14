@@ -1,9 +1,0 @@
-
-dependencies:
-    override:
-        # do nothing.
-
-test:
-    override:
-        - go test ./... 
-
