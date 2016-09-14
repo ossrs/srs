@@ -1,6 +1,8 @@
 Simple RTMP Server
 ==================
 
+[![CircleCI](https://circleci.com/gh/winlinvip/srs-plus/tree/master.svg?style=svg&circle-token=04f7e68bc7c63fcb8fd8d020384c5d0489d35b7c)](https://circleci.com/gh/winlinvip/srs-plus/tree/master)
+
 SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation.
 
 ## Branches
