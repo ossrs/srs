@@ -52,10 +52,7 @@ void MockReloadHandler::reset()
     vhost_http_updated_reloaded = false;
     vhost_added_reloaded = false;
     vhost_removed_reloaded = false;
-    vhost_atc_reloaded = false;
-    vhost_gop_cache_reloaded = false;
-    vhost_queue_length_reloaded = false;
-    vhost_time_jitter_reloaded = false;
+    vhost_play_reloaded = false;
     vhost_forward_reloaded = false;
     vhost_hls_reloaded = false;
     vhost_dvr_reloaded = false;
@@ -88,10 +85,7 @@ int MockReloadHandler::count_true()
     if (vhost_http_updated_reloaded) count_true++;
     if (vhost_added_reloaded) count_true++;
     if (vhost_removed_reloaded) count_true++;
-    if (vhost_atc_reloaded) count_true++;
-    if (vhost_gop_cache_reloaded) count_true++;
-    if (vhost_queue_length_reloaded) count_true++;
-    if (vhost_time_jitter_reloaded) count_true++;
+    if (vhost_play_reloaded) count_true++;
     if (vhost_forward_reloaded) count_true++;
     if (vhost_hls_reloaded) count_true++;
     if (vhost_dvr_reloaded) count_true++;
@@ -121,10 +115,7 @@ int MockReloadHandler::count_false()
     if (!vhost_http_updated_reloaded) count_false++;
     if (!vhost_added_reloaded) count_false++;
     if (!vhost_removed_reloaded) count_false++;
-    if (!vhost_atc_reloaded) count_false++;
-    if (!vhost_gop_cache_reloaded) count_false++;
-    if (!vhost_queue_length_reloaded) count_false++;
-    if (!vhost_time_jitter_reloaded) count_false++;
+    if (!vhost_play_reloaded) count_false++;
     if (!vhost_forward_reloaded) count_false++;
     if (!vhost_hls_reloaded) count_false++;
     if (!vhost_dvr_reloaded) count_false++;
@@ -232,7 +223,7 @@ int MockReloadHandler::on_reload_vhost_removed(string /*vhost*/)
 
 int MockReloadHandler::on_reload_vhost_play(string /*vhost*/)
 {
-    vhost_time_jitter_reloaded = true;
+    vhost_play_reloaded = true;
     return ERROR_SUCCESS;
 }
 
@@ -664,7 +655,7 @@ VOID TEST(ConfigReloadTest, ReloadVhostAtc)
     handler.reset();
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"vhost a{atc on;}"));
-    EXPECT_TRUE(handler.vhost_atc_reloaded);
+    EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
     
@@ -685,7 +676,7 @@ VOID TEST(ConfigReloadTest, ReloadVhostGopCache)
     handler.reset();
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"vhost a{gop_cache on;}"));
-    EXPECT_TRUE(handler.vhost_gop_cache_reloaded);
+    EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
     
@@ -706,7 +697,7 @@ VOID TEST(ConfigReloadTest, ReloadVhostQueueLength)
     handler.reset();
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"vhost a{queue_length 20;}"));
-    EXPECT_TRUE(handler.vhost_queue_length_reloaded);
+    EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
     
@@ -727,7 +718,7 @@ VOID TEST(ConfigReloadTest, ReloadVhostTimeJitter)
     handler.reset();
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"vhost a{time_jitter zero;}"));
-    EXPECT_TRUE(handler.vhost_time_jitter_reloaded);
+    EXPECT_TRUE(handler.vhost_play_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
     

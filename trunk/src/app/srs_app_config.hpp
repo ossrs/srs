@@ -344,6 +344,7 @@ private:
     * if reload, reload the config file.
     */
     std::string config_file;
+protected:
     /**
     * the directive root.
     */

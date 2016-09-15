@@ -49,10 +49,7 @@ public:
     bool vhost_http_updated_reloaded;
     bool vhost_added_reloaded;
     bool vhost_removed_reloaded;
-    bool vhost_atc_reloaded;
-    bool vhost_gop_cache_reloaded;
-    bool vhost_queue_length_reloaded;
-    bool vhost_time_jitter_reloaded;
+    bool vhost_play_reloaded;
     bool vhost_forward_reloaded;
     bool vhost_hls_reloaded;
     bool vhost_dvr_reloaded;

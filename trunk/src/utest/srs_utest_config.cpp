@@ -72,6 +72,11 @@ int MockSrsConfig::parse(string buf)
     if ((ret = parse_buffer(&buffer)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    if ((ret = srs_config_transform_vhost(root)) != ERROR_SUCCESS) {
+        srs_error("transform config failed. ret=%d", ret);
+        return ret;
+    }
 
     return check_config();
 }
