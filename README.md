@@ -341,6 +341,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-09-15, fix #640, typo for rtmp type. 2.0.217
 * v2.0, 2016-09-12, fix fast stream error bug. 2.0.216
 * <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
 * v2.0, 2016-09-09, refine librtmp comments about NALUs. 2.0.215

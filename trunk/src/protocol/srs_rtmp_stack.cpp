@@ -1754,7 +1754,7 @@ string srs_client_type_string(SrsRtmpConnType type)
 {
     switch (type) {
         case SrsRtmpConnPlay: return "Play";
-        case SrsRtmpConnFlashPublish: return "flash-publish)";
+        case SrsRtmpConnFlashPublish: return "flash-publish";
         case SrsRtmpConnFMLEPublish: return "fmle-publish";
         default: return "Unknown";
     }
