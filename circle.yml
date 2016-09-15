@@ -1,0 +1,22 @@
+## filter branches.
+general:
+    branches:
+        only:
+            - 2.0release
+            - develop
+            - master
+            - bms
+            - /feature\/.*/
+            - /hotfix\/.*/
+            - /release\/.*/
+            - /pull\/.*/
+
+dependencies:
+    override:
+        - sudo apt-get install -y valgrind openssl
+
+test:
+    override:
+        - (cd trunk && ./configure --use-sys-ssl && make)
+        - (cd trunk && ./objs/srs_utest)
+
