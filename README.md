@@ -10,7 +10,7 @@ SRS is industrial-strength live streaming cluster, for the best conceptual integ
 
 The branches of srs:
 
-1. [Release 1.0, Basic rtmp/hls streaming cluster](https://github.com/ossrs/srs/tree/1.0release)
+1. [Release 1.0](https://github.com/ossrs/srs/tree/1.0release), Basic rtmp/hls streaming cluster
 1. [Release 2.0](https://github.com/ossrs/srs/tree/2.0release) [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/2.0release.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/2.0release), Advanced rtmp/flv/hls streaming cluster.
 1. [Develop](https://github.com/ossrs/srs/tree/develop) [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/develop), the develop branch.
 1. Master branch are closed.
