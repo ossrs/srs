@@ -288,6 +288,11 @@ public:
     */
     virtual int parse_options(int argc, char** argv);
     /**
+     * initialize the cwd for server,
+     * because we may change the workdir.
+     */
+    virtual int initialize_cwd();
+    /**
     * get the config file path.
     */
     virtual std::string config();

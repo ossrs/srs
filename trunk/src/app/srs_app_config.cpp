@@ -1339,11 +1339,6 @@ int SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
-    // cwd
-    char cwd[256];
-    getcwd(cwd, sizeof(cwd));
-    _cwd = cwd;
-    
     // config
     show_help = true;
     for (int i = 1; i < argc; i++) {
@@ -1407,6 +1402,18 @@ int SrsConfig::parse_options(int argc, char** argv)
             srs_trace("write log to console");
         }
     }
+    
+    return ret;
+}
+
+int SrsConfig::initialize_cwd()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // cwd
+    char cwd[256];
+    getcwd(cwd, sizeof(cwd));
+    _cwd = cwd;
     
     return ret;
 }
