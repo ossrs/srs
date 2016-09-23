@@ -3536,7 +3536,7 @@ int SrsConfig::check_config()
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster" && n != "kafka"
-            && n != "utc_time" && n != "work_dir"
+            && n != "utc_time" && n != "work_dir" && n != "asprocess"
         ) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
@@ -4065,6 +4065,13 @@ int SrsConfig::check_config()
         // TODO: FIXME: required http server when hls storage is ram or both.
     }
     
+    // asprocess conflict with daemon
+    if (get_asprocess() && get_deamon()) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("daemon conflict with asprocess, ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -4188,13 +4195,27 @@ bool SrsConfig::get_utc_time()
 
 string SrsConfig::get_work_dir() {
     static string DEFAULT = "";
-
+    
     SrsConfDirective* conf = root->get("work_dir");
     if( !conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 
     return conf->arg0();
+    
+    return conf->arg0();
+}
+
+bool SrsConfig::get_asprocess()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("asprocess");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

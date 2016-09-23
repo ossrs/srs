@@ -618,6 +618,8 @@ public:
      * ignore if empty string.
      */
     virtual std::string         get_work_dir();
+    // whether use asprocess mode.
+    virtual bool                get_asprocess();
 // stream_caster section
 public:
     /**
