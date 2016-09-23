@@ -1339,11 +1339,6 @@ int SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
-    // cwd
-    char cwd[256];
-    getcwd(cwd, sizeof(cwd));
-    _cwd = cwd;
-    
     // config
     show_help = true;
     for (int i = 1; i < argc; i++) {
@@ -1407,6 +1402,18 @@ int SrsConfig::parse_options(int argc, char** argv)
             srs_trace("write log to console");
         }
     }
+    
+    return ret;
+}
+
+int SrsConfig::initialize_cwd()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // cwd
+    char cwd[256];
+    getcwd(cwd, sizeof(cwd));
+    _cwd = cwd;
     
     return ret;
 }
@@ -1567,7 +1574,7 @@ int SrsConfig::check_config()
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_stream" && n != "http_server" && n != "stream_caster"
-            && n != "utc_time"
+            && n != "utc_time" && n != "work_dir" && n != "asprocess"
         ) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
@@ -2055,6 +2062,13 @@ int SrsConfig::check_config()
         // TODO: FIXME: required http server when hls storage is ram or both.
     }
     
+    // asprocess conflict with daemon
+    if (get_asprocess() && get_deamon()) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("daemon conflict with asprocess, ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -2167,6 +2181,29 @@ bool SrsConfig::get_utc_time()
     SrsConfDirective* conf = root->get("utc_time");
     if (!conf || conf->arg0().empty()) {
         return SRS_CONF_DEFAULT_UTC_TIME;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_work_dir() {
+    static string DEFAULT = "./";
+    
+    SrsConfDirective* conf = root->get("work_dir");
+    if( !conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+bool SrsConfig::get_asprocess()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("asprocess");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());

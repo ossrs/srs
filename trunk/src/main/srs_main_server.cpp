@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #include <gperftools/profiler.h>
 #endif
 
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
@@ -279,6 +281,16 @@ int main(int argc, char** argv)
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // change the work dir and set cwd.
+    string cwd = _srs_config->get_work_dir();
+    if (!cwd.empty() && cwd != "./" && (ret = chdir(cwd.c_str())) != ERROR_SUCCESS) {
+        srs_error("change cwd to %s failed. ret=%d", cwd.c_str(), ret);
+        return ret;
+    }
+    if ((ret = _srs_config->initialize_cwd()) != ERROR_SUCCESS) {
         return ret;
     }
     
