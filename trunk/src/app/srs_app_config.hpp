@@ -374,6 +374,11 @@ public:
      * whether use utc-time to format the time.
      */
     virtual bool                get_utc_time();
+    /**
+     * get the configed work dir.
+     * ignore if empty string.
+     */
+    virtual std::string         get_work_dir();
 // stream_caster section
 public:
     /**

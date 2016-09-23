@@ -282,6 +282,13 @@ int main(int argc, char** argv)
         return ret;
     }
     
+    // change the work dir and set cwd.
+    std::string cwd = _srs_config->get_work_dir();
+    if (!cwd.empty() && cwd != "./" && (ret = chdir(cwd.c_str())) != ERROR_SUCCESS) {
+        srs_error("change cwd to %s failed. ret=%d", cwd.c_str(), ret);
+        return ret;
+    }
+    
     // config parsed, initialize log.
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
