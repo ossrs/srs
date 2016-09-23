@@ -488,7 +488,7 @@ SrsServer::SrsServer()
     signal_manager = NULL;
     
     handler = NULL;
-    ppid = -1;
+    ppid = ::getppid();
     
     // donot new object in constructor,
     // for some global instance is not ready now,
