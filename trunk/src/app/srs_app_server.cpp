@@ -488,6 +488,7 @@ SrsServer::SrsServer()
     signal_manager = NULL;
     
     handler = NULL;
+    ppid = -1;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -635,7 +636,16 @@ int SrsServer::initialize_st()
     
     // set current log id.
     _srs_context->generate_id();
-    srs_trace("server main cid=%d", _srs_context->get_id());
+    
+    // check asprocess.
+    bool asprocess = _srs_config->get_asprocess();
+    if (ppid == 1) {
+        ret = ERROR_SYSTEM_ASSERT_FAILED;
+        srs_error("for asprocess, ppid should never be init(1), ret=%d", ret);
+        return ret;
+    }
+    srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
+        _srs_context->get_id(), ::getpid(), ppid, asprocess);
     
     return ret;
 }
@@ -945,6 +955,9 @@ int SrsServer::do_cycle()
     max = srs_max(max, SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES);
 #endif
     
+    // for asprocess.
+    bool asprocess = _srs_config->get_asprocess();
+    
     // the deamon thread, update the time cache
     while (true) {
         if(handler && (ret = handler->on_cycle((int)conns.size())) != ERROR_SUCCESS){
@@ -961,6 +974,12 @@ int SrsServer::do_cycle()
         
         for (int i = 0; i < temp_max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+            
+            // asprocess check.
+            if (asprocess && ::getppid() != ppid) {
+                srs_warn("asprocess ppid changed from %d to %d", ppid, ::getppid());
+                return ret;
+            }
             
             // gracefully quit for SIGINT or SIGTERM.
             if (signal_gracefully_quit) {

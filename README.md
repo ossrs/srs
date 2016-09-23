@@ -343,6 +343,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-09-23, support asprocess for oryx. 2.0.218
 * v2.0, 2016-09-23, support change work_dir for oryx.
 * v2.0, 2016-09-15, fix #640, typo for rtmp type. 2.0.217
 * v2.0, 2016-09-12, fix fast stream error bug. 2.0.216
