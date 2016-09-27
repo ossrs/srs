@@ -313,12 +313,38 @@
                         <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
                         <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
                         <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
-                        <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
-                        <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
-                        <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
-                        <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
-                        <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
-                        <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
+                        <li><a id="btn_bt_1_0" href="#">1秒(低延迟)</a></li>
+                        <li><a id="btn_bt_2_0" href="#">2秒(较低延时)</a></li>
+                        <li><a id="btn_bt_3_0" href="#">3秒(流畅播放)</a></li>
+                        <li><a id="btn_bt_4_0" href="#">4秒(流畅播放)</a></li>
+                        <li><a id="btn_bt_5_0" href="#">5秒(网速较低)</a></li>
+                        <li><a id="btn_bt_6_0" href="#">6秒(网速较低)</a></li>
+                        <li><a id="btn_bt_8_0" href="#">8秒(网速较低)</a></li>
+                        <li><a id="btn_bt_10_0" href="#">10秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_15_0" href="#">15秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_20_0" href="#">20秒(无所谓延迟)</a></li>
+                        <li><a id="btn_bt_30_0" href="#">30秒(流畅第一)</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group dropup">
+                    <button class="btn dropdown-toggle" data-toggle="dropdown">最大缓冲区<span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li><a id="btn_mbt_0_6" href="#">0.6秒(实时)</a></li>
+                        <li><a id="btn_mbt_0_9" href="#">0.9秒(实时)</a></li>
+                        <li><a id="btn_mbt_1_2" href="#">1.2秒(实时)</a></li>
+                        <li><a id="btn_mbt_1_5" href="#">1.5秒(实时)</a></li>
+                        <li><a id="btn_mbt_2_4" href="#">2.4秒(会议)</a></li>
+                        <li><a id="btn_mbt_3_0" href="#">3秒(低延迟)</a></li>
+                        <li><a id="btn_mbt_6_0" href="#">6秒(较低延时)</a></li>
+                        <li><a id="btn_mbt_9_0" href="#">9秒(流畅播放)</a></li>
+                        <li><a id="btn_mbt_12_0" href="#">12秒(流畅播放)</a></li>
+                        <li><a id="btn_mbt_15_0" href="#">15秒(网速较低)</a></li>
+                        <li><a id="btn_mbt_18_0" href="#">18秒(网速较低)</a></li>
+                        <li><a id="btn_mbt_24_0" href="#">24秒(网速较低)</a></li>
+                        <li><a id="btn_mbt_30_0" href="#">30秒(无所谓延迟)</a></li>
+                        <li><a id="btn_mbt_45_0" href="#">45秒(无所谓延迟)</a></li>
+                        <li><a id="btn_mbt_60_0" href="#">60秒(无所谓延迟)</a></li>
+                        <li><a id="btn_mbt_90_0" href="#">90秒(流畅第一)</a></li>
                     </ul>
                 </div>
                 <div class="btn-group dropup">
@@ -430,6 +456,13 @@
         // url set to: rtmp://demo:1935/live/livestream
         srs_init_rtmp("#txt_url", "#main_modal");
 
+        // consts for buffer and max buffer.
+        var bts =  [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30];
+        var mbts = [0.6, 0.9, 1.2, 1.5, 2.4, 3, 6, 9, 12, 15, 18, 24, 30, 45, 60, 90];
+
+        // the play startup time.
+        var pst = new Date();
+
         $("#main_modal").on("show", function(){
             if (srs_player) {
                 return;
@@ -447,7 +480,23 @@
 
             srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
             srs_player.on_player_ready = function() {
-                select_buffer_time("#btn_bt_0_1", 0.1);
+                var buffer_time = 0.5;
+                if (url.indexOf('.m3u8') > 0) {
+                    buffer_time = 2;
+                }
+
+                if (query.buffer) {
+                    for (var i = 0; i < bts.length - 1; i++) {
+                        var cur = bts[i];
+                        var next = bts[i+1];
+                        if (Number(query.buffer) >= cur && Number(query.buffer) < next) {
+                            buffer_time = cur;
+                            break;
+                        }
+                    }
+                }
+
+                select_buffer(buffer_time);
                 this.play(url);
             };
             srs_player.on_player_metadata = function(metadata) {
