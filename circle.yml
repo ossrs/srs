@@ -13,10 +13,10 @@ general:
 
 dependencies:
     override:
-        - sudo apt-get install -y valgrind openssl
+        - sudo apt-get install -y valgrind
 
 test:
     override:
-        - (cd trunk && ./configure --use-sys-ssl && make)
+        - (cd trunk && ./configure --without-ssl && make)
         - (cd trunk && ./objs/srs_utest)
 
