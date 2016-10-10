@@ -193,15 +193,10 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
 
 SrsTcpListener::~SrsTcpListener()
 {
-    // close the stfd to trigger thread to interrupted.
-    srs_close_stfd(_stfd);
-
     pthread->stop();
     srs_freep(pthread);
     
-    // st does not close it sometimes, 
-    // close it manually.
-    close(_fd);
+    srs_close_stfd(_stfd);
 }
 
 int SrsTcpListener::fd()
