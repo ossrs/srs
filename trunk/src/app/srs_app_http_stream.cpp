@@ -79,6 +79,17 @@ SrsBufferCache::~SrsBufferCache()
     srs_freep(req);
 }
 
+int SrsBufferCache::update(SrsSource* s, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_freep(req);
+    req = r->copy();
+    source = s;
+    
+    return ret;
+}
+
 int SrsBufferCache::start()
 {
     return pthread->start();
@@ -450,6 +461,17 @@ SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c)
 SrsLiveStream::~SrsLiveStream()
 {
     srs_freep(req);
+}
+
+int SrsLiveStream::update(SrsSource* s, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+
+    srs_freep(req);
+    source = s;
+    req = r->copy();
+
+    return ret;
 }
 
 int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -840,6 +862,8 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         srs_trace("http: mount flv stream for vhost=%s, mount=%s", sid.c_str(), mount.c_str());
     } else {
         entry = sflvs[sid];
+        entry->stream->update(s, r);
+        entry->cache->update(s, r);
     }
 
     if (entry->stream) {
