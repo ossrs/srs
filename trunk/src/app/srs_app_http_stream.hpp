@@ -51,6 +51,7 @@ private:
 public:
     SrsStreamCache(SrsSource* s, SrsRequest* r);
     virtual ~SrsStreamCache();
+    virtual int update(SrsSource* s, SrsRequest* r);
 public:
     virtual int start();
     virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
@@ -227,6 +228,7 @@ private:
 public:
     SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
     virtual ~SrsLiveStream();
+    virtual int update(SrsSource* s, SrsRequest* r);
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
