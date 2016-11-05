@@ -343,6 +343,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-11-05, fix #654, crash when source cleanup for edge. 2.0.221
 * v2.0, 2016-10-26, fix #666, crash when source cleanup for http-flv. 2.0.220
 * v2.0, 2016-10-10, fix #661, close fd after thread stopped. 2.0.219
 * v2.0, 2016-09-23, support asprocess for oryx. 2.0.218
