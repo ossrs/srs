@@ -1044,7 +1044,7 @@ bool SrsSource::expired()
     }
     
     // still publishing?
-    if (!_can_publish) {
+    if (!_can_publish || !publish_edge->can_publish()) {
         return false;
     }
     
