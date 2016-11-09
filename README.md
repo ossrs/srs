@@ -311,6 +311,7 @@ Remark:
 
 ## Releases
 
+* 2016-11-09, [Release v2.0-b2][r2.0b2], 2.0 beta2, 2.0.221, 86691 lines.
 * 2016-09-09, [Release v2.0-b1][r2.0b1], 2.0 beta1, 2.0.215, 89941 lines.
 * 2016-08-06, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.
 * 2015-12-23, [Release v2.0-a3][r2.0a3], 2.0 alpha3, 2.0.205, 89544 lines.
@@ -343,6 +344,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
 * v2.0, 2016-11-05, fix #654, crash when source cleanup for edge. 2.0.221
 * v2.0, 2016-10-26, fix #666, crash when source cleanup for http-flv. 2.0.220
 * v2.0, 2016-10-10, fix #661, close fd after thread stopped. 2.0.219
@@ -1257,6 +1259,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0b2]: https://github.com/ossrs/srs/releases/tag/v2.0-b2
 [r2.0b1]: https://github.com/ossrs/srs/releases/tag/v2.0-b1
 [r2.0b0]: https://github.com/ossrs/srs/releases/tag/v2.0-b0
 [r2.0a3]: https://github.com/ossrs/srs/releases/tag/v2.0-a3
@@ -1297,6 +1300,6 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.215.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.215.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.221.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.221.zip
 
