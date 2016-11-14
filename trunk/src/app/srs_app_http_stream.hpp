@@ -225,10 +225,13 @@ private:
     SrsRequest* req;
     SrsSource* source;
     SrsStreamCache* cache;
+    bool enable_crossdomain;
 public:
-    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
+    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c, bool crossdomain);
     virtual ~SrsLiveStream();
     virtual int update(SrsSource* s, SrsRequest* r);
+public:
+    void reset_crossdomain(bool crossdomain);
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
@@ -252,14 +255,17 @@ public:
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
+    // whether crossdomain(Access-Control-Allow-Origin)
+    bool crossdomain;
     // whether hstrs(http stream trigger rtmp source)
     bool hstrs;
     
     SrsLiveStream* stream;
     SrsStreamCache* cache;
     
-    SrsLiveEntry(std::string m, bool h);
+    SrsLiveEntry(std::string m, bool c, bool h);
     void reset_hstrs(bool h);
+    void reset_crossdomain(bool c);
 
     bool is_flv();
     bool is_ts();
@@ -274,8 +280,9 @@ class SrsHlsM3u8Stream : public ISrsHttpHandler
 {
 private:
     std::string m3u8;
+    bool enable_crossdomain;
 public:
-    SrsHlsM3u8Stream();
+    SrsHlsM3u8Stream(bool crossdomain);
     virtual ~SrsHlsM3u8Stream();
 public:
     virtual void set_m3u8(std::string v);
@@ -290,8 +297,9 @@ class SrsHlsTsStream : public ISrsHttpHandler
 {
 private:
     std::string ts;
+    bool enable_crossdomain;
 public:
-    SrsHlsTsStream();
+    SrsHlsTsStream(bool crossdomain);
     virtual ~SrsHlsTsStream();
 public:
     virtual void set_ts(std::string v);
