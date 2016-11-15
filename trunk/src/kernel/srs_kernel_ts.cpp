@@ -1202,7 +1202,7 @@ int SrsTsAdaptationField::encode(SrsStream* stream)
         // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         int64_t pcrv = program_clock_reference_extension & 0x1ff;
         pcrv |= (const1_value0 << 9) & 0x7E00;
-        pcrv |= (program_clock_reference_base << 15) & 0x1FFFFFFFF000000LL;
+        pcrv |= (program_clock_reference_base << 15) & 0xFFFFFFFF8000LL;
 
         pp = (char*)&pcrv;
         *p++ = pp[5];
