@@ -657,7 +657,7 @@ int SrsServer::initialize_st()
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
-    if (ppid == 1) {
+    if (asprocess && ppid == 1) {
         ret = ERROR_SYSTEM_ASSERT_FAILED;
         srs_error("for asprocess, ppid should never be init(1), ret=%d", ret);
         return ret;
