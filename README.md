@@ -4,7 +4,7 @@ Simple RTMP Server
 [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/master.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation.
+SRS is an industrial-strength live cluster, with simple code and best conceptual integrity.
 
 ## Branches
 
@@ -13,7 +13,7 @@ The branches of srs:
 1. [Release 1.0](https://github.com/ossrs/srs/tree/1.0release), Basic rtmp/hls streaming cluster
 1. [Release 2.0](https://github.com/ossrs/srs/tree/2.0release) [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/2.0release.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/2.0release), Advanced rtmp/flv/hls streaming cluster.
 1. [Develop](https://github.com/ossrs/srs/tree/develop) [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/develop), the develop branch.
-1. Master branch are closed.
+1. Master branch provides important links, please use other release branches.
 
 ## Links
 
