@@ -3,18 +3,13 @@
 [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/develop)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-SRS/3.0, [OuXuli][release3]
-
-[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
-[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
-[![LinkedIn](http://s.c.lnkd.licdn.com/scds/common/u/img/webpromo/btn_liprofile_blue_80x15.png)](http://cn.linkedin.com/in/winlinvip)
-
+SRS/3.0, [OuXuli][release3]<br/>
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
-SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
+SRS is an industrial-strength live cluster, with simple code and best conceptual integrity. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
-Website for SRS/3.0, read SRS 3.0 [Chinese][srs_CN] or [English][srs_EN].
+For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 ## Content
 
@@ -41,14 +36,13 @@ Website for SRS/3.0, read SRS 3.0 [Chinese][srs_CN] or [English][srs_EN].
 
 ## About
 
-SRS(Simple RTMP Server) over state-threads created in 2013.10.
-
-SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
-supports origin/edge/vhost and transcode/ingest and dvr/forward 
-and http-api/http-callback/reload, introduces tracable 
-session-oriented log, exports client srs-librtmp, 
-with stream caster to push MPEGTS-over-UDP/RTSP to SRS,
-provides EN/CN wiki and the most simple architecture.
+SRS(Simple RTMP Server) is created in 2013.10.
+SRS supports many protocols includes RTMP, HLS, HTTP-FLV and HDS.
+SRS can run on both LINUX and OSX, and X86, X64, ARM and MIPS cpu.
+Vhost is used as service unit for live cluster, which delivery stream by origin and edge.
+The stream on origin can be transcoded, DVR to VOD file, ingest from external sources, or forwarded to other servers.
+HTTP API and callback is powerful mechenism for integraty.
+The wikis are writen by both English and Chinese.
 
 ### Why SRS?
 
@@ -915,6 +909,12 @@ Remark:
 1. Ingester: SRS fork a ffmpeg(or application) to ingest something to rtmp to SRS. Read [Ingest][v1_CN_Ingest].
 1. Streamer: SRS listen to remux some protocol to rtmp to SRS. Read [Streamer][v2_CN_Streamer].
 1. EXEC: SRS exec external application when got event, read [ng-exec][v3_CN_NgExec].
+
+## Donation
+
+[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
+[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
+[![LinkedIn](http://s.c.lnkd.licdn.com/scds/common/u/img/webpromo/btn_liprofile_blue_80x15.png)](http://cn.linkedin.com/in/winlinvip)
 
 Beijing, 2013.10<br/>
 Winlin
