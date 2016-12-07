@@ -25,8 +25,8 @@ function require_sudoer()
 }
 
 # TODO: check gcc/g++
-echo "check gcc/g++/gdb/make"
-echo "depends tools are ok"
+echo "Checking gcc/g++/gdb/make."
+echo "Required tools are ok."
 #####################################################################################
 # for Ubuntu, auto install tools by apt-get
 #####################################################################################
@@ -34,7 +34,7 @@ OS_IS_UBUNTU=NO
 function Ubuntu_prepare()
 {
     if [ $SRS_CUBIE = YES ]; then
-        echo "for cubieboard, use ubuntu prepare"
+        echo "For cubieboard, please use ubuntu prepare."
     else
         uname -v|grep Ubuntu >/dev/null 2>&1
         ret=$?; if [[ 0 -ne $ret ]]; then
@@ -49,97 +49,97 @@ function Ubuntu_prepare()
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
+            echo "Installing gcc-arm-linux-gnueabi g++-arm-linux-gnueabi."
             require_sudoer "sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
             sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi success"
+            echo "The gcc-arm-linux-gnueabi g++-arm-linux-gnueabi are installed."
         fi
     fi
     
     # cross build for mips, user must installed the tool chain.
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "user must install the tool chain: $SrsArmCC"
+            echo "You must install the tool chain: $SrsArmCC"
             return 2
         fi
     fi
 
     OS_IS_UBUNTU=YES
-    echo "Ubuntu detected, install tools if needed"
+    echo "Installing tools for Ubuntu."
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc"
+        echo "Installing gcc."
         require_sudoer "sudo apt-get install -y --force-yes gcc"
         sudo apt-get install -y --force-yes gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc success"
+        echo "The gcc is installed."
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install g++"
+        echo "Installing g++."
         require_sudoer "sudo apt-get install -y --force-yes g++"
         sudo apt-get install -y --force-yes g++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install g++ success"
+        echo "The g++ is installed."
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install make"
+        echo "Installing make."
         require_sudoer "sudo apt-get install -y --force-yes make"
         sudo apt-get install -y --force-yes make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install make success"
+        echo "The make is installed."
     fi
     
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install patch"
+        echo "Installing patch."
         require_sudoer "sudo apt-get install -y --force-yes patch"
         sudo apt-get install -y --force-yes patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install patch success"
+        echo "The patch is installed."
     fi
     
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install unzip"
+        echo "Installing unzip."
         require_sudoer "sudo apt-get install -y --force-yes unzip"
         sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install unzip success"
+        echo "The unzip is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
         if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install libpcre3-dev"
+            echo "Installing libpcre3-dev."
             require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
             sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libpcre3-dev success"
+            echo "The libpcre3-dev is installed."
         fi
     fi
     
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install autoconf"
+            echo "Installing autoconf."
             require_sudoer "sudo apt-get install -y --force-yes autoconf"
             sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install autoconf success"
+            echo "The autoconf is installed."
         fi
         
         libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install libtool"
+            echo "Installing libtool."
             require_sudoer "sudo apt-get install -y --force-yes libtool"
             sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libtool success"
+            echo "The libtool is installed."
         fi
         
         if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "install zlib1g-dev"
+            echo "Installing zlib1g-dev."
             require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
             sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install zlib1g-dev success"
+            echo "The zlib1g-dev is installed."
         fi
     fi
     
-    echo "Ubuntu install tools success"
+    echo "Tools for Ubuntu are installed."
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, ret=$ret"; exit $ret; fi
+    Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
 fi
 #####################################################################################
 # for Centos, auto install tools by yum
@@ -153,93 +153,93 @@ function Centos_prepare()
     
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "embeded(arm/mips) is invalid for CentOS"
+        echo "CentOS doesn't support crossbuild for arm/mips, please use Ubuntu instead."
         return 1
     fi
 
     OS_IS_CENTOS=YES
-    echo "Centos detected, install tools if needed"
+    echo "Installing tools for Centos."
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc"
+        echo "Installing gcc."
         require_sudoer "sudo yum install -y gcc"
         sudo yum install -y gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc success"
+        echo "The gcc is installed."
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc-c++"
+        echo "Installing gcc-c++."
         require_sudoer "sudo yum install -y gcc-c++"
         sudo yum install -y gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc-c++ success"
+        echo "The gcc-c++ is installed."
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install make"
+        echo "Installing make."
         require_sudoer "sudo yum install -y make"
         sudo yum install -y make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install make success"
+        echo "The make is installed."
     fi
     
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install patch"
+        echo "Installing patch."
         require_sudoer "sudo yum install -y patch"
         sudo yum install -y patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install patch success"
+        echo "The patch is installed."
     fi
     
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install unzip"
+        echo "Installing unzip."
         require_sudoer "sudo yum install -y unzip"
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install unzip success"
+        echo "The unzip is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
         if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install pcre-devel"
+            echo "Installing pcre-devel."
             require_sudoer "sudo yum install -y pcre-devel"
             sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install pcre-devel success"
+            echo "The pcre-devel is installed."
         fi
     fi
     
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install automake"
+            echo "Installing automake."
             require_sudoer "sudo yum install -y automake"
             sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install automake success"
+            echo "The automake is installed."
         fi
         
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install autoconf"
+            echo "Installing autoconf."
             require_sudoer "sudo yum install -y autoconf"
             sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install autoconf success"
+            echo "The autoconf is installed."
         fi
         
         libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install libtool"
+            echo "Installing libtool."
             require_sudoer "sudo yum install -y libtool"
             sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libtool success"
+            echo "The libtool is installed."
         fi
         
         if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "install zlib-devel"
+            echo "Installing zlib-devel."
             require_sudoer "sudo yum install -y zlib-devel"
             sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install zlib-devel success"
+            echo "The zlib-devel is installed."
         fi
     fi
     
-    echo "Centos install tools success"
+    echo "Tools for Centos are installed."
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
+    Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
 fi
 #####################################################################################
 # for Centos, auto install tools by yum
@@ -250,7 +250,7 @@ function OSX_prepare()
     uname -s|grep Darwin >/dev/null 2>&1
     ret=$?; if [[ 0 -ne $ret ]]; then
         if [ $SRS_OSX = YES ]; then
-            echo "OSX check failed, actual is `uname -s`"
+            echo "Current OS `uname -s` is not OSX, please check your configure options."
             exit 1;
         fi
         return 0;
@@ -258,110 +258,110 @@ function OSX_prepare()
     
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "embeded(arm/mips) is invalid for OSX"
+        echo "OSX doesn't support crossbuild for arm/mips, please use Ubuntu instead."
         return 1
     fi
 
     OS_IS_OSX=YES
-    echo "OSX detected, install tools if needed"
+    echo "Installing tools for OSX."
     # requires the osx when os
     if [ $OS_IS_OSX = YES ]; then
         if [ $SRS_OSX = NO ]; then
-            echo "OSX detected, must specifies the --osx"
+            echo "Invalid configure options for OSX, please specify --osx."
             exit 1
         fi
     fi
 
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install brew"
+        echo "Installing brew."
         echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
         ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install brew success"
+        echo "The brew is installed."
     fi
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc"
+        echo "Installing gcc."
         echo "brew install gcc"
         brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc success"
+        echo "The gcc is installed."
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc-c++"
+        echo "Installing gcc-c++."
         echo "brew install gcc-c++"
         brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc-c++ success"
+        echo "The gcc-c++ is installed."
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install make"
+        echo "Installing make."
         echo "brew install make"
         brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install make success"
+        echo "The make is installed."
     fi
     
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install patch"
+        echo "Installing patch."
         echo "brew install patch"
         brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install patch success"
+        echo "The patch is installed."
     fi
     
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install unzip"
+        echo "Installing unzip."
         echo "brew install unzip"
         brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install unzip success"
+        echo "The unzip is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
         if [[ ! -f /usr/local/include/pcre.h ]]; then
-        echo "install pcre"
+        echo "Installing pcre."
         echo "brew install pcre"
         brew install pcre; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install pcre success"
+        echo "The pcre is installed."
         fi
     fi
 
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install automake"
+            echo "Installing automake."
             echo "brew install automake"
             brew install automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install automake success"
+            echo "The automake is installed."
         fi
         
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install autoconf"
+            echo "Installing autoconf."
             echo "brew install autoconf"
             brew install autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install autoconf success"
+            echo "The autoconf is installed."
         fi
         
         which libtool >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install libtool"
+            echo "Installing libtool."
             echo "brew install libtool"
             brew install libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libtool success"
+            echo "The libtool is installed."
         fi
 
         brew info zlib >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install zlib"
+            echo "Installing zlib."
             echo "brew install zlib"
             brew install zlib; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install zlib success"
+            echo "The zlib is installed."
         fi
     fi
     
-    echo "OSX install tools success"
+    echo "Tools for OSX are installed."
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
+    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for OSX failed, ret=$ret"; exit $ret; fi
 fi
 
-# the sed command
+# We must use a bash function instead of variable.
 function sed_utility() {
     if [ $OS_IS_OSX = YES ]; then
         sed -i '' "$@"
@@ -391,7 +391,7 @@ SED="sed_utility" && echo "SED is $SED"
 # others is invalid.
 if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
-        echo "what a fuck, os not supported."
+        echo "What a fuck, your OS `uname -s` is not supported."
         exit 1
     fi
 fi
@@ -411,11 +411,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [ $SRS_CROSS_BUILD = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
         if [[ -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "st-1.9t for arm is ok.";
+            echo "The st-1.9t for arm is ok.";
         else
             # TODO: FIXME: patch the bug.
             # patch st for arm, @see: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
-            echo "build st-1.9t for arm"; 
+            echo "Building st-1.9t for arm.";
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
@@ -429,10 +429,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         fi
     else
         if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "st-1.9t is ok.";
+            echo "The st-1.9t is ok.";
         else
             # patch st for arm, @see: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
-            echo "build st-1.9t"; 
+            echo "Building st-1.9t.";
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
@@ -446,8 +446,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         fi
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build st-1.9 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build st-1.9 static lib failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -455,7 +455,7 @@ fi
 #####################################################################################
 # check the cross build flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_CORE = YES ]; then
-    echo "http-parser is copied into srs_http_stack.*pp"
+    echo "The http-parser is copied into srs_http_stack.*pp"
 fi
 
 #####################################################################################
@@ -464,10 +464,8 @@ fi
 function write_nginx_html5()
 {
     cat<<END > ${html_file}
-<video width="640" height="360"
-        autoplay controls autobuffer 
-        src="${hls_stream}"
-        type="application/vnd.apple.mpegurl">
+<video "autoplay" "controls" "autobuffer" type="application/vnd.apple.mpegurl"
+    src="${hls_stream}">
 </video>
 END
 }
@@ -479,9 +477,9 @@ fi
 __SRS_BUILD_NGINX=NO; if [ $SRS_CROSS_BUILD = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
-        echo "nginx-1.5.7 is ok.";
+        echo "The nginx-1.5.7 is ok.";
     else
-        echo "build nginx-1.5.7"; 
+        echo "Building nginx-1.5.7";
         (
             rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
@@ -490,8 +488,8 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "Build nginx-1.5.7 failed."; exit -1; fi
 
     # use current user to config nginx,
     # srs will write ts/m3u8 file use current user,
@@ -526,7 +524,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
 
     # nginx.html to detect whether nginx is alive
-    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+    echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
 fi
 
 #####################################################################################
@@ -537,7 +535,7 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
         echo "CherryPy-3.2.4 is ok.";
     else
         require_sudoer "install CherryPy-3.2.4"
-        echo "install CherryPy-3.2.4"; 
+        echo "Installing CherryPy-3.2.4";
         (
             sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
@@ -550,7 +548,7 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
 fi
 
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    echo "link players to cherrypy static-dir"
+    echo "Link players to cherrypy static-dir"
     rm -rf research/api-server/static-dir/players &&
     ln -sf `pwd`/research/players research/api-server/static-dir/players &&
     rm -f research/api-server/static-dir/crossdomain.xml &&
@@ -561,7 +559,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     rm -rf research/api-server/static-dir/forward && 
     mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
     ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "[warn] link players to cherrypy static-dir failed"; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
 fi
 
 #####################################################################################
@@ -600,15 +598,15 @@ OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
     if [ $SRS_USE_SYS_SSL = YES ]; then
-        echo "warning: donot compile ssl, use system ssl"
+        echo "Warning: Use system libssl, without compiling openssl."
     else
         # check the cross build flag file, if flag changed, need to rebuild the st.
         if [ $SRS_CROSS_BUILD = YES ]; then
             # ok, arm specified, if the flag filed does not exists, need to rebuild.
             if [[ -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "openssl-1.0.1f for arm is ok.";
+                echo "The openssl-1.0.1f for arm is ok.";
             else
-                echo "build openssl-1.0.1f for arm"; 
+                echo "Building openssl-1.0.1f for ARM.";
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
@@ -623,9 +621,9 @@ if [ $SRS_SSL = YES ]; then
         else
             # cross build not specified, if exists flag, need to rebuild for no-arm platform.
             if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "openssl-1.0.1f is ok.";
+                echo "Openssl-1.0.1f is ok.";
             else
-                echo "build openssl-1.0.1f"; 
+                echo "Building openssl-1.0.1f.";
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
@@ -637,8 +635,8 @@ if [ $SRS_SSL = YES ]; then
             fi
         fi
         # check status
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
-        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "build openssl-1.0.1f failed."; exit -1; fi
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
+        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.0.1f failed."; exit -1; fi
     fi
 fi
 
@@ -647,9 +645,9 @@ fi
 #####################################################################################
 if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-        echo "ffmpeg-2.1 is ok.";
+        echo "The ffmpeg-2.1 is ok.";
     else
-        echo "build ffmpeg-2.1"; 
+        echo "Building ffmpeg-2.1.";
         (
             cd ${SRS_OBJS} && pwd_dir=`pwd` && 
             rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
@@ -658,8 +656,8 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "Build ffmpeg-2.1 failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -670,10 +668,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         mkdir -p ${SRS_OBJS}/research
 
         (cd ${SRS_WORKDIR}/research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS_DIR}/research)
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/hls failed, ret=$ret"; exit $ret; fi
 
         (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS_DIR}/research)
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/ffempty failed, ret=$ret"; exit $ret; fi
     fi
 fi
 
@@ -682,7 +680,7 @@ if [ $SRS_LIBRTMP = YES ]; then
     
     # librtmp
     (cd ${SRS_WORKDIR}/research/librtmp && mkdir -p objs && ln -sf `pwd`/objs ../../${SRS_OBJS_DIR}/research/librtmp)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "link research/librtmp failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Link research/librtmp failed, ret=$ret"; exit $ret; fi
 fi
 
 #####################################################################################
@@ -690,9 +688,9 @@ fi
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
     if [[ -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]]; then
-        echo "gtest-1.6.0 is ok.";
+        echo "The gtest-1.6.0 is ok.";
     else
-        echo "build gtest-1.6.0"; 
+        echo "Build gtest-1.6.0";
         (
             rm -rf ${SRS_OBJS}/gtest-1.6.0 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/gtest-1.6.0.zip &&
@@ -700,8 +698,8 @@ if [ $SRS_UTEST = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "build gtest-1.6.0 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -709,9 +707,9 @@ fi
 #####################################################################################
 if [ $SRS_GPERF = YES ]; then
     if [[ -f ${SRS_OBJS}/gperf/bin/pprof ]]; then
-        echo "gperftools-2.1 is ok.";
+        echo "The gperftools-2.1 is ok.";
     else
-        echo "build gperftools-2.1"; 
+        echo "Build gperftools-2.1";
         (
             rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
@@ -721,8 +719,8 @@ if [ $SRS_GPERF = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "build gperftools-2.1 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "Build gperftools-2.1 failed."; exit -1; fi
 fi
 
 #####################################################################################

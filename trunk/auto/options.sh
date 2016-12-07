@@ -892,7 +892,8 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_LOG_VERBOSE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
-    echo "regenerate config: ${SRS_AUTO_CONFIGURE}"
+    echo "User config: $SRS_AUTO_USER_CONFIGURE"
+    echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }
 regenerate_options
 

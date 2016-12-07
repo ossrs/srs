@@ -17,7 +17,7 @@
 
 FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 echo "#####################################################################################" >> ${FILE}
-echo "# the ${MODULE_ID} module." >> ${FILE}
+echo "# The module ${MODULE_ID}." >> ${FILE}
 echo "#####################################################################################" >> ${FILE}
 echo  >> ${FILE}
 
@@ -88,4 +88,4 @@ echo "" >> ${FILE}
 # parent Makefile, to create module output dir before compile it.
 echo "	@mkdir -p ${SRS_OBJS_DIR}/${MODULE_DIR}" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
-echo -n "generate module ${MODULE_ID} ok"; echo '!';
+echo -n "Generate modules ${MODULE_ID} ok"; echo '!';

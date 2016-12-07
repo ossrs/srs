@@ -361,6 +361,8 @@
 		3C663F0B1AB0155100286D8B /* srs_play.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_play.c; path = ../../../research/librtmp/srs_play.c; sourceTree = "<group>"; };
 		3C663F0C1AB0155100286D8B /* srs_publish.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_publish.c; path = ../../../research/librtmp/srs_publish.c; sourceTree = "<group>"; };
 		3C663F0D1AB0155100286D8B /* srs_rtmp_dump.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_rtmp_dump.c; path = ../../../research/librtmp/srs_rtmp_dump.c; sourceTree = "<group>"; };
+		3C6673CF1DF7B93200A6DF57 /* readme.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = readme.txt; path = ../../../modules/readme.txt; sourceTree = "<group>"; };
+		3C6673D11DF7B95E00A6DF57 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/hls-ingester/config"; sourceTree = "<group>"; };
 		3C689F911AB6AAAC00C9CEEE /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = "../../objs/st-1.9/common.h"; sourceTree = "<group>"; };
 		3C689F921AB6AAAC00C9CEEE /* event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = event.c; path = "../../objs/st-1.9/event.c"; sourceTree = "<group>"; };
 		3C689F931AB6AAAC00C9CEEE /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = "../../objs/st-1.9/io.c"; sourceTree = "<group>"; };
@@ -811,6 +813,14 @@
 			path = srs_xcode;
 			sourceTree = "<group>";
 		};
+		3C6673D01DF7B95000A6DF57 /* hls-ingester */ = {
+			isa = PBXGroup;
+			children = (
+				3C6673D11DF7B95E00A6DF57 /* config */,
+			);
+			name = "hls-ingester";
+			sourceTree = "<group>";
+		};
 		3C689F901AB6AA9100C9CEEE /* st-1.9 */ = {
 			isa = PBXGroup;
 			children = (
@@ -831,7 +841,8 @@
 		3C96ADC41B00A71000885304 /* modules */ = {
 			isa = PBXGroup;
 			children = (
-				3C24ECCA1C3A42D800460622 /* readme.txt */,
+				3C6673D01DF7B95000A6DF57 /* hls-ingester */,
+				3C6673CF1DF7B93200A6DF57 /* readme.txt */,
 			);
 			name = modules;
 			sourceTree = "<group>";
