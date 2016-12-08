@@ -51,6 +51,7 @@ using namespace std;
 // pre-declare
 int run(SrsServer* svr);
 int run_master(SrsServer* svr);
+void show_macro_features();
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
@@ -60,169 +61,6 @@ SrsConfig* _srs_config = new SrsConfig();
 
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
-
-/**
-* show the features by macro, the actual macro values.
-*/
-void show_macro_features()
-{
-    if (true) {
-        stringstream ss;
-        
-        ss << "features";
-        
-        // rch(rtmp complex handshake)
-        ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
-        ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
-        ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
-        // hc(http callback)
-        ss << ", hc:" << srs_bool2switch(SRS_AUTO_HTTP_CALLBACK_BOOL);
-        // ha(http api)
-        ss << ", ha:" << srs_bool2switch(SRS_AUTO_HTTP_API_BOOL);
-        // hs(http server)
-        ss << ", hs:" << srs_bool2switch(SRS_AUTO_HTTP_SERVER_BOOL);
-        // hp(http parser)
-        ss << ", hp:" << srs_bool2switch(SRS_AUTO_HTTP_CORE_BOOL);
-        ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
-        // trans(transcode)
-        ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
-        // inge(ingest)
-        ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
-        ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);
-        ss << ", stat:" << srs_bool2switch(SRS_AUTO_STAT_BOOL);
-        ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);
-        // ff(ffmpeg)
-        ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);
-        // sc(stream-caster)
-        ss << ", sc:" << srs_bool2switch(SRS_AUTO_STREAM_CASTER_BOOL);
-        srs_trace(ss.str().c_str());
-    }
-    
-    if (true) {
-        stringstream ss;
-        ss << "SRS on ";
-#ifdef SRS_OSX
-        ss << "OSX";
-#endif
-#ifdef SRS_PI
-        ss << "RespberryPi";
-#endif
-#ifdef SRS_CUBIE
-        ss << "CubieBoard";
-#endif
-#ifdef SRS_ARM_UBUNTU12
-        ss << "ARM(build on ubuntu)";
-#endif
-#ifdef SRS_MIPS_UBUNTU12
-        ss << "MIPS(build on ubuntu)";
-#endif
-        
-#if defined(__amd64__)
-        ss << " amd64";
-#endif
-#if defined(__x86_64__)
-        ss << " x86_64";
-#endif
-#if defined(__i386__)
-        ss << " i386";
-#endif
-#if defined(__arm__)
-        ss << "arm";
-#endif
-        
-#ifndef SRS_OSX
-        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
-#endif
-        
-        ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()
-            << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian()? "little-endian":"big-endian")
-            << ", HZ:" << (int)sysconf(_SC_CLK_TCK);
-        
-        srs_trace(ss.str().c_str());
-    }
-    
-    if (true) {
-        stringstream ss;
-        
-        // mw(merged-write)
-        ss << "mw sleep:" << SRS_PERF_MW_SLEEP << "ms";
-        
-        // mr(merged-read)
-        ss << ". mr ";
-#ifdef SRS_PERF_MERGED_READ
-        ss << "enabled:on";
-#else
-        ss << "enabled:off";
-#endif
-        ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP << "ms";
-        ss << ", @see " << RTMP_SIG_SRS_ISSUES(241);
-        
-        srs_trace(ss.str().c_str());
-    }
-    
-    if (true) {
-        stringstream ss;
-        
-        // gc(gop-cache)
-        ss << "gc:" << srs_bool2switch(SRS_PERF_GOP_CACHE);
-        // pq(play-queue)
-        ss << ", pq:" << SRS_PERF_PLAY_QUEUE << "s";
-        // cscc(chunk stream cache cid)
-        ss << ", cscc:[0," << SRS_PERF_CHUNK_STREAM_CACHE << ")";
-        // csa(complex send algorithm)
-        ss << ", csa:";
-#ifndef SRS_PERF_COMPLEX_SEND
-        ss << "off";
-#else
-        ss << "on";
-#endif
-        
-        // tn(TCP_NODELAY)
-        ss << ", tn:";
-#ifdef SRS_PERF_TCP_NODELAY
-        ss << "on(may hurts performance)";
-#else
-        ss << "off";
-#endif
-      
-        // ss(SO_SENDBUF)
-        ss << ", ss:";
-#ifdef SRS_PERF_SO_SNDBUF_SIZE
-        ss << SRS_PERF_SO_SNDBUF_SIZE;
-#else
-        ss << "auto(guess by merged write)";
-#endif
-        
-        srs_trace(ss.str().c_str());
-    }
-    
-    // others
-    int possible_mr_latency = 0;
-#ifdef SRS_PERF_MERGED_READ
-    possible_mr_latency = SRS_PERF_MR_SLEEP;
-#endif
-    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
-              SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
-    
-#ifdef SRS_AUTO_MEM_WATCH
-    #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
-    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
-#endif
-    
-#if defined(SRS_AUTO_STREAM_CASTER)
-    #warning "stream caster is experiment feature."
-    srs_warn("stream caster is experiment feature.");
-#endif
-    
-#if VERSION_MAJOR > VERSION_STABLE
-    #warning "current branch is not stable, please use stable branch instead."
-    srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
-#endif
-    
-#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
-    #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
-#endif
-}
 
 /**
 * main entrance.
@@ -327,6 +165,169 @@ int main(int argc, char** argv)
     }
     
     return run(svr);
+}
+
+/**
+ * show the features by macro, the actual macro values.
+ */
+void show_macro_features()
+{
+    if (true) {
+        stringstream ss;
+        
+        ss << "features";
+        
+        // rch(rtmp complex handshake)
+        ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
+        ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
+        ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
+        // hc(http callback)
+        ss << ", hc:" << srs_bool2switch(SRS_AUTO_HTTP_CALLBACK_BOOL);
+        // ha(http api)
+        ss << ", ha:" << srs_bool2switch(SRS_AUTO_HTTP_API_BOOL);
+        // hs(http server)
+        ss << ", hs:" << srs_bool2switch(SRS_AUTO_HTTP_SERVER_BOOL);
+        // hp(http parser)
+        ss << ", hp:" << srs_bool2switch(SRS_AUTO_HTTP_CORE_BOOL);
+        ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
+        // trans(transcode)
+        ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
+        // inge(ingest)
+        ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
+        ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);
+        ss << ", stat:" << srs_bool2switch(SRS_AUTO_STAT_BOOL);
+        ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);
+        // ff(ffmpeg)
+        ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);
+        // sc(stream-caster)
+        ss << ", sc:" << srs_bool2switch(SRS_AUTO_STREAM_CASTER_BOOL);
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        ss << "SRS on ";
+#ifdef SRS_OSX
+        ss << "OSX";
+#endif
+#ifdef SRS_PI
+        ss << "RespberryPi";
+#endif
+#ifdef SRS_CUBIE
+        ss << "CubieBoard";
+#endif
+#ifdef SRS_ARM_UBUNTU12
+        ss << "ARM(build on ubuntu)";
+#endif
+#ifdef SRS_MIPS_UBUNTU12
+        ss << "MIPS(build on ubuntu)";
+#endif
+        
+#if defined(__amd64__)
+        ss << " amd64";
+#endif
+#if defined(__x86_64__)
+        ss << " x86_64";
+#endif
+#if defined(__i386__)
+        ss << " i386";
+#endif
+#if defined(__arm__)
+        ss << "arm";
+#endif
+        
+#ifndef SRS_OSX
+        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
+#endif
+        
+        ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()
+        << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian()? "little-endian":"big-endian")
+        << ", HZ:" << (int)sysconf(_SC_CLK_TCK);
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        
+        // mw(merged-write)
+        ss << "mw sleep:" << SRS_PERF_MW_SLEEP << "ms";
+        
+        // mr(merged-read)
+        ss << ". mr ";
+#ifdef SRS_PERF_MERGED_READ
+        ss << "enabled:on";
+#else
+        ss << "enabled:off";
+#endif
+        ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP << "ms";
+        ss << ", @see " << RTMP_SIG_SRS_ISSUES(241);
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        
+        // gc(gop-cache)
+        ss << "gc:" << srs_bool2switch(SRS_PERF_GOP_CACHE);
+        // pq(play-queue)
+        ss << ", pq:" << SRS_PERF_PLAY_QUEUE << "s";
+        // cscc(chunk stream cache cid)
+        ss << ", cscc:[0," << SRS_PERF_CHUNK_STREAM_CACHE << ")";
+        // csa(complex send algorithm)
+        ss << ", csa:";
+#ifndef SRS_PERF_COMPLEX_SEND
+        ss << "off";
+#else
+        ss << "on";
+#endif
+        
+        // tn(TCP_NODELAY)
+        ss << ", tn:";
+#ifdef SRS_PERF_TCP_NODELAY
+        ss << "on(may hurts performance)";
+#else
+        ss << "off";
+#endif
+        
+        // ss(SO_SENDBUF)
+        ss << ", ss:";
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
+        ss << SRS_PERF_SO_SNDBUF_SIZE;
+#else
+        ss << "auto(guess by merged write)";
+#endif
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    // others
+    int possible_mr_latency = 0;
+#ifdef SRS_PERF_MERGED_READ
+    possible_mr_latency = SRS_PERF_MR_SLEEP;
+#endif
+    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
+              SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
+    
+#ifdef SRS_AUTO_MEM_WATCH
+#warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
+    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
+#endif
+    
+#if defined(SRS_AUTO_STREAM_CASTER)
+#warning "stream caster is experiment feature."
+    srs_warn("stream caster is experiment feature.");
+#endif
+    
+#if VERSION_MAJOR > VERSION_STABLE
+#warning "current branch is not stable, please use stable branch instead."
+    srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
+#endif
+    
+#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
+#error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
+#endif
 }
 
 int run(SrsServer* svr)
