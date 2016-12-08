@@ -127,6 +127,19 @@ int SrsFastLog::initialize()
     return ret;
 }
 
+void SrsFastLog::reopen()
+{
+    if (fd > 0) {
+        ::close(fd);
+    }
+    
+    if (!log_to_file_tank) {
+        return;
+    }
+    
+    open_log_file();
+}
+
 void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
 {
     if (_level > SrsLogLevel::Verbose) {

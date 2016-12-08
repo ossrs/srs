@@ -408,10 +408,10 @@ int SrsSignalManager::initialize()
 int SrsSignalManager::start()
 {
     /**
-    * Note that if multiple processes are used (see below), 
-    * the signal pipe should be initialized after the fork(2) call 
-    * so that each process has its own private pipe.
-    */
+     * Note that if multiple processes are used (see below),
+     * the signal pipe should be initialized after the fork(2) call
+     * so that each process has its own private pipe.
+     */
     struct sigaction sa;
     
     /* Install sig_catcher() as a signal handler */
@@ -433,15 +433,10 @@ int SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_DISPOSE, &sa, NULL);
+    sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
     
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_PERSISTENCE_CONFIG, &sa, NULL);
-    
-    srs_trace("signal installed, reload=%d, dispose=%d, persistence=%d, grace_quit=%d",
-        SRS_SIGNAL_RELOAD, SRS_SIGNAL_DISPOSE, SRS_SIGNAL_PERSISTENCE_CONFIG, SRS_SIGNAL_GRACEFULLY_QUIT);
+    srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
+        SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
     
     return pthread->start();
 }
@@ -906,19 +901,36 @@ int SrsServer::cycle()
     return ret;
 }
 
+
 void SrsServer::on_signal(int signo)
-{
+{   
     if (signo == SRS_SIGNAL_RELOAD) {
         signal_reload = true;
         return;
     }
+    
+#ifndef SRS_AUTO_GPERF_MC
+    if (signo == SRS_SIGNAL_REOPEN_LOG) {
+        _srs_log->reopen();
+        srs_warn("reopen log file");
+        return;
+    }
+#endif
+    
+#ifdef SRS_AUTO_GPERF_MC
+    if (signo == SRS_SIGNAL_REOPEN_LOG) {
+        signal_gmc_stop = true;
+        srs_warn("for gmc, the SIGUSR1 used as SIGINT");
+        return;
+    }
+#endif
     
     if (signo == SRS_SIGNAL_PERSISTENCE_CONFIG) {
         signal_persistence_config = true;
         return;
     }
     
-    if (signo == SIGINT || signo == SRS_SIGNAL_DISPOSE) {
+    if (signo == SIGINT) {
 #ifdef SRS_AUTO_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally.");
         signal_gmc_stop = true;

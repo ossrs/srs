@@ -71,6 +71,10 @@ public:
     * initialize log utilities.
     */
     virtual int initialize();
+    /**
+     * reopen the log file for log rotate.
+     */
+    virtual void reopen();
 public:
     /**
     * log for verbose, very verbose information.

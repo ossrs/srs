@@ -82,6 +82,7 @@ public:
     virtual ~SrsFastLog();
 public:
     virtual int initialize();
+    virtual void reopen();
     virtual void verbose(const char* tag, int context_id, const char* fmt, ...);
     virtual void info(const char* tag, int context_id, const char* fmt, ...);
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);

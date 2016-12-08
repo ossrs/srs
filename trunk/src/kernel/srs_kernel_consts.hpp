@@ -133,13 +133,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // signal defines.
 // reload the config file and apply new config.
 #define SRS_SIGNAL_RELOAD SIGHUP
-// terminate the srs with dispose to detect memory leak for gmc.
-#define SRS_SIGNAL_DISPOSE SIGUSR2
-// persistence the config in memory to config file.
-// @see https://github.com/ossrs/srs/issues/319#issuecomment-134993922
-#define SRS_SIGNAL_PERSISTENCE_CONFIG SIGUSR1
+// reopen the log file.
+#define SRS_SIGNAL_REOPEN_LOG SIGUSR1
 // srs should gracefully quit, do dispose then exit.
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGTERM
+
+// application level signals.
+// persistence the config in memory to config file.
+// @see https://github.com/ossrs/srs/issues/319#issuecomment-134993922
+// @remark we actually don't handle the signal for it's not a valid os signal.
+#define SRS_SIGNAL_PERSISTENCE_CONFIG 1000
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////

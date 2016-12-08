@@ -38,6 +38,10 @@ int ISrsLog::initialize()
     return ERROR_SUCCESS;
 }
 
+void ISrsLog::reopen()
+{
+}
+
 void ISrsLog::verbose(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
 {
 }
