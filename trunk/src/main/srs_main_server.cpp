@@ -54,7 +54,7 @@ int run_master(SrsServer* svr);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
+ISrsThreadContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
 
