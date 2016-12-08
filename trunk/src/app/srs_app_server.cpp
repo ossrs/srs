@@ -1318,6 +1318,7 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
     }
     
     SrsConnection* conn = NULL;
+    bool close_for_not_served = false;
     
     if (type == SrsListenerRtmpStream) {
         conn = new SrsRtmpConn(this, stfd, ip);
@@ -1326,18 +1327,23 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
         conn = new SrsHttpApi(this, stfd, http_api_mux, ip);
 #else
         srs_warn("close http client for server not support http-api");
-        srs_close_stfd(stfd);
-        return ret;
+        close_for_not_served = true;
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_AUTO_HTTP_SERVER
         conn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
 #else
         srs_warn("close http client for server not support http-server");
-        return NULL;
+        close_for_not_served = true;
 #endif
     } else {
         // TODO: FIXME: handler others
+        srs_assert(false);
+    }
+    
+    if (close_for_not_served) {
+        srs_close_stfd(stfd);
+        return NULL;
     }
     
     return conn;

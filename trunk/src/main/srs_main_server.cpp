@@ -46,21 +46,19 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 // pre-declare
-int run();
-int run_master();
+int run(SrsServer* svr);
+int run_master(SrsServer* svr);
 
-// for the main objects(server, config, log, context),
-// never subscribe handler in constructor,
-// instead, subscribe handler in initialize method.
-// kernel module.
+// @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
+ISrsThreadContext* _srs_context = new ISrsThreadContext();
+// @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
-// version of srs, which can grep keyword "XCORE"
+
+// @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
 
 /**
@@ -315,24 +313,27 @@ int main(int argc, char** argv)
 
     // features
     show_macro_features();
-
+    
+    SrsServer* svr = new SrsServer();
+    SrsAutoFree(SrsServer, svr);
+    
     /**
     * we do nothing in the constructor of server,
     * and use initialize to create members, set hooks for instance the reload handler,
     * all initialize will done in this stage.
     */
-    if ((ret = _srs_server->initialize(NULL)) != ERROR_SUCCESS) {
+    if ((ret = svr->initialize(NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    return run();
+    return run(svr);
 }
 
-int run()
+int run(SrsServer* svr)
 {
     // if not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
-        return run_master();
+        return run_master(svr);
     }
     
     srs_trace("start deamon mode...");
@@ -370,42 +371,42 @@ int run()
     // son
     srs_trace("son(deamon) process running.");
     
-    return run_master();
+    return run_master(svr);
 }
 
-int run_master()
+int run_master(SrsServer* svr)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
+    if ((ret = svr->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
 
-    if ((ret = _srs_server->initialize_signal()) != ERROR_SUCCESS) {
+    if ((ret = svr->initialize_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+    if ((ret = svr->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
+    if ((ret = svr->listen()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->register_signal()) != ERROR_SUCCESS) {
+    if ((ret = svr->register_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->http_handle()) != ERROR_SUCCESS) {
+    if ((ret = svr->http_handle()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->ingest()) != ERROR_SUCCESS) {
+    if ((ret = svr->ingest()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
+    if ((ret = svr->cycle()) != ERROR_SUCCESS) {
         return ret;
     }
     

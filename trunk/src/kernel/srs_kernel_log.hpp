@@ -124,10 +124,10 @@ public:
     virtual int set_id(int v);
 };
 
-// user must provides a log object
+// @global user must provides a log object
 extern ISrsLog* _srs_log;
 
-// user must implements the LogContext and define a global instance.
+// @global user must implements the LogContext and define a global instance.
 extern ISrsThreadContext* _srs_context;
 
 // donot print method

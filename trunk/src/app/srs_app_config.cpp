@@ -55,7 +55,7 @@ using namespace std;
 
 using namespace _srs_internal;
 
-// the version to identify the core.
+// @global the version to identify the core.
 const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
 
 #define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
@@ -4194,7 +4194,7 @@ bool SrsConfig::get_utc_time()
 }
 
 string SrsConfig::get_work_dir() {
-    static string DEFAULT = "";
+    static string DEFAULT = "./";
     
     SrsConfDirective* conf = root->get("work_dir");
     if( !conf || conf->arg0().empty()) {

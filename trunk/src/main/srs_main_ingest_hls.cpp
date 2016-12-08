@@ -52,15 +52,11 @@ using namespace std;
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
 
-// for the main objects(server, config, log, context),
-// never subscribe handler in constructor,
-// instead, subscribe handler in initialize method.
-// kernel module.
+// @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
-// app module.
+// @global config object for app module.
 SrsConfig* _srs_config = NULL;
-SrsServer* _srs_server = NULL;
 
 #if defined(SRS_AUTO_HTTP_CORE)
 

@@ -125,7 +125,7 @@ extern std::string srs_config_bool2switch(const std::string& sbool);
  */
 extern int srs_config_transform_vhost(SrsConfDirective* root);
 
-// global config
+// @global config object.
 extern SrsConfig* _srs_config;
 
 /**
