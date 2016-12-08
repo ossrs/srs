@@ -52,6 +52,7 @@ using namespace std;
 int run(SrsServer* svr);
 int run_master(SrsServer* svr);
 void show_macro_features();
+string srs_getenv(const char* name);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
@@ -64,15 +65,15 @@ extern const char* _srs_version;
 
 /**
 * main entrance.
-*/
-int main(int argc, char** argv) 
+ */
+int main(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
-
-    // for gperf gmp or gcp, 
+    
+    // for gperf gmp or gcp,
     // should never enable it when not enabled for performance issue.
 #ifdef SRS_AUTO_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
@@ -80,26 +81,26 @@ int main(int argc, char** argv)
 #ifdef SRS_AUTO_GPERF_CP
     ProfilerStart("gperf.srs.gcp");
 #endif
-
+    
     // directly compile error when these two macro defines.
 #if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
-    #error ("option --with-gmc confict with --with-gmp, "
-        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-        "Note that since the heap-checker uses the heap-profiling framework internally, "
-        "it is not possible to run both the heap-checker and heap profiler at the same time");
+#error ("option --with-gmc confict with --with-gmp, "
+    "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+    "Note that since the heap-checker uses the heap-profiling framework internally, "
+    "it is not possible to run both the heap-checker and heap profiler at the same time");
 #endif
     
     // never use gmp to check memory leak.
 #ifdef SRS_AUTO_GPERF_MP
-    #warning "gmp is not used for memory leak, please use gmc instead."
+#warning "gmp is not used for memory leak, please use gmc instead."
 #endif
-
+    
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // change the work dir and set cwd.
     string cwd = _srs_config->get_work_dir();
     if (!cwd.empty() && cwd != "./" && (ret = chdir(cwd.c_str())) != ERROR_SUCCESS) {
@@ -109,7 +110,7 @@ int main(int argc, char** argv)
     if ((ret = _srs_config->initialize_cwd()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // config parsed, initialize log.
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
@@ -127,28 +128,50 @@ int main(int argc, char** argv)
 #endif
     srs_trace("cwd=%s, work_dir=%s", _srs_config->cwd().c_str(), cwd.c_str());
     
+    // for memory check or detect.
+    if (true) {
+        stringstream ss;
+        
 #ifdef SRS_PERF_GLIBC_MEMORY_CHECK
-    // ensure glibc write error to stderr.
-    setenv("LIBC_FATAL_STDERR_", "1", 1);
-    // ensure glibc to do alloc check.
-    setenv("MALLOC_CHECK_", "1", 1);
-    srs_trace("env MALLOC_CHECK_=1 LIBC_FATAL_STDERR_=1");
+        // ensure glibc write error to stderr.
+        string lfsov = srs_getenv("LIBC_FATAL_STDERR_");
+        setenv("LIBC_FATAL_STDERR_", "1", 1);
+        string lfsnv = srs_getenv("LIBC_FATAL_STDERR_");
+        //
+        // ensure glibc to do alloc check.
+        string mcov = srs_getenv("MALLOC_CHECK_");
+        setenv("MALLOC_CHECK_", "1", 1);
+        string mcnv = srs_getenv("MALLOC_CHECK_");
+        ss << "glic mem-check env MALLOC_CHECK_ " << mcov << "=>" << mcnv << ", LIBC_FATAL_STDERR_ " << lfsov << "=>" << lfsnv << ".";
 #endif
-    
+        
+#ifdef SRS_AUTO_GPERF_MC
+        string hcov = srs_getenv("HEAPCHECK");
+        if (hcov.empty()) {
+            string cpath = _srs_config->config();
+            srs_warn("gmc HEAPCHECK is required, for example: env HEAPCHECK=normal ./objs/srs -c %s", cpath.c_str());
+        } else {
+            ss << "gmc env HEAPCHECK=" << hcov << ".";
+        }
+#endif
+        
 #ifdef SRS_AUTO_GPERF_MD
-    char* TCMALLOC_PAGE_FENCE = getenv("TCMALLOC_PAGE_FENCE");
-    if (!TCMALLOC_PAGE_FENCE || strcmp(TCMALLOC_PAGE_FENCE, "1")) {
-        srs_trace("gmd enabled without env TCMALLOC_PAGE_FENCE=1");
-    } else {
-        srs_trace("env TCMALLOC_PAGE_FENCE=1");
-    }
+        char* TCMALLOC_PAGE_FENCE = getenv("TCMALLOC_PAGE_FENCE");
+        if (!TCMALLOC_PAGE_FENCE || strcmp(TCMALLOC_PAGE_FENCE, "1")) {
+            srs_warn("gmd enabled without env TCMALLOC_PAGE_FENCE=1");
+        } else {
+            ss << "gmd env TCMALLOC_PAGE_FENCE=" << TCMALLOC_PAGE_FENCE << ".";
+        }
 #endif
-
+        
+        srs_trace(ss.str().c_str());
+    }
+    
     // we check the config when the log initialized.
     if ((ret = _srs_config->check_config()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // features
     show_macro_features();
     
@@ -156,10 +179,10 @@ int main(int argc, char** argv)
     SrsAutoFree(SrsServer, svr);
     
     /**
-    * we do nothing in the constructor of server,
-    * and use initialize to create members, set hooks for instance the reload handler,
-    * all initialize will done in this stage.
-    */
+     * we do nothing in the constructor of server,
+     * and use initialize to create members, set hooks for instance the reload handler,
+     * all initialize will done in this stage.
+     */
     if ((ret = svr->initialize(NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -328,6 +351,17 @@ void show_macro_features()
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
 #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
+}
+
+string srs_getenv(const char* name)
+{
+    char* cv = ::getenv(name);
+    
+    if (cv) {
+        return cv;
+    }
+    
+    return "";
 }
 
 int run(SrsServer* svr)
