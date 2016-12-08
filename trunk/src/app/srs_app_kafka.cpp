@@ -321,6 +321,35 @@ ISrsKafkaCluster::~ISrsKafkaCluster()
 {
 }
 
+// @global kafka event producer, user must use srs_initialize_kafka to initialize it.
+ISrsKafkaCluster* _srs_kafka = NULL;
+
+int srs_initialize_kafka()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsKafkaProducer* kafka = new SrsKafkaProducer();
+    _srs_kafka = kafka;
+    
+    if ((ret = kafka->initialize()) != ERROR_SUCCESS) {
+        srs_error("initialize the kafka producer failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = kafka->start()) != ERROR_SUCCESS) {
+        srs_error("start kafka failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void srs_dispose_kafka()
+{
+    SrsKafkaProducer* kafka = dynamic_cast<SrsKafkaProducer*>(_srs_kafka);
+    kafka->stop();
+}
+
 SrsKafkaProducer::SrsKafkaProducer()
 {
     metadata_ok = false;
@@ -362,6 +391,10 @@ int SrsKafkaProducer::start()
 {
     int ret = ERROR_SUCCESS;
     
+    if (!enabled) {
+        return ret;
+    }
+    
     if ((ret = worker->start()) != ERROR_SUCCESS) {
         srs_error("start kafka worker failed. ret=%d", ret);
         return ret;
@@ -378,6 +411,10 @@ int SrsKafkaProducer::start()
 
 void SrsKafkaProducer::stop()
 {
+    if (!enabled) {
+        return;
+    }
+    
     pthread->stop();
     worker->stop();
 }

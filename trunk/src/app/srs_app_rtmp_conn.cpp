@@ -309,17 +309,10 @@ void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
     transport->set_recv_timeout(timeout);
 }
 
-#ifdef SRS_AUTO_KAFKA
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c, string cip)
-#else
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
-#endif
     : SrsConnection(svr, c, cip)
 {
     server = svr;
-#ifdef SRS_AUTO_KAFKA
-    kafka = k;
-#endif
     
     req = new SrsRequest();
     res = new SrsResponse();
@@ -375,7 +368,7 @@ int SrsRtmpConn::do_cycle()
     
     // notify kafka cluster.
 #ifdef SRS_AUTO_KAFKA
-    if ((ret = kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
+    if ((ret = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
         srs_error("kafka handler on_client failed. ret=%d", ret);
         return ret;
     }
@@ -1558,7 +1551,7 @@ int SrsRtmpConn::on_disconnect()
     http_hooks_on_close();
     
 #ifdef SRS_AUTO_KAFKA
-    if ((ret = kafka->on_close(srs_id())) != ERROR_SUCCESS) {
+    if ((ret = _srs_kafka->on_close(srs_id())) != ERROR_SUCCESS) {
         srs_error("notify kafka failed. ret=%d", ret);
         return ret;
     }

@@ -254,9 +254,6 @@ private:
 #ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
 #endif
-#ifdef SRS_AUTO_KAFKA
-    SrsKafkaProducer* kafka;
-#endif
 private:
     /**
     * the pid file fd, lock the file write when server is running.
@@ -319,7 +316,6 @@ public:
     virtual int register_signal();
     virtual int http_handle();
     virtual int ingest();
-    virtual int start_kafka();
     virtual int cycle();
 // server utilities.
 public:

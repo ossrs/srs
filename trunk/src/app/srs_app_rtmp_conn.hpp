@@ -138,16 +138,8 @@ private:
     int publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
-    // the kafka cluster
-#ifdef SRS_AUTO_KAFKA
-    ISrsKafkaCluster* kafka;
-#endif
 public:
-#ifdef SRS_AUTO_KAFKA
-    SrsRtmpConn(SrsServer* svr, ISrsKafkaCluster* k, st_netfd_t c, std::string cip);
-#else
     SrsRtmpConn(SrsServer* svr, st_netfd_t c, std::string cip);
-#endif
     virtual ~SrsRtmpConn();
 public:
     virtual void dispose();

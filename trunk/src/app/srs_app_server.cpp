@@ -511,9 +511,6 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
-#ifdef SRS_AUTO_KAFKA
-    kafka = new SrsKafkaProducer();
-#endif
 }
 
 SrsServer::~SrsServer()
@@ -543,10 +540,6 @@ void SrsServer::destroy()
     srs_freep(ingester);
 #endif
     
-#ifdef SRS_AUTO_KAFKA
-    srs_freep(kafka);
-#endif
-    
     if (pid_fd > 0) {
         ::close(pid_fd);
         pid_fd = -1;
@@ -570,7 +563,7 @@ void SrsServer::dispose()
     // @remark don't dispose ingesters, for too slow.
     
 #ifdef SRS_AUTO_KAFKA
-    kafka->stop();
+    srs_dispose_kafka();
 #endif
     
     // dispose the source for hls and dvr.
@@ -654,6 +647,14 @@ int SrsServer::initialize_st()
     
     // set current log id.
     _srs_context->generate_id();
+    
+    // initialize the conponents that depends on st.
+#ifdef SRS_AUTO_KAFKA
+    if ((ret = srs_initialize_kafka()) != ERROR_SUCCESS) {
+        srs_error("initialize kafka failed, ret=%d", ret);
+        return ret;
+    }
+#endif
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
@@ -873,25 +874,6 @@ int SrsServer::ingest()
     }
 #endif
 
-    return ret;
-}
-
-int SrsServer::start_kafka()
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_KAFKA
-    if ((ret = kafka->initialize()) != ERROR_SUCCESS) {
-        srs_error("initialize the kafka producer failed. ret=%d", ret);
-        return ret;
-    }
-    
-    if ((ret = kafka->start()) != ERROR_SUCCESS) {
-        srs_error("start kafka failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
     return ret;
 }
 
@@ -1338,7 +1320,7 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
     SrsConnection* conn = NULL;
     
     if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, kafka, stfd, ip);
+        conn = new SrsRtmpConn(this, stfd, ip);
     } else if (type == SrsListenerHttpApi) {
 #ifdef SRS_AUTO_HTTP_API
         conn = new SrsHttpApi(this, stfd, http_api_mux, ip);

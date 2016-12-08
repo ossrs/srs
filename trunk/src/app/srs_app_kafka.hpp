@@ -149,6 +149,12 @@ public:
     virtual int on_close(int key) = 0;
 };
 
+// @global kafka event producer.
+extern ISrsKafkaCluster* _srs_kafka;
+// kafka initialize and disposer for global object.
+extern int srs_initialize_kafka();
+extern void srs_dispose_kafka();
+
 /**
  * the kafka producer used to save log to kafka cluster.
  */
