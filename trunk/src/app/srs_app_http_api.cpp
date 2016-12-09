@@ -507,7 +507,6 @@ int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("license", SrsJsonAny::str(RTMP_SIG_SRS_LICENSE));
     data->set("copyright", SrsJsonAny::str(RTMP_SIG_SRS_COPYRIGHT));
     data->set("authors", SrsJsonAny::str(RTMP_SIG_SRS_AUTHROS));
-    data->set("contributors_link", SrsJsonAny::str(RTMP_SIG_SRS_CONTRIBUTORS_URL));
     data->set("contributors", SrsJsonAny::str(SRS_AUTO_CONSTRIBUTORS));
     
     return srs_api_response(w, r, obj->dumps());
@@ -673,7 +672,6 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     data->set("headers", server);
     
     server->set("sigature", SrsJsonAny::str(RTMP_SIG_SRS_KEY));
-    server->set("name", SrsJsonAny::str(RTMP_SIG_SRS_NAME));
     server->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
     server->set("link", SrsJsonAny::str(RTMP_SIG_SRS_URL));
     server->set("time", SrsJsonAny::integer(srs_get_system_time_ms()));

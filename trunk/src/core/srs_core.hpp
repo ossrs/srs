@@ -45,16 +45,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_EMAIL "winlin@vip.126.com"
 // debug info.
 #define RTMP_SIG_SRS_ROLE "cluster"
-#define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(Stream Media Server)"
-#define RTMP_SIG_SRS_URL_SHORT "github.com/ossrs/srs"
-#define RTMP_SIG_SRS_URL "https://"RTMP_SIG_SRS_URL_SHORT
+#define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2016 "RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_AUTHROS")"
 #define RTMP_SIG_SRS_PRIMARY RTMP_SIG_SRS_KEY"/"VERSION_STABLE_BRANCH
-#define RTMP_SIG_SRS_CONTRIBUTORS_URL RTMP_SIG_SRS_URL"/blob/master/AUTHORS.txt"
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_VERSION")"
-#define RTMP_SIG_SRS_RELEASE RTMP_SIG_SRS_URL"/tree/"VERSION_STABLE_BRANCH".0release"
-#define RTMP_SIG_SRS_ISSUES(id) RTMP_SIG_SRS_URL"/issues/"#id
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR)"."SRS_XSTR(VERSION_MINOR)"."SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"("RTMP_SIG_SRS_CODE")"
 
@@ -114,18 +109,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         pa = NULL; \
     } \
     (void)0
-
-/**
-* disable copy constructor of class,
-* to avoid the memory leak or corrupt by copy instance.
-*/
-#define disable_default_copy(className)\
-    private:\
-        /** \
-        * disable the copy constructor and operator=, donot allow directly copy. \
-        */ \
-        className(const className&); \
-        className& operator= (const className&)
 
 /**
  * important check for st(state-threads),

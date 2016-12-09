@@ -1658,8 +1658,6 @@ protected:
 */
 class SrsBandwidthPacket : public SrsPacket
 {
-private:
-    disable_default_copy(SrsBandwidthPacket);
 public:
     /**
     * Name of command. 

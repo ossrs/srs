@@ -284,7 +284,6 @@ void show_macro_features()
         ss << "enabled:off";
 #endif
         ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP << "ms";
-        ss << ", @see " << RTMP_SIG_SRS_ISSUES(241);
         
         srs_trace(ss.str().c_str());
     }
