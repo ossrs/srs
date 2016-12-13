@@ -311,6 +311,7 @@ Remark:
 
 ## Releases
 
+* 2016-11-13, [Release v2.0-b3][r2.0b3], 2.0 beta3, 2.0.223, 86685 lines.
 * 2016-11-09, [Release v2.0-b2][r2.0b2], 2.0 beta2, 2.0.221, 86691 lines.
 * 2016-09-09, [Release v2.0-b1][r2.0b1], 2.0 beta1, 2.0.215, 89941 lines.
 * 2016-08-06, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.
@@ -344,6 +345,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
 * v2.0, 2016-12-13, fix #713, disable the source cleanup. 2.0.223
 * v2.0, 2016-12-13, fix #713, refine source to avoid critical fetch and create. 2.0.222
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
@@ -1261,6 +1263,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0b3]: https://github.com/ossrs/srs/releases/tag/v2.0-b3
 [r2.0b2]: https://github.com/ossrs/srs/releases/tag/v2.0-b2
 [r2.0b1]: https://github.com/ossrs/srs/releases/tag/v2.0-b1
 [r2.0b0]: https://github.com/ossrs/srs/releases/tag/v2.0-b0
