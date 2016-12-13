@@ -70,6 +70,7 @@ const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
 #define SRS_CONF_DEFAULT_UTC_TIME false
 
 #define SRS_CONF_DEFAULT_MAX_CONNECTIONS 1000
+#define SRS_CONF_DEFAULT_HLS_CROSSDOMAIN true
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_M3U8_FILE "[app]/[stream].m3u8"
 #define SRS_CONF_DEFAULT_HLS_TS_FILE "[app]/[stream]-[seq].ts"
@@ -107,6 +108,7 @@ const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
 
 #define SRS_CONF_DEFAULT_HTTP_MOUNT "[vhost]/"
 #define SRS_CONF_DEFAULT_HTTP_REMUX_MOUNT "[vhost]/[app]/[stream].flv"
+#define SRS_CONF_DEFAULT_HTTP_REMUX_CROSSDOMAIN true
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
 #define SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE 0
 
@@ -1888,7 +1890,7 @@ int SrsConfig::check_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "hstrs") {
+                    if (m != "enabled" && m != "mount" && m != "crossdomain" && m != "fast_cache" && m != "hstrs") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -1897,7 +1899,7 @@ int SrsConfig::check_config()
             } else if (n == "hls") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
+                    if (m != "enabled" && m != "crossdomain" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose"
@@ -3623,6 +3625,23 @@ bool SrsConfig::get_hls_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::get_hls_crossdomain(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_CROSSDOMAIN;
+    }
+    
+    SrsConfDirective* conf = hls->get("crossdomain");
+    
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HLS_CROSSDOMAIN;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
 string SrsConfig::get_hls_entry_prefix(string vhost)
 {
     SrsConfDirective* hls = get_hls(vhost);
@@ -4332,6 +4351,26 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_vhost_http_remux_crossdomain(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_REMUX_CROSSDOMAIN;
+    }
+    
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_REMUX_CROSSDOMAIN;
+    }
+    
+    conf = conf->get("crossdomain");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_REMUX_CROSSDOMAIN;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 double SrsConfig::get_vhost_http_remux_fast_cache(string vhost)

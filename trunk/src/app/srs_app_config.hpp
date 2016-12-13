@@ -870,6 +870,10 @@ public:
     */
     virtual bool                get_hls_enabled(std::string vhost);
     /**
+    * whether enable crossdomain for HLS.
+    */
+    virtual bool                get_hls_crossdomain(std::string vhost);
+    /**
     * get the HLS m3u8 list ts segment entry prefix info.
     */
     virtual std::string         get_hls_entry_prefix(std::string vhost);
@@ -1070,6 +1074,10 @@ public:
     * get whether vhost enabled http flv live stream
     */
     virtual bool                get_vhost_http_remux_enabled(std::string vhost);
+    /**
+    * whether enable crossdomain for http remux.
+    */
+    virtual bool                get_vhost_http_remux_crossdomain(std::string vhost);
     /**
     * get the fast cache duration for http audio live stream.
     */

@@ -450,11 +450,12 @@ int SrsStreamWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     return writer->writev(iov, iovcnt, pnwrite);
 }
 
-SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)
+SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c, bool crossdomain)
 {
     source = s;
     cache = c;
     req = r->copy();
+    enable_crossdomain = crossdomain;
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -471,6 +472,11 @@ int SrsLiveStream::update(SrsSource* s, SrsRequest* r)
     req = r->copy();
 
     return ret;
+}
+
+void SrsLiveStream::reset_crossdomain(bool crossdomain)
+{
+    enable_crossdomain = crossdomain;
 }
 
 int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -503,6 +509,10 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     SrsAutoFree(ISrsStreamEncoder, enc);
     
+    if (enable_crossdomain) {
+        w->header()->set("Access-Control-Allow-Origin", "*");
+    }
+
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
     if ((ret = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
@@ -614,9 +624,10 @@ int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrM
     return ret;
 }
 
-SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
+SrsLiveEntry::SrsLiveEntry(std::string m, bool c, bool h)
 {
     mount = m;
+    crossdomain = c;
     hstrs = h;
     
     stream = NULL;
@@ -641,6 +652,11 @@ void SrsLiveEntry::reset_hstrs(bool h)
     hstrs = h;
 }
 
+void SrsLiveEntry::reset_crossdomain(bool c)
+{
+    crossdomain = c;
+}
+
 bool SrsLiveEntry::is_flv()
 {
     return _is_flv;
@@ -661,8 +677,9 @@ bool SrsLiveEntry::is_mp3()
     return _is_mp3;
 }
 
-SrsHlsM3u8Stream::SrsHlsM3u8Stream()
+SrsHlsM3u8Stream::SrsHlsM3u8Stream(bool crossdomain)
 {
+    enable_crossdomain = crossdomain;
 }
 
 SrsHlsM3u8Stream::~SrsHlsM3u8Stream()
@@ -683,6 +700,10 @@ int SrsHlsM3u8Stream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     w->header()->set_content_length((int)data.length());
     w->header()->set_content_type("application/x-mpegURL;charset=utf-8");
 
+    if (enable_crossdomain) {
+        w->header()->set("Access-Control-Allow-Origin", "*");
+    }
+
     if ((ret = w->write((char*)data.data(), (int)data.length())) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("send m3u8 failed. ret=%d", ret);
@@ -693,8 +714,9 @@ int SrsHlsM3u8Stream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return ret;
 }
 
-SrsHlsTsStream::SrsHlsTsStream()
+SrsHlsTsStream::SrsHlsTsStream(bool crossdomain)
 {
+    enable_crossdomain = crossdomain;
 }
 
 SrsHlsTsStream::~SrsHlsTsStream()
@@ -714,6 +736,10 @@ int SrsHlsTsStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     
     w->header()->set_content_length((int)data.length());
     w->header()->set_content_type("video/MP2T");
+
+    if (enable_crossdomain) {
+        w->header()->set("Access-Control-Allow-Origin", "*");
+    }
 
     if ((ret = w->write((char*)data.data(), (int)data.length())) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
@@ -823,10 +849,10 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // remove the default vhost mount
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
-        entry = new SrsLiveEntry(mount, tmpl->hstrs);
+        entry = new SrsLiveEntry(mount, tmpl->crossdomain, tmpl->hstrs);
     
         entry->cache = new SrsStreamCache(s, r);
-        entry->stream = new SrsLiveStream(s, r, entry->cache);
+        entry->stream = new SrsLiveStream(s, r, entry->cache, entry->crossdomain);
 
         // TODO: FIXME: maybe refine the logic of http remux service.
         // if user push streams followed:
@@ -924,8 +950,10 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
     string old_tmpl_mount = tmpl->mount;
     string new_tmpl_mount = _srs_config->get_vhost_http_remux_mount(vhost);
     bool hstrs = _srs_config->get_vhost_http_remux_hstrs(vhost);
+    bool crossdomain = _srs_config->get_vhost_http_remux_crossdomain(vhost);
 
     tmpl->reset_hstrs(hstrs);
+    tmpl->reset_crossdomain(crossdomain);
 
     /**
      * TODO: not support to reload different mount url for the time being.
@@ -941,6 +969,8 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
         if (sflvs.find(sid) != sflvs.end()) {
             SrsLiveEntry* stream = sflvs[sid];
             stream->reset_hstrs(hstrs);
+            stream->reset_crossdomain(crossdomain);
+            stream->stream->reset_crossdomain(crossdomain);
         }
         // remount stream.
         if ((ret = http_mount(source, req)) != ERROR_SUCCESS) {
@@ -1013,9 +1043,11 @@ int SrsHttpStreamServer::hls_update_m3u8(SrsRequest* r, string m3u8)
         entry->tmpl = tmpl;
         entry->mount = mount;
         shls[sid] = entry;
-    
+
+        bool enable_crossdomain = _srs_config->get_hls_crossdomain(r->vhost);
+
         if (entry->streams.find(mount) == entry->streams.end()) {
-            ISrsHttpHandler* he = new SrsHlsM3u8Stream();
+            ISrsHttpHandler* he = new SrsHlsM3u8Stream(enable_crossdomain);
             entry->streams[mount] = he;
     
             if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
@@ -1061,10 +1093,11 @@ int SrsHttpStreamServer::hls_update_ts(SrsRequest* r, string uri, string ts)
     srs_assert(entry);
     srs_assert(entry->tmpl);
 
+    bool enable_crossdomain = _srs_config->get_hls_crossdomain(r->vhost);
     std::string mount = hls_mount_generate(r, uri, entry->tmpl->mount);
 
     if (entry->streams.find(mount) == entry->streams.end()) {
-        ISrsHttpHandler* he = new SrsHlsTsStream();
+        ISrsHttpHandler* he = new SrsHlsTsStream(enable_crossdomain);
         entry->streams[mount] = he;
 
         if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
@@ -1285,6 +1318,7 @@ int SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
 
     SrsLiveEntry* entry = new SrsLiveEntry(
         _srs_config->get_vhost_http_remux_mount(vhost),
+        _srs_config->get_vhost_http_remux_crossdomain(vhost),
         _srs_config->get_vhost_http_remux_hstrs(vhost)
     );
 
