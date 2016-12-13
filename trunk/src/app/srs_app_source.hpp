@@ -418,22 +418,20 @@ private:
     static std::map<std::string, SrsSource*> pool;
 public:
     /**
-    * find stream by vhost/app/stream.
+    *  create source when fetch from cache failed.
     * @param r the client request.
     * @param h the event handler for source.
     * @param hh the event handler for hls.
     * @param pps the matched source, if success never be NULL.
     */
-    static int create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
+    static int fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
+private:
     /**
     * get the exists source, NULL when not exists.
     * update the request and return the exists source.
     */
     static SrsSource* fetch(SrsRequest* r);
-    /**
-    * get the exists source by stream info(vhost, app, stream), NULL when not exists.
-    */
-    static SrsSource* fetch(std::string vhost, std::string app, std::string stream);
+public:
     /**
      * dispose and cycle all sources.
      */
