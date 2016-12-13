@@ -709,11 +709,9 @@ int SrsRtmpConn::stream_service_cycle()
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
     
     // find a source to serve.
-    SrsSource* source = SrsSource::fetch(req);
-    if (!source) {
-        if ((ret = SrsSource::create(req, server, server, &source)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    SrsSource* source = NULL;
+    if ((ret = SrsSource::fetch_or_create(req, server, server, &source)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_assert(source != NULL);
     

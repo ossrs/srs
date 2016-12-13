@@ -1232,11 +1232,9 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
         }
     }
 
-    SrsSource* s = SrsSource::fetch(r);
-    if (!s) {
-        if ((ret = SrsSource::create(r, server, server, &s)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    SrsSource* s = NULL;
+    if ((ret = SrsSource::fetch_or_create(r, server, server, &s)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_assert(s != NULL);
 

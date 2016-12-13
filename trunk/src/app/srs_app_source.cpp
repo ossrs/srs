@@ -737,9 +737,15 @@ ISrsSourceHandler::~ISrsSourceHandler()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
+int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsSource* source = NULL;
+    if ((source = fetch(r)) != NULL) {
+        *pps = source;
+        return ret;
+    }
     
     string stream_url = r->get_stream_url();
     string vhost = r->vhost;
@@ -747,7 +753,7 @@ int SrsSource::create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, S
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
-    SrsSource* source = new SrsSource();
+    source = new SrsSource();
     if ((ret = source->initialize(r, h, hh)) != ERROR_SUCCESS) {
         srs_freep(source);
         return ret;
@@ -776,20 +782,6 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
     source->req->update_auth(r);
-
-    return source;
-}
-
-SrsSource* SrsSource::fetch(std::string vhost, std::string app, std::string stream)
-{
-    SrsSource* source = NULL;
-    string stream_url = srs_generate_stream_url(vhost, app, stream);
-    
-    if (pool.find(stream_url) == pool.end()) {
-        return NULL;
-    }
-
-    source = pool[stream_url];
 
     return source;
 }
