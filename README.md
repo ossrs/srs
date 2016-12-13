@@ -345,6 +345,7 @@ Remark:
 
 ### Releases
 
+* 2016-11-13, [Release v2.0-b3][r2.0b3], 2.0 beta3, 2.0.223, 86685 lines.
 * 2016-11-09, [Release v2.0-b2][r2.0b2], 2.0 beta2, 2.0.221, 86691 lines.
 * 2016-09-09, [Release v2.0-b1][r2.0b1], 2.0 beta1, 2.0.215, 89941 lines.
 * 2016-08-06, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.
@@ -390,6 +391,7 @@ Remark:
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
+* <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
 * <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
 * <strong>v2.0, 2016-08-06, [2.0 beta0(2.0.210)][r2.0b0] released. 89704 lines.</strong>
@@ -1310,6 +1312,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0b3]: https://github.com/ossrs/srs/releases/tag/v2.0-b3
 [r2.0b2]: https://github.com/ossrs/srs/releases/tag/v2.0-b2
 [r2.0b1]: https://github.com/ossrs/srs/releases/tag/v2.0-b1
 [r2.0b0]: https://github.com/ossrs/srs/releases/tag/v2.0-b0
