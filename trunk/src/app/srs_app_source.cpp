@@ -792,9 +792,17 @@ void SrsSource::dispose_all()
 
 int SrsSource::cycle_all()
 {
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: support source cleanup.
+    // @see https://github.com/ossrs/srs/issues/713
+    // @see https://github.com/ossrs/srs/issues/714
+#if 0
     int cid = _srs_context->get_id();
-    int ret = do_cycle_all();
+    ret = do_cycle_all();
     _srs_context->set_id(cid);
+#endif
+    
     return ret;
 }
 

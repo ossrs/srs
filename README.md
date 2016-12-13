@@ -344,6 +344,7 @@ Remark:
 
 ## History
 
+* v2.0, 2016-12-13, fix #713, disable the source cleanup. 2.0.223
 * v2.0, 2016-12-13, fix #713, refine source to avoid critical fetch and create. 2.0.222
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
 * v2.0, 2016-11-05, fix #654, crash when source cleanup for edge. 2.0.221
