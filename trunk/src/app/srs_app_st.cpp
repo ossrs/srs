@@ -127,8 +127,6 @@ namespace internal
             return;
         }
         
-        loop = false;
-        
         dispose();
         
         _cid = -1;
@@ -151,6 +149,9 @@ namespace internal
         if (disposed) {
             return;
         }
+        
+        // notify the cycle to stop loop.
+        loop = false;
         
         // the interrupt will cause the socket to read/write error,
         // which will terminate the cycle thread.
@@ -186,9 +187,11 @@ namespace internal
     {
         int ret = ERROR_SUCCESS;
         
+        // TODO: FIXME: it's better for user to specifies the cid,
+        //      because sometimes we need to merge cid, for example,
+        //      the publish thread should use the same cid of connection.
         _srs_context->generate_id();
         srs_info("thread %s cycle start", _name);
-        
         _cid = _srs_context->get_id();
         
         srs_assert(handler);
@@ -238,8 +241,9 @@ namespace internal
         // readly terminated now.
         really_terminated = true;
         
-        handler->on_thread_stop();
         srs_info("thread %s cycle finished", _name);
+        // @remark in this callback, user may delete this, so never use this->xxx anymore.
+        handler->on_thread_stop();
     }
     
     void* SrsThread::thread_fun(void* arg)
@@ -249,7 +253,7 @@ namespace internal
         
         obj->thread_cycle();
         
-        // for valgrind to detect.
+        // delete cid for valgrind to detect memory leak.
         SrsThreadContext* ctx = dynamic_cast<SrsThreadContext*>(_srs_context);
         if (ctx) {
             ctx->clear_cid();
