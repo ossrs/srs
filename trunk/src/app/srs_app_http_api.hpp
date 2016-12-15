@@ -211,7 +211,7 @@ class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandle
 {
 private:
     SrsHttpParser* parser;
-    SrsHttpCrosMux* cros;
+    SrsHttpCorsMux* cors;
     SrsHttpServeMux* mux;
 public:
     SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);

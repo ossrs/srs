@@ -761,18 +761,18 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
     return false;
 }
 
-SrsHttpCrosMux::SrsHttpCrosMux()
+SrsHttpCorsMux::SrsHttpCorsMux()
 {
     next = NULL;
     enabled = false;
     required = false;
 }
 
-SrsHttpCrosMux::~SrsHttpCrosMux()
+SrsHttpCorsMux::~SrsHttpCorsMux()
 {
 }
 
-int SrsHttpCrosMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
+int SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
 {
     next = worker;
     enabled = cros_enabled;
@@ -780,7 +780,7 @@ int SrsHttpCrosMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
     return ERROR_SUCCESS;
 }
 
-int SrsHttpCrosMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+int SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     // method is OPTIONS and enable crossdomain, required crossdomain header.
     if (r->is_http_options() && enabled) {

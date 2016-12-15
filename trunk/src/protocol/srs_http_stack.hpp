@@ -443,18 +443,18 @@ private:
 };
 
 /**
- * The filter http mux, directly serve the http CROS requests,
+ * The filter http mux, directly serve the http CORS requests,
  * while proxy to the worker mux for services.
  */
-class SrsHttpCrosMux : public ISrsHttpServeMux
+class SrsHttpCorsMux : public ISrsHttpServeMux
 {
 private:
     bool required;
     bool enabled;
     ISrsHttpServeMux* next;
 public:
-    SrsHttpCrosMux();
-    virtual ~SrsHttpCrosMux();
+    SrsHttpCorsMux();
+    virtual ~SrsHttpCorsMux();
 public:
     virtual int initialize(ISrsHttpServeMux* worker, bool cros_enabled);
 // interface ISrsHttpServeMux

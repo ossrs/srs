@@ -1312,7 +1312,7 @@ SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m
     : SrsConnection(cm, fd, cip)
 {
     mux = m;
-    cros = new SrsHttpCrosMux();
+    cors = new SrsHttpCorsMux();
     parser = new SrsHttpParser();
     
     _srs_config->subscribe(this);
@@ -1321,7 +1321,7 @@ SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m
 SrsHttpApi::~SrsHttpApi()
 {
     srs_freep(parser);
-    srs_freep(cros);
+    srs_freep(cors);
     
     _srs_config->unsubscribe(this);
 }
@@ -1367,9 +1367,9 @@ int SrsHttpApi::do_cycle()
     // @see https://github.com/ossrs/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
-    // initialize the cros, which will proxy to mux.
+    // initialize the cors, which will proxy to mux.
     bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();
-    if ((ret = cros->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+    if ((ret = cors->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1425,7 +1425,7 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         hm->is_chunked(), hm->is_infinite_chunked());
     
     // use default server mux to serve http request.
-    if ((ret = cros->serve_http(w, r)) != ERROR_SUCCESS) {
+    if ((ret = cors->serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }
@@ -1440,7 +1440,7 @@ int SrsHttpApi::on_reload_http_api_crossdomain()
     int ret = ERROR_SUCCESS;
     
     bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();
-    if ((ret = cros->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+    if ((ret = cors->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
         return ret;
     }
     
