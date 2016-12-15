@@ -237,7 +237,7 @@ public:
 * start connection service thread, destroy client.
 */
 class SrsServer : virtual public ISrsReloadHandler
-    , virtual public ISrsSourceHandler, virtual public ISrsHlsHandler
+    , virtual public ISrsSourceHandler
     , virtual public IConnectionManager
 {
 private:
@@ -391,13 +391,6 @@ public:
 public:
     virtual int on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
-// interface ISrsHlsHandler
-public:
-    virtual int on_hls_publish(SrsRequest* r);
-    virtual int on_update_m3u8(SrsRequest* r, std::string m3u8);
-    virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts);
-    virtual int on_remove_ts(SrsRequest* r, std::string uri);
-    virtual int on_hls_unpublish(SrsRequest* r);
 };
 
 #endif

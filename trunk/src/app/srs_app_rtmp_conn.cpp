@@ -710,7 +710,7 @@ int SrsRtmpConn::stream_service_cycle()
     
     // find a source to serve.
     SrsSource* source = NULL;
-    if ((ret = SrsSource::fetch_or_create(req, server, server, &source)) != ERROR_SUCCESS) {
+    if ((ret = SrsSource::fetch_or_create(req, server, &source)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(source != NULL);

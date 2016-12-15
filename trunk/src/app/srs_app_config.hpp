@@ -1184,14 +1184,6 @@ public:
     */
     virtual std::string         get_hls_on_error(std::string vhost);
     /**
-    * get the HLS storage type.
-    */
-    virtual std::string         get_hls_storage(std::string vhost);
-    /**
-    * get the HLS mount url for HTTP server.
-    */
-    virtual std::string         get_hls_mount(std::string vhost);
-    /**
     * get the HLS default audio codec.
     */
     virtual std::string         get_hls_acodec(std::string vhost);

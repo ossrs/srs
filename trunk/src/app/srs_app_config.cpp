@@ -3910,6 +3910,11 @@ int SrsConfig::check_config()
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
+                    
+                    // TODO: FIXME: remove it in future.
+                    if (m == "hls_storage" || m == "hls_mount") {
+                        srs_warn("HLS RAM is removed from SRS2 to SRS3+, please read https://github.com/ossrs/srs/issues/513.");
+                    }
                 }
             } else if (n == "http_hooks") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
@@ -6072,40 +6077,6 @@ string SrsConfig::get_hls_on_error(string vhost)
         return DEFAULT;
     }
 
-    return conf->arg0();
-}
-
-string SrsConfig::get_hls_storage(string vhost)
-{
-    static string DEFAULT = "disk";
-    
-    SrsConfDirective* conf = get_hls(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("hls_storage");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return conf->arg0();
-}
-
-string SrsConfig::get_hls_mount(string vhost)
-{
-    static string DEFAULT = "[vhost]/[app]/[stream].m3u8";
-    
-    SrsConfDirective* conf = get_hls(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("hls_mount");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
     return conf->arg0();
 }
 

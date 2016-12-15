@@ -63,7 +63,6 @@ class SrsDvr;
 class SrsEncoder;
 #endif
 class SrsBuffer;
-class ISrsHlsHandler;
 #ifdef SRS_AUTO_HDS
 class SrsHds;
 #endif
@@ -423,10 +422,9 @@ public:
     *  create source when fetch from cache failed.
     * @param r the client request.
     * @param h the event handler for source.
-    * @param hh the event handler for hls.
     * @param pps the matched source, if success never be NULL.
     */
-    static int fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
+    static int fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
 private:
     /**
     * get the exists source, NULL when not exists.
@@ -533,7 +531,7 @@ public:
     /**
     * initialize the hls with handlers.
     */
-    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh);
+    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_play(std::string vhost);

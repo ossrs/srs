@@ -54,39 +54,6 @@ class SrsTsCache;
 class SrsTsContext;
 
 /**
-* the handler for hls event.
-* for example, we use memory only hls for
-*/
-class ISrsHlsHandler
-{
-public:
-    ISrsHlsHandler();
-    virtual ~ISrsHlsHandler();
-public:
-    /**
-     * when publish stream
-     */
-    virtual int on_hls_publish(SrsRequest* req) = 0;
-    /**
-     * when update the m3u8 file.
-     */
-    virtual int on_update_m3u8(SrsRequest* r, std::string m3u8) = 0;
-    /**
-     * when reap new ts file.
-     */
-    virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts) = 0;
-    /**
-     * when remove the specified ts file,
-     * for the hls to remove the expired ts not in hls window.
-     */
-    virtual int on_remove_ts(SrsRequest* r, std::string uri) = 0;
-    /**
-     * when unpublish stream
-     */
-    virtual int on_hls_unpublish(SrsRequest* req) = 0;
-};
-
-/**
  * * the HLS section, only available when HLS enabled.
  * */
 #ifdef SRS_AUTO_HLS
@@ -239,8 +206,7 @@ private:
     std::string m3u8;
     std::string m3u8_url;
 private:
-    ISrsHlsHandler* handler;
-    // TODO: FIXME: supports reload.
+    // TODO: FIXME: remove it.
     bool should_write_cache;
     bool should_write_file;
 private:
@@ -277,7 +243,7 @@ public:
     /**
     * initialize the hls muxer.
     */
-    virtual int initialize(ISrsHlsHandler* h);
+    virtual int initialize();
     /**
     * when publish, update the config for muxer.
     */
@@ -390,7 +356,6 @@ class SrsHls
 private:
     SrsHlsMuxer* muxer;
     SrsHlsCache* hls_cache;
-    ISrsHlsHandler* handler;
 private:
     SrsRequest* req;
     bool hls_enabled;
@@ -426,7 +391,7 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsSource* s, ISrsHlsHandler* h, SrsRequest* r);
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.

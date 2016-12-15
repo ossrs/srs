@@ -1297,30 +1297,5 @@ void SrsHttpServer::http_unmount(SrsSource* s, SrsRequest* r)
     http_stream->http_unmount(s, r);
 }
 
-int SrsHttpServer::mount_hls(SrsRequest* r)
-{
-    return http_stream->mount_hls(r);
-}
-
-int SrsHttpServer::hls_update_m3u8(SrsRequest* r, std::string m3u8)
-{
-    return http_stream->hls_update_m3u8(r, m3u8);
-}
-
-int SrsHttpServer::hls_update_ts(SrsRequest* r, std::string uri, std::string ts)
-{
-    return http_stream->hls_update_ts(r, uri, ts);
-}
-
-int SrsHttpServer::hls_remove_ts(SrsRequest* r, std::string uri)
-{
-    return http_stream->hls_remove_ts(r, uri);
-}
-
-void SrsHttpServer::unmount_hls(SrsRequest* r)
-{
-    http_stream->unmount_hls(r);
-}
-
 #endif
 
