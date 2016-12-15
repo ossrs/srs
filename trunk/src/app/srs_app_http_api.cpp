@@ -1424,7 +1424,7 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         r->method_str().c_str(), r->url().c_str(), r->content_length(),
         hm->is_chunked(), hm->is_infinite_chunked());
     
-    // use default server mux to serve http request.
+    // use cors server mux to serve http request, which will proxy to mux.
     if ((ret = cors->serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);

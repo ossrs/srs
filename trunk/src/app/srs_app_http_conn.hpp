@@ -353,11 +353,15 @@ private:
     static int on_body(http_parser* parser, const char* at, size_t length);
 };
 
+/**
+ * The http connection which request the static or stream content.
+ */
 class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
+    SrsHttpCorsMux* cors;
 public:
     SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpConn();
@@ -382,6 +386,9 @@ private:
      * @param request: request which is converted by the last http message.
      */
     virtual int on_disconnect(SrsRequest* req);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_stream_crossdomain();
 };
 
 /**

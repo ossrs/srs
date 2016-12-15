@@ -1324,6 +1324,10 @@ public:
     * get the http stream root dir.
     */
     virtual std::string         get_http_stream_dir();
+    /**
+     * whether enable crossdomain for http static and stream server.
+     */
+    virtual bool                get_http_stream_crossdomain();
 public:
     /**
     * get whether vhost enabled http stream

@@ -1091,12 +1091,14 @@ SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux
     : SrsConnection(cm, fd, cip)
 {
     parser = new SrsHttpParser();
+    cors = new SrsHttpCorsMux();
     http_mux = m;
 }
 
 SrsHttpConn::~SrsHttpConn()
 {
     srs_freep(parser);
+    srs_freep(cors);
 }
 
 void SrsHttpConn::resample()
@@ -1139,6 +1141,12 @@ int SrsHttpConn::do_cycle()
 
     SrsRequest* last_req = NULL;
     SrsAutoFree(SrsRequest, last_req);
+    
+    // initialize the cors, which will proxy to mux.
+    bool crossdomain_enabled = _srs_config->get_http_stream_crossdomain();
+    if ((ret = cors->initialize(http_mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     // process http messages.
     while (!disposed) {
@@ -1193,8 +1201,8 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     srs_trace("HTTP %s %s, content-length=%"PRId64"", 
         r->method_str().c_str(), r->url().c_str(), r->content_length());
     
-    // use default server mux to serve http request.
-    if ((ret = http_mux->serve_http(w, r)) != ERROR_SUCCESS) {
+    // use cors server mux to serve http request, which will proxy to http_remux.
+    if ((ret = cors->serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }
@@ -1208,6 +1216,19 @@ int SrsHttpConn::on_disconnect(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     // TODO: implements it.s
+    return ret;
+}
+
+int SrsHttpConn::on_reload_http_stream_crossdomain()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // initialize the cors, which will proxy to mux.
+    bool crossdomain_enabled = _srs_config->get_http_stream_crossdomain();
+    if ((ret = cors->initialize(http_mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return ret;
 }
 

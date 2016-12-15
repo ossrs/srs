@@ -1704,6 +1704,17 @@ int SrsConfig::reload_http_stream(SrsConfDirective* old_root)
         }
         srs_trace("reload enabled modified http_stream success.");
         
+        if (!srs_directive_equals(old_http_stream->get("crossdomain"), new_http_stream->get("crossdomain"))) {
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_http_stream_crossdomain()) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes http_stream crossdomain modified failed. ret=%d", ret);
+                    return ret;
+                }
+            }
+        }
+        srs_trace("reload crossdomain modified http_stream success.");
+        
         return ret;
     }
     
@@ -3570,7 +3581,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = root->get("http_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "dir") {
+            if (n != "enabled" && n != "listen" && n != "dir" && n != "crossdomain") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported http_stream directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -6589,6 +6600,23 @@ string SrsConfig::get_http_stream_dir()
     }
     
     return conf->arg0();
+}
+
+bool SrsConfig::get_http_stream_crossdomain()
+{
+    static bool DEFAULT = true;
+    
+    SrsConfDirective* conf = root->get("http_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("crossdomain");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)

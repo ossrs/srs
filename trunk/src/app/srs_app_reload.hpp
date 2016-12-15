@@ -59,6 +59,7 @@ public:
     virtual int on_reload_http_stream_enabled();
     virtual int on_reload_http_stream_disabled();
     virtual int on_reload_http_stream_updated();
+    virtual int on_reload_http_stream_crossdomain();
 public:
     // TODO: FIXME: should rename to http_static
     virtual int on_reload_vhost_http_updated();

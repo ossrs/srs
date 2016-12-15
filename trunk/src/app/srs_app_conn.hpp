@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <srs_app_reload.hpp>
 
 class SrsConnection;
 
@@ -58,7 +59,7 @@ public:
 * all connections accept from listener must extends from this base class,
 * server will add the connection to manager, and delete it when remove.
 */
-class SrsConnection : public virtual ISrsOneCycleThreadHandler, public virtual IKbpsDelta
+class SrsConnection : virtual public ISrsOneCycleThreadHandler, virtual public IKbpsDelta, virtual public ISrsReloadHandler
 {
 private:
     /**
