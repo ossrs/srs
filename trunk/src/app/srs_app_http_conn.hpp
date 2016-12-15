@@ -446,13 +446,6 @@ public:
 public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
-// hls stream
-public:
-    virtual int mount_hls(SrsRequest* r);
-    virtual int hls_update_m3u8(SrsRequest* r, std::string m3u8);
-    virtual int hls_update_ts(SrsRequest* r, std::string uri, std::string ts);
-    virtual int hls_remove_ts(SrsRequest* r, std::string uri);
-    virtual void unmount_hls(SrsRequest* r);
 };
 
 #endif

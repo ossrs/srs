@@ -82,8 +82,6 @@ const char* _srs_version = "XCORE-"RTMP_SIG_SRS_SERVER;
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE "continue"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
-#define SRS_CONF_DEFAULT_HLS_STORAGE "disk"
-#define SRS_CONF_DEFAULT_HLS_MOUNT "[vhost]/[app]/[stream].m3u8"
 #define SRS_CONF_DEFAULT_HLS_ACODEC "aac"
 #define SRS_CONF_DEFAULT_HLS_VCODEC "h264"
 #define SRS_CONF_DEFAULT_HLS_CLEANUP true
@@ -1905,6 +1903,11 @@ int SrsConfig::check_config()
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
                         return ret;
+                    }
+                    
+                    // TODO: FIXME: remove it in future.
+                    if (m == "hls_storage" || m == "hls_mount") {
+                        srs_warn("HLS RAM is removed from SRS2 to SRS3+, please read https://github.com/ossrs/srs/issues/513.");
                     }
                 }
             } else if (n == "http_hooks") {
@@ -3788,40 +3791,6 @@ string SrsConfig::get_hls_on_error(string vhost)
     
     if (!conf) {
         return SRS_CONF_DEFAULT_HLS_ON_ERROR;
-    }
-
-    return conf->arg0();
-}
-
-string SrsConfig::get_hls_storage(string vhost)
-{
-    SrsConfDirective* hls = get_hls(vhost);
-    
-    if (!hls) {
-        return SRS_CONF_DEFAULT_HLS_STORAGE;
-    }
-    
-    SrsConfDirective* conf = hls->get("hls_storage");
-    
-    if (!conf) {
-        return SRS_CONF_DEFAULT_HLS_STORAGE;
-    }
-
-    return conf->arg0();
-}
-
-string SrsConfig::get_hls_mount(string vhost)
-{
-    SrsConfDirective* hls = get_hls(vhost);
-    
-    if (!hls) {
-        return SRS_CONF_DEFAULT_HLS_MOUNT;
-    }
-    
-    SrsConfDirective* conf = hls->get("hls_mount");
-    
-    if (!conf) {
-        return SRS_CONF_DEFAULT_HLS_MOUNT;
     }
 
     return conf->arg0();

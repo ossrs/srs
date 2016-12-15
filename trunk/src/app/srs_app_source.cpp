@@ -731,7 +731,7 @@ ISrsSourceHandler::~ISrsSourceHandler()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
+int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
     
@@ -748,7 +748,7 @@ int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandl
     srs_assert (pool.find(stream_url) == pool.end());
 
     source = new SrsSource();
-    if ((ret = source->initialize(r, h, hh)) != ERROR_SUCCESS) {
+    if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
         srs_freep(source);
         return ret;
     }
@@ -1053,12 +1053,11 @@ bool SrsSource::expired()
     return false;
 }
 
-int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh)
+int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(h);
-    srs_assert(hh);
     srs_assert(!_req);
 
     handler = h;
@@ -1066,7 +1065,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
     atc = _srs_config->get_atc(_req->vhost);
 
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->initialize(this, hh)) != ERROR_SUCCESS) {
+    if ((ret = hls->initialize(this)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
