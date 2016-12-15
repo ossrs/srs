@@ -1312,8 +1312,8 @@ SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m
     : SrsConnection(cm, fd, cip)
 {
     mux = m;
+    cros = new SrsHttpCrosMux();
     parser = new SrsHttpParser();
-    crossdomain_required = false;
     
     _srs_config->subscribe(this);
 }
@@ -1321,6 +1321,7 @@ SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m
 SrsHttpApi::~SrsHttpApi()
 {
     srs_freep(parser);
+    srs_freep(cros);
     
     _srs_config->unsubscribe(this);
 }
@@ -1366,8 +1367,11 @@ int SrsHttpApi::do_cycle()
     // @see https://github.com/ossrs/srs/issues/398
     skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
     
-    // initialize the crossdomain
-    crossdomain_enabled = _srs_config->get_http_api_crossdomain();
+    // initialize the cros, which will proxy to mux.
+    bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();
+    if ((ret = cros->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // process http messages.
     while(!disposed) {
@@ -1420,31 +1424,8 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         r->method_str().c_str(), r->url().c_str(), r->content_length(),
         hm->is_chunked(), hm->is_infinite_chunked());
     
-    // method is OPTIONS and enable crossdomain, required crossdomain header.
-    if (r->is_http_options() && _srs_config->get_http_api_crossdomain()) {
-        crossdomain_required = true;
-    }
-
-    // whenever crossdomain required, set crossdomain header.
-    if (crossdomain_required) {
-        w->header()->set("Access-Control-Allow-Origin", "*");
-        w->header()->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE");
-        w->header()->set("Access-Control-Allow-Headers", "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
-    }
-
-    // handle the http options.
-    if (r->is_http_options()) {
-        w->header()->set_content_length(0);
-        if (_srs_config->get_http_api_crossdomain()) {
-            w->write_header(SRS_CONSTS_HTTP_OK);
-        } else {
-            w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
-        }
-        return w->final_request();
-    }
-    
     // use default server mux to serve http request.
-    if ((ret = mux->serve_http(w, r)) != ERROR_SUCCESS) {
+    if ((ret = cros->serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }
@@ -1456,7 +1437,12 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 
 int SrsHttpApi::on_reload_http_api_crossdomain()
 {
-    crossdomain_enabled = _srs_config->get_http_api_crossdomain();
+    int ret = ERROR_SUCCESS;
+    
+    bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();
+    if ((ret = cros->initialize(mux, crossdomain_enabled)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ERROR_SUCCESS;
 }

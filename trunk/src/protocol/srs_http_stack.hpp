@@ -442,6 +442,26 @@ private:
     virtual bool path_match(std::string pattern, std::string path);
 };
 
+/**
+ * The filter http mux, directly serve the http CROS requests,
+ * while proxy to the worker mux for services.
+ */
+class SrsHttpCrosMux : public ISrsHttpServeMux
+{
+private:
+    bool required;
+    bool enabled;
+    ISrsHttpServeMux* next;
+public:
+    SrsHttpCrosMux();
+    virtual ~SrsHttpCrosMux();
+public:
+    virtual int initialize(ISrsHttpServeMux* worker, bool cros_enabled);
+// interface ISrsHttpServeMux
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 // for http header.
 typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 

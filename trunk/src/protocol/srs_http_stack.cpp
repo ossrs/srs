@@ -761,6 +761,54 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
     return false;
 }
 
+SrsHttpCrosMux::SrsHttpCrosMux()
+{
+    next = NULL;
+    enabled = false;
+    required = false;
+}
+
+SrsHttpCrosMux::~SrsHttpCrosMux()
+{
+}
+
+int SrsHttpCrosMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
+{
+    next = worker;
+    enabled = cros_enabled;
+    
+    return ERROR_SUCCESS;
+}
+
+int SrsHttpCrosMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    // method is OPTIONS and enable crossdomain, required crossdomain header.
+    if (r->is_http_options() && enabled) {
+        required = true;
+    }
+    
+    // whenever crossdomain required, set crossdomain header.
+    if (required) {
+        w->header()->set("Access-Control-Allow-Origin", "*");
+        w->header()->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE");
+        w->header()->set("Access-Control-Allow-Headers", "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
+    }
+    
+    // handle the http options.
+    if (r->is_http_options()) {
+        w->header()->set_content_length(0);
+        if (enabled) {
+            w->write_header(SRS_CONSTS_HTTP_OK);
+        } else {
+            w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
+        }
+        return w->final_request();
+    }
+    
+    srs_assert(next);
+    return next->serve_http(w, r);
+}
+
 ISrsHttpMessage::ISrsHttpMessage()
 {
     _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
