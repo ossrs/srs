@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <math.h>
 
 using namespace std;
 
@@ -240,15 +241,14 @@ int SrsSimpleRtmpClient::play()
 void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
 {
     kbps->sample();
-    
+
     int sr = kbps->get_send_kbps();
     int sr30s = kbps->get_send_kbps_30s();
     int sr5m = kbps->get_send_kbps_5m();
     int rr = kbps->get_recv_kbps();
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
 void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
@@ -382,7 +382,7 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
     srs_verbose("rtmp handshake success");
-    
+
     if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
         srs_error("rtmp connect vhost/app failed. ret=%d", ret);
         return ret;
@@ -415,7 +415,58 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
     srs_verbose("check vhost success.");
-    
+
+    //Reference:  https://github.com/ossrs/srs/wiki/v1_CN_DRM#token-authentication
+    do {
+    	 if(req->ip == "localhost" || req->ip == "127.0.0.1")
+    		 break;
+
+    	 if(!_srs_config->get_vhost_auth_enabled(req->vhost))
+    		 break;
+
+    	 string nonce, token, expire = "-1";
+    	 map<string, string>::iterator iter;
+    	 map<string,string> query;
+    	 srs_parse_query_string(req->param, query);
+    	 iter = query.find("nonce");
+    	 if (iter != query.end()) {
+    	 		nonce = iter->second;
+    	 }
+
+		 iter = query.find("expire");
+		 if (iter != query.end()){
+			 expire = iter->second;
+		 }
+
+		 iter = query.find("token");
+		 if (iter != query.end()){
+			 token = iter->second;
+		 }
+
+		 unsigned flag = 0;
+		 if (expire == "-1" && _srs_config->get_vhost_auth_publisher_enabled(req->vhost))
+			 flag = 1;
+		 else if(_srs_config->get_vhost_auth_player_enabled(req->vhost))
+			 flag = 2;
+
+		 if(flag > 0) {
+			 if(nonce.empty() || token.empty() || query.empty()) {
+				 ret = ERROR_RTMP_CLIENT_NEED_AUTH;
+				 srs_error("RTMP need token authentication. "
+				 				"tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
+				 return ret;
+			 }
+
+ 			 if(srs_auth_token_md5_encode(nonce, _srs_config->get_vhost_auth_password(req->vhost), expire) != token) {
+ 				 ret = ERROR_RTMP_CLIENT_AUTH_INVALID;
+ 				 srs_error("RTMP token authentication fail. "
+ 						 	 	"tcUrl=%s, vhost=%s, ret=%d", req->tcUrl.c_str(), req->vhost.c_str(), ret);
+ 				 return ret;
+ 			 }
+		 }
+    } while(0);
+    //end token-authentication
+
     srs_trace("connect app, "
         "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s", 
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 

@@ -60,7 +60,6 @@ void SrsStageInfo::elapse(int64_t diff)
 bool SrsStageInfo::can_print()
 {
     int64_t can_print_age = nb_clients * pithy_print_time_ms;
-    
     bool can_print = age >= can_print_age;
     if (can_print) {
         age = 0;
@@ -210,7 +209,6 @@ void SrsPithyPrint::elapse()
     
     int64_t diff = srs_get_system_time_ms() - previous_tick;
     diff = srs_max(0, diff);
-    
     stage->elapse(diff);
     _age += diff;
     previous_tick = srs_get_system_time_ms();

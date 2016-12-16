@@ -58,6 +58,7 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     }
     
     // filter tcUrl
+    /*
     app = srs_string_replace(app, ",", "?");
     app = srs_string_replace(app, "...", "?");
     app = srs_string_replace(app, "&&", "?");
@@ -77,8 +78,19 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
             }
         }
     }
-    
+    */
     /* others */
+    app = srs_string_replace(app, param, "");
+
+    if(!param.empty() && (pos = param.find("?")) != std::string::npos) {
+        param =  param.substr(pos + 1);
+        map<string,string> query;
+        srs_parse_query_string(param, query);
+        map<string, string>::iterator iter = query.find("vhost");
+        if (iter != query.end()){
+            vhost = iter->second;
+        }
+    }
 }
 
 void srs_discovery_tc_url(
@@ -88,7 +100,7 @@ void srs_discovery_tc_url(
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
-    
+
     if ((pos = url.find("://")) != std::string::npos) {
         schema = url.substr(0, pos);
         url = url.substr(schema.length() + 3);
@@ -104,7 +116,7 @@ void srs_discovery_tc_url(
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
-        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
+        srs_info("discovery host=%s, port=%d", host.c_str(), port);
     }
 
     if (url.empty()) {
@@ -162,7 +174,7 @@ string srs_generate_tc_url(string ip, string vhost, string app, int port, string
     } else {
         tcUrl += vhost;
     }
-    
+
     if (port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
         tcUrl += ":";
         tcUrl += srs_int2str(port);
@@ -307,7 +319,7 @@ string srs_generate_stream_url(string vhost, string app, string stream)
 void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
 {
     size_t pos;
-    
+
     if ((pos = url.rfind("/")) != string::npos) {
         stream = url.substr(pos + 1);
         tcUrl = url.substr(0, pos);
@@ -324,7 +336,8 @@ string srs_generate_rtmp_url(string server, int port, string vhost, string app, 
     
     // when default or server is vhost, donot specifies the vhost in params.
     if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost && server != vhost) {
-        ss << "...vhost..." << vhost;
+        //ss << "...vhost..." << vhost;
+        ss << "?vhost=" << vhost;
     }
     
     if (!stream.empty()) {

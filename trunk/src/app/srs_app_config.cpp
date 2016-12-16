@@ -1,4 +1,4 @@
-/*
+﻿/*
 The MIT License (MIT)
 
 Copyright (c) 2013-2017 SRS(ossrs)
@@ -271,6 +271,11 @@ bool srs_config_ingest_is_file(string type)
 bool srs_config_ingest_is_stream(string type)
 {
     return type == "stream";
+}
+
+bool srs_config_ingest_is_tcp(string transport)
+{
+    return transport == "tcp";
 }
 
 bool srs_config_dvr_is_plan_segment(string plan)
@@ -3058,7 +3063,8 @@ int SrsConfig::raw_create_vhost(string vhost, bool& applied)
     
     SrsConfDirective* conf = root->get_or_create("vhost", vhost);
     conf->get_or_create("enabled")->set_arg0("on");
-    
+
+
     if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -3077,7 +3083,7 @@ int SrsConfig::raw_update_vhost(string vhost, string name, bool& applied)
     // the vhost must be disabled, so we donot need to reload.
     SrsConfDirective* conf = root->get_or_create("vhost", vhost);
     conf->set_arg0(name);
-    
+
     applied = true;
     
     return ret;
@@ -3135,6 +3141,337 @@ int SrsConfig::raw_enable_vhost(string vhost, bool& applied)
     
     applied = true;
     
+    return ret;
+}
+/**
+{
+    [oldname: 'hik.ch1',]
+    name: 'hik.ch2',
+    enabled: 'on',
+    input: {
+        type: 'stream',
+        url: 'rtsp://user:pass@ip:port/cam/realmonitor?channel=2&subtype=0',
+        transport: 'tcp'
+    },
+    engine: {
+        enabled: 'on',
+        vcodec: 'copy',
+        acodec: 'an',
+        output: 'rtmp://127.0.0.1:1935/live?vhost=[vhost]/ch2'
+    }
+}
+*/
+int SrsConfig::raw_create_ingest(string vhost, string data, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+
+    applied = false;
+
+    std::string _data= srs_av_base64_decode(data);
+    //srs_trace("[INPUT]ingest data=%s", _data.c_str());
+
+    SrsJsonAny* info = SrsJsonAny::loads((char*)_data.c_str());
+    if(!info || !info->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+    SrsAutoFree(SrsJsonAny, info);
+
+    // the vhost must be disabled, so we donot need to reload.
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
+    SrsJsonObject* obj = info->to_object();
+    SrsJsonAny* rv = NULL;
+
+    //name
+    if ((rv = obj->ensure_property_string("name")) == NULL || rv->to_str().empty()) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+
+    srs_trace("name: %s", rv->to_str().c_str());
+    SrsConfDirective* ingest  = conf->get_or_create("ingest",rv->to_str());
+
+   //enabled
+    if ((rv = obj->ensure_property_string("enabled")) == NULL || rv->to_str().empty()) {
+        ingest->get_or_create("enabled")->set_arg0("on");
+    } else {
+        srs_trace("enabled: %s", rv->to_str().c_str());
+        ingest->get_or_create("enabled")->set_arg0(rv->to_str());
+    }
+
+    //input
+    rv = obj->ensure_property_object("input");
+    if(!rv || !rv->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+
+   SrsConfDirective* input  = ingest->get_or_create("input");
+   obj = rv->to_object();
+   //input type
+    if ((rv = obj->ensure_property_string("type")) == NULL || rv->to_str().empty()) {
+        input->get_or_create("type")->set_arg0("file");
+    } else {
+        srs_trace("input type: %s", rv->to_str().c_str());
+        input->get_or_create("type")->set_arg0(rv->to_str());
+    }
+    //input url
+    if ((rv = obj->ensure_property_string("url")) == NULL || rv->to_str().empty()) {
+        input->get_or_create("type")->set_arg0("file");
+        input->get_or_create("url")->set_arg0("./doc/source.200kbps.768x320.flv");
+    } else {
+        srs_trace("input uri: %s", rv->to_str().c_str());
+        input->get_or_create("url")->set_arg0(rv->to_str());
+    }
+    //input transport
+    if ((rv = obj->ensure_property_string("transport")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("input transport: %s", rv->to_str().c_str());
+        input->get_or_create("transport")->set_arg0(rv->to_str());
+    }
+
+    //ffmpeg
+    ingest->get_or_create("ffmpeg")->set_arg0("/usr/local/bin/ffmpeg");
+
+    //engine
+    obj = info->to_object();
+    rv = obj->ensure_property_object("engine");
+    if(!rv || !rv->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+
+   SrsConfDirective* engine  = ingest->get_or_create("engine");
+   obj = rv->to_object();
+   //engine enabled
+    if ((rv = obj->ensure_property_string("enabled")) == NULL || rv->to_str().empty()) {
+        engine->get_or_create("enabled")->set_arg0("on");
+    } else {
+        srs_trace("engine enabled: %s", rv->to_str().c_str());
+        engine->get_or_create("enabled")->set_arg0(rv->to_str());
+    }
+    //engine vcodec
+    if ((rv = obj->ensure_property_string("vcodec")) == NULL || rv->to_str().empty()) {
+         engine->get_or_create("vcodec")->set_arg0("copy");
+    } else {
+         srs_trace("engine vcodec: %s", rv->to_str().c_str());
+         engine->get_or_create("vcodec")->set_arg0(rv->to_str());
+    }
+    //engine acodec
+    if ((rv = obj->ensure_property_string("acodec")) == NULL || rv->to_str().empty()) {
+         engine->get_or_create("acodec")->set_arg0("copy");
+    } else {
+         srs_trace("engine acodec: %s", rv->to_str().c_str());
+         engine->get_or_create("acodec")->set_arg0(rv->to_str());
+    }
+    //engine output
+    if ((rv = obj->ensure_property_string("output")) != NULL && !(rv->to_str().empty())) {
+          srs_trace("engine output: %s", rv->to_str().c_str());
+          engine->get_or_create("output")->set_arg0(rv->to_str());
+    }
+
+    if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    applied = true;
+
+    return ret;
+}
+
+int SrsConfig::raw_update_ingest(string vhost, string data, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+
+    applied = false;
+
+    std::string _data= srs_av_base64_decode(data);
+    //srs_trace("[INPUT]ingest data=%s", _data.c_str());
+
+    SrsJsonAny* info = SrsJsonAny::loads((char*)_data.c_str());
+    if(!info || !info->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+    SrsAutoFree(SrsJsonAny, info);
+
+    // the vhost must be disabled, so we donot need to reload.
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
+    SrsJsonObject* obj = info->to_object();
+    SrsJsonAny* rv = NULL;
+
+    //oldname
+    if ((rv = obj->ensure_property_string("oldname")) == NULL || rv->to_str().empty()) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+
+    srs_trace("oldname: %s", rv->to_str().c_str());
+    SrsConfDirective* ingest  = conf->get("ingest",rv->to_str());
+    if(!ingest) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+    //name
+    if ((rv = obj->ensure_property_string("name")) == NULL || rv->to_str().empty()) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+    srs_trace("name: %s", rv->to_str().c_str());
+    ingest->set_arg0(rv->to_str());
+
+    //enabled
+    if ((rv = obj->ensure_property_string("enabled")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("enabled: %s", rv->to_str().c_str());
+        ingest->get("enabled")->set_arg0(rv->to_str());
+    }
+
+    //input
+    rv = obj->ensure_property_object("input");
+    if(!rv || !rv->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+
+   SrsConfDirective* input  = ingest->get("input");
+   if(!input) {
+       ret = ERROR_RESPONSE_CODE;
+       return ret;
+   }
+   obj = rv->to_object();
+
+   //input type
+    if ((rv = obj->ensure_property_string("type")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("input type: %s", rv->to_str().c_str());
+        input->get("type")->set_arg0(rv->to_str());
+    }
+    //input url
+    if ((rv = obj->ensure_property_string("url")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("input uri: %s", rv->to_str().c_str());
+        input->get("url")->set_arg0(rv->to_str());
+    }
+    //input transport
+    if ((rv = obj->ensure_property_string("transport")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("input transport: %s", rv->to_str().c_str());
+        input->get("transport")->set_arg0(rv->to_str());
+    }
+
+    //engine
+    obj = info->to_object();
+    rv = obj->ensure_property_object("engine");
+    if(!rv || !rv->is_object()) {
+        ret = ERROR_HTTP_DATA_INVALID;
+        return ret;
+    }
+
+   SrsConfDirective* engine  = ingest->get("engine");
+   if(!engine) {
+       ret = ERROR_RESPONSE_CODE;
+       return ret;
+   }
+   obj = rv->to_object();
+   //engine enabled
+    if ((rv = obj->ensure_property_string("enabled")) != NULL && !(rv->to_str().empty())) {
+        srs_trace("engine enabled: %s", rv->to_str().c_str());
+        engine->get("enabled")->set_arg0(rv->to_str());
+    }
+    //engine vcodec
+    if ((rv = obj->ensure_property_string("vcodec")) != NULL || !(rv->to_str().empty())) {
+         srs_trace("engine vcodec: %s", rv->to_str().c_str());
+         engine->get("vcodec")->set_arg0(rv->to_str());
+    }
+    //engine acodec
+    if ((rv = obj->ensure_property_string("acodec")) != NULL || !(rv->to_str().empty())) {
+         srs_trace("engine acodec: %s", rv->to_str().c_str());
+         engine->get("acodec")->set_arg0(rv->to_str());
+    }
+    //engine output
+    if ((rv = obj->ensure_property_string("output")) != NULL && !(rv->to_str().empty())) {
+          srs_trace("engine output: %s", rv->to_str().c_str());
+          engine->get("output")->set_arg0(rv->to_str());
+    }
+
+    applied = true;
+
+    return ret;
+}
+
+int SrsConfig::raw_delete_ingest(string vhost, string name, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+
+    applied = false;
+
+    // the vhost must be disabled, so we donot need to reload.
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
+    SrsConfDirective* ingest  = conf->get("ingest", name);
+    if(!ingest) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+
+    // remove the ingest.
+    conf->remove(ingest);
+
+    applied = true;
+
+    return ret;
+}
+
+int SrsConfig::raw_enable_ingest(string vhost, string name, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+
+    applied = false;
+
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
+    SrsConfDirective* ingest  = conf->get("ingest", name);
+    if(!ingest) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+
+    ingest->get_or_create("enabled")->set_arg0("on");
+
+    if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    applied = true;
+
+    return ret;
+}
+
+int SrsConfig::raw_disable_ingest(string vhost, string name, bool& applied)
+{
+    int ret = ERROR_SUCCESS;
+
+    applied = false;
+
+    SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
+    SrsConfDirective* ingest  = conf->get("ingest", name);
+    if(!ingest) {
+        ret = ERROR_RESPONSE_CODE;
+        return ret;
+    }
+
+    ingest->get_or_create("enabled")->set_arg0("off");
+
+    if ((ret = do_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    applied = true;
+
     return ret;
 }
 
@@ -3817,7 +4154,7 @@ int SrsConfig::check_config()
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux"
-                && n != "http_static" && n != "hds" && n != "exec"
+                && n != "http_static" && n != "hds" && n != "exec" && n != "auth"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -4401,7 +4738,7 @@ string SrsConfig::get_kafka_topic()
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
-    
+
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
         
@@ -4413,7 +4750,7 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
             return conf;
         }
     }
-    
+
     if (try_default_vhost && vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         return get_vhost(SRS_CONSTS_RTMP_DEFAULT_VHOST);
     }
@@ -5837,6 +6174,27 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
     return conf->arg0();
 }
 
+string SrsConfig::get_ingest_input_transport(SrsConfDirective* conf)
+{
+    static string DEFAULT = "";
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("input");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("transport");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
 bool SrsConfig::get_log_tank_file()
 {
     static bool DEFAULT = true;
@@ -6899,4 +7257,76 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     }
     
     return conf;
+}
+
+SrsConfDirective* SrsConfig::get_vhost_auth(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("auth");
+}
+
+bool SrsConfig::get_vhost_auth_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_vhost_auth_password(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    conf = conf->get("password");
+    if (!conf || conf->arg0().empty()) {
+        return NULL;
+    }
+
+    return conf->arg0();
+}
+
+bool  SrsConfig::get_vhost_auth_publisher_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("publisher");
+    if (!conf || conf->arg0().empty()) {
+        return true;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool  SrsConfig::get_vhost_auth_player_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_auth(vhost);
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("player");
+    if (!conf || conf->arg0().empty()) {
+        return true;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }

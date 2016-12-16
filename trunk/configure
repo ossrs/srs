@@ -172,7 +172,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #App Module
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "LIBS")
     ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"

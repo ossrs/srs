@@ -97,6 +97,7 @@ extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
 extern bool srs_config_hls_is_on_error_continue(std::string strategy);
 extern bool srs_config_ingest_is_file(std::string type);
 extern bool srs_config_ingest_is_stream(std::string type);
+extern bool srs_config_ingest_is_tcp(std::string transport);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_config_dvr_is_plan_append(std::string plan);
@@ -505,6 +506,26 @@ public:
      * raw enable the disabled vhost.
      */
     virtual int raw_enable_vhost(std::string vhost, bool& applied);
+    /**
+     * raw create the new ingest form vhost.
+     */
+    virtual int raw_create_ingest(std::string vhost, std::string data, bool& applied);
+    /**
+     * raw update the disabled ingest param form vhost.
+     */
+    virtual int raw_update_ingest(std::string vhost, std::string data, bool& applied);
+    /**
+     * raw delete the disabled ingest form vhost.
+     */
+    virtual int raw_delete_ingest(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw disable the enabled ingest form vhost.
+     */
+    virtual int raw_disable_ingest(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw enable the disabled ingest form vhost.
+     */
+    virtual int raw_enable_ingest(std::string vhost, std::string name, bool& applied);
     /**
      * raw enable the dvr of stream of vhost.
      */
@@ -1104,6 +1125,10 @@ public:
     * get the ingest input url.
     */
     virtual std::string         get_ingest_input_url(SrsConfDirective* conf);
+    /**
+     * get the ingest input transport.
+     */
+     virtual std::string         get_ingest_input_transport(SrsConfDirective* conf);
 // log section
 public:
     /**
@@ -1408,6 +1433,28 @@ public:
     * @return the disk device name to stat. NULL if not configed.
     */
     virtual SrsConfDirective*   get_stats_disk_device();
+private:
+    /**
+    * get the auth directive of vhost.
+    */
+    virtual SrsConfDirective*   get_vhost_auth(std::string vhost);
+public:
+    /**
+    * get whether vhost enabled auth
+    */
+    virtual bool                get_vhost_auth_enabled(std::string vhost);
+    /**
+    * get the auth password for vhost.
+    */
+    virtual std::string       get_vhost_auth_password(std::string vhost);
+    /**
+    * get whether whost publisher auth  enabled.
+    */
+    virtual bool   get_vhost_auth_publisher_enabled(std::string vhost);
+    /**
+    * get whether whost player auth  enabled.
+    */
+    virtual bool   get_vhost_auth_player_enabled(std::string vhost);
 };
 
 #endif

@@ -414,7 +414,13 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         }
         
         // for stream, no re.
-        ffmpeg->set_iparams("");
+        std::string input_transport = _srs_config->get_ingest_input_transport(ingest);
+        if (srs_config_ingest_is_tcp(input_transport)) {
+            ffmpeg->set_iparams("-rtsp_transport");
+        } else {
+            ffmpeg->set_iparams("");
+        }
+
     
         if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
             return ret;

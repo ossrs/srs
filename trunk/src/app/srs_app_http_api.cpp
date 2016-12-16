@@ -1163,7 +1163,8 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         } else if (scope == "vhost") {
             std::string param = r->query_get("param");
             std::string data = r->query_get("data");
-            if (param != "create" && param != "update" && param != "delete" && param != "disable" && param != "enable") {
+
+            if (param != "create" && param != "update" && param != "delete" && param != "disable" && param != "enable" && !srs_string_starts_with(param, "ingest") ) {
                 ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
                 srs_error("raw api query invalid scope=%s, param=%s. ret=%d", scope.c_str(), param.c_str(), ret);
                 return srs_api_response_code(w, r, ret);
@@ -1233,6 +1234,76 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 }
                 
                 if ((ret = _srs_config->raw_enable_vhost(value, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+            } else if (param == "ingest_create") {
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+                if ((ret = _srs_config->raw_create_ingest(value, data, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+            } else if (param == "ingest_update") {
+                extra += " to " + data;
+
+                // when update, the vhost must exists and disabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+                if ((ret = _srs_config->raw_update_ingest(value, data, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s, data=%s failed. ret=%d", value.c_str(), param.c_str(), data.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+            } else if (param == "ingest_delete") {
+                // when delete, the vhost must exists and disabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+                if ((ret = _srs_config->raw_delete_ingest(value, data, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+            } else if (param == "ingest_enable") {
+                // when enable, the vhost must exists and disabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || param.empty() || !vhost || _srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+                if ((ret = _srs_config->raw_enable_ingest(value, data, applied)) != ERROR_SUCCESS) {
+                    srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+            } else if (param == "ingest_disable") {
+                // when disable, the vhost must exists and enabled.
+                SrsConfDirective* vhost = _srs_config->get_vhost(value, false);
+                if (data.empty() || param.empty() || !vhost || !_srs_config->get_vhost_enabled(vhost)) {
+                    ret = ERROR_SYSTEM_CONFIG_RAW_PARAMS;
+                    srs_error("raw api update check vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
+                    return srs_api_response_code(w, r, ret);
+                }
+
+                if ((ret = _srs_config->raw_disable_ingest(value, data, applied)) != ERROR_SUCCESS) {
                     srs_error("raw api update vhost=%s, param=%s failed. ret=%d", value.c_str(), param.c_str(), ret);
                     return srs_api_response_code(w, r, ret);
                 }

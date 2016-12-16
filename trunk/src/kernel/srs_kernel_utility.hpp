@@ -147,6 +147,7 @@ extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 
 *                 invalid input
 */
 extern int srs_av_base64_decode(u_int8_t* out, const char* in, int out_size);
+extern std::string srs_av_base64_decode(std::string in);
 
 /**
 * Encode data to base64 and null-terminate.
@@ -196,5 +197,6 @@ extern int srs_chunk_header_c3(
     char* cache, int nb_cache
     );
 
+extern std::string srs_auth_token_md5_encode(std::string nonce, std::string password, std::string expire);
 #endif
 

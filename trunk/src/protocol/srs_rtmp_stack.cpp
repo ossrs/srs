@@ -40,6 +40,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 using namespace std;
 
+
+
 // FMLE
 #define RTMP_AMF0_COMMAND_ON_FC_PUBLISH         "onFCPublish"
 #define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH       "onFCUnpublish"
@@ -2459,16 +2461,17 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     SrsAutoFree(SrsCommonMessage, msg);
     SrsAutoFree(SrsConnectAppPacket, pkt);
     srs_info("get connect app message");
-    
+
     SrsAmf0Any* prop = NULL;
     
     if ((prop = pkt->command_object->ensure_property_string("tcUrl")) == NULL) {
         ret = ERROR_RTMP_REQ_CONNECT;
         srs_error("invalid request, must specifies the tcUrl. ret=%d", ret);
         return ret;
-    }
-    req->tcUrl = prop->to_str();
-    
+    }  
+
+    req->tcUrl =  prop->to_str();
+
     if ((prop = pkt->command_object->ensure_property_string("pageUrl")) != NULL) {
         req->pageUrl = prop->to_str();
     }
@@ -2488,7 +2491,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     }
     
     srs_info("get connect app message params success.");
-    
+
     srs_discovery_tc_url(req->tcUrl, 
         req->schema, req->host, req->vhost, req->app, req->port,
         req->param);
