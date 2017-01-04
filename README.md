@@ -18,6 +18,9 @@ For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
   * [Wiki](#wiki)
 * [Product](#product)
   * [History](#history)
+    * [v3.0](#v3)
+    * [v2.0](#v2)
+    * [v1.0](#v1)
   * [Features](#features)
   * [Releases](#releases)
   * [Compare](#compare)
@@ -130,7 +133,7 @@ The changes `history`, `features`, `compare`, `release` and `performance` of SRS
 
 ### History
 
-#### 3.0
+#### v3
 
 * v3.0, 2016-12-15, fix #717, #691, http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, support log rotate signal SIGUSR1. 3.0.8
@@ -146,7 +149,7 @@ The changes `history`, `features`, `compare`, `release` and `performance` of SRS
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
 
-#### 2.0
+#### v2
 
 * <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
@@ -288,7 +291,7 @@ The changes `history`, `features`, `compare`, `release` and `performance` of SRS
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
 
-#### 1.0
+#### v1
 
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)][r1.0r0] released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)][r1.0b0] released. 59316 lines.</strong>
