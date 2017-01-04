@@ -132,7 +132,7 @@ Please select your language:
 
 ### V3 changes
 
-* v3.0, 2016-12-15, fix #717, #691, http api/static/stream support cors. 3.0.9
+* v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, support log rotate signal SIGUSR1. 3.0.8
 * v3.0, 2016-12-07, fix typo and refine grammar. 3.0.7
 * v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
@@ -1317,6 +1317,8 @@ Winlin
 [bug #418]: https://github.com/ossrs/srs/issues/418
 [bug #509]: https://github.com/ossrs/srs/issues/509
 [bug #511]: https://github.com/ossrs/srs/issues/511
+[bug #717]: https://github.com/ossrs/srs/issues/717
+[bug #691]: https://github.com/ossrs/srs/issues/691
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
