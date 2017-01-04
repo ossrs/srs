@@ -13,20 +13,20 @@ For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 ## Content
 
-* [Content](#content)
 * [About](#about)
 * [Usage](#usage)
   * [Wiki](#wiki)
 * [Product](#product)
-  * [Features](#features)
-  * [Compare](#compare)
-  * [Releases](#releases)
   * [History](#history)
+  * [Features](#features)
+  * [Releases](#releases)
+  * [Compare](#compare)
   * [Performance](#performance)
 * [Architecture](#architecture)
   * [System Architecture](#system-architecture)
   * [Modularity Architecture](#modularity-architecture)
   * [Stream Architecture](#stream-architecture)
+* [Tips](#tips)
   * [Authors](#authors)
   * [Mirrors](#mirrors)
   * [System Requirements](#system-requirements)
@@ -42,22 +42,24 @@ The stream on origin can be transcoded, DVR to VOD file, ingest from external so
 HTTP API and callback is powerful mechenism for integraty.
 The wikis are writen by both English and Chinese.
 
-1. <strong>Completely rewriten HLS:</strong> following m3u8/ts spec, and HLS support h.264+aac/mp3.
-1. <strong>High efficient RTMP:</strong> deliverying support 7k+ concurrency, vhost based, both origin and edge.
-1. <strong>Embeded HTTP server:</strong> for HLS, api and HTTP flv/ts/mp3/aac streaming.
+Why SRS?
+
+1. <strong>Completely rewriten HLS:</strong> Following m3u8/ts spec, and HLS support h.264+aac/mp3.
+1. <strong>High efficient RTMP:</strong> Deliverying support 7k+ concurrency, vhost based, both origin and edge.
+1. <strong>Embeded HTTP server:</strong> For HLS, api and HTTP flv/ts/mp3/aac streaming.
 1. <strong>Variety inputs:</strong> RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
 1. <strong>Popular internet delivery:</strong> RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
-1. <strong>Enhanced DVR:</strong> segment/session/append plan, customer path and HTTP callback.
-1. <strong>Multiple features:</strong> transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
+1. <strong>Enhanced DVR:</strong> Segment/session/append plan, customer path and HTTP callback.
+1. <strong>Multiple features:</strong> Transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http raw api, refer, log, bandwith test and srs-librtmp.
-1. <strong>Best maintainess:</strong> simple arch over state-threads(coroutine), single thread, single process 
+1. <strong>Best maintainess:</strong> Simple arch over state-threads(coroutine), single thread, single process 
 and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
 follows RTMP/HLS/RTSP spec.
-1. <strong>Easy to use:</strong> both English and Chinese wiki, typically config files in trunk/conf, traceable 
+1. <strong>Easy to use:</strong> Both English and Chinese wiki, typically config files in trunk/conf, traceable 
 and session based log, linux service script and install script.
-1. <strong>MIT license:</strong> open source with product management and evolution.
+1. <strong>MIT license:</strong> Open source with product management and evolution.
 
 Enjoy it!
 
@@ -72,7 +74,7 @@ cd srs/trunk
 ```
 
 <strong>Step 2:</strong> Build SRS.
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
+<strong>Requires Centos6 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
 
 ```
 ./configure && make
@@ -124,9 +126,11 @@ Please select your language:
 
 ## Product
 
-The `features`, `compare`, `release` and `performance` of SRS.
+The changes `history`, `features`, `compare`, `release` and `performance` of SRS.
 
 ### History
+
+#### 3.0
 
 * v3.0, 2016-12-15, fix #717, #691, http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, support log rotate signal SIGUSR1. 3.0.8
@@ -141,6 +145,9 @@ The `features`, `compare`, `release` and `performance` of SRS.
 * v3.0, 2015-08-31, fix [#319][bug #319], http raw api support query global and vhost.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
+
+#### 2.0
+
 * <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
 * <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
@@ -280,6 +287,9 @@ The `features`, `compare`, `release` and `performance` of SRS.
 * v2.0, 2014-10-19, fix [#184][bug #184], support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
+
+#### 1.0
+
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)][r1.0r0] released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)][r1.0b0] released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151][bug #151], always reap ts whatever audio or video packet. 0.9.223.
@@ -847,6 +857,10 @@ Remark:
 1. Ingester: SRS fork a ffmpeg(or application) to ingest something to rtmp to SRS. Read [Ingest][v1_CN_Ingest].
 1. Streamer: SRS listen to remux some protocol to rtmp to SRS. Read [Streamer][v2_CN_Streamer].
 1. EXEC: SRS exec external application when got event, read [ng-exec][v3_CN_NgExec].
+
+## Tips
+
+Other tips...
 
 ### AUTHORS
 
