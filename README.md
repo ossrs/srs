@@ -166,6 +166,7 @@ Please select your language:
 - [x] Support DVR control module introduced by nginx-rtmp, please read [#459][bug #459].
 - [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] Support http api/stream CORS for js.
+- [x] Support valgrind and latest ARM by patch ST.
 - [x] [experiment] Support big-data with Kafka, please read [#467][bug #467].
 - [x] [experiment] Support Adobe HDS(f4m), please read wiki([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]).
 - [x] [experiment] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
