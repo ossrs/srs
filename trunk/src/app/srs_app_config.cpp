@@ -367,6 +367,15 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 continue;
             }
             
+            // SRS3.0, ignore hstrs, always on.
+            // SRS1/2:
+            //      vhost { http_remux { hstrs; } }
+            if (n == "http_remux") {
+                SrsConfDirective* hstrs = conf->get("hstrs");
+                conf->remove(hstrs);
+                srs_freep(hstrs);
+            }
+            
             // SRS3.0, change the refer style
             //  SRS1/2:
             //      vhost { refer; refer_play; refer_publish; }
@@ -2553,8 +2562,6 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
                 http_remux->set("fast_cache", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "mount") {
                 http_remux->set("mount", sdir->dumps_arg0_to_str());
-            } else if (sdir->name == "hstrs") {
-                http_remux->set("hstrs", sdir->dumps_arg0_to_boolean());
             }
         }
     }
@@ -3903,7 +3910,7 @@ int SrsConfig::check_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "hstrs") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -6749,29 +6756,6 @@ string SrsConfig::get_vhost_http_remux_mount(string vhost)
     }
     
     return conf->arg0();
-}
-
-bool SrsConfig::get_vhost_http_remux_hstrs(string vhost)
-{
-    // the HSTRS must default to false for origin.
-    static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("http_remux");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("hstrs");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_heartbeart()

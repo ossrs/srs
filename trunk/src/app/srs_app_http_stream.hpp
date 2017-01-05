@@ -252,14 +252,11 @@ public:
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
-    // whether hstrs(http stream trigger rtmp source)
-    bool hstrs;
     
     SrsLiveStream* stream;
     SrsBufferCache* cache;
     
-    SrsLiveEntry(std::string m, bool h);
-    void reset_hstrs(bool h);
+    SrsLiveEntry(std::string m);
 
     bool is_flv();
     bool is_ts();

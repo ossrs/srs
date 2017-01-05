@@ -622,10 +622,9 @@ int SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrM
     return ret;
 }
 
-SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
+SrsLiveEntry::SrsLiveEntry(std::string m)
 {
     mount = m;
-    hstrs = h;
     
     stream = NULL;
     cache = NULL;
@@ -638,11 +637,6 @@ SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
     _is_ts = (ext == ".ts");
     _is_mp3 = (ext == ".mp3");
     _is_aac = (ext == ".aac");
-}
-
-void SrsLiveEntry::reset_hstrs(bool h)
-{
-    hstrs = h;
 }
 
 bool SrsLiveEntry::is_flv()
@@ -806,7 +800,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // remove the default vhost mount
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
-        entry = new SrsLiveEntry(mount, tmpl->hstrs);
+        entry = new SrsLiveEntry(mount);
     
         entry->cache = new SrsBufferCache(s, r);
         entry->stream = new SrsLiveStream(s, r, entry->cache);
@@ -906,9 +900,6 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
 
     string old_tmpl_mount = tmpl->mount;
     string new_tmpl_mount = _srs_config->get_vhost_http_remux_mount(vhost);
-    bool hstrs = _srs_config->get_vhost_http_remux_hstrs(vhost);
-
-    tmpl->reset_hstrs(hstrs);
 
     /**
      * TODO: not support to reload different mount url for the time being.
@@ -920,11 +911,7 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
     // do http mount directly with SrsRequest and SrsSource if stream is played already.
     if (req) {
         std::string sid = req->get_stream_url();
-
-        if (sflvs.find(sid) != sflvs.end()) {
-            SrsLiveEntry* stream = sflvs[sid];
-            stream->reset_hstrs(hstrs);
-        }
+        
         // remount stream.
         if ((ret = http_mount(source, req)) != ERROR_SUCCESS) {
             srs_trace("vhost %s http_remux reload failed", vhost.c_str());
@@ -971,15 +958,12 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
             return ret;
         }
         
-        // hstrs not enabled, ignore.
+        // hstrs always enabled.
         // for origin, the http stream will be mount already when publish,
         //      so it must never enter this line for stream already mounted.
         // for edge, the http stream is trigger by hstrs and mount by it,
         //      so we only hijack when only edge and hstrs is on.
         entry = it->second;
-        if (!entry->hstrs) {
-            return ret;
-        }
 
         // check entry and request extension.
         if (entry->is_flv()) {
@@ -1048,7 +1032,7 @@ int SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
     
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
-    srs_trace("hstrs: source url=%s, is_edge=%d, source_id=%d[%d]",
+    srs_trace("flv: source url=%s, is_edge=%d, source_id=%d[%d]",
         r->get_stream_url().c_str(), vhost_is_edge, s->source_id(), s->source_id());
     
     return ret;
@@ -1083,8 +1067,7 @@ int SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
     }
 
     SrsLiveEntry* entry = new SrsLiveEntry(
-        _srs_config->get_vhost_http_remux_mount(vhost),
-        _srs_config->get_vhost_http_remux_hstrs(vhost)
+        _srs_config->get_vhost_http_remux_mount(vhost)
     );
 
     tflvs[vhost] = entry;
