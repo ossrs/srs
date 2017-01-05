@@ -182,6 +182,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-01-05, patch ST for valgrind and ARM. 3.0.11
 * v3.0, 2017-01-05, for [#324][bug #324], always enable hstrs. 3.0.10
 * v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, support log rotate signal SIGUSR1. 3.0.8

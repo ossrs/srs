@@ -101,6 +101,13 @@ function Ubuntu_prepare()
         sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
     fi
+    
+    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing valgrind."
+        require_sudoer "sudo apt-get install -y --force-yes valgrind valgrind-dev"
+        sudo apt-get install -y --force-yes valgrind valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The valgrind is installed."
+    fi
 
     if [ $SRS_NGINX = YES ]; then
         if [[ ! -f /usr/include/pcre.h ]]; then
@@ -193,6 +200,13 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y unzip"
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
+    fi
+    
+    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing valgrind."
+        require_sudoer "sudo yum install -y valgrind valgrind-devel"
+        sudo yum install -y valgrind valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The valgrind is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
@@ -313,6 +327,13 @@ function OSX_prepare()
         brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
     fi
+    
+    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing valgrind."
+        echo "brew install valgrind"
+        brew install valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The valgrind is installed."
+    fi
 
     if [ $SRS_NGINX = YES ]; then
         if [[ ! -f /usr/local/include/pcre.h ]]; then
@@ -397,57 +418,49 @@ if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT
 fi
 
 #####################################################################################
-# st-1.9
+# state-threads
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL -DMD_VALGRIND"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE"
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE -DMD_VALGRIND -I/usr/local/include"
     fi
-    # memory leak for linux-optimized
-    # @see: https://github.com/ossrs/srs/issues/197
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
     if [ $SRS_CROSS_BUILD = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
         if [[ -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "The st-1.9t for arm is ok.";
+            echo "The state-threads for arm is ok.";
         else
-            # TODO: FIXME: patch the bug.
-            # patch st for arm, @see: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
-            echo "Building st-1.9t for arm.";
+            echo "Building state-threads for arm.";
             (
-                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
-                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-                patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
-                patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
+                tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
                 make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
-                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
+                rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
         fi
     else
         if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "The st-1.9t is ok.";
+            echo "The state-threads is ok.";
         else
-            # patch st for arm, @see: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
-            echo "Building st-1.9t.";
+            echo "Building state-threads.";
             (
-                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
-                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-                patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
-                patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
+                tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
                 make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
-                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
+                rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
             )
         fi
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build st-1.9 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build st-1.9 static lib failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 fi
 
 #####################################################################################

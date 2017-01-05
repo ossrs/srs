@@ -27,15 +27,14 @@ fdk-aac-0.1.3.zip
 tools/ccache-3.1.9.zip
     to fast build.
     
-1.st.arm.Makefile.patch
-    st编译脚本补丁，允许用户指定cc编译器。
-    
 gtest-1.6.0.zip
-    google单元测试框架。
+    google test framework.
     
 gperftools-2.1.zip
-    google性能分析和测试工具。
-    编译和使用参考压缩文件中的README和doc目录。
+    gperf tools for performance benchmark.
+
+state-threads-1.9.1.tar.gz:
+    patched st from https://github.com/ossrs/state-threads/releases/tag/v1.9.1
 
 links:
     nginx:
