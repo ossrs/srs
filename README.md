@@ -17,13 +17,13 @@ For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 * [Product](#product)
   * [Usage](#usage)
   * [Wiki for v3.0](#srs-30-wiki)
-  * [v3.0 changes](#v3-changes)
   * [Wiki for v2.0](#srs-20-wiki)
-  * [v2.0 changes](#v2-changes)
   * [Wiki for v1.0](#srs-10-wiki)
+  * [Features](#features)
+  * [v3.0 changes](#v3-changes)
+  * [v2.0 changes](#v2-changes)
   * [v1.0 changes](#v1-changes)
   * [Releases](#releases)
-  * [Features](#features)
   * [Compare](#compare)
   * [Performance](#performance)
 * [Architecture](#architecture)
@@ -129,6 +129,56 @@ Please select your language:
 Please select your language:
 * [SRS 3.0 English][v3_EN_Home]
 * [SRS 3.0 Chinese][v3_CN_Home]
+
+### Features
+
+- [x] Simple and stable enough.
+- [x] Support RTMP origin-edge cluster, for origin ([CN][v1_CN_DeliveryRTMP],[EN][v1_EN_DeliveryRTMP]), for edge([CN][v1_CN_Edge], [EN][v1_EN_Edge]).
+- [x] Support remux RTMP to HTTP-FLV([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv]) or HLS([CN][v1_CN_DeliveryHLS], [EN][v1_EN_DeliveryHLS]).
+- [x] High-performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]): single-thread, async socket, event(st) driven.
+- [x] High-concurrency([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB.
+- [x] Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]) and \_\_defaultVhost\_\_.
+- [x] Support HLS audio-only([CN][v1_CN_DeliveryHLS2], [EN][v1_EN_DeliveryHLS2]) live streaming.
+- [x] Support reload([CN][v1_CN_Reload], [EN][v1_EN_Reload]) config to hot apply config.
+- [x] Support gop-cache to cache last gop([CN][v1_CN_LowLatency2], [EN][v1_EN_LowLatency2]) for fast startup.
+- [x] Support listen at multiple ports.
+- [x] Support RTMP long time(>4.6hours) publish/play.
+- [x] Support forward([CN][v1_CN_Forward], [EN][v1_EN_Forward]) in master-slave mode.
+- [x] Support transcoding([CN][v1_CN_FFMPEG], [EN][v1_EN_FFMPEG]) by fork ffmpeg.
+- [x] Support HTTP-callback([CN][v1_CN_HTTPCallback], [EN][v1_EN_HTTPCallback]) for authentication and injection.
+- [x] Support bandwidth test([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]) api and flash client.
+- [x] Support wiki in both [Chinese][v1_CN_Home] and [English][v1_EN_Home]. 
+- [x] Support RTMP client library: srs-librtmp([CN][v2_CN_SrsLibrtmp], [EN][v2_EN_SrsLibrtmp])
+- [x] Support ARM([CN][v1_CN_SrsLinuxArm], [EN][v1_EN_SrsLinuxArm]) with rtmp/ssl/hls/librtmp.
+- [x] Support HTTP-API([CN][v1_CN_HTTPApi], [EN][v1_EN_HTTPApi]) for management.
+- [x] Support ingest([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) other protocol to RTMP by ffmpeg.
+- [x] Support DVR([CN][v1_CN_DVR], [EN][v1_EN_DVR]) to record live to flv file.
+- [x] Support tracable log, session based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
+- [x] Support Adobe FMS/AMS token traverse([CN][v1_CN_DRM2], [EN][v1_EN_DRM2]).
+- [x] Support embeded HTTP server([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP]) for http streaming.
+- [x] Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2]) by srs-librtmp.
+- [x] Support publish aac adts raw stream([CN][v2_CN_SrsLibrtmp3], [EN][v2_EN_SrsLibrtmp3]) by srs-librtmp.
+- [x] Support low latency(0.1s+), please read [bug #257][bug #257].
+- [x] Support security to allow/deny publish/play ip([CN][v2_CN_Security], [EN][v2_EN_Security]).
+- [x] Support remux RTMP to http flv/mp3/aac/ts live stream, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
+- [x] Support HLS with mp3(h.264+mp3), please read [bug #301][bug #301].
+- [x] Support EXEC introduced by nginx-rtmp, please read [bug #367][bug #367].
+- [x] Support DVR control module introduced by nginx-rtmp, please read [#459][bug #459].
+- [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
+- [x] Support http api/stream CORS for js.
+- [x] [experiment] Support big-data with Kafka, please read [#467][bug #467].
+- [x] [experiment] Support Adobe HDS(f4m), please read wiki([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]).
+- [x] [experiment] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
+- [x] [experiment] Support push RTSP to SRS, please read [bug #133][bug #133].
+- [x] [experiment] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
+- [x] [experiment] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
+- [x] [experiment] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [ ] Enhanced forward with vhost and url variables.
+- [ ] Support source or idle stream cleanup.
+- [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
+- [ ] Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
+- [ ] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
+- [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
 
 ### V3 changes
 
@@ -512,56 +562,6 @@ Please select your language:
 * 2013-10-25, [Release v0.2.0][r0.2], support [rtmp][v1_CN_RTMPHandshake] flash publish, h264, time jitter correct. 10125 lines.
 * 2013-10-23, [Release v0.1.0][r0.1], support [rtmp FMLE/FFMPEG publish][v1_CN_DeliveryRTMP], vp6. 8287 lines.
 * 2013-10-17, Created.
-
-### Features
-
-- [x] Simple and stable enough.
-- [x] Support RTMP origin-edge cluster, for origin ([CN][v1_CN_DeliveryRTMP],[EN][v1_EN_DeliveryRTMP]), for edge([CN][v1_CN_Edge], [EN][v1_EN_Edge]).
-- [x] Support remux RTMP to HTTP-FLV([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv]) or HLS([CN][v1_CN_DeliveryHLS], [EN][v1_EN_DeliveryHLS]).
-- [x] High-performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]): single-thread, async socket, event(st) driven.
-- [x] High-concurrency([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB.
-- [x] Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]) and \_\_defaultVhost\_\_.
-- [x] Support HLS audio-only([CN][v1_CN_DeliveryHLS2], [EN][v1_EN_DeliveryHLS2]) live streaming.
-- [x] Support reload([CN][v1_CN_Reload], [EN][v1_EN_Reload]) config to hot apply config.
-- [x] Support gop-cache to cache last gop([CN][v1_CN_LowLatency2], [EN][v1_EN_LowLatency2]) for fast startup.
-- [x] Support listen at multiple ports.
-- [x] Support RTMP long time(>4.6hours) publish/play.
-- [x] Support forward([CN][v1_CN_Forward], [EN][v1_EN_Forward]) in master-slave mode.
-- [x] Support transcoding([CN][v1_CN_FFMPEG], [EN][v1_EN_FFMPEG]) by fork ffmpeg.
-- [x] Support HTTP-callback([CN][v1_CN_HTTPCallback], [EN][v1_EN_HTTPCallback]) for authentication and injection.
-- [x] Support bandwidth test([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]) api and flash client.
-- [x] Support wiki in both [Chinese][v1_CN_Home] and [English][v1_EN_Home]. 
-- [x] Support RTMP client library: srs-librtmp([CN][v2_CN_SrsLibrtmp], [EN][v2_EN_SrsLibrtmp])
-- [x] Support ARM([CN][v1_CN_SrsLinuxArm], [EN][v1_EN_SrsLinuxArm]) with rtmp/ssl/hls/librtmp.
-- [x] Support HTTP-API([CN][v1_CN_HTTPApi], [EN][v1_EN_HTTPApi]) for management.
-- [x] Support ingest([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) other protocol to RTMP by ffmpeg.
-- [x] Support DVR([CN][v1_CN_DVR], [EN][v1_EN_DVR]) to record live to flv file.
-- [x] Support tracable log, session based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
-- [x] Support Adobe FMS/AMS token traverse([CN][v1_CN_DRM2], [EN][v1_EN_DRM2]).
-- [x] Support embeded HTTP server([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP]) for http streaming.
-- [x] Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2]) by srs-librtmp.
-- [x] Support publish aac adts raw stream([CN][v2_CN_SrsLibrtmp3], [EN][v2_EN_SrsLibrtmp3]) by srs-librtmp.
-- [x] Support low latency(0.1s+), please read [bug #257][bug #257].
-- [x] Support security to allow/deny publish/play ip([CN][v2_CN_Security], [EN][v2_EN_Security]).
-- [x] Support remux RTMP to http flv/mp3/aac/ts live stream, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
-- [x] Support HLS with mp3(h.264+mp3), please read [bug #301][bug #301].
-- [x] Support EXEC introduced by nginx-rtmp, please read [bug #367][bug #367].
-- [x] Support DVR control module introduced by nginx-rtmp, please read [#459][bug #459].
-- [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
-- [x] Support http api/stream CORS for js.
-- [x] [experiment] Support big-data with Kafka, please read [#467][bug #467].
-- [x] [experiment] Support Adobe HDS(f4m), please read wiki([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]).
-- [x] [experiment] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
-- [x] [experiment] Support push RTSP to SRS, please read [bug #133][bug #133].
-- [x] [experiment] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
-- [x] [experiment] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
-- [x] [experiment] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [ ] Enhanced forward with vhost and url variables.
-- [ ] Support source or idle stream cleanup.
-- [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
-- [ ] Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
-- [ ] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
-- [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
 
 ### Compare
 
