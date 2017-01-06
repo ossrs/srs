@@ -578,11 +578,17 @@ int SrsRtmpConn::service_cycle()
 {    
     int ret = ERROR_SUCCESS;
     
-    if ((ret = rtmp->set_window_ack_size((int)(2.5 * 1000 * 1000))) != ERROR_SUCCESS) {
-        srs_error("set window acknowledgement size failed. ret=%d", ret);
+    int out_ack_size = _srs_config->get_out_ack_size(req->vhost);
+    if (out_ack_size && (ret = rtmp->set_window_ack_size(out_ack_size)) != ERROR_SUCCESS) {
+        srs_error("set output window acknowledgement size failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("set window acknowledgement size success");
+    
+    int in_ack_size = _srs_config->get_in_ack_size(req->vhost);
+    if (in_ack_size && (ret = rtmp->set_in_window_ack_size(in_ack_size)) != ERROR_SUCCESS) {
+        srs_error("set input window acknowledgement size failed. ret=%d", ret);
+        return ret;
+    }
         
     if ((ret = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != ERROR_SUCCESS) {
         srs_error("set peer bandwidth failed. ret=%d", ret);

@@ -3826,6 +3826,7 @@ int SrsConfig::check_config()
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux"
                 && n != "http_static" && n != "hds" && n != "exec"
+                && n != "in_ack_size" && n != "out_ack_size"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -4692,6 +4693,40 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
     }
     
     return conf->get("publish");
+}
+
+int SrsConfig::get_in_ack_size(string vhost)
+{
+    static int DEFAULT = 0;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("in_ack_size");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_out_ack_size(string vhost)
+{
+    static int DEFAULT = 2500000;
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("out_ack_size");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_chunk_size(string vhost)

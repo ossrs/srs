@@ -184,6 +184,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-01-06, for [#730][bug #730] support config in/out ack size. 3.0.13
 * v3.0, 2017-01-06, for [#711][bug #711] support perfile for transcode. 3.0.12
 * v3.0, 2017-01-05, patch ST for valgrind and ARM. 3.0.11
 * v3.0, 2017-01-05, for [#324][bug #324], always enable hstrs. 3.0.10
@@ -1355,6 +1356,7 @@ Winlin
 [bug #717]: https://github.com/ossrs/srs/issues/717
 [bug #691]: https://github.com/ossrs/srs/issues/691
 [bug #711]: https://github.com/ossrs/srs/issues/711
+[bug #730]: https://github.com/ossrs/srs/issues/730
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

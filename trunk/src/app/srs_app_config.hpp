@@ -754,6 +754,10 @@ public:
      * @return the refer, NULL for not configed.
      */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
+    // Get the input default ack size, which is generally set by message from peer.
+    virtual int                 get_in_ack_size(std::string vhost);
+    // Get the output default ack size, to notify the peer to send acknowledge to server.
+    virtual int                 get_out_ack_size(std::string vhost);
     /**
     * get the chunk size of vhost.
     * @param vhost, the vhost to get the chunk size. use global if not specified.

@@ -355,6 +355,12 @@ int64_t SrsProtocol::get_send_bytes()
     return skt->get_send_bytes();
 }
 
+int SrsProtocol::set_in_window_ack_size(int ack_size)
+{
+    in_ack_size.window = ack_size;
+    return ERROR_SUCCESS;
+}
+
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 {
     *pmsg = NULL;
@@ -1620,7 +1626,7 @@ int SrsProtocol::response_acknowledgement_message()
     }
     
     // ignore when delta bytes not exceed half of window(ack size).
-    uint32_t delta = (uint32_t)(skt->get_recv_bytes() - in_ack_size.nb_recv_bytes);
+    uint32_t delta = (uint32_t)(skt->get_recv_bytes() - in_ack_size.nb_recv_bytes)*100;
     if (delta < in_ack_size.window / 2) {
         return ret;
     }
@@ -1635,7 +1641,6 @@ int SrsProtocol::response_acknowledgement_message()
     
     SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
     pkt->sequence_number = sequence_number;
-    srs_warn("ack sequence=%#x", sequence_number);
     
     // cache the message and use flush to send.
     if (!auto_response_when_recv) {
@@ -2546,6 +2551,11 @@ int SrsRtmpServer::set_window_ack_size(int ack_size)
     srs_info("send ack size message success. ack_size=%d", ack_size);
     
     return ret;
+}
+
+int SrsRtmpServer::set_in_window_ack_size(int ack_size)
+{
+    return protocol->set_in_window_ack_size(ack_size);
 }
 
 int SrsRtmpServer::set_peer_bandwidth(int bandwidth, int type)

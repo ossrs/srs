@@ -330,6 +330,14 @@ public:
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
 public:
+    // Set the input default ack size. This is generally set by the message from peer,
+    // but for some encoder, it never send the ack message while it default to a none zone size.
+    // This will cause the encoder to block after publishing some messages to server,
+    // because it wait for server to send acknowledge, but server default to 0 which means no need
+    // to ack encoder. We can change the default input ack size. We will always response the
+    // ack size whatever the encoder set or not.
+    virtual int set_in_window_ack_size(int ack_size);
+public:
     /**
     * recv a RTMP message, which is bytes oriented.
     * user can use decode_message to get the decoded RTMP packet.
@@ -928,9 +936,11 @@ public:
      */
     virtual int connect_app(SrsRequest* req);
     /**
-     * set ack size to client, client will send ack-size for each ack window
+     * set output ack size to client, client will send ack-size for each ack window
      */
     virtual int set_window_ack_size(int ack_size);
+    // Set the default input ack size value.
+    virtual int set_in_window_ack_size(int ack_size);
     /**
      * @type: The sender can mark this message hard (0), soft (1), or dynamic (2)
      * using the Limit type field.
