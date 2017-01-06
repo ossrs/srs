@@ -1626,7 +1626,7 @@ int SrsProtocol::response_acknowledgement_message()
     }
     
     // ignore when delta bytes not exceed half of window(ack size).
-    uint32_t delta = (uint32_t)(skt->get_recv_bytes() - in_ack_size.nb_recv_bytes)*100;
+    uint32_t delta = (uint32_t)(skt->get_recv_bytes() - in_ack_size.nb_recv_bytes);
     if (delta < in_ack_size.window / 2) {
         return ret;
     }
