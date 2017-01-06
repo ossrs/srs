@@ -345,6 +345,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-01-06, for #730, reset ack follow flash player rules. 2.0.225
 * v2.0, 2016-12-15, for #513, remove hls ram from srs2 to srs3+. 2.0.224
 * <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
 * v2.0, 2016-12-13, fix #713, disable the source cleanup. 2.0.223
