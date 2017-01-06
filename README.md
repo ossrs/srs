@@ -4,7 +4,7 @@
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 SRS/3.0, [OuXuli][release3]<br/>
-SRS是大娱乐行业直播领域广泛应用的野鸡服务器，不限于色情行业。<br/>
+SRS是大娱乐直播领域广泛应用的野鸡服务器，不限于色情行业。<br/>
 SRS is an industrial-strength live cluster, with simple code and best conceptual integrity. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
