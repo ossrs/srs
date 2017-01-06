@@ -1847,6 +1847,9 @@ public:
 public:
     SrsAcknowledgementPacket();
     virtual ~SrsAcknowledgementPacket();
+// decode functions for concrete packet to override.
+public:
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();

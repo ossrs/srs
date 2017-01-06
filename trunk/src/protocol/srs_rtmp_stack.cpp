@@ -5017,6 +5017,22 @@ SrsAcknowledgementPacket::~SrsAcknowledgementPacket()
 {
 }
 
+int SrsAcknowledgementPacket::decode(SrsBuffer* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!stream->require(4)) {
+        ret = ERROR_RTMP_MESSAGE_DECODE;
+        srs_error("decode acknowledgement failed. ret=%d", ret);
+        return ret;
+    }
+    
+    sequence_number = stream->read_4bytes();
+    srs_info("decode acknowledgement success");
+    
+    return ret;
+}
+
 int SrsAcknowledgementPacket::get_prefer_cid()
 {
     return RTMP_CID_ProtocolControl;
