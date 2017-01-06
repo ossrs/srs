@@ -104,9 +104,16 @@ function Ubuntu_prepare()
     
     valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "Installing valgrind."
-        require_sudoer "sudo apt-get install -y --force-yes valgrind valgrind-dev"
-        sudo apt-get install -y --force-yes valgrind valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        require_sudoer "sudo apt-get install -y --force-yes valgrind"
+        sudo apt-get install -y --force-yes valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The valgrind is installed."
+    fi
+        
+    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+        echo "Installing valgrind-dev."
+        require_sudoer "sudo apt-get install -y --force-yes valgrind-dev"
+        sudo apt-get install -y --force-yes valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The valgrind-dev is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
@@ -204,9 +211,16 @@ function Centos_prepare()
     
     valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "Installing valgrind."
-        require_sudoer "sudo yum install -y valgrind valgrind-devel"
-        sudo yum install -y valgrind valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        require_sudoer "sudo yum install -y valgrind"
+        sudo yum install -y valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The valgrind is installed."
+    fi
+
+    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+        echo "Installing valgrind-devel."
+        require_sudoer "sudo yum install -y valgrind-devel"
+        sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The valgrind-devel is installed."
     fi
 
     if [ $SRS_NGINX = YES ]; then
