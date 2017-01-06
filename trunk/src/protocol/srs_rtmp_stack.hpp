@@ -190,8 +190,11 @@ private:
     class AckWindowSize
     {
     public:
-        int ack_window_size;
-        int64_t acked_size;
+        uint32_t window;
+        // number of received bytes.
+        int64_t nb_recv_bytes;
+        // previous responsed sequence number.
+        uint32_t sequence_number;
         
         AckWindowSize();
     };
@@ -227,10 +230,11 @@ private:
     * input chunk size, default to 128, set by peer packet.
     */
     int32_t in_chunk_size;
-    /**
-    * input ack size, when to send the acked packet.
-    */
+    // The input ack window, to response acknowledge to peer,
+    // for example, to respose the encoder, for server got lots of packets.
     AckWindowSize in_ack_size;
+    // The output ack window, to require peer to response the ack.
+    AckWindowSize out_ack_size;
     /**
     * whether auto response when recv messages.
     * default to true for it's very easy to use the protocol stack.
@@ -1847,10 +1851,13 @@ protected:
 class SrsAcknowledgementPacket : public SrsPacket
 {
 public:
-    int32_t sequence_number;
+    uint32_t sequence_number;
 public:
     SrsAcknowledgementPacket();
     virtual ~SrsAcknowledgementPacket();
+// decode functions for concrete packet to override.
+public:
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();

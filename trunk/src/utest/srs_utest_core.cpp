@@ -31,12 +31,12 @@ using namespace std;
 VOID TEST(CoreAutoFreeTest, Free)
 {
     char* data = new char[32];
-    srs_freep(data);
+    srs_freepa(data);
     EXPECT_TRUE(data == NULL);
 
     if (true) {
         data = new char[32];
-        SrsAutoFree(char, data);
+        SrsAutoFreeA(char, data);
     }
     EXPECT_TRUE(data == NULL);
 }

@@ -203,13 +203,61 @@ Please select your language:
 
 ### V2 changes
 
+* v2.0, 2017-01-06, for #730, reset ack follow flash player rules. 2.0.225
+* v2.0, 2016-12-15, for #513, remove hls ram from srs2 to srs3+. 2.0.224
 * <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
+* v2.0, 2016-12-13, fix #713, disable the source cleanup. 2.0.223
+* v2.0, 2016-12-13, fix #713, refine source to avoid critical fetch and create. 2.0.222
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
+* v2.0, 2016-11-05, fix #654, crash when source cleanup for edge. 2.0.221
+* v2.0, 2016-10-26, fix #666, crash when source cleanup for http-flv. 2.0.220
+* v2.0, 2016-10-10, fix #661, close fd after thread stopped. 2.0.219
+* v2.0, 2016-09-23, support asprocess for oryx. 2.0.218
+* v2.0, 2016-09-23, support change work_dir for oryx.
+* v2.0, 2016-09-15, fix #640, typo for rtmp type. 2.0.217
+* v2.0, 2016-09-12, fix fast stream error bug. 2.0.216
 * <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
+* v2.0, 2016-09-09, refine librtmp comments about NALUs. 2.0.215
+* v2.0, 2016-09-05, fix memory leak at source. 2.0.214
+* v2.0, 2016-09-05, fix memory leak at handshake. 2.0.213
+* v2.0, 2016-09-04, support valgrind for [patched st](https://github.com/ossrs/state-threads/issues/2).
+* v2.0, 2016-09-03, support all arm for [patched st](https://github.com/ossrs/state-threads/issues/1). 2.0.212
+* v2.0, 2016-09-01, workaround [#511][bug #511] the fly stfd in close. 2.0.211
+* v2.0, 2016-08-30, comment the pcr.
+* v2.0, 2016-08-18, fix [srs-librtmp#4](https://github.com/ossrs/srs-librtmp/issues/4) filter frame.
+* v2.0, 2016-08-10, fix socket timeout for librtmp.
+* v2.0, 2016-08-08, fix the crash by srs_info log.
 * <strong>v2.0, 2016-08-06, [2.0 beta0(2.0.210)][r2.0b0] released. 89704 lines.</strong>
+* v2.0, 2016-05-17, fix the sps pps parse bug.
+* v2.0, 2016-01-13, fix http reader bug, support infinite chunked. 2.0.209
+* v2.0, 2016-01-09, merge [#559][pr #559] fix memory leak bug. 2.0.208
+* v2.0, 2016-01-09, merge [#558][pr #558] add tcUrl for on_publish.
+* v2.0, 2016-01-05, add keyword XCORE for coredump to identify the version. 2.0.207
 * <strong>v2.0, 2015-12-23, [2.0 alpha3(2.0.205)][r2.0a3] released. 89544 lines.</strong>
+* v2.0, 2015-12-22, for [#509][bug #509] always alloc big object at heap. 2.0.205
+* v2.0, 2015-12-22, for [#418][bug #418] ignore null connect props to make RED5 happy. 2.0.204
+* v2.0, 2015-12-22, for [#546][bug #546] thread terminate normally dispose bug. 2.0.203
+* v2.0, 2015-12-22, for [#541][bug #541] failed when chunk size too small. 2.0.202
+* v2.0, 2015-12-15, default hls_on_error to continue. 2.0.201
+* v2.0, 2015-11-16, for [#518][bug #518] fix fd leak bug when fork. 2.0.200
+* v2.0, 2015-11-05, for [#511][bug #511] fix bug for restart thread. 2.0.199
+* v2.0, 2015-11-02, for [#515][bug #515] use srs_freepa and SrsAutoFreeA for array. 2.0.198
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], remove duration for live.
+* v2.0, 2015-10-28, for [ExoPlayer #828][exo #828], add av tag in flv header. 2.0.197
+* v2.0, 2015-10-27, for [#512][bug #512] partial hotfix the hls pure audio. 2.0.196
 * <strong>v2.0, 2015-10-08, [2.0 alpha2(2.0.195)][r2.0a2] released. 89358 lines.</strong>
+* v2.0, 2015-10-04, for [#448][bug #448] fix the bug of response of http hooks. 2.0.195
+* v2.0, 2015-10-01, for [#497][bug #497] response error when client not found to kickoff. 2.0.194
+* v2.0, 2015-10-01, for [#495][bug #495] decrease the srs-librtmp size. 2.0.193
+* v2.0, 2015-09-23, for [#485][bug #485] error when arm glibc 2.15+ or not i386/x86_64/amd64. 2.0.192
+* v2.0, 2015-09-23, for [#485][bug #485] srs for respberrypi and cubieboard. 2.0.191
+* v2.0, 2015-09-21, fix [#484][bug #484] hotfix the openssl build script 2.0.190
 * <strong>v2.0, 2015-09-14, [2.0 alpha1(2.0.189)][r2.0a1] released. 89269 lines.</strong>
+* v2.0, 2015-09-14, fix [#474][bug #474] config to donot parse width/height from sps. 2.0.189
+* v2.0, 2015-09-14, for [#474][bug #474] always release publish for source.
+* v2.0, 2015-09-14, for [#458][bug #458] http hooks use source thread cid. 2.0.188
+* v2.0, 2015-09-14, for [#475][bug #475] fix http hooks crash for st context switch. 2.0.187
+* v2.0, 2015-09-09, support reload utc_time. 2.0.186
 * <strong>v2.0, 2015-08-23, [2.0 alpha0(2.0.185)][r2.0a0] released. 89022 lines.</strong>
 * v2.0, 2015-08-22, HTTP API support JSONP by specifies the query string callback=xxx.
 * v2.0, 2015-08-20, fix [#380][bug #380], srs-librtmp send sequence header when sps or pps changed.
@@ -325,7 +373,7 @@ Please select your language:
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
 * v2.0, 2014-11-21, refine examples of srs-librtmp, add srs_print_rtmp_packet. 2.0.28.
 * v2.0, 2014-11-20, fix [#212][bug #212], support publish audio raw frames. 2.0.27
-* v2.0, 2014-11-19, fix [#213][bug #213], support compile [srs-librtmp on windows][srs-librtmp], [bug #213][bug #213]. 2.0.26
+* v2.0, 2014-11-19, fix [#213][bug #213], support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213][bug #213]. 2.0.26
 * v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
 * v2.0, 2014-11-15, fix [#204][bug #204], srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
 * v2.0, 2014-11-15, fix [#203][bug #203], srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.
