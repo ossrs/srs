@@ -229,6 +229,8 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     
     warned_c0c3_cache_dry = false;
     auto_response_when_recv = true;
+    show_debug_info = true;
+    in_buffer_length = 0;
     
     cs_cache = NULL;
     if (SRS_PERF_CHUNK_STREAM_CACHE > 0) {
@@ -896,6 +898,8 @@ int SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs,
         return ret;
     }
     
+    print_debug_info();
+    
     return ret;
 }
 
@@ -1473,6 +1477,9 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             }
             srs_verbose("decode packet from message payload success.");
             break;
+        case RTMP_MSG_VideoMessage:
+        case RTMP_MSG_AudioMessage:
+            print_debug_info();
         default:
             return ret;
     }
@@ -1508,8 +1515,7 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             if (pkt->chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
                 || pkt->chunk_size > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) 
             {
-                srs_warn("accept chunk size %d, but should in [%d, %d], "
-                    "@see: https://github.com/ossrs/srs/issues/160",
+                srs_warn("accept chunk=%d, should in [%d, %d], please see #160",
                     pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE,  SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
             }
 
@@ -1531,7 +1537,8 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             srs_assert(pkt != NULL);
             
             if (pkt->event_type == SrcPCUCSetBufferLength) {
-                srs_trace("buffer=%d, in.ack=%d, out.ack=%d, in.chunk=%d, out.chunk=%d", pkt->extra_data,
+                in_buffer_length = pkt->extra_data;
+                srs_info("buffer=%d, in.ack=%d, out.ack=%d, in.chunk=%d, out.chunk=%d", pkt->extra_data,
                     in_ack_size.window, out_ack_size.window, in_chunk_size, out_chunk_size);
             }
             if (pkt->event_type == SrcPCUCPingRequest) {
@@ -1594,6 +1601,9 @@ int SrsProtocol::on_send_packet(SrsMessageHeader* mh, SrsPacket* packet)
             }
             break;
         }
+        case RTMP_MSG_VideoMessage:
+        case RTMP_MSG_AudioMessage:
+            print_debug_info();
         default:
             break;
     }
@@ -1668,6 +1678,15 @@ int SrsProtocol::response_ping_message(int32_t timestamp)
     srs_verbose("send ping response success.");
     
     return ret;
+}
+
+void SrsProtocol::print_debug_info()
+{
+    if (show_debug_info) {
+        show_debug_info = false;
+        srs_trace("protocol in.buffer=%d, in.ack=%d, out.ack=%d, in.chunk=%d, out.chunk=%d", in_buffer_length,
+            in_ack_size.window, out_ack_size.window, in_chunk_size, out_chunk_size);
+    }
 }
 
 SrsChunkStream::SrsChunkStream(int _cid)

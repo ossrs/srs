@@ -235,6 +235,11 @@ private:
     AckWindowSize in_ack_size;
     // The output ack window, to require peer to response the ack.
     AckWindowSize out_ack_size;
+    // The buffer length set by peer.
+    int32_t in_buffer_length;
+    // Whether print the protocol level debug info.
+    // Generally we print the debug info when got or send first A/V packet.
+    bool show_debug_info;
     /**
     * whether auto response when recv messages.
     * default to true for it's very easy to use the protocol stack.
@@ -490,6 +495,8 @@ private:
     * auto response the ping message.
     */
     virtual int response_ping_message(int32_t timestamp);
+private:
+    virtual void print_debug_info();
 };
 
 /**
