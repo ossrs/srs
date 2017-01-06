@@ -345,18 +345,18 @@ Remark:
 
 ## History
 
-* v2.0, 2017-01-06, for #730, reset ack follow flash player rules. 2.0.225
-* v2.0, 2016-12-15, for #513, remove hls ram from srs2 to srs3+. 2.0.224
+* v2.0, 2017-01-06, for [#730][bug #730], reset ack follow flash player rules. 2.0.225
+* v2.0, 2016-12-15, for [#513][bug #513], remove hls ram from srs2 to srs3+. 2.0.224
 * <strong>v2.0, 2016-12-13, [2.0 beta3(2.0.223)][r2.0b3] released. 86685 lines.</strong>
-* v2.0, 2016-12-13, fix #713, disable the source cleanup. 2.0.223
-* v2.0, 2016-12-13, fix #713, refine source to avoid critical fetch and create. 2.0.222
+* v2.0, 2016-12-13, fix [#713][bug #713], disable the source cleanup. 2.0.223
+* v2.0, 2016-12-13, fix [#713][bug #713], refine source to avoid critical fetch and create. 2.0.222
 * <strong>v2.0, 2016-11-09, [2.0 beta2(2.0.221)][r2.0b2] released. 86691 lines.</strong>
-* v2.0, 2016-11-05, fix #654, crash when source cleanup for edge. 2.0.221
-* v2.0, 2016-10-26, fix #666, crash when source cleanup for http-flv. 2.0.220
-* v2.0, 2016-10-10, fix #661, close fd after thread stopped. 2.0.219
+* v2.0, 2016-11-05, fix [#654][bug #654], crash when source cleanup for edge. 2.0.221
+* v2.0, 2016-10-26, fix [#666][bug #666], crash when source cleanup for http-flv. 2.0.220
+* v2.0, 2016-10-10, fix [#661][bug #661], close fd after thread stopped. 2.0.219
 * v2.0, 2016-09-23, support asprocess for oryx. 2.0.218
 * v2.0, 2016-09-23, support change work_dir for oryx.
-* v2.0, 2016-09-15, fix #640, typo for rtmp type. 2.0.217
+* v2.0, 2016-09-15, fix [#640][bug #640], typo for rtmp type. 2.0.217
 * v2.0, 2016-09-12, fix fast stream error bug. 2.0.216
 * <strong>v2.0, 2016-09-09, [2.0 beta1(2.0.215)][r2.0b1] released. 89941 lines.</strong>
 * v2.0, 2016-09-09, refine librtmp comments about NALUs. 2.0.215
@@ -1261,6 +1261,13 @@ Winlin
 [bug #418]: https://github.com/ossrs/srs/issues/418
 [bug #509]: https://github.com/ossrs/srs/issues/509
 [bug #511]: https://github.com/ossrs/srs/issues/511
+[bug #640]: https://github.com/ossrs/srs/issues/640
+[bug #661]: https://github.com/ossrs/srs/issues/661
+[bug #666]: https://github.com/ossrs/srs/issues/666
+[bug #654]: https://github.com/ossrs/srs/issues/654
+[bug #713]: https://github.com/ossrs/srs/issues/713
+[bug #513]: https://github.com/ossrs/srs/issues/513
+[bug #730]: https://github.com/ossrs/srs/issues/730
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
