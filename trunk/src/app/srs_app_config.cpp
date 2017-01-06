@@ -3982,7 +3982,7 @@ int SrsConfig::check_config()
                                 && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
                                 && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
                                 && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
-                                && e != "aparams" && e != "output"
+                                && e != "aparams" && e != "output" && e != "perfile"
                                 && e != "iformat" && e != "oformat"
                                 ) {
                                 ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -5377,6 +5377,41 @@ bool SrsConfig::get_engine_enabled(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+string srs_prefix_underscores_ifno(string name)
+{
+    if (srs_string_starts_with(name, "-")) {
+        return name;
+    } else {
+        return "-" + name;
+    }
+}
+
+vector<string> SrsConfig::get_engine_perfile(SrsConfDirective* conf)
+{
+    vector<string> perfile;
+    
+    if (!conf) {
+        return perfile;
+    }
+    
+    conf = conf->get("perfile");
+    if (!conf) {
+        return perfile;
+    }
+    
+    for (int i = 0; i < (int)conf->directives.size(); i++) {
+        SrsConfDirective* option = conf->directives[i];
+        if (!option) {
+            continue;
+        }
+        
+        perfile.push_back(srs_prefix_underscores_ifno(option->name));
+        perfile.push_back(option->arg0());
+    }
+    
+    return perfile;
+}
+
 string SrsConfig::get_engine_iformat(SrsConfDirective* conf)
 {
     static string DEFAULT = "flv";
@@ -5412,7 +5447,7 @@ vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* conf)
             continue;
         }
         
-        vfilter.push_back("-" + filter->name);
+        vfilter.push_back(srs_prefix_underscores_ifno(filter->name));
         vfilter.push_back(filter->arg0());
     }
     
@@ -5566,7 +5601,7 @@ vector<string> SrsConfig::get_engine_vparams(SrsConfDirective* conf)
             continue;
         }
         
-        vparams.push_back("-" + filter->name);
+        vparams.push_back(srs_prefix_underscores_ifno(filter->name));
         vparams.push_back(filter->arg0());
     }
     
@@ -5656,7 +5691,7 @@ vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* conf)
             continue;
         }
         
-        aparams.push_back("-" + filter->name);
+        aparams.push_back(srs_prefix_underscores_ifno(filter->name));
         aparams.push_back(filter->arg0());
     }
     

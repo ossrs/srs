@@ -51,6 +51,7 @@ private:
 private:
     std::string                 ffmpeg;
     std::string                 _iparams;
+    std::vector<std::string>    perfile;
     std::string                 iformat;
     std::string                 input;
     std::vector<std::string>    vfilter;

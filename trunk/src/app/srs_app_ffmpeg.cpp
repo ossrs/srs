@@ -112,6 +112,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
+    perfile             = _srs_config->get_engine_perfile(engine);
     iformat             = _srs_config->get_engine_iformat(engine);
     vfilter             = _srs_config->get_engine_vfilter(engine);
     vcodec              = _srs_config->get_engine_vcodec(engine);
@@ -262,6 +263,17 @@ int SrsFFMPEG::start()
     // input params
     if (!_iparams.empty()) {
         params.push_back(_iparams);
+    }
+    
+    // build the perfile
+    if (!perfile.empty()) {
+        std::vector<std::string>::iterator it;
+        for (it = perfile.begin(); it != perfile.end(); ++it) {
+            std::string p = *it;
+            if (!p.empty()) {
+                params.push_back(p);
+            }
+        }
     }
     
     // input.

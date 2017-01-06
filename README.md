@@ -174,6 +174,7 @@ Please select your language:
 - [x] [experiment] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [experiment] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [experiment] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [ ] Enhanced HLS audio-only use aac instead of ts.
 - [ ] Enhanced forward with vhost and url variables.
 - [ ] Support source or idle stream cleanup.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
@@ -183,6 +184,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-01-06, for [#711][bug #711] support perfile for transcode. 3.0.12
 * v3.0, 2017-01-05, patch ST for valgrind and ARM. 3.0.11
 * v3.0, 2017-01-05, for [#324][bug #324], always enable hstrs. 3.0.10
 * v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
@@ -1304,6 +1306,7 @@ Winlin
 [bug #511]: https://github.com/ossrs/srs/issues/511
 [bug #717]: https://github.com/ossrs/srs/issues/717
 [bug #691]: https://github.com/ossrs/srs/issues/691
+[bug #711]: https://github.com/ossrs/srs/issues/711
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

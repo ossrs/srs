@@ -977,6 +977,10 @@ public:
     */
     virtual bool                get_engine_enabled(SrsConfDirective* conf);
     /**
+     * get the perfile of engine
+     */
+    virtual std::vector<std::string> get_engine_perfile(SrsConfDirective* conf);
+    /**
     * get the iformat of engine
     */
     virtual std::string         get_engine_iformat(SrsConfDirective* conf);
