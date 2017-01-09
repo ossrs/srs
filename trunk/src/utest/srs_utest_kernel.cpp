@@ -1511,5 +1511,97 @@ VOID TEST(KernelUtilityTest, UtilityString)
     EXPECT_TRUE(srs_string_ends_with("Hello", "lo"));
 }
 
+VOID TEST(KernelUtility, AvcUev)
+{
+    int32_t v;
+    SrsBuffer buf;
+    SrsBitBuffer bb;
+    char data[32];
+    
+    if (true) {
+        data[0] = 0xff;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 1;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(0, v);
+    }
+    
+    if (true) {
+        data[0] = 0x40;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(1, v);
+    }
+    
+    if (true) {
+        data[0] = 0x60;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(2, v);
+    }
+    
+    if (true) {
+        data[0] = 0x20;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(3, v);
+    }
+    
+    if (true) {
+        data[0] = 0x28;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(4, v);
+    }
+    
+    if (true) {
+        data[0] = 0x30;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(5, v);
+    }
+    
+    if (true) {
+        data[0] = 0x38;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(6, v);
+    }
+    
+    if (true) {
+        data[0] = 0x10;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(7, v);
+    }
+    
+    if (true) {
+        data[0] = 0x12;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(8, v);
+    }
+    
+    if (true) {
+        data[0] = 0x14;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(9, v);
+    }
+    
+    if (true) {
+        data[0] = 0x01; data[1] = 0x12;
+        buf.initialize((char*)data, 2); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(128-1+9, v);
+    }
+    
+    if (true) {
+        data[0] = 0x00; data[1] = 0x91; data[2] = 0x00;
+        buf.initialize((char*)data, 3); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(256-1+0x22, v);
+    }
+}
+
 #endif
 

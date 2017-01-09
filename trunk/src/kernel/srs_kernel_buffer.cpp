@@ -283,6 +283,8 @@ SrsBitBuffer::~SrsBitBuffer()
 
 int SrsBitBuffer::initialize(SrsBuffer* s) {
     stream = s;
+    cb = 0;
+    cb_left = 0;
     return ERROR_SUCCESS;
 }
 
