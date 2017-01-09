@@ -92,7 +92,9 @@ WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
 # for library compile
-LibraryCompile=" -fPIC"
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == YES ]]; then
+    LibraryCompile=" -fPIC"
+fi
 # performance of gprof
 SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
 # performance of gperf

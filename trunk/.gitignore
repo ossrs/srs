@@ -1,5 +1,6 @@
 .idea/
 /*.conf
+/*.flv
 /doc/frozen*.flv
 /doc/kungfupanda*.flv
 /doc/time*.flv
