@@ -387,12 +387,10 @@ public:
     bool has_idr;
     // Whether exists AUD NALU.
     bool has_aud;
+    // Whether exists SPS/PPS NALU.
+    bool has_sps_pps;
     // The first nalu type.
     SrsAvcNaluType first_nalu_type;
-public:
-    // Whether stream is open gop, which means the keyframe is not IDR but NonIDR.
-    // @remark we will identify whether stream is open-gop util reset.
-    bool open_gop;
 public:
     // audio specified
     SrsCodecAudio acodec;
@@ -405,8 +403,6 @@ public:
     SrsCodecSample();
     virtual ~SrsCodecSample();
 public:
-    // Reset the sample, clear the sample-base and stream-base data.
-    void reset();
     /**
     * clear all samples.
     * the sample units never copy the bytes, it directly use the ptr,

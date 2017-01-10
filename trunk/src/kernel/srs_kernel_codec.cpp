@@ -324,18 +324,11 @@ SrsCodecSampleUnit::~SrsCodecSampleUnit()
 
 SrsCodecSample::SrsCodecSample()
 {
-    reset();
+    clear();
 }
 
 SrsCodecSample::~SrsCodecSample()
 {
-}
-
-void SrsCodecSample::reset()
-{
-    clear();
-    
-    open_gop = false;
 }
 
 void SrsCodecSample::clear()
@@ -346,7 +339,7 @@ void SrsCodecSample::clear()
     cts = 0;
     frame_type = SrsCodecVideoAVCFrameReserved;
     avc_packet_type = SrsCodecVideoAVCTypeReserved;
-    has_aud = has_idr = false;
+    has_sps_pps = has_aud = has_idr = false;
     first_nalu_type = SrsAvcNaluTypeReserved;
     
     acodec = SrsCodecAudioReserved1;
@@ -377,6 +370,8 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
         
         if (nal_unit_type == SrsAvcNaluTypeIDR) {
             has_idr = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
+            has_sps_pps = true;
         } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
             has_aud = true;
         }
@@ -771,11 +766,6 @@ int SrsAvcAacCodec::video_nalu_demux(SrsStream* stream, SrsCodecSample* sample)
             }
         }
         srs_info("hls decode avc payload in annexb format.");
-    }
-    
-    // for keyframe, but not IDR, it's open gop.
-    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && !sample->has_idr) {
-        sample->open_gop = true;
     }
     
     return ret;
