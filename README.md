@@ -204,6 +204,7 @@ Please select your language:
 
 ### V2 changes
 
+* v2.0, 2017-01-10, refine hls html5 video template.
 * v2.0, 2017-01-10, fix [#635][bug #635], hls support NonIDR(open gop). 2.0.226
 * v2.0, 2017-01-06, for [#730][bug #730], reset ack follow flash player rules. 2.0.225
 * v2.0, 2016-12-15, for [#513][bug #513], remove hls ram from srs2 to srs3+. 2.0.224
