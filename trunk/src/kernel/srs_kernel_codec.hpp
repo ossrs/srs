@@ -640,7 +640,7 @@ public:
     */
     virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
 private:
-    virtual int video_nalu_demux(SrsStream* stream, SrsCodecSample* sample);
+    virtual int video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample);
 public:
     /**
     * directly demux the sequence header, without RTMP packet header.

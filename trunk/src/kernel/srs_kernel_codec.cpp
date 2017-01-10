@@ -714,7 +714,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     return ret;
 }
 
-int SrsAvcAacCodec::video_nalu_demux(SrsStream* stream, SrsCodecSample* sample)
+int SrsAvcAacCodec::video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
