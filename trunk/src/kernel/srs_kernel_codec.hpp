@@ -385,6 +385,13 @@ public:
     SrsCodecVideoAVCType avc_packet_type;
     // whether sample_units contains IDR frame.
     bool has_idr;
+    // Whether exists NonIDR NALU.
+    bool has_non_idr;
+    // Whether exists SEI NALU.
+    bool has_sei;
+    // Whether exists AUD NALU.
+    bool has_aud;
+    // The first nalu type.
     SrsAvcNaluType first_nalu_type;
 public:
     // audio specified

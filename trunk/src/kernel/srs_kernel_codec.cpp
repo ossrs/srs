@@ -339,7 +339,7 @@ void SrsCodecSample::clear()
     cts = 0;
     frame_type = SrsCodecVideoAVCFrameReserved;
     avc_packet_type = SrsCodecVideoAVCTypeReserved;
-    has_idr = false;
+    has_aud = has_sei = has_non_idr = has_idr = false;
     first_nalu_type = SrsAvcNaluTypeReserved;
     
     acodec = SrsCodecAudioReserved1;
@@ -370,6 +370,12 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
         
         if (nal_unit_type == SrsAvcNaluTypeIDR) {
             has_idr = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeNonIDR) {
+            has_non_idr = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeSEI) {
+            has_sei = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+            has_aud = true;
         }
     
         if (first_nalu_type == SrsAvcNaluTypeReserved) {
