@@ -3022,7 +3022,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     static u_int8_t aud_nalu_7[] = { 0x09, 0xf0};
     
     // For NonIDR(open gop), we directly appends all frames.
-    if (sample->has_non_idr || (sample->has_aud && sample->has_sei)) {
+    if (sample->open_gop) {
         for (int i = 0; i < sample->nb_sample_units; i++) {
             SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
             int32_t size = sample_unit->size;
@@ -3143,6 +3143,8 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    sample->reset();
     
     return ret;
 }

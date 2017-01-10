@@ -385,14 +385,14 @@ public:
     SrsCodecVideoAVCType avc_packet_type;
     // whether sample_units contains IDR frame.
     bool has_idr;
-    // Whether exists NonIDR NALU.
-    bool has_non_idr;
-    // Whether exists SEI NALU.
-    bool has_sei;
     // Whether exists AUD NALU.
     bool has_aud;
     // The first nalu type.
     SrsAvcNaluType first_nalu_type;
+public:
+    // Whether stream is open gop, which means the keyframe is not IDR but NonIDR.
+    // @remark we will identify whether stream is open-gop util reset.
+    bool open_gop;
 public:
     // audio specified
     SrsCodecAudio acodec;
@@ -405,6 +405,8 @@ public:
     SrsCodecSample();
     virtual ~SrsCodecSample();
 public:
+    // Reset the sample, clear the sample-base and stream-base data.
+    void reset();
     /**
     * clear all samples.
     * the sample units never copy the bytes, it directly use the ptr,
@@ -637,6 +639,8 @@ public:
     * demux the h.264 NALUs to sampe units.
     */
     virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
+private:
+    virtual int video_nalu_demux(SrsStream* stream, SrsCodecSample* sample);
 public:
     /**
     * directly demux the sequence header, without RTMP packet header.
