@@ -2342,7 +2342,7 @@ int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    if (_srs_config->get_forward_enabled(req->vhost)) {
+    if (!_srs_config->get_forward_enabled(req->vhost)) {
         return ret;
     }
     
