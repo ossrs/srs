@@ -3009,6 +3009,32 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 105.
     static u_int8_t aud_nalu_7[] = { 0x09, 0xf0};
     
+    // For NonIDR(open gop), we directly appends all frames.
+    if (sample->has_non_idr || (sample->has_aud && sample->has_sei)) {
+        for (int i = 0; i < sample->nb_sample_units; i++) {
+            SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
+            int32_t size = sample_unit->size;
+            
+            if (!sample_unit->bytes || size <= 0) {
+                ret = ERROR_HLS_AVC_SAMPLE_SIZE;
+                srs_error("invalid avc sample length=%d, ret=%d", size, ret);
+                return ret;
+            }
+            
+            // insert nalu header before rbsp.
+            if (i == 0) {
+                video->payload->append((const char*)fresh_nalu_header, 4);
+            } else {
+                video->payload->append((const char*)cont_nalu_header, 3);
+            }
+            
+            // sample data
+            video->payload->append(sample_unit->bytes, sample_unit->size);
+        }
+        
+        return ret;
+    }
+    
     // always append a aud nalu for each frame.
     video->payload->append((const char*)fresh_nalu_header, 4);
     video->payload->append((const char*)aud_nalu_7, 2);
