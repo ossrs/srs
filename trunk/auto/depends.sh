@@ -499,10 +499,8 @@ fi
 function write_nginx_html5()
 {
     cat<<END > ${html_file}
-<video width="640" height="360"
-        autoplay controls autobuffer 
-        src="${hls_stream}"
-        type="application/vnd.apple.mpegurl">
+<video autoplay controls autobuffer type="application/vnd.apple.mpegurl"
+    src="${hls_stream}">
 </video>
 END
 }
