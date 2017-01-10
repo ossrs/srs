@@ -2939,7 +2939,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     return ret;
 }
 
-void srs_avc_insert_aud(SrsSimpleBuffer* payload, bool& aud_inserted)
+void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
 {
     // mux the samples in annexb format,
     // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 324.
