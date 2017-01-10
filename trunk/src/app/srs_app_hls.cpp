@@ -1071,7 +1071,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         //      b. always reap when not wait keyframe.
         if (!muxer->wait_keyframe() || sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
             // when wait keyframe, there must exists idr frame in sample, or NonIDR(open gop) specified.
-            if (!sample->has_non_idr && !sample->has_idr && muxer->wait_keyframe()) {
+            if (!sample->open_gop && !sample->has_idr && muxer->wait_keyframe()) {
                 srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);
             }
             
@@ -1273,6 +1273,8 @@ void SrsHls::on_unpublish()
     if ((ret = hls_cache->on_unpublish(muxer)) != ERROR_SUCCESS) {
         srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
     }
+    
+    sample->reset();
     
     hls_enabled = false;
 }
