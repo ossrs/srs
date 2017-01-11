@@ -391,10 +391,10 @@ int srs_config_transform_vhost(SrsConfDirective* root)
                 if (n == "refer") {
                     SrsConfDirective* all = refer->get_or_create("all");
                     all->args = conf->args;
-                } else if (n == "play") {
+                } else if (n == "refer_play") {
                     SrsConfDirective* play = refer->get_or_create("play");
                     play->args = conf->args;
-                } else if (n == "publish") {
+                } else if (n == "refer_publish") {
                     SrsConfDirective* publish = refer->get_or_create("publish");
                     publish->args = conf->args;
                 }
