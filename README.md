@@ -34,7 +34,6 @@ For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
   * [Authors](#authors)
   * [Mirrors](#mirrors)
   * [System Requirements](#system-requirements)
-  * [Donation](#donation)
 
 ## About
 
@@ -954,16 +953,6 @@ Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
 * Apple OSX(Darwin), both 32 and 64bits.
 * All hardware with x86/x86_64/arm/mips cpu.
-
-### Donation
-
-[![Donation](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_92x26.png)][donation1]
-[![Paypal](https://www.paypalobjects.com/webstatic/en_US/btn/btn_donate_pp_142x27.png)][donation2]
-[![LinkedIn](http://s.c.lnkd.licdn.com/scds/common/u/img/webpromo/btn_liprofile_blue_80x15.png)](http://cn.linkedin.com/in/winlinvip)
-
-Donation: [http://www.ossrs.net/srs.release/donation/index.html][donation1]
-
-Donations: [https://github.com/ossrs/srs/blob/develop/DONATIONS.txt][donations]
 
 Beijing, 2013.10<br/>
 Winlin
