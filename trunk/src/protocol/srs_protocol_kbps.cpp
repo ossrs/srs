@@ -120,13 +120,13 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
     }
     // save the old in bytes.
     if (is.io.in) {
-        is.bytes += is.last_bytes - is.io_bytes_base;
+        is.bytes += is.io.in->get_recv_bytes() - is.io_bytes_base;
     }
     // use new io.
     is.io.in = in;
     is.last_bytes = is.io_bytes_base = 0;
     if (in) {
-        is.bytes += is.io.in->get_recv_bytes() - is.io_bytes_base;
+        is.last_bytes = is.io_bytes_base = in->get_recv_bytes();
     }
     // resample
     is.sample();
@@ -199,11 +199,16 @@ int64_t SrsKbps::get_send_bytes()
     // session start bytes.
     int64_t bytes = os.bytes;
     
-    // session delta.
+    // When exists active session, use it to get the last bytes.
     if (os.io.out) {
         bytes += os.io.out->get_send_bytes() - os.io_bytes_base;
+        return bytes;
     }
     
+    // When no active session, the last_bytes record the last valid bytes.
+    // TODO: Maybe the bellow bytes is zero, because the ios.io.out is NULL.
+    bytes += os.last_bytes - os.io_bytes_base;
+
     return bytes;
 }
 
@@ -216,11 +221,16 @@ int64_t SrsKbps::get_recv_bytes()
     // session start bytes.
     int64_t bytes = is.bytes;
     
-    // session delta.
+    // When exists active session, use it to get the last bytes.
     if (is.io.in) {
         bytes += is.io.in->get_recv_bytes() - is.io_bytes_base;
+        return bytes;
     }
     
+    // When no active session, the last_bytes record the last valid bytes.
+    // TODO: Maybe the bellow bytes is zero, because the ios.io.out is NULL.
+    bytes += is.last_bytes - is.io_bytes_base;
+
     return bytes;
 }
 
@@ -272,5 +282,10 @@ void SrsKbps::sample()
     // resample
     is.sample();
     os.sample();
+}
+
+int SrsKbps::size_memory()
+{
+    return sizeof(SrsKbps);
 }
 
