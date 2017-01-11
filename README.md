@@ -345,6 +345,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-01-11, fix [#588][bug #588], kbps interface error. 2.0.228
 * v2.0, 2017-01-11, fix [#736][bug #736], recovery the hls dispose. 2.0.227
 * v2.0, 2017-01-10, refine hls html5 video template.
 * v2.0, 2017-01-10, fix [#635][bug #635], hls support NonIDR(open gop). 2.0.226
@@ -1272,6 +1273,7 @@ Winlin
 [bug #513]: https://github.com/ossrs/srs/issues/513
 [bug #730]: https://github.com/ossrs/srs/issues/730
 [bug #635]: https://github.com/ossrs/srs/issues/635
+[bug #588]: https://github.com/ossrs/srs/issues/588
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

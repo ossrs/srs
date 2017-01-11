@@ -126,7 +126,7 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
     is.io.in = in;
     is.last_bytes = is.io_bytes_base = 0;
     if (in) {
-        is.last_bytes = is.io_bytes_base = in->get_recv_bytes();
+        is.bytes += is.io.in->get_recv_bytes() - is.io_bytes_base;
     }
     // resample
     is.sample();
@@ -138,7 +138,7 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
     }
     // save the old in bytes.
     if (os.io.out) {
-        os.bytes += os.last_bytes - os.io_bytes_base;
+        os.bytes += os.io.out->get_send_bytes() - os.io_bytes_base;
     }
     // use new io.
     os.io.out = out;
@@ -192,12 +192,36 @@ int SrsKbps::get_recv_kbps_5m()
 
 int64_t SrsKbps::get_send_bytes()
 {
-    return os.get_total_bytes();
+    // we must calc the send bytes dynamically,
+    // to not depends on the sample(which used to calc the kbps).
+    // @read https://github.com/ossrs/srs/issues/588
+    
+    // session start bytes.
+    int64_t bytes = os.bytes;
+    
+    // session delta.
+    if (os.io.out) {
+        bytes += os.io.out->get_send_bytes() - os.io_bytes_base;
+    }
+    
+    return bytes;
 }
 
 int64_t SrsKbps::get_recv_bytes()
 {
-    return is.get_total_bytes();
+    // we must calc the send bytes dynamically,
+    // to not depends on the sample(which used to calc the kbps).
+    // @read https://github.com/ossrs/srs/issues/588
+    
+    // session start bytes.
+    int64_t bytes = is.bytes;
+    
+    // session delta.
+    if (is.io.in) {
+        bytes += is.io.in->get_recv_bytes() - is.io_bytes_base;
+    }
+    
+    return bytes;
 }
 
 void SrsKbps::resample()

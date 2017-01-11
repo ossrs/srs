@@ -95,13 +95,9 @@ public:
     SrsKbpsSlice();
     virtual ~SrsKbpsSlice();
 public:
-    /**
-    * get current total bytes.
-    */
+    // Get current total bytes, not depend on sample().
     virtual int64_t get_total_bytes();
-    /**
-    * resample all samples.
-    */
+    // Resample the slice to calculate the kbps.
     virtual void sample();
 };
 
@@ -162,6 +158,13 @@ public:
  *      printf("delta is %d/%d", delta->get_send_bytes_delta(), delta->get_recv_bytes_delta());
  *      delta->cleanup();
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
+ * 4. kbps used as ISrsProtocolStatistic, to provides raw bytes:
+ *      SrsKbps* kbps = ...;
+ *      kbps->set_io(in, out);
+ *      // both kbps->get_recv_bytes() and kbps->get_send_bytes() are available.
+ *      // we can use the kbps as the data source of another kbps:
+ *      SrsKbps* user = ...;
+ *      user->set_io(kbps, kbps);
  */
 class SrsKbps : public virtual ISrsProtocolStatistic, public virtual IKbpsDelta
 {
