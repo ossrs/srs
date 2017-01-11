@@ -1273,6 +1273,7 @@ Winlin
 [bug #513]: https://github.com/ossrs/srs/issues/513
 [bug #730]: https://github.com/ossrs/srs/issues/730
 [bug #635]: https://github.com/ossrs/srs/issues/635
+[bug #736]: https://github.com/ossrs/srs/issues/736
 [bug #588]: https://github.com/ossrs/srs/issues/588
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
