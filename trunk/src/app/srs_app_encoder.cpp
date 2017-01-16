@@ -299,6 +299,10 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
         log_file += req->app;
         log_file += "-";
         log_file += req->stream;
+        if (!engine->args.empty()) {
+            log_file += "-";
+            log_file += engine->arg0();
+        }
         log_file += ".log";
     }
 

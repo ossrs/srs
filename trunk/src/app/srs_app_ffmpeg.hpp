@@ -49,6 +49,7 @@ private:
     bool fast_stopped;
     pid_t pid;
 private:
+    std::string engine_name;
     std::string log_file;
 private:
     std::string                 ffmpeg;

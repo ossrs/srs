@@ -102,6 +102,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
+    engine_name = engine->arg0();
     iformat             = _srs_config->get_engine_iformat(engine);
     vfilter             = _srs_config->get_engine_vfilter(engine);
     vcodec              = _srs_config->get_engine_vcodec(engine);
@@ -487,7 +488,7 @@ int SrsFFMPEG::start()
     // parent.
     if (pid > 0) {
         started = true;
-        srs_trace("vfored ffmpeg encoder engine, pid=%d", pid);
+        srs_trace("fork encoder %s, pid=%d", engine_name.c_str(), pid);
         return ret;
     }
     
