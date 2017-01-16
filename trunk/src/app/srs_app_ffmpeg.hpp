@@ -47,6 +47,7 @@ class SrsFFMPEG
 private:
     SrsProcess* process;
     std::vector<std::string> params;
+private:
     std::string log_file;
 private:
     std::string                 ffmpeg;
