@@ -64,17 +64,17 @@ class SrsKafkaProducer;
 enum SrsListenerType 
 {
     // RTMP client,
-    SrsListenerRtmpStream       = 0,
+    SrsListenerRtmpStream = 0,
     // HTTP api,
-    SrsListenerHttpApi          = 1,
+    SrsListenerHttpApi = 1,
     // HTTP stream, HDS/HLS/DASH
-    SrsListenerHttpStream       = 2,
+    SrsListenerHttpStream = 2,
     // UDP stream, MPEG-TS over udp.
-    SrsListenerMpegTsOverUdp    = 3,
+    SrsListenerMpegTsOverUdp = 3,
     // TCP stream, RTSP stream.
-    SrsListenerRtsp             = 4,
+    SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
-    SrsListenerFlv              = 5,
+    SrsListenerFlv = 5,
 };
 
 /**

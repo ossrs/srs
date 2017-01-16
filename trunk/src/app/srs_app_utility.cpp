@@ -1063,7 +1063,7 @@ SrsNetworkRtmpServer* srs_get_network_rtmp_server()
 
 // @see: http://stackoverflow.com/questions/5992211/list-of-possible-internal-socket-statuses-from-proc
 enum {
-    SYS_TCP_ESTABLISHED =      0x01,
+    SYS_TCP_ESTABLISHED = 0x01,
     SYS_TCP_SYN_SENT,       // 0x02
     SYS_TCP_SYN_RECV,       // 0x03
     SYS_TCP_FIN_WAIT1,      // 0x04

@@ -974,14 +974,14 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
     int pos_af = stream->pos();
     int8_t tmpv = stream->read_1bytes();
     
-    discontinuity_indicator              =   (tmpv >> 7) & 0x01;
-    random_access_indicator              =   (tmpv >> 6) & 0x01;
-    elementary_stream_priority_indicator =   (tmpv >> 5) & 0x01;
-    PCR_flag                             =   (tmpv >> 4) & 0x01;
-    OPCR_flag                            =   (tmpv >> 3) & 0x01;
-    splicing_point_flag                  =   (tmpv >> 2) & 0x01;
-    transport_private_data_flag          =   (tmpv >> 1) & 0x01;
-    adaptation_field_extension_flag      =   tmpv & 0x01;
+    discontinuity_indicator = (tmpv >> 7) & 0x01;
+    random_access_indicator = (tmpv >> 6) & 0x01;
+    elementary_stream_priority_indicator = (tmpv >> 5) & 0x01;
+    PCR_flag = (tmpv >> 4) & 0x01;
+    OPCR_flag = (tmpv >> 3) & 0x01;
+    splicing_point_flag = (tmpv >> 2) & 0x01;
+    transport_private_data_flag = (tmpv >> 1) & 0x01;
+    adaptation_field_extension_flag = tmpv & 0x01;
     
     if (PCR_flag) {
         if (!stream->require(6)) {

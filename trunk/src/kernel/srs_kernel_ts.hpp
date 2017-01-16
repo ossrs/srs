@@ -65,19 +65,19 @@ class SrsTsContext;
 enum SrsTsPid
 {
     // Program Association Table(see Table 2-25).
-    SrsTsPidPAT             = 0x00,
+    SrsTsPidPAT = 0x00,
     // Conditional Access Table (see Table 2-27).
-    SrsTsPidCAT             = 0x01,
+    SrsTsPidCAT = 0x01,
     // Transport Stream Description Table
-    SrsTsPidTSDT            = 0x02,
+    SrsTsPidTSDT = 0x02,
     // Reserved
-    SrsTsPidReservedStart   = 0x03,
-    SrsTsPidReservedEnd     = 0x0f,
+    SrsTsPidReservedStart = 0x03,
+    SrsTsPidReservedEnd = 0x0f,
     // May be assigned as network_PID, Program_map_PID, elementary_PID, or for other purposes
-    SrsTsPidAppStart        = 0x10,
-    SrsTsPidAppEnd          = 0x1ffe,
+    SrsTsPidAppStart = 0x10,
+    SrsTsPidAppEnd = 0x1ffe,
     // null packets (see Table 2-3)
-    SrsTsPidNULL    = 0x01FFF,
+    SrsTsPidNULL = 0x01FFF,
 };
 
 /**
@@ -87,13 +87,13 @@ enum SrsTsPid
 enum SrsTsScrambled
 {
     // Not scrambled
-    SrsTsScrambledDisabled      = 0x00,
+    SrsTsScrambledDisabled = 0x00,
     // User-defined
-    SrsTsScrambledUserDefined1  = 0x01,
+    SrsTsScrambledUserDefined1 = 0x01,
     // User-defined
-    SrsTsScrambledUserDefined2  = 0x02,
+    SrsTsScrambledUserDefined2 = 0x02,
     // User-defined
-    SrsTsScrambledUserDefined3  = 0x03,
+    SrsTsScrambledUserDefined3 = 0x03,
 };
 
 /**
@@ -103,13 +103,13 @@ enum SrsTsScrambled
 enum SrsTsAdaptationFieldType
 {
     // Reserved for future use by ISO/IEC
-    SrsTsAdaptationFieldTypeReserved      = 0x00,
+    SrsTsAdaptationFieldTypeReserved = 0x00,
     // No adaptation_field, payload only
-    SrsTsAdaptationFieldTypePayloadOnly   = 0x01,
+    SrsTsAdaptationFieldTypePayloadOnly = 0x01,
     // Adaptation_field only, no payload
-    SrsTsAdaptationFieldTypeAdaptionOnly  = 0x02,
+    SrsTsAdaptationFieldTypeAdaptionOnly = 0x02,
     // Adaptation_field followed by payload
-    SrsTsAdaptationFieldTypeBoth          = 0x03,
+    SrsTsAdaptationFieldTypeBoth = 0x03,
 };
 
 /**
@@ -133,12 +133,12 @@ enum SrsTsPidApply
 enum SrsTsStream
 {
     // ITU-T | ISO/IEC Reserved
-    SrsTsStreamReserved         = 0x00,
+    SrsTsStreamReserved = 0x00,
     // ISO/IEC 11172 Video
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream
     // ISO/IEC 11172 Audio
     // ISO/IEC 13818-3 Audio
-    SrsTsStreamAudioMp3         = 0x04,
+    SrsTsStreamAudioMp3 = 0x04,
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data
     // ISO/IEC 13522 MHEG
@@ -150,21 +150,21 @@ enum SrsTsStream
     // ISO/IEC 13818-6 type D
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 auxiliary
     // ISO/IEC 13818-7 Audio with ADTS transport syntax
-    SrsTsStreamAudioAAC        = 0x0f,
+    SrsTsStreamAudioAAC = 0x0f,
     // ISO/IEC 14496-2 Visual
-    SrsTsStreamVideoMpeg4      = 0x10,
+    SrsTsStreamVideoMpeg4 = 0x10,
     // ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1
-    SrsTsStreamAudioMpeg4      = 0x11,
+    SrsTsStreamAudioMpeg4 = 0x11,
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC14496_sections.
     // ISO/IEC 13818-6 Synchronized Download Protocol
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved
     // 0x15-0x7F
-    SrsTsStreamVideoH264       = 0x1b,
+    SrsTsStreamVideoH264 = 0x1b,
     // User Private
     // 0x80-0xFF
-    SrsTsStreamAudioAC3        = 0x81,
-    SrsTsStreamAudioDTS        = 0x8a,
+    SrsTsStreamAudioAC3 = 0x81,
+    SrsTsStreamAudioDTS = 0x8a,
 };
 std::string srs_ts_stream2string(SrsTsStream stream);
 
@@ -192,58 +192,58 @@ struct SrsTsChannel
 enum SrsTsPESStreamId
 {
     // program_stream_map
-    SrsTsPESStreamIdProgramStreamMap            = 0xbc, // 0b10111100
+    SrsTsPESStreamIdProgramStreamMap = 0xbc, // 0b10111100
     // private_stream_1
-    SrsTsPESStreamIdPrivateStream1              = 0xbd, // 0b10111101
+    SrsTsPESStreamIdPrivateStream1 = 0xbd, // 0b10111101
     // padding_stream
-    SrsTsPESStreamIdPaddingStream               = 0xbe, // 0b10111110
+    SrsTsPESStreamIdPaddingStream = 0xbe, // 0b10111110
     // private_stream_2
-    SrsTsPESStreamIdPrivateStream2              = 0xbf, // 0b10111111
+    SrsTsPESStreamIdPrivateStream2 = 0xbf, // 0b10111111
 
     // 110x xxxx
     // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
     // 14496-3 audio stream number x xxxx
     // ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio
     // @remark, use SrsTsPESStreamIdAudioCommon as actually audio, SrsTsPESStreamIdAudio to check whether audio.
-    SrsTsPESStreamIdAudioChecker                = 0x06, // 0b110
-        SrsTsPESStreamIdAudioCommon             = 0xc0,
+    SrsTsPESStreamIdAudioChecker = 0x06, // 0b110
+        SrsTsPESStreamIdAudioCommon = 0xc0,
 
     // 1110 xxxx
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     // @remark, use SrsTsPESStreamIdVideoCommon as actually video, SrsTsPESStreamIdVideo to check whether video.
-    SrsTsPESStreamIdVideoChecker                = 0x0e, // 0b1110
-        SrsTsPESStreamIdVideoCommon             = 0xe0,
+    SrsTsPESStreamIdVideoChecker = 0x0e, // 0b1110
+        SrsTsPESStreamIdVideoCommon = 0xe0,
 
     // ECM_stream
-    SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
+    SrsTsPESStreamIdEcmStream = 0xf0, // 0b11110000
     // EMM_stream
-    SrsTsPESStreamIdEmmStream                   = 0xf1, // 0b11110001
+    SrsTsPESStreamIdEmmStream = 0xf1, // 0b11110001
     // DSMCC_stream
-    SrsTsPESStreamIdDsmccStream                 = 0xf2, // 0b11110010
+    SrsTsPESStreamIdDsmccStream = 0xf2, // 0b11110010
     // 13522_stream
-    SrsTsPESStreamId13522Stream                 = 0xf3, // 0b11110011
+    SrsTsPESStreamId13522Stream = 0xf3, // 0b11110011
     // H_222_1_type_A
-    SrsTsPESStreamIdH2221TypeA                  = 0xf4, // 0b11110100
+    SrsTsPESStreamIdH2221TypeA = 0xf4, // 0b11110100
     // H_222_1_type_B
-    SrsTsPESStreamIdH2221TypeB                  = 0xf5, // 0b11110101
+    SrsTsPESStreamIdH2221TypeB = 0xf5, // 0b11110101
     // H_222_1_type_C
-    SrsTsPESStreamIdH2221TypeC                  = 0xf6, // 0b11110110
+    SrsTsPESStreamIdH2221TypeC = 0xf6, // 0b11110110
     // H_222_1_type_D
-    SrsTsPESStreamIdH2221TypeD                  = 0xf7, // 0b11110111
+    SrsTsPESStreamIdH2221TypeD = 0xf7, // 0b11110111
     // H_222_1_type_E
-    SrsTsPESStreamIdH2221TypeE                  = 0xf8, // 0b11111000
+    SrsTsPESStreamIdH2221TypeE = 0xf8, // 0b11111000
     // ancillary_stream
-    SrsTsPESStreamIdAncillaryStream             = 0xf9, // 0b11111001
+    SrsTsPESStreamIdAncillaryStream = 0xf9, // 0b11111001
     // SL_packetized_stream
-    SrsTsPESStreamIdSlPacketizedStream          = 0xfa, // 0b11111010
+    SrsTsPESStreamIdSlPacketizedStream = 0xfa, // 0b11111010
     // FlexMux_stream
-    SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
+    SrsTsPESStreamIdFlexMuxStream = 0xfb, // 0b11111011
     // reserved data stream
     // 1111 1100 ... 1111 1110
     // program_stream_directory
-    SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
+    SrsTsPESStreamIdProgramStreamDirectory = 0xff, // 0b11111111
 };
 
 /**
@@ -857,28 +857,28 @@ public:
 enum SrsTsPsiId
 {
     // program_association_section
-    SrsTsPsiIdPas               = 0x00,
+    SrsTsPsiIdPas = 0x00,
     // conditional_access_section (CA_section)
-    SrsTsPsiIdCas               = 0x01,
+    SrsTsPsiIdCas = 0x01,
     // TS_program_map_section
-    SrsTsPsiIdPms               = 0x02,
+    SrsTsPsiIdPms = 0x02,
     // TS_description_section
-    SrsTsPsiIdDs                = 0x03,
+    SrsTsPsiIdDs = 0x03,
     // ISO_IEC_14496_scene_description_section
-    SrsTsPsiIdSds               = 0x04,
+    SrsTsPsiIdSds = 0x04,
     // ISO_IEC_14496_object_descriptor_section
-    SrsTsPsiIdOds               = 0x05,
+    SrsTsPsiIdOds = 0x05,
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 reserved
-    SrsTsPsiIdIso138181Start    = 0x06,
-    SrsTsPsiIdIso138181End      = 0x37,
+    SrsTsPsiIdIso138181Start = 0x06,
+    SrsTsPsiIdIso138181End = 0x37,
     // Defined in ISO/IEC 13818-6
-    SrsTsPsiIdIso138186Start    = 0x38,
-    SrsTsPsiIdIso138186End      = 0x3F,
+    SrsTsPsiIdIso138186Start = 0x38,
+    SrsTsPsiIdIso138186End = 0x3F,
     // User private
-    SrsTsPsiIdUserStart         = 0x40,
-    SrsTsPsiIdUserEnd           = 0xFE,
+    SrsTsPsiIdUserStart = 0x40,
+    SrsTsPsiIdUserEnd = 0xFE,
     // forbidden
-    SrsTsPsiIdForbidden         = 0xFF,
+    SrsTsPsiIdForbidden = 0xFF,
 };
 
 /**

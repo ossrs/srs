@@ -69,7 +69,7 @@ int MockReloadHandler::count_total()
 
 int MockReloadHandler::count_true()
 {
-    int count_true  = 0;
+    int count_true = 0;
     
     if (listen_reloaded) count_true++;
     if (pid_reloaded) count_true++;
@@ -99,7 +99,7 @@ int MockReloadHandler::count_true()
 
 int MockReloadHandler::count_false()
 {
-    int count_false  = 0;
+    int count_false = 0;
     
     if (!listen_reloaded) count_false++;
     if (!pid_reloaded) count_false++;

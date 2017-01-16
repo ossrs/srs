@@ -45,11 +45,11 @@ class SrsCodecSample;
 class ISrsProtocolReaderWriter;
 
 // rtsp specification
-// CR             = <US-ASCII CR, carriage return (13)>
+// CR = <US-ASCII CR, carriage return (13)>
 #define SRS_RTSP_CR SRS_CONSTS_CR // 0x0D
-// LF             = <US-ASCII LF, linefeed (10)>
+// LF = <US-ASCII LF, linefeed (10)>
 #define SRS_RTSP_LF SRS_CONSTS_LF // 0x0A
-// SP             = <US-ASCII SP, space (32)>
+// SP = <US-ASCII SP, space (32)>
 #define SRS_RTSP_SP ' ' // 0x20
 
 // 4 RTSP Message, @see rtsp-rfc2326-1998.pdf, page 37
@@ -118,17 +118,17 @@ enum SrsRtspSdpState
 */
 enum SrsRtspMethod
 {
-    SrsRtspMethodDescribe           = 0x0001,
-    SrsRtspMethodAnnounce           = 0x0002,
-    SrsRtspMethodGetParameter       = 0x0004,
-    SrsRtspMethodOptions            = 0x0008,
-    SrsRtspMethodPause              = 0x0010,
-    SrsRtspMethodPlay               = 0x0020,
-    SrsRtspMethodRecord             = 0x0040,
-    SrsRtspMethodRedirect           = 0x0080,
-    SrsRtspMethodSetup              = 0x0100,
-    SrsRtspMethodSetParameter       = 0x0200,
-    SrsRtspMethodTeardown           = 0x0400,
+    SrsRtspMethodDescribe = 0x0001,
+    SrsRtspMethodAnnounce = 0x0002,
+    SrsRtspMethodGetParameter = 0x0004,
+    SrsRtspMethodOptions = 0x0008,
+    SrsRtspMethodPause = 0x0010,
+    SrsRtspMethodPlay = 0x0020,
+    SrsRtspMethodRecord = 0x0040,
+    SrsRtspMethodRedirect = 0x0080,
+    SrsRtspMethodSetup = 0x0100,
+    SrsRtspMethodSetParameter = 0x0200,
+    SrsRtspMethodTeardown = 0x0400,
 };
 
 /**

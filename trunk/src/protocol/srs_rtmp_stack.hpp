@@ -1960,7 +1960,7 @@ enum SrcPCUCEventType
     * the stream ID of the stream that became
     * functional.
     */
-    SrcPCUCStreamBegin              = 0x00,
+    SrcPCUCStreamBegin = 0x00,
 
     /**
     * The server sends this event to notify the client
@@ -1971,7 +1971,7 @@ enum SrcPCUCEventType
     * 4 bytes of event data represent the ID of the
     * stream on which playback has ended.
     */
-    SrcPCUCStreamEOF                = 0x01,
+    SrcPCUCStreamEOF = 0x01,
 
     /**
     * The server sends this event to notify the client
@@ -1981,7 +1981,7 @@ enum SrcPCUCEventType
     * that the stream is dry. The 4 bytes of event 
     * data represent the stream ID of the dry stream. 
     */
-    SrcPCUCStreamDry                = 0x02,
+    SrcPCUCStreamDry = 0x02,
 
     /**
     * The client sends this event to inform the server
@@ -1993,7 +1993,7 @@ enum SrcPCUCEventType
     * 4 bytes represent the buffer length, in 
     * milliseconds.
     */
-    SrcPCUCSetBufferLength          = 0x03, // 8bytes event-data
+    SrcPCUCSetBufferLength = 0x03, // 8bytes event-data
 
     /**
     * The server sends this event to notify the client
@@ -2001,7 +2001,7 @@ enum SrcPCUCEventType
     * 4 bytes event data represent the stream ID of
     * the recorded stream.
     */
-    SrcPCUCStreamIsRecorded         = 0x04,
+    SrcPCUCStreamIsRecorded = 0x04,
 
     /**
     * The server sends this event to test whether the
@@ -2011,7 +2011,7 @@ enum SrcPCUCEventType
     * client responds with kMsgPingResponse on
     * receiving kMsgPingRequest.  
     */
-    SrcPCUCPingRequest              = 0x06,
+    SrcPCUCPingRequest = 0x06,
 
     /**
     * The client sends this event to the server in
@@ -2019,14 +2019,14 @@ enum SrcPCUCEventType
     * a 4-byte timestamp, which was received with the
     * kMsgPingRequest request.
     */
-    SrcPCUCPingResponse             = 0x07,
+    SrcPCUCPingResponse = 0x07,
     
     /**
      * for PCUC size=3, the payload is "00 1A 01",
      * where we think the event is 0x001a, fms defined msg,
      * which has only 1bytes event data.
      */
-    SrsPCUCFmsEvent0                = 0x1a,
+    SrsPCUCFmsEvent0 = 0x1a,
 };
 
 /**

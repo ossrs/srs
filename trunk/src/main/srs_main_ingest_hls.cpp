@@ -294,7 +294,7 @@ int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
     int ret = ERROR_SUCCESS;
     
     // use stream to parse ts packet.
-    int nb_packet =  (int)nb_body / SRS_TS_PACKET_SIZE;
+    int nb_packet = (int)nb_body / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = (char*)body + (i * SRS_TS_PACKET_SIZE);
         if ((ret = stream->initialize(p, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {

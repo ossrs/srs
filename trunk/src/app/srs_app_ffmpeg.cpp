@@ -61,16 +61,16 @@ using namespace std;
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
-    ffmpeg             = ffmpeg_bin;
+    ffmpeg = ffmpeg_bin;
     
-    vbitrate         = 0;
-    vfps             = 0;
-    vwidth             = 0;
-    vheight         = 0;
-    vthreads         = 0;
-    abitrate         = 0;
-    asample_rate     = 0;
-    achannels         = 0;
+    vbitrate = 0;
+    vfps = 0;
+    vwidth = 0;
+    vheight = 0;
+    vthreads = 0;
+    abitrate = 0;
+    asample_rate = 0;
+    achannels = 0;
     
     process = new SrsProcess();
 }
@@ -112,24 +112,24 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
-    perfile             = _srs_config->get_engine_perfile(engine);
-    iformat             = _srs_config->get_engine_iformat(engine);
-    vfilter             = _srs_config->get_engine_vfilter(engine);
-    vcodec              = _srs_config->get_engine_vcodec(engine);
-    vbitrate            = _srs_config->get_engine_vbitrate(engine);
-    vfps                = _srs_config->get_engine_vfps(engine);
-    vwidth              = _srs_config->get_engine_vwidth(engine);
-    vheight             = _srs_config->get_engine_vheight(engine);
-    vthreads            = _srs_config->get_engine_vthreads(engine);
-    vprofile            = _srs_config->get_engine_vprofile(engine);
-    vpreset             = _srs_config->get_engine_vpreset(engine);
-    vparams             = _srs_config->get_engine_vparams(engine);
-    acodec              = _srs_config->get_engine_acodec(engine);
-    abitrate            = _srs_config->get_engine_abitrate(engine);
-    asample_rate        = _srs_config->get_engine_asample_rate(engine);
-    achannels           = _srs_config->get_engine_achannels(engine);
-    aparams             = _srs_config->get_engine_aparams(engine);
-    oformat             = _srs_config->get_engine_oformat(engine);
+    perfile = _srs_config->get_engine_perfile(engine);
+    iformat = _srs_config->get_engine_iformat(engine);
+    vfilter = _srs_config->get_engine_vfilter(engine);
+    vcodec = _srs_config->get_engine_vcodec(engine);
+    vbitrate = _srs_config->get_engine_vbitrate(engine);
+    vfps = _srs_config->get_engine_vfps(engine);
+    vwidth = _srs_config->get_engine_vwidth(engine);
+    vheight = _srs_config->get_engine_vheight(engine);
+    vthreads = _srs_config->get_engine_vthreads(engine);
+    vprofile = _srs_config->get_engine_vprofile(engine);
+    vpreset = _srs_config->get_engine_vpreset(engine);
+    vparams = _srs_config->get_engine_vparams(engine);
+    acodec = _srs_config->get_engine_acodec(engine);
+    abitrate = _srs_config->get_engine_abitrate(engine);
+    asample_rate = _srs_config->get_engine_asample_rate(engine);
+    achannels = _srs_config->get_engine_achannels(engine);
+    aparams = _srs_config->get_engine_aparams(engine);
+    oformat = _srs_config->get_engine_oformat(engine);
     
     // ensure the size is even.
     vwidth -= vwidth % 2;

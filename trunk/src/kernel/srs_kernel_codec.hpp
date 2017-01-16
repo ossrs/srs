@@ -41,10 +41,10 @@ class SrsBuffer;
 enum SrsCodecAudioType
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioTypeReserved                        = 2,
+    SrsCodecAudioTypeReserved = 2,
     
-    SrsCodecAudioTypeSequenceHeader                 = 0,
-    SrsCodecAudioTypeRawData                         = 1,
+    SrsCodecAudioTypeSequenceHeader = 0,
+    SrsCodecAudioTypeRawData = 1,
 };
 
 // E.4.3.1 VIDEODATA
@@ -58,14 +58,14 @@ enum SrsCodecAudioType
 enum SrsCodecVideoAVCFrame
 {
     // set to the zero to reserved, for array map.
-    SrsCodecVideoAVCFrameReserved                    = 0,
-    SrsCodecVideoAVCFrameReserved1                    = 6,
+    SrsCodecVideoAVCFrameReserved = 0,
+    SrsCodecVideoAVCFrameReserved1 = 6,
     
-    SrsCodecVideoAVCFrameKeyFrame                     = 1,
-    SrsCodecVideoAVCFrameInterFrame                 = 2,
-    SrsCodecVideoAVCFrameDisposableInterFrame         = 3,
-    SrsCodecVideoAVCFrameGeneratedKeyFrame            = 4,
-    SrsCodecVideoAVCFrameVideoInfoFrame                = 5,
+    SrsCodecVideoAVCFrameKeyFrame = 1,
+    SrsCodecVideoAVCFrameInterFrame = 2,
+    SrsCodecVideoAVCFrameDisposableInterFrame = 3,
+    SrsCodecVideoAVCFrameGeneratedKeyFrame = 4,
+    SrsCodecVideoAVCFrameVideoInfoFrame = 5,
 };
 
 // AVCPacketType IF CodecID == 7 UI8
@@ -77,11 +77,11 @@ enum SrsCodecVideoAVCFrame
 enum SrsCodecVideoAVCType
 {
     // set to the max value to reserved, for array map.
-    SrsCodecVideoAVCTypeReserved                    = 3,
+    SrsCodecVideoAVCTypeReserved = 3,
     
-    SrsCodecVideoAVCTypeSequenceHeader                 = 0,
-    SrsCodecVideoAVCTypeNALU                         = 1,
-    SrsCodecVideoAVCTypeSequenceHeaderEOF             = 2,
+    SrsCodecVideoAVCTypeSequenceHeader = 0,
+    SrsCodecVideoAVCTypeNALU = 1,
+    SrsCodecVideoAVCTypeSequenceHeaderEOF = 2,
 };
 
 // E.4.3.1 VIDEODATA
@@ -96,19 +96,19 @@ enum SrsCodecVideoAVCType
 enum SrsCodecVideo
 {
     // set to the zero to reserved, for array map.
-    SrsCodecVideoReserved                = 0,
-    SrsCodecVideoReserved1                = 1,
-    SrsCodecVideoReserved2                = 9,
+    SrsCodecVideoReserved = 0,
+    SrsCodecVideoReserved1 = 1,
+    SrsCodecVideoReserved2 = 9,
     
     // for user to disable video, for example, use pure audio hls.
-    SrsCodecVideoDisabled                = 8,
+    SrsCodecVideoDisabled = 8,
     
-    SrsCodecVideoSorensonH263             = 2,
-    SrsCodecVideoScreenVideo             = 3,
-    SrsCodecVideoOn2VP6                 = 4,
+    SrsCodecVideoSorensonH263 = 2,
+    SrsCodecVideoScreenVideo = 3,
+    SrsCodecVideoOn2VP6 = 4,
     SrsCodecVideoOn2VP6WithAlphaChannel = 5,
-    SrsCodecVideoScreenVideoVersion2     = 6,
-    SrsCodecVideoAVC                     = 7,
+    SrsCodecVideoScreenVideoVersion2 = 6,
+    SrsCodecVideoAVC = 7,
 };
 std::string srs_codec_video2str(SrsCodecVideo codec);
 
@@ -134,25 +134,25 @@ std::string srs_codec_video2str(SrsCodecVideo codec);
 enum SrsCodecAudio
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioReserved1                = 16,
+    SrsCodecAudioReserved1 = 16,
     
     // for user to disable audio, for example, use pure video hls.
-    SrsCodecAudioDisabled                   = 17,
+    SrsCodecAudioDisabled = 17,
     
-    SrsCodecAudioLinearPCMPlatformEndian             = 0,
-    SrsCodecAudioADPCM                                 = 1,
-    SrsCodecAudioMP3                                 = 2,
-    SrsCodecAudioLinearPCMLittleEndian                 = 3,
-    SrsCodecAudioNellymoser16kHzMono                 = 4,
-    SrsCodecAudioNellymoser8kHzMono                 = 5,
-    SrsCodecAudioNellymoser                         = 6,
-    SrsCodecAudioReservedG711AlawLogarithmicPCM        = 7,
-    SrsCodecAudioReservedG711MuLawLogarithmicPCM    = 8,
-    SrsCodecAudioReserved                             = 9,
-    SrsCodecAudioAAC                                 = 10,
-    SrsCodecAudioSpeex                                 = 11,
-    SrsCodecAudioReservedMP3_8kHz                     = 14,
-    SrsCodecAudioReservedDeviceSpecificSound         = 15,
+    SrsCodecAudioLinearPCMPlatformEndian = 0,
+    SrsCodecAudioADPCM = 1,
+    SrsCodecAudioMP3 = 2,
+    SrsCodecAudioLinearPCMLittleEndian = 3,
+    SrsCodecAudioNellymoser16kHzMono = 4,
+    SrsCodecAudioNellymoser8kHzMono = 5,
+    SrsCodecAudioNellymoser = 6,
+    SrsCodecAudioReservedG711AlawLogarithmicPCM = 7,
+    SrsCodecAudioReservedG711MuLawLogarithmicPCM = 8,
+    SrsCodecAudioReserved = 9,
+    SrsCodecAudioAAC = 10,
+    SrsCodecAudioSpeex = 11,
+    SrsCodecAudioReservedMP3_8kHz = 14,
+    SrsCodecAudioReservedDeviceSpecificSound = 15,
 };
 std::string srs_codec_audio2str(SrsCodecAudio codec);
 
@@ -167,12 +167,12 @@ std::string srs_codec_audio2str(SrsCodecAudio codec);
 enum SrsCodecAudioSampleRate
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleRateReserved                 = 4,
+    SrsCodecAudioSampleRateReserved = 4,
     
-    SrsCodecAudioSampleRate5512                     = 0,
-    SrsCodecAudioSampleRate11025                    = 1,
-    SrsCodecAudioSampleRate22050                    = 2,
-    SrsCodecAudioSampleRate44100                    = 3,
+    SrsCodecAudioSampleRate5512 = 0,
+    SrsCodecAudioSampleRate11025 = 1,
+    SrsCodecAudioSampleRate22050 = 2,
+    SrsCodecAudioSampleRate44100 = 3,
 };
 
 /**
@@ -257,10 +257,10 @@ extern int aac_sample_rates[];
 enum SrsCodecAudioSampleSize
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleSizeReserved                 = 2,
+    SrsCodecAudioSampleSizeReserved = 2,
     
-    SrsCodecAudioSampleSize8bit                     = 0,
-    SrsCodecAudioSampleSize16bit                    = 1,
+    SrsCodecAudioSampleSize8bit = 0,
+    SrsCodecAudioSampleSize16bit = 1,
 };
 
 /**
@@ -272,10 +272,10 @@ enum SrsCodecAudioSampleSize
 enum SrsCodecAudioSoundType
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSoundTypeReserved                  = 2, 
+    SrsCodecAudioSoundTypeReserved = 2, 
     
-    SrsCodecAudioSoundTypeMono                      = 0,
-    SrsCodecAudioSoundTypeStereo                    = 1,
+    SrsCodecAudioSoundTypeMono = 0,
+    SrsCodecAudioSoundTypeStereo = 1,
 };
 
 /**
