@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_HTTP_FLV_STREAM_BUFFER 4096
 
@@ -216,7 +217,7 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
         }
         
         SrsSharedPtrMessage* msg = NULL;
-        if ((ret = sdk->rtmp_create_msg(type, time, data, size, &msg)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
             return ret;
         }
         

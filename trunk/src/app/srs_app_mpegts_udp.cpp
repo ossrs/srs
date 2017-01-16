@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_raw_avc.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 SrsMpegtsQueue::SrsMpegtsQueue()
 {
@@ -571,7 +572,7 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* da
     
     SrsSharedPtrMessage* msg = NULL;
     
-    if ((ret = sdk->rtmp_create_msg(type, timestamp, data, size, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
         srs_error("mpegts: create shared ptr msg failed. ret=%d", ret);
         return ret;
     }

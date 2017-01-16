@@ -270,20 +270,6 @@ int SrsSimpleRtmpClient::sid()
     return stream_id;
 }
 
-int SrsSimpleRtmpClient::rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, SrsSharedPtrMessage** pmsg)
-{
-    *pmsg = NULL;
-    
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, pmsg)) != ERROR_SUCCESS) {
-        srs_error("sdk: create shared ptr msg failed. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
 int SrsSimpleRtmpClient::recv_message(SrsCommonMessage** pmsg)
 {
     return client->recv_message(pmsg);

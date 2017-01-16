@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -624,7 +625,7 @@ int SrsRtspConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, i
     
     SrsSharedPtrMessage* msg = NULL;
 
-    if ((ret = sdk->rtmp_create_msg(type, timestamp, data, size, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
         srs_error("rtsp: create shared ptr msg failed. ret=%d", ret);
         return ret;
     }

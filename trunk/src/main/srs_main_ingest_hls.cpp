@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_raw_avc.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -1185,7 +1186,7 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
     
     SrsSharedPtrMessage* msg = NULL;
     
-    if ((ret = sdk->rtmp_create_msg(type, timestamp, data, size, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
         srs_error("mpegts: create shared ptr msg failed. ret=%d", ret);
         return ret;
     }
