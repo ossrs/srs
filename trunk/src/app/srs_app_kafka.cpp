@@ -135,14 +135,13 @@ SrsKafkaPartition::SrsKafkaPartition()
     id = broker = 0;
     port = SRS_CONSTS_KAFKA_DEFAULT_PORT;
     
-    transport = new SrsTcpClient();
-    kafka = new SrsKafkaClient(transport);
+    transport = NULL;
+    kafka = NULL;
 }
 
 SrsKafkaPartition::~SrsKafkaPartition()
 {
-    srs_freep(kafka);
-    srs_freep(transport);
+    disconnect();
 }
 
 string SrsKafkaPartition::hostport()
@@ -158,13 +157,15 @@ int SrsKafkaPartition::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    if (transport->connected()) {
+    if (transport) {
         return ret;
     }
+    transport = new SrsTcpClient(host, port, SRS_KAFKA_PRODUCER_TIMEOUT);
+    kafka = new SrsKafkaClient(transport);
     
-    int64_t timeout = SRS_KAFKA_PRODUCER_TIMEOUT * 1000;
-    if ((ret = transport->connect(host, port, timeout)) != ERROR_SUCCESS) {
-        srs_error("connect to %s partition=%d failed, timeout=%"PRId64". ret=%d", hostport().c_str(), id, timeout, ret);
+    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+        disconnect();
+        srs_error("connect to %s partition=%d failed. ret=%d", hostport().c_str(), id, ret);
         return ret;
     }
     
@@ -176,6 +177,12 @@ int SrsKafkaPartition::connect()
 int SrsKafkaPartition::flush(SrsKafkaPartitionCache* pc)
 {
     return kafka->write_messages(topic, id, *pc);
+}
+
+void SrsKafkaPartition::disconnect()
+{
+    srs_freep(kafka);
+    srs_freep(transport);
 }
 
 SrsKafkaMessage::SrsKafkaMessage(SrsKafkaProducer* p, int k, SrsJsonObject* j)
@@ -562,12 +569,6 @@ int SrsKafkaProducer::request_metadata()
         return ret;
     }
     
-    SrsTcpClient* transport = new SrsTcpClient();
-    SrsAutoFree(SrsTcpClient, transport);
-    
-    SrsKafkaClient* kafka = new SrsKafkaClient(transport);
-    SrsAutoFree(SrsKafkaClient, kafka);
-    
     std::string server;
     int port = SRS_CONSTS_KAFKA_DEFAULT_PORT;
     if (true) {
@@ -584,8 +585,14 @@ int SrsKafkaProducer::request_metadata()
                   senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
     }
     
+    SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_CONSTS_KAFKA_TIMEOUT_US / 1000);
+    SrsAutoFree(SrsTcpClient, transport);
+    
+    SrsKafkaClient* kafka = new SrsKafkaClient(transport);
+    SrsAutoFree(SrsKafkaClient, kafka);
+    
     // reconnect to kafka server.
-    if ((ret = transport->connect(server, port, SRS_CONSTS_KAFKA_TIMEOUT_US)) != ERROR_SUCCESS) {
+    if ((ret = transport->connect()) != ERROR_SUCCESS) {
         srs_error("kafka connect %s:%d failed. ret=%d", server.c_str(), port, ret);
         return ret;
     }

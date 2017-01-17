@@ -197,7 +197,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
     trd = new SrsOneCycleThread("rtsp", this);
 
     req = NULL;
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
     vjitter = new SrsRtspJitter();
     ajitter = new SrsRtspJitter();
 
@@ -209,6 +209,8 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 
 SrsRtspConn::~SrsRtspConn()
 {
+    close();
+    
     srs_close_stfd(stfd);
 
     srs_freep(video_rtp);
@@ -623,6 +625,10 @@ int SrsRtspConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, i
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsSharedPtrMessage* msg = NULL;
 
     if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
@@ -633,20 +639,19 @@ int SrsRtspConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, i
 
     // send out encoded msg.
     if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        close();
         return ret;
     }
     
     return ret;
 }
 
-// TODO: FIXME: merge all client code.
 int SrsRtspConn::connect()
 {
     int ret = ERROR_SUCCESS;
 
-    // when ok, ignore.
-    // TODO: FIXME: support reconnect.
-    if (sdk->connected()) {
+    // Ignore when connected.
+    if (sdk) {
         return ret;
     }
     
@@ -666,18 +671,27 @@ int SrsRtspConn::connect()
     // connect host.
     int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    if ((ret = sdk->connect(url, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        close();
         srs_error("rtsp: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
     if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        close();
         srs_error("rtsp: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;
     }
 
     return write_sequence_header();
+}
+
+void SrsRtspConn::close()
+{
+    srs_freep(sdk);
 }
 
 SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)

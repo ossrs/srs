@@ -177,9 +177,10 @@ private:
     virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
 private:
-    // connect to rtmp output url. 
-    // @remark ignore when not connected, reconnect when disconnected.
+    // Connect to RTMP server.
     virtual int connect();
+    // Close the connection to RTMP server.
+    virtual void close();
 };
 
 /**

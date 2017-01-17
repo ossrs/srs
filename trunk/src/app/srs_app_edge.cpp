@@ -73,14 +73,12 @@ SrsEdgeUpstream::~SrsEdgeUpstream()
 SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream(string r)
 {
     redirect = r;
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
 }
 
 SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
 {
     close();
-    
-    srs_freep(sdk);
 }
 
 int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
@@ -126,9 +124,12 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         url = srs_generate_rtmp_url(server, port, vhost, req->app, req->stream);
     }
     
+    srs_freep(sdk);
     int64_t cto = SRS_EDGE_INGESTER_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    if ((ret = sdk->connect(url, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_error("edge pull %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
@@ -153,7 +154,7 @@ int SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppack
 
 void SrsEdgeRtmpUpstream::close()
 {
-    sdk->close();
+    srs_freep(sdk);
 }
 
 void SrsEdgeRtmpUpstream::set_recv_timeout(int64_t timeout)
@@ -406,7 +407,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     req = NULL;
     send_error_code = ERROR_SUCCESS;
     
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
     lb = new SrsLbRoundRobin();
     pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
@@ -416,7 +417,6 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
     
-    srs_freep(sdk);
     srs_freep(lb);
     srs_freep(pthread);
     srs_freep(queue);
@@ -464,9 +464,12 @@ int SrsEdgeForwarder::start()
     }
     
     // open socket.
+    srs_freep(sdk);
     int64_t cto = SRS_EDGE_FORWARDER_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_TIMEOUT_US;
-    if ((ret = sdk->connect(url, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_warn("edge push %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
@@ -482,8 +485,9 @@ int SrsEdgeForwarder::start()
 void SrsEdgeForwarder::stop()
 {
     pthread->stop();
-    sdk->close();
     queue->clear();
+    
+    srs_freep(sdk);
 }
 
 #define SYS_MAX_EDGE_SEND_MSGS 128

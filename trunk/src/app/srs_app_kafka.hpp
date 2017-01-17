@@ -57,6 +57,7 @@ struct SrsKafkaPartition
 {
 private:
     std::string ep;
+    // Not NULL when connected.
     SrsTcpClient* transport;
     SrsKafkaClient* kafka;
 public:
@@ -73,6 +74,8 @@ public:
     virtual std::string hostport();
     virtual int connect();
     virtual int flush(SrsKafkaPartitionCache* pc);
+private:
+    virtual void disconnect();
 };
 
 /**

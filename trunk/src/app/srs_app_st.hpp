@@ -205,34 +205,41 @@ public:
 };
 
 /**
- * the common tcp client, to connect to specified TCP server,
- * reconnect and close the connection.
+ * The client to connect to server over TCP.
+ * User must never reuse the client when close it.
+ * Usage:
+ *      SrsTcpClient client("127.0.0.1", 1935,9000);
+ *      client.connect();
+ *      client.write("Hello world!", 12, NULL);
+ *      client.read(buf, 4096, NULL);
  */
 class SrsTcpClient : public ISrsProtocolReaderWriter
 {
 private:
     st_netfd_t stfd;
     SrsStSocket* io;
+private:
+    std::string host;
+    int port;
+    int64_t timeout;
 public:
-    SrsTcpClient();
+    /**
+     * Constructor.
+     * @param h the ip or hostname of server.
+     * @param p the port to connect to.
+     * @param tm the timeout in ms.
+     */
+    SrsTcpClient(std::string h, int p, int64_t tm);
     virtual ~SrsTcpClient();
 public:
     /**
-     * whether connected to server.
+     * Connect to server over TCP.
+     * @remark We will close the exists connection before do connect.
      */
-    virtual bool connected();
-public:
+    virtual int connect();
     /**
-     * connect to server over TCP.
-     * @param host the ip or hostname of server.
-     * @param port the port to connect to.
-     * @param timeout the timeout in us.
-     * @remark ignore when connected.
-     */
-    virtual int connect(std::string host, int port, int64_t timeout);
-    /**
-     * close the connection.
-     * @remark ignore when closed.
+     * Close the connection to server.
+     * @remark User should never use the client when close it.
      */
     virtual void close();
 // interface ISrsProtocolReaderWriter

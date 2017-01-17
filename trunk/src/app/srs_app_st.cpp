@@ -421,10 +421,14 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     return ret;
 }
 
-SrsTcpClient::SrsTcpClient()
+SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
 {
     io = NULL;
     stfd = NULL;
+    
+    host = h;
+    port = p;
+    timeout = tm;
 }
 
 SrsTcpClient::~SrsTcpClient()
@@ -432,26 +436,19 @@ SrsTcpClient::~SrsTcpClient()
     close();
 }
 
-bool SrsTcpClient::connected()
-{
-    return io;
-}
-
-int SrsTcpClient::connect(string host, int port, int64_t timeout)
+int SrsTcpClient::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    // when connected, ignore.
-    if (io) {
+    close();
+    
+    srs_assert(stfd == NULL);
+    if ((ret = srs_socket_connect(host, port, timeout * 1000, &stfd)) != ERROR_SUCCESS) {
+        srs_error("connect tcp://%s:%d failed, to=%"PRId64"ms. ret=%d", host.c_str(), port, timeout, ret);
         return ret;
     }
     
-    // connect host.
-    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_error("connect server %s:%d failed. ret=%d", host.c_str(), port, ret);
-        return ret;
-    }
-    
+    srs_assert(io == NULL);
     io = new SrsStSocket(stfd);
     
     return ret;
@@ -459,7 +456,7 @@ int SrsTcpClient::connect(string host, int port, int64_t timeout)
 
 void SrsTcpClient::close()
 {
-    // when closed, ignore.
+    // Ignore when already closed.
     if (!io) {
         return;
     }

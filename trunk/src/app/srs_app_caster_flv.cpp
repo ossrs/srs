@@ -120,7 +120,7 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
     : SrsHttpConn(cm, fd, m, cip)
 {
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
     pprint = SrsPithyPrint::create_caster();
 }
 
@@ -181,9 +181,13 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_freep(sdk);
+    
     int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    if ((ret = sdk->connect(output, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(output, cto / 1000, sto / 1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_error("flv: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }

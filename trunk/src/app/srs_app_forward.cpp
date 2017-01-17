@@ -57,7 +57,7 @@ SrsForwarder::SrsForwarder(SrsSource* s)
     req = NULL;
     sh_video = sh_audio = NULL;
 
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
     pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
@@ -236,9 +236,12 @@ int SrsForwarder::cycle()
         url = srs_generate_rtmp_url(server, port, req->vhost, req->app, req->stream);
     }
     
+    srs_freep(sdk);
     int64_t cto = SRS_FORWARDER_SLEEP_US;
     int64_t sto = SRS_CONSTS_RTMP_TIMEOUT_US;
-    if ((ret = sdk->connect(url, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(url, cto, sto);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_warn("forward failed, url=%s, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }

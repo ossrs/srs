@@ -46,11 +46,19 @@ class SrsKbps;
 #define SRS_HTTP_CLIENT_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 /**
-* http client to GET/POST/PUT/DELETE uri
-*/
+ * The client to GET/POST/PUT/DELETE over HTTP.
+ * @remark We will reuse the TCP transport until initialize or channel error,
+ *      such as send/recv failed.
+ * Usage:
+ *      SrsHttpClient hc;
+ *      hc.initialize("127.0.0.1", 80, 9000);
+ *      hc.post("/api/v1/version", "Hello world!", NULL);
+ */
 class SrsHttpClient
 {
 private:
+    // The underlayer TCP transport, set to NULL when disconnect, or never not NULL when connected.
+    // We will disconnect transport when initialize or channel error, such as send/recv error.
     SrsTcpClient* transport;
     SrsHttpParser* parser;
     std::map<std::string, std::string> headers;
@@ -65,12 +73,13 @@ public:
     virtual ~SrsHttpClient();
 public:
     /**
-     * initialize the client, connect to host and port.
+     * Initliaze the client, disconnect the transport, renew the HTTP parser.
      * @remark we will set default values in headers, which can be override by set_header.
      */
     virtual int initialize(std::string h, int p, int64_t t_us = SRS_HTTP_CLIENT_TIMEOUT_US);
     /**
-     * set the header[k]=v and return the client itself.
+     * Set HTTP request header in header[k]=v.
+     * @return the HTTP client itself.
      */
     virtual SrsHttpClient* set_header(std::string k, std::string v);
 public:

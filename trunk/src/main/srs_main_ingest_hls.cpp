@@ -647,34 +647,8 @@ private:
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 public:
-    SrsIngestSrsOutput(SrsHttpUri* rtmp) {
-        out_rtmp = rtmp;
-        disconnected = false;
-        raw_aac_dts = srs_update_system_time_ms();
-        
-        req = NULL;
-        sdk = new SrsSimpleRtmpClient();
-        
-        avc = new SrsRawH264Stream();
-        aac = new SrsRawAacStream();
-        h264_sps_changed = false;
-        h264_pps_changed = false;
-        h264_sps_pps_sent = false;
-    }
-    virtual ~SrsIngestSrsOutput() {
-        close();
-        
-        srs_freep(sdk);
-        srs_freep(avc);
-        srs_freep(aac);
-        
-        std::multimap<int64_t, SrsTsMessage*>::iterator it;
-        for (it = queue.begin(); it != queue.end(); ++it) {
-            SrsTsMessage* msg = it->second;
-            srs_freep(msg);
-        }
-        queue.clear();
-    }
+    SrsIngestSrsOutput(SrsHttpUri* rtmp);
+    virtual ~SrsIngestSrsOutput();
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
@@ -704,6 +678,37 @@ private:
     // close the connected io and rtmp to ready to be re-connect.
     virtual void close();
 };
+
+SrsIngestSrsOutput::SrsIngestSrsOutput(SrsHttpUri* rtmp)
+{
+    out_rtmp = rtmp;
+    disconnected = false;
+    raw_aac_dts = srs_update_system_time_ms();
+    
+    req = NULL;
+    sdk = NULL;
+    
+    avc = new SrsRawH264Stream();
+    aac = new SrsRawAacStream();
+    h264_sps_changed = false;
+    h264_pps_changed = false;
+    h264_sps_pps_sent = false;
+}
+
+SrsIngestSrsOutput::~SrsIngestSrsOutput()
+{
+    close();
+    
+    srs_freep(avc);
+    srs_freep(aac);
+    
+    std::multimap<int64_t, SrsTsMessage*>::iterator it;
+    for (it = queue.begin(); it != queue.end(); ++it) {
+        SrsTsMessage* msg = it->second;
+        srs_freep(msg);
+    }
+    queue.clear();
+}
 
 int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
 {
@@ -1184,6 +1189,10 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsSharedPtrMessage* msg = NULL;
     
     if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
@@ -1196,6 +1205,7 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
     
     // send out encoded msg.
     if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        close();
         srs_error("send RTMP type=%d, dts=%d, size=%d failed. ret=%d", type, timestamp, size, ret);
         return ret;
     }
@@ -1207,9 +1217,8 @@ int SrsIngestSrsOutput::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    // when ok, ignore.
-    // TODO: FIXME: should reconnect when disconnected.
-    if (sdk->connected()) {
+    // Ignore when connected.
+    if (sdk) {
         return ret;
     }
     
@@ -1219,13 +1228,17 @@ int SrsIngestSrsOutput::connect()
     // connect host.
     int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    if ((ret = sdk->connect(url, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        close();
         srs_error("mpegts: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
     if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        close();
         srs_error("mpegts: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;
     }
@@ -1235,11 +1248,9 @@ int SrsIngestSrsOutput::connect()
 
 void SrsIngestSrsOutput::close()
 {
-    srs_trace("close output=%s", out_rtmp->get_url().c_str());
     h264_sps_pps_sent = false;
-    
     srs_freep(req);
-    sdk->close();
+    srs_freep(sdk);
 }
 
 // the context for ingest hls stream.

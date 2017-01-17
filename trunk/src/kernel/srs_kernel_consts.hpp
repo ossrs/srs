@@ -69,6 +69,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // to avoid death connection.
 
 // the common io timeout, for both recv and send.
+// TODO: FIXME: use ms for timeout.
 #define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to wait for client control message,
@@ -409,6 +410,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
 
 // the common io timeout, for both recv and send.
+// TODO: FIXME: use ms for timeout.
 #define SRS_CONSTS_KAFKA_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 #endif

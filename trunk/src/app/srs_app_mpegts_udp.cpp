@@ -133,8 +133,7 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     buffer = new SrsSimpleStream();
     output = _srs_config->get_stream_caster_output(c);
     
-    req = NULL;
-    sdk = new SrsSimpleRtmpClient();
+    sdk = NULL;
     
     avc = new SrsRawH264Stream();
     aac = new SrsRawAacStream();
@@ -149,7 +148,6 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
     close();
 
-    srs_freep(sdk);
     srs_freep(buffer);
     srs_freep(stream);
     srs_freep(context);
@@ -570,6 +568,10 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* da
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsSharedPtrMessage* msg = NULL;
     
     if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
@@ -597,6 +599,7 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* da
     
         // send out encoded msg.
         if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+            close();
             return ret;
         }
     }
@@ -608,20 +611,23 @@ int SrsMpegtsOverUdp::connect()
 {
     int ret = ERROR_SUCCESS;
 
-    // when ok, ignore.
-    // TODO: FIXME: should reconnect when disconnected.
-    if (sdk->connected()) {
+    // Ignore when connected.
+    if (sdk) {
         return ret;
     }
     
     int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    if ((ret = sdk->connect(output, cto, sto)) != ERROR_SUCCESS) {
+    sdk = new SrsSimpleRtmpClient(output, cto/1000, sto/1000);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        close();
         srs_error("mpegts: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }
     
     if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        close();
         srs_error("mpegts: publish failed. ret=%d", ret);
         return ret;
     }
@@ -631,8 +637,7 @@ int SrsMpegtsOverUdp::connect()
 
 void SrsMpegtsOverUdp::close()
 {
-    srs_freep(req);
-    sdk->close();
+    srs_freep(sdk);
 }
 
 #endif

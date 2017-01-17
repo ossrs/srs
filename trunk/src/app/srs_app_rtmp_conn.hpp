@@ -63,10 +63,20 @@ class ISrsKafkaCluster;
 #endif
 
 /**
- * the simple rtmp client stub, use SrsRtmpClient and provides high level APIs.
+ * The simple RTMP client, provides friendly APIs.
+ * @remark Should never use client when closed.
+ * Usage:
+ *      SrsSimpleRtmpClient client("rtmp://127.0.0.1:1935/live/livestream", 3000, 9000);
+ *      client.connect();
+ *      client.play();
+ *      client.close();
  */
 class SrsSimpleRtmpClient
 {
+private:
+    std::string url;
+    int64_t connect_timeout;
+    int64_t stream_timeout;
 private:
     SrsRequest* req;
     SrsTcpClient* transport;
@@ -74,15 +84,19 @@ private:
     SrsKbps* kbps;
     int stream_id;
 public:
-    SrsSimpleRtmpClient();
+    // Constructor.
+    // @param u The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
+    // @param ctm The timeout in ms to connect to server.
+    // @param stm The timeout in ms to delivery A/V stream.
+    SrsSimpleRtmpClient(std::string u, int64_t ctm, int64_t stm);
     virtual ~SrsSimpleRtmpClient();
 public:
-    virtual int connect(std::string url, int64_t connect_timeout, int64_t stream_timeout);
+    // Connect, handshake and connect app to RTMP server.
+    // @remark We always close the transport.
+    virtual int connect();
+    virtual void close();
 private:
     virtual int connect_app();
-public:
-    virtual bool connected();
-    virtual void close();
 public:
     virtual int publish();
     virtual int play();
@@ -175,8 +189,8 @@ private:
     virtual void set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
-    virtual int connect_server(std::string hostport, SrsTcpClient* transport);
     virtual int do_token_traverse_auth(SrsRtmpClient* client);
+private:
     /**
      * when the connection disconnect, call this method.
      * e.g. log msg of connection and report to other system.

@@ -183,6 +183,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
 * v3.0, 2017-01-11, fix [#735][bug #735] config transform refer_publish invalid. 3.0.14
 * v3.0, 2017-01-06, for [#730][bug #730] support config in/out ack size. 3.0.13
 * v3.0, 2017-01-06, for [#711][bug #711] support perfile for transcode. 3.0.12
@@ -1365,7 +1366,8 @@ Winlin
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
-[bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
+[bug #742]: https://github.com/ossrs/srs/issues/742
+[bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 

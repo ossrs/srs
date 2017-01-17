@@ -77,50 +77,44 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
-SrsSimpleRtmpClient::SrsSimpleRtmpClient()
+SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm)
 {
-    req = NULL;
-    client = NULL;
     kbps = new SrsKbps();
     
-    transport = new SrsTcpClient();
+    url = u;
+    connect_timeout = ctm;
+    stream_timeout = stm;
+    
+    req = new SrsRequest();
+    srs_parse_rtmp_url(url, req->tcUrl, req->stream);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
+    
+    transport = NULL;
+    client = NULL;
+    
     stream_id = 0;
 }
 
 SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 {
     close();
-    
     srs_freep(kbps);
-    srs_freep(transport);
-    srs_freep(client);
 }
 
-int SrsSimpleRtmpClient::connect(string url, int64_t connect_timeout, int64_t stream_timeout)
+int SrsSimpleRtmpClient::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    // when ok, ignore.
-    // TODO: FIXME: should reconnect when disconnected.
-    if (transport->connected()) {
-        return ret;
-    }
+    close();
     
-    // parse uri
-    srs_freep(req);
-    req = new SrsRequest();
-    srs_parse_rtmp_url(url, req->tcUrl, req->stream);
-    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
-    
-    // connect host.
-    if ((ret = transport->connect(req->host, req->port, connect_timeout)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    srs_freep(client);
+    transport = new SrsTcpClient(req->host, req->port, connect_timeout);
     client = new SrsRtmpClient(transport);
-    
     kbps->set_io(transport, transport);
+    
+    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+        close();
+        return ret;
+    }
     
     client->set_recv_timeout(stream_timeout);
     client->set_send_timeout(stream_timeout);
@@ -140,6 +134,13 @@ int SrsSimpleRtmpClient::connect(string url, int64_t connect_timeout, int64_t st
     }
     
     return ret;
+}
+
+void SrsSimpleRtmpClient::close()
+{
+    srs_freep(client);
+    srs_freep(transport);
+    kbps->set_io(NULL, NULL);
 }
 
 int SrsSimpleRtmpClient::connect_app()
@@ -195,19 +196,6 @@ int SrsSimpleRtmpClient::connect_app()
     }
     
     return ret;
-}
-
-bool SrsSimpleRtmpClient::connected()
-{
-    return transport->connected();
-}
-
-void SrsSimpleRtmpClient::close()
-{
-    transport->close();
-    
-    srs_freep(client);
-    srs_freep(req);
 }
 
 int SrsSimpleRtmpClient::publish()
@@ -1464,48 +1452,35 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     
     srs_assert(req);
     
-    SrsTcpClient* transport = new SrsTcpClient();
-    SrsAutoFree(SrsTcpClient, transport);
-    
     vector<string> args = _srs_config->get_vhost_edge_origin(req->vhost)->args;
+    if (args.empty()) {
+        return ret;
+    }
+    
     for (int i = 0; i < (int)args.size(); i++) {
         string hostport = args.at(i);
-        if ((ret = connect_server(hostport, transport)) == ERROR_SUCCESS) {
-            break;
+        
+        // select the origin.
+        string server;
+        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        srs_parse_hostport(hostport, server, port);
+    
+        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US / 1000);
+        SrsAutoFree(SrsTcpClient, transport);
+        
+        if ((ret = transport->connect()) != ERROR_SUCCESS) {
+            srs_warn("Illegal edge token, tcUrl=%s to server=%s, port=%d. ret=%d", req->tcUrl.c_str(), server.c_str(), port, ret);
+            continue;
         }
+        
+        SrsRtmpClient* client = new SrsRtmpClient(transport);
+        SrsAutoFree(SrsRtmpClient, client);
+        
+        return do_token_traverse_auth(client);
     }
-    if (ret != ERROR_SUCCESS) {
-        srs_warn("token traverse connect failed. ret=%d", ret);
-        return ret;
-    }
     
-    SrsRtmpClient* client = new SrsRtmpClient(transport);
-    SrsAutoFree(SrsRtmpClient, client);
-    
-    return do_token_traverse_auth(client);
-}
-
-int SrsRtmpConn::connect_server(string hostport, SrsTcpClient* transport)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
-    srs_assert(conf);
-    
-    // select the origin.
-    string server;
-    int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    srs_parse_hostport(hostport, server, port);
-    
-    // open socket.
-    int64_t timeout = SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US;
-    if ((ret = transport->connect(server, port, timeout)) != ERROR_SUCCESS) {
-        srs_warn("edge token traverse failed, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
-        return ret;
-    }
-    srs_info("edge token auth connected, url=%s/%s, server=%s:%d", req->tcUrl.c_str(), req->stream.c_str(), server.c_str(), port);
-    
+    ret = ERROR_EDGE_PORT_INVALID;
+    srs_error("Illegal edge token, server=%d. ret=%d", (int)args.size(), ret);
     return ret;
 }
 
