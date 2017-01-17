@@ -48,7 +48,7 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when error, forwarder sleep for a while and retry.
-#define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_FORWARDER_CIMS (3000)
 
 SrsForwarder::SrsForwarder(SrsSource* s)
 {
@@ -58,7 +58,7 @@ SrsForwarder::SrsForwarder(SrsSource* s)
     sh_video = sh_audio = NULL;
 
     sdk = NULL;
-    pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_SLEEP_US);
+    pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_CIMS);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
 }
@@ -237,8 +237,8 @@ int SrsForwarder::cycle()
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_FORWARDER_SLEEP_US;
-    int64_t sto = SRS_CONSTS_RTMP_TIMEOUT_US;
+    int64_t cto = SRS_FORWARDER_CIMS;
+    int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
@@ -267,7 +267,7 @@ int SrsForwarder::forward()
 {
     int ret = ERROR_SUCCESS;
     
-    sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_forwarder();
     SrsAutoFree(SrsPithyPrint, pprint);

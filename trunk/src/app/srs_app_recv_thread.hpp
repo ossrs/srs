@@ -86,9 +86,12 @@ protected:
     SrsReusableThread2* trd;
     ISrsMessageHandler* handler;
     SrsRtmpServer* rtmp;
+    // The recv timeout in ms.
     int timeout;
 public:
-    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms);
+    // Constructor.
+    // @param tm The receive timeout in ms.
+    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int tm);
     virtual ~SrsRecvThread();
 public:
     virtual int cid();

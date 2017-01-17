@@ -43,12 +43,12 @@ using namespace std;
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
-#define SRS_HTTP_HEADER_BUFFER        1024
-#define SRS_HTTP_READ_BUFFER    4096
-#define SRS_HTTP_BODY_BUFFER        32 * 1024
+#define SRS_HTTP_HEADER_BUFFER 1024
+#define SRS_HTTP_READ_BUFFER 4096
+#define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
-// the timeout for hls notify, in us.
-#define SRS_HLS_NOTIFY_TIMEOUT_US (int64_t)(10*1000*1000LL)
+// the timeout for hls notify, in ms.
+#define SRS_HLS_NOTIFY_TMMS (10 * 1000)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -383,7 +383,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     }
     
     SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT_US)) != ERROR_SUCCESS) {
+    if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TMMS)) != ERROR_SUCCESS) {
         return ret;
     }
     

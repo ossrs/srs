@@ -39,7 +39,7 @@ using namespace std;
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_AUTO_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_AUTO_INGESTER_CIMS (3000)
 
 SrsIngesterFFMPEG::SrsIngesterFFMPEG()
 {
@@ -109,7 +109,7 @@ SrsIngester::SrsIngester()
     
     expired = false;
     
-    pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US);
+    pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_CIMS);
     pprint = SrsPithyPrint::create_ingester();
 }
 

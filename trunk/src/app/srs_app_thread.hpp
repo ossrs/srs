@@ -162,7 +162,7 @@ public:
  *       2. must manually stop the thread when started it.
  *       for example:
  *           class SrsIngester : public ISrsReusableThreadHandler {
- *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US); }
+ *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_CIMS); }
  *               public: virtual int start() { return pthread->start(); }
  *               public: virtual void stop() { pthread->stop(); }
  *               public: virtual int cycle() {
@@ -198,7 +198,7 @@ private:
     internal::SrsThread* pthread;
     ISrsReusableThreadHandler* handler;
 public:
-    SrsReusableThread(const char* n, ISrsReusableThreadHandler* h, int64_t interval_us = 0);
+    SrsReusableThread(const char* n, ISrsReusableThreadHandler* h, int64_t cims = 0);
     virtual ~SrsReusableThread();
 public:
     /**
@@ -244,7 +244,7 @@ public:
  *       2. must manually stop the thread when started it.
  *       for example:
  *           class SrsIngester : public ISrsReusableThreadHandler {
- *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US); }
+ *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_CIMS); }
  *               public: virtual int start() { return pthread->start(); }
  *               public: virtual void stop() { pthread->stop(); }
  *               public: virtual int cycle() {
@@ -287,7 +287,7 @@ private:
     internal::SrsThread* pthread;
     ISrsReusableThread2Handler* handler;
 public:
-    SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t interval_us = 0);
+    SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t cims = 0);
     virtual ~SrsReusableThread2();
 public:
     /**

@@ -61,11 +61,11 @@ namespace internal
     {
     }
     
-    SrsThread::SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable)
+    SrsThread::SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t ims, bool joinable)
     {
         _name = name;
         handler = thread_handler;
-        cycle_interval_us = interval_us;
+        cims = ims;
         
         tid = NULL;
         loop = false;
@@ -231,10 +231,11 @@ namespace internal
                 break;
             }
             
+            // Should never use no timeout, just ignore it.
             // to improve performance, donot sleep when interval is zero.
             // @see: https://github.com/ossrs/srs/issues/237
-            if (cycle_interval_us != 0) {
-                st_usleep(cycle_interval_us);
+            if (cims != 0 && cims != SRS_CONSTS_NO_TMMS) {
+                st_usleep(cims * 1000);
             }
         }
         
@@ -268,54 +269,60 @@ namespace internal
 SrsStSocket::SrsStSocket(st_netfd_t client_stfd)
 {
     stfd = client_stfd;
-    send_timeout = recv_timeout = ST_UTIME_NO_TIMEOUT;
-    recv_bytes = send_bytes = 0;
+    stm = rtm = SRS_CONSTS_NO_TMMS;
+    rbytes = sbytes = 0;
 }
 
 SrsStSocket::~SrsStSocket()
 {
 }
 
-bool SrsStSocket::is_never_timeout(int64_t timeout_us)
+bool SrsStSocket::is_never_timeout(int64_t tm)
 {
-    return timeout_us == (int64_t)ST_UTIME_NO_TIMEOUT;
+    return tm == SRS_CONSTS_NO_TMMS;
 }
 
-void SrsStSocket::set_recv_timeout(int64_t timeout_us)
+void SrsStSocket::set_recv_timeout(int64_t tm)
 {
-    recv_timeout = timeout_us;
+    rtm = tm;
 }
 
 int64_t SrsStSocket::get_recv_timeout()
 {
-    return recv_timeout;
+    return rtm;
 }
 
-void SrsStSocket::set_send_timeout(int64_t timeout_us)
+void SrsStSocket::set_send_timeout(int64_t tm)
 {
-    send_timeout = timeout_us;
+    stm = tm;
 }
 
 int64_t SrsStSocket::get_send_timeout()
 {
-    return send_timeout;
+    return stm;
 }
 
 int64_t SrsStSocket::get_recv_bytes()
 {
-    return recv_bytes;
+    return rbytes;
 }
 
 int64_t SrsStSocket::get_send_bytes()
 {
-    return send_bytes;
+    return sbytes;
 }
 
 int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_read = st_read(stfd, buf, size, recv_timeout);
+    ssize_t nb_read;
+    if (rtm == SRS_CONSTS_NO_TMMS) {
+        nb_read = st_read(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+    } else {
+        nb_read = st_read(stfd, buf, size, rtm);
+    }
+    
     if (nread) {
         *nread = nb_read;
     }
@@ -336,7 +343,7 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
         return ERROR_SOCKET_READ;
     }
     
-    recv_bytes += nb_read;
+    rbytes += nb_read;
     
     return ret;
 }
@@ -345,7 +352,13 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_read = st_read_fully(stfd, buf, size, recv_timeout);
+    ssize_t nb_read;
+    if (rtm == SRS_CONSTS_NO_TMMS) {
+        nb_read = st_read_fully(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+    } else {
+        nb_read = st_read_fully(stfd, buf, size, rtm);
+    }
+    
     if (nread) {
         *nread = nb_read;
     }
@@ -366,7 +379,7 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
         return ERROR_SOCKET_READ_FULLY;
     }
     
-    recv_bytes += nb_read;
+    rbytes += nb_read;
     
     return ret;
 }
@@ -375,7 +388,13 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_write = st_write(stfd, buf, size, send_timeout);
+    ssize_t nb_write;
+    if (stm == SRS_CONSTS_NO_TMMS) {
+        nb_write = st_write(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+    } else {
+        nb_write = st_write(stfd, buf, size, stm);
+    }
+    
     if (nwrite) {
         *nwrite = nb_write;
     }
@@ -391,7 +410,7 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
         return ERROR_SOCKET_WRITE;
     }
     
-    send_bytes += nb_write;
+    sbytes += nb_write;
     
     return ret;
 }
@@ -400,7 +419,13 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_write = st_writev(stfd, iov, iov_size, send_timeout);
+    ssize_t nb_write;
+    if (stm == SRS_CONSTS_NO_TMMS) {
+        nb_write = st_writev(stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
+    } else {
+        nb_write = st_writev(stfd, iov, iov_size, stm);
+    }
+    
     if (nwrite) {
         *nwrite = nb_write;
     }
@@ -416,7 +441,7 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
         return ERROR_SOCKET_WRITE;
     }
     
-    send_bytes += nb_write;
+    sbytes += nb_write;
     
     return ret;
 }
@@ -443,7 +468,7 @@ int SrsTcpClient::connect()
     close();
     
     srs_assert(stfd == NULL);
-    if ((ret = srs_socket_connect(host, port, timeout * 1000, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_error("connect tcp://%s:%d failed, to=%"PRId64"ms. ret=%d", host.c_str(), port, timeout, ret);
         return ret;
     }
@@ -465,14 +490,14 @@ void SrsTcpClient::close()
     srs_close_stfd(stfd);
 }
 
-bool SrsTcpClient::is_never_timeout(int64_t timeout_us)
+bool SrsTcpClient::is_never_timeout(int64_t tm)
 {
-    return io->is_never_timeout(timeout_us);
+    return io->is_never_timeout(tm);
 }
 
-void SrsTcpClient::set_recv_timeout(int64_t timeout_us)
+void SrsTcpClient::set_recv_timeout(int64_t tm)
 {
-    io->set_recv_timeout(timeout_us);
+    io->set_recv_timeout(tm);
 }
 
 int64_t SrsTcpClient::get_recv_timeout()
@@ -480,9 +505,9 @@ int64_t SrsTcpClient::get_recv_timeout()
     return io->get_recv_timeout();
 }
 
-void SrsTcpClient::set_send_timeout(int64_t timeout_us)
+void SrsTcpClient::set_send_timeout(int64_t tm)
 {
-    io->set_send_timeout(timeout_us);
+    io->set_send_timeout(tm);
 }
 
 int64_t SrsTcpClient::get_send_timeout()

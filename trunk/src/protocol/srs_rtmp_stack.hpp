@@ -313,16 +313,16 @@ public:
 #endif
 public:
     /**
-    * set/get the recv timeout in us.
+    * set/get the recv timeout in ms.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-    * set/get the send timeout in us.
+    * set/get the send timeout in ms.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     /**
     * get recv/send bytes.
@@ -681,64 +681,16 @@ protected:
 public:
     SrsRtmpClient(ISrsProtocolReaderWriter* skt);
     virtual ~SrsRtmpClient();
-    // protocol methods proxy
+// protocol methods proxy
 public:
-    /**
-     * set the recv timeout in us.
-     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
-     */
-    virtual void set_recv_timeout(int64_t timeout_us);
-    /**
-     * set the send timeout in us.
-     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
-     */
-    virtual void set_send_timeout(int64_t timeout_us);
-    /**
-     * get recv/send bytes.
-     */
+    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    /**
-     * recv a RTMP message, which is bytes oriented.
-     * user can use decode_message to get the decoded RTMP packet.
-     * @param pmsg, set the received message,
-     *       always NULL if error,
-     *       NULL for unknown packet but return success.
-     *       never NULL if decode success.
-     * @remark, drop message when msg is empty or payload length is empty.
-     */
     virtual int recv_message(SrsCommonMessage** pmsg);
-    /**
-     * decode bytes oriented RTMP message to RTMP packet,
-     * @param ppacket, output decoded packet,
-     *       always NULL if error, never NULL if success.
-     * @return error when unknown packet, error when decode failed.
-     */
     virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
-    /**
-     * send the RTMP message and always free it.
-     * user must never free or use the msg after this method,
-     * for it will always free the msg.
-     * @param msg, the msg to send out, never be NULL.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_message(SrsSharedPtrMessage* msg, int stream_id);
-    /**
-     * send the RTMP message and always free it.
-     * user must never free or use the msg after this method,
-     * for it will always free the msg.
-     * @param msgs, the msgs to send out, never be NULL.
-     * @param nb_msgs, the size of msgs to send out.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
-    /**
-     * send the RTMP packet and always free it.
-     * user must never free or use the packet after this method,
-     * for it will always free the packet.
-     * @param packet, the packet to send out, never be NULL.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     /**
@@ -865,16 +817,16 @@ public:
     virtual void set_recv_buffer(int buffer_size);
 #endif
     /**
-     * set/get the recv timeout in us.
+     * set/get the recv timeout in ms.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-     * set/get the send timeout in us.
+     * set/get the send timeout in ms.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     /**
      * get recv/send bytes.

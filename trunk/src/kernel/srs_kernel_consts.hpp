@@ -68,15 +68,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
+// Never timeout in ms.
+#define SRS_CONSTS_NO_TMMS ((int64_t) -1LL)
+
 // the common io timeout, for both recv and send.
 // TODO: FIXME: use ms for timeout.
-#define SRS_CONSTS_RTMP_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_CONSTS_RTMP_TMMS (30*1000)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
 // @remark, recomment to 500ms.
-#define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(500*1000LL)
+#define SRS_CONSTS_RTMP_PULSE_TMMS (500)
 
 /**
 * max rtmp header size:
@@ -225,7 +228,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // the default recv timeout.
-#define SRS_HTTP_RECV_TIMEOUT_US 60 * 1000 * 1000
+#define SRS_HTTP_RECV_TMMS (60 * 1000)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
@@ -410,8 +413,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
 
 // the common io timeout, for both recv and send.
-// TODO: FIXME: use ms for timeout.
-#define SRS_CONSTS_KAFKA_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_CONSTS_KAFKA_TMMS (30*1000)
 
 #endif
 

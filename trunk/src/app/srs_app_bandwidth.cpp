@@ -190,8 +190,8 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     SrsBandwidthSample publish_sample;
     
     // timeout for a packet.
-    _rtmp->set_send_timeout(play_sample.duration_ms * 1000 * 2);
-    _rtmp->set_recv_timeout(publish_sample.duration_ms * 1000 * 2);
+    _rtmp->set_send_timeout(play_sample.duration_ms * 2);
+    _rtmp->set_recv_timeout(publish_sample.duration_ms * 2);
 
     // start test.
     srs_update_system_time_ms();

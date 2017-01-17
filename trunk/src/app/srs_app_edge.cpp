@@ -48,19 +48,16 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_EDGE_INGESTER_CIMS (3*1000)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_INGESTER_TIMEOUT_US (int64_t)(5*1000*1000LL)
+#define SRS_EDGE_INGESTER_TMMS (5*1000)
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
-
-// when edge timeout, retry next.
-#define SRS_EDGE_FORWARDER_TIMEOUT_US (int64_t)(5*1000*1000LL)
+#define SRS_EDGE_FORWARDER_CIMS (3*1000)
 
 // when edge error, wait for quit
-#define SRS_EDGE_FORWARDER_ERROR_US (int64_t)(50*1000LL)
+#define SRS_EDGE_FORWARDER_TMMS (150)
 
 SrsEdgeUpstream::SrsEdgeUpstream()
 {
@@ -125,9 +122,9 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_INGESTER_TIMEOUT_US;
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    int64_t cto = SRS_EDGE_INGESTER_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_error("edge pull %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
@@ -157,9 +154,9 @@ void SrsEdgeRtmpUpstream::close()
     srs_freep(sdk);
 }
 
-void SrsEdgeRtmpUpstream::set_recv_timeout(int64_t timeout)
+void SrsEdgeRtmpUpstream::set_recv_timeout(int64_t tm)
 {
-    sdk->set_recv_timeout(timeout);
+    sdk->set_recv_timeout(tm);
 }
 
 void SrsEdgeRtmpUpstream::kbps_sample(const char* label, int64_t age)
@@ -175,7 +172,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     
     upstream = new SrsEdgeRtmpUpstream(redirect);
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
+    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_CIMS);
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -274,7 +271,7 @@ int SrsEdgeIngester::ingest()
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // set to larger timeout to read av data from origin.
-    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
+    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS);
     
     while (!pthread->interrupted()) {
         pprint->elapse();
@@ -409,7 +406,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
+    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_CIMS);
     queue = new SrsMessageQueue();
 }
 
@@ -465,9 +462,9 @@ int SrsEdgeForwarder::start()
     
     // open socket.
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_FORWARDER_TIMEOUT_US;
-    int64_t sto = SRS_CONSTS_RTMP_TIMEOUT_US;
-    sdk = new SrsSimpleRtmpClient(url, cto/1000, sto/1000);
+    int64_t cto = SRS_EDGE_FORWARDER_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_TMMS;
+    sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_warn("edge push %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
@@ -496,7 +493,7 @@ int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);
@@ -505,7 +502,7 @@ int SrsEdgeForwarder::cycle()
 
     while (!pthread->interrupted()) {
         if (send_error_code != ERROR_SUCCESS) {
-            st_usleep(SRS_EDGE_FORWARDER_ERROR_US);
+            st_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
             continue;
         }
 

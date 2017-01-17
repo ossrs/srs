@@ -42,7 +42,7 @@ MockEmptyIO::~MockEmptyIO()
 {
 }
 
-bool MockEmptyIO::is_never_timeout(int64_t /*timeout_us*/)
+bool MockEmptyIO::is_never_timeout(int64_t /*tm*/)
 {
     return true;
 }
@@ -57,7 +57,7 @@ int MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
     return ERROR_SUCCESS;
 }
 
-void MockEmptyIO::set_recv_timeout(int64_t /*timeout_us*/)
+void MockEmptyIO::set_recv_timeout(int64_t /*tm*/)
 {
 }
 
@@ -71,7 +71,7 @@ int64_t MockEmptyIO::get_recv_bytes()
     return -1;
 }
 
-void MockEmptyIO::set_send_timeout(int64_t /*timeout_us*/)
+void MockEmptyIO::set_send_timeout(int64_t /*tm*/)
 {
 }
 
@@ -97,17 +97,17 @@ int MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 
 MockBufferIO::MockBufferIO()
 {
-    recv_timeout = send_timeout = ST_UTIME_NO_TIMEOUT;
-    recv_bytes = send_bytes = 0;
+    rtm = stm = SRS_CONSTS_NO_TMMS;
+    rbytes = sbytes = 0;
 }
 
 MockBufferIO::~MockBufferIO()
 {
 }
 
-bool MockBufferIO::is_never_timeout(int64_t timeout_us)
+bool MockBufferIO::is_never_timeout(int64_t tm)
 {
-    return (int64_t)ST_UTIME_NO_TIMEOUT == timeout_us;
+    return tm == SRS_CONSTS_NO_TMMS;
 }
 
 int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
@@ -117,7 +117,7 @@ int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
     }
     memcpy(buf, in_buffer.bytes(), size);
     
-    recv_bytes += size;
+    rbytes += size;
     if (nread) {
         *nread = size;
     }
@@ -127,7 +127,7 @@ int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 
 int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
 {
-    send_bytes += size;
+    sbytes += size;
     if (nwrite) {
         *nwrite = size;
     }
@@ -135,34 +135,34 @@ int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
     return ERROR_SUCCESS;
 }
 
-void MockBufferIO::set_recv_timeout(int64_t timeout_us)
+void MockBufferIO::set_recv_timeout(int64_t tm)
 {
-    recv_timeout = timeout_us;
+    rtm = tm;
 }
 
 int64_t MockBufferIO::get_recv_timeout()
 {
-    return recv_timeout;
+    return rtm;
 }
 
 int64_t MockBufferIO::get_recv_bytes()
 {
-    return recv_bytes;
+    return rbytes;
 }
 
-void MockBufferIO::set_send_timeout(int64_t timeout_us)
+void MockBufferIO::set_send_timeout(int64_t tm)
 {
-    send_timeout = timeout_us;
+    stm = tm;
 }
 
 int64_t MockBufferIO::get_send_timeout()
 {
-    return send_timeout;
+    return stm;
 }
 
 int64_t MockBufferIO::get_send_bytes()
 {
-    return send_bytes;
+    return sbytes;
 }
 
 int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
@@ -180,6 +180,8 @@ int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
         total += writen;
     }
     
+    sbytes += total;
+    
     if (nwrite) {
         *nwrite = total;
     }
@@ -195,7 +197,7 @@ int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
     size_t available = srs_min(in_buffer.length(), (int)size);
     memcpy(buf, in_buffer.bytes(), available);
     
-    recv_bytes += available;
+    rbytes += available;
     if (nread) {
         *nread = available;
     }
@@ -530,8 +532,8 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     MockBufferIO bio;
     SrsProtocol proto(&bio);
     
-    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
-    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_send_timeout());
+    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_recv_timeout());
+    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_send_timeout());
     
     proto.set_recv_timeout(10);
     EXPECT_TRUE(10 == proto.get_recv_timeout());

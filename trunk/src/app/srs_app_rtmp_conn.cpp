@@ -60,22 +60,22 @@ using namespace std;
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
 // sleep a while and close the connection.
-#define SRS_STREAM_BUSY_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_STREAM_BUSY_CIMS (3000)
 
-// the timeout to wait encoder to republish
+// the timeout in ms to wait encoder to republish
 // if timeout, close the connection.
-#define SRS_REPUBLISH_SEND_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
+#define SRS_REPUBLISH_SEND_TMMS (3 * 60 * 1000)
 // if timeout, close the connection.
-#define SRS_REPUBLISH_RECV_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
+#define SRS_REPUBLISH_RECV_TMMS (3 * 60 * 1000)
 
-// the timeout to wait client data, when client paused
+// the timeout in ms to wait client data, when client paused
 // if timeout, close the connection.
-#define SRS_PAUSED_SEND_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+#define SRS_PAUSED_SEND_TMMS (3 * 60 * 1000)
 // if timeout, close the connection.
-#define SRS_PAUSED_RECV_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+#define SRS_PAUSED_RECV_TMMS (3 * 60 * 1000)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
+#define SRS_EDGE_TOKEN_TRAVERSE_TMMS (3000)
 
 SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm)
 {
@@ -348,8 +348,8 @@ int SrsRtmpConn::do_cycle()
     }
 #endif
 
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
     if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
         srs_error("rtmp handshake failed. ret=%d", ret);
@@ -634,8 +634,8 @@ int SrsRtmpConn::service_cycle()
         // for republish, continue service
         if (ret == ERROR_CONTROL_REPUBLISH) {
             // set timeout to a larger value, wait for encoder to republish.
-            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT_US);
-            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT_US);
+            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TMMS);
+            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TMMS);
             
             srs_trace("control message(unpublish) accept, retry stream service.");
             continue;
@@ -647,8 +647,8 @@ int SrsRtmpConn::service_cycle()
             // TODO: FIXME: use ping message to anti-death of socket.
             // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
-            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT_US);
-            rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
+            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TMMS);
+            rtmp->set_send_timeout(SRS_PAUSED_SEND_TMMS);
             
             srs_trace("control message(close) accept, retry stream service.");
             continue;
@@ -685,8 +685,8 @@ int SrsRtmpConn::stream_service_cycle()
     srs_info("security check ok");
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
     // find a source to serve.
     SrsSource* source = NULL;
@@ -1465,7 +1465,7 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_parse_hostport(hostport, server, port);
     
-        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US / 1000);
+        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TMMS);
         SrsAutoFree(SrsTcpClient, transport);
         
         if ((ret = transport->connect()) != ERROR_SUCCESS) {
@@ -1490,8 +1490,8 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("handshake with server failed. ret=%d", ret);

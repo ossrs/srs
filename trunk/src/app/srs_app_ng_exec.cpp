@@ -37,11 +37,11 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 // when error, ng-exec sleep for a while and retry.
-#define SRS_RTMP_EXEC_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_RTMP_EXEC_CIMS (3000)
 
 SrsNgExec::SrsNgExec()
 {
-    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_EXEC_SLEEP_US);
+    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_EXEC_CIMS);
     pprint = SrsPithyPrint::create_exec();
 }
 

@@ -43,7 +43,7 @@ SrsHttpClient::SrsHttpClient()
     transport = NULL;
     kbps = new SrsKbps();
     parser = NULL;
-    timeout_us = 0;
+    timeout = SRS_CONSTS_NO_TMMS;
     port = 0;
 }
 
@@ -56,7 +56,7 @@ SrsHttpClient::~SrsHttpClient()
 }
 
 // TODO: FIXME: use ms for timeout.
-int SrsHttpClient::initialize(string h, int p, int64_t t_us)
+int SrsHttpClient::initialize(string h, int p, int64_t tm)
 {
     int ret = ERROR_SUCCESS;
     
@@ -71,7 +71,7 @@ int SrsHttpClient::initialize(string h, int p, int64_t t_us)
     // Always disconnect the transport.
     host = h;
     port = p;
-    timeout_us = t_us;
+    timeout = tm;
     disconnect();
     
     // ep used for host in header.
@@ -196,9 +196,9 @@ int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     return ret;
 }
 
-void SrsHttpClient::set_recv_timeout(int64_t timeout)
+void SrsHttpClient::set_recv_timeout(int64_t tm)
 {
-    transport->set_recv_timeout(timeout);
+    transport->set_recv_timeout(tm);
 }
 
 void SrsHttpClient::kbps_sample(const char* label, int64_t age)
@@ -232,17 +232,17 @@ int SrsHttpClient::connect()
         return ret;
     }
     
-    transport = new SrsTcpClient(host, port, timeout_us / 1000);
+    transport = new SrsTcpClient(host, port, timeout);
     if ((ret = transport->connect()) != ERROR_SUCCESS) {
         disconnect();
-        srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d", host.c_str(), port, timeout_us, ret);
+        srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d", host.c_str(), port, timeout, ret);
         return ret;
     }
     srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);
     
-    // set the recv/send timeout in us.
-    transport->set_recv_timeout(timeout_us);
-    transport->set_send_timeout(timeout_us);
+    // Set the recv/send timeout in ms.
+    transport->set_recv_timeout(timeout);
+    transport->set_send_timeout(timeout);
     
     kbps->set_io(transport, transport);
     

@@ -538,7 +538,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 void SrsConsumer::wait(int nb_msgs, int duration)
 {
     if (paused) {
-        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS);
         return;
     }
 

@@ -325,9 +325,9 @@ void SrsProtocol::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsProtocol::set_recv_timeout(int64_t timeout_us)
+void SrsProtocol::set_recv_timeout(int64_t tm)
 {
-    return skt->set_recv_timeout(timeout_us);
+    return skt->set_recv_timeout(tm);
 }
 
 int64_t SrsProtocol::get_recv_timeout()
@@ -335,9 +335,9 @@ int64_t SrsProtocol::get_recv_timeout()
     return skt->get_recv_timeout();
 }
 
-void SrsProtocol::set_send_timeout(int64_t timeout_us)
+void SrsProtocol::set_send_timeout(int64_t tm)
 {
-    return skt->set_send_timeout(timeout_us);
+    return skt->set_send_timeout(tm);
 }
 
 int64_t SrsProtocol::get_send_timeout()
@@ -1982,14 +1982,14 @@ SrsRtmpClient::~SrsRtmpClient()
     srs_freep(hs_bytes);
 }
 
-void SrsRtmpClient::set_recv_timeout(int64_t timeout_us)
+void SrsRtmpClient::set_recv_timeout(int64_t tm)
 {
-    protocol->set_recv_timeout(timeout_us);
+    protocol->set_recv_timeout(tm);
 }
 
-void SrsRtmpClient::set_send_timeout(int64_t timeout_us)
+void SrsRtmpClient::set_send_timeout(int64_t tm)
 {
-    protocol->set_send_timeout(timeout_us);
+    protocol->set_send_timeout(tm);
 }
 
 int64_t SrsRtmpClient::get_recv_bytes()
@@ -2410,9 +2410,9 @@ void SrsRtmpServer::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsRtmpServer::set_recv_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_recv_timeout(int64_t tm)
 {
-    protocol->set_recv_timeout(timeout_us);
+    protocol->set_recv_timeout(tm);
 }
 
 int64_t SrsRtmpServer::get_recv_timeout()
@@ -2420,9 +2420,9 @@ int64_t SrsRtmpServer::get_recv_timeout()
     return protocol->get_recv_timeout();
 }
 
-void SrsRtmpServer::set_send_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_send_timeout(int64_t tm)
 {
-    protocol->set_send_timeout(timeout_us);
+    protocol->set_send_timeout(tm);
 }
 
 int64_t SrsRtmpServer::get_send_timeout()
@@ -2621,7 +2621,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     return ret;
 }
 
-#define SRS_RTMP_REDIRECT_TIMEOUT 3000
+#define SRS_RTMP_REDIRECT_TMMS 3000
 int SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
 {
     int ret = ERROR_SUCCESS;
@@ -2649,7 +2649,7 @@ int SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted
     
     // client must response a call message.
     // or we never know whether the client is ok to redirect.
-    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TIMEOUT * 1000);
+    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TMMS);
     if (true) {
         SrsCommonMessage* msg = NULL;
         SrsCallPacket* pkt = NULL;

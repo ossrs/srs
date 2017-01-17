@@ -37,14 +37,14 @@ using namespace std;
 #ifdef SRS_AUTO_TRANSCODE
 
 // when error, encoder sleep for a while and retry.
-#define SRS_RTMP_ENCODER_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_RTMP_ENCODER_CIMS (3000)
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US);
+    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_CIMS);
     pprint = SrsPithyPrint::create_encoder();
 }
 

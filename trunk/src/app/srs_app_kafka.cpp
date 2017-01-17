@@ -40,7 +40,7 @@ using namespace std;
 
 #ifdef SRS_AUTO_KAFKA
 
-#define SRS_KAKFA_CYCLE_INTERVAL_MS 3000
+#define SRS_KAKFA_CIMS 3000
 #define SRS_KAFKA_PRODUCER_TIMEOUT 30000
 #define SRS_KAFKA_PRODUCER_AGGREGATE_SIZE 1
 
@@ -366,7 +366,7 @@ SrsKafkaProducer::SrsKafkaProducer()
     metadata_expired = st_cond_new();
     
     lock = st_mutex_new();
-    pthread = new SrsReusableThread("kafka", this, SRS_KAKFA_CYCLE_INTERVAL_MS * 1000);
+    pthread = new SrsReusableThread("kafka", this, SRS_KAKFA_CIMS);
     worker = new SrsAsyncCallWorker();
     cache = new SrsKafkaCache();
     
@@ -585,7 +585,7 @@ int SrsKafkaProducer::request_metadata()
                   senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
     }
     
-    SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_CONSTS_KAFKA_TIMEOUT_US / 1000);
+    SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_CONSTS_KAFKA_TMMS);
     SrsAutoFree(SrsTcpClient, transport);
     
     SrsKafkaClient* kafka = new SrsKafkaClient(transport);

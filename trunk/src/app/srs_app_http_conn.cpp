@@ -1137,7 +1137,7 @@ int SrsHttpConn::do_cycle()
 
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
-    skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
+    skt->set_recv_timeout(SRS_HTTP_RECV_TMMS);
 
     SrsRequest* last_req = NULL;
     SrsAutoFree(SrsRequest, last_req);

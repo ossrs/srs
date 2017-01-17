@@ -62,7 +62,6 @@ using namespace std;
 
 // update time interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
-// @see SYS_TIME_RESOLUTION_US
 #define SRS_SYS_TIME_RESOLUTION_MS_TIMES 1
 
 // update rusage interval:

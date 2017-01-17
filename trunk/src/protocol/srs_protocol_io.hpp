@@ -126,12 +126,12 @@ public:
 // for protocol
 public:
     /**
-    * set the recv timeout in us, recv will error when timeout.
-    * @remark, if not set, use ST_UTIME_NO_TIMEOUT, never timeout.
-    */
-    virtual void set_recv_timeout(int64_t timeout_us) = 0;
+     * Set the timeout tm in ms for recv bytes from peer.
+     * @remark Use SRS_CONSTS_NO_TIMEOUT to never timeout.
+     */
+    virtual void set_recv_timeout(int64_t tm) = 0;
     /**
-    * get the recv timeout in us.
+     * Get the timeout in ms for recv bytes from peer.
     */
     virtual int64_t get_recv_timeout() = 0;
 // for handshake.
@@ -154,13 +154,13 @@ public:
 // for protocol
 public:
     /**
-    * set the send timeout in us, send will error when timeout.
-    * @remark, if not set, use ST_UTIME_NO_TIMEOUT, never timeout.
-    */
-    virtual void set_send_timeout(int64_t timeout_us) = 0;
+     * Set the timeout tm in ms for send bytes to peer.
+     * @remark Use SRS_CONSTS_NO_TIMEOUT to never timeout.
+     */
+    virtual void set_send_timeout(int64_t tm) = 0;
     /**
-    * get the send timeout in us.
-    */
+     * Get the timeout in ms for send bytes to peer.
+     */
     virtual int64_t get_send_timeout() = 0;
 };
 
@@ -175,9 +175,9 @@ public:
 // for protocol
 public:
     /**
-    * whether the specified timeout_us is never timeout.
-    */
-    virtual bool is_never_timeout(int64_t timeout_us) = 0;
+     * Whether the specified tm in ms is never timeout.
+     */
+    virtual bool is_never_timeout(int64_t tm) = 0;
 };
 
 #endif

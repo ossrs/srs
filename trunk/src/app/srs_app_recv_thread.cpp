@@ -45,9 +45,9 @@ ISrsMessageHandler::~ISrsMessageHandler()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms)
+SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int tm)
 {
-    timeout = timeout_ms;
+    timeout = tm;
     handler = msg_handler;
     rtmp = rtmp_sdk;
     trd = new SrsReusableThread2("recv", this);
@@ -126,7 +126,7 @@ void SrsRecvThread::on_thread_start()
     // to use isolate thread to recv, can improve about 33% performance.
     // @see https://github.com/ossrs/srs/issues/194
     // @see: https://github.com/ossrs/srs/issues/217
-    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
+    rtmp->set_recv_timeout(SRS_CONSTS_NO_TMMS);
     
     handler->on_thread_start();
 }

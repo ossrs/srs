@@ -44,7 +44,8 @@ class SrsBuffer;
 class SrsJsonObject;
 
 // client open socket and connect to server.
-extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
+// @param tm The timeout in ms.
+extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
 
 /**
 * convert level in string to log level in int.

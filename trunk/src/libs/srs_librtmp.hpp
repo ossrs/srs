@@ -1020,10 +1020,10 @@ typedef void* srs_hijack_io_t;
     */
     extern int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * set the socket recv timeout.
+    * set the socket recv timeout in ms.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
     * get the socket recv timeout.
     * @return 0, success; otherswise, failed.
@@ -1035,10 +1035,10 @@ typedef void* srs_hijack_io_t;
     */
     extern int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx);
     /**
-    * set the socket send timeout.
+    * set the socket send timeout in ms.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
     * get the socket send timeout.
     * @return 0, success; otherswise, failed.
@@ -1055,10 +1055,11 @@ typedef void* srs_hijack_io_t;
     */
     extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
     /**
-    * whether the timeout is never timeout.
+    * whether the timeout is never timeout in ms.
     * @return 0, success; otherswise, failed.
     */
-    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    // TODO: FIXME: Upgrade srs-bench and change the us to ms for timeout.
+    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
     * read fully, fill the buf exactly size bytes.
     * @return 0, success; otherswise, failed.

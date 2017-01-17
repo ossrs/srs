@@ -28,8 +28,8 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-// the sleep interval for http async callback.
-#define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
+// the sleep interval in ms for http async callback.
+#define SRS_AUTO_ASYNC_CALLBACL_CIMS 30
 
 ISrsAsyncCallTask::ISrsAsyncCallTask()
 {
@@ -41,7 +41,7 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
-    pthread = new SrsReusableThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US);
+    pthread = new SrsReusableThread("async", this, SRS_AUTO_ASYNC_CALLBACL_CIMS);
     wait = st_cond_new();
 }
 

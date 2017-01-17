@@ -53,9 +53,14 @@ using namespace std;
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
-int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
+int srs_socket_connect(string server, int port, int64_t tm, st_netfd_t* pstfd)
 {
     int ret = ERROR_SUCCESS;
+    
+    st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
+    if (tm != SRS_CONSTS_NO_TMMS) {
+        timeout = (st_utime_t)(tm * 1000);
+    }
     
     *pstfd = NULL;
     st_netfd_t stfd = NULL;

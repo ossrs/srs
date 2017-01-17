@@ -190,10 +190,10 @@ void ISrsReusableThreadHandler::on_thread_stop()
 {
 }
 
-SrsReusableThread::SrsReusableThread(const char* n, ISrsReusableThreadHandler* h, int64_t interval_us)
+SrsReusableThread::SrsReusableThread(const char* n, ISrsReusableThreadHandler* h, int64_t cims)
 {
     handler = h;
-    pthread = new internal::SrsThread(n, this, interval_us, true);
+    pthread = new internal::SrsThread(n, this, cims, true);
 }
 
 SrsReusableThread::~SrsReusableThread()
@@ -273,10 +273,10 @@ void ISrsReusableThread2Handler::on_thread_stop()
 {
 }
 
-SrsReusableThread2::SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t interval_us)
+SrsReusableThread2::SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t cims)
 {
     handler = h;
-    pthread = new internal::SrsThread(n, this, interval_us, true);
+    pthread = new internal::SrsThread(n, this, cims, true);
 }
 
 SrsReusableThread2::~SrsReusableThread2()

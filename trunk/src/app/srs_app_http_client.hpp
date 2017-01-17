@@ -43,7 +43,7 @@ class SrsStSocket;
 class SrsKbps;
 
 // the default timeout for http client.
-#define SRS_HTTP_CLIENT_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_HTTP_CLIENT_TMMS (30*1000)
 
 /**
  * The client to GET/POST/PUT/DELETE over HTTP.
@@ -64,8 +64,9 @@ private:
     std::map<std::string, std::string> headers;
     SrsKbps* kbps;
 private:
-    int64_t timeout_us;
-    // host name or ip.
+    // The timeout in ms.
+    int64_t timeout;
+    // The host name or ip.
     std::string host;
     int port;
 public:
@@ -74,9 +75,10 @@ public:
 public:
     /**
      * Initliaze the client, disconnect the transport, renew the HTTP parser.
+     * @param tm The underlayer TCP transport timeout in ms.
      * @remark we will set default values in headers, which can be override by set_header.
      */
-    virtual int initialize(std::string h, int p, int64_t t_us = SRS_HTTP_CLIENT_TIMEOUT_US);
+    virtual int initialize(std::string h, int p, int64_t tm = SRS_HTTP_CLIENT_TMMS);
     /**
      * Set HTTP request header in header[k]=v.
      * @return the HTTP client itself.
@@ -99,8 +101,9 @@ public:
      * @remark user must free the ppmsg if not NULL.
      */
     virtual int get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+private:
+    virtual void set_recv_timeout(int64_t tm);
 public:
-    virtual void set_recv_timeout(int64_t timeout);
     virtual void kbps_sample(const char* label, int64_t age);
 private:
     virtual void disconnect();

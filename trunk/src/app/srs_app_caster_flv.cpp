@@ -183,9 +183,9 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
     
     srs_freep(sdk);
     
-    int64_t cto = SRS_CONSTS_RTMP_TIMEOUT_US;
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TIMEOUT_US;
-    sdk = new SrsSimpleRtmpClient(output, cto / 1000, sto / 1000);
+    int64_t cto = SRS_CONSTS_RTMP_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         srs_error("flv: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);

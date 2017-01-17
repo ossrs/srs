@@ -110,13 +110,14 @@ namespace internal
         bool disposed;
     private:
         ISrsThreadHandler* handler;
-        int64_t cycle_interval_us;
+        // The cycle interval in ms.
+        int64_t cims;
     public:
         /**
          * initialize the thread.
          * @param name, human readable name for st debug.
          * @param thread_handler, the cycle handler for the thread.
-         * @param interval_us, the sleep interval when cycle finished.
+         * @param ims, the sleep interval in ms when cycle finished.
          * @param joinable, if joinable, other thread must stop the thread.
          * @remark if joinable, thread never quit itself, or memory leak.
          * @see: https://github.com/ossrs/srs/issues/78
@@ -126,7 +127,7 @@ namespace internal
          * TODO: FIXME: maybe all thread must be reap by others threads,
          * @see: https://github.com/ossrs/srs/issues/77
          */
-        SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable);
+        SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t ims, bool joinable);
         virtual ~SrsThread();
     public:
         /**
@@ -175,19 +176,23 @@ namespace internal
 class SrsStSocket : public ISrsProtocolReaderWriter
 {
 private:
-    int64_t recv_timeout;
-    int64_t send_timeout;
-    int64_t recv_bytes;
-    int64_t send_bytes;
+    // The recv/send timeout in ms.
+    // @remark Use SRS_CONSTS_NO_TMMS for never timeout in ms.
+    int64_t rtm;
+    int64_t stm;
+    // The recv/send data in bytes
+    int64_t rbytes;
+    int64_t sbytes;
+    // The underlayer st fd.
     st_netfd_t stfd;
 public:
     SrsStSocket(st_netfd_t client_stfd);
     virtual ~SrsStSocket();
 public:
-    virtual bool is_never_timeout(int64_t timeout_us);
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual bool is_never_timeout(int64_t tm);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
@@ -221,6 +226,7 @@ private:
 private:
     std::string host;
     int port;
+    // The timeout in ms.
     int64_t timeout;
 public:
     /**
@@ -244,10 +250,10 @@ public:
     virtual void close();
 // interface ISrsProtocolReaderWriter
 public:
-    virtual bool is_never_timeout(int64_t timeout_us);
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual bool is_never_timeout(int64_t tm);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
