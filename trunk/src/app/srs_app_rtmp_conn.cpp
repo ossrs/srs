@@ -871,7 +871,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
-    publish_normal_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+    publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
     
     // set the sock options.
     set_sock_options();
