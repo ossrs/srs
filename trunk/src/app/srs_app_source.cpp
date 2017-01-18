@@ -490,6 +490,11 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
         int duration_ms = queue->duration();
         bool match_min_msgs = queue->size() > mw_min_msgs;
         
+        // bugfix: The condition variable may not be triggered for a long time due to the wrong timestamp order, when atc on
+        if (atc && duration_ms < 0){
+            duration_ms = mw_duration + 1;
+        }
+
         // when duration ok, signal to flush.
         if (match_min_msgs && duration_ms > mw_duration) {
             st_cond_signal(mw_wait);
@@ -2201,10 +2206,7 @@ void SrsSource::on_unpublish()
     // only clear the gop cache,
     // donot clear the sequence header, for it maybe not changed,
     // when drop dup sequence header, drop the metadata also.
-    gop_cache->clear();
-    srs_freep(cache_metadata);
-    srs_freep(cache_sh_video);
-    srs_freep(cache_sh_audio);    
+    gop_cache->clear();  
 
     srs_info("clear cache/metadata when unpublish.");
     srs_trace("cleanup when unpublish");
