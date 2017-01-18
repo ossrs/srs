@@ -1282,6 +1282,7 @@ Winlin
 [bug #588]: https://github.com/ossrs/srs/issues/588
 [bug #740]: https://github.com/ossrs/srs/issues/740
 [bug #749]: https://github.com/ossrs/srs/issues/749
+[bug #750]: https://github.com/ossrs/srs/issues/750
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
