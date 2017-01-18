@@ -1002,80 +1002,82 @@ typedef void* srs_hijack_io_t;
 // which use librtmp but use its own io(use st also).
 #ifdef SRS_HIJACK_IO
     /**
-    * create hijack.
-    * @return NULL for error; otherwise, ok.
-    */
+     * create hijack.
+     * @return NULL for error; otherwise, ok.
+     */
     extern srs_hijack_io_t srs_hijack_io_create();
     /**
-    * destroy the context, user must close the socket.
-    */
+     * destroy the context, user must close the socket.
+     */
     extern void srs_hijack_io_destroy(srs_hijack_io_t ctx);
     /**
-    * create socket, not connect yet.
-    * @param owner, the rtmp context which create this socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * create socket, not connect yet.
+     * @param owner, the rtmp context which create this socket.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner);
     /**
-    * connect socket at server_ip:port.
-    * @return 0, success; otherswise, failed.
-    */
+     * connect socket at server_ip:port.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port);
     /**
-    * read from socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * read from socket.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * set the socket recv timeout in ms.
-    * @return 0, success; otherswise, failed.
-    */
+     * set the socket recv timeout in ms.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * get the socket recv timeout.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket recv timeout.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx);
     /**
-    * get the socket recv bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket recv bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx);
     /**
-    * set the socket send timeout in ms.
-    * @return 0, success; otherswise, failed.
-    */
+     * set the socket send timeout in ms.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * get the socket send timeout.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket send timeout.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_send_timeout(srs_hijack_io_t ctx);
     /**
-    * get the socket send bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket send bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_send_bytes(srs_hijack_io_t ctx);
     /**
-    * writev of socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * writev of socket.
+     * @return 0, success; otherswise, failed.
+     * @remark We assume that the writev always write all data to peer, like what ST or block-socket done.
+     */
     extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
     /**
-    * whether the timeout is never timeout in ms.
-    * @return 0, success; otherswise, failed.
-    */
+     * whether the timeout is never timeout in ms.
+     * @return 0, success; otherswise, failed.
+     */
     // TODO: FIXME: Upgrade srs-bench and change the us to ms for timeout.
     extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * read fully, fill the buf exactly size bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * read fully, fill the buf exactly size bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_read_fully(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * write bytes to socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * write bytes to socket.
+     * @return 0, success; otherswise, failed.
+     * @remark We assume that the write always write all data to peer, like what ST or block-socket done.
+     */
     extern int srs_hijack_io_write(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nwrite);
 #endif
 
