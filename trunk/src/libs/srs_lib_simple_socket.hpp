@@ -51,7 +51,7 @@ public:
     virtual ~SimpleSocketStream();
 public:
     virtual srs_hijack_io_t hijack_io();
-    virtual int create_socket();
+    virtual int create_socket(srs_rtmp_t owner);
     virtual int connect(const char* server, int port);
 // ISrsBufferReader
 public:

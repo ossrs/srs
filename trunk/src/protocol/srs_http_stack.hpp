@@ -29,6 +29,9 @@
 */
 #include <srs_core.hpp>
 
+// default http listen port.
+#define SRS_DEFAULT_HTTP_PORT 80
+
 #if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <map>
@@ -67,9 +70,6 @@ class ISrsHttpResponseWriter;
 
 // for ead all of http body, read each time.
 #define SRS_HTTP_READ_CACHE_BYTES 4096
-
-// default http listen port.
-#define SRS_DEFAULT_HTTP_PORT 80
 
 // for http parser macros
 #define SRS_CONSTS_HTTP_OPTIONS HTTP_OPTIONS

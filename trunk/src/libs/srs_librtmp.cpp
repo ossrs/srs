@@ -539,7 +539,7 @@ srs_rtmp_t srs_rtmp_create(const char* url)
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
 
-    if (context->skt->create_socket() != ERROR_SUCCESS) {
+    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
         // free the context and return NULL
         srs_freep(context);
         return NULL;
@@ -561,7 +561,7 @@ srs_rtmp_t srs_rtmp_create2(const char* url)
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
     
-    if (context->skt->create_socket() != ERROR_SUCCESS) {
+    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
         // free the context and return NULL
         srs_freep(context);
         return NULL;

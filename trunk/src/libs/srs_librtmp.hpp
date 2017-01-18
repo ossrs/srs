@@ -992,7 +992,7 @@ typedef void* srs_hijack_io_t;
     extern srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp);
 #endif
 // define the following macro and functions in your module to hijack the io.
-// the example @see https://github.com/winlinvip/st-load
+// the example @see https://github.com/ossrs/srs-bench
 // which use librtmp but use its own io(use st also).
 #ifdef SRS_HIJACK_IO
     /**
@@ -1006,9 +1006,10 @@ typedef void* srs_hijack_io_t;
     extern void srs_hijack_io_destroy(srs_hijack_io_t ctx);
     /**
     * create socket, not connect yet.
+    * @param owner, the rtmp context which create this socket.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx);
+    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner);
     /**
     * connect socket at server_ip:port.
     * @return 0, success; otherswise, failed.

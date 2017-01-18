@@ -102,7 +102,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         srs_freep(skt);
     }
-    int srs_hijack_io_create_socket(srs_hijack_io_t ctx)
+    int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
@@ -329,10 +329,10 @@ srs_hijack_io_t SimpleSocketStream::hijack_io()
     return io;
 }
 
-int SimpleSocketStream::create_socket()
+int SimpleSocketStream::create_socket(srs_rtmp_t owner)
 {
     srs_assert(io);
-    return srs_hijack_io_create_socket(io);
+    return srs_hijack_io_create_socket(io, owner);
 }
 
 int SimpleSocketStream::connect(const char* server_ip, int port)
