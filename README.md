@@ -123,6 +123,7 @@ Please select your language:
 * [SRS 2.0 English][v2_EN_Home]
 * [SRS 2.0 Chinese][v2_CN_Home]
 
+<<<<<<< HEAD
 ### SRS 3.0 wiki
 
 Please select your language:
@@ -205,6 +206,7 @@ Please select your language:
 
 ### V2 changes
 
+* <strong>v2.0, 2017-01-18, [2.0 beta4(2.0.230)][r2.0b4] released. 86334 lines.</strong>
 * v2.0, 2017-01-18, fix [#749][bug #749], timestamp overflow for ATC. 2.0.230
 * v2.0, 2017-01-11, fix [#740][bug #740], convert ts aac audio private stream 1 to common. 2.0.229
 * v2.0, 2017-01-11, fix [#588][bug #588], kbps interface error. 2.0.228
@@ -1373,6 +1375,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0b4]: https://github.com/ossrs/srs/releases/tag/v2.0-b4
 [r2.0b3]: https://github.com/ossrs/srs/releases/tag/v2.0-b3
 [r2.0b2]: https://github.com/ossrs/srs/releases/tag/v2.0-b2
 [r2.0b1]: https://github.com/ossrs/srs/releases/tag/v2.0-b1
@@ -1415,6 +1418,6 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.223.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.223.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.230.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.230.zip
 
