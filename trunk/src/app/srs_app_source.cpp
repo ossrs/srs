@@ -490,10 +490,20 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
         int duration_ms = queue->duration();
         bool match_min_msgs = queue->size() > mw_min_msgs;
         
+        // For ATC, maybe the SH timestamp bigger than A/V packet,
+        // when encoder republish or overflow.
+        // @see https://github.com/ossrs/srs/pull/749
+        if (atc && duration_ms < 0) {
+            st_cond_signal(mw_wait);
+            mw_waiting = false;
+            return ret;
+        }
+        
         // when duration ok, signal to flush.
         if (match_min_msgs && duration_ms > mw_duration) {
             st_cond_signal(mw_wait);
             mw_waiting = false;
+            return ret;
         }
     }
 #endif
