@@ -353,10 +353,9 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    if (nb_sample_units >= SRS_SRS_MAX_CODEC_SAMPLE) {
+    if (nb_sample_units >= SRS_MAX_CODEC_SAMPLE) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("hls decode samples error, "
-            "exceed the max count: %d, ret=%d", SRS_SRS_MAX_CODEC_SAMPLE, ret);
+        srs_error("avc exceed samples count, max=%d, video=%d. ret=%d", SRS_MAX_CODEC_SAMPLE, is_video, ret);
         return ret;
     }
     

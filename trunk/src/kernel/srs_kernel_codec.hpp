@@ -243,8 +243,11 @@ extern int flv_sample_rates[];
 */
 extern int aac_sample_rates[];
 
-#define SRS_SRS_MAX_CODEC_SAMPLE 128
+// The impossible aac sample rate index.
 #define SRS_AAC_SAMPLE_RATE_UNSET 15
+
+// The max number of NALUs in a video, or aac frame in audio packet.
+#define SRS_MAX_CODEC_SAMPLE 256
 
 /**
 * the FLV/RTMP supported audio sample size.
@@ -368,7 +371,7 @@ public:
     * where avc/h264 video packet may contains multiple buffer.
     */
     int nb_sample_units;
-    SrsCodecSampleUnit sample_units[SRS_SRS_MAX_CODEC_SAMPLE];
+    SrsCodecSampleUnit sample_units[SRS_MAX_CODEC_SAMPLE];
 public:
     /**
     * whether the sample is video sample which demux from video packet.
