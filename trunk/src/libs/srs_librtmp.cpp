@@ -1115,6 +1115,11 @@ int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char*
     
     return ret;
 }
+    
+void srs_rtmp_free_packet(char* data)
+{
+    srs_freepa(data);
+}
 
 srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
 {

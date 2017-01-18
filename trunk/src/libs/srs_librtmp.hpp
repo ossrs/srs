@@ -285,6 +285,7 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 *             FlvTagAudio, @see "E.4.2.1 AUDIODATA"
 *            FlvTagVideo, @see "E.4.3.1 VIDEODATA"
 *            FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
+*            User can free the packet by srs_rtmp_free_packet.
 * @param size, size of packet.
 * @return the error code. 0 for success; otherwise, error.
 *
@@ -301,6 +302,11 @@ extern int srs_rtmp_read_packet(srs_rtmp_t rtmp,
 extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
     char type, u_int32_t timestamp, char* data, int size
 );
+    
+/**
+ * Free the packet allocated by srs_rtmp_read_packet.
+ */
+extern void srs_rtmp_free_packet(char* data);
 
 /**
 * whether type is script data and the data is onMetaData.
