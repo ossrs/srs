@@ -1125,7 +1125,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
 SrsHls::SrsHls()
 {
     req = NULL;
-    source = NULL;
+    hub = NULL;
     
     hls_enabled = false;
     hls_can_dispose = false;
@@ -1197,11 +1197,11 @@ int SrsHls::cycle()
     return ret;
 }
 
-int SrsHls::initialize(SrsSource* s, SrsRequest* r)
+int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
-    source = s;
+    hub = h;
     req = r;
 
     if ((ret = muxer->initialize()) != ERROR_SUCCESS) {
@@ -1244,7 +1244,7 @@ int SrsHls::on_publish(bool fetch_sequence_header)
         // notice the source to get the cached sequence header.
         // when reload to start hls, hls will never get the sequence header in stream,
         // use the SrsSource.on_hls_start to push the sequence header to HLS.
-        if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
+        if ((ret = hub->on_hls_start()) != ERROR_SUCCESS) {
             srs_error("callback source hls start failed. ret=%d", ret);
             return ret;
         }

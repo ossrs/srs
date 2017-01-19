@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_DVR
 
 class SrsSource;
+class SrsOriginHub;
 class SrsRequest;
 class SrsBuffer;
 class SrsRtmpJitter;
@@ -300,7 +301,7 @@ private:
 class SrsDvr : public ISrsReloadHandler
 {
 private:
-    SrsSource* source;
+    SrsOriginHub* hub;
     SrsDvrPlan* plan;
     SrsRequest* req;
 private:
@@ -317,7 +318,7 @@ public:
      * when system initialize(encoder publish at first time, or reload),
      * initialize the dvr will reinitialize the plan, the whole dvr framework.
      */
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event,
      * when encoder start to publish RTMP stream.

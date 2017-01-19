@@ -970,7 +970,7 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 
 SrsDvr::SrsDvr()
 {
-    source = NULL;
+    hub = NULL;
     plan = NULL;
     req = NULL;
     actived = false;
@@ -985,12 +985,12 @@ SrsDvr::~SrsDvr()
     srs_freep(plan);
 }
 
-int SrsDvr::initialize(SrsSource* s, SrsRequest* r)
+int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
     req = r;
-    source = s;
+    hub = h;
     
     SrsConfDirective* conf = _srs_config->get_dvr_apply(r->vhost);
     actived = srs_config_apply_filter(conf, r);
@@ -1018,7 +1018,7 @@ int SrsDvr::on_publish(bool fetch_sequence_header)
         return ret;
     }
     
-    if (fetch_sequence_header && (ret = source->on_dvr_request_sh()) != ERROR_SUCCESS) {
+    if (fetch_sequence_header && (ret = hub->on_dvr_request_sh()) != ERROR_SUCCESS) {
         return ret;
     }
     

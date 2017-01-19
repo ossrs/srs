@@ -45,6 +45,7 @@ class SrsAvcAacCodec;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
+class SrsOriginHub;
 class SrsFileWriter;
 class SrsSimpleStream;
 class SrsTsAacJitter;
@@ -362,7 +363,7 @@ private:
     bool hls_can_dispose;
     int64_t last_update_time;
 private:
-    SrsSource* source;
+    SrsOriginHub* hub;
     SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
     SrsRtmpJitter* jitter;
@@ -391,7 +392,7 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.

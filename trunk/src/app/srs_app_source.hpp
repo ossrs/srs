@@ -53,6 +53,7 @@ class SrsEdgeProxyContext;
 class SrsMessageArray;
 class SrsNgExec;
 class SrsConnection;
+class SrsMessageHeader;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -411,10 +412,128 @@ public:
 };
 
 /**
+ * The hub for origin is a collection of utilities for origin only,
+ * for example, DVR, HLS, Forward and Transcode are only available for origin,
+ * they are meanless for edge server.
+ */
+class SrsOriginHub : public ISrsReloadHandler
+{
+private:
+    SrsSource* source;
+    SrsRequest* req;
+private:
+    // hls handler.
+#ifdef SRS_AUTO_HLS
+    SrsHls* hls;
+#endif
+    // dvr handler.
+#ifdef SRS_AUTO_DVR
+    SrsDvr* dvr;
+#endif
+    // transcoding handler.
+#ifdef SRS_AUTO_TRANSCODE
+    SrsEncoder* encoder;
+#endif
+#ifdef SRS_AUTO_HDS
+    // adobe hds(http dynamic streaming).
+    SrsHds *hds;
+#endif
+    // nginx-rtmp exec feature.
+    SrsNgExec* ng_exec;
+    // to forward stream to other servers
+    std::vector<SrsForwarder*> forwarders;
+public:
+    SrsOriginHub(SrsSource* s);
+    virtual ~SrsOriginHub();
+public:
+    // Initialize the hub with source and request.
+    // @param r The request object, managed by source.
+    virtual int initialize(SrsRequest* r);
+    // Dispose the hub, release utilities resource,
+    // for example, delete all HLS pieces.
+    virtual void dispose();
+    // Cycle the hub, process some regular events,
+    // for example, dispose hls in cycle.
+    virtual int cycle();
+public:
+    // When got a original metadata.
+    virtual int on_original_metadata(SrsOnMetaDataPacket* metadata);
+    // When got a parsed metadata.
+    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
+    // When got a parsed audio packet.
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    // When got a parsed video packet.
+    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
+public:
+    // When start publish stream.
+    virtual int on_publish();
+    // When stop publish stream.
+    virtual void on_unpublish();
+// for the tools callback
+public:
+    // for the SrsForwarder to callback to request the sequence headers.
+    virtual int on_forwarder_start(SrsForwarder* forwarder);
+    // for the SrsHls to callback to request the sequence headers.
+    virtual int on_hls_start();
+    // for the SrsDvr to callback to request the sequence headers.
+    virtual int on_dvr_request_sh();
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_vhost_forward(std::string vhost);
+    virtual int on_reload_vhost_hls(std::string vhost);
+    virtual int on_reload_vhost_hds(std::string vhost);
+    virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual int on_reload_vhost_transcode(std::string vhost);
+    virtual int on_reload_vhost_exec(std::string vhost);
+private:
+    virtual int create_forwarders();
+    virtual void destroy_forwarders();
+};
+
+/**
+ * Each stream have optional meta(sps/pps in sequence header and metadata).
+ * This class cache and update the meta.
+ */
+class SrsMetaCache
+{
+private:
+    SrsSharedPtrMessage* cache_metadata;
+    // the cached video sequence header.
+    SrsSharedPtrMessage* cache_sh_video;
+    // the cached audio sequence header.
+    SrsSharedPtrMessage* cache_sh_audio;
+public:
+    SrsMetaCache();
+    virtual ~SrsMetaCache();
+public:
+    // Dispose the metadata cache.
+    virtual void dispose();
+public:
+    // Get the cached metadata.
+    virtual SrsSharedPtrMessage* data();
+    // Get the cached vsh(video sequence header).
+    virtual SrsSharedPtrMessage* vsh();
+    // Get the cached ash(audio sequence header).
+    virtual SrsSharedPtrMessage* ash();
+    // Dumps cached metadata to consumer.
+    // @param dm Whether dumps the metadata.
+    // @param ds Whether dumps the sequence header.
+    virtual int dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+public:
+    // Update the cached metadata by packet.
+    virtual int update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
+    // Update the cached audio sequence header.
+    virtual void update_ash(SrsSharedPtrMessage* msg);
+    // Update the cached video sequence header.
+    virtual void update_vsh(SrsSharedPtrMessage* msg);
+};
+
+/**
 * live streaming source.
 */
 class SrsSource : public ISrsReloadHandler
 {
+    friend class SrsOriginHub;
 private:
     static std::map<std::string, SrsSource*> pool;
 public:
@@ -475,35 +594,19 @@ private:
     bool is_monotonically_increase;
     // the time of the packet we just got.
     int64_t last_packet_time;
-    // hls handler.
-#ifdef SRS_AUTO_HLS
-    SrsHls* hls;
-#endif
-    // dvr handler.
-#ifdef SRS_AUTO_DVR
-    SrsDvr* dvr;
-#endif
-    // transcoding handler.
-#ifdef SRS_AUTO_TRANSCODE
-    SrsEncoder* encoder;
-#endif
-#ifdef SRS_AUTO_HDS
-    // adobe hds(http dynamic streaming).
-    SrsHds *hds;
-#endif
-    // nginx-rtmp exec feature.
-    SrsNgExec* ng_exec;
+    // for aggregate message
+    SrsBuffer* aggregate_stream;
+    // the event handler.
+    ISrsSourceHandler* handler;
     // edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
     // gop cache for client fast startup.
     SrsGopCache* gop_cache;
-    // to forward stream to other servers
-    std::vector<SrsForwarder*> forwarders;
-    // for aggregate message
-    SrsBuffer* aggregate_stream;
-    // the event handler.
-    ISrsSourceHandler* handler;
+    // The hub for origin server.
+    SrsOriginHub* hub;
+    // The metadata cache.
+    SrsMetaCache* meta;
 private:
     /**
     * can publish, true when is not streaming
@@ -512,12 +615,6 @@ private:
     // last die time, when all consumers quit and no publisher,
     // we will remove the source when source die.
     int64_t die_at;
-private:
-    SrsSharedPtrMessage* cache_metadata;
-    // the cached video sequence header.
-    SrsSharedPtrMessage* cache_sh_video;
-    // the cached audio sequence header.
-    SrsSharedPtrMessage* cache_sh_audio;
 public:
     SrsSource();
     virtual ~SrsSource();
@@ -535,20 +632,8 @@ public:
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_play(std::string vhost);
-    virtual int on_reload_vhost_forward(std::string vhost);
-    virtual int on_reload_vhost_hls(std::string vhost);
-    virtual int on_reload_vhost_hds(std::string vhost);
-    virtual int on_reload_vhost_dvr(std::string vhost);
-    virtual int on_reload_vhost_transcode(std::string vhost);
-    virtual int on_reload_vhost_exec(std::string vhost);
 // for the tools callback
 public:
-    // for the SrsForwarder to callback to request the sequence headers.
-    virtual int on_forwarder_start(SrsForwarder* forwarder);
-    // for the SrsHls to callback to request the sequence headers.
-    virtual int on_hls_start();
-    // for the SrsDvr to callback to request the sequence headers.
-    virtual int on_dvr_request_sh();
     // source id changed.
     virtual int on_source_id_changed(int id);
     // get current source id.
@@ -599,9 +684,6 @@ public:
     virtual int on_edge_proxy_publish(SrsCommonMessage* msg);
     // for edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
-private:
-    virtual int create_forwarders();
-    virtual void destroy_forwarders();
 public:
     virtual std::string get_curr_origin();
 };

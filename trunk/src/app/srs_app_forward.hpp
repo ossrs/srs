@@ -42,6 +42,7 @@ class SrsRtmpJitter;
 class SrsRtmpClient;
 class SrsRequest;
 class SrsSource;
+class SrsOriginHub;
 class SrsKbps;
 class SrsSimpleRtmpClient;
 
@@ -58,7 +59,7 @@ private:
 private:
     SrsReusableThread2* pthread;
 private:
-    SrsSource* source;
+    SrsOriginHub* hub;
     SrsSimpleRtmpClient* sdk;
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
@@ -69,7 +70,7 @@ private:
     SrsSharedPtrMessage* sh_audio;
     SrsSharedPtrMessage* sh_video;
 public:
-    SrsForwarder(SrsSource* _source);
+    SrsForwarder(SrsOriginHub* h);
     virtual ~SrsForwarder();
 public:
     virtual int initialize(SrsRequest* r, std::string ep);

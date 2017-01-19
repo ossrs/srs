@@ -50,9 +50,9 @@ using namespace std;
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_CIMS (3000)
 
-SrsForwarder::SrsForwarder(SrsSource* s)
+SrsForwarder::SrsForwarder(SrsOriginHub* h)
 {
-    source = s;
+    hub = h;
     
     req = NULL;
     sh_video = sh_audio = NULL;
@@ -250,7 +250,7 @@ int SrsForwarder::cycle()
         return ret;
     }
     
-    if ((ret = source->on_forwarder_start(this)) != ERROR_SUCCESS) {
+    if ((ret = hub->on_forwarder_start(this)) != ERROR_SUCCESS) {
         srs_error("callback the source to feed the sequence header failed. ret=%d", ret);
         return ret;
     }

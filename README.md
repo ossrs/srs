@@ -184,6 +184,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-01-19, for [#742][bug #742] refine source, meta and origin hub. 3.0.16
 * v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
 * v3.0, 2017-01-11, fix [#735][bug #735] config transform refer_publish invalid. 3.0.14
 * v3.0, 2017-01-06, for [#730][bug #730] support config in/out ack size. 3.0.13
@@ -872,13 +873,13 @@ Remark:
 |     Input            | SRS(Simple RTMP Server) |     Output     |
 +----------------------+-------------------------+----------------+
 |    Encoder(1)        |   +-> RTMP/HDS  --------+-> Flash player |
-|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3u8 player  |
+|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3U8 player  |
 |  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
 |  ......)             |   +-> Fowarder ---------+-> RTMP server  |
 |                      |   +-> Transcoder -------+-> RTMP server  |
 |                      |   +-> EXEC(5) ----------+-> External app |
-|                      |   +-> DVR --------------+-> Flv file     |
-|                      |   +-> BandwidthTest ----+-> flash        |
+|                      |   +-> DVR --------------+-> FLV file     |
+|                      |   +-> BandwidthTest ----+-> Flash        |
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |

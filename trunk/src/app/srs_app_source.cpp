@@ -745,6 +745,797 @@ ISrsSourceHandler::~ISrsSourceHandler()
 {
 }
 
+// TODO: FIXME: Remove it?
+bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage* msg)
+{
+    // only continue for decode error.
+    if (ret != ERROR_HLS_DECODE_ERROR) {
+        return false;
+    }
+    
+    // when video size equals to sequence header,
+    // the video actually maybe a sequence header,
+    // continue to make ffmpeg happy.
+    if (sh && sh->size == msg->size) {
+        srs_warn("the msg is actually a sequence header, ignore this packet.");
+        return true;
+    }
+    
+    return false;
+}
+
+SrsOriginHub::SrsOriginHub(SrsSource* s)
+{
+    source = s;
+    req = NULL;
+    
+#ifdef SRS_AUTO_HLS
+    hls = new SrsHls();
+#endif
+#ifdef SRS_AUTO_DVR
+    dvr = new SrsDvr();
+#endif
+#ifdef SRS_AUTO_TRANSCODE
+    encoder = new SrsEncoder();
+#endif
+#ifdef SRS_AUTO_HDS
+    hds = new SrsHds(s);
+#endif
+    ng_exec = new SrsNgExec();
+    
+    _srs_config->subscribe(this);
+}
+
+SrsOriginHub::~SrsOriginHub()
+{
+    _srs_config->unsubscribe(this);
+    
+    if (true) {
+        std::vector<SrsForwarder*>::iterator it;
+        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+            SrsForwarder* forwarder = *it;
+            srs_freep(forwarder);
+        }
+        forwarders.clear();
+    }
+    srs_freep(ng_exec);
+    
+#ifdef SRS_AUTO_HLS
+    srs_freep(hls);
+#endif
+#ifdef SRS_AUTO_DVR
+    srs_freep(dvr);
+#endif
+#ifdef SRS_AUTO_TRANSCODE
+    srs_freep(encoder);
+#endif
+#ifdef SRS_AUTO_HDS
+    srs_freep(hds);
+#endif
+}
+
+int SrsOriginHub::initialize(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    req = r;
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+void SrsOriginHub::dispose()
+{
+#ifdef SRS_AUTO_HLS
+    hls->dispose();
+#endif
+}
+
+int SrsOriginHub::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->cycle()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_original_metadata(SrsOnMetaDataPacket* metadata)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HLS
+    if (metadata && (ret = hls->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
+        srs_error("hls process onMetaData message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if (metadata && (ret = dvr->on_meta_data(metadata)) != ERROR_SUCCESS) {
+        srs_error("dvr process onMetaData message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // copy to all forwarders
+    if (true) {
+        std::vector<SrsForwarder*>::iterator it;
+        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+            SrsForwarder* forwarder = *it;
+            if ((ret = forwarder->on_meta_data(shared_metadata)) != ERROR_SUCCESS) {
+                srs_error("forwarder process onMetaData message failed. ret=%d", ret);
+                return ret;
+            }
+        }
+    }
+    
+    return ret;
+}
+
+int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = shared_audio;
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
+        // apply the error strategy for hls.
+        // @see https://github.com/ossrs/srs/issues/264
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
+        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
+            srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
+            
+            // unpublish, ignore ret.
+            hls->on_unpublish();
+            
+            // ignore.
+            ret = ERROR_SUCCESS;
+        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
+            if (srs_hls_can_continue(ret, source->meta->ash(), msg)) {
+                ret = ERROR_SUCCESS;
+            } else {
+                srs_warn("hls continue audio failed. ret=%d", ret);
+                return ret;
+            }
+        } else {
+            srs_warn("hls disconnect publisher for audio error. ret=%d", ret);
+            return ret;
+        }
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
+        srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        dvr->on_unpublish();
+        
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
+#ifdef SRS_AUTO_HDS
+    if ((ret = hds->on_audio(msg)) != ERROR_SUCCESS) {
+        srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        hds->on_unpublish();
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
+    // copy to all forwarders.
+    if (true) {
+        std::vector<SrsForwarder*>::iterator it;
+        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+            SrsForwarder* forwarder = *it;
+            if ((ret = forwarder->on_audio(msg)) != ERROR_SUCCESS) {
+                srs_error("forwarder process audio message failed. ret=%d", ret);
+                return ret;
+            }
+        }
+    }
+    
+    return ret;
+}
+
+int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = shared_video;
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+        // apply the error strategy for hls.
+        // @see https://github.com/ossrs/srs/issues/264
+        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
+        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
+            srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
+            
+            // unpublish, ignore ret.
+            hls->on_unpublish();
+            
+            // ignore.
+            ret = ERROR_SUCCESS;
+        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
+            if (srs_hls_can_continue(ret, source->meta->vsh(), msg)) {
+                ret = ERROR_SUCCESS;
+            } else {
+                srs_warn("hls continue video failed. ret=%d", ret);
+                return ret;
+            }
+        } else {
+            srs_warn("hls disconnect publisher for video error. ret=%d", ret);
+            return ret;
+        }
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
+        srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        dvr->on_unpublish();
+        
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
+#ifdef SRS_AUTO_HDS
+    if ((ret = hds->on_video(msg)) != ERROR_SUCCESS) {
+        srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        hds->on_unpublish();
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
+    // copy to all forwarders.
+    if (!forwarders.empty()) {
+        std::vector<SrsForwarder*>::iterator it;
+        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+            SrsForwarder* forwarder = *it;
+            if ((ret = forwarder->on_video(msg)) != ERROR_SUCCESS) {
+                srs_error("forwarder process video message failed. ret=%d", ret);
+                return ret;
+            }
+        }
+    }
+    
+    return ret;
+}
+
+int SrsOriginHub::on_publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // create forwarders
+    if ((ret = create_forwarders()) != ERROR_SUCCESS) {
+        srs_error("create forwarders failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // TODO: FIXME: use initialize to set req.
+#ifdef SRS_AUTO_TRANSCODE
+    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start encoder failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->on_publish(false)) != ERROR_SUCCESS) {
+        srs_error("start hls failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
+        srs_error("start dvr failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    // TODO: FIXME: use initialize to set req.
+#ifdef SRS_AUTO_HDS
+    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start hds failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    // TODO: FIXME: use initialize to set req.
+    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start exec failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsOriginHub::on_unpublish()
+{
+    // destroy all forwarders
+    destroy_forwarders();
+    
+#ifdef SRS_AUTO_TRANSCODE
+    encoder->on_unpublish();
+#endif
+    
+#ifdef SRS_AUTO_HLS
+    hls->on_unpublish();
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    dvr->on_unpublish();
+#endif
+    
+#ifdef SRS_AUTO_HDS
+    hds->on_unpublish();
+#endif
+    
+    ng_exec->on_unpublish();
+}
+
+int SrsOriginHub::on_forwarder_start(SrsForwarder* forwarder)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* cache_metadata = source->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    
+    // feed the forwarder the metadata/sequence header,
+    // when reload to enable the forwarder.
+    if (cache_metadata && (ret = forwarder->on_meta_data(cache_metadata)) != ERROR_SUCCESS) {
+        srs_error("forwarder process onMetaData message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_video && (ret = forwarder->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+        srs_error("forwarder process video sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = forwarder->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+        srs_error("forwarder process audio sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsOriginHub::on_hls_start()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    
+#ifdef SRS_AUTO_HLS
+    // feed the hls the metadata/sequence header,
+    // when reload to start hls, hls will never get the sequence header in stream,
+    // use the SrsSource.on_hls_start to push the sequence header to HLS.
+    // TODO: maybe need to decode the metadata?
+    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
+        srs_error("hls process video sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+        srs_error("hls process audio sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_dvr_request_sh()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* cache_metadata = source->meta->data();
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    
+#ifdef SRS_AUTO_DVR
+    // feed the dvr the metadata/sequence header,
+    // when reload to start dvr, dvr will never get the sequence header in stream,
+    // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
+    if (cache_metadata) {
+        char* payload = cache_metadata->payload;
+        int size = cache_metadata->size;
+        
+        SrsBuffer stream;
+        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
+            srs_error("dvr decode metadata stream failed. ret=%d", ret);
+            return ret;
+        }
+        
+        SrsOnMetaDataPacket pkt;
+        if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
+            srs_error("dvr decode metadata packet failed.");
+            return ret;
+        }
+        
+        if ((ret = dvr->on_meta_data(&pkt)) != ERROR_SUCCESS) {
+            srs_error("dvr process onMetaData message failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    if (cache_sh_video && (ret = dvr->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+        srs_error("dvr process video sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = dvr->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+        srs_error("dvr process audio sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_forward(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+    // forwarders
+    destroy_forwarders();
+    if ((ret = create_forwarders()) != ERROR_SUCCESS) {
+        srs_error("create forwarders failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_trace("vhost %s forwarders reload success", vhost.c_str());
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_hls(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+#ifdef SRS_AUTO_HLS
+    hls->on_unpublish();
+    if ((ret = hls->on_publish(true)) != ERROR_SUCCESS) {
+        srs_error("hls publish failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s hls reload success", vhost.c_str());
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_hds(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+#ifdef SRS_AUTO_HDS
+    hds->on_unpublish();
+    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("hds publish failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s hds reload success", vhost.c_str());
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_dvr(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+#ifdef SRS_AUTO_DVR
+    // cleanup dvr
+    dvr->on_unpublish();
+    
+    // reinitialize the dvr, update plan.
+    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // start to publish by new plan.
+    if ((ret = dvr->on_publish(true)) != ERROR_SUCCESS) {
+        srs_error("dvr publish failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_trace("vhost %s dvr reload success", vhost.c_str());
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_transcode(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+#ifdef SRS_AUTO_TRANSCODE
+    encoder->on_unpublish();
+    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start encoder failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s transcode reload success", vhost.c_str());
+#endif
+    
+    return ret;
+}
+
+int SrsOriginHub::on_reload_vhost_exec(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // TODO: FIXME: maybe should ignore when publish already stopped?
+    
+    ng_exec->on_unpublish();
+    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start exec failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s exec reload success", vhost.c_str());
+    
+    return ret;
+}
+
+int SrsOriginHub::create_forwarders()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!_srs_config->get_forward_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
+    for (int i = 0; conf && i < (int)conf->args.size(); i++) {
+        std::string forward_server = conf->args.at(i);
+        
+        SrsForwarder* forwarder = new SrsForwarder(this);
+        forwarders.push_back(forwarder);
+        
+        // initialize the forwarder with request.
+        if ((ret = forwarder->initialize(req, forward_server)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // TODO: FIXME: support queue size.
+        //double queue_size = _srs_config->get_queue_length(req->vhost);
+        //forwarder->set_queue_size(queue_size);
+        
+        if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
+            srs_error("start forwarder failed. "
+                      "vhost=%s, app=%s, stream=%s, forward-to=%s",
+                      req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
+                      forward_server.c_str());
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+void SrsOriginHub::destroy_forwarders()
+{
+    std::vector<SrsForwarder*>::iterator it;
+    for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+        SrsForwarder* forwarder = *it;
+        forwarder->on_unpublish();
+        srs_freep(forwarder);
+    }
+    forwarders.clear();
+}
+
+SrsMetaCache::SrsMetaCache()
+{
+    cache_metadata = cache_sh_video = cache_sh_audio = NULL;
+}
+
+SrsMetaCache::~SrsMetaCache()
+{
+    dispose();
+}
+
+void SrsMetaCache::dispose()
+{
+    srs_freep(cache_metadata);
+    srs_freep(cache_sh_video);
+    srs_freep(cache_sh_audio);
+}
+
+SrsSharedPtrMessage* SrsMetaCache::data()
+{
+    return cache_metadata;
+}
+
+SrsSharedPtrMessage* SrsMetaCache::vsh()
+{
+    return cache_sh_video;
+}
+
+SrsSharedPtrMessage* SrsMetaCache::ash()
+{
+    return cache_sh_audio;
+}
+
+int SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // copy metadata.
+    if (dm && cache_metadata && (ret = consumer->enqueue(cache_metadata, atc, ag)) != ERROR_SUCCESS) {
+        srs_error("dispatch metadata failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("dispatch metadata success");
+    
+    // copy sequence header
+    // copy audio sequence first, for hls to fast parse the "right" audio codec.
+    // @see https://github.com/ossrs/srs/issues/301
+    if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, ag)) != ERROR_SUCCESS) {
+        srs_error("dispatch audio sequence header failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("dispatch audio sequence header success");
+    
+    if (ds && cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, ag)) != ERROR_SUCCESS) {
+        srs_error("dispatch video sequence header failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("dispatch video sequence header success");
+    
+    return ret;
+}
+
+int SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated)
+{
+    updated = false;
+    
+    int ret = ERROR_SUCCESS;
+    
+    SrsAmf0Any* prop = NULL;
+    
+    // when exists the duration, remove it to make ExoPlayer happy.
+    if (metadata->metadata->get_property("duration") != NULL) {
+        metadata->metadata->remove("duration");
+    }
+    
+    // generate metadata info to print
+    std::stringstream ss;
+    if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
+        ss << ", width=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("height")) != NULL) {
+        ss << ", height=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("videocodecid")) != NULL) {
+        ss << ", vcodec=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
+        ss << ", acodec=" << (int)prop->to_number();
+    }
+    srs_trace("got metadata%s", ss.str().c_str());
+    
+    // add server info to metadata
+    metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
+    metadata->metadata->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    metadata->metadata->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
+    
+    // version, for example, 1.0.0
+    // add version to metadata, please donot remove it, for debug.
+    metadata->metadata->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    
+    // encode the metadata to payload
+    int size = 0;
+    char* payload = NULL;
+    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
+        srs_error("encode metadata error. ret=%d", ret);
+        srs_freep(payload);
+        return ret;
+    }
+    srs_verbose("encode metadata success.");
+    
+    if (size <= 0) {
+        srs_warn("ignore the invalid metadata. size=%d", size);
+        return ret;
+    }
+    
+    // create a shared ptr message.
+    srs_freep(cache_metadata);
+    cache_metadata = new SrsSharedPtrMessage();
+    updated = true;
+    
+    // dump message to shared ptr message.
+    // the payload/size managed by cache_metadata, user should not free it.
+    if ((ret = cache_metadata->create(header, payload, size)) != ERROR_SUCCESS) {
+        srs_error("initialize the cache metadata failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("initialize shared ptr metadata success.");
+    
+    return ret;
+}
+
+void SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
+{
+    srs_freep(cache_sh_audio);
+    cache_sh_audio = msg->copy();
+}
+
+void SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
+{
+    srs_freep(cache_sh_video);
+    cache_sh_video = msg->copy();
+}
+
 std::map<std::string, SrsSource*> SrsSource::pool;
 
 int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
@@ -947,21 +1738,6 @@ SrsSource::SrsSource()
     mix_correct = false;
     mix_queue = new SrsMixQueue();
     
-#ifdef SRS_AUTO_HLS
-    hls = new SrsHls();
-#endif
-#ifdef SRS_AUTO_DVR
-    dvr = new SrsDvr();
-#endif
-#ifdef SRS_AUTO_TRANSCODE
-    encoder = new SrsEncoder();
-#endif
-#ifdef SRS_AUTO_HDS
-    hds = new SrsHds(this);
-#endif
-    
-    cache_metadata = cache_sh_video = cache_sh_audio = NULL;
-    
     _can_publish = true;
     _pre_source_id = _source_id = -1;
     die_at = -1;
@@ -970,7 +1746,8 @@ SrsSource::SrsSource()
     publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
     aggregate_stream = new SrsBuffer();
-    ng_exec = new SrsNgExec();
+    hub = new SrsOriginHub(this);
+    meta = new SrsMetaCache();
     
     is_monotonically_increase = false;
     last_packet_time = 0;
@@ -986,69 +1763,29 @@ SrsSource::~SrsSource()
     // never free the consumers, 
     // for all consumers are auto free.
     consumers.clear();
-
-    if (true) {
-        std::vector<SrsForwarder*>::iterator it;
-        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-            SrsForwarder* forwarder = *it;
-            srs_freep(forwarder);
-        }
-        forwarders.clear();
-    }
     
+    srs_freep(hub);
+    srs_freep(meta);
     srs_freep(mix_queue);
-    srs_freep(cache_metadata);
-    srs_freep(cache_sh_video);
-    srs_freep(cache_sh_audio);
     
     srs_freep(play_edge);
     srs_freep(publish_edge);
     srs_freep(gop_cache);
     srs_freep(aggregate_stream);
-    srs_freep(ng_exec);
-    
-#ifdef SRS_AUTO_HLS
-    srs_freep(hls);
-#endif
-#ifdef SRS_AUTO_DVR
-    srs_freep(dvr);
-#endif
-#ifdef SRS_AUTO_TRANSCODE
-    srs_freep(encoder);
-#endif
-#ifdef SRS_AUTO_HDS
-    srs_freep(hds);
-#endif
 
     srs_freep(req);
 }
 
 void SrsSource::dispose()
 {
-#ifdef SRS_AUTO_HLS
-    hls->dispose();
-#endif
-    
-    // cleaup the cached packets.
-    srs_freep(cache_metadata);
-    srs_freep(cache_sh_video);
-    srs_freep(cache_sh_audio);
-    
-    // cleanup the gop cache.
+    hub->dispose();
+    meta->dispose();
     gop_cache->dispose();
 }
 
 int SrsSource::cycle()
 {
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HLS
-    if ((ret = hls->cycle()) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-    
-    return ret;
+    return hub->cycle();
 }
 
 bool SrsSource::expired()
@@ -1086,18 +1823,10 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     handler = h;
     req = r->copy();
     atc = _srs_config->get_atc(req->vhost);
-
-#ifdef SRS_AUTO_HLS
-    if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
     
-#ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
+    if ((ret = hub->initialize(req)) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
 
     if ((ret = play_edge->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
@@ -1174,6 +1903,9 @@ int SrsSource::on_reload_vhost_play(string vhost)
             srs_trace("consumers reload queue size success.");
         }
         
+        // TODO: FIXME: https://github.com/ossrs/srs/issues/742#issuecomment-273656897
+        // TODO: FIXME: support queue size.
+#if 0
         if (true) {
             std::vector<SrsForwarder*>::iterator it;
             
@@ -1189,233 +1921,8 @@ int SrsSource::on_reload_vhost_play(string vhost)
             publish_edge->set_queue_size(v);
             srs_trace("publish_edge reload queue size success.");
         }
-    }
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_forward(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-
-    // forwarders
-    destroy_forwarders();
-    if ((ret = create_forwarders()) != ERROR_SUCCESS) {
-        srs_error("create forwarders failed. ret=%d", ret);
-        return ret;
-    }
-
-    srs_trace("vhost %s forwarders reload success", vhost.c_str());
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_hls(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-#ifdef SRS_AUTO_HLS
-    hls->on_unpublish();
-    if ((ret = hls->on_publish(true)) != ERROR_SUCCESS) {
-        srs_error("hls publish failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("vhost %s hls reload success", vhost.c_str());
 #endif
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_hds(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-
-    if (req->vhost != vhost) {
-        return ret;
     }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-
-#ifdef SRS_AUTO_HDS
-    hds->on_unpublish();
-    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("hds publish failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("vhost %s hds reload success", vhost.c_str());
-#endif
-
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_dvr(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-#ifdef SRS_AUTO_DVR
-    // cleanup dvr
-    dvr->on_unpublish();
-
-    // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
-    }
-
-    // start to publish by new plan.
-    if ((ret = dvr->on_publish(true)) != ERROR_SUCCESS) {
-        srs_error("dvr publish failed. ret=%d", ret);
-        return ret;
-    }
-    
-    srs_trace("vhost %s dvr reload success", vhost.c_str());
-#endif
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_transcode(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-#ifdef SRS_AUTO_TRANSCODE
-    encoder->on_unpublish();
-    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start encoder failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("vhost %s transcode reload success", vhost.c_str());
-#endif
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_exec(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (req->vhost != vhost) {
-        return ret;
-    }
-    
-    // TODO: FIXME: maybe should ignore when publish already stopped?
-    
-    ng_exec->on_unpublish();
-    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start exec failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("vhost %s exec reload success", vhost.c_str());
-    
-    return ret;
-}
-
-int SrsSource::on_forwarder_start(SrsForwarder* forwarder)
-{
-    int ret = ERROR_SUCCESS;
-        
-    // feed the forwarder the metadata/sequence header,
-    // when reload to enable the forwarder.
-    if (cache_metadata && (ret = forwarder->on_meta_data(cache_metadata)) != ERROR_SUCCESS) {
-        srs_error("forwarder process onMetaData message failed. ret=%d", ret);
-        return ret;
-    }
-    if (cache_sh_video && (ret = forwarder->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-        srs_error("forwarder process video sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    if (cache_sh_audio && (ret = forwarder->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("forwarder process audio sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsSource::on_hls_start()
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HLS
-    // feed the hls the metadata/sequence header,
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsSource.on_hls_start to push the sequence header to HLS.
-    // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
-        srs_error("hls process video sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("hls process audio sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-    return ret;
-}
-
-int SrsSource::on_dvr_request_sh()
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_DVR
-    // feed the dvr the metadata/sequence header,
-    // when reload to start dvr, dvr will never get the sequence header in stream,
-    // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
-    if (cache_metadata) {
-        char* payload = cache_metadata->payload;
-        int size = cache_metadata->size;
-        
-        SrsBuffer stream;
-        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
-            srs_error("dvr decode metadata stream failed. ret=%d", ret);
-            return ret;
-        }
-        
-        SrsOnMetaDataPacket pkt;
-        if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
-            srs_error("dvr decode metadata packet failed.");
-            return ret;
-        }
-        
-        if ((ret = dvr->on_meta_data(&pkt)) != ERROR_SUCCESS) {
-            srs_error("dvr process onMetaData message failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    
-    if (cache_sh_video && (ret = dvr->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-        srs_error("dvr process video sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    if (cache_sh_audio && (ret = dvr->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("dvr process audio sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-#endif
     
     return ret;
 }
@@ -1469,53 +1976,13 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HLS
-    if (metadata && (ret = hls->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
-        srs_error("hls process onMetaData message failed. ret=%d", ret);
+    // Notify hub about the original metadata.
+    if ((ret = hub->on_original_metadata(metadata)) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    if (metadata && (ret = dvr->on_meta_data(metadata)) != ERROR_SUCCESS) {
-        srs_error("dvr process onMetaData message failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-
-    SrsAmf0Any* prop = NULL;
-    
-    // when exists the duration, remove it to make ExoPlayer happy.
-    if (metadata->metadata->get_property("duration") != NULL) {
-        metadata->metadata->remove("duration");
-    }
-    
-    // generate metadata info to print
-    std::stringstream ss;
-    if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
-        ss << ", width=" << (int)prop->to_number();
-    }
-    if ((prop = metadata->metadata->ensure_property_number("height")) != NULL) {
-        ss << ", height=" << (int)prop->to_number();
-    }
-    if ((prop = metadata->metadata->ensure_property_number("videocodecid")) != NULL) {
-        ss << ", vcodec=" << (int)prop->to_number();
-    }
-    if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
-        ss << ", acodec=" << (int)prop->to_number();
-    }
-    srs_trace("got metadata%s", ss.str().c_str());
-    
-    // add server info to metadata
-    metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
-    metadata->metadata->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    metadata->metadata->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    
-    // version, for example, 1.0.0
-    // add version to metadata, please donot remove it, for debug.
-    metadata->metadata->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
     
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
+    SrsAmf0Any* prop = NULL;
     atc = _srs_config->get_atc(req->vhost);
     if (_srs_config->get_atc_auto(req->vhost)) {
         if ((prop = metadata->metadata->get_property("bravo_atc")) != NULL) {
@@ -1525,65 +1992,36 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
         }
     }
     
-    // encode the metadata to payload
-    int size = 0;
-    char* payload = NULL;
-    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
-        srs_error("encode metadata error. ret=%d", ret);
-        srs_freep(payload);
+    // Update the meta cache.
+    bool updated = false;
+    if ((ret = meta->update_data(&msg->header, metadata, updated)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("encode metadata success.");
-    
-    if (size <= 0) {
-        srs_warn("ignore the invalid metadata. size=%d", size);
+    if (!updated) {
         return ret;
     }
     
     // when already got metadata, drop when reduce sequence header.
     bool drop_for_reduce = false;
-    if (cache_metadata && _srs_config->get_reduce_sequence_header(req->vhost)) {
+    if (meta->data() && _srs_config->get_reduce_sequence_header(req->vhost)) {
         drop_for_reduce = true;
         srs_warn("drop for reduce sh metadata, size=%d", msg->size);
     }
-    
-    // create a shared ptr message.
-    srs_freep(cache_metadata);
-    cache_metadata = new SrsSharedPtrMessage();
-    
-    // dump message to shared ptr message.
-    // the payload/size managed by cache_metadata, user should not free it.
-    if ((ret = cache_metadata->create(&msg->header, payload, size)) != ERROR_SUCCESS) {
-        srs_error("initialize the cache metadata failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("initialize shared ptr metadata success.");
     
     // copy to all consumer
     if (!drop_for_reduce) {
         std::vector<SrsConsumer*>::iterator it;
         for (it = consumers.begin(); it != consumers.end(); ++it) {
             SrsConsumer* consumer = *it;
-            if ((ret = consumer->enqueue(cache_metadata, atc, jitter_algorithm)) != ERROR_SUCCESS) {
+            if ((ret = consumer->enqueue(meta->data(), atc, jitter_algorithm)) != ERROR_SUCCESS) {
                 srs_error("dispatch the metadata failed. ret=%d", ret);
                 return ret;
             }
         }
     }
     
-    // copy to all forwarders
-    if (true) {
-        std::vector<SrsForwarder*>::iterator it;
-        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-            SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_meta_data(cache_metadata)) != ERROR_SUCCESS) {
-                srs_error("forwarder process onMetaData message failed. ret=%d", ret);
-                return ret;
-            }
-        }
-    }
-    
-    return ret;
+    // Copy to hub to all utilities.
+    return hub->on_meta_data(meta->data());
 }
 
 int SrsSource::on_audio(SrsCommonMessage* shared_audio)
@@ -1633,24 +2071,6 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     return ret;
 }
 
-bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage* msg)
-{
-    // only continue for decode error.
-    if (ret != ERROR_HLS_DECODE_ERROR) {
-        return false;
-    }
-    
-    // when video size equals to sequence header,
-    // the video actually maybe a sequence header,
-    // continue to make ffmpeg happy.
-    if (sh && sh->size == msg->size) {
-        srs_warn("the msg is actually a sequence header, ignore this packet.");
-        return true;
-    }
-    
-    return false;
-}
-
 int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
@@ -1661,9 +2081,9 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_audio && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (cache_sh_audio->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(cache_sh_audio->payload, msg->payload, msg->size);
+    if (is_sequence_header && meta->ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+        if (meta->ash()->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(meta->ash()->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh audio, size=%d", msg->size);
         }
     }
@@ -1697,56 +2117,6 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
             flv_sample_rates[sample.sound_rate]);
     }
     
-#ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
-        // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
-        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
-            srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
-            
-            // unpublish, ignore ret.
-            hls->on_unpublish();
-            
-            // ignore.
-            ret = ERROR_SUCCESS;
-        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(ret, cache_sh_audio, msg)) {
-                ret = ERROR_SUCCESS;
-            } else {
-                srs_warn("hls continue audio failed. ret=%d", ret);
-                return ret;
-            }
-        } else {
-            srs_warn("hls disconnect publisher for audio error. ret=%d", ret);
-            return ret;
-        }
-    }
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
-        srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
-        
-        // unpublish, ignore ret.
-        dvr->on_unpublish();
-        
-        // ignore.
-        ret = ERROR_SUCCESS;
-    }
-#endif
-
-#ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_audio(msg)) != ERROR_SUCCESS) {
-        srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
-        
-        // unpublish, ignore ret.
-        hds->on_unpublish();
-        // ignore.
-        ret = ERROR_SUCCESS;
-    }
-#endif
-    
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -1759,24 +2129,16 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         srs_info("dispatch audio success.");
     }
     
-    // copy to all forwarders.
-    if (true) {
-        std::vector<SrsForwarder*>::iterator it;
-        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-            SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_audio(msg)) != ERROR_SUCCESS) {
-                srs_error("forwarder process audio message failed. ret=%d", ret);
-                return ret;
-            }
-        }
+    // Copy to hub to all utilities.
+    if ((ret = hub->on_audio(msg)) != ERROR_SUCCESS) {
+        return ret;
     }
 
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
     // TODO: FIXME: to refine the stream info system.
-    if (is_aac_sequence_header || !cache_sh_audio) {
-        srs_freep(cache_sh_audio);
-        cache_sh_audio = msg->copy();
+    if (is_aac_sequence_header || !meta->ash()) {
+        meta->update_ash(msg);
     }
     
     // when sequence header, donot push to gop cache and adjust the timestamp.
@@ -1793,11 +2155,11 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     
     // if atc, update the sequence header to abs time.
     if (atc) {
-        if (cache_sh_audio) {
-            cache_sh_audio->timestamp = msg->timestamp;
+        if (meta->ash()) {
+            meta->ash()->timestamp = msg->timestamp;
         }
-        if (cache_metadata) {
-            cache_metadata->timestamp = msg->timestamp;
+        if (meta->data()) {
+            meta->data()->timestamp = msg->timestamp;
         }
     }
     
@@ -1874,9 +2236,9 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && cache_sh_video && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (cache_sh_video->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(cache_sh_video->payload, msg->payload, msg->size);
+    if (is_sequence_header && meta->vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+        if (meta->vsh()->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(meta->vsh()->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh video, size=%d", msg->size);
         }
     }
@@ -1884,8 +2246,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
     if (is_sequence_header) {
-        srs_freep(cache_sh_video);
-        cache_sh_video = msg->copy();
+        meta->update_vsh(msg);
         
         // parse detail audio codec
         SrsAvcAacCodec codec;
@@ -1913,55 +2274,10 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
     }
     
-#ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
-        // apply the error strategy for hls.
-        // @see https://github.com/ossrs/srs/issues/264
-        std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
-        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
-            srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
-            
-            // unpublish, ignore ret.
-            hls->on_unpublish();
-            
-            // ignore.
-            ret = ERROR_SUCCESS;
-        } else if (srs_config_hls_is_on_error_continue(hls_error_strategy)) {
-            if (srs_hls_can_continue(ret, cache_sh_video, msg)) {
-                ret = ERROR_SUCCESS;
-            } else {
-                srs_warn("hls continue video failed. ret=%d", ret);
-                return ret;
-            }
-        } else {
-            srs_warn("hls disconnect publisher for video error. ret=%d", ret);
-            return ret;
-        }
+    // Copy to hub to all utilities.
+    if ((ret = hub->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+        return ret;
     }
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
-        srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
-        
-        // unpublish, ignore ret.
-        dvr->on_unpublish();
-        
-        // ignore.
-        ret = ERROR_SUCCESS;
-    }
-#endif
-
-#ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_video(msg)) != ERROR_SUCCESS) {
-        srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
-        
-        // unpublish, ignore ret.
-        hds->on_unpublish();
-        // ignore.
-        ret = ERROR_SUCCESS;
-    }
-#endif
     
     // copy to all consumer
     if (!drop_for_reduce) {
@@ -1973,18 +2289,6 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
             }
         }
         srs_info("dispatch video success.");
-    }
-
-    // copy to all forwarders.
-    if (!forwarders.empty()) {
-        std::vector<SrsForwarder*>::iterator it;
-        for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-            SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_video(msg)) != ERROR_SUCCESS) {
-                srs_error("forwarder process video message failed. ret=%d", ret);
-                return ret;
-            }
-        }
     }
     
     // when sequence header, donot push to gop cache and adjust the timestamp.
@@ -2001,11 +2305,11 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // if atc, update the sequence header to abs time.
     if (atc) {
-        if (cache_sh_video) {
-            cache_sh_video->timestamp = msg->timestamp;
+        if (meta->vsh()) {
+            meta->vsh()->timestamp = msg->timestamp;
         }
-        if (cache_metadata) {
-            cache_metadata->timestamp = msg->timestamp;
+        if (meta->data()) {
+            meta->data()->timestamp = msg->timestamp;
         }
     }
     
@@ -2142,45 +2446,8 @@ int SrsSource::on_publish()
     is_monotonically_increase = true;
     last_packet_time = 0;
     
-    // create forwarders
-    if ((ret = create_forwarders()) != ERROR_SUCCESS) {
-        srs_error("create forwarders failed. ret=%d", ret);
-        return ret;
-    }
-    
-    // TODO: FIXME: use initialize to set req.
-#ifdef SRS_AUTO_TRANSCODE
-    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start encoder failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-#ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_publish(false)) != ERROR_SUCCESS) {
-        srs_error("start hls failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
-        srs_error("start dvr failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-    // TODO: FIXME: use initialize to set req.
-#ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start hds failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-    // TODO: FIXME: use initialize to set req.
-    if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start exec failed. ret=%d", ret);
+    // Notify the hub about the publish event.
+    if ((ret = hub->on_publish()) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -2203,26 +2470,8 @@ void SrsSource::on_unpublish()
         return;
     }
     
-    // destroy all forwarders
-    destroy_forwarders();
-
-#ifdef SRS_AUTO_TRANSCODE
-    encoder->on_unpublish();
-#endif
-
-#ifdef SRS_AUTO_HLS
-    hls->on_unpublish();
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    dvr->on_unpublish();
-#endif
-
-#ifdef SRS_AUTO_HDS
-    hds->on_unpublish();
-#endif
-    
-    ng_exec->on_unpublish();
+    // Notify the hub about the unpublish event.
+    hub->on_unpublish();
 
     // only clear the gop cache,
     // donot clear the sequence header, for it maybe not changed,
@@ -2259,38 +2508,21 @@ int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool
     
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
-        if (cache_metadata) {
-            cache_metadata->timestamp = gop_cache->start_time();
+        if (meta->data()) {
+            meta->data()->timestamp = gop_cache->start_time();
         }
-        if (cache_sh_video) {
-            cache_sh_video->timestamp = gop_cache->start_time();
+        if (meta->vsh()) {
+            meta->vsh()->timestamp = gop_cache->start_time();
         }
-        if (cache_sh_audio) {
-            cache_sh_audio->timestamp = gop_cache->start_time();
+        if (meta->ash()) {
+            meta->ash()->timestamp = gop_cache->start_time();
         }
     }
     
-    // copy metadata.
-    if (dm && cache_metadata && (ret = consumer->enqueue(cache_metadata, atc, jitter_algorithm)) != ERROR_SUCCESS) {
-        srs_error("dispatch metadata failed. ret=%d", ret);
+    // Copy metadata and sequence header to consumer.
+    if ((ret = meta->dumps(consumer, atc, jitter_algorithm, dm, ds)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_info("dispatch metadata success");
-    
-    // copy sequence header
-    // copy audio sequence first, for hls to fast parse the "right" audio codec.
-    // @see https://github.com/ossrs/srs/issues/301
-    if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, jitter_algorithm)) != ERROR_SUCCESS) {
-        srs_error("dispatch audio sequence header failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("dispatch audio sequence header success");
-
-    if (ds && cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, jitter_algorithm)) != ERROR_SUCCESS) {
-        srs_error("dispatch video sequence header failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("dispatch video sequence header success");
     
     // copy gop cache to client.
     if (dg && (ret = gop_cache->dump(consumer, atc, jitter_algorithm)) != ERROR_SUCCESS) {
@@ -2354,52 +2586,6 @@ int SrsSource::on_edge_proxy_publish(SrsCommonMessage* msg)
 void SrsSource::on_edge_proxy_unpublish()
 {
     publish_edge->on_proxy_unpublish();
-}
-
-int SrsSource::create_forwarders()
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (!_srs_config->get_forward_enabled(req->vhost)) {
-        return ret;
-    }
-    
-    SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
-    for (int i = 0; conf && i < (int)conf->args.size(); i++) {
-        std::string forward_server = conf->args.at(i);
-        
-        SrsForwarder* forwarder = new SrsForwarder(this);
-        forwarders.push_back(forwarder);
-        
-        // initialize the forwarder with request.
-        if ((ret = forwarder->initialize(req, forward_server)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    
-        double queue_size = _srs_config->get_queue_length(req->vhost);
-        forwarder->set_queue_size(queue_size);
-        
-        if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
-            srs_error("start forwarder failed. "
-                "vhost=%s, app=%s, stream=%s, forward-to=%s",
-                req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
-                forward_server.c_str());
-            return ret;
-        }
-    }
-
-    return ret;
-}
-
-void SrsSource::destroy_forwarders()
-{
-    std::vector<SrsForwarder*>::iterator it;
-    for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-        SrsForwarder* forwarder = *it;
-        forwarder->on_unpublish();
-        srs_freep(forwarder);
-    }
-    forwarders.clear();
 }
 
 string SrsSource::get_curr_origin()
