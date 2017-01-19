@@ -320,7 +320,7 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     if (rtm == SRS_CONSTS_NO_TMMS) {
         nb_read = st_read(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read(stfd, buf, size, rtm);
+        nb_read = st_read(stfd, buf, size, rtm * 1000);
     }
     
     if (nread) {
@@ -356,7 +356,7 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     if (rtm == SRS_CONSTS_NO_TMMS) {
         nb_read = st_read_fully(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read_fully(stfd, buf, size, rtm);
+        nb_read = st_read_fully(stfd, buf, size, rtm * 1000);
     }
     
     if (nread) {
@@ -392,7 +392,7 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     if (stm == SRS_CONSTS_NO_TMMS) {
         nb_write = st_write(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_write(stfd, buf, size, stm);
+        nb_write = st_write(stfd, buf, size, stm * 1000);
     }
     
     if (nwrite) {
@@ -423,7 +423,7 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (stm == SRS_CONSTS_NO_TMMS) {
         nb_write = st_writev(stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_writev(stfd, iov, iov_size, stm);
+        nb_write = st_writev(stfd, iov, iov_size, stm * 1000);
     }
     
     if (nwrite) {
