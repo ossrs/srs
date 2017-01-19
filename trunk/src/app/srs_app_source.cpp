@@ -1396,7 +1396,7 @@ void SrsOriginHub::destroy_forwarders()
 
 SrsMetaCache::SrsMetaCache()
 {
-    cache_metadata = cache_sh_video = cache_sh_audio = NULL;
+    meta = video = audio = NULL;
 }
 
 SrsMetaCache::~SrsMetaCache()
@@ -1406,24 +1406,24 @@ SrsMetaCache::~SrsMetaCache()
 
 void SrsMetaCache::dispose()
 {
-    srs_freep(cache_metadata);
-    srs_freep(cache_sh_video);
-    srs_freep(cache_sh_audio);
+    srs_freep(meta);
+    srs_freep(video);
+    srs_freep(audio);
 }
 
 SrsSharedPtrMessage* SrsMetaCache::data()
 {
-    return cache_metadata;
+    return meta;
 }
 
 SrsSharedPtrMessage* SrsMetaCache::vsh()
 {
-    return cache_sh_video;
+    return video;
 }
 
 SrsSharedPtrMessage* SrsMetaCache::ash()
 {
-    return cache_sh_audio;
+    return audio;
 }
 
 int SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
@@ -1431,7 +1431,7 @@ int SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm 
     int ret = ERROR_SUCCESS;
     
     // copy metadata.
-    if (dm && cache_metadata && (ret = consumer->enqueue(cache_metadata, atc, ag)) != ERROR_SUCCESS) {
+    if (dm && meta && (ret = consumer->enqueue(meta, atc, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch metadata failed. ret=%d", ret);
         return ret;
     }
@@ -1440,13 +1440,13 @@ int SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm 
     // copy sequence header
     // copy audio sequence first, for hls to fast parse the "right" audio codec.
     // @see https://github.com/ossrs/srs/issues/301
-    if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, ag)) != ERROR_SUCCESS) {
+    if (ds && audio && (ret = consumer->enqueue(audio, atc, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch audio sequence header failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch audio sequence header success");
     
-    if (ds && cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, ag)) != ERROR_SUCCESS) {
+    if (ds && video && (ret = consumer->enqueue(video, atc, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch video sequence header failed. ret=%d", ret);
         return ret;
     }
@@ -1509,13 +1509,13 @@ int SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* met
     }
     
     // create a shared ptr message.
-    srs_freep(cache_metadata);
-    cache_metadata = new SrsSharedPtrMessage();
+    srs_freep(meta);
+    meta = new SrsSharedPtrMessage();
     updated = true;
     
     // dump message to shared ptr message.
     // the payload/size managed by cache_metadata, user should not free it.
-    if ((ret = cache_metadata->create(header, payload, size)) != ERROR_SUCCESS) {
+    if ((ret = meta->create(header, payload, size)) != ERROR_SUCCESS) {
         srs_error("initialize the cache metadata failed. ret=%d", ret);
         return ret;
     }
@@ -1526,14 +1526,14 @@ int SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* met
 
 void SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
 {
-    srs_freep(cache_sh_audio);
-    cache_sh_audio = msg->copy();
+    srs_freep(audio);
+    audio = msg->copy();
 }
 
 void SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
 {
-    srs_freep(cache_sh_video);
-    cache_sh_video = msg->copy();
+    srs_freep(video);
+    video = msg->copy();
 }
 
 std::map<std::string, SrsSource*> SrsSource::pool;

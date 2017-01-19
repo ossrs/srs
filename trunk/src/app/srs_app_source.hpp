@@ -497,11 +497,12 @@ private:
 class SrsMetaCache
 {
 private:
-    SrsSharedPtrMessage* cache_metadata;
-    // the cached video sequence header.
-    SrsSharedPtrMessage* cache_sh_video;
-    // the cached audio sequence header.
-    SrsSharedPtrMessage* cache_sh_audio;
+    // The cached metadata, FLV script data tag.
+    SrsSharedPtrMessage* meta;
+    // The cached video sequence header, for example, sps/pps for h.264.
+    SrsSharedPtrMessage* video;
+    // The cached audio sequence header, for example, asc for aac.
+    SrsSharedPtrMessage* audio;
 public:
     SrsMetaCache();
     virtual ~SrsMetaCache();
