@@ -217,6 +217,7 @@ public:
  *      client.connect();
  *      client.write("Hello world!", 12, NULL);
  *      client.read(buf, 4096, NULL);
+ * @remark User can directly free the object, which will close the fd.
  */
 class SrsTcpClient : public ISrsProtocolReaderWriter
 {

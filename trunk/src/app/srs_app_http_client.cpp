@@ -218,8 +218,6 @@ void SrsHttpClient::kbps_sample(const char* label, int64_t age)
 void SrsHttpClient::disconnect()
 {
     kbps->set_io(NULL, NULL);
-    
-    transport->close();
     srs_freep(transport);
 }
 
