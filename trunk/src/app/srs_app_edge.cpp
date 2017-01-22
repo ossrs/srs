@@ -483,7 +483,6 @@ void SrsEdgeForwarder::stop()
 {
     pthread->stop();
     queue->clear();
-    
     srs_freep(sdk);
 }
 

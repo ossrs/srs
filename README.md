@@ -207,6 +207,7 @@ Please select your language:
 
 ### V2 changes
 
+* v2.0, 2017-01-22, for [#752][bug #752] release the io then free it for kbps. 2.0.232
 * v2.0, 2017-01-18, fix [#750][bug #750] use specific error code for dns resolve. 2.0.231
 * <strong>v2.0, 2017-01-18, [2.0 beta4(2.0.230)][r2.0b4] released. 86334 lines.</strong>
 * v2.0, 2017-01-18, fix [#749][bug #749], timestamp overflow for ATC. 2.0.230
@@ -1370,6 +1371,7 @@ Winlin
 [bug #740]: https://github.com/ossrs/srs/issues/740
 [bug #749]: https://github.com/ossrs/srs/issues/749
 [bug #750]: https://github.com/ossrs/srs/issues/750
+[bug #752]: https://github.com/ossrs/srs/issues/752
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735

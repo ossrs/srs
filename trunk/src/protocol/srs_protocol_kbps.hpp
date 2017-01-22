@@ -161,7 +161,7 @@ public:
  *      SrsKbps* kbps = ...;
  *      kbps->set_io(in, out);
  *      // both kbps->get_recv_bytes() and kbps->get_send_bytes() are available.
-*       // we can use the kbps as the data source of another kbps:
+ *       // we can use the kbps as the data source of another kbps:
  *      SrsKbps* user = ...;
  *      user->set_io(kbps, kbps);
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
@@ -176,14 +176,15 @@ public:
     virtual ~SrsKbps();
 public:
     /**
-    * set io to start new session.
-    * set the underlayer reader/writer,
-    * if the io destroied, for instance, the forwarder reconnect,
-    * user must set the io of SrsKbps to NULL to continue to use the kbps object.
-    * @param in the input stream statistic. can be NULL.
-    * @param out the output stream statistic. can be NULL.
-    * @remark if in/out is NULL, use the cached data for kbps.
-    */
+     * set io to start new session.
+     * set the underlayer reader/writer,
+     * if the io destroied, for instance, the forwarder reconnect,
+     * user must set the io of SrsKbps to NULL to continue to use the kbps object.
+     * @param in the input stream statistic. can be NULL.
+     * @param out the output stream statistic. can be NULL.
+     * @remark if in/out is NULL, use the cached data for kbps.
+     * @remark User must set_io(NULL, NULL) then free the in and out.
+     */
     virtual void set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out);
 public:
     /**

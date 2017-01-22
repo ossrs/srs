@@ -138,9 +138,9 @@ int SrsSimpleRtmpClient::connect()
 
 void SrsSimpleRtmpClient::close()
 {
+    kbps->set_io(NULL, NULL);
     srs_freep(client);
     srs_freep(transport);
-    kbps->set_io(NULL, NULL);
 }
 
 int SrsSimpleRtmpClient::connect_app()
