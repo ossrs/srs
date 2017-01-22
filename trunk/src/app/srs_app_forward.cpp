@@ -150,9 +150,9 @@ void SrsForwarder::on_unpublish()
     
     close_underlayer_socket();
     
+    kbps->set_io(NULL, NULL);
     srs_freep(client);
     srs_freep(io);
-    kbps->set_io(NULL, NULL);
 }
 
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
@@ -313,6 +313,7 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port)
         return ret;
     }
     
+    kbps->set_io(NULL, NULL);
     srs_freep(client);
     srs_freep(io);
     
