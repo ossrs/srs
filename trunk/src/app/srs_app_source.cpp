@@ -764,6 +764,78 @@ bool srs_hls_can_continue(int ret, SrsSharedPtrMessage* sh, SrsSharedPtrMessage*
     return false;
 }
 
+SrsMixQueue::SrsMixQueue()
+{
+    nb_videos = 0;
+    nb_audios = 0;
+}
+
+SrsMixQueue::~SrsMixQueue()
+{
+    clear();
+}
+
+void SrsMixQueue::clear()
+{
+    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it;
+    for (it = msgs.begin(); it != msgs.end(); ++it) {
+        SrsSharedPtrMessage* msg = it->second;
+        srs_freep(msg);
+    }
+    msgs.clear();
+    
+    nb_videos = 0;
+    nb_audios = 0;
+}
+
+void SrsMixQueue::push(SrsSharedPtrMessage* msg)
+{
+    msgs.insert(std::make_pair(msg->timestamp, msg));
+    
+    if (msg->is_video()) {
+        nb_videos++;
+    } else {
+        nb_audios++;
+    }
+}
+
+SrsSharedPtrMessage* SrsMixQueue::pop()
+{
+    bool mix_ok = false;
+    
+    // pure video
+    if (nb_videos >= SRS_MIX_CORRECT_PURE_AV && nb_audios == 0) {
+        mix_ok = true;
+    }
+    
+    // pure audio
+    if (nb_audios >= SRS_MIX_CORRECT_PURE_AV && nb_videos == 0) {
+        mix_ok = true;
+    }
+    
+    // got 1 video and 1 audio, mix ok.
+    if (nb_videos >= 1 && nb_audios >= 1) {
+        mix_ok = true;
+    }
+    
+    if (!mix_ok) {
+        return NULL;
+    }
+    
+    // pop the first msg.
+    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it = msgs.begin();
+    SrsSharedPtrMessage* msg = it->second;
+    msgs.erase(it);
+    
+    if (msg->is_video()) {
+        nb_videos--;
+    } else {
+        nb_audios--;
+    }
+    
+    return msg;
+}
+
 SrsOriginHub::SrsOriginHub(SrsSource* s)
 {
     source = s;
@@ -1657,78 +1729,6 @@ void SrsSource::destroy()
         srs_freep(source);
     }
     pool.clear();
-}
-
-SrsMixQueue::SrsMixQueue()
-{
-    nb_videos = 0;
-    nb_audios = 0;
-}
-
-SrsMixQueue::~SrsMixQueue()
-{
-    clear();
-}
-
-void SrsMixQueue::clear()
-{
-    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it;
-    for (it = msgs.begin(); it != msgs.end(); ++it) {
-        SrsSharedPtrMessage* msg = it->second;
-        srs_freep(msg);
-    }
-    msgs.clear();
-    
-    nb_videos = 0;
-    nb_audios = 0;
-}
-
-void SrsMixQueue::push(SrsSharedPtrMessage* msg)
-{
-    msgs.insert(std::make_pair(msg->timestamp, msg));
-    
-    if (msg->is_video()) {
-        nb_videos++;
-    } else {
-        nb_audios++;
-    }
-}
-
-SrsSharedPtrMessage* SrsMixQueue::pop()
-{
-    bool mix_ok = false;
-    
-    // pure video
-    if (nb_videos >= SRS_MIX_CORRECT_PURE_AV && nb_audios == 0) {
-        mix_ok = true;
-    }
-    
-    // pure audio
-    if (nb_audios >= SRS_MIX_CORRECT_PURE_AV && nb_videos == 0) {
-        mix_ok = true;
-    }
-    
-    // got 1 video and 1 audio, mix ok.
-    if (nb_videos >= 1 && nb_audios >= 1) {
-        mix_ok = true;
-    }
-    
-    if (!mix_ok) {
-        return NULL;
-    }
-    
-    // pop the first msg.
-    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it = msgs.begin();
-    SrsSharedPtrMessage* msg = it->second;
-    msgs.erase(it);
-    
-    if (msg->is_video()) {
-        nb_videos--;
-    } else {
-        nb_audios--;
-    }
-    
-    return msg;
 }
 
 SrsSource::SrsSource()
