@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_rtmp_stack.hpp>
 
 class SrsServer;
 class SrsRtmpServer;
@@ -150,6 +151,8 @@ private:
     int publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
+    // The type of client, play or publish.
+    SrsRtmpConnType client_type;
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c, std::string cip);
     virtual ~SrsRtmpConn();
