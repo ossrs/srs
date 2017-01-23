@@ -45,36 +45,48 @@ class SrsRequest;
 class SrsConsumer;
 
 /**
- * for the recv thread to handle the message.
+ * The message consumer which consume a message.
  */
-class ISrsMessageHandler
+class ISrsMessageConsumer
 {
 public:
-    ISrsMessageHandler();
-    virtual ~ISrsMessageHandler();
+    ISrsMessageConsumer();
+    virtual ~ISrsMessageConsumer();
 public:
     /**
-    * whether the handler can handle,
-    * for example, when queue recv handler got an message,
-    * it wait the user to process it, then the recv thread
-    * never recv message util the handler is ok.
-    */
-    virtual bool can_handle() = 0;
-    /**
-     * process the received message.
+     * Consume the received message.
      * @remark user must free this message.
      */
-    virtual int handle(SrsCommonMessage* msg) = 0;
+    virtual int consume(SrsCommonMessage* msg) = 0;
+};
+
+/**
+ * The message pumper to pump messages to processer.
+ */
+class ISrsMessagePumper : public ISrsMessageConsumer
+{
+public:
+    ISrsMessagePumper();
+    virtual ~ISrsMessagePumper();
+public:
     /**
-    * when recv message error.
-    */
-    virtual void on_recv_error(int ret) = 0;
+     * Whether the pumper is interrupted.
+     * For example, when pumpter is busy, it's interrupted,
+     * please wait for a while then try to feed the pumper.
+     */
+    virtual bool interrupted() = 0;
     /**
-    * when thread start or stop, 
-    * for example, the message handler can set whether auto response.
-    */
-    virtual void on_thread_start() = 0;
-    virtual void on_thread_stop() = 0;
+     * Interrupt the pumper for a error.
+     */
+    virtual void interrupt(int error) = 0;
+    /**
+     * When start the pumper.
+     */
+    virtual void on_start() = 0;
+    /**
+     * When stop the pumper.
+     */
+    virtual void on_stop() = 0;
 };
 
 /**
@@ -84,14 +96,14 @@ class SrsRecvThread : public ISrsReusableThread2Handler
 {
 protected:
     SrsReusableThread2* trd;
-    ISrsMessageHandler* handler;
+    ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
     // The recv timeout in ms.
     int timeout;
 public:
     // Constructor.
     // @param tm The receive timeout in ms.
-    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int tm);
+    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm);
     virtual ~SrsRecvThread();
 public:
     virtual int cid();
@@ -112,7 +124,7 @@ public:
 * @see: SrsRtmpConn::playing
 * @see: https://github.com/ossrs/srs/issues/217
 */
-class SrsQueueRecvThread : public ISrsMessageHandler
+class SrsQueueRecvThread : public ISrsMessagePumper
 {
 private:
     std::vector<SrsCommonMessage*> queue;
@@ -132,24 +144,23 @@ public:
     virtual int size();
     virtual SrsCommonMessage* pump();
     virtual int error_code();
+// interface ISrsMessagePumper
 public:
-    virtual bool can_handle();
-    virtual int handle(SrsCommonMessage* msg);
-    virtual void on_recv_error(int ret);
-public:
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+    virtual int consume(SrsCommonMessage* msg);
+    virtual bool interrupted();
+    virtual void interrupt(int ret);
+    virtual void on_start();
+    virtual void on_stop();
 };
 
 /**
 * the publish recv thread got message and callback the source method to process message.
 * @see: https://github.com/ossrs/srs/issues/237
 */
-class SrsPublishRecvThread : virtual public ISrsMessageHandler
+class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public ISrsReloadHandler
 #ifdef SRS_PERF_MERGED_READ
     , virtual public IMergeReadHandler
 #endif
-    , virtual public ISrsReloadHandler
 {
 private:
     SrsRecvThread trd;
@@ -195,13 +206,13 @@ public:
 public:
     virtual int start();
     virtual void stop();
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
-// interface ISrsMessageHandler    
+// interface ISrsMessagePumper
 public:
-    virtual bool can_handle();
-    virtual int handle(SrsCommonMessage* msg);
-    virtual void on_recv_error(int ret);
+    virtual int consume(SrsCommonMessage* msg);
+    virtual bool interrupted();
+    virtual void interrupt(int ret);
+    virtual void on_start();
+    virtual void on_stop();
 // interface IMergeReadHandler
 public:
 #ifdef SRS_PERF_MERGED_READ
