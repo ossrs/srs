@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_api.hpp>
 
-#ifdef SRS_AUTO_HTTP_API
-
 #include <sstream>
 #include <stdlib.h>
 #include <signal.h>
@@ -556,21 +554,9 @@ int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 #else
     features->set("hds", SrsJsonAny::boolean(false));
 #endif
-#ifdef SRS_AUTO_HTTP_CALLBACK
     features->set("callback", SrsJsonAny::boolean(true));
-#else
-    features->set("callback", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_HTTP_API
     features->set("api", SrsJsonAny::boolean(true));
-#else
-    features->set("api", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_HTTP_SERVER
     features->set("httpd", SrsJsonAny::boolean(true));
-#else
-    features->set("httpd", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_AUTO_DVR
     features->set("dvr", SrsJsonAny::boolean(true));
 #else
@@ -1446,6 +1432,4 @@ int SrsHttpApi::on_reload_http_api_crossdomain()
     
     return ERROR_SUCCESS;
 }
-
-#endif
 

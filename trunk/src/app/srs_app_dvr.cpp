@@ -302,7 +302,6 @@ int SrsFlvSegment::write_video(SrsSharedPtrMessage* shared_video)
     int size = video->size;
     
     bool is_sequence_header = SrsFlvCodec::video_is_sequence_header(payload, size);
-#ifdef SRS_AUTO_HTTP_CALLBACK
     bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
         && SrsFlvCodec::video_is_keyframe(payload, size) && !is_sequence_header;
     if (is_key_frame) {
@@ -312,7 +311,6 @@ int SrsFlvSegment::write_video(SrsSharedPtrMessage* shared_video)
         }
     }
     srs_verbose("dvr video is key: %d", is_key_frame);
-#endif
 
     // accept the sequence header here.
     // when got no keyframe, ignore when should wait keyframe.
@@ -512,7 +510,6 @@ int SrsDvrAsyncCallOnDvr::call()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return ret;
     }
@@ -540,7 +537,6 @@ int SrsDvrAsyncCallOnDvr::call()
             return ret;
         }
     }
-#endif
 
     return ret;
 }

@@ -79,18 +79,6 @@ fi
 echo "" >> $SRS_AUTO_HEADERS_H
 
 # auto headers in depends.
-if [ $SRS_HTTP_CORE = YES ]; then
-    srs_define_macro "SRS_AUTO_HTTP_CORE" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HTTP_CORE" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HTTP_SERVER = YES ]; then
-    srs_define_macro "SRS_AUTO_HTTP_SERVER" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HTTP_SERVER" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_STREAM_CASTER = YES ]; then
     srs_define_macro "SRS_AUTO_STREAM_CASTER" $SRS_AUTO_HEADERS_H
 else
@@ -101,12 +89,6 @@ if [ $SRS_KAFKA = YES ]; then
     srs_define_macro "SRS_AUTO_KAFKA" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_KAFKA" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HTTP_API = YES ]; then
-    srs_define_macro "SRS_AUTO_HTTP_API" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HTTP_API" $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_NGINX = YES ]; then
@@ -131,12 +113,6 @@ if [ $SRS_HDS = YES ]; then
     srs_define_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HTTP_CALLBACK = YES ]; then
-    srs_define_macro "SRS_AUTO_HTTP_CALLBACK" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HTTP_CALLBACK" $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_SSL = YES ]; then

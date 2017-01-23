@@ -32,8 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
-#ifdef SRS_AUTO_HTTP_SERVER
-
 /**
 * for the srs http stream cache, 
 * for example, the audio stream cache to make android(weixin) happy.
@@ -351,8 +349,6 @@ private:
     virtual int initialize_flv_streaming();
     virtual int initialize_flv_entry(std::string vhost);
 };
-
-#endif
 
 #endif
 

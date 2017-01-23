@@ -25,8 +25,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_STREAM_CACHE_CYCLE_SECONDS 30
 
-#if defined(SRS_AUTO_HTTP_CORE)
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -55,10 +53,6 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
-
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
 
 SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
 {
@@ -1076,6 +1070,4 @@ int SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
 
     return ret;
 }
-
-#endif
 

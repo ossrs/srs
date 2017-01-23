@@ -31,8 +31,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-#ifdef SRS_AUTO_HTTP_CALLBACK
-
 class SrsHttpUri;
 class SrsStSocket;
 class SrsRequest;
@@ -121,8 +119,6 @@ public:
 private:
     static int do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };
-
-#endif
 
 #endif
 

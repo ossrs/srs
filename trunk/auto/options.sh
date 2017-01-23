@@ -24,11 +24,8 @@ SRS_FFMPEG_TOOL=RESERVED
 SRS_TRANSCODE=RESERVED
 SRS_INGEST=RESERVED
 SRS_STAT=RESERVED
-SRS_HTTP_CALLBACK=RESERVED
-SRS_HTTP_SERVER=RESERVED
 SRS_STREAM_CASTER=RESERVED
 SRS_KAFKA=RESERVED
-SRS_HTTP_API=RESERVED
 SRS_LIBRTMP=RESERVED
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
@@ -44,11 +41,16 @@ SRS_GPERF_MP=RESERVED
 SRS_GPERF_CP=RESERVED
 # gprof
 SRS_GPROF=RESERVED
+#
+# Always enable the HTTP features.
+SRS_HTTP_CALLBACK=YES
+SRS_HTTP_SERVER=YES
+SRS_HTTP_API=YES
+SRS_HTTP_CORE=YES
 # 
 ################################################################
 # libraries
 SRS_FFMPEG_STUB=RESERVED
-SRS_HTTP_CORE=RESERVED
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
@@ -235,11 +237,8 @@ function parse_user_option() {
         --with-transcode)               SRS_TRANSCODE=YES           ;;
         --with-ingest)                  SRS_INGEST=YES              ;;
         --with-stat)                    SRS_STAT=YES                ;;
-        --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
-        --with-http-server)             SRS_HTTP_SERVER=YES         ;;
         --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
         --with-kafka)                   SRS_KAFKA=YES               ;;
-        --with-http-api)                SRS_HTTP_API=YES            ;;
         --with-librtmp)                 SRS_LIBRTMP=YES             ;;
         --with-research)                SRS_RESEARCH=YES            ;;
         --with-utest)                   SRS_UTEST=YES               ;;
@@ -261,11 +260,8 @@ function parse_user_option() {
         --without-transcode)            SRS_TRANSCODE=NO            ;;
         --without-ingest)               SRS_INGEST=NO               ;;
         --without-stat)                 SRS_STAT=NO                 ;;
-        --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
-        --without-http-server)          SRS_HTTP_SERVER=NO          ;;
         --without-stream-caster)        SRS_STREAM_CASTER=NO        ;;
         --without-kafka)                SRS_KAFKA=NO                ;;
-        --without-http-api)             SRS_HTTP_API=NO             ;;
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
@@ -305,6 +301,13 @@ function parse_user_option() {
         --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
+
+        --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
+        --with-http-api)                SRS_HTTP_API=YES            ;;
+        --with-http-server)             SRS_HTTP_SERVER=YES         ;;
+        --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
+        --without-http-api)             SRS_HTTP_API=NO             ;;
+        --without-http-server)          SRS_HTTP_SERVER=NO          ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -396,12 +399,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_CORE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
-        SRS_HTTP_API=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -425,12 +424,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -454,12 +449,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_CORE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
-        SRS_HTTP_API=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -483,12 +474,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_CORE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
-        SRS_HTTP_API=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -512,12 +499,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_CORE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
-        SRS_HTTP_API=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -541,12 +524,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -571,12 +550,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -600,12 +575,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -629,12 +600,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -658,12 +625,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -687,12 +650,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -716,12 +675,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -745,12 +700,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -774,12 +725,8 @@ function apply_user_presets() {
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
-        SRS_HTTP_CORE=YES
-        SRS_HTTP_CALLBACK=YES
-        SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=YES
-        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -809,11 +756,11 @@ function apply_user_detail_options() {
     if [ $SRS_TRANSCODE = YES ]; then SRS_FFMPEG_STUB=YES; fi
     if [ $SRS_INGEST = YES ]; then SRS_FFMPEG_STUB=YES; fi
 
-    # if http-xxxx specified, open the SRS_HTTP_CORE
-    SRS_HTTP_CORE=NO
-    if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_CORE=YES; fi
-    if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_CORE=YES; fi
-    if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_CORE=YES; fi
+    # Always enable HTTP utilies.
+    if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable http utilies.${BLACK}"; fi
+    if [ $SRS_HTTP_CALLBACK = NO ]; then SRS_HTTP_CALLBACK=YES; echo -e "${YELLOW}[WARN] Always enable http callback.${BLACK}"; fi
+    if [ $SRS_HTTP_SERVER = NO ]; then SRS_HTTP_SERVER=YES; echo -e "${YELLOW}[WARN] Always enable http server.${BLACK}"; fi
+    if [ $SRS_HTTP_API = NO ]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable http api.${BLACK}"; fi
 
     # parse the jobs for make
     if [[ "" -eq SRS_JOBS ]]; then 
@@ -838,12 +785,8 @@ function apply_user_detail_options() {
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
-        SRS_HTTP_CORE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
-        SRS_HTTP_API=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=NO
@@ -915,9 +858,6 @@ function check_option_conflicts() {
         echo "Note that since the heap-checker uses the heap-profiling framework internally, it is not possible to run both the heap-checker and heap profiler at the same time";
         __check_ok=NO
     fi
-    if [[ $SRS_HTTP_CORE = NO && $SRS_STREAM_CASTER = YES ]]; then
-       echo "stream-caster depends on http-api or http-server, see: ./configure --help"; __check_ok=NO;
-    fi
     # generate the group option: SRS_GPERF
     __gperf_slow=NO
     if [ $SRS_GPERF_MC = YES ]; then SRS_GPERF=YES; __gperf_slow=YES; fi
@@ -964,11 +904,8 @@ function check_option_conflicts() {
     if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_FFMPEG_TOOL = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http-callback, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_HTTP_SERVER = RESERVED ]; then echo "you must specifies the http-server, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_KAFKA = RESERVED ]; then echo "you must specifies the kafka, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_HTTP_API = RESERVED ]; then echo "you must specifies the http-api, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi

@@ -3783,17 +3783,6 @@ int SrsConfig::check_config()
     ////////////////////////////////////////////////////////////////////////
     // check features
     ////////////////////////////////////////////////////////////////////////
-#ifndef SRS_AUTO_HTTP_SERVER
-    if (get_http_stream_enabled()) {
-        srs_warn("http_stream is disabled by configure");
-    }
-#endif
-#ifndef SRS_AUTO_HTTP_API
-    if (get_http_api_enabled()) {
-        srs_warn("http_api is disabled by configure");
-    }
-#endif
-
     vector<SrsConfDirective*> stream_casters = get_stream_casters();
     for (int n = 0; n < (int)stream_casters.size(); n++) {
         SrsConfDirective* stream_caster = stream_casters[n];
@@ -4064,11 +4053,6 @@ int SrsConfig::check_config()
 #ifndef SRS_AUTO_HLS
         if (get_hls_enabled(vhost->arg0())) {
             srs_warn("hls of vhost %s is disabled by configure", vhost->arg0().c_str());
-        }
-#endif
-#ifndef SRS_AUTO_HTTP_CALLBACK
-        if (get_vhost_http_hooks_enabled(vhost->arg0())) {
-            srs_warn("http_hooks of vhost %s is disabled by configure", vhost->arg0().c_str());
         }
 #endif
 #ifndef SRS_AUTO_TRANSCODE

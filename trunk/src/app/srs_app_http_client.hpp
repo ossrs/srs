@@ -32,8 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <map>
 
-#ifdef SRS_AUTO_HTTP_CORE
-
 #include <srs_app_st.hpp>
 
 class SrsHttpUri;
@@ -109,8 +107,6 @@ private:
     virtual void disconnect();
     virtual int connect();
 };
-
-#endif
 
 #endif
 

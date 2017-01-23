@@ -29,8 +29,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_CORE
-
 /**
 * the http heartbeat to api-server to notice api
 * that the information of SRS.
@@ -43,8 +41,6 @@ public:
 public:
     virtual void heartbeat();
 };
-
-#endif
 
 #endif
 

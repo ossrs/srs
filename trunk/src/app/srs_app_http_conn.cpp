@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
-#if defined(SRS_AUTO_HTTP_CORE)
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -59,10 +57,6 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
-
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
 
 SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 {
@@ -1280,12 +1274,10 @@ int SrsHttpServer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
-#if defined(SRS_AUTO_HTTP_SERVER) && defined(SRS_AUTO_HTTP_API)
     // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
     if ((ret = http_static->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
     if ((ret = http_stream->initialize()) != ERROR_SUCCESS) {
         return ret;
@@ -1317,6 +1309,4 @@ void SrsHttpServer::http_unmount(SrsSource* s, SrsRequest* r)
 {
     http_stream->http_unmount(s, r);
 }
-
-#endif
 

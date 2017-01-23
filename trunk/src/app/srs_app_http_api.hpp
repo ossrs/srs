@@ -30,8 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_API
-
 class SrsStSocket;
 class ISrsHttpMessage;
 class SrsHttpParser;
@@ -230,8 +228,6 @@ private:
 public:
     virtual int on_reload_http_api_crossdomain();
 };
-
-#endif
 
 #endif
 

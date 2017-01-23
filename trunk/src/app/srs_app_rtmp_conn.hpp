@@ -46,9 +46,7 @@ class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
 class SrsStSocket;
-#ifdef SRS_AUTO_HTTP_CALLBACK    
 class SrsHttpHooks;
-#endif
 class SrsBandwidth;
 class SrsKbps;
 class SrsRtmpClient;

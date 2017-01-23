@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_static.hpp>
 
-#if defined(SRS_AUTO_HTTP_CORE)
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -52,10 +50,6 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
-
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsHttpFileServer(root_dir)
@@ -314,6 +308,4 @@ int SrsHttpStaticServer::on_reload_vhost_http_updated()
     // TODO: FIXME: implements it.
     return ret;
 }
-
-#endif
 

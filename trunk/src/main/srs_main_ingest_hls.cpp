@@ -59,8 +59,6 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = NULL;
 
-#if defined(SRS_AUTO_HTTP_CORE)
-
 /**
 * main entrance.
 */
@@ -70,11 +68,6 @@ int main(int argc, char** argv)
     srs_assert(srs_is_little_endian());
     
     // directly failed when compile limited.
-#if !defined(SRS_AUTO_HTTP_CORE)
-    srs_error("depends on http-parser.");
-    exit(-1);
-#endif
-    
 #if defined(SRS_AUTO_GPERF_MP) || defined(SRS_AUTO_GPERF_MP) \
 || defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
     srs_error("donot support gmc/gmp/gcp/gprof");
@@ -1325,16 +1318,4 @@ int proxy_hls2rtmp(string hls, string rtmp)
     
     return ret;
 }
-
-#else
-
-int main(int argc, char** argv)
-{
-#ifndef SRS_AUTO_HTTP_CORE
-    srs_error("ingest requires http-api or http-server");
-#endif
-    return -1;
-}
-
-#endif
 

@@ -478,14 +478,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
-# http-parser-2.1
-#####################################################################################
-# check the cross build flag file, if flag changed, need to rebuild the st.
-if [ $SRS_HTTP_CORE = YES ]; then
-    echo "The http-parser is copied into srs_http_stack.*pp"
-fi
-
-#####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
 function write_nginx_html5()
@@ -557,22 +549,20 @@ fi
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
-if [ $SRS_HTTP_CALLBACK = YES ]; then
-    if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
-        echo "CherryPy-3.2.4 is ok.";
-    else
-        require_sudoer "install CherryPy-3.2.4"
-        echo "Installing CherryPy-3.2.4";
-        (
-            sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
-            sudo python setup.py install
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
+    echo "CherryPy-3.2.4 is ok.";
+else
+    require_sudoer "install CherryPy-3.2.4"
+    echo "Installing CherryPy-3.2.4";
+    (
+        sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
+        unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
+        sudo python setup.py install
+    )
 fi
+# check status
+ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
+if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo "Link players to cherrypy static-dir"
@@ -597,13 +587,11 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     rm -f ${SRS_OBJS}/nginx/html/index.html &&
     ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
 fi
-# if http-server enalbed, use srs embeded http-server
-if [ $SRS_HTTP_SERVER = YES ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # if http-server enalbed, use srs embeded http-server
     rm -f ${SRS_OBJS}/nginx/html/index.html &&
     ln -sf `pwd`/research/players/srs-http-server_index.html ${SRS_OBJS}/nginx/html/index.html
-fi
-# if api-server enabled, generate for api server.
-if [ $SRS_HTTP_CALLBACK = YES ]; then
+    # if api-server enabled, generate for api server.
     rm -f ${SRS_OBJS}/nginx/html/index.html &&
     ln -sf `pwd`/research/players/api-server_index.html ${SRS_OBJS}/nginx/html/index.html
 fi

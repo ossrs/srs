@@ -30,8 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_CORE
-
 #include <map>
 #include <string>
 #include <vector>
@@ -425,8 +423,6 @@ public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
 };
-
-#endif
 
 #endif
 

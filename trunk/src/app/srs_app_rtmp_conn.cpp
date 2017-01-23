@@ -1567,7 +1567,6 @@ int SrsRtmpConn::http_hooks_on_connect()
     
     SrsRequest* req = info->req;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return ret;
     }
@@ -1595,14 +1594,12 @@ int SrsRtmpConn::http_hooks_on_connect()
             return ret;
         }
     }
-#endif
 
     return ret;
 }
 
 void SrsRtmpConn::http_hooks_on_close()
 {
-#ifdef SRS_AUTO_HTTP_CALLBACK
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -1629,14 +1626,12 @@ void SrsRtmpConn::http_hooks_on_close()
         std::string url = hooks.at(i);
         SrsHttpHooks::on_close(url, req, kbps->get_send_bytes(), kbps->get_recv_bytes());
     }
-#endif
 }
 
 int SrsRtmpConn::http_hooks_on_publish()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -1666,14 +1661,12 @@ int SrsRtmpConn::http_hooks_on_publish()
             return ret;
         }
     }
-#endif
 
     return ret;
 }
 
 void SrsRtmpConn::http_hooks_on_unpublish()
 {
-#ifdef SRS_AUTO_HTTP_CALLBACK
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -1700,14 +1693,12 @@ void SrsRtmpConn::http_hooks_on_unpublish()
         std::string url = hooks.at(i);
         SrsHttpHooks::on_unpublish(url, req);
     }
-#endif
 }
 
 int SrsRtmpConn::http_hooks_on_play()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -1737,14 +1728,12 @@ int SrsRtmpConn::http_hooks_on_play()
             return ret;
         }
     }
-#endif
 
     return ret;
 }
 
 void SrsRtmpConn::http_hooks_on_stop()
 {
-#ifdef SRS_AUTO_HTTP_CALLBACK
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -1771,7 +1760,6 @@ void SrsRtmpConn::http_hooks_on_stop()
         std::string url = hooks.at(i);
         SrsHttpHooks::on_stop(url, req);
     }
-#endif
 
     return;
 }

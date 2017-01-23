@@ -190,7 +190,6 @@ int SrsDvrAsyncCallOnHls::call()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return ret;
     }
@@ -218,7 +217,6 @@ int SrsDvrAsyncCallOnHls::call()
             return ret;
         }
     }
-#endif
     
     return ret;
 }
@@ -244,7 +242,6 @@ int SrsDvrAsyncCallOnHlsNotify::call()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return ret;
     }
@@ -273,7 +270,6 @@ int SrsDvrAsyncCallOnHlsNotify::call()
             return ret;
         }
     }
-#endif
     
     return ret;
 }

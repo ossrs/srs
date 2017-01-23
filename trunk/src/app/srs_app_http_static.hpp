@@ -32,8 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
-#ifdef SRS_AUTO_HTTP_SERVER
-
 /**
  * the flv vod stream supports flv?start=offset-bytes.
  * for example, http://server/file.flv?start=10240
@@ -72,8 +70,6 @@ public:
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_http_updated();
 };
-
-#endif
 
 #endif
 

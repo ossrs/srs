@@ -493,15 +493,10 @@ SrsServer::SrsServer()
     // donot new object in constructor,
     // for some global instance is not ready now,
     // new these objects in initialize instead.
-#ifdef SRS_AUTO_HTTP_API
     http_api_mux = new SrsHttpServeMux();
-#endif
-#ifdef SRS_AUTO_HTTP_SERVER
     http_server = new SrsHttpServer(this);
-#endif
-#ifdef SRS_AUTO_HTTP_CORE
     http_heartbeat = NULL;
-#endif
+    
 #ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
@@ -518,17 +513,9 @@ void SrsServer::destroy()
     
     dispose();
     
-#ifdef SRS_AUTO_HTTP_API
     srs_freep(http_api_mux);
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
     srs_freep(http_server);
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
     srs_freep(http_heartbeat);
-#endif
 
 #ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
@@ -591,23 +578,15 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
         return ret;
     }
     
-#ifdef SRS_AUTO_HTTP_API
     if ((ret = http_api_mux->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
-    srs_assert(http_server);
+    
     if ((ret = http_server->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
-    srs_assert(!http_heartbeat);
+    
     http_heartbeat = new SrsHttpHeartbeat();
-#endif
 
 #ifdef SRS_AUTO_INGEST
     srs_assert(!ingester);
@@ -779,7 +758,6 @@ int SrsServer::http_handle()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_API
     srs_assert(http_api_mux);
     if ((ret = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != ERROR_SUCCESS) {
         return ret;
@@ -852,7 +830,6 @@ int SrsServer::http_handle()
         return ret;
     }
     srs_trace("http: api mount /console to %s", dir.c_str());
-#endif
 
     return ret;
 }
@@ -1075,14 +1052,12 @@ int SrsServer::do_cycle()
                 srs_info("update network server kbps info.");
                 resample_kbps();
             }
-    #ifdef SRS_AUTO_HTTP_CORE
             if (_srs_config->get_heartbeat_enabled()) {
                 if ((i % heartbeat_max_resolution) == 0) {
                     srs_info("do http heartbeat, for internal server to report.");
                     http_heartbeat->heartbeat();
                 }
             }
-    #endif
 #endif
             
             srs_info("server main thread loop");
@@ -1123,7 +1098,6 @@ int SrsServer::listen_http_api()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_API
     close_listeners(SrsListenerHttpApi);
     if (_srs_config->get_http_api_enabled()) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpApi);
@@ -1140,7 +1114,6 @@ int SrsServer::listen_http_api()
             return ret;
         }
     }
-#endif
     
     return ret;
 }
@@ -1149,7 +1122,6 @@ int SrsServer::listen_http_stream()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_SERVER
     close_listeners(SrsListenerHttpStream);
     if (_srs_config->get_http_stream_enabled()) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpStream);
@@ -1166,7 +1138,6 @@ int SrsServer::listen_http_stream()
             return ret;
         }
     }
-#endif
     
     return ret;
 }
@@ -1329,30 +1300,15 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
     }
     
     SrsConnection* conn = NULL;
-    bool close_for_not_served = false;
     
     if (type == SrsListenerRtmpStream) {
         conn = new SrsRtmpConn(this, stfd, ip);
     } else if (type == SrsListenerHttpApi) {
-#ifdef SRS_AUTO_HTTP_API
         conn = new SrsHttpApi(this, stfd, http_api_mux, ip);
-#else
-        srs_warn("close http client for server not support http-api");
-        close_for_not_served = true;
-#endif
     } else if (type == SrsListenerHttpStream) {
-#ifdef SRS_AUTO_HTTP_SERVER
         conn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
-#else
-        srs_warn("close http client for server not support http-server");
-        close_for_not_served = true;
-#endif
     } else {
-        // TODO: FIXME: handler others
-        srs_assert(false);
-    }
-    
-    if (close_for_not_served) {
+        srs_warn("close for no service handler. fd=%d, ip=%s", fd, ip.c_str());
         srs_close_stfd(stfd);
         return NULL;
     }
@@ -1402,7 +1358,6 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_SERVER
     if (!_srs_config->get_vhost_http_enabled(vhost)) {
         return ret;
     }
@@ -1411,7 +1366,6 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
 
     return ret;
 }
@@ -1420,58 +1374,34 @@ int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_SERVER
     // TODO: FIXME: should handle the event in SrsHttpStaticServer
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
 
     return ret;
 }
 
 int SrsServer::on_reload_http_api_enabled()
 {
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_API
-    ret = listen_http_api();
-#endif
-    
-    return ret;
+    return listen_http_api();
 }
 
 int SrsServer::on_reload_http_api_disabled()
 {
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_API
     close_listeners(SrsListenerHttpApi);
-#endif
-    
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 int SrsServer::on_reload_http_stream_enabled()
 {
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_SERVER
-    ret = listen_http_stream();
-#endif
-    
-    return ret;
+    return listen_http_stream();
 }
 
 int SrsServer::on_reload_http_stream_disabled()
 {
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_SERVER
     close_listeners(SrsListenerHttpStream);
-#endif
-
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 // TODO: FIXME: rename to http_remux
@@ -1479,7 +1409,6 @@ int SrsServer::on_reload_http_stream_updated()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_SERVER
     if ((ret = on_reload_http_stream_enabled()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1488,7 +1417,6 @@ int SrsServer::on_reload_http_stream_updated()
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -1497,19 +1425,15 @@ int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_SERVER
     if ((ret = http_server->http_mount(s, r)) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
     return ret;
 }
 
 void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
 {
-#ifdef SRS_AUTO_HTTP_SERVER
     http_server->http_unmount(s, r);
-#endif
 }
 
