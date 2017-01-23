@@ -205,13 +205,13 @@ void show_macro_features()
         ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
         ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
         // hc(http callback)
-        ss << ", hc:" << srs_bool2switch(SRS_AUTO_HTTP_CALLBACK_BOOL);
+        ss << ", hc:" << srs_bool2switch(true);
         // ha(http api)
-        ss << ", ha:" << srs_bool2switch(SRS_AUTO_HTTP_API_BOOL);
+        ss << ", ha:" << srs_bool2switch(true);
         // hs(http server)
-        ss << ", hs:" << srs_bool2switch(SRS_AUTO_HTTP_SERVER_BOOL);
+        ss << ", hs:" << srs_bool2switch(true);
         // hp(http parser)
-        ss << ", hp:" << srs_bool2switch(SRS_AUTO_HTTP_CORE_BOOL);
+        ss << ", hp:" << srs_bool2switch(true);
         ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
         // trans(transcode)
         ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
