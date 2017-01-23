@@ -181,8 +181,6 @@ private:
     SrsRtmpConn* _conn;
     // the params for conn callback.
     SrsSource* _source;
-    bool _is_fmle;
-    bool _is_edge;
     // the error timeout cond
     // @see https://github.com/ossrs/srs/issues/244
     st_cond_t error;
@@ -192,7 +190,7 @@ private:
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, 
         SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-        SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge);
+        SrsRtmpConn* conn, SrsSource* source);
     virtual ~SrsPublishRecvThread();
 public:
     /**

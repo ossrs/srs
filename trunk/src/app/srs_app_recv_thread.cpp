@@ -254,15 +254,13 @@ void SrsQueueRecvThread::on_stop()
 SrsPublishRecvThread::SrsPublishRecvThread(
     SrsRtmpServer* rtmp_sdk, 
     SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-    SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge
+    SrsRtmpConn* conn, SrsSource* source
 ): trd(this, rtmp_sdk, timeout_ms)
 {
     rtmp = rtmp_sdk;
 
     _conn = conn;
     _source = source;
-    _is_fmle = is_fmle;
-    _is_edge = is_edge;
 
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
@@ -351,7 +349,7 @@ int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
                 srs_update_system_time_ms(), msg->header.timestamp, msg->size);
     
     // the rtmp connection will handle this message
-    ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
+    ret = _conn->handle_publish_message(_source, msg);
     
     // must always free it,
     // the source will copy it if need to use.

@@ -114,6 +114,25 @@ public:
 };
 
 /**
+ * Some information of client.
+ */
+class SrsClientInfo
+{
+public:
+    // The type of client, play or publish.
+    SrsRtmpConnType type;
+    // Whether the client connected at the edge server.
+    bool edge;
+    // Original request object from client.
+    SrsRequest* req;
+    // Response object to client.
+    SrsResponse* res;
+public:
+    SrsClientInfo();
+    virtual ~SrsClientInfo();
+};
+
+/**
  * the client provides the main logic control for RTMP clients.
  */
 class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandler
@@ -122,8 +141,6 @@ class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandl
     friend class SrsPublishRecvThread;
 private:
     SrsServer* server;
-    SrsRequest* req;
-    SrsResponse* res;
     SrsStSocket* skt;
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
@@ -151,8 +168,8 @@ private:
     int publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
-    // The type of client, play or publish.
-    SrsRtmpConnType client_type;
+    // About the rtmp client.
+    SrsClientInfo* info;
 public:
     SrsRtmpConn(SrsServer* svr, st_netfd_t c, std::string cip);
     virtual ~SrsRtmpConn();
@@ -183,10 +200,10 @@ private:
     virtual int do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd);
     virtual int publishing(SrsSource* source);
     virtual int do_publishing(SrsSource* source, SrsPublishRecvThread* trd);
-    virtual int acquire_publish(SrsSource* source, bool is_edge);
-    virtual void release_publish(SrsSource* source, bool is_edge);
-    virtual int handle_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle, bool vhost_is_edge);
-    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge);
+    virtual int acquire_publish(SrsSource* source);
+    virtual void release_publish(SrsSource* source);
+    virtual int handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
+    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
     virtual void change_mw_sleep(int sleep_ms);
     virtual void set_sock_options();
