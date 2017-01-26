@@ -18,6 +18,12 @@ amf3_spec_121207.pdf
     
 H.264-AVC-ISO_IEC_14496-10.pdf
     avc标准，编码部分。
+
+H.264-AVC-ISO_IEC_14496-12_2012-mp4.pdf
+    mp4标准。
+
+MPEG-DASH-ISO_IEC_23009-1_2012.pdf
+    MPEG-DASH标准。
     
 H.264-AVC-ISO_IEC_14496-10-2012.pdf
     avc标准，编码部分。
