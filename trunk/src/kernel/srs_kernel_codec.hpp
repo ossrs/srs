@@ -283,7 +283,7 @@ enum SrsCodecAudioSoundType
 
 /**
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
- * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+ * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
  */
 enum SrsAvcNaluType
 {
@@ -452,15 +452,15 @@ std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
 
 /**
 * the aac object type, for RTMP sequence header
-* for AudioSpecificConfig, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33
-* for audioObjectType, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+* for AudioSpecificConfig, @see ISO_IEC_14496-3-AAC-2001.pdf, page 33
+* for audioObjectType, @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
 */
 enum SrsAacObjectType
 {
     SrsAacObjectTypeReserved = 0,
     
     // Table 1.1 - Audio Object Type definition
-    // @see @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+    // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
     SrsAacObjectTypeAacMain = 1,
     SrsAacObjectTypeAacLC = 2,
     SrsAacObjectTypeAacSSR = 3,
@@ -478,7 +478,7 @@ SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
 
 /**
 * the profile for avc/h.264.
-* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205.
+* @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205.
 */
 enum SrsAvcProfile
 {
@@ -504,7 +504,7 @@ std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
 
 /**
 * the level for avc/h.264.
-* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 207.
+* @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
 */
 enum SrsAvcLevel
 {
@@ -565,11 +565,11 @@ public:
     /**
     * video specified
     */
-    // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    // profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcProfile   avc_profile; 
-    // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel     avc_level; 
-    // lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t          NAL_unit_length;
     u_int16_t       sequenceParameterSetLength;
     char*           sequenceParameterSetNALUnit;
@@ -583,7 +583,7 @@ public:
     * audio specified
     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
     * 1.5.1.1 Audio object type definition, page 23,
-    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
+    *           in ISO_IEC_14496-3-AAC-2001.pdf.
     */
     SrsAacObjectType    aac_object;
     /**
@@ -658,12 +658,12 @@ private:
     virtual int avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
     /**
     * demux the avc NALU in "AnnexB" 
-    * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+    * from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     */
     virtual int avc_demux_annexb_format(SrsBuffer* stream, SrsCodecSample* sample);
     /**
     * demux the avc NALU in "ISO Base Media File Format" 
-    * from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    * from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     */
     virtual int avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sample);
 };

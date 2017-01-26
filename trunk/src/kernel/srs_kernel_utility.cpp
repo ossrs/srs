@@ -58,7 +58,7 @@ int srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
     }
     
     // ue(v) in 9.1 Parsing process for Exp-Golomb codes
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 227.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 227.
     // Syntax elements coded as ue(v), me(v), or se(v) are Exp-Golomb-coded.
     //      leadingZeroBits = -1;
     //      for( b = 0; !b; leadingZeroBits++ )

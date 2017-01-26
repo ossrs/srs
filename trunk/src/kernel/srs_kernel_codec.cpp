@@ -500,7 +500,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
     
     if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         // AudioSpecificConfig
-        // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+        // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
         aac_extra_size = stream->size() - stream->pos();
         if (aac_extra_size > 0) {
             srs_freepa(aac_extra_data);
@@ -721,7 +721,7 @@ int SrsAvcAacCodec::video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample)
     // guess for the first time.
     if (payload_format == SrsAvcPayloadFormatGuess) {
         // One or more NALUs (Full frames are required)
-        // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+        // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
         if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
             // stop try when system error.
             if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
@@ -729,7 +729,7 @@ int SrsAvcAacCodec::video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample)
                 return ret;
             }
             
-            // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+            // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
             if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
                 return ret;
             } else {
@@ -741,14 +741,14 @@ int SrsAvcAacCodec::video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample)
             srs_info("hls guess avc payload is annexb format.");
         }
     } else if (payload_format == SrsAvcPayloadFormatIbmf) {
-        // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+        // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
         if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
             return ret;
         }
         srs_info("hls decode avc payload in ibmf format.");
     } else {
         // One or more NALUs (Full frames are required)
-        // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+        // try  "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
         if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
             // ok, we guess out the payload is annexb, but maybe changed to ibmf.
             if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
@@ -756,7 +756,7 @@ int SrsAvcAacCodec::video_nalu_demux(SrsBuffer* stream, SrsCodecSample* sample)
                 return ret;
             }
             
-            // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+            // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
             if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
                 return ret;
             } else {
@@ -775,7 +775,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
     int ret = ERROR_SUCCESS;
     
     // AVCDecoderConfigurationRecord
-    // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.2.4.1.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     avc_extra_size = stream->size() - stream->pos();
     if (avc_extra_size > 0) {
         srs_freepa(avc_extra_data);
@@ -802,7 +802,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
     lengthSizeMinusOne &= 0x03;
     NAL_unit_length = lengthSizeMinusOne;
     
-    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
@@ -814,7 +814,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsBuffer* stream)
     }
     
     // 1 sps, 7.3.2.1 Sequence parameter set RBSP syntax
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     if (!stream->require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sequenc header sps failed. ret=%d", ret);
@@ -890,7 +890,7 @@ int SrsAvcAacCodec::avc_demux_sps()
     }
     
     // for NALU, 7.3.1 NAL unit syntax
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
     if (!stream.require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sps failed. ret=%d", ret);
@@ -916,7 +916,7 @@ int SrsAvcAacCodec::avc_demux_sps()
     }
     
     // 7.4.1 NAL unit semantics
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(nutv & 0x1f);
     if (nal_unit_type != 7) {
@@ -970,7 +970,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     }
     
     // for SPS, 7.3.2.1.1 Sequence parameter set data syntax
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 62.
     if (!stream.require(3)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("sps shall atleast 3bytes. ret=%d", ret);
@@ -1143,7 +1143,7 @@ int SrsAvcAacCodec::avc_demux_annexb_format(SrsBuffer* stream, SrsCodecSample* s
     
     // AnnexB
     // B.1.1 Byte stream NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     while (!stream->empty()) {
         // find start code
         int nb_start_code = 0;
@@ -1191,14 +1191,14 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sam
     
     int PictureLength = stream->size() - stream->pos();
     
-    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
     srs_assert(NAL_unit_length != 2);
     
-    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     for (int i = 0; i < PictureLength;) {
         // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
         if (!stream->require(NAL_unit_length + 1)) {
@@ -1229,7 +1229,7 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sam
             srs_error("avc decode NALU data failed. ret=%d", ret);
             return ret;
         }
-        // 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        // 7.3.1 NAL unit syntax, ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
             srs_error("avc add video sample failed. ret=%d", ret);
             return ret;

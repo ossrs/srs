@@ -92,7 +92,7 @@ struct Context
     // for h264 raw stream, 
     // @see: https://github.com/ossrs/srs/issues/66#issuecomment-62240521
     SrsBuffer h264_raw_stream;
-    // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
+    // about SPS, @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
     // whether the sps and pps sent,
@@ -1326,7 +1326,7 @@ int srs_write_h264_ipb_frame(Context* context,
     }
     
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  5: I Frame, 1: P/B Frame
     // @remark we already group sps/pps to sequence header frame;
     //      for I/P NALU, we send them in isolate frame, each NALU in a frame;
@@ -1445,7 +1445,7 @@ int srs_write_h264_raw_frame(Context* context,
     
     // ignore others.
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 9: AUD
     SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
     if (nut != SrsAvcNaluTypeSPS && nut != SrsAvcNaluTypePPS

@@ -50,7 +50,7 @@ int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_fr
 
     while (!stream->empty()) {
         // each frame must prefixed by annexb format.
-        // about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+        // about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
         int pnb_start_code = 0;
         if (!srs_avc_startswith_annexb(stream, &pnb_start_code)) {
             return ERROR_H264_API_NO_PREFIXED;
@@ -80,7 +80,7 @@ bool SrsRawH264Stream::is_sps(char* frame, int nb_frame)
     srs_assert(nb_frame > 0);
     
     // 5bits, 7.3.1 NAL unit syntax, 
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
 
@@ -92,7 +92,7 @@ bool SrsRawH264Stream::is_pps(char* frame, int nb_frame)
     srs_assert(nb_frame > 0);
     
     // 5bits, 7.3.1 NAL unit syntax, 
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
 
@@ -166,12 +166,12 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     }
     
     // decode the SPS: 
-    // @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
+    // @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     if (true) {
         srs_assert((int)sps.length() >= 4);
         char* frame = (char*)sps.data();
     
-        // @see: Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205
+        // @see: Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205
         //      Baseline profile profile_idc is 66(0x42).
         //      Main profile profile_idc is 77(0x4d).
         //      Extended profile profile_idc is 88(0x58).
@@ -180,7 +180,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
         u_int8_t level_idc = frame[3];
         
         // generate the sps/pps header
-        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
         // configurationVersion
         stream.write_1bytes(0x01);
         // AVCProfileIndication
@@ -196,7 +196,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     
     // sps
     if (true) {
-        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
         // numOfSequenceParameterSets, always 1
         stream.write_1bytes(0x01);
         // sequenceParameterSetLength
@@ -207,7 +207,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     
     // pps
     if (true) {
-        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
         // numOfPictureParameterSets, always 1
         stream.write_1bytes(0x01);
         // pictureParameterSetLength
@@ -217,7 +217,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     }
 
     // TODO: FIXME: for more profile.
-    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 144
 
     sh = "";
@@ -244,12 +244,12 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
         return ret;
     }
 
-    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
     u_int32_t NAL_unit_length = nb_frame;
     
     // mux the avc NALU in "ISO Base Media File Format" 
-    // from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    // from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     // NALUnitLength
     stream.write_4bytes(NAL_unit_length);
     // NALUnit
@@ -488,7 +488,7 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     sh = "";
 
     char ch = 0;
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf
+    // @see ISO_IEC_14496-3-AAC-2001.pdf
     // AudioSpecificConfig (), page 33
     // 1.6.2.1 AudioSpecificConfig
     // audioObjectType; 5 bslbf

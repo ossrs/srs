@@ -81,9 +81,9 @@ public:
 public:
     bool has_video;
     SrsCodecVideo vcodec;
-    // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    // profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcProfile avc_profile;
-    // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
     // the width and height in codec info.
     int width;
@@ -97,7 +97,7 @@ public:
     * audio specified
     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
     * 1.5.1.1 Audio object type definition, page 23,
-    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
+    *           in ISO_IEC_14496-3-AAC-2001.pdf.
     */
     SrsAacObjectType aac_object;
 public:

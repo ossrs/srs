@@ -581,7 +581,7 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts
     int ret = ERROR_SUCCESS;
     
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     

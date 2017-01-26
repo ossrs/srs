@@ -360,9 +360,9 @@ extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
 * @example /trunk/research/librtmp/srs_audio_raw_publish.c
 *
 * @remark for aac, the frame must be in ADTS format. 
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS
 * @remark for aac, only support profile 1-4, AAC main/LC/SSR/LTP,
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23, 1.5.1.1 Audio object type
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 23, 1.5.1.1 Audio object type
 *
 * @see https://github.com/ossrs/srs/issues/212
 * @see E.4.2.1 AUDIODATA of video_file_format_spec_v10_1.pdf
@@ -381,7 +381,7 @@ extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
 * @param ac_raw_size the size of aac raw data.
 *
 * @reamrk used to check whether current frame is in adts format.
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS
 * @example /trunk/research/librtmp/srs_aac_raw_publish.c
 *
 * @return 0 false; otherwise, true.
@@ -409,7 +409,7 @@ extern int srs_aac_adts_frame_size(char* aac_raw_data, int ac_raw_size);
 *       frames can be one or more than one frame,
 *       each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
 *       for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
-*       about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+*       about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
 * @param frames_size the size of h264 raw data. 
 *       assert frames_size > 0, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.

@@ -2942,7 +2942,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
 {
     // mux the samples in annexb format,
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 324.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 324.
     /**
      * 00 00 00 01 // header
      *       xxxxxxx // data bytes
@@ -2951,7 +2951,7 @@ void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
      *
      * nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
      * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
-     * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+     * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
      *      1, Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
      *      2, Coded slice data partition A slice_data_partition_a_layer_rbsp( )
      *      3, Coded slice data partition B slice_data_partition_b_layer_rbsp( )
@@ -3006,7 +3006,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     if (!sample->has_aud) {
         // the aud(access unit delimiter) before each frame.
         // 7.3.2.4 Access unit delimiter RBSP syntax
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 66.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 66.
         //
         // primary_pic_type u(3), the first 3bits, primary_pic_type indicates that the slice_type values
         //      for all slices of the primary coded picture are members of the set listed in Table 7-5 for
@@ -3020,7 +3020,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //      6, slice_type 0, 2, 3, 4, 5, 7, 8, 9
         //      7, slice_type 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
         // 7.4.2.4 Access unit delimiter RBSP semantics
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 102.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 102.
         //
         // slice_type specifies the coding type of the slice according to Table 7-6.
         //      0, P (P slice)
@@ -3033,7 +3033,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //      7, I (I slice)
         //      8, SP (SP slice)
         //      9, SI (SI slice)
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 105.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 105.
         static u_int8_t default_aud_nalu[] = { 0x09, 0xf0};
         srs_avc_insert_aud(video->payload, aud_inserted);
         video->payload->append((const char*)default_aud_nalu, 2);
@@ -3051,7 +3051,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample_unit->bytes[0] & 0x1f);
         
         // Insert sps/pps before IDR when there is no sps/pps in samples.

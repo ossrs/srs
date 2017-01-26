@@ -114,7 +114,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     SrsCodecAudioType aac_packet_type = (SrsCodecAudioType)stream->read_1bytes();
     if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         // AudioSpecificConfig
-        // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+        // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
         //
         // only need to decode the first 2bytes:
         // audioObjectType, 5bits.
@@ -150,7 +150,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     int16_t aac_raw_length = stream->size() - stream->pos();
     
     // write the ADTS header.
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
+    // @see ISO_IEC_14496-3-AAC-2001.pdf, page 75,
     //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
     // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
     // byte_alignment()
