@@ -29,5 +29,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+/**
+ * 4.2 Object Structure
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 16
+ */
+class SrsMp4Box
+{
+public:
+    // if size is 1 then the actual size is in the field largesize;
+    // if size is 0, then this box is the last one in the file, and its contents
+    // extend to the end of the file (normally only used for a Media Data Box)
+    uint32_t size;
+    uint32_t type;
+public:
+    SrsMp4Box(uint32_t bt);
+    virtual ~SrsMp4Box();
+};
+
+/**
+ * 4.2 Object Structure
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 16
+ */
+class SrsMp4FullBox : public SrsMp4Box
+{
+public:
+    // an integer that specifies the version of this format of the box.
+    uint8_t version;
+    // a map of flags
+    uint32_t flags;
+public:
+    SrsMp4FullBox(uint32_t bt, uint8_t v, uint32_t f);
+    virtual ~SrsMp4FullBox();
+};
+
+
 #endif
 

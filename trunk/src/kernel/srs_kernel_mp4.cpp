@@ -23,3 +23,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_mp4.hpp>
 
+SrsMp4Box::SrsMp4Box(uint32_t bt)
+{
+    size = 0;
+    type = bt;
+}
+
+SrsMp4Box::~SrsMp4Box()
+{
+}
+
+SrsMp4FullBox::SrsMp4FullBox(uint32_t bt, uint8_t v, uint32_t f) : SrsMp4Box(bt)
+{
+    version = v;
+    flags = f;
+}
+
+SrsMp4FullBox::~SrsMp4FullBox()
+{
+}
+
