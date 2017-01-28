@@ -23,23 +23,54 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_mp4.hpp>
 
-SrsMp4Box::SrsMp4Box(uint32_t bt)
+SrsMp4Box::SrsMp4Box()
 {
     size = 0;
-    type = bt;
+    type = 0;
 }
 
 SrsMp4Box::~SrsMp4Box()
 {
 }
 
-SrsMp4FullBox::SrsMp4FullBox(uint32_t bt, uint8_t v, uint32_t f) : SrsMp4Box(bt)
+SrsMp4FullBox::SrsMp4FullBox()
 {
-    version = v;
-    flags = f;
+    version = 0;
+    flags = 0;
 }
 
 SrsMp4FullBox::~SrsMp4FullBox()
+{
+}
+
+SrsMp4FileTypeBox::SrsMp4FileTypeBox()
+{
+    type = 0x66747970; // 'ftyp'
+    nb_compatible_brands = 0;
+    compatible_brands = NULL;
+    major_brand = minor_version = 0;
+}
+
+SrsMp4FileTypeBox::~SrsMp4FileTypeBox()
+{
+    srs_freepa(compatible_brands);
+}
+
+SrsMp4MovieBox::SrsMp4MovieBox()
+{
+    type = 0x6d6f6f76; // 'moov'
+}
+
+SrsMp4MovieBox::~SrsMp4MovieBox()
+{
+}
+
+SrsMp4MovieHeaderBox::SrsMp4MovieHeaderBox()
+{
+    type = 0x6d766864; // 'mvhd'
+}
+
+SrsMp4MovieHeaderBox::~SrsMp4MovieHeaderBox()
 {
 }
 

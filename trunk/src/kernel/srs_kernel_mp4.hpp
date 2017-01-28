@@ -42,7 +42,7 @@ public:
     uint32_t size;
     uint32_t type;
 public:
-    SrsMp4Box(uint32_t bt);
+    SrsMp4Box();
     virtual ~SrsMp4Box();
 };
 
@@ -58,10 +58,51 @@ public:
     // a map of flags
     uint32_t flags;
 public:
-    SrsMp4FullBox(uint32_t bt, uint8_t v, uint32_t f);
+    SrsMp4FullBox();
     virtual ~SrsMp4FullBox();
 };
 
+/**
+ * 4.3 File Type Box
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 17
+ */
+class SrsMp4FileTypeBox : public SrsMp4Box
+{
+public:
+    // a brand identifier
+    uint32_t major_brand;
+    // an informative integer for the minor version of the major brand
+    uint32_t minor_version;
+private:
+    // a list, to the end of the box, of brands
+    int nb_compatible_brands;
+    uint32_t* compatible_brands;
+public:
+    SrsMp4FileTypeBox();
+    virtual ~SrsMp4FileTypeBox();
+};
+
+/**
+ * 8.2.1 Movie Box
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 31
+ */
+class SrsMp4MovieBox : public SrsMp4Box
+{
+public:
+    SrsMp4MovieBox();
+    virtual ~SrsMp4MovieBox();
+};
+
+/**
+ * 8.2.2 Movie Header Box
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 31
+ */
+class SrsMp4MovieHeaderBox : public SrsMp4Box
+{
+public:
+    SrsMp4MovieHeaderBox();
+    virtual ~SrsMp4MovieHeaderBox();
+};
 
 #endif
 
