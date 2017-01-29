@@ -363,3 +363,62 @@ SrsMp4CompositionTime2SampleBox::~SrsMp4CompositionTime2SampleBox()
     srs_freepa(entries);
 }
 
+SrsMp4SyncSampleBox::SrsMp4SyncSampleBox()
+{
+    type = 0x73747373; // 'stss'
+    
+    entry_count = 0;
+    sample_numbers = NULL;
+}
+
+SrsMp4SyncSampleBox::~SrsMp4SyncSampleBox()
+{
+    srs_freepa(sample_numbers);
+}
+
+SrsMp4StscEntry::SrsMp4StscEntry()
+{
+    first_chunk = 0;
+    samples_per_chunk = 0;
+    sample_description_index = 0;
+}
+
+SrsMp4Sample2ChunkBox::SrsMp4Sample2ChunkBox()
+{
+    type = 0x73747363; // 'stsc'
+    
+    entry_count = 0;
+    entries = NULL;
+}
+
+SrsMp4Sample2ChunkBox::~SrsMp4Sample2ChunkBox()
+{
+    srs_freepa(entries);
+}
+
+SrsMp4ChunkOffsetBox::SrsMp4ChunkOffsetBox()
+{
+    type = 0x7374636f; // 'stco'
+    
+    entry_count = 0;
+    entries = NULL;
+}
+
+SrsMp4ChunkOffsetBox::~SrsMp4ChunkOffsetBox()
+{
+    srs_freepa(entries);
+}
+
+SrsMp4SampleSizeBox::SrsMp4SampleSizeBox()
+{
+    type = 0x7374737a; // 'stsz'
+    
+    sample_size = sample_count = 0;
+    entry_sizes = NULL;
+}
+
+SrsMp4SampleSizeBox::~SrsMp4SampleSizeBox()
+{
+    srs_freepa(entry_sizes);
+}
+

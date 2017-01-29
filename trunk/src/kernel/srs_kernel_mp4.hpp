@@ -568,7 +568,7 @@ public:
 };
 
 /**
- * 8.5.2 Sample Description Box (stsd)
+ * 8.5.2 Sample Description Box (stsd), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 40
  * The sample description table gives detailed information about the coding type used, and any initialization 
  * information needed for that coding.
@@ -585,7 +585,7 @@ public:
 };
 
 /**
- * 8.6.1.2 Decoding Time to Sample Box (stts)
+ * 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 48
  */
 struct SrsMp4SttsEntry
@@ -600,7 +600,7 @@ struct SrsMp4SttsEntry
 };
 
 /**
- * 8.6.1.2 Decoding Time to Sample Box (stts)
+ * 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 48
  * This box contains a compact version of a table that allows indexing from decoding time to sample number. 
  * Other tables give sample sizes and pointers, from the sample number. Each entry in the table gives the 
@@ -620,7 +620,7 @@ public:
 
 
 /**
- * 8.6.1.3 Composition Time to Sample Box (ctts)
+ * 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 49
  */
 struct SrsMp4CttsEntry
@@ -637,7 +637,7 @@ struct SrsMp4CttsEntry
 };
  
  /**
- * 8.6.1.3 Composition Time to Sample Box (ctts)
+ * 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 49
  * This box provides the offset between decoding time and composition time. In version 0 of this box the 
  * decoding time must be less than the composition time, and the offsets are expressed as unsigned numbers
@@ -655,6 +655,109 @@ public:
 public:
     SrsMp4CompositionTime2SampleBox();
     virtual ~SrsMp4CompositionTime2SampleBox();
+};
+
+/**
+ * 8.6.2 Sync Sample Box (stss), for Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 51
+ * This box provides a compact marking of the sync samples within the stream. The table is arranged in strictly
+ * increasing order of sample number.
+ */
+class SrsMp4SyncSampleBox : public SrsMp4FullBox
+{
+public:
+    // an integer that gives the number of entries in the following table. If entry_count is zero,
+    // there are no sync samples within the stream and the following table is empty.
+    uint32_t entry_count;
+    // the numbers of the samples that are sync samples in the stream.
+    uint32_t* sample_numbers;
+public:
+    SrsMp4SyncSampleBox();
+    virtual ~SrsMp4SyncSampleBox();
+};
+
+/**
+ * 8.7.4 Sample To Chunk Box (stsc), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 58
+ */
+struct SrsMp4StscEntry
+{
+    // an integer that gives the index of the first chunk in this run of chunks that share the
+    // same samples-per-chunk and sample-description-index; the index of the first chunk in a track has the
+    // value 1 (the first_chunk field in the first record of this box has the value 1, identifying that the first
+    // sample maps to the first chunk).
+    uint32_t first_chunk;
+    // an integer that gives the number of samples in each of these chunks
+    uint32_t samples_per_chunk;
+    // an integer that gives the index of the sample entry that describes the
+    // samples in this chunk. The index ranges from 1 to the number of sample entries in the Sample
+    // Description Box
+    uint32_t sample_description_index;
+    // Constructor
+    SrsMp4StscEntry();
+};
+
+/**
+ * 8.7.4 Sample To Chunk Box (stsc), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 58
+ * Samples within the media data are grouped into chunks. Chunks can be of different sizes, and the samples
+ * within a chunk can have different sizes. This table can be used to find the chunk that contains a sample,
+ * its position, and the associated sample description.
+ */
+class SrsMp4Sample2ChunkBox : public SrsMp4FullBox
+{
+public:
+    // an integer that gives the number of entries in the following table
+    uint32_t entry_count;
+    // the numbers of the samples that are sync samples in the stream.
+    SrsMp4StscEntry* entries;
+public:
+    SrsMp4Sample2ChunkBox();
+    virtual ~SrsMp4Sample2ChunkBox();
+};
+
+/**
+ * 8.7.5 Chunk Offset Box (stco or co64), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 59
+ * The chunk offset table gives the index of each chunk into the containing file. There are two variants, permitting
+ * the use of 32-bit or 64-bit offsets. The latter is useful when managing very large presentations. At most one of
+ * these variants will occur in any single instance of a sample table.
+ */
+class SrsMp4ChunkOffsetBox : public SrsMp4FullBox
+{
+public:
+    // an integer that gives the number of entries in the following table
+    uint32_t entry_count;
+    // a 32 or 64 bit integer that gives the offset of the start of a chunk into its containing
+    // media file.
+    uint64_t* entries;
+public:
+    SrsMp4ChunkOffsetBox();
+    virtual ~SrsMp4ChunkOffsetBox();
+};
+
+/**
+ * 8.7.3 Sample Size Boxes (stsz or stz2), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 57
+ * This box contains the sample count and a table giving the size in bytes of each sample. This allows the media data
+ * itself to be unframed. The total number of samples in the media is always indicated in the sample count.
+ */
+class SrsMp4SampleSizeBox : public SrsMp4FullBox
+{
+public:
+    // the default sample size. If all the samples are the same size, this field
+    // contains that size value. If this field is set to 0, then the samples have different sizes, and those sizes
+    // are stored in the sample size table. If this field is not 0, it specifies the constant sample size, and no
+    // array follows.
+    uint32_t sample_size;
+    // an integer that gives the number of samples in the track; if sample-size is 0, then it is
+    // also the number of entries in the following table.
+    uint32_t sample_count;
+    // each entry_size is an integer specifying the size of a sample, indexed by its number.
+    uint32_t* entry_sizes;
+public:
+    SrsMp4SampleSizeBox();
+    virtual ~SrsMp4SampleSizeBox();
 };
 
 #endif
