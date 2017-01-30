@@ -30,10 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#ifndef _WIN32
-#include <sys/uio.h>
-#endif
+#include <srs_kernel_io.hpp>
 
 /**
 * the system io reader/writer architecture:
@@ -59,41 +56,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           | + is_never_timeout()             |
           +----------------------------------+
 */
-
-/**
-* the reader for the buffer to read from whatever channel.
-*/
-class ISrsBufferReader
-{
-public:
-    ISrsBufferReader();
-    virtual ~ISrsBufferReader();
-// for protocol/amf0/msg-codec
-public:
-    virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
-};
-
-/**
-* the writer for the buffer to write to whatever channel.
-*/
-class ISrsBufferWriter
-{
-public:
-    ISrsBufferWriter();
-    virtual ~ISrsBufferWriter();
-// for protocol
-public:
-    /**
-    * write bytes over writer.
-    * @nwrite the actual written bytes. NULL to ignore.
-    */
-    virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
-    /**
-    * write iov over writer.
-    * @nwrite the actual written bytes. NULL to ignore.
-    */
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
-};
 
 /**
 * get the statistic of channel.

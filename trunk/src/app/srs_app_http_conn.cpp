@@ -155,7 +155,7 @@ int SrsHttpResponseWriter::write(char* data, int size)
     return ret;
 }
 
-int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+int SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
     
@@ -163,7 +163,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     if (!header_wrote || content_length != -1) {
         ssize_t nwrite = 0;
         for (int i = 0; i < iovcnt; i++) {
-            iovec* piovc = iov + i;
+            const iovec* piovc = iov + i;
             nwrite += piovc->iov_len;
             if ((ret = write((char*)piovc->iov_base, (int)piovc->iov_len)) != ERROR_SUCCESS) {
                 return ret;
@@ -196,7 +196,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     // chunk size.
     int size = 0;
     for (int i = 0; i < iovcnt; i++) {
-        iovec* data_iov = iov + i;
+        const iovec* data_iov = iov + i;
         size += data_iov->iov_len;
     }
     written += size;
@@ -215,7 +215,7 @@ int SrsHttpResponseWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     
     // chunk body.
     for (int i = 0; i < iovcnt; i++) {
-        iovec* data_iov = iov + i;
+        const iovec* data_iov = iov + i;
         iovs[0].iov_base = (char*)data_iov->iov_base;
         iovs[0].iov_len = (int)data_iov->iov_len;
         iovs++;

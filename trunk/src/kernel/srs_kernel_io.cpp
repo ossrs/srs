@@ -21,37 +21,21 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_io.hpp>
+#include <srs_kernel_io.hpp>
 
-ISrsProtocolStatistic::ISrsProtocolStatistic()
+ISrsBufferReader::ISrsBufferReader()
 {
 }
 
-ISrsProtocolStatistic::~ISrsProtocolStatistic()
+ISrsBufferReader::~ISrsBufferReader()
 {
 }
 
-ISrsProtocolReader::ISrsProtocolReader()
+ISrsBufferWriter::ISrsBufferWriter()
 {
 }
 
-ISrsProtocolReader::~ISrsProtocolReader()
-{
-}
-
-ISrsProtocolWriter::ISrsProtocolWriter()
-{
-}
-
-ISrsProtocolWriter::~ISrsProtocolWriter()
-{
-}
-
-ISrsProtocolReaderWriter::ISrsProtocolReaderWriter()
-{
-}
-
-ISrsProtocolReaderWriter::~ISrsProtocolReaderWriter()
+ISrsBufferWriter::~ISrsBufferWriter()
 {
 }
 

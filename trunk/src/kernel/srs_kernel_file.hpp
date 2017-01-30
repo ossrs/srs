@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <srs_kernel_io.hpp>
+
 #include <string>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
@@ -39,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * file writer, to write to file.
 */
-class SrsFileWriter
+class SrsFileWriter : public ISrsBufferWriter
 {
 private:
     std::string path;
@@ -77,13 +79,13 @@ public:
      * for the HTTP FLV, to writev to improve performance.
      * @see https://github.com/ossrs/srs/issues/405
      */
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**
 * file reader, to read from file.
 */
-class SrsFileReader
+class SrsFileReader : public ISrsBufferReader
 {
 private:
     std::string path;

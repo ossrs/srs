@@ -210,7 +210,7 @@ public:
     virtual int64_t tellg();
 public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**

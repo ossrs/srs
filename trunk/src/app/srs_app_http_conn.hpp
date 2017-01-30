@@ -103,7 +103,7 @@ public:
     virtual int final_request();
     virtual SrsHttpHeader* header();
     virtual int write(char* data, int size);
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
     virtual int send_header(char* data, int size);
 };

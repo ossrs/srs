@@ -146,13 +146,13 @@ int SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return ret;
 }
 
-int SrsFileWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+int SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
     
     ssize_t nwrite = 0;
     for (int i = 0; i < iovcnt; i++) {
-        iovec* piov = iov + i;
+        const iovec* piov = iov + i;
         ssize_t this_nwrite = 0;
         if ((ret = write(piov->iov_base, piov->iov_len, &this_nwrite)) != ERROR_SUCCESS) {
             return ret;

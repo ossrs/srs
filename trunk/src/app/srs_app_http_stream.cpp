@@ -440,7 +440,7 @@ int SrsBufferWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return writer->write((char*)buf, (int)count);
 }
 
-int SrsBufferWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+int SrsBufferWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     return writer->writev(iov, iovcnt, pnwrite);
 }

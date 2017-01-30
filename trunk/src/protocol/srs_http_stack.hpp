@@ -201,7 +201,7 @@ public:
      * for the HTTP FLV, to writev to improve performance.
      * @see https://github.com/ossrs/srs/issues/405
      */
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
     
     // WriteHeader sends an HTTP response header with status code.
     // If WriteHeader is not called explicitly, the first call to Write

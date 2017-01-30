@@ -21,37 +21,54 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_io.hpp>
+#ifndef SRS_KERNEL_IO_HPP
+#define SRS_KERNEL_IO_HPP
 
-ISrsProtocolStatistic::ISrsProtocolStatistic()
-{
-}
+/*
+#include <srs_kernel_io.hpp>
+*/
 
-ISrsProtocolStatistic::~ISrsProtocolStatistic()
-{
-}
+#include <srs_core.hpp>
 
-ISrsProtocolReader::ISrsProtocolReader()
-{
-}
+// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
+#ifndef _WIN32
+#include <sys/uio.h>
+#endif
 
-ISrsProtocolReader::~ISrsProtocolReader()
+/**
+ * the reader for the buffer to read from whatever channel.
+ */
+class ISrsBufferReader
 {
-}
+public:
+    ISrsBufferReader();
+    virtual ~ISrsBufferReader();
+    // for protocol/amf0/msg-codec
+public:
+    virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
+};
 
-ISrsProtocolWriter::ISrsProtocolWriter()
+/**
+ * the writer for the buffer to write to whatever channel.
+ */
+class ISrsBufferWriter
 {
-}
+public:
+    ISrsBufferWriter();
+    virtual ~ISrsBufferWriter();
+    // for protocol
+public:
+    /**
+     * write bytes over writer.
+     * @nwrite the actual written bytes. NULL to ignore.
+     */
+    virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
+    /**
+     * write iov over writer.
+     * @nwrite the actual written bytes. NULL to ignore.
+     */
+    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
+};
 
-ISrsProtocolWriter::~ISrsProtocolWriter()
-{
-}
-
-ISrsProtocolReaderWriter::ISrsProtocolReaderWriter()
-{
-}
-
-ISrsProtocolReaderWriter::~ISrsProtocolReaderWriter()
-{
-}
+#endif
 
