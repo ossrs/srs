@@ -65,6 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     };
 #endif
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #ifdef __cplusplus
