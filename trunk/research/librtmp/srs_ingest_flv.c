@@ -40,8 +40,8 @@ int connect_oc(srs_rtmp_t ortmp);
 #define RE_PULSE_MS 300
 #define RE_PULSE_JITTER_MS 3000
 int64_t re_create();
-void re_update(int64_t re, int32_t starttime, u_int32_t time);
-void re_cleanup(int64_t re, int32_t starttime, u_int32_t time);
+void re_update(int64_t re, int32_t starttime, uint32_t time);
+void re_cleanup(int64_t re, int32_t starttime, uint32_t time);
 
 int64_t tools_main_entrance_startup_time;
 int main(int argc, char** argv)
@@ -128,7 +128,7 @@ int main(int argc, char** argv)
     return ret;
 }
 
-int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u_int32_t* ptimestamp)
+int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, uint32_t* ptimestamp)
 {
     int ret = 0;
     
@@ -160,7 +160,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             return ret;
         }
         
-        u_int32_t timestamp = *ptimestamp;
+        uint32_t timestamp = *ptimestamp;
         
         if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
             srs_human_trace("print packet failed. ret=%d", ret);
@@ -185,7 +185,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
 int proxy(srs_flv_t flv, srs_rtmp_t ortmp)
 {
     int ret = 0;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     int32_t starttime = -1;
     
     char header[13];
@@ -252,7 +252,7 @@ int64_t re_create()
     
     return re;
 }
-void re_update(int64_t re, int32_t starttime, u_int32_t time)
+void re_update(int64_t re, int32_t starttime, uint32_t time)
 {
     // send by pulse algorithm.
     int64_t now = srs_utils_time_ms();
@@ -261,7 +261,7 @@ void re_update(int64_t re, int32_t starttime, u_int32_t time)
         usleep((useconds_t)(diff * 1000));
     }
 }
-void re_cleanup(int64_t re, int32_t starttime, u_int32_t time)
+void re_cleanup(int64_t re, int32_t starttime, uint32_t time)
 {
     // for the last pulse, always sleep.
     // for the virtual live encoder long time publishing.

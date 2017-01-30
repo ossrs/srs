@@ -275,14 +275,14 @@ int main(int argc, char** argv)
     }
     
     int64_t nb_packets = 0;
-    u_int32_t pre_timestamp = 0;
+    uint32_t pre_timestamp = 0;
     int64_t pre_now = -1;
     int64_t start_time = -1;
     for (;;) {
         int size;
         char type;
         char* data;
-        u_int32_t timestamp;
+        uint32_t timestamp;
         
         if (srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             srs_human_trace("read rtmp packet failed.");

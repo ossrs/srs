@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     int size;
     char type;
     char* data;
-    u_int32_t timestamp;
+    uint32_t timestamp;
     
     // srs debug info.
     char srs_server_ip[128];

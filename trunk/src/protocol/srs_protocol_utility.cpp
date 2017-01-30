@@ -197,8 +197,8 @@ string srs_generate_vis_tc_url(string ip, string vhost, string app, int port)
 */
 bool srs_bytes_equals(void* pa, void* pb, int size)
 {
-    u_int8_t* a = (u_int8_t*)pa;
-    u_int8_t* b = (u_int8_t*)pb;
+    uint8_t* a = (uint8_t*)pa;
+    uint8_t* b = (uint8_t*)pb;
     
     if (!a && !b) {
         return true;
@@ -218,7 +218,7 @@ bool srs_bytes_equals(void* pa, void* pb, int size)
 }
 
 template<typename T>
-int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, T** ppmsg)
+int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, T** ppmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -263,7 +263,7 @@ int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size,
     return ret;
 }
 
-int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+int srs_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -276,7 +276,7 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
     return ret;
 }
 
-int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsCommonMessage** ppmsg)
+int srs_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, SrsCommonMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
     

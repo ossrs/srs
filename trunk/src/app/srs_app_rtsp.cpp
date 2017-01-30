@@ -437,8 +437,8 @@ int SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
 
     char* bytes = pkt->payload->bytes();
     int length = pkt->payload->length();
-    u_int32_t fdts = (u_int32_t)(dts / 90);
-    u_int32_t fpts = (u_int32_t)(pts / 90);
+    uint32_t fdts = (uint32_t)(dts / 90);
+    uint32_t fpts = (uint32_t)(pts / 90);
     if ((ret = write_h264_ipb_frame(bytes, length, fdts, fpts)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -481,7 +481,7 @@ int SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
             int nb_frame = acache->audio_samples->sample_units[i].size;
             int64_t timestamp = (acache->dts + delta * i) / 90;
             acodec->aac_packet_type = 1;
-            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, (u_int32_t)timestamp)) != ERROR_SUCCESS) {
+            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, (uint32_t)timestamp)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
@@ -502,7 +502,7 @@ int SrsRtspConn::write_sequence_header()
     int64_t dts = vjitter->timestamp() / 90;
 
     // send video sps/pps
-    if ((ret = write_h264_sps_pps((u_int32_t)dts, (u_int32_t)dts)) != ERROR_SUCCESS) {
+    if ((ret = write_h264_sps_pps((uint32_t)dts, (uint32_t)dts)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -540,7 +540,7 @@ int SrsRtspConn::write_sequence_header()
                 break;
         };
 
-        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (u_int32_t)dts)) != ERROR_SUCCESS) {
+        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (uint32_t)dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -548,7 +548,7 @@ int SrsRtspConn::write_sequence_header()
     return ret;
 }
 
-int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+int SrsRtspConn::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -568,7 +568,7 @@ int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -576,7 +576,7 @@ int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     return ret;
 }
 
-int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts) 
+int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts) 
 {
     int ret = ERROR_SUCCESS;
     
@@ -604,11 +604,11 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
 }
 
-int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts)
+int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -621,7 +621,7 @@ int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStr
     return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
 }
 
-int SrsRtspConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     

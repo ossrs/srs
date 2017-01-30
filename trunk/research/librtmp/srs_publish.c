@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     }
     srs_human_trace("publish stream success");
     
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     for (;;) {
         char type = SRS_RTMP_TYPE_VIDEO;
         int size = 4096;

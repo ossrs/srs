@@ -47,13 +47,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #include <windows.h>
     // the type used by this header for windows.
     typedef unsigned long long u_int64_t;
+    typedef u_int64_t uint64_t;
     typedef long long int64_t;
     typedef unsigned int u_int32_t;
     typedef u_int32_t uint32_t;
     typedef int int32_t;
     typedef unsigned char u_int8_t;
+    typedef u_int8_t uint8_t;
     typedef char int8_t;
     typedef unsigned short u_int16_t;
+    typedef u_int16_t uint16_t;
     typedef short int16_t;
     typedef int64_t ssize_t;
     struct iovec {
@@ -297,10 +300,10 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 * @return 0, success; otherswise, failed.
 */
 extern int srs_rtmp_read_packet(srs_rtmp_t rtmp, 
-    char* type, u_int32_t* timestamp, char** data, int* size
+    char* type, uint32_t* timestamp, char** data, int* size
 );
 extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
-    char type, u_int32_t timestamp, char* data, int size
+    char type, uint32_t timestamp, char* data, int size
 );
     
 /**
@@ -371,7 +374,7 @@ extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
 */
 extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char* frame, int frame_size, u_int32_t timestamp
+    char* frame, int frame_size, uint32_t timestamp
 );
 
 /**
@@ -457,7 +460,7 @@ User also can send one by one:
     srs_h264_write_raw_frames('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts) 
 */
 extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp, 
-    char* frames, int frames_size, u_int32_t dts, u_int32_t pts
+    char* frames, int frames_size, uint32_t dts, uint32_t pts
 );
 /**
 * whether error_code is dvbsp(drop video before sps/pps/sequence-header) error.
@@ -553,7 +556,7 @@ extern int srs_flv_read_header(srs_flv_t flv, char header[9]);
 * @remark, user must ensure the next is a tag, srs never check it.
 */
 extern int srs_flv_read_tag_header(srs_flv_t flv, 
-    char* ptype, int32_t* pdata_size, u_int32_t* ptime
+    char* ptype, int32_t* pdata_size, uint32_t* ptime
 );
 /**
 * read the tag data. drop the 4bytes previous tag size 
@@ -707,8 +710,8 @@ extern int64_t srs_utils_recv_bytes(srs_rtmp_t rtmp);
 * @remark, video only support h.264.
 */
 extern int srs_utils_parse_timestamp(
-    u_int32_t time, char type, char* data, int size,
-    u_int32_t* ppts
+    uint32_t time, char type, char* data, int size,
+    uint32_t* ppts
 );
     
 /**
@@ -957,20 +960,20 @@ extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_ty
 * and use srs_human_raw for script data body.
 * @return an error code for parse the timetstamp to dts and pts.
  */
-extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+extern int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size);
 /**
  * @param pre_timestamp the previous timestamp in ms to calc the diff.
  */
-extern int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp);
+extern int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp);
 /**
  * @param pre_now the previous system time in ms to calc the ndiff.
  */
-extern int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now);
+extern int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now);
 /**
  * @param starttime the rtmpdump starttime in ms.
  * @param nb_packets the number of packets received, to calc the packets interval in ms.
  */
-extern int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
+extern int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();

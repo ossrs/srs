@@ -501,8 +501,8 @@ public:
      */
     virtual char* http_ts_send_buffer();
 public:
-    virtual u_int8_t method() = 0;
-    virtual u_int16_t status_code() = 0;
+    virtual uint8_t method() = 0;
+    virtual uint16_t status_code() = 0;
     /**
      * method helpers.
      */

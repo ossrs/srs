@@ -581,7 +581,7 @@ SrsConnection* SrsHttpMessage::connection()
     return conn;
 }
 
-u_int8_t SrsHttpMessage::method()
+uint8_t SrsHttpMessage::method()
 {
     if (jsonp && !jsonp_method.empty()) {
         if (jsonp_method == "GET") {
@@ -595,12 +595,12 @@ u_int8_t SrsHttpMessage::method()
         }
     }
     
-    return (u_int8_t)_header.method;
+    return (uint8_t)_header.method;
 }
 
-u_int16_t SrsHttpMessage::status_code()
+uint16_t SrsHttpMessage::status_code()
 {
-    return (u_int16_t)_header.status_code;
+    return (uint16_t)_header.status_code;
 }
 
 string SrsHttpMessage::method_str()

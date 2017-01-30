@@ -69,7 +69,7 @@ int main(int argc, char** argv)
         int size;
         char type;
         char* data;
-        u_int32_t timestamp;
+        uint32_t timestamp;
         
         if (srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;

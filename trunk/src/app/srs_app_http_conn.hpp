@@ -215,8 +215,8 @@ public:
 public:
     virtual SrsConnection* connection();
 public:
-    virtual u_int8_t method();
-    virtual u_int16_t status_code();
+    virtual uint8_t method();
+    virtual uint16_t status_code();
     /**
      * method helpers.
      */

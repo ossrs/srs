@@ -248,11 +248,11 @@ public:
     /**
      * create a audio header, set the size, timestamp and stream_id.
      */
-    void initialize_audio(int size, u_int32_t time, int stream);
+    void initialize_audio(int size, uint32_t time, int stream);
     /**
      * create a video header, set the size, timestamp and stream_id.
      */
-    void initialize_video(int size, u_int32_t time, int stream);
+    void initialize_video(int size, uint32_t time, int stream);
 };
 
 /**
@@ -543,7 +543,7 @@ public:
     * read the tag header infos.
     * @remark assert ptype/pdata_size/ptime not NULL.
     */
-    virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+    virtual int read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime);
     /**
     * read the tag data.
     * @remark assert data not NULL.

@@ -108,7 +108,7 @@ public:
     virtual bool empty();
     virtual void set_value(std::string v);
     virtual void set_value(const char* v, int nb_v);
-    virtual u_int32_t crc32(u_int32_t previous);
+    virtual uint32_t crc32(uint32_t previous);
 // interface ISrsCodec
 public:
     virtual int nb_bytes();

@@ -129,12 +129,12 @@ extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 /**
 * cacl the crc32 of bytes in buf, for ffmpeg.
  */
-extern u_int32_t srs_crc32_mpegts(const void* buf, int size);
+extern uint32_t srs_crc32_mpegts(const void* buf, int size);
 
 /**
  * calc the crc32 of bytes in buf by IEEE, for zip.
  */
-extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 0);
+extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0);
 
 /**
 * Decode a base64-encoded string.
@@ -146,7 +146,7 @@ extern u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous = 
 * @return         number of bytes written, or a negative value in case of
 *                 invalid input
 */
-extern int srs_av_base64_decode(u_int8_t* out, const char* in, int out_size);
+extern int srs_av_base64_decode(uint8_t* out, const char* in, int out_size);
 
 /**
 * Encode data to base64 and null-terminate.
@@ -158,7 +158,7 @@ extern int srs_av_base64_decode(u_int8_t* out, const char* in, int out_size);
 * @param in_size  size in bytes of the in buffer
 * @return         out or NULL in case of error
 */
-extern char* srs_av_base64_encode(char* out, int out_size, const u_int8_t* in, int in_size);
+extern char* srs_av_base64_encode(char* out, int out_size, const uint8_t* in, int in_size);
 
 /**
  * Calculate the output size needed to base64-encode x bytes to a
@@ -171,7 +171,7 @@ extern char* srs_av_base64_encode(char* out, int out_size, const u_int8_t* in, i
 * for example, p=config='139056E5A0'
 * output hex to data={0x13, 0x90, 0x56, 0xe5, 0xa0}
 */
-extern int ff_hex_to_data(u_int8_t* data, const char* p);
+extern int ff_hex_to_data(uint8_t* data, const char* p);
 
 /**
  * generate the c0 chunk header for msg.
@@ -180,7 +180,7 @@ extern int ff_hex_to_data(u_int8_t* data, const char* p);
  * @return the size of header. 0 if cache not enough.
  */
 extern int srs_chunk_header_c0(
-    int perfer_cid, u_int32_t timestamp, int32_t payload_length,
+    int perfer_cid, uint32_t timestamp, int32_t payload_length,
     int8_t message_type, int32_t stream_id,
     char* cache, int nb_cache
     );
@@ -192,7 +192,7 @@ extern int srs_chunk_header_c0(
  * @return the size of header. 0 if cache not enough.
  */
 extern int srs_chunk_header_c3(
-    int perfer_cid, u_int32_t timestamp,
+    int perfer_cid, uint32_t timestamp,
     char* cache, int nb_cache
     );
 

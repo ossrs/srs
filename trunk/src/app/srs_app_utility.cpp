@@ -1025,7 +1025,7 @@ bool srs_net_device_is_internet(string ifname)
 
 bool srs_net_device_is_internet(in_addr_t addr)
 {
-    u_int32_t addr_h = ntohl(addr);
+    uint32_t addr_h = ntohl(addr);
     
     // lo, 127.0.0.0-127.0.0.1
     if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
@@ -1289,7 +1289,7 @@ string srs_get_public_internet_address()
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
         in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
+        uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
         if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
             srs_trace("ignore private address: %s", ip.c_str());
@@ -1320,7 +1320,7 @@ string srs_get_public_internet_address()
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
         in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
+        uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
         if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
             srs_trace("ignore private address: %s", ip.c_str());

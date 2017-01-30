@@ -481,14 +481,14 @@ public:
 // data of /proc/meminfo
 public:
     // MemActive = MemTotal - MemFree
-    u_int64_t MemActive;
+    uint64_t MemActive;
     // RealInUse = MemActive - Buffers - Cached
-    u_int64_t RealInUse;
+    uint64_t RealInUse;
     // NotInUse = MemTotal - RealInUse
     //          = MemTotal - MemActive + Buffers + Cached
     //          = MemTotal - MemTotal + MemFree + Buffers + Cached
     //          = MemFree + Buffers + Cached
-    u_int64_t NotInUse;
+    uint64_t NotInUse;
     
     unsigned long MemTotal;
     unsigned long MemFree;

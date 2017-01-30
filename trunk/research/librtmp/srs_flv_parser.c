@@ -134,7 +134,7 @@ int parse_flv(srs_flv_t flv)
     char header[13];
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     int64_t offset = 0;

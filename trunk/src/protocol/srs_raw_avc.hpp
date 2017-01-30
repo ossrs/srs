@@ -69,7 +69,7 @@ public:
     * mux the sps/pps to flv sequence header packet.
     * @param sh output the sequence header.
     */
-    virtual int mux_sequence_header(std::string sps, std::string pps, u_int32_t dts, u_int32_t pts, std::string& sh);
+    virtual int mux_sequence_header(std::string sps, std::string pps, uint32_t dts, uint32_t pts, std::string& sh);
     /**
     * h264 raw data to h264 packet, without flv payload header.
     * mux the ibp to flv ibp packet.
@@ -85,7 +85,7 @@ public:
     * @param flv output the muxed flv packet.
     * @param nb_flv output the muxed flv size.
     */
-    virtual int mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, u_int32_t dts, u_int32_t pts, char** flv, int* nb_flv);
+    virtual int mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
 };
 
 /**
@@ -138,7 +138,7 @@ public:
     * @param flv output the muxed flv packet.
     * @param nb_flv output the muxed flv size.
     */
-    virtual int mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, u_int32_t dts, char** flv, int* nb_flv);
+    virtual int mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv);
 };
 
 #endif

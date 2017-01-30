@@ -203,7 +203,7 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
         
         char type;
         int32_t size;
-        u_int32_t time;
+        uint32_t time;
         if ((ret = dec->read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy tag header failed. ret=%d", ret);

@@ -46,7 +46,7 @@ using namespace _srs_internal;
 namespace _srs_internal
 {
     // 68bytes FMS key which is used to sign the sever packet.
-    u_int8_t SrsGenuineFMSKey[] = {
+    uint8_t SrsGenuineFMSKey[] = {
         0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
         0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,
         0x61, 0x73, 0x68, 0x20, 0x4d, 0x65, 0x64, 0x69,
@@ -59,7 +59,7 @@ namespace _srs_internal
     }; // 68
     
     // 62bytes FP key which is used to sign the client packet.
-    u_int8_t SrsGenuineFPKey[] = {
+    uint8_t SrsGenuineFPKey[] = {
         0x47, 0x65, 0x6E, 0x75, 0x69, 0x6E, 0x65, 0x20,
         0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x46, 0x6C,
         0x61, 0x73, 0x68, 0x20, 0x50, 0x6C, 0x61, 0x79,
@@ -371,7 +371,7 @@ namespace _srs_internal
         int max_offset_size = 764 - 128 - 4;
         
         int valid_offset = 0;
-        u_int8_t* pp = (u_int8_t*)&offset;
+        uint8_t* pp = (uint8_t*)&offset;
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;
@@ -448,7 +448,7 @@ namespace _srs_internal
         int max_offset_size = 764 - 32 - 4;
         
         int valid_offset = 0;
-        u_int8_t* pp = (u_int8_t*)&offset;
+        uint8_t* pp = (uint8_t*)&offset;
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;

@@ -117,8 +117,8 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     int size;
     char type;
     char* data;
-    u_int32_t timestamp;
-    u_int64_t nb_msgs = 0;
+    uint32_t timestamp;
+    uint64_t nb_msgs = 0;
 
     if ((ret = connect_ic(irtmp)) != 0) {
         return ret;

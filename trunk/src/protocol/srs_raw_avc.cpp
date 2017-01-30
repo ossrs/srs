@@ -82,7 +82,7 @@ bool SrsRawH264Stream::is_sps(char* frame, int nb_frame)
     // 5bits, 7.3.1 NAL unit syntax, 
     // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
+    uint8_t nal_unit_type = (char)frame[0] & 0x1f;
 
     return nal_unit_type == 7;
 }
@@ -94,7 +94,7 @@ bool SrsRawH264Stream::is_pps(char* frame, int nb_frame)
     // 5bits, 7.3.1 NAL unit syntax, 
     // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
+    uint8_t nal_unit_type = (char)frame[0] & 0x1f;
 
     return nal_unit_type == 8;
 }
@@ -138,7 +138,7 @@ int SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
     return ret;
 }
 
-int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts, u_int32_t pts, string& sh)
+int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, uint32_t pts, string& sh)
 {
     int ret = ERROR_SUCCESS;
 
@@ -175,9 +175,9 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
         //      Baseline profile profile_idc is 66(0x42).
         //      Main profile profile_idc is 77(0x4d).
         //      Extended profile profile_idc is 88(0x58).
-        u_int8_t profile_idc = frame[1];
-        //u_int8_t constraint_set = frame[2];
-        u_int8_t level_idc = frame[3];
+        uint8_t profile_idc = frame[1];
+        //uint8_t constraint_set = frame[2];
+        uint8_t level_idc = frame[3];
         
         // generate the sps/pps header
         // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
@@ -246,7 +246,7 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
-    u_int32_t NAL_unit_length = nb_frame;
+    uint32_t NAL_unit_length = nb_frame;
     
     // mux the avc NALU in "ISO Base Media File Format" 
     // from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
@@ -261,7 +261,7 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     return ret;
 }
 
-int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_packet_type, u_int32_t dts, u_int32_t pts, char** flv, int* nb_flv)
+int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
 {
     int ret = ERROR_SUCCESS;
     
@@ -287,7 +287,7 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     // pts = dts + cts, or 
     // cts = pts - dts.
     // where cts is the header in rtmp video packet payload header.
-    u_int32_t cts = pts - dts;
+    uint32_t cts = pts - dts;
     char* pp = (char*)&cts;
     *p++ = pp[2];
     *p++ = pp[1];
@@ -518,7 +518,7 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     return ret;
 }
 
-int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, u_int32_t dts, char** flv, int* nb_flv)
+int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv)
 {
     int ret = ERROR_SUCCESS;
 
@@ -538,7 +538,7 @@ int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec
     char* data = new char[size];
     char* p = data;
     
-    u_int8_t audio_header = sound_type & 0x01;
+    uint8_t audio_header = sound_type & 0x01;
     audio_header |= (sound_size << 1) & 0x02;
     audio_header |= (sound_rate << 2) & 0x0c;
     audio_header |= (sound_format << 4) & 0xf0;

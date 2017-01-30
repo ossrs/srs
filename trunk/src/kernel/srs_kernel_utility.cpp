@@ -598,7 +598,7 @@ bool srs_aac_startswith_adts(SrsBuffer* stream)
 }
 
 // @see http://www.stmc.edu.hk/~vincent/ffmpeg_0.4.9-pre1/libavformat/mpegtsenc.c
-unsigned int __mpegts_crc32(const u_int8_t *data, int len)
+unsigned int __mpegts_crc32(const uint8_t *data, int len)
 {
     /*
      * MPEG2 transport stream (aka DVB) mux
@@ -618,7 +618,7 @@ unsigned int __mpegts_crc32(const u_int8_t *data, int len)
      * License along with this library; if not, write to the Free Software
      * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
      */
-    static const u_int32_t table[256] = {
+    static const uint32_t table[256] = {
         0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
         0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
         0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
@@ -664,7 +664,7 @@ unsigned int __mpegts_crc32(const u_int8_t *data, int len)
         0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
     };
     
-    u_int32_t crc = 0xffffffff;
+    uint32_t crc = 0xffffffff;
     
     for (int i=0; i<len; i++) {
         crc = (crc << 8) ^ table[((crc >> 24) ^ *data++) & 0xff];
@@ -674,7 +674,7 @@ unsigned int __mpegts_crc32(const u_int8_t *data, int len)
 }
 
 // @see https://github.com/ETrun/crc32/blob/master/crc32.c
-u_int32_t __crc32_ieee(u_int32_t init, const u_int8_t* buf, size_t nb_buf)
+uint32_t __crc32_ieee(uint32_t init, const uint8_t* buf, size_t nb_buf)
 {
     /*----------------------------------------------------------------------------*\
      *  CRC-32 version 2.0.0 by Craig Bruce, 2006-04-29.
@@ -697,7 +697,7 @@ u_int32_t __crc32_ieee(u_int32_t init, const u_int8_t* buf, size_t nb_buf)
      *  v2.0.0: rewrote to use memory buffer & static table, 2006-04-29.
      *  v2.1.0: modified by Nico, 2013-04-20
      \*----------------------------------------------------------------------------*/
-    static const u_int32_t table[256] = {
+    static const uint32_t table[256] = {
         0x00000000,0x77073096,0xEE0E612C,0x990951BA,0x076DC419,0x706AF48F,0xE963A535,
         0x9E6495A3,0x0EDB8832,0x79DCB8A4,0xE0D5E91E,0x97D2D988,0x09B64C2B,0x7EB17CBD,
         0xE7B82D07,0x90BF1D91,0x1DB71064,0x6AB020F2,0xF3B97148,0x84BE41DE,0x1ADAD47D,
@@ -737,7 +737,7 @@ u_int32_t __crc32_ieee(u_int32_t init, const u_int8_t* buf, size_t nb_buf)
         0xB40BBE37,0xC30C8EA1,0x5A05DF1B,0x2D02EF8D
     };
     
-    u_int32_t crc = init ^ 0xFFFFFFFF;
+    uint32_t crc = init ^ 0xFFFFFFFF;
     
     for (size_t i = 0; i < nb_buf; i++) {
         crc = table[(crc ^ buf[i]) & 0xff] ^ (crc >> 8);
@@ -746,14 +746,14 @@ u_int32_t __crc32_ieee(u_int32_t init, const u_int8_t* buf, size_t nb_buf)
     return crc^0xFFFFFFFF;
 }
 
-u_int32_t srs_crc32_mpegts(const void* buf, int size)
+uint32_t srs_crc32_mpegts(const void* buf, int size)
 {
-    return __mpegts_crc32((const u_int8_t*)buf, size);
+    return __mpegts_crc32((const uint8_t*)buf, size);
 }
     
-u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous)
+uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous)
 {
-    return __crc32_ieee(previous, (const u_int8_t*)buf, size);
+    return __crc32_ieee(previous, (const uint8_t*)buf, size);
 }
 
 /*
@@ -782,19 +782,19 @@ u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous)
 
 #ifndef AV_RB32
 #   define AV_RB32(x)                                \
-    (((uint32_t)((const u_int8_t*)(x))[0] << 24) |    \
-               (((const u_int8_t*)(x))[1] << 16) |    \
-               (((const u_int8_t*)(x))[2] <<  8) |    \
-                ((const u_int8_t*)(x))[3])
+    (((uint32_t)((const uint8_t*)(x))[0] << 24) |    \
+               (((const uint8_t*)(x))[1] << 16) |    \
+               (((const uint8_t*)(x))[2] <<  8) |    \
+                ((const uint8_t*)(x))[3])
 #endif
 
 #ifndef AV_WL32
 #   define AV_WL32(p, darg) do {                \
         unsigned d = (darg);                    \
-        ((u_int8_t*)(p))[0] = (d);               \
-        ((u_int8_t*)(p))[1] = (d)>>8;            \
-        ((u_int8_t*)(p))[2] = (d)>>16;           \
-        ((u_int8_t*)(p))[3] = (d)>>24;           \
+        ((uint8_t*)(p))[0] = (d);               \
+        ((uint8_t*)(p))[1] = (d)>>8;            \
+        ((uint8_t*)(p))[2] = (d)>>16;           \
+        ((uint8_t*)(p))[3] = (d)>>24;           \
     } while(0)
 #endif
 
@@ -814,7 +814,7 @@ u_int32_t srs_crc32_ieee(const void* buf, int size, u_int32_t previous)
 #define AV_BSWAP32C(x) (AV_BSWAP16C(x) << 16 | AV_BSWAP16C((x) >> 16))
 
 #ifndef av_bswap32
-static const u_int32_t av_bswap32(u_int32_t x)
+static const uint32_t av_bswap32(uint32_t x)
 {
     return AV_BSWAP32C(x);
 }
@@ -829,7 +829,7 @@ static const u_int32_t av_bswap32(u_int32_t x)
  */
 
 /* ---------------- private code */
-static const u_int8_t map2[256] =
+static const uint8_t map2[256] =
 {
     0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -875,12 +875,12 @@ static const u_int8_t map2[256] =
     v = i ? (v << 6) + bits : bits; \
 } while(0)
 
-int srs_av_base64_decode(u_int8_t* out, const char* in_str, int out_size)
+int srs_av_base64_decode(uint8_t* out, const char* in_str, int out_size)
 {
-    u_int8_t *dst = out;
-    u_int8_t *end = out + out_size;
+    uint8_t *dst = out;
+    uint8_t *end = out + out_size;
     // no sign extension
-    const u_int8_t *in = (const u_int8_t*)in_str;
+    const uint8_t *in = (const uint8_t*)in_str;
     unsigned bits = 0xff;
     unsigned v;
 
@@ -934,7 +934,7 @@ out0:
 * Fixed edge cases and made it work from data (vs. strings) by Ryan.
 *****************************************************************************/
 
-char* srs_av_base64_encode(char* out, int out_size, const u_int8_t* in, int in_size)
+char* srs_av_base64_encode(char* out, int out_size, const uint8_t* in, int in_size)
 {
     static const char b64[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -982,7 +982,7 @@ int av_toupper(int c)
     return c;
 }
 
-int ff_hex_to_data(u_int8_t* data, const char* p)
+int ff_hex_to_data(uint8_t* data, const char* p)
 {
     int c, len, v;
 
@@ -1011,7 +1011,7 @@ int ff_hex_to_data(u_int8_t* data, const char* p)
 }
 
 int srs_chunk_header_c0(
-    int perfer_cid, u_int32_t timestamp, int32_t payload_length,
+    int perfer_cid, uint32_t timestamp, int32_t payload_length,
     int8_t message_type, int32_t stream_id,
     char* cache, int nb_cache
 ) {
@@ -1089,7 +1089,7 @@ int srs_chunk_header_c0(
 }
 
 int srs_chunk_header_c3(
-    int perfer_cid, u_int32_t timestamp,
+    int perfer_cid, uint32_t timestamp,
     char* cache, int nb_cache
 ) {
     // to directly set the field.

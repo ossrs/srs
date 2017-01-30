@@ -212,7 +212,7 @@ public:
     * in Section 9.1, because the packets may flow through a translator that does. Techniques for
     * choosing unpredictable numbers are discussed in [17].
     */
-    u_int16_t sequence_number; //16bits
+    uint16_t sequence_number; //16bits
     /**
     * timestamp: 32 bits
     * The timestamp reflects the sampling instant of the rst octet in the RTP data packet. The
@@ -272,7 +272,7 @@ public:
     * presentation of the audio and video packets by relating their RTP timestamps using the
     * timestamp pairs in RTCP SR packets.
     */
-    u_int32_t timestamp; //32bits
+    uint32_t timestamp; //32bits
     /**
     * SSRC: 32 bits
     * The SSRC eld identies the synchronization source. This identier should be chosen
@@ -285,7 +285,7 @@ public:
     * a source changes its source transport address, it must also choose a new SSRC identier to
     * avoid being interpreted as a looped source (see Section 8.2).
     */
-    u_int32_t ssrc; //32bits
+    uint32_t ssrc; //32bits
 
     // the payload.
     SrsSimpleStream* payload;

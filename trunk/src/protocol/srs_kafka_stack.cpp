@@ -212,7 +212,7 @@ void SrsKafkaBytes::set_value(const char* v, int nb_v)
     memcpy(_data, v, _size);
 }
 
-u_int32_t SrsKafkaBytes::crc32(u_int32_t previous)
+uint32_t SrsKafkaBytes::crc32(uint32_t previous)
 {
     char bsize[4];
     SrsBuffer(bsize, 4).write_4bytes(_size);
@@ -221,7 +221,7 @@ u_int32_t SrsKafkaBytes::crc32(u_int32_t previous)
         return srs_crc32_ieee(bsize, 4, previous);
     }
     
-    u_int32_t crc = srs_crc32_ieee(bsize, 4, previous);
+    uint32_t crc = srs_crc32_ieee(bsize, 4, previous);
     crc = srs_crc32_ieee(_data, _size, crc);
     
     return crc;

@@ -571,9 +571,9 @@ public:
     SrsAvcLevel     avc_level; 
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t          NAL_unit_length;
-    u_int16_t       sequenceParameterSetLength;
+    uint16_t       sequenceParameterSetLength;
     char*           sequenceParameterSetNALUnit;
-    u_int16_t       pictureParameterSetLength;
+    uint16_t       pictureParameterSetLength;
     char*           pictureParameterSetNALUnit;
 private:
     // the avc payload format.
@@ -589,11 +589,11 @@ public:
     /**
     * samplingFrequencyIndex
     */
-    u_int8_t        aac_sample_rate;
+    uint8_t        aac_sample_rate;
     /**
     * channelConfiguration
     */
-    u_int8_t        aac_channels;
+    uint8_t        aac_channels;
 public:
     /**
     * the avc extra data, the AVC sequence header,

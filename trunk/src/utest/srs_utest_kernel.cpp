@@ -620,7 +620,7 @@ VOID TEST(KernelFlvTest, FlvDecoderMetadata)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     
@@ -666,7 +666,7 @@ VOID TEST(KernelFlvTest, FlvDecoderAudio)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     
@@ -712,7 +712,7 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     

@@ -113,12 +113,12 @@ public:
     virtual int on_ts_message(SrsTsMessage* msg);
 private:
     virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
-    virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
+    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
     virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 private:
     // Connect to RTMP server.
     virtual int connect();

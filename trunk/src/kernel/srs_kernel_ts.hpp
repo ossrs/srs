@@ -179,7 +179,7 @@ struct SrsTsChannel
     SrsTsMessage* msg;
     SrsTsContext* context;
     // for encoder.
-    u_int8_t continuity_counter;
+    uint8_t continuity_counter;
 
     SrsTsChannel();
     virtual ~SrsTsChannel();
@@ -274,9 +274,9 @@ public:
     // @remark use is_audio() and is_video() to check it, and stream_number() to finger it out.
     SrsTsPESStreamId sid;
     // the size of payload, 0 indicates the length() of payload.
-    u_int16_t PES_packet_length;
+    uint16_t PES_packet_length;
     // the chunk id.
-    u_int8_t continuity_counter;
+    uint8_t continuity_counter;
     // the payload bytes.
     SrsSimpleStream* payload;
 public:
@@ -505,7 +505,7 @@ public:
     * The continuity counter may be discontinuous when the discontinuity_indicator is set to '1' (refer to 2.4.3.4). In the case of
     * a null packet the value of the continuity_counter is undefined.
     */
-    u_int8_t continuity_counter; //4bits
+    uint8_t continuity_counter; //4bits
 private:
     SrsTsAdaptationField* adaptation_field;
     SrsTsPayload* payload;
@@ -529,11 +529,11 @@ public:
         int16_t apid, SrsTsStream as
     );
     static SrsTsPacket* create_pes_first(SrsTsContext* context, 
-        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter, bool discontinuity, 
+        int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity, 
         int64_t pcr, int64_t dts, int64_t pts, int size
     );
     static SrsTsPacket* create_pes_continue(SrsTsContext* context, 
-        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter
+        int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter
     );
 };
 
@@ -559,7 +559,7 @@ public:
     * This is the only method of stuffing allowed for Transport Stream packets carrying PES packets. For Transport Stream
     * packets carrying PSI, an alternative stuffing method is described in 2.4.4.
     */
-    u_int8_t adaption_field_length; //8bits
+    uint8_t adaption_field_length; //8bits
     // 1B
     /**
     * This is a 1-bit field which when set to '1' indicates that the discontinuity state is true for the
@@ -742,7 +742,7 @@ public:
     * private_data bytes immediately following the transport private_data_length field. The number of private_data bytes shall
     * not be such that private data extends beyond the adaptation field.
     */
-    u_int8_t transport_private_data_length; //8bits
+    uint8_t transport_private_data_length; //8bits
     char* transport_private_data; //[transport_private_data_length]bytes
     
     // if adaptation_field_extension_flag, 2+x B
@@ -750,7 +750,7 @@ public:
     * The adaptation_field_extension_length is an 8-bit field. It indicates the number of
     * bytes of the extended adaptation field data immediately following this field, including reserved bytes if present.
     */
-    u_int8_t adaptation_field_extension_length; //8bits
+    uint8_t adaptation_field_extension_length; //8bits
     /**
     * This is a 1-bit field which when set to '1' indicates the presence of the ltw_offset
     * field.
@@ -920,14 +920,14 @@ public:
     * Program Specific Information as specified in 2.4.4.
     */
     // @see SrsTsPESStreamId, value can be SrsTsPESStreamIdAudioCommon or SrsTsPESStreamIdVideoCommon.
-    u_int8_t stream_id; //8bits
+    uint8_t stream_id; //8bits
     // 2B
     /**
     * A 16-bit field specifying the number of bytes in the PES packet following the last byte of the
     * field. A value of 0 indicates that the PES packet length is neither specified nor bounded and is allowed only in
     * PES packets whose payload consists of bytes from a video elementary stream contained in Transport Stream packets.
     */
-    u_int16_t PES_packet_length; //16bits
+    uint16_t PES_packet_length; //16bits
 
     // 1B
     /**
@@ -1013,7 +1013,7 @@ public:
     * stuffing bytes contained in this PES packet header. The presence of optional fields is indicated in the byte that precedes
     * the PES_header_data_length field.
     */
-    u_int8_t PES_header_data_length; //8bits
+    uint8_t PES_header_data_length; //8bits
 
     // 5B
     /**
@@ -1157,7 +1157,7 @@ public:
     /**
     * This is an 8-bit field which indicates the length, in bytes, of the pack_header_field().
     */
-    u_int8_t pack_field_length; //8bits
+    uint8_t pack_field_length; //8bits
     char* pack_field; //[pack_field_length] bytes
 
     // 2B
@@ -1208,7 +1208,7 @@ public:
     * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
     * the PES extension field up to and including any reserved bytes.
     */
-    u_int8_t PES_extension_field_length; //7bits
+    uint8_t PES_extension_field_length; //7bits
     char* PES_extension_field; //[PES_extension_field_length] bytes
 
     // NB
@@ -1249,7 +1249,7 @@ public:
     virtual int encode(SrsBuffer* stream);
 private:
     virtual int decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
-    virtual int encode_33bits_dts_pts(SrsBuffer* stream, u_int8_t fb, int64_t v);
+    virtual int encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
 };
 
 /**
@@ -1295,7 +1295,7 @@ public:
     * of bytes of the section, starting immediately following the section_length field, and including the CRC. The value in this
     * field shall not exceed 1021 (0x3FD).
     */
-    u_int16_t section_length; //12bits
+    uint16_t section_length; //12bits
 public:
     // the specified psi info, for example, PAT fields.
 public:
@@ -1371,7 +1371,7 @@ public:
     * This is a 16-bit field which serves as a label to identify this Transport Stream from any other
     * multiplex within a network. Its value is defined by the user.
     */
-    u_int16_t transport_stream_id; //16bits
+    uint16_t transport_stream_id; //16bits
     
     // 1B
     /**
@@ -1399,14 +1399,14 @@ public:
     * Program Association Table shall be 0x00. It shall be incremented by 1 with each additional section in the Program
     * Association Table.
     */
-    u_int8_t section_number; //8bits
+    uint8_t section_number; //8bits
     
     // 1B
     /**
     * This 8-bit field specifies the number of the last section (that is, the section with the highest
     * section_number) of the complete Program Association Table.
     */
-    u_int8_t last_section_number; //8bits
+    uint8_t last_section_number; //8bits
     
     // multiple 4B program data.
     std::vector<SrsTsPayloadPATProgram*> programs;
@@ -1488,7 +1488,7 @@ public:
     * can be concatenated together to form a continuous set of streams using a program_number. For examples of applications
     * refer to Annex C.
     */
-    u_int16_t program_number; //16bits
+    uint16_t program_number; //16bits
     
     // 1B
     /**
@@ -1514,13 +1514,13 @@ public:
     /**
     * The value of this 8-bit field shall be 0x00.
     */
-    u_int8_t section_number; //8bits
+    uint8_t section_number; //8bits
     
     // 1B
     /**
     * The value of this 8-bit field shall be 0x00.
     */
-    u_int8_t last_section_number; //8bits
+    uint8_t last_section_number; //8bits
     
     // 2B
     /**
@@ -1541,7 +1541,7 @@ public:
     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
     * number of bytes of the descriptors immediately following the program_info_length field.
     */
-    u_int16_t program_info_length; //12bits
+    uint16_t program_info_length; //12bits
     char* program_info_desc; //[program_info_length]bytes
     
     // array of TSPMTESInfo.

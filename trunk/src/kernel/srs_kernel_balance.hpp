@@ -42,14 +42,14 @@ private:
     // current selected index.
     int index;
     // total scheduled count.
-    u_int32_t count;
+    uint32_t count;
     // current selected server.
     std::string elem;
 public:
     SrsLbRoundRobin();
     virtual ~SrsLbRoundRobin();
 public:
-    virtual u_int32_t current();
+    virtual uint32_t current();
     virtual std::string selected();
     virtual std::string select(const std::vector<std::string>& servers);
 };

@@ -115,11 +115,11 @@ extern bool srs_bytes_equals(void* pa, void* pb, int size);
 * @param ppmsg output the shared ptr message. user should free it.
 */
 extern int srs_rtmp_create_msg(
-    char type, u_int32_t timestamp, char* data, int size, int stream_id,
+    char type, uint32_t timestamp, char* data, int size, int stream_id,
     SrsSharedPtrMessage** ppmsg
 );
 extern int srs_rtmp_create_msg(
-    char type, u_int32_t timestamp, char* data, int size, int stream_id,
+    char type, uint32_t timestamp, char* data, int size, int stream_id,
     SrsCommonMessage** ppmsg
 );
 

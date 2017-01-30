@@ -600,8 +600,8 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
         srs_error("audio codec decode aac sequence header failed. ret=%d", ret);
         return ret;
     }
-    u_int8_t profile_ObjectType = stream->read_1bytes();
-    u_int8_t samplingFrequencyIndex = stream->read_1bytes();
+    uint8_t profile_ObjectType = stream->read_1bytes();
+    uint8_t samplingFrequencyIndex = stream->read_1bytes();
         
     aac_channels = (samplingFrequencyIndex >> 3) & 0x0f;
     samplingFrequencyIndex = ((profile_ObjectType << 1) & 0x0e) | ((samplingFrequencyIndex >> 7) & 0x01);
@@ -976,7 +976,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         srs_error("sps shall atleast 3bytes. ret=%d", ret);
         return ret;
     }
-    u_int8_t profile_idc = stream.read_1bytes();
+    uint8_t profile_idc = stream.read_1bytes();
     if (!profile_idc) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("sps the profile_idc invalid. ret=%d", ret);
@@ -990,7 +990,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return ret;
     }
     
-    u_int8_t level_idc = stream.read_1bytes();
+    uint8_t level_idc = stream.read_1bytes();
     if (!level_idc) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("sps the level_idc invalid. ret=%d", ret);

@@ -322,9 +322,9 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
         return ret;
     }
     
-    u_int8_t id0 = (u_int8_t)body[0];
-    u_int8_t id1 = (u_int8_t)body[1];
-    u_int8_t id2 = (u_int8_t)body[2];
+    uint8_t id0 = (uint8_t)body[0];
+    uint8_t id1 = (uint8_t)body[1];
+    uint8_t id2 = (uint8_t)body[2];
     
     // skip ID3.
     if (id0 == 0x49 && id1 == 0x44 && id2 == 0x33) {
@@ -348,7 +348,7 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
         // ignore ID3 + version + flag.
         stream->skip(6);
         // read the size of ID3.
-        u_int32_t nb_id3 = stream->read_4bytes();
+        uint32_t nb_id3 = stream->read_4bytes();
         
         // read body of ID3
         if (!stream->require(nb_id3)) {
@@ -652,12 +652,12 @@ private:
     virtual int do_on_aac_frame(SrsBuffer* avs, double duration);
     virtual int parse_message_queue();
     virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
-    virtual int write_h264_ipb_frame(std::string ibps, SrsCodecVideoAVCFrame frame_type, u_int32_t dts, u_int32_t pts);
+    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(std::string ibps, SrsCodecVideoAVCFrame frame_type, uint32_t dts, uint32_t pts);
     virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 public:
     /**
      * connect to output rtmp server.
@@ -797,14 +797,14 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
-    u_int32_t duration_ms = (u_int32_t)(duration * 1000);
+    uint32_t duration_ms = (uint32_t)(duration * 1000);
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)raw_aac_dts;
+    uint32_t dts = (uint32_t)raw_aac_dts;
     raw_aac_dts += duration_ms;
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t max_dts = dts + duration_ms;
+    uint32_t max_dts = dts + duration_ms;
     
     // send each frame.
     while (!avs->empty()) {
@@ -844,8 +844,8 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = duration_ms / (avs->size() / frame_size);
-        dts = (u_int32_t)(srs_min(max_dts, dts + delta));
+        uint32_t delta = duration_ms / (avs->size() / frame_size);
+        dts = (uint32_t)(srs_min(max_dts, dts + delta));
     }
     
     return ret;
@@ -955,8 +955,8 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     int ret = ERROR_SUCCESS;
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
-    u_int32_t pts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
+    uint32_t pts = (uint32_t)(msg->dts / 90);
     
     std::string ibps;
     SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
@@ -1037,7 +1037,7 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1069,7 +1069,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1083,7 +1083,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame frame_type, u_int32_t dts, u_int32_t pts)
+int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame frame_type, uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1101,7 +1101,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
 }
 
@@ -1110,15 +1110,15 @@ int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     int ret = ERROR_SUCCESS;
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t duration = 0;
+    uint32_t duration = 0;
     if (!queue.empty()) {
         SrsTsMessage* nm = queue.begin()->second;
-        duration = (u_int32_t)(srs_max(0, nm->dts - msg->dts) / 90);
+        duration = (uint32_t)(srs_max(0, nm->dts - msg->dts) / 90);
     }
-    u_int32_t max_dts = dts + duration;
+    uint32_t max_dts = dts + duration;
     
     // send each frame.
     while (!avs->empty()) {
@@ -1158,14 +1158,14 @@ int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = duration / (msg->payload->length() / frame_size);
-        dts = (u_int32_t)(srs_min(max_dts, dts + delta));
+        uint32_t delta = duration / (msg->payload->length() / frame_size);
+        dts = (uint32_t)(srs_min(max_dts, dts + delta));
     }
     
     return ret;
 }
 
-int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts)
+int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1178,7 +1178,7 @@ int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRa
     return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
 }
 
-int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsIngestSrsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     

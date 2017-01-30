@@ -189,7 +189,7 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
     
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     int64_t offset = 0;
@@ -294,7 +294,7 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
     char header[13];
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     

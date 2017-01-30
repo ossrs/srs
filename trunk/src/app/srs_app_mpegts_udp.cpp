@@ -349,8 +349,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     }
 
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
-    u_int32_t pts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
+    uint32_t pts = (uint32_t)(msg->dts / 90);
     
     // send each frame.
     while (!avs->empty()) {
@@ -419,7 +419,7 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     return ret;
 }
 
-int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -447,7 +447,7 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -460,7 +460,7 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     return ret;
 }
 
-int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts) 
+int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts) 
 {
     int ret = ERROR_SUCCESS;
     
@@ -494,7 +494,7 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, u_int32_
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
 }
 
@@ -508,7 +508,7 @@ int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     }
 
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
     
     // send each frame.
     while (!avs->empty()) {
@@ -551,7 +551,7 @@ int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     return ret;
 }
 
-int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts)
+int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -564,7 +564,7 @@ int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawA
     return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
 }
 
-int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     

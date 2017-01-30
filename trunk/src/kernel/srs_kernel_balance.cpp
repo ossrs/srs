@@ -35,7 +35,7 @@ SrsLbRoundRobin::~SrsLbRoundRobin()
 {
 }
 
-u_int32_t SrsLbRoundRobin::current()
+uint32_t SrsLbRoundRobin::current()
 {
     return index;
 }

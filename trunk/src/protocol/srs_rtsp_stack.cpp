@@ -227,7 +227,7 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
 
     int8_t hasv = stream->read_1bytes();
     int8_t lasv = stream->read_1bytes();
-    u_int16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+    uint16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
 
     if (!stream->require(au_size)) {
         ret = ERROR_RTP_TYPE97_CORRUPT;
@@ -248,7 +248,7 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
         hasv = stream->read_1bytes();
         lasv = stream->read_1bytes();
 
-        u_int16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+        uint16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
         // TODO: FIXME: finger out how to parse the size of sample.
         if (sample_size < 0x100 && stream->require(required_size + sample_size + 0x100)) {
             sample_size = sample_size | 0x100;
@@ -549,7 +549,7 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
 
                 char* tmp_sh = new char[item_value.length()];
                 SrsAutoFreeA(char, tmp_sh);
-                int nb_tmp_sh = ff_hex_to_data((u_int8_t*)tmp_sh, item_value.c_str());
+                int nb_tmp_sh = ff_hex_to_data((uint8_t*)tmp_sh, item_value.c_str());
                 srs_assert(nb_tmp_sh > 0);
                 audio_sh.append(tmp_sh, nb_tmp_sh);
             }
@@ -602,8 +602,8 @@ string SrsRtspSdp::base64_decode(string value)
     }
 
     int nb_output = (int)(value.length() * 2);
-    u_int8_t* output = new u_int8_t[nb_output];
-    SrsAutoFreeA(u_int8_t, output);
+    uint8_t* output = new uint8_t[nb_output];
+    SrsAutoFreeA(uint8_t, output);
 
     int ret = srs_av_base64_decode(output, (char*)value.c_str(), nb_output);
     if (ret <= 0) {

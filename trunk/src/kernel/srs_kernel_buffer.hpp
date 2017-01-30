@@ -216,7 +216,7 @@ class SrsBitBuffer
 {
 private:
     int8_t cb;
-    u_int8_t cb_left;
+    uint8_t cb_left;
     SrsBuffer* stream;
 public:
     SrsBitBuffer();

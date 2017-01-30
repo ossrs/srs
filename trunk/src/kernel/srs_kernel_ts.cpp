@@ -818,7 +818,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context, 
-    int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter, bool discontinuity, 
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity, 
     int64_t pcr, int64_t dts, int64_t pts, int size
 ) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
@@ -853,7 +853,7 @@ SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
     }
 
     pes->packet_start_code_prefix = 0x01;
-    pes->stream_id = (u_int8_t)sid;
+    pes->stream_id = (uint8_t)sid;
     pes->PES_packet_length = (size > 0xFFFF)? 0:size;
     pes->PES_scrambling_control = 0;
     pes->PES_priority = 0;
@@ -874,7 +874,7 @@ SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_continue(SrsTsContext* context, 
-    int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter
 ) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
@@ -1052,7 +1052,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
             srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
             return ret;
         }
-        transport_private_data_length = (u_int8_t)stream->read_1bytes();
+        transport_private_data_length = (uint8_t)stream->read_1bytes();
 
         if (transport_private_data_length> 0) {
             if (!stream->require(transport_private_data_length)) {
@@ -1074,7 +1074,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
             srs_error("ts: demux af adaptation_field_extension_flag failed. ret=%d", ret);
             return ret;
         }
-        adaptation_field_extension_length = (u_int8_t)stream->read_1bytes();
+        adaptation_field_extension_length = (uint8_t)stream->read_1bytes();
         int8_t ltwfv = stream->read_1bytes();
         
         piecewise_rate_flag = (ltwfv >> 6) & 0x01;
@@ -1705,7 +1705,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             // first PES_packet_data_byte.
             /**
             * when actual packet length > 0xffff(65535),
-            * which exceed the max u_int16_t packet length,
+            * which exceed the max uint16_t packet length,
             * use 0 packet length, the next unit start indicates the end of packet.
             */
             if (PES_packet_length > 0) {
@@ -2043,7 +2043,7 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     return ret;
 }
 
-int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, u_int8_t fb, int64_t v)
+int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2167,7 +2167,7 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
         // all stuffing must be 0xff.
         // TODO: FIXME: maybe need to remove the following.
         for (int i = 0; i < nb_stuffings; i++) {
-            if ((u_int8_t)stuffing[i] != 0xff) {
+            if ((uint8_t)stuffing[i] != 0xff) {
                 srs_warn("ts: stuff is not 0xff, actual=%#x", stuffing[i]);
                 break;
             }
@@ -2892,7 +2892,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6.2 Audio Data Transport Stream, ADTS
         // in aac-iso-13818-7.pdf, page 26.
         // fixed 7bytes header
-        u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        uint8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
@@ -2984,8 +2984,8 @@ void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
      *      annexb 3B header, 406B nalu(nal_unit_type:1)(non-IDR,P/B)
      * @remark we use the sequence of apple samples http://ossrs.net/apple-sample/bipbopall.m3u8
      */
-    static u_int8_t fresh_nalu_header[] = { 0x00, 0x00, 0x00, 0x01 };
-    static u_int8_t cont_nalu_header[] = { 0x00, 0x00, 0x01 };
+    static uint8_t fresh_nalu_header[] = { 0x00, 0x00, 0x00, 0x01 };
+    static uint8_t cont_nalu_header[] = { 0x00, 0x00, 0x01 };
     
     if (!aud_inserted) {
         aud_inserted = true;
@@ -3034,7 +3034,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //      8, SP (SP slice)
         //      9, SI (SI slice)
         // ISO_IEC_14496-10-AVC-2012.pdf, page 105.
-        static u_int8_t default_aud_nalu[] = { 0x09, 0xf0};
+        static uint8_t default_aud_nalu[] = { 0x09, 0xf0};
         srs_avc_insert_aud(video->payload, aud_inserted);
         video->payload->append((const char*)default_aud_nalu, 2);
     }

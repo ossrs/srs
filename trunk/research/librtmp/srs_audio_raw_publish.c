@@ -134,8 +134,8 @@ int main(int argc, char** argv)
     }
     srs_human_trace("publish stream success");
     
-    u_int32_t timestamp = 0;
-    u_int32_t time_delta = 17;
+    uint32_t timestamp = 0;
+    uint32_t time_delta = 17;
     // @remark, to decode the file.
     char* p = audio_raw;
     for (;p < audio_raw + file_size;) {

@@ -662,12 +662,12 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         int nbh = 0;
         if (p == payload) {
             nbh = srs_chunk_header_c0(
-                mh->perfer_cid, (u_int32_t)mh->timestamp, mh->payload_length,
+                mh->perfer_cid, (uint32_t)mh->timestamp, mh->payload_length,
                 mh->message_type, mh->stream_id,
                 c0c3, sizeof(c0c3));
         } else {
             nbh = srs_chunk_header_c3(
-                mh->perfer_cid, (u_int32_t)mh->timestamp,
+                mh->perfer_cid, (uint32_t)mh->timestamp,
                 c0c3, sizeof(c0c3));
         }
         srs_assert(nbh > 0);;
@@ -1084,7 +1084,7 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid)
         }
         
         cid = 64;
-        cid += (u_int8_t)in_buffer->read_1byte();
+        cid += (uint8_t)in_buffer->read_1byte();
         srs_verbose("2bytes basic header parsed. fmt=%d, cid=%d", fmt, cid);
     // 64-65599, 3B chunk header
     } else if (cid == 1) {
@@ -1096,8 +1096,8 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid)
         }
         
         cid = 64;
-        cid += (u_int8_t)in_buffer->read_1byte();
-        cid += ((u_int8_t)in_buffer->read_1byte()) * 256;
+        cid += (uint8_t)in_buffer->read_1byte();
+        cid += ((uint8_t)in_buffer->read_1byte()) * 256;
         srs_verbose("3bytes basic header parsed. fmt=%d, cid=%d", fmt, cid);
     } else {
         srs_error("invalid path, impossible basic header.");
@@ -1320,7 +1320,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // reset the p to get 4bytes slice.
         char* p = in_buffer->read_slice(4);
 
-        u_int32_t timestamp = 0x00;
+        uint32_t timestamp = 0x00;
         char* pp = (char*)&timestamp;
         pp[3] = *p++;
         pp[2] = *p++;
@@ -1348,7 +1348,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         * @remark, srs always send the extended-timestamp, to keep simple,
         * and compatible with adobe products.
         */
-        u_int32_t chunk_timestamp = (u_int32_t)chunk->header.timestamp;
+        uint32_t chunk_timestamp = (uint32_t)chunk->header.timestamp;
         
         /**
         * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
@@ -3416,7 +3416,7 @@ int SrsConnectAppResPacket::decode(SrsBuffer* stream)
         
         // ignore when props is not amf0 object.
         if (!p->is_object()) {
-            srs_warn("ignore connect response props marker=%#x.", (u_int8_t)p->marker);
+            srs_warn("ignore connect response props marker=%#x.", (uint8_t)p->marker);
             srs_freep(p);
         } else {
             srs_freep(props);

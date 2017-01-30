@@ -51,8 +51,8 @@ int main(int argc, char** argv)
     int size;
     char type;
     char* data;
-    u_int32_t timestamp;
-    u_int32_t basetime = 0;
+    uint32_t timestamp;
+    uint32_t basetime = 0;
     
     // user options
     const char* rtmp_url = NULL;
