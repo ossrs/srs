@@ -346,7 +346,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 
 SrsFlvEncoder::SrsFlvEncoder()
 {
-    reader = NULL;
+    writer = NULL;
     tag_stream = new SrsBuffer();
     
 #ifdef SRS_PERF_FAST_FLV_ENCODER
@@ -370,21 +370,11 @@ SrsFlvEncoder::~SrsFlvEncoder()
 #endif
 }
 
-int SrsFlvEncoder::initialize(SrsFileWriter* fr)
+int SrsFlvEncoder::initialize(ISrsWriter* fw)
 {
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(fr);
-    
-    if (!fr->is_open()) {
-        ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for encoder. ret=%d", ret);
-        return ret;
-    }
-    
-    reader = fr;
-    
-    return ret;
+    srs_assert(fw);
+    writer = fw;
+    return ERROR_SUCCESS;
 }
 
 int SrsFlvEncoder::write_header()
@@ -416,14 +406,14 @@ int SrsFlvEncoder::write_header(char flv_header[9])
     int ret = ERROR_SUCCESS;
     
     // write data.
-    if ((ret = reader->write(flv_header, 9, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->write(flv_header, 9, NULL)) != ERROR_SUCCESS) {
         srs_error("write flv header failed. ret=%d", ret);
         return ret;
     }
     
     // previous tag size.
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
-    if ((ret = reader->write(pts, 4, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->write(pts, 4, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -566,7 +556,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
         iovs += 3;
     }
     
-    if ((ret = reader->writev(iovss, nb_iovss, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->writev(iovss, nb_iovss, NULL)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("write flv tags failed. ret=%d", ret);
         }
@@ -697,7 +687,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     iovs[2].iov_base = pre_size;
     iovs[2].iov_len = SRS_FLV_PREVIOUS_TAG_SIZE;
     
-    if ((ret = reader->writev(iovs, 3, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->writev(iovs, 3, NULL)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("write flv tag failed. ret=%d", ret);
         }
@@ -718,21 +708,11 @@ SrsFlvDecoder::~SrsFlvDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvDecoder::initialize(SrsFileReader* fr)
+int SrsFlvDecoder::initialize(ISrsReader* fr)
 {
-    int ret = ERROR_SUCCESS;
-    
     srs_assert(fr);
-    
-    if (!fr->is_open()) {
-        ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for decoder. ret=%d", ret);
-        return ret;
-    }
-    
     reader = fr;
-    
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 int SrsFlvDecoder::read_header(char header[9])
@@ -842,19 +822,23 @@ SrsFlvVodStreamDecoder::~SrsFlvVodStreamDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvVodStreamDecoder::initialize(SrsFileReader* fr)
+int SrsFlvVodStreamDecoder::initialize(ISrsReader* fr)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(fr);
+    reader = dynamic_cast<SrsFileReader*>(fr);
+    if (!reader) {
+        ret = ERROR_EXPECT_FILE_IO;
+        srs_error("stream is not file io. ret=%d", ret);
+        return ret;
+    }
     
-    if (!fr->is_open()) {
+    if (!reader->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for decoder. ret=%d", ret);
         return ret;
     }
-    
-    reader = fr;
     
     return ret;
 }

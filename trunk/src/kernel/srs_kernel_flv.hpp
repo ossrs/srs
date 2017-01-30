@@ -37,7 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 class SrsBuffer;
-class SrsFileWriter;
+class ISrsWriter;
+class ISrsReader;
 class SrsFileReader;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
@@ -442,7 +443,7 @@ public:
 class SrsFlvEncoder
 {
 private:
-    SrsFileWriter* reader;
+    ISrsWriter* writer;
 private:
     SrsBuffer* tag_stream;
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
@@ -453,9 +454,9 @@ public:
     /**
     * initialize the underlayer file stream.
     * @remark user can initialize multiple times to encode multiple flv files.
-    * @remark, user must free the @param fr, flv encoder never close/free it.
+    * @remark, user must free the @param fw, flv encoder never close/free it.
     */
-    virtual int initialize(SrsFileWriter* fr);
+    virtual int initialize(ISrsWriter* fw);
 public:
     /**
     * write flv header.
@@ -520,7 +521,7 @@ private:
 class SrsFlvDecoder
 {
 private:
-    SrsFileReader* reader;
+    ISrsReader* reader;
 private:
     SrsBuffer* tag_stream;
 public:
@@ -530,9 +531,9 @@ public:
     /**
     * initialize the underlayer file stream
     * @remark user can initialize multiple times to decode multiple flv files.
-    * @remark user must free the @param fr, flv decoder never close/free it.
+    * @remark user must free the @param fr, flv decoder never close/free it
     */
-    virtual int initialize(SrsFileReader* fr);
+    virtual int initialize(ISrsReader* fr);
 public:
     /**
     * read the flv header, donot including the 4bytes previous tag size.
@@ -576,7 +577,7 @@ public:
     * @remark user can initialize multiple times to decode multiple flv files.
     * @remark user must free the @param fr, flv decoder never close/free it.
     */
-    virtual int initialize(SrsFileReader* fr);
+    virtual int initialize(ISrsReader* fr);
 public:
     /**
     * read the flv header and its size.

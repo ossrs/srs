@@ -241,6 +241,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RESPONSE_DATA                 3065
 #define ERROR_REQUEST_DATA                  3066
 #define ERROR_EDGE_PORT_INVALID             3067
+#define ERROR_EXPECT_FILE_IO                3068
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.
