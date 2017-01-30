@@ -1544,6 +1544,31 @@ srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int*
     
     return srs_avc_startswith_annexb(&stream, pnb_start_code);
 }
+    
+struct Mp4Context
+{
+    SrsFileReader reader;
+};
+    
+srs_mp4_t srs_mp4_open_read(const char* file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* mp4 = new Mp4Context();
+    
+    if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
+        srs_freep(mp4);
+        return NULL;
+    }
+    
+    return mp4;
+}
+
+void srs_mp4_close(srs_mp4_t mp4)
+{
+    Mp4Context* context = (Mp4Context*)mp4;
+    srs_freep(context);
+}
 
 struct FlvContext
 {

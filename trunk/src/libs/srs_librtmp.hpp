@@ -501,6 +501,17 @@ extern srs_bool srs_h264_startswith_annexb(
     char* h264_raw_data, int h264_raw_size, 
     int* pnb_start_code
 );
+    
+/*************************************************************
+ *************************************************************
+ * MP4 muxer and demuxer.
+ * @example /trunk/research/librtmp/srs_ingest_mp4.c
+ *************************************************************
+ *************************************************************/
+typedef void* srs_mp4_t;
+/* Open mp4 file for muxer(write) or demuxer(read). */
+extern srs_mp4_t srs_mp4_open_read(const char* file);
+extern void srs_mp4_close(srs_mp4_t mp4);
 
 /*************************************************************
 **************************************************************
