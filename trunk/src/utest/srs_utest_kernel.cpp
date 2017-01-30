@@ -392,7 +392,8 @@ VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
     MockSrsFileWriter fs;
     SrsFlvEncoder enc;
-    ASSERT_TRUE(ERROR_SUCCESS != enc.initialize(&fs));
+    // The decoder never check the reader status.
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
 }
 
 /**
@@ -555,7 +556,8 @@ VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
 {
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
+    // The decoder never check the reader status.
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
 }
 
 /**
