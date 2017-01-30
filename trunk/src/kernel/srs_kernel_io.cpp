@@ -23,19 +23,35 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_io.hpp>
 
-ISrsBufferReader::ISrsBufferReader()
+ISrsReader::ISrsReader()
 {
 }
 
-ISrsBufferReader::~ISrsBufferReader()
+ISrsReader::~ISrsReader()
 {
 }
 
-ISrsBufferWriter::ISrsBufferWriter()
+ISrsStreamWriter::ISrsStreamWriter()
 {
 }
 
-ISrsBufferWriter::~ISrsBufferWriter()
+ISrsStreamWriter::~ISrsStreamWriter()
+{
+}
+
+ISrsVectorWriter::ISrsVectorWriter()
+{
+}
+
+ISrsVectorWriter::~ISrsVectorWriter()
+{
+}
+
+ISrsWriter::ISrsWriter()
+{
+}
+
+ISrsWriter::~ISrsWriter()
 {
 }
 

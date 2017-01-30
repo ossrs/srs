@@ -53,7 +53,7 @@ public:
     virtual srs_hijack_io_t hijack_io();
     virtual int create_socket(srs_rtmp_t owner);
     virtual int connect(const char* server, int port);
-// ISrsBufferReader
+// ISrsReader
 public:
     virtual int read(void* buf, size_t size, ssize_t* nread);
 // ISrsProtocolReader

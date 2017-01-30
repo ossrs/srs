@@ -34,15 +34,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
 * the system io reader/writer architecture:
-+---------------+     +--------------------+      +---------------+
-| IBufferReader |     |    IStatistic      |      | IBufferWriter |
-+---------------+     +--------------------+      +---------------+
-| + read()      |     | + get_recv_bytes() |      | + write()     |
-+------+--------+     | + get_send_bytes() |      | + writev()    |
-      / \             +---+--------------+-+      +-------+-------+
-       |                 / \            / \              / \
-       |                  |              |                |
-+------+------------------+-+      +-----+----------------+--+
+                                        +---------------+  +---------------+
+                                        | IStreamWriter |  | IVectorWriter |
+                                        +---------------+  +---------------+
+                                        | + write()     |  | + writev()    |
+                                        +-------------+-+  ++--------------+
++----------+     +--------------------+               /\   /\
+| IReader  |     |    IStatistic      |                 \ /
++----------+     +--------------------+                  V
+| + read() |     | + get_recv_bytes() |           +------+----+
++------+---+     | + get_send_bytes() |           |  IWriter  |
+      / \        +---+--------------+-+           +-------+---+
+       |            / \            / \                   / \
+       |             |              |                     |
++------+-------------+------+      ++---------------------+--+
 | IProtocolReader           |      | IProtocolWriter         |
 +---------------------------+      +-------------------------+
 | + readfully()             |      | + set_send_timeout()    |
@@ -80,7 +85,7 @@ public:
 /**
 * the reader for the protocol to read from whatever channel.
 */
-class ISrsProtocolReader : public virtual ISrsBufferReader, public virtual ISrsProtocolStatistic
+class ISrsProtocolReader : public virtual ISrsReader, public virtual ISrsProtocolStatistic
 {
 public:
     ISrsProtocolReader();
@@ -108,7 +113,7 @@ public:
 /**
 * the writer for the protocol to write to whatever channel.
 */
-class ISrsProtocolWriter : public virtual ISrsBufferWriter, public virtual ISrsProtocolStatistic
+class ISrsProtocolWriter : public virtual ISrsWriter, public virtual ISrsProtocolStatistic
 {
 public:
     ISrsProtocolWriter();

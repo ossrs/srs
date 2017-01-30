@@ -60,7 +60,7 @@ public:
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
 * Usage:
-*       ISrsBufferReader* r = ......;
+*       ISrsReader* r = ......;
 *       SrsFastStream* fb = ......;
 *       fb->grow(r, 1024);
 *       char* header = fb->read_slice(100);
@@ -138,7 +138,7 @@ public:
     * @return an int error code, error if required_size negative.
     * @remark, we actually maybe read more than required_size, maybe 4k for example.
     */
-    virtual int grow(ISrsBufferReader* reader, int required_size);
+    virtual int grow(ISrsReader* reader, int required_size);
 public:
 #ifdef SRS_PERF_MERGED_READ
     /**

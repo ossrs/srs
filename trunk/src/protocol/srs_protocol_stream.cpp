@@ -131,7 +131,7 @@ void SrsFastStream::skip(int size)
     p += size;
 }
 
-int SrsFastStream::grow(ISrsBufferReader* reader, int required_size)
+int SrsFastStream::grow(ISrsReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 

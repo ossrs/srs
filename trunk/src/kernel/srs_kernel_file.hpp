@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * file writer, to write to file.
 */
-class SrsFileWriter : public ISrsBufferWriter
+class SrsFileWriter : public ISrsWriter
 {
 private:
     std::string path;
@@ -85,7 +85,7 @@ public:
 /**
 * file reader, to read from file.
 */
-class SrsFileReader : public ISrsBufferReader
+class SrsFileReader : public ISrsReader
 {
 private:
     std::string path;

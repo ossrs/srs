@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_stream.hpp>
 
-class MockBufferReader: public ISrsBufferReader
+class MockBufferReader: public ISrsReader
 {
 private:
     std::string str;

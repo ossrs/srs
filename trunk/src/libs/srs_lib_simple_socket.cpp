@@ -341,7 +341,7 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
     return srs_hijack_io_connect(io, server_ip, port);
 }
 
-// ISrsBufferReader
+// ISrsReader
 int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);

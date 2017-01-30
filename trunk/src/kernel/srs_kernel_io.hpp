@@ -36,38 +36,57 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 /**
- * the reader for the buffer to read from whatever channel.
+ * The reader to read data from channel.
  */
-class ISrsBufferReader
+class ISrsReader
 {
 public:
-    ISrsBufferReader();
-    virtual ~ISrsBufferReader();
-    // for protocol/amf0/msg-codec
+    ISrsReader();
+    virtual ~ISrsReader();
 public:
     virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**
- * the writer for the buffer to write to whatever channel.
+ * The writer to write stream data to channel.
  */
-class ISrsBufferWriter
+class ISrsStreamWriter
 {
 public:
-    ISrsBufferWriter();
-    virtual ~ISrsBufferWriter();
-    // for protocol
+    ISrsStreamWriter();
+    virtual ~ISrsStreamWriter();
 public:
     /**
      * write bytes over writer.
      * @nwrite the actual written bytes. NULL to ignore.
      */
     virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
+};
+
+/**
+ * The vector writer to write vector(iovc) to channel.
+ */
+class ISrsVectorWriter
+{
+public:
+    ISrsVectorWriter();
+    virtual ~ISrsVectorWriter();
+public:
     /**
      * write iov over writer.
      * @nwrite the actual written bytes. NULL to ignore.
      */
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
+};
+
+/**
+ * The generally writer, stream and vector writer.
+ */
+class ISrsWriter : virtual public ISrsStreamWriter, virtual public ISrsVectorWriter
+{
+public:
+    ISrsWriter();
+    virtual ~ISrsWriter();
 };
 
 #endif
