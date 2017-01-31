@@ -25,6 +25,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string.h>
 
+#include <srs_kernel_error.hpp>
+
 SrsMp4Box::SrsMp4Box()
 {
     size = 0;
@@ -420,5 +422,21 @@ SrsMp4SampleSizeBox::SrsMp4SampleSizeBox()
 SrsMp4SampleSizeBox::~SrsMp4SampleSizeBox()
 {
     srs_freepa(entry_sizes);
+}
+
+SrsMp4Decoder::SrsMp4Decoder()
+{
+}
+
+SrsMp4Decoder::~SrsMp4Decoder()
+{
+}
+
+int SrsMp4Decoder::initialize(ISrsReader* r)
+{
+    srs_assert(r);
+    reader = r;
+    
+    return ERROR_SUCCESS;
 }
 

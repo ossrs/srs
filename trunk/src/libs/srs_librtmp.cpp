@@ -49,6 +49,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_lib_bandwidth.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_kernel_mp4.hpp>
 
 // kernel module.
 ISrsLog* _srs_log = new ISrsLog();
@@ -1547,7 +1548,9 @@ srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int*
     
 struct Mp4Context
 {
+    bool non_seekable;
     SrsFileReader reader;
+    SrsMp4Decoder dec;
 };
     
 srs_mp4_t srs_mp4_open_read(const char* file)
@@ -1555,6 +1558,7 @@ srs_mp4_t srs_mp4_open_read(const char* file)
     int ret = ERROR_SUCCESS;
     
     Mp4Context* mp4 = new Mp4Context();
+    mp4->non_seekable = false;
     
     if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
         srs_freep(mp4);
@@ -1568,6 +1572,22 @@ void srs_mp4_close(srs_mp4_t mp4)
 {
     Mp4Context* context = (Mp4Context*)mp4;
     srs_freep(context);
+}
+    
+int srs_mp4_init_demuxer(srs_mp4_t mp4)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* context = (Mp4Context*)mp4;
+    
+    if ((ret = context->dec.initialize(&context->reader)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // OK, it's legal mp4 for live streaming.
+    context->non_seekable = true;
+    
+    return ret;
 }
 
 struct FlvContext

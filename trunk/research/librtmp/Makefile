@@ -8,7 +8,7 @@ else
                 objs/srs_ingest_flv objs/srs_ingest_rtmp objs/srs_detect_rtmp \
                 objs/srs_bandwidth_check objs/srs_h264_raw_publish \
                 objs/srs_audio_raw_publish objs/srs_aac_raw_publish \
-                objs/srs_rtmp_dump
+                objs/srs_rtmp_dump objs/srs_ingest_mp4
 endif
 
 .PHONY: default clean help ssl nossl
@@ -30,6 +30,7 @@ help:
 	@echo "     srs_aac_raw_publish     publish raw aac stream to SSR by srs-librtmp"
 	@echo "     srs_play                play program using srs-librtmp"
 	@echo "     srs_ingest_flv          ingest flv file and publish to RTMP server."
+	@echo "     srs_ingest_mp4          ingest mp4 file and publish to RTMP server."
 	@echo "     srs_ingest_rtmp         ingest RTMP and publish to RTMP server."
 	@echo "     srs_detect_rtmp         detect RTMP stream info."
 	@echo "     srs_bandwidth_check     bandwidth check/test tool."
@@ -105,6 +106,9 @@ objs/srs_play: srs_play.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 objs/srs_ingest_flv: srs_ingest_flv.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_flv
 
+objs/srs_ingest_mp4: srs_ingest_mp4.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_ingest_mp4.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_mp4
+
 objs/srs_ingest_rtmp: srs_ingest_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_rtmp
 
@@ -116,3 +120,4 @@ objs/srs_bandwidth_check: srs_bandwidth_check.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRT
 
 objs/srs_rtmp_dump: srs_rtmp_dump.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_rtmp_dump.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_dump
+

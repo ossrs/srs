@@ -516,6 +516,12 @@ typedef void* srs_mp4_t;
 /* Open mp4 file for muxer(write) or demuxer(read). */
 extern srs_mp4_t srs_mp4_open_read(const char* file);
 extern void srs_mp4_close(srs_mp4_t mp4);
+/**
+ * Initialize mp4 demuxer in non-seek mode.
+ * @remark Only support non-seek mode, that is fmp4 or moov before mdata.
+ *      For the live streaming, we must feed stream frame by frame.
+ */
+extern int srs_mp4_init_demuxer(srs_mp4_t mp4);
 
 /*************************************************************
 **************************************************************

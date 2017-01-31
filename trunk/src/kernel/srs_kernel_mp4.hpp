@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+class ISrsReader;
+
 /**
  * 4.2 Object Structure
  * ISO_IEC_14496-12-base-format-2012.pdf, page 16
@@ -758,6 +760,25 @@ public:
 public:
     SrsMp4SampleSizeBox();
     virtual ~SrsMp4SampleSizeBox();
+};
+
+/**
+ * The MP4 demuxer.
+ */
+class SrsMp4Decoder
+{
+private:
+    ISrsReader* reader;
+public:
+    SrsMp4Decoder();
+    virtual ~SrsMp4Decoder();
+public:
+    /**
+     * Initialize the decoder with a reader r.
+     * @param r The underlayer io reader, user must manage it for decoder never open/free it,
+     *      the decoder just read data from the reader.
+     */
+    virtual int initialize(ISrsReader* r);
 };
 
 #endif

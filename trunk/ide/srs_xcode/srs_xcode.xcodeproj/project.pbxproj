@@ -116,6 +116,8 @@
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
 		3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */; };
 		3CA432A81E3F46DD001DA0C6 /* srs_kernel_io.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A61E3F46DD001DA0C6 /* srs_kernel_io.cpp */; };
+		3CA432AB1E40AEBC001DA0C6 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A91E40AEBC001DA0C6 /* Makefile */; };
+		3CA432AC1E40AEBC001DA0C6 /* srs_ingest_mp4.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */; };
 		3CB25C2A1BB269FD00C97A63 /* jmp_sp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */; };
 		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
 		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
@@ -406,6 +408,8 @@
 		3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_hourglass.cpp; path = ../../../src/app/srs_app_hourglass.cpp; sourceTree = "<group>"; };
 		3CA432A61E3F46DD001DA0C6 /* srs_kernel_io.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_io.cpp; path = ../../../src/kernel/srs_kernel_io.cpp; sourceTree = "<group>"; };
 		3CA432A71E3F46DD001DA0C6 /* srs_kernel_io.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_io.hpp; path = ../../../src/kernel/srs_kernel_io.hpp; sourceTree = "<group>"; };
+		3CA432A91E40AEBC001DA0C6 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../research/librtmp/Makefile; sourceTree = "<group>"; };
+		3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_ingest_mp4.c; path = ../../../research/librtmp/srs_ingest_mp4.c; sourceTree = "<group>"; };
 		3CB25C281BB2596300C97A63 /* setup_variables.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = setup_variables.sh; path = ../../../auto/setup_variables.sh; sourceTree = "<group>"; };
 		3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = jmp_sp.cpp; path = ../../../research/arm/jmp_sp.cpp; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
@@ -820,6 +824,7 @@
 			isa = PBXGroup;
 			children = (
 				3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */,
+				3CA432A91E40AEBC001DA0C6 /* Makefile */,
 				3C24ECCB1C3B824800460622 /* memory.error.notcmalloc.cpp */,
 				3C24ECCC1C3B824800460622 /* memory.error.tcmalloc.cpp */,
 				3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */,
@@ -830,6 +835,7 @@
 				3C663F071AB0155100286D8B /* srs_flv_parser.c */,
 				3C663F081AB0155100286D8B /* srs_h264_raw_publish.c */,
 				3C663F091AB0155100286D8B /* srs_ingest_flv.c */,
+				3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */,
 				3C663F0A1AB0155100286D8B /* srs_ingest_rtmp.c */,
 				3C663F0B1AB0155100286D8B /* srs_play.c */,
 				3C663F0C1AB0155100286D8B /* srs_publish.c */,
@@ -1043,7 +1049,9 @@
 				3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */,
 				3C1232061AAE812C00CE8F6C /* srs_main_server.cpp in Sources */,
 				3C1232281AAE814D00CE8F6C /* srs_kernel_mp3.cpp in Sources */,
+				3CA432AC1E40AEBC001DA0C6 /* srs_ingest_mp4.c in Sources */,
 				3C24ECCE1C3B824800460622 /* memory.error.tcmalloc.cpp in Sources */,
+				3CA432AB1E40AEBC001DA0C6 /* Makefile in Sources */,
 				3C1232B21AAE81D900CE8F6C /* srs_app_source.cpp in Sources */,
 				3C1231F71AAE652D00CE8F6C /* srs_core_performance.cpp in Sources */,
 				3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */,
