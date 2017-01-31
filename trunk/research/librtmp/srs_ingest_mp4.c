@@ -45,14 +45,15 @@ int main(int argc, char** argv)
         exit(-1);
     }
     
-    for (int opt = 0; opt < argc; opt++) {
+    int opt;
+    for (opt = 0; opt < argc; opt++) {
         srs_human_trace("The argv[%d]=%s", opt, argv[opt]);
     }
     
     // fill the options for mac
     char* in_file = NULL;
     char* out_rtmp_url = NULL;
-    for (int opt = 0; opt < argc - 1; opt++) {
+    for (opt = 0; opt < argc - 1; opt++) {
         // ignore all options except -i and -y.
         char* p = argv[opt];
         
