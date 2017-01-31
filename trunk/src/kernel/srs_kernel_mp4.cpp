@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string.h>
 
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
 SrsMp4Box::SrsMp4Box()
@@ -434,9 +435,11 @@ SrsMp4Decoder::~SrsMp4Decoder()
 
 int SrsMp4Decoder::initialize(ISrsReader* r)
 {
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(r);
     reader = r;
     
-    return ERROR_SUCCESS;
+    return ret;
 }
 
