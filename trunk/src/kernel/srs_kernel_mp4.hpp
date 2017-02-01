@@ -29,30 +29,77 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <srs_kernel_buffer.hpp>
+
 #include <string>
+#include <vector>
 
 class ISrsReader;
+class SrsSimpleStream;
 
 /**
  * 4.2 Object Structure
  * ISO_IEC_14496-12-base-format-2012.pdf, page 16
  */
-class SrsMp4Box
+class SrsMp4Box : public ISrsCodec
 {
-public:
+private:
+    // The size is the entire size of the box, including the size and type header, fields,
+    // and all contained boxes. This facilitates general parsing of the file.
+    //
     // if size is 1 then the actual size is in the field largesize;
     // if size is 0, then this box is the last one in the file, and its contents
     // extend to the end of the file (normally only used for a Media Data Box)
-    uint32_t size;
+    uint32_t smallsize;
+    uint64_t largesize;
+public:
+    // identifies the box type; standard boxes use a compact type, which is normally four printable
+    // characters, to permit ease of identification, and is shown so in the boxes below. User extensions use
+    // an extended type; in this case, the type field is set to ‘uuid’.
     uint32_t type;
+    // For box 'uuid'.
+    uint8_t* usertype;
+private:
+    std::vector<SrsMp4Box*> boxes;
+private:
+    // The position at buffer to start demux the box.
+    int start_pos;
 public:
     SrsMp4Box();
     virtual ~SrsMp4Box();
+public:
+    // Get the size of box, whatever small or large size.
+    virtual uint64_t sz();
+    // Get the left space of box, for decoder.
+    virtual int left_space(SrsBuffer* buf);
+    /**
+     * Discovery the box from buffer.
+     * @param ppbox Output the discoveried box, which user must free it.
+     */
+    static int discovery(SrsBuffer* buf, SrsMp4Box** ppbox);
+// Interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+protected:
+    virtual int encode_boxes(SrsBuffer* buf);
+    virtual int decode_boxes(SrsBuffer* buf);
+// Sub classes can override these functions for special codec.
+protected:
+    // The size of header, not including the contained boxes.
+    virtual int nb_header();
+    // It's not necessary to check the buffer, because we already know the size in parent function,
+    // so we have checked the buffer is ok to write.
+    virtual int encode_header(SrsBuffer* buf);
+    // It's not necessary to check the buffer, unless the box is not only determined by the verson.
+    // Generally, it's not necessary, that is, all boxes is determinated by version.
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
  * 4.2 Object Structure
- * ISO_IEC_14496-12-base-format-2012.pdf, page 16
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 17
  */
 class SrsMp4FullBox : public SrsMp4Box
 {
@@ -64,6 +111,10 @@ public:
 public:
     SrsMp4FullBox();
     virtual ~SrsMp4FullBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -88,6 +139,10 @@ private:
 public:
     SrsMp4FileTypeBox();
     virtual ~SrsMp4FileTypeBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -101,11 +156,16 @@ public:
 class SrsMp4MediaDataBox : public SrsMp4Box
 {
 private:
+    // the contained media data
     int nb_data;
     uint8_t* data;
 public:
     SrsMp4MediaDataBox();
     virtual ~SrsMp4MediaDataBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -114,9 +174,16 @@ public:
  */
 class SrsMp4FreeSpaceBox : public SrsMp4Box
 {
+private:
+    int nb_data;
+    uint8_t* data;
 public:
     SrsMp4FreeSpaceBox();
     virtual ~SrsMp4FreeSpaceBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -172,6 +239,10 @@ public:
 public:
     SrsMp4MovieHeaderBox();
     virtual ~SrsMp4MovieHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -201,10 +272,6 @@ public:
     // an integer that declares the most recent time the presentation was modified (in
     // seconds since midnight, Jan. 1, 1904, in UTC time)
     uint64_t modification_time;
-    // an integer that specifies the time-scale for the entire presentation; this is the number of
-    // time units that pass in one second. For example, a time coordinate system that measures time in
-    // sixtieths of a second has a time scale of 60.
-    uint32_t timescale;
     // an integer that uniquely identifies this track over the entire life-time of this presentation.
     // Track IDs are never re-used and cannot be zero.
     uint32_t track_ID;
@@ -244,6 +311,10 @@ public:
 public:
     SrsMp4TrackHeaderBox();
     virtual ~SrsMp4TrackHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -282,6 +353,10 @@ public:
     int16_t media_rate_fraction;
 public:
     SrsMp4ElstEntry();
+public:
+    virtual int nb_header(uint32_t version);
+    virtual int encode_header(SrsBuffer* buf, uint32_t version);
+    virtual int decode_header(SrsBuffer* buf, uint32_t version);
 };
 
 /**
@@ -300,6 +375,10 @@ public:
 public:
     SrsMp4EditListBox();
     virtual ~SrsMp4EditListBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -338,16 +417,29 @@ public:
     // is derived from the presentation’s tracks: the value of this field corresponds to the duration of the
     // longest track in the presentation. If the duration cannot be determined then duration is set to all 1s.
     uint64_t duration;
-public:
-    uint8_t pad:1;
+private:
     // the language code for this media. See ISO 639-2/T for the set of three character
     // codes. Each character is packed as the difference between its ASCII value and 0x60. Since the code
     // is confined to being three lower-case letters, these values are strictly positive.
-    uint16_t language:15;
+    uint16_t language;
     uint16_t pre_defined;
 public:
     SrsMp4MediaHeaderBox();
     virtual ~SrsMp4MediaHeaderBox();
+public:
+    // the language code for this media. See ISO 639-2/T for the set of three character
+    // codes. Each character is packed as the difference between its ASCII value and 0x60. Since the code
+    // is confined to being three lower-case letters, these values are strictly positive.
+    virtual uint8_t language0();
+    virtual void set_language0(uint8_t v);
+    virtual uint8_t language1();
+    virtual void set_language1(uint8_t v);
+    virtual uint8_t language2();
+    virtual void set_language2(uint8_t v);
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -371,6 +463,10 @@ public:
 public:
     SrsMp4HandlerReferenceBox();
     virtual ~SrsMp4HandlerReferenceBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -403,6 +499,10 @@ public:
 public:
     SrsMp4VideoMeidaHeaderBox();
     virtual ~SrsMp4VideoMeidaHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -421,6 +521,10 @@ public:
 public:
     SrsMp4SoundMeidaHeaderBox();
     virtual ~SrsMp4SoundMeidaHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -445,6 +549,11 @@ public:
     std::string location;
 public:
     SrsMp4DataEntryBox();
+    virtual ~SrsMp4DataEntryBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -455,6 +564,7 @@ class SrsMp4DataEntryUrlBox : public SrsMp4DataEntryBox
 {
 public:
     SrsMp4DataEntryUrlBox();
+    virtual ~SrsMp4DataEntryUrlBox();
 };
 
 /**
@@ -467,6 +577,11 @@ public:
     std::string name;
 public:
     SrsMp4DataEntryUrnBox();
+    virtual ~SrsMp4DataEntryUrnBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -478,13 +593,18 @@ public:
  */
 class SrsMp4DataReferenceBox : public SrsMp4FullBox
 {
-public:
-    // an integer that counts the actual entries
-    uint32_t entry_count;
-    SrsMp4DataEntryBox* entries;
+private:
+    std::vector<SrsMp4DataEntryBox*> entries;
 public:
     SrsMp4DataReferenceBox();
     virtual ~SrsMp4DataReferenceBox();
+public:
+    virtual uint32_t entry_count();
+    virtual SrsMp4DataEntryBox* entry_at(int index);
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -516,6 +636,10 @@ public:
 public:
     SrsMp4SampleEntry();
     virtual ~SrsMp4SampleEntry();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -549,6 +673,10 @@ public:
 public:
     SrsMp4VisualSampleEntry();
     virtual ~SrsMp4VisualSampleEntry();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -558,7 +686,7 @@ public:
 class SrsMp4AudioSampleEntry : public SrsMp4SampleEntry
 {
 public:
-    uint32_t reserved0[2];
+    uint64_t reserved0;
     uint16_t channelcount;
     uint16_t samplesize;
     uint16_t pre_defined0;
@@ -567,6 +695,10 @@ public:
 public:
     SrsMp4AudioSampleEntry();
     virtual ~SrsMp4AudioSampleEntry();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -577,13 +709,18 @@ public:
  */
 class SrsMp4SampleDescriptionBox : public SrsMp4FullBox
 {
-public:
-    // an integer that gives the number of entries in the following table
-    uint32_t entry_count;
-    SrsMp4SampleEntry* entries;
+private:
+    std::vector<SrsMp4SampleEntry*> entries;
 public:
     SrsMp4SampleDescriptionBox();
     virtual ~SrsMp4SampleDescriptionBox();
+public:
+    virtual uint32_t entry_count();
+    virtual SrsMp4SampleEntry* entrie_at(int index);
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -618,6 +755,10 @@ public:
 public:
     SrsMp4DecodingTime2SampleBox();
     virtual ~SrsMp4DecodingTime2SampleBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 
@@ -657,6 +798,10 @@ public:
 public:
     SrsMp4CompositionTime2SampleBox();
     virtual ~SrsMp4CompositionTime2SampleBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -676,6 +821,10 @@ public:
 public:
     SrsMp4SyncSampleBox();
     virtual ~SrsMp4SyncSampleBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -716,6 +865,10 @@ public:
 public:
     SrsMp4Sample2ChunkBox();
     virtual ~SrsMp4Sample2ChunkBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -736,6 +889,10 @@ public:
 public:
     SrsMp4ChunkOffsetBox();
     virtual ~SrsMp4ChunkOffsetBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -760,6 +917,10 @@ public:
 public:
     SrsMp4SampleSizeBox();
     virtual ~SrsMp4SampleSizeBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -768,7 +929,13 @@ public:
 class SrsMp4Decoder
 {
 private:
+    // Underlayer reader.
     ISrsReader* reader;
+    // The stream used to demux the boxes.
+    // TODO: FIXME: refine for performance issue.
+    SrsSimpleStream* stream;
+    // Always load next box.
+    SrsMp4Box* next;
 public:
     SrsMp4Decoder();
     virtual ~SrsMp4Decoder();
@@ -779,6 +946,8 @@ public:
      *      the decoder just read data from the reader.
      */
     virtual int initialize(ISrsReader* r);
+private:
+    virtual int load_next_box(SrsMp4Box** ppbox);
 };
 
 #endif

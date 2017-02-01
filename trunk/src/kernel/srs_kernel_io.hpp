@@ -44,6 +44,10 @@ public:
     ISrsReader();
     virtual ~ISrsReader();
 public:
+    /**
+     * Read bytes from reader.
+     * @param nread How many bytes read from channel. NULL to ignore.
+     */
     virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
 };
 

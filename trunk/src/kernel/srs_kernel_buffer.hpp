@@ -69,6 +69,7 @@ public:
     /**
      * get the number of bytes to code to.
      */
+    // TODO: FIXME: change to uint64_t.
     virtual int nb_bytes() = 0;
     /**
      * encode object to bytes in SrsBuffer.

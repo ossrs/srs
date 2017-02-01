@@ -242,6 +242,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_REQUEST_DATA                  3066
 #define ERROR_EDGE_PORT_INVALID             3067
 #define ERROR_EXPECT_FILE_IO                3068
+#define ERROR_MP4_BOX_OVERFLOW              3069
+#define ERROR_MP4_BOX_REQUIRE_SPACE         3070
+#define ERROR_MP4_BOX_ILLEGAL_TYPE          3071
+#define ERROR_MP4_BOX_ILLEGAL_SCHEMA        3072
+#define ERROR_MP4_BOX_STRING                3073
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.

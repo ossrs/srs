@@ -721,6 +721,7 @@ int SrsFlvDecoder::read_header(char header[9])
 
     srs_assert(header);
     
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(header, 9, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -746,6 +747,7 @@ int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* p
     char th[11]; // tag header
     
     // read tag header
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(th, 11, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv tag header failed. ret=%d", ret);
@@ -783,6 +785,7 @@ int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
 
     srs_assert(data);
     
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(data, size, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv tag header failed. ret=%d", ret);
@@ -801,6 +804,7 @@ int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
     srs_assert(previous_tag_size);
     
     // ignore 4bytes tag size.
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(previous_tag_size, 4, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv previous tag size failed. ret=%d", ret);
