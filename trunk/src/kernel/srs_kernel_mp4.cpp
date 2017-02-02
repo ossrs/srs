@@ -189,6 +189,7 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeAVCC: box = new SrsMp4AvccBox(); break;
         case SrsMp4BoxTypeMP4A: box = new SrsMp4AudioSampleEntry(); break;
         case SrsMp4BoxTypeESDS: box = new SrsMp4EsdsBox(); break;
+        case SrsMp4BoxTypeUDTA: box = new SrsMp4UserDataBox(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -622,6 +623,21 @@ SrsMp4MovieBox::SrsMp4MovieBox()
 
 SrsMp4MovieBox::~SrsMp4MovieBox()
 {
+}
+
+int SrsMp4MovieBox::nb_header()
+{
+    return SrsMp4Box::nb_header();
+}
+
+int SrsMp4MovieBox::encode_header(SrsBuffer* buf)
+{
+    return SrsMp4Box::encode_header(buf);
+}
+
+int SrsMp4MovieBox::decode_header(SrsBuffer* buf)
+{
+    return SrsMp4Box::decode_header(buf);
 }
 
 SrsMp4MovieHeaderBox::SrsMp4MovieHeaderBox()
@@ -2621,6 +2637,55 @@ int SrsMp4SampleSizeBox::decode_header(SrsBuffer* buf)
     return ret;
 }
 
+SrsMp4UserDataBox::SrsMp4UserDataBox()
+{
+    type = SrsMp4BoxTypeUDTA;
+    nb_data = 0;
+    data = NULL;
+}
+
+SrsMp4UserDataBox::~SrsMp4UserDataBox()
+{
+    srs_freepa(data);
+}
+
+int SrsMp4UserDataBox::nb_header()
+{
+    return SrsMp4Box::nb_header()+nb_data;
+}
+
+int SrsMp4UserDataBox::encode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4Box::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (nb_data) {
+        buf->write_bytes((char*)data, nb_data);
+    }
+    
+    return ret;
+}
+
+int SrsMp4UserDataBox::decode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4Box::decode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    nb_data = left_space(buf);
+    if (nb_data) {
+        data = new uint8_t[nb_data];
+        buf->read_bytes((char*)data, nb_data);
+    }
+    
+    return ret;
+}
+
 #define SRS_MP4_BUF_SIZE 4096
 
 SrsMp4Decoder::SrsMp4Decoder()
@@ -2693,6 +2758,14 @@ int SrsMp4Decoder::initialize(ISrsReader* r)
         return ret;
     }
     
+    // Parse the MOOV.
+    SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box);
+    return parse_moov(moov);
+}
+
+int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
+{
+    int ret = ERROR_SUCCESS;
     return ret;
 }
 

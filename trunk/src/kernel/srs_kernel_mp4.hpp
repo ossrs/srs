@@ -80,6 +80,7 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeAVCC = 0x61766343, // 'avcC'
     SrsMp4BoxTypeMP4A = 0x6d703461, // 'mp4a'
     SrsMp4BoxTypeESDS = 0x65736473, // 'esds'
+    SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
     
     SrsMp4BoxTypeVIDE = 0x76696465, // 'vide'
     SrsMp4BoxTypeSOUN = 0x736f756e, // 'soun'
@@ -262,6 +263,10 @@ class SrsMp4MovieBox : public SrsMp4Box
 public:
     SrsMp4MovieBox();
     virtual ~SrsMp4MovieBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -1206,6 +1211,26 @@ protected:
 };
 
 /**
+ * 8.10.1 User Data Box (udta)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 78
+ * This box contains objects that declare user information about the containing box and its data (presentation or
+ * track).
+ */
+class SrsMp4UserDataBox : public SrsMp4Box
+{
+public:
+    int nb_data;
+    uint8_t* data;
+public:
+    SrsMp4UserDataBox();
+    virtual ~SrsMp4UserDataBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+};
+
+/**
  * The MP4 demuxer.
  */
 class SrsMp4Decoder
@@ -1228,6 +1253,8 @@ public:
      *      the decoder just read data from the reader.
      */
     virtual int initialize(ISrsReader* r);
+private:
+    virtual int parse_moov(SrsMp4MovieBox* box);
 private:
     // Load the next box from reader.
     // @param required_box_type The box type required, 0 for any box.
