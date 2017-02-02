@@ -61,7 +61,9 @@ using namespace std;
 #define SRS_MP4_BOX_STSS 0x73747373 // 'stss'
 #define SRS_MP4_BOX_STSC 0x73747363 // 'stsc'
 #define SRS_MP4_BOX_STCO 0x7374636f // 'stco'
+#define SRS_MP4_BOX_CO64 0x636f3634 // 'co64'
 #define SRS_MP4_BOX_STSZ 0x7374737a // 'stsz'
+#define SRS_MP4_BOX_STZ2 0x73747a32 // 'stz2'
 
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
@@ -192,6 +194,7 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SRS_MP4_BOX_STSS: box = new SrsMp4SyncSampleBox(); break;
         case SRS_MP4_BOX_STSC: box = new SrsMp4Sample2ChunkBox(); break;
         case SRS_MP4_BOX_STCO: box = new SrsMp4ChunkOffsetBox(); break;
+        case SRS_MP4_BOX_CO64: box = new SrsMp4ChunkLargeOffsetBox(); break;
         case SRS_MP4_BOX_STSZ: box = new SrsMp4SampleSizeBox(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
@@ -1420,18 +1423,16 @@ int SrsMp4DataReferenceBox::decode_header(SrsBuffer* buf)
         return ret;
     }
     
-    int left = left_space(buf);
-    while (left > 0) {
+    uint32_t nb_entries = buf->read_4bytes();
+    for (uint32_t i = 0; i < nb_entries; i++) {
         SrsMp4Box* box = NULL;
         if ((ret = SrsMp4Box::discovery(buf, &box)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int pos = buf->pos();
         if ((ret = box->decode(buf)) != ERROR_SUCCESS) {
             return ret;
         }
-        left -= buf->pos() - pos;
         
         SrsMp4FullBox* fbox = dynamic_cast<SrsMp4FullBox*>(box);
         if (fbox) {
@@ -1660,6 +1661,8 @@ int SrsMp4SampleDescriptionBox::nb_header()
 {
     int size = SrsMp4FullBox::nb_header();
     
+    size += 4;
+    
     vector<SrsMp4SampleEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
         SrsMp4SampleEntry* entry = *it;
@@ -1676,6 +1679,8 @@ int SrsMp4SampleDescriptionBox::encode_header(SrsBuffer* buf)
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    buf->write_4bytes(entry_count());
     
     vector<SrsMp4SampleEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
@@ -1696,18 +1701,16 @@ int SrsMp4SampleDescriptionBox::decode_header(SrsBuffer* buf)
         return ret;
     }
     
-    int left = left_space(buf);
-    while (left > 0) {
+    uint32_t nb_entries = buf->read_4bytes();
+    for (uint32_t i = 0; i < nb_entries; i++) {
         SrsMp4Box* box = NULL;
         if ((ret = SrsMp4Box::discovery(buf, &box)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int pos = buf->pos();
         if ((ret = box->decode(buf)) != ERROR_SUCCESS) {
             return ret;
         }
-        left -= buf->pos() - pos;
         
         SrsMp4SampleEntry* entry = dynamic_cast<SrsMp4SampleEntry*>(box);
         if (entry) {
@@ -1741,7 +1744,7 @@ SrsMp4DecodingTime2SampleBox::~SrsMp4DecodingTime2SampleBox()
 
 int SrsMp4DecodingTime2SampleBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    return SrsMp4FullBox::nb_header() + 4 + 8*entry_count;
 }
 
 int SrsMp4DecodingTime2SampleBox::encode_header(SrsBuffer* buf)
@@ -1750,6 +1753,13 @@ int SrsMp4DecodingTime2SampleBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4SttsEntry& entry = entries[i];
+        buf->write_4bytes(entry.sample_count);
+        buf->write_4bytes(entry.sample_delta);
     }
     
     return ret;
@@ -1761,6 +1771,16 @@ int SrsMp4DecodingTime2SampleBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count) {
+        entries = new SrsMp4SttsEntry[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4SttsEntry& entry = entries[i];
+        entry.sample_count = buf->read_4bytes();
+        entry.sample_delta = buf->read_4bytes();
     }
     
     return ret;
@@ -1787,7 +1807,7 @@ SrsMp4CompositionTime2SampleBox::~SrsMp4CompositionTime2SampleBox()
 
 int SrsMp4CompositionTime2SampleBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    return SrsMp4FullBox::nb_header() + 4 + 8*entry_count;
 }
 
 int SrsMp4CompositionTime2SampleBox::encode_header(SrsBuffer* buf)
@@ -1796,6 +1816,17 @@ int SrsMp4CompositionTime2SampleBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4CttsEntry& entry = entries[i];
+        buf->write_4bytes(entry.sample_count);
+        if (version == 0) {
+            buf->write_4bytes((uint32_t)entry.sample_offset);
+        } else if (version == 1) {
+            buf->write_4bytes((int32_t)entry.sample_offset);
+        }
     }
     
     return ret;
@@ -1807,6 +1838,20 @@ int SrsMp4CompositionTime2SampleBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count) {
+        entries = new SrsMp4CttsEntry[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4CttsEntry& entry = entries[i];
+        entry.sample_count = buf->read_4bytes();
+        if (version == 0) {
+            entry.sample_offset = (uint32_t)buf->read_4bytes();
+        } else if (version == 1) {
+            entry.sample_offset = (int32_t)buf->read_4bytes();
+        }
     }
     
     return ret;
@@ -1827,7 +1872,7 @@ SrsMp4SyncSampleBox::~SrsMp4SyncSampleBox()
 
 int SrsMp4SyncSampleBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    return SrsMp4FullBox::nb_header() +4 +4*entry_count;
 }
 
 int SrsMp4SyncSampleBox::encode_header(SrsBuffer* buf)
@@ -1836,6 +1881,12 @@ int SrsMp4SyncSampleBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        uint32_t sample_number = sample_numbers[i];
+        buf->write_4bytes(sample_number);
     }
     
     return ret;
@@ -1847,6 +1898,15 @@ int SrsMp4SyncSampleBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count > 0) {
+        sample_numbers = new uint32_t[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        uint32_t sample_number = sample_numbers[i];
+        buf->write_4bytes(sample_number);
     }
     
     return ret;
@@ -1874,7 +1934,7 @@ SrsMp4Sample2ChunkBox::~SrsMp4Sample2ChunkBox()
 
 int SrsMp4Sample2ChunkBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    return SrsMp4FullBox::nb_header() +4 + 12*entry_count;
 }
 
 int SrsMp4Sample2ChunkBox::encode_header(SrsBuffer* buf)
@@ -1883,6 +1943,14 @@ int SrsMp4Sample2ChunkBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4StscEntry& entry = entries[i];
+        buf->write_4bytes(entry.first_chunk);
+        buf->write_4bytes(entry.samples_per_chunk);
+        buf->write_4bytes(entry.sample_description_index);
     }
     
     return ret;
@@ -1894,6 +1962,17 @@ int SrsMp4Sample2ChunkBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count) {
+        entries = new SrsMp4StscEntry[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        SrsMp4StscEntry& entry = entries[i];
+        entry.first_chunk = buf->read_4bytes();
+        entry.samples_per_chunk = buf->read_4bytes();
+        entry.sample_description_index = buf->read_4bytes();
     }
     
     return ret;
@@ -1914,7 +1993,7 @@ SrsMp4ChunkOffsetBox::~SrsMp4ChunkOffsetBox()
 
 int SrsMp4ChunkOffsetBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    return SrsMp4FullBox::nb_header() +4 +4*entry_count;
 }
 
 int SrsMp4ChunkOffsetBox::encode_header(SrsBuffer* buf)
@@ -1923,6 +2002,11 @@ int SrsMp4ChunkOffsetBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        buf->write_4bytes(entries[i]);
     }
     
     return ret;
@@ -1934,6 +2018,67 @@ int SrsMp4ChunkOffsetBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count) {
+        entries = new uint32_t[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        entries[i] = buf->read_4bytes();
+    }
+    
+    return ret;
+}
+
+SrsMp4ChunkLargeOffsetBox::SrsMp4ChunkLargeOffsetBox()
+{
+    type = SRS_MP4_BOX_CO64;
+    
+    entry_count = 0;
+    entries = NULL;
+}
+
+SrsMp4ChunkLargeOffsetBox::~SrsMp4ChunkLargeOffsetBox()
+{
+    srs_freepa(entries);
+}
+
+int SrsMp4ChunkLargeOffsetBox::nb_header()
+{
+    return SrsMp4FullBox::nb_header() +4 +8*entry_count;
+}
+
+int SrsMp4ChunkLargeOffsetBox::encode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    buf->write_4bytes(entry_count);
+    for (uint32_t i = 0; i < entry_count; i++) {
+        buf->write_8bytes(entries[i]);
+    }
+    
+    return ret;
+}
+
+int SrsMp4ChunkLargeOffsetBox::decode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    entry_count = buf->read_4bytes();
+    if (entry_count) {
+        entries = new uint64_t[entry_count];
+    }
+    for (uint32_t i = 0; i < entry_count; i++) {
+        entries[i] = buf->read_8bytes();
     }
     
     return ret;
@@ -1954,7 +2099,11 @@ SrsMp4SampleSizeBox::~SrsMp4SampleSizeBox()
 
 int SrsMp4SampleSizeBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header();
+    int size = SrsMp4FullBox::nb_header() +4+4;
+    if (sample_size == 0) {
+        size += 4*sample_count;
+    }
+    return size;
 }
 
 int SrsMp4SampleSizeBox::encode_header(SrsBuffer* buf)
@@ -1963,6 +2112,12 @@ int SrsMp4SampleSizeBox::encode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    buf->write_4bytes(sample_size);
+    buf->write_4bytes(sample_count);
+    for (uint32_t i = 0; i < sample_count && sample_size == 0; i++) {
+        buf->write_4bytes(entry_sizes[i]);
     }
     
     return ret;
@@ -1974,6 +2129,15 @@ int SrsMp4SampleSizeBox::decode_header(SrsBuffer* buf)
     
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
+    }
+    
+    sample_size = buf->read_4bytes();
+    sample_count = buf->read_4bytes();
+    if (sample_size == 0) {
+        entry_sizes = new uint32_t[sample_count];
+    }
+    for (uint32_t i = 0; i < sample_count && sample_size == 0; i++) {
+        entry_sizes[i] = buf->read_4bytes();
     }
     
     return ret;

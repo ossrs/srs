@@ -761,7 +761,6 @@ protected:
     virtual int decode_header(SrsBuffer* buf);
 };
 
-
 /**
  * 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 49
@@ -872,7 +871,7 @@ protected:
 };
 
 /**
- * 8.7.5 Chunk Offset Box (stco or co64), for Audio/Video.
+ * 8.7.5 Chunk Offset Box (stco), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 59
  * The chunk offset table gives the index of each chunk into the containing file. There are two variants, permitting
  * the use of 32-bit or 64-bit offsets. The latter is useful when managing very large presentations. At most one of
@@ -883,9 +882,9 @@ class SrsMp4ChunkOffsetBox : public SrsMp4FullBox
 public:
     // an integer that gives the number of entries in the following table
     uint32_t entry_count;
-    // a 32 or 64 bit integer that gives the offset of the start of a chunk into its containing
+    // a 32 bit integer that gives the offset of the start of a chunk into its containing
     // media file.
-    uint64_t* entries;
+    uint32_t* entries;
 public:
     SrsMp4ChunkOffsetBox();
     virtual ~SrsMp4ChunkOffsetBox();
@@ -896,8 +895,32 @@ protected:
 };
 
 /**
- * 8.7.3 Sample Size Boxes (stsz or stz2), for Audio/Video.
- * ISO_IEC_14496-12-base-format-2012.pdf, page 57
+ * 8.7.5 Chunk Large Offset Box (co64), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 59
+ * The chunk offset table gives the index of each chunk into the containing file. There are two variants, permitting
+ * the use of 32-bit or 64-bit offsets. The latter is useful when managing very large presentations. At most one of
+ * these variants will occur in any single instance of a sample table.
+ */
+class SrsMp4ChunkLargeOffsetBox : public SrsMp4FullBox
+{
+public:
+    // an integer that gives the number of entries in the following table
+    uint32_t entry_count;
+    // a 64 bit integer that gives the offset of the start of a chunk into its containing
+    // media file.
+    uint64_t* entries;
+public:
+    SrsMp4ChunkLargeOffsetBox();
+    virtual ~SrsMp4ChunkLargeOffsetBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+};
+
+/**
+ * 8.7.3.2 Sample Size Box (stsz), for Audio/Video.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 58
  * This box contains the sample count and a table giving the size in bytes of each sample. This allows the media data
  * itself to be unframed. The total number of samples in the media is always indicated in the sample count.
  */
