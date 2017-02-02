@@ -724,6 +724,159 @@ protected:
     virtual int decode_header(SrsBuffer* buf);
 };
 
+// Table 1 — List of Class Tags for Descriptors
+// ISO_IEC_14496-1-System-2010.pdf, page 31
+enum SRS_MP4_ES_TAG_ES {
+    SRS_MP4_ES_TAG_ES_forbidden = 0x00,
+    SRS_MP4_ES_TAG_ES_ObjectDescrTag = 0x01,
+    SRS_MP4_ES_TAG_ES_InitialObjectDescrTag = 0x02,
+    SRS_MP4_ES_TAG_ES_DescrTag = 0x03,
+    SRS_MP4_ES_TAG_ES_DecoderConfigDescrTag = 0x04,
+    SRS_MP4_ES_TAG_ES_DecSpecificInfoTag = 0x05,
+    SRS_MP4_ES_TAG_ES_SLConfigDescrTag = 0x06,
+    SRS_MP4_ES_TAG_ES_ExtSLConfigDescrTag = 0x064,
+};
+
+/**
+ * 7.2.2.2 BaseDescriptor
+ * ISO_IEC_14496-1-System-2010.pdf, page 32
+ */
+class SrsMp4BaseDescriptor : public ISrsCodec
+{
+public:
+    // The values of the class tags are
+    // defined in Table 2. As an expandable class the size of each class instance in bytes is encoded and accessible
+    // through the instance variable sizeOfInstance (see 8.3.3).
+    SRS_MP4_ES_TAG_ES tag; // bit(8)
+public:
+    SrsMp4BaseDescriptor();
+    virtual ~SrsMp4BaseDescriptor();
+// Interface ISrsCodec
+public:
+    virtual int nb_bytes();
+    virtual int encode(SrsBuffer* buf);
+    virtual int decode(SrsBuffer* buf);
+protected:
+    virtual uint32_t nb_payload() = 0;
+    virtual int encode_payload(SrsBuffer* buf) = 0;
+    virtual int decode_payload(SrsBuffer* buf) = 0;
+};
+
+/**
+ * 7.2.6.6 DecoderConfigDescriptor
+ * ISO_IEC_14496-1-System-2010.pdf, page 48
+ */
+class SrsMp4DecoderConfigDescriptor : public SrsMp4BaseDescriptor
+{
+public:
+    uint8_t objectTypeIndication;
+    uint8_t streamType; // bit(6)
+    uint8_t upStream; // bit(1)
+    uint8_t reserved; // bit(1)
+    uint32_t bufferSizeDB; // bit(24)
+    uint32_t maxBitrate;
+    uint32_t avgBitrate;
+public:
+    SrsMp4DecoderConfigDescriptor();
+    virtual ~SrsMp4DecoderConfigDescriptor();
+protected:
+    virtual uint32_t nb_payload();
+    virtual int encode_payload(SrsBuffer* buf);
+    virtual int decode_payload(SrsBuffer* buf);
+};
+
+/**
+ * 7.3.2.3 SL Packet Header Configuration
+ * ISO_IEC_14496-1-System-2010.pdf, page 92
+ */
+class SrsMp4SLConfigDescriptor : public SrsMp4BaseDescriptor
+{
+public:
+    uint8_t predefined;
+    // if (predefined==0)
+    uint8_t useAccessUnitStartFlag; // bit(1)
+    uint8_t useAccessUnitEndFlag; // bit(1)
+    uint8_t useRandomAccessPointFlag; // bit(1)
+    uint8_t hasRandomAccessUnitsOnlyFlag; // bit(1)
+    uint8_t usePaddingFlag; // bit(1)
+    uint8_t useTimeStampsFlag; // bit(1)
+    uint8_t useIdleFlag; // bit(1)
+    uint8_t durationFlag; // bit(1)
+    uint32_t timeStampResolution;
+    uint32_t OCRResolution;
+    uint8_t timeStampLength; // must be ≤ 64
+    uint8_t OCRLength; // must be ≤ 64
+    uint8_t AU_Length; // must be ≤ 32
+    uint8_t instantBitrateLength;
+    uint8_t degradationPriorityLength; // bit(4)
+    uint8_t AU_seqNumLength; // bit(5) // must be ≤ 16
+    uint8_t packetSeqNumLength; // bit(5) // must be ≤ 16
+    uint8_t reserved; // bit(2) // 0b11
+    // if (durationFlag)
+    uint32_t timeScale;
+    uint16_t accessUnitDuration;
+    uint16_t compositionUnitDuration;
+    // if (!useTimeStampsFlag)
+    uint64_t startDecodingTimeStamp; // bit(timeStampLength)
+    uint64_t startCompositionTimeStamp; // bit(timeStampLength)
+public:
+    SrsMp4SLConfigDescriptor();
+    virtual ~SrsMp4SLConfigDescriptor();
+protected:
+    virtual uint32_t nb_payload();
+    virtual int encode_payload(SrsBuffer* buf);
+    virtual int decode_payload(SrsBuffer* buf);
+};
+
+/**
+ * 7.2.6.5 ES_Descriptor
+ * ISO_IEC_14496-1-System-2010.pdf, page 47
+ */
+class SrsMp4ES_Descriptor : public SrsMp4BaseDescriptor
+{
+public:
+    uint16_t ES_ID;
+    uint8_t streamDependenceFlag; // bit(1)
+    uint8_t URL_Flag; // bit(1)
+    uint8_t OCRstreamFlag; // bit(1)
+    uint8_t streamPriority; // bit(5)
+    // if (streamDependenceFlag)
+    uint16_t dependsOn_ES_ID;
+    // if (URL_Flag)
+    uint8_t URLlength;
+    uint8_t* URLstring;
+    // if (OCRstreamFlag)
+    uint16_t OCR_ES_Id;
+    SrsMp4DecoderConfigDescriptor decConfigDescr;
+    SrsMp4SLConfigDescriptor slConfigDescr;
+public:
+    SrsMp4ES_Descriptor();
+    virtual ~SrsMp4ES_Descriptor();
+protected:
+    virtual uint32_t nb_payload();
+    virtual int encode_payload(SrsBuffer* buf);
+    virtual int decode_payload(SrsBuffer* buf);
+};
+
+/**
+ * 5.6 Sample Description Boxes
+ * Elementary Stream Descriptors (esds)
+ * ISO_IEC_14496-14-MP4-2003.pdf, page 15
+ * @see http://www.mp4ra.org/codecs.html
+ */
+class SrsMp4EsdsBox : public SrsMp4FullBox
+{
+public:
+    SrsMp4ES_Descriptor* es;
+public:
+    SrsMp4EsdsBox();
+    virtual ~SrsMp4EsdsBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+};
+
 /**
  * 8.5.2 Sample Description Box (stsd), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 40

@@ -232,6 +232,7 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SRS_MP4_BOX_AVC1: box = new SrsMp4VisualSampleEntry(); break;
         case SRS_MP4_BOX_AVCC: box = new SrsMp4AvccBox(); break;
         case SRS_MP4_BOX_MP4A: box = new SrsMp4AudioSampleEntry(); break;
+        case SRS_MP4_BOX_ESDS: box = new SrsMp4EsdsBox(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -1717,6 +1718,298 @@ int SrsMp4AudioSampleEntry::decode_header(SrsBuffer* buf)
     buf->skip(2);
     buf->skip(2);
     samplerate = buf->read_4bytes();
+    
+    return ret;
+}
+
+SrsMp4BaseDescriptor::SrsMp4BaseDescriptor()
+{
+    tag = SRS_MP4_ES_TAG_ES_forbidden;
+}
+
+SrsMp4BaseDescriptor::~SrsMp4BaseDescriptor()
+{
+}
+
+int SrsMp4BaseDescriptor::nb_bytes()
+{
+    // 1 byte tag.
+    int size = 1;
+    
+    // 1-3 bytes size.
+    uint32_t length = nb_payload();
+    if (length > 0x1fffff) {
+        size += 4;
+    } else if (length > 0x3fff) {
+        size += 3;
+    } else if (length > 0x7f) {
+        size += 2;
+    } else {
+        size += 1;
+    }
+    
+    // length bytes payload.
+    size += length;
+    
+    return size;
+}
+
+int SrsMp4BaseDescriptor::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int size = nb_bytes();
+    if (!buf->require(size)) {
+        ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+        srs_error("MP4 ES requires %d bytes space. ret=%d", size, ret);
+        return ret;
+    }
+    
+    buf->write_1bytes((uint8_t)tag);
+    
+    // As an expandable class the size of each class instance in bytes is encoded and accessible
+    // through the instance variable sizeOfInstance (see 8.3.3).
+    uint32_t length = nb_payload(); // bit(8) to bit(32)
+    
+    return ret;
+}
+
+int SrsMp4BaseDescriptor::decode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int size = nb_bytes();
+    if (!buf->require(size)) {
+        ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+        srs_error("MP4 ES requires %d bytes space. ret=%d", size, ret);
+        return ret;
+    }
+    
+    tag = (SRS_MP4_ES_TAG_ES)buf->read_1bytes();
+    return ret;
+}
+
+SrsMp4DecoderConfigDescriptor::SrsMp4DecoderConfigDescriptor()
+{
+    tag = SRS_MP4_ES_TAG_ES_DecoderConfigDescrTag;
+}
+
+SrsMp4DecoderConfigDescriptor::~SrsMp4DecoderConfigDescriptor()
+{
+}
+
+uint32_t SrsMp4DecoderConfigDescriptor::nb_payload()
+{
+    return 0;
+}
+
+int SrsMp4DecoderConfigDescriptor::encode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsMp4DecoderConfigDescriptor::decode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+SrsMp4SLConfigDescriptor::SrsMp4SLConfigDescriptor()
+{
+    tag = SRS_MP4_ES_TAG_ES_SLConfigDescrTag;
+}
+
+SrsMp4SLConfigDescriptor::~SrsMp4SLConfigDescriptor()
+{
+}
+
+uint32_t SrsMp4SLConfigDescriptor::nb_payload()
+{
+    return 0;
+}
+
+int SrsMp4SLConfigDescriptor::encode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsMp4SLConfigDescriptor::decode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+SrsMp4ES_Descriptor::SrsMp4ES_Descriptor()
+{
+    tag = SRS_MP4_ES_TAG_ES_DescrTag;
+    streamDependenceFlag = URL_Flag = OCRstreamFlag = 0;
+    URLlength = 0;
+    URLstring = NULL;
+}
+
+SrsMp4ES_Descriptor::~SrsMp4ES_Descriptor()
+{
+    srs_freepa(URLstring);
+}
+
+uint32_t SrsMp4ES_Descriptor::nb_payload()
+{
+    int size = 2 +1;
+    size += streamDependenceFlag? 2:0;
+    if (URL_Flag) {
+        size += 1 + URLlength;
+    }
+    size += OCRstreamFlag? 2:0;
+    size += decConfigDescr.nb_bytes() +slConfigDescr.nb_bytes();
+    return size;
+}
+
+int SrsMp4ES_Descriptor::encode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    buf->write_2bytes(ES_ID);
+    
+    uint8_t v = streamPriority & 0x1f;
+    v |= (streamDependenceFlag & 0x01) << 7;
+    v |= (URL_Flag & 0x01) << 6;
+    v |= (OCRstreamFlag & 0x01) << 5;
+    buf->write_1bytes(v);
+    
+    if (streamDependenceFlag) {
+        buf->write_2bytes(dependsOn_ES_ID);
+    }
+    
+    if (URL_Flag && URLlength) {
+        buf->write_1bytes(URLlength);
+        buf->write_bytes((char*)URLstring, URLlength);
+    }
+    
+    if (OCRstreamFlag) {
+        buf->write_2bytes(OCR_ES_Id);
+    }
+    
+    if ((ret = decConfigDescr.encode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = slConfigDescr.encode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsMp4ES_Descriptor::decode_payload(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ES_ID = buf->read_2bytes();
+    
+    uint8_t v = buf->read_1bytes();
+    streamPriority = v & 0x1f;
+    streamDependenceFlag = (v >> 7) & 0x01;
+    URL_Flag = (v >> 6) & 0x01;
+    OCRstreamFlag = (v >> 5) & 0x01;
+    
+    if (streamDependenceFlag) {
+        if (!buf->require(2)) {
+            ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+            srs_error("MP4 ES requires 2 bytes space. ret=%d", ret);
+            return ret;
+        }
+        dependsOn_ES_ID = buf->read_2bytes();
+    }
+    
+    if (URL_Flag) {
+        if (!buf->require(1)) {
+            ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+            srs_error("MP4 ES requires 1 byte space. ret=%d", ret);
+            return ret;
+        }
+        URLlength = buf->read_1bytes();
+        
+        if (!buf->require(URLlength)) {
+            ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+            srs_error("MP4 ES requires %d bytes space. ret=%d", URLlength, ret);
+            return ret;
+        }
+        URLstring = new uint8_t[URLlength];
+        buf->read_bytes((char*)URLstring, URLlength);
+    }
+    
+    if (OCRstreamFlag) {
+        if (!buf->require(2)) {
+            ret = ERROR_MP4_BOX_REQUIRE_SPACE;
+            srs_error("MP4 ES requires 2 bytes space. ret=%d", ret);
+            return ret;
+        }
+        OCR_ES_Id = buf->read_2bytes();
+    }
+    
+    if ((ret = decConfigDescr.decode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = slConfigDescr.decode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+SrsMp4EsdsBox::SrsMp4EsdsBox()
+{
+    type = SRS_MP4_BOX_ESDS;
+    es = new SrsMp4ES_Descriptor();
+}
+
+SrsMp4EsdsBox::~SrsMp4EsdsBox()
+{
+    srs_freep(es);
+}
+
+int SrsMp4EsdsBox::nb_header()
+{
+    return SrsMp4FullBox::nb_header() + es->nb_bytes();
+}
+
+int SrsMp4EsdsBox::encode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int left = left_space(buf);
+    SrsBuffer buffer(buf->data() + buf->pos(), left);
+    if ((ret = es->encode(&buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    buf->skip(buffer.pos());
+    
+    return ret;
+}
+
+int SrsMp4EsdsBox::decode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int left = left_space(buf);
+    SrsBuffer buffer(buf->data() + buf->pos(), left);
+    if ((ret = es->decode(&buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    buf->skip(buffer.pos());
     
     return ret;
 }
