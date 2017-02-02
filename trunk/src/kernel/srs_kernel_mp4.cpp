@@ -64,6 +64,18 @@ using namespace std;
 #define SRS_MP4_BOX_CO64 0x636f3634 // 'co64'
 #define SRS_MP4_BOX_STSZ 0x7374737a // 'stsz'
 #define SRS_MP4_BOX_STZ2 0x73747a32 // 'stz2'
+#define SRS_MP4_BOX_AVC1 0x61766331 // 'avc1'
+#define SRS_MP4_BOX_AVCC 0x61766343 // 'avcC'
+#define SRS_MP4_BOX_MP4A 0x6d703461 // 'mp4a'
+#define SRS_MP4_BOX_ESDS 0x65736473 // 'esds'
+
+#define SRS_MP4_BRAND_ISOM 0x69736f6d // 'isom'
+#define SRS_MP4_BRAND_ISO2 0x69736f32 // 'iso2'
+#define SRS_MP4_BRAND_AVC1 0x61766331 // 'avc1'
+#define SRS_MP4_BRAND_MP41 0x6d703431 // 'mp41'
+
+#define SRS_MP4_HANDLER_VIDE 0x76696465 // 'vide'
+#define SRS_MP4_HANDLER_SOUN 0x736f756e // 'soun'
 
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
@@ -75,9 +87,12 @@ int srs_mp4_string_length(const string& v)
 
 void srs_mp4_string_write(SrsBuffer* buf, const string& v)
 {
-    if (!v.empty()) {
-        buf->write_bytes((char*)v.data(), (int)v.length());
+    // Nothing for empty string.
+    if (v.empty()) {
+        return;
     }
+    
+    buf->write_bytes((char*)v.data(), (int)v.length());
     buf->write_1bytes(0x00);
 }
 
@@ -85,19 +100,22 @@ int srs_mp4_string_read(SrsBuffer* buf, string& v, int left)
 {
     int ret = ERROR_SUCCESS;
     
-    char* p = buf->data() + buf->pos();
-    
-    char* start = p;
-    while (p < start + left) {
-        if (*p == 0x00) {
-            v.append(start, p - start);
-            buf->skip((int)(p - start));
-            return ret;
-        }
+    if (left == 0) {
+        return ret;
     }
     
-    ret = ERROR_MP4_BOX_STRING;
-    srs_error("MP4 string corrupt, left=%d. ret=%d", left, ret);
+    char* start = buf->data() + buf->pos();
+    size_t len = strnlen(start, left);
+    
+    if (len == left) {
+        ret = ERROR_MP4_BOX_STRING;
+        srs_error("MP4 string corrupt, left=%d. ret=%d", left, ret);
+        return ret;
+    }
+    
+    v.append(start, len);
+    buf->skip((int)len + 1);
+    
     return ret;
 }
 
@@ -130,6 +148,21 @@ uint64_t SrsMp4Box::sz()
 int SrsMp4Box::left_space(SrsBuffer* buf)
 {
     return (int)sz() - (buf->pos() - start_pos);
+}
+
+bool SrsMp4Box::is_ftyp()
+{
+    return type == SRS_MP4_BOX_FTYP;
+}
+
+bool SrsMp4Box::is_moov()
+{
+    return type == SRS_MP4_BOX_MOOV;
+}
+
+bool SrsMp4Box::is_mdat()
+{
+    return type == SRS_MP4_BOX_MDAT;
 }
 
 int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
@@ -196,6 +229,9 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SRS_MP4_BOX_STCO: box = new SrsMp4ChunkOffsetBox(); break;
         case SRS_MP4_BOX_CO64: box = new SrsMp4ChunkLargeOffsetBox(); break;
         case SRS_MP4_BOX_STSZ: box = new SrsMp4SampleSizeBox(); break;
+        case SRS_MP4_BOX_AVC1: box = new SrsMp4VisualSampleEntry(); break;
+        case SRS_MP4_BOX_AVCC: box = new SrsMp4AvccBox(); break;
+        case SRS_MP4_BOX_MP4A: box = new SrsMp4AudioSampleEntry(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -722,7 +758,7 @@ int SrsMp4MovieHeaderBox::decode_header(SrsBuffer* buf)
     }
     
     rate = buf->read_4bytes();
-    volume = buf->read_4bytes();
+    volume = buf->read_2bytes();
     buf->skip(2);
     buf->skip(8);
     for (int i = 0; i < 9; i++) {
@@ -862,53 +898,6 @@ SrsMp4ElstEntry::SrsMp4ElstEntry()
     media_rate_fraction = 0;
 }
 
-int SrsMp4ElstEntry::nb_header(uint32_t version)
-{
-    int size = 0;
-    
-    if (version == 1) {
-        size += 8+8;
-    } else {
-        size += 4+4;
-    }
-    
-    size += 2+2;
-    
-    return size;
-}
-
-int SrsMp4ElstEntry::encode_header(SrsBuffer* buf, uint32_t version)
-{
-    if (version == 1) {
-        buf->write_8bytes(segment_duration);
-        buf->write_8bytes(media_time);
-    } else {
-        buf->write_4bytes((uint32_t)segment_duration);
-        buf->write_4bytes((int32_t)media_time);
-    }
-    
-    buf->write_2bytes(media_rate_integer);
-    buf->write_2bytes(media_rate_fraction);
-    
-    return ERROR_SUCCESS;
-}
-
-int SrsMp4ElstEntry::decode_header(SrsBuffer* buf, uint32_t version)
-{
-    if (version == 1) {
-        segment_duration = buf->read_8bytes();
-        media_time = buf->read_8bytes();
-    } else {
-        segment_duration = buf->read_4bytes();
-        media_time = buf->read_4bytes();
-    }
-    
-    media_rate_integer = buf->read_2bytes();
-    media_rate_fraction = buf->read_2bytes();
-    
-    return ERROR_SUCCESS;
-}
-
 SrsMp4EditListBox::SrsMp4EditListBox()
 {
     type = SRS_MP4_BOX_ELST;
@@ -924,11 +913,12 @@ SrsMp4EditListBox::~SrsMp4EditListBox()
 
 int SrsMp4EditListBox::nb_header()
 {
-    int size = SrsMp4FullBox::nb_header();
+    int size = SrsMp4FullBox::nb_header() + 4;
     
-    for (uint32_t i = 0; i < entry_count; i++) {
-        SrsMp4ElstEntry& entry = entries[i];
-        size += entry.nb_header(version);
+    if (version == 1) {
+        size += entry_count * (2+2+8+8);
+    } else {
+        size += entry_count * (2+2+4+4);
     }
     
     return size;
@@ -942,11 +932,20 @@ int SrsMp4EditListBox::encode_header(SrsBuffer* buf)
         return ret;
     }
     
+    buf->write_4bytes(entry_count);
     for (uint32_t i = 0; i < entry_count; i++) {
         SrsMp4ElstEntry& entry = entries[i];
-        if ((ret = entry.encode_header(buf, version)) != ERROR_SUCCESS) {
-            return ret;
+        
+        if (version == 1) {
+            buf->write_8bytes(entry.segment_duration);
+            buf->write_8bytes(entry.media_time);
+        } else {
+            buf->write_4bytes((uint32_t)entry.segment_duration);
+            buf->write_4bytes((int32_t)entry.media_time);
         }
+        
+        buf->write_2bytes(entry.media_rate_integer);
+        buf->write_2bytes(entry.media_rate_fraction);
     }
     
     return ret;
@@ -960,16 +959,23 @@ int SrsMp4EditListBox::decode_header(SrsBuffer* buf)
         return ret;
     }
     
-    int left = left_space(buf);
-    entry_count = left / SrsMp4ElstEntry().nb_header(version);
+    entry_count = buf->read_4bytes();
     if (entry_count > 0) {
         entries = new SrsMp4ElstEntry[entry_count];
     }
     for (int i = 0; i < entry_count; i++) {
         SrsMp4ElstEntry& entry = entries[i];
-        if ((ret = entry.decode_header(buf, version)) != ERROR_SUCCESS) {
-            return ret;
+        
+        if (version == 1) {
+            entry.segment_duration = buf->read_8bytes();
+            entry.media_time = buf->read_8bytes();
+        } else {
+            entry.segment_duration = buf->read_4bytes();
+            entry.media_time = buf->read_4bytes();
         }
+        
+        entry.media_rate_integer = buf->read_2bytes();
+        entry.media_rate_fraction = buf->read_2bytes();
     }
     
     return ret;
@@ -1102,6 +1108,16 @@ SrsMp4HandlerReferenceBox::SrsMp4HandlerReferenceBox()
 
 SrsMp4HandlerReferenceBox::~SrsMp4HandlerReferenceBox()
 {
+}
+
+bool SrsMp4HandlerReferenceBox::is_video()
+{
+    return handler_type == SRS_MP4_HANDLER_VIDE;
+}
+
+bool SrsMp4HandlerReferenceBox::is_audio()
+{
+    return handler_type == SRS_MP4_HANDLER_SOUN;
 }
 
 int SrsMp4HandlerReferenceBox::nb_header()
@@ -1268,16 +1284,37 @@ SrsMp4DataEntryBox::~SrsMp4DataEntryBox()
 {
 }
 
-int SrsMp4DataEntryBox::nb_header()
+SrsMp4DataEntryUrlBox::SrsMp4DataEntryUrlBox()
 {
+    type = SRS_MP4_BOX_URL;
+}
+
+SrsMp4DataEntryUrlBox::~SrsMp4DataEntryUrlBox()
+{
+}
+
+int SrsMp4DataEntryUrlBox::nb_header()
+{
+    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+    // data is in the same file as the Movie Box containing this data reference.
+    if (flags == 1) {
+        return SrsMp4FullBox::nb_header();
+    }
     return SrsMp4FullBox::nb_header()+srs_mp4_string_length(location);
 }
 
-int SrsMp4DataEntryBox::encode_header(SrsBuffer* buf)
+int SrsMp4DataEntryUrlBox::encode_header(SrsBuffer* buf)
 {
     int ret = ERROR_SUCCESS;
     
     if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+    // data is in the same file as the Movie Box containing this data reference.
+    if (location.empty()) {
+        flags = 0x01;
         return ret;
     }
     
@@ -1286,7 +1323,7 @@ int SrsMp4DataEntryBox::encode_header(SrsBuffer* buf)
     return ret;
 }
 
-int SrsMp4DataEntryBox::decode_header(SrsBuffer* buf)
+int SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1294,21 +1331,18 @@ int SrsMp4DataEntryBox::decode_header(SrsBuffer* buf)
         return ret;
     }
     
+    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+    // data is in the same file as the Movie Box containing this data reference.
+    if (flags == 0x01) {
+        return ret;
+    }
+    
     if ((ret = srs_mp4_string_read(buf, location, left_space(buf))) != ERROR_SUCCESS) {
-        srs_error("MP4 urx read string failed. ret=%d", ret);
+        srs_error("MP4 url read location failed. ret=%d", ret);
         return ret;
     }
     
     return ret;
-}
-
-SrsMp4DataEntryUrlBox::SrsMp4DataEntryUrlBox()
-{
-    type = SRS_MP4_BOX_URL;
-}
-
-SrsMp4DataEntryUrlBox::~SrsMp4DataEntryUrlBox()
-{
 }
 
 SrsMp4DataEntryUrnBox::SrsMp4DataEntryUrnBox()
@@ -1322,7 +1356,7 @@ SrsMp4DataEntryUrnBox::~SrsMp4DataEntryUrnBox()
 
 int SrsMp4DataEntryUrnBox::nb_header()
 {
-    return SrsMp4DataEntryBox::nb_header()+srs_mp4_string_length(name);
+    return SrsMp4FullBox::nb_header()+srs_mp4_string_length(location)+srs_mp4_string_length(name);
 }
 
 int SrsMp4DataEntryUrnBox::encode_header(SrsBuffer* buf)
@@ -1333,6 +1367,7 @@ int SrsMp4DataEntryUrnBox::encode_header(SrsBuffer* buf)
         return ret;
     }
     
+    srs_mp4_string_write(buf, location);
     srs_mp4_string_write(buf, name);
     
     return ret;
@@ -1346,8 +1381,13 @@ int SrsMp4DataEntryUrnBox::decode_header(SrsBuffer* buf)
         return ret;
     }
     
+    if ((ret = srs_mp4_string_read(buf, location, left_space(buf))) != ERROR_SUCCESS) {
+        srs_error("MP4 urn read location failed. ret=%d", ret);
+        return ret;
+    }
+    
     if ((ret = srs_mp4_string_read(buf, name, left_space(buf))) != ERROR_SUCCESS) {
-        srs_error("MP4 urn read string failed. ret=%d", ret);
+        srs_error("MP4 urn read name failed. ret=%d", ret);
         return ret;
     }
     
@@ -1574,6 +1614,55 @@ int SrsMp4VisualSampleEntry::decode_header(SrsBuffer* buf)
     buf->read_bytes(compressorname, 32);
     depth = buf->read_2bytes();
     buf->skip(2);
+    
+    return ret;
+}
+
+SrsMp4AvccBox::SrsMp4AvccBox()
+{
+    type = SRS_MP4_BOX_AVCC;
+    nb_config = 0;
+    avc_config = NULL;
+}
+
+SrsMp4AvccBox::~SrsMp4AvccBox()
+{
+    srs_freepa(avc_config);
+}
+
+int SrsMp4AvccBox::nb_header()
+{
+    return SrsMp4Box::nb_header()+nb_config;
+}
+
+int SrsMp4AvccBox::encode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4Box::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (nb_config) {
+        buf->write_bytes((char*)avc_config, nb_config);
+    }
+    
+    return ret;
+}
+
+int SrsMp4AvccBox::decode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4Box::decode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    nb_config = left_space(buf);
+    if (nb_config) {
+        avc_config = new uint8_t[nb_config];
+        buf->read_bytes((char*)avc_config, nb_config);
+    }
     
     return ret;
 }
@@ -1905,8 +1994,7 @@ int SrsMp4SyncSampleBox::decode_header(SrsBuffer* buf)
         sample_numbers = new uint32_t[entry_count];
     }
     for (uint32_t i = 0; i < entry_count; i++) {
-        uint32_t sample_number = sample_numbers[i];
-        buf->write_4bytes(sample_number);
+        sample_numbers[i] = buf->read_4bytes();
     }
     
     return ret;
@@ -2143,16 +2231,18 @@ int SrsMp4SampleSizeBox::decode_header(SrsBuffer* buf)
     return ret;
 }
 
+#define SRS_MP4_BUF_SIZE 4096
+
 SrsMp4Decoder::SrsMp4Decoder()
 {
     reader = NULL;
-    next = NULL;
+    buf = new char[SRS_MP4_BUF_SIZE];
     stream = new SrsSimpleStream();
 }
 
 SrsMp4Decoder::~SrsMp4Decoder()
 {
-    srs_freep(next);
+    srs_freepa(buf);
     srs_freep(stream);
 }
 
@@ -2163,36 +2253,90 @@ int SrsMp4Decoder::initialize(ISrsReader* r)
     srs_assert(r);
     reader = r;
     
-    if ((ret = load_next_box(&next)) != ERROR_SUCCESS) {
-        return ret;
+    // File Type Box (ftyp)
+    if (true) {
+        SrsMp4Box* box = NULL;
+        SrsAutoFree(SrsMp4Box, box);
+        
+        if ((ret = load_next_box(&box, SRS_MP4_BOX_FTYP)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        SrsMp4FileTypeBox* ftyp = dynamic_cast<SrsMp4FileTypeBox*>(box);
+        
+        bool legal_brand = false;
+        static uint32_t legal_brands[] = {
+            SRS_MP4_BRAND_ISOM, SRS_MP4_BRAND_ISO2, SRS_MP4_BRAND_AVC1, SRS_MP4_BRAND_MP41
+        };
+        for (int i = 0; i < sizeof(legal_brands)/sizeof(uint32_t); i++) {
+            if (ftyp->major_brand == legal_brands[i]) {
+                legal_brand = true;
+                break;
+            }
+        }
+        if (!legal_brand) {
+            ret = ERROR_MP4_BOX_ILLEGAL_BRAND;
+            srs_error("MP4 brand is illegal, brand=%d. ret=%d", ftyp->major_brand, ret);
+            return ret;
+        }
     }
     
-    if (next->type != SRS_MP4_BOX_FTYP) {
-        ret = ERROR_MP4_BOX_ILLEGAL_SCHEMA;
-        srs_error("MP4 first box must be FTYP, not %d. ret=%d", next->type, ret);
+    // Media Data Box (mdat) or Movie Box (moov)
+    SrsMp4Box* box = NULL;
+    SrsAutoFree(SrsMp4Box, box);
+    while (true) {
+        if ((ret = load_next_box(&box, 0)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if (!box->is_mdat() && !box->is_moov()) {
+            srs_freep(box);
+            continue;
+        }
+        break;
+    }
+    
+    // Only support non-seek mp4, that is, mdat should never before moov.
+    // @see https://github.com/ossrs/srs/issues/738#issuecomment-276343669
+    if (box->is_mdat()) {
+        ret = ERROR_MP4_NOT_NON_SEEKABLE;
+        srs_error("MP4 is not non-seekable. ret=%d", ret);
         return ret;
     }
     
     return ret;
 }
 
-int SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox)
+int SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type)
 {
     int ret = ERROR_SUCCESS;
     
-    // Ignore for already loaded.
-    if (next) {
-        return ret;
+    while (true) {
+        SrsMp4Box* box = NULL;
+        if ((ret = do_load_next_box(&box, required_box_type)) != ERROR_SUCCESS) {
+            srs_freep(box);
+            return ret;
+        }
+        
+        if (!required_box_type || box->type == required_box_type) {
+            *ppbox = box;
+            break;
+        }
+        srs_freep(box);
     }
     
-    char* buf = new char[4096];
-    SrsAutoFreeA(char, buf);
+    return ret;
+}
+
+int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type)
+{
+    int ret = ERROR_SUCCESS;
     
+    SrsMp4Box* box = NULL;
     while (true) {
-        uint64_t required = next? next->sz():4;
+        uint64_t required = box? box->sz():4;
         while (stream->length() < required) {
             ssize_t nread;
-            if ((ret = reader->read(buf, 4096, &nread)) != ERROR_SUCCESS) {
+            if ((ret = reader->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
                 srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
                 return ret;
             }
@@ -2205,7 +2349,7 @@ int SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox)
         SrsAutoFree(SrsBuffer, buffer);
         
         // Discovery the box with basic header.
-        if (!next && (ret = SrsMp4Box::discovery(buffer, ppbox)) != ERROR_SUCCESS) {
+        if (!box && (ret = SrsMp4Box::discovery(buffer, &box)) != ERROR_SUCCESS) {
             if (ret == ERROR_MP4_BOX_REQUIRE_SPACE) {
                 continue;
             }
@@ -2214,13 +2358,23 @@ int SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox)
         }
         
         // Decode util we can demux the whole box.
-        if (!buffer->require((int)next->sz())) {
+        if (!buffer->require((int)box->sz())) {
             continue;
         }
-        ret = next->decode(buffer);
+        
+        if (!required_box_type || box->type == required_box_type) {
+            ret = box->decode(buffer);
+        }
         
         // Remove the consumed bytes.
-        stream->erase((int)next->sz());
+        stream->erase((int)box->sz());
+        
+        if (ret != ERROR_SUCCESS) {
+            srs_freep(box);
+        } else {
+            *ppbox = box;
+        }
+        
         break;
     }
     

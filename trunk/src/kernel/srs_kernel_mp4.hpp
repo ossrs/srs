@@ -72,6 +72,10 @@ public:
     virtual uint64_t sz();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
+    // Box type helper.
+    virtual bool is_ftyp();
+    virtual bool is_moov();
+    virtual bool is_mdat();
     /**
      * Discovery the box from buffer.
      * @param ppbox Output the discoveried box, which user must free it.
@@ -353,10 +357,6 @@ public:
     int16_t media_rate_fraction;
 public:
     SrsMp4ElstEntry();
-public:
-    virtual int nb_header(uint32_t version);
-    virtual int encode_header(SrsBuffer* buf, uint32_t version);
-    virtual int decode_header(SrsBuffer* buf, uint32_t version);
 };
 
 /**
@@ -463,6 +463,9 @@ public:
 public:
     SrsMp4HandlerReferenceBox();
     virtual ~SrsMp4HandlerReferenceBox();
+public:
+    virtual bool is_video();
+    virtual bool is_audio();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -542,6 +545,8 @@ public:
 /**
  * 8.7.2 Data Reference Box
  * ISO_IEC_14496-12-base-format-2012.pdf, page 56
+ * a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+ * data is in the same file as the Movie Box containing this data reference.
  */
 class SrsMp4DataEntryBox : public SrsMp4FullBox
 {
@@ -550,10 +555,6 @@ public:
 public:
     SrsMp4DataEntryBox();
     virtual ~SrsMp4DataEntryBox();
-protected:
-    virtual int nb_header();
-    virtual int encode_header(SrsBuffer* buf);
-    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -565,6 +566,10 @@ class SrsMp4DataEntryUrlBox : public SrsMp4DataEntryBox
 public:
     SrsMp4DataEntryUrlBox();
     virtual ~SrsMp4DataEntryUrlBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -673,6 +678,24 @@ public:
 public:
     SrsMp4VisualSampleEntry();
     virtual ~SrsMp4VisualSampleEntry();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+};
+
+/**
+ * 5.3.4 AVC Video Stream Definition (avcC)
+ * ISO_IEC_14496-15-AVC-format-2012.pdf, page 19
+ */
+class SrsMp4AvccBox : public SrsMp4Box
+{
+public:
+    int nb_config;
+    uint8_t* avc_config;
+public:
+    SrsMp4AvccBox();
+    virtual ~SrsMp4AvccBox();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -957,8 +980,8 @@ private:
     // The stream used to demux the boxes.
     // TODO: FIXME: refine for performance issue.
     SrsSimpleStream* stream;
-    // Always load next box.
-    SrsMp4Box* next;
+    // The temporary buffer to read from buffer.
+    char* buf;
 public:
     SrsMp4Decoder();
     virtual ~SrsMp4Decoder();
@@ -970,7 +993,10 @@ public:
      */
     virtual int initialize(ISrsReader* r);
 private:
-    virtual int load_next_box(SrsMp4Box** ppbox);
+    // Load the next box from reader.
+    // @param required_box_type The box type required, 0 for any box.
+    virtual int load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
+    virtual int do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
 };
 
 #endif

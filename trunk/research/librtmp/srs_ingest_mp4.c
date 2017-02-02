@@ -236,6 +236,7 @@ int proxy(srs_mp4_t mp4, srs_rtmp_t ortmp)
     int ret = 0;
     
     if ((ret = srs_mp4_init_demuxer(mp4)) != 0) {
+        srs_human_trace("init demuxer failed. ret=%d", ret);
         return ret;
     }
     if ((ret = connect_oc(ortmp)) != 0) {

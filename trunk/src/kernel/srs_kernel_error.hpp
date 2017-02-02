@@ -247,6 +247,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_MP4_BOX_ILLEGAL_TYPE          3071
 #define ERROR_MP4_BOX_ILLEGAL_SCHEMA        3072
 #define ERROR_MP4_BOX_STRING                3073
+#define ERROR_MP4_BOX_ILLEGAL_BRAND         3074
+#define ERROR_MP4_NOT_NON_SEEKABLE          3075
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.
