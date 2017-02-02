@@ -41,6 +41,67 @@ class SrsSimpleStream;
  * 4.2 Object Structure
  * ISO_IEC_14496-12-base-format-2012.pdf, page 16
  */
+enum SrsMp4BoxType
+{
+    SrsMp4BoxTypeForbidden = 0x00,
+    
+    SrsMp4BoxTypeUUID = 0x75756964, // 'uuid'
+    SrsMp4BoxTypeFTYP = 0x66747970, // 'ftyp'
+    SrsMp4BoxTypeMDAT = 0x6d646174, // 'mdat'
+    SrsMp4BoxTypeFREE = 0x66726565, // 'free'
+    SrsMp4BoxTypeSKIP = 0x736b6970, // 'skip'
+    SrsMp4BoxTypeMOOV = 0x6d6f6f76, // 'moov'
+    SrsMp4BoxTypeMVHD = 0x6d766864, // 'mvhd'
+    SrsMp4BoxTypeTRAK = 0x7472616b, // 'trak'
+    SrsMp4BoxTypeTKHD = 0x746b6864, // 'tkhd'
+    SrsMp4BoxTypeEDTS = 0x65647473, // 'edts'
+    SrsMp4BoxTypeELST = 0x656c7374, // 'elst'
+    SrsMp4BoxTypeMDIA = 0x6d646961, // 'mdia'
+    SrsMp4BoxTypeMDHD = 0x6d646864, // 'mdhd'
+    SrsMp4BoxTypeHDLR = 0x68646c72, // 'hdlr'
+    SrsMp4BoxTypeMINF = 0x6d696e66, // 'minf'
+    SrsMp4BoxTypeVMHD = 0x766d6864, // 'vmhd'
+    SrsMp4BoxTypeSMHD = 0x736d6864, // 'smhd'
+    SrsMp4BoxTypeDINF = 0x64696e66, // 'dinf'
+    SrsMp4BoxTypeURL  = 0x75726c20, // 'url '
+    SrsMp4BoxTypeURN  = 0x75726e20, // 'urn '
+    SrsMp4BoxTypeDREF = 0x64726566, // 'dref'
+    SrsMp4BoxTypeSTBL = 0x7374626c, // 'stbl'
+    SrsMp4BoxTypeSTSD = 0x73747364, // 'stsd'
+    SrsMp4BoxTypeSTTS = 0x73747473, // 'stts'
+    SrsMp4BoxTypeCTTS = 0x63747473, // 'ctts'
+    SrsMp4BoxTypeSTSS = 0x73747373, // 'stss'
+    SrsMp4BoxTypeSTSC = 0x73747363, // 'stsc'
+    SrsMp4BoxTypeSTCO = 0x7374636f, // 'stco'
+    SrsMp4BoxTypeCO64 = 0x636f3634, // 'co64'
+    SrsMp4BoxTypeSTSZ = 0x7374737a, // 'stsz'
+    SrsMp4BoxTypeSTZ2 = 0x73747a32, // 'stz2'
+    SrsMp4BoxTypeAVC1 = 0x61766331, // 'avc1'
+    SrsMp4BoxTypeAVCC = 0x61766343, // 'avcC'
+    SrsMp4BoxTypeMP4A = 0x6d703461, // 'mp4a'
+    SrsMp4BoxTypeESDS = 0x65736473, // 'esds'
+    
+    SrsMp4BoxTypeVIDE = 0x76696465, // 'vide'
+    SrsMp4BoxTypeSOUN = 0x736f756e, // 'soun'
+};
+
+/**
+ * File format brands
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 166
+ */
+enum SrsMp4BoxBrand
+{
+    SrsMp4BoxBrandForbidden = 0x00,
+    SrsMp4BoxBrandISOM = 0x69736f6d, // 'isom'
+    SrsMp4BoxBrandISO2 = 0x69736f32, // 'iso2'
+    SrsMp4BoxBrandAVC1 = 0x61766331, // 'avc1'
+    SrsMp4BoxBrandMP41 = 0x6d703431, // 'mp41'
+};
+
+/**
+ * 4.2 Object Structure
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 16
+ */
 class SrsMp4Box : public ISrsCodec
 {
 private:
@@ -56,7 +117,7 @@ public:
     // identifies the box type; standard boxes use a compact type, which is normally four printable
     // characters, to permit ease of identification, and is shown so in the boxes below. User extensions use
     // an extended type; in this case, the type field is set to ‘uuid’.
-    uint32_t type;
+    SrsMp4BoxType type;
     // For box 'uuid'.
     uint8_t* usertype;
 private:
@@ -133,13 +194,13 @@ class SrsMp4FileTypeBox : public SrsMp4Box
 {
 public:
     // a brand identifier
-    uint32_t major_brand;
+    SrsMp4BoxBrand major_brand;
     // an informative integer for the minor version of the major brand
     uint32_t minor_version;
 private:
     // a list, to the end of the box, of brands
     int nb_compatible_brands;
-    uint32_t* compatible_brands;
+    SrsMp4BoxBrand* compatible_brands;
 public:
     SrsMp4FileTypeBox();
     virtual ~SrsMp4FileTypeBox();
@@ -726,15 +787,15 @@ protected:
 
 // Table 1 — List of Class Tags for Descriptors
 // ISO_IEC_14496-1-System-2010.pdf, page 31
-enum SRS_MP4_ES_TAG_ES {
-    SRS_MP4_ES_TAG_ES_forbidden = 0x00,
-    SRS_MP4_ES_TAG_ES_ObjectDescrTag = 0x01,
-    SRS_MP4_ES_TAG_ES_InitialObjectDescrTag = 0x02,
-    SRS_MP4_ES_TAG_ES_DescrTag = 0x03,
-    SRS_MP4_ES_TAG_ES_DecoderConfigDescrTag = 0x04,
-    SRS_MP4_ES_TAG_ES_DecSpecificInfoTag = 0x05,
-    SRS_MP4_ES_TAG_ES_SLConfigDescrTag = 0x06,
-    SRS_MP4_ES_TAG_ES_ExtSLConfigDescrTag = 0x064,
+enum SrsMp4ESTagEs {
+    SrsMp4ESTagESforbidden = 0x00,
+    SrsMp4ESTagESObjectDescrTag = 0x01,
+    SrsMp4ESTagESInitialObjectDescrTag = 0x02,
+    SrsMp4ESTagESDescrTag = 0x03,
+    SrsMp4ESTagESDecoderConfigDescrTag = 0x04,
+    SrsMp4ESTagESDecSpecificInfoTag = 0x05,
+    SrsMp4ESTagESSLConfigDescrTag = 0x06,
+    SrsMp4ESTagESExtSLConfigDescrTag = 0x064,
 };
 
 /**
@@ -747,19 +808,64 @@ public:
     // The values of the class tags are
     // defined in Table 2. As an expandable class the size of each class instance in bytes is encoded and accessible
     // through the instance variable sizeOfInstance (see 8.3.3).
-    SRS_MP4_ES_TAG_ES tag; // bit(8)
+    SrsMp4ESTagEs tag; // bit(8)
+    // The decoded or encoded variant length.
+    int32_t vlen; // bit(28)
+private:
+    // The position at buffer to start demux the box.
+    int start_pos;
 public:
     SrsMp4BaseDescriptor();
     virtual ~SrsMp4BaseDescriptor();
+public:
+    // Get the left space of box, for decoder.
+    virtual int left_space(SrsBuffer* buf);
 // Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual int encode(SrsBuffer* buf);
     virtual int decode(SrsBuffer* buf);
 protected:
-    virtual uint32_t nb_payload() = 0;
+    virtual int32_t nb_payload() = 0;
     virtual int encode_payload(SrsBuffer* buf) = 0;
     virtual int decode_payload(SrsBuffer* buf) = 0;
+};
+
+// Table 5 — objectTypeIndication Values
+// ISO_IEC_14496-1-System-2010.pdf, page 49
+enum SrsMp4ObjectType
+{
+    SrsMp4ObjectTypeForbidden = 0x00,
+    // Audio ISO/IEC 14496-3
+    SrsMp4ObjectTypeAac = 0x40,
+};
+
+// Table 6 — streamType Values
+// ISO_IEC_14496-1-System-2010.pdf, page 51
+enum SrsMp4StreamType
+{
+    SrsMp4StreamTypeForbidden = 0x00,
+    SrsMp4StreamTypeAudioStream = 0x05,
+};
+
+/**
+ * 7.2.6.7 DecoderSpecificInfo
+ * ISO_IEC_14496-1-System-2010.pdf, page 51
+ */
+class SrsMp4DecoderSpecificInfo : public SrsMp4BaseDescriptor
+{
+public:
+    // AAC Audio Specific Config.
+    // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
+    int nb_asc;
+    uint8_t* asc;
+public:
+    SrsMp4DecoderSpecificInfo();
+    virtual ~SrsMp4DecoderSpecificInfo();
+protected:
+    virtual int32_t nb_payload();
+    virtual int encode_payload(SrsBuffer* buf);
+    virtual int decode_payload(SrsBuffer* buf);
 };
 
 /**
@@ -769,18 +875,21 @@ protected:
 class SrsMp4DecoderConfigDescriptor : public SrsMp4BaseDescriptor
 {
 public:
-    uint8_t objectTypeIndication;
-    uint8_t streamType; // bit(6)
+    // an indication of the object or scene description type that needs to be supported
+    // by the decoder for this elementary stream as per Table 5.
+    SrsMp4ObjectType objectTypeIndication;
+    SrsMp4StreamType streamType; // bit(6)
     uint8_t upStream; // bit(1)
     uint8_t reserved; // bit(1)
     uint32_t bufferSizeDB; // bit(24)
     uint32_t maxBitrate;
     uint32_t avgBitrate;
+    SrsMp4DecoderSpecificInfo* decSpecificInfo; // optional.
 public:
     SrsMp4DecoderConfigDescriptor();
     virtual ~SrsMp4DecoderConfigDescriptor();
 protected:
-    virtual uint32_t nb_payload();
+    virtual int32_t nb_payload();
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 };
@@ -793,37 +902,11 @@ class SrsMp4SLConfigDescriptor : public SrsMp4BaseDescriptor
 {
 public:
     uint8_t predefined;
-    // if (predefined==0)
-    uint8_t useAccessUnitStartFlag; // bit(1)
-    uint8_t useAccessUnitEndFlag; // bit(1)
-    uint8_t useRandomAccessPointFlag; // bit(1)
-    uint8_t hasRandomAccessUnitsOnlyFlag; // bit(1)
-    uint8_t usePaddingFlag; // bit(1)
-    uint8_t useTimeStampsFlag; // bit(1)
-    uint8_t useIdleFlag; // bit(1)
-    uint8_t durationFlag; // bit(1)
-    uint32_t timeStampResolution;
-    uint32_t OCRResolution;
-    uint8_t timeStampLength; // must be ≤ 64
-    uint8_t OCRLength; // must be ≤ 64
-    uint8_t AU_Length; // must be ≤ 32
-    uint8_t instantBitrateLength;
-    uint8_t degradationPriorityLength; // bit(4)
-    uint8_t AU_seqNumLength; // bit(5) // must be ≤ 16
-    uint8_t packetSeqNumLength; // bit(5) // must be ≤ 16
-    uint8_t reserved; // bit(2) // 0b11
-    // if (durationFlag)
-    uint32_t timeScale;
-    uint16_t accessUnitDuration;
-    uint16_t compositionUnitDuration;
-    // if (!useTimeStampsFlag)
-    uint64_t startDecodingTimeStamp; // bit(timeStampLength)
-    uint64_t startCompositionTimeStamp; // bit(timeStampLength)
 public:
     SrsMp4SLConfigDescriptor();
     virtual ~SrsMp4SLConfigDescriptor();
 protected:
-    virtual uint32_t nb_payload();
+    virtual int32_t nb_payload();
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 };
@@ -853,7 +936,7 @@ public:
     SrsMp4ES_Descriptor();
     virtual ~SrsMp4ES_Descriptor();
 protected:
-    virtual uint32_t nb_payload();
+    virtual int32_t nb_payload();
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 };
