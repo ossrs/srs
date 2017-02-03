@@ -131,7 +131,7 @@ void MockSrsFileReader::skip(int64_t _size)
     offset += _size;
 }
 
-int64_t MockSrsFileReader::lseek(int64_t _offset)
+int64_t MockSrsFileReader::seek2(int64_t _offset)
 {
     offset = (int)_offset;
     return offset;
@@ -161,6 +161,12 @@ int MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     offset += s;
     
     return ret;
+}
+
+int MockSrsFileReader::lseek(off_t _offset, int /*whence*/, off_t* /*seeked*/)
+{
+    offset = (int)_offset;
+    return ERROR_SUCCESS;
 }
 
 void MockSrsFileReader::mock_append_data(const char* _data, int _size)
@@ -952,10 +958,10 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
     fs.mock_append_data(tag_header, 11);
     EXPECT_TRUE(11 == fs.offset);
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(0));
+    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(0));
     EXPECT_TRUE(0 == fs.offset);
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(5));
+    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
     EXPECT_TRUE(5 == fs.offset);
 }
 

@@ -131,7 +131,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     }
     
     // write body.
-    if ((ret = ffd.lseek(offset)) != ERROR_SUCCESS) {
+    if ((ret = ffd.seek2(offset)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -186,7 +186,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     w->header()->set("Content-Range", content_range.str());
     
     // write body.
-    fs.lseek(start);
+    fs.seek2(start);
     
     // send data
     if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {

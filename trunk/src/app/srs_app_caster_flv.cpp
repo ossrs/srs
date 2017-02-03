@@ -280,7 +280,7 @@ void SrsHttpFileReader::skip(int64_t /*size*/)
 {
 }
 
-int64_t SrsHttpFileReader::lseek(int64_t offset)
+int64_t SrsHttpFileReader::seek2(int64_t offset)
 {
     return offset;
 }
@@ -322,6 +322,12 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
     }
     
     return ret;
+}
+
+int SrsHttpFileReader::lseek(off_t offset, int whence, off_t* seeked)
+{
+    // TODO: FIXME: Use HTTP range for seek.
+    return ERROR_SUCCESS;
 }
 
 #endif

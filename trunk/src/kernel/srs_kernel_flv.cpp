@@ -949,7 +949,7 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
     
     // seek to the sequence header start offset.
     if (av_sequence_offset_start > 0) {
-        reader->lseek(av_sequence_offset_start);
+        reader->seek2(av_sequence_offset_start);
         *pstart = av_sequence_offset_start;
         *psize = (int)(av_sequence_offset_end - av_sequence_offset_start);
     }
@@ -957,7 +957,7 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
     return ret;
 }
 
-int SrsFlvVodStreamDecoder::lseek(int64_t offset)
+int SrsFlvVodStreamDecoder::seek2(int64_t offset)
 {
     int ret = ERROR_SUCCESS;
     
@@ -969,7 +969,7 @@ int SrsFlvVodStreamDecoder::lseek(int64_t offset)
         return ret;
     }
     
-    if (reader->lseek(offset) < 0) {
+    if (reader->seek2(offset) < 0) {
         ret = ERROR_SYSTEM_FILE_SEEK;
         srs_warn("flv fast decoder seek error, "
             "size=%"PRId64", offset=%"PRId64", ret=%d", 

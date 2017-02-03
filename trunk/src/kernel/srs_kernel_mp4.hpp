@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-class ISrsReader;
+class ISrsReadSeeker;
 class SrsMp4TrackBox;
 class SrsMp4MediaBox;
 class SrsSimpleStream;
@@ -1342,8 +1342,12 @@ protected:
 class SrsMp4Decoder
 {
 private:
-    // Underlayer reader.
-    ISrsReader* reader;
+    // The major brand of decoder, parse from ftyp.
+    SrsMp4BoxBrand brand;
+private:
+    // Underlayer reader and seeker.
+    // @remark The demuxer must use seeker for general MP4 to seek the moov.
+    ISrsReadSeeker* rsio;
     // The stream used to demux the boxes.
     // TODO: FIXME: refine for performance issue.
     SrsSimpleStream* stream;
@@ -1358,13 +1362,15 @@ public:
      * @param r The underlayer io reader, user must manage it for decoder never open/free it,
      *      the decoder just read data from the reader.
      */
-    virtual int initialize(ISrsReader* r);
+    virtual int initialize(ISrsReadSeeker* rs);
 private:
-    virtual int parse_moov(SrsMp4MovieBox* box);
+    virtual int parse_ftyp(SrsMp4FileTypeBox* ftyp);
+    virtual int parse_moov(SrsMp4MovieBox* moov);
 private:
     // Load the next box from reader.
     // @param required_box_type The box type required, 0 for any box.
     virtual int load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
+    // @remark Never load the mdat box content, for it's too large.
     virtual int do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
 };
 

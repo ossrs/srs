@@ -597,7 +597,7 @@ public:
     /**
     * for start offset, seed to this position and response flv stream.
     */
-    virtual int lseek(int64_t offset);
+    virtual int seek2(int64_t offset);
 };
 
 #endif

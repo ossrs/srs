@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * file writer, to write to file.
 */
-class SrsFileWriter : public ISrsWriter
+class SrsFileWriter : public ISrsWriteSeeker
 {
 private:
     std::string path;
@@ -67,25 +67,19 @@ public:
     virtual void close();
 public:
     virtual bool is_open();
-    virtual void lseek(int64_t offset);
+    virtual void seek2(int64_t offset);
     virtual int64_t tellg();
+// Interface ISrsWriteSeeker
 public:
-    /**
-    * write to file. 
-    * @param pnwrite the output nb_write, NULL to ignore.
-    */
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    /**
-     * for the HTTP FLV, to writev to improve performance.
-     * @see https://github.com/ossrs/srs/issues/405
-     */
     virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int lseek(off_t offset, int whence, off_t* seeked);
 };
 
 /**
 * file reader, to read from file.
 */
-class SrsFileReader : public ISrsReader
+class SrsFileReader : public ISrsReadSeeker
 {
 private:
     std::string path;
@@ -109,14 +103,12 @@ public:
     virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);
-    virtual int64_t lseek(int64_t offset);
+    virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
+// Interface ISrsReadSeeker
 public:
-    /**
-    * read from file. 
-    * @param pnread the output nb_read, NULL to ignore.
-    */
     virtual int read(void* buf, size_t count, ssize_t* pnread);
+    virtual int lseek(off_t offset, int whence, off_t* seeked);
 };
 
 #endif

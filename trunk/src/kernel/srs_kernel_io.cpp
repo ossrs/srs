@@ -31,6 +31,22 @@ ISrsReader::~ISrsReader()
 {
 }
 
+ISrsSeeker::ISrsSeeker()
+{
+}
+
+ISrsSeeker::~ISrsSeeker()
+{
+}
+
+ISrsReadSeeker::ISrsReadSeeker()
+{
+}
+
+ISrsReadSeeker::~ISrsReadSeeker()
+{
+}
+
 ISrsStreamWriter::ISrsStreamWriter()
 {
 }
@@ -52,6 +68,14 @@ ISrsWriter::ISrsWriter()
 }
 
 ISrsWriter::~ISrsWriter()
+{
+}
+
+ISrsWriteSeeker::ISrsWriteSeeker()
+{
+}
+
+ISrsWriteSeeker::~ISrsWriteSeeker()
 {
 }
 

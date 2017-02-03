@@ -370,7 +370,7 @@ int SrsFlvSegment::update_flv_metadata()
     }
 
     // update the flesize.
-    fs->lseek(filesize_offset);
+    fs->seek2(filesize_offset);
     if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -385,13 +385,13 @@ int SrsFlvSegment::update_flv_metadata()
     }
 
     // update the duration
-    fs->lseek(duration_offset);
+    fs->seek2(duration_offset);
     if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
         return ret;
     }
 
     // reset the offset.
-    fs->lseek(cur);
+    fs->seek2(cur);
 
     return ret;
 }

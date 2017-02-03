@@ -117,7 +117,7 @@ bool SrsFileWriter::is_open()
     return fd > 0;
 }
 
-void SrsFileWriter::lseek(int64_t offset)
+void SrsFileWriter::seek2(int64_t offset)
 {
     ::lseek(fd, (off_t)offset, SEEK_SET);
 }
@@ -165,6 +165,19 @@ int SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
     }
     
     return ret;
+}
+
+int SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
+{
+    off_t sk = ::lseek(fd, offset, whence);
+    if (sk < 0) {
+        return ERROR_SYSTEM_FILE_SEEK;
+    }
+    
+    if (seeked) {
+        *seeked = sk;
+    }
+    return ERROR_SUCCESS;
 }
 
 SrsFileReader::SrsFileReader()
@@ -231,7 +244,7 @@ void SrsFileReader::skip(int64_t size)
     ::lseek(fd, (off_t)size, SEEK_CUR);
 }
 
-int64_t SrsFileReader::lseek(int64_t offset)
+int64_t SrsFileReader::seek2(int64_t offset)
 {
     return (int64_t)::lseek(fd, (off_t)offset, SEEK_SET);
 }
@@ -266,5 +279,18 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     }
     
     return ret;
+}
+
+int SrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
+{
+    off_t sk = ::lseek(fd, offset, whence);
+    if (sk < 0) {
+        return ERROR_SYSTEM_FILE_SEEK;
+    }
+    
+    if (seeked) {
+        *seeked = sk;
+    }
+    return ERROR_SUCCESS;
 }
 

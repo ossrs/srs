@@ -81,10 +81,11 @@ public:
     virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);
-    virtual int64_t lseek(int64_t offset);
+    virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
 public:
     virtual int read(void* buf, size_t count, ssize_t* pnread);
+    virtual int lseek(off_t offset, int whence, off_t* seeked);
 // for mock
 public:
     // append data to current offset, modify the offset and size.

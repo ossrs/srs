@@ -1755,7 +1755,7 @@ int64_t srs_flv_tellg(srs_flv_t flv)
 void srs_flv_lseek(srs_flv_t flv, int64_t offset)
 {
     FlvContext* context = (FlvContext*)flv;
-    context->reader.lseek(offset);
+    context->reader.seek2(offset);
 }
 
 srs_bool srs_flv_is_eof(int error_code)

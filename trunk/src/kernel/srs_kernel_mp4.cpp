@@ -2959,7 +2959,8 @@ int SrsMp4UserDataBox::decode_header(SrsBuffer* buf)
 
 SrsMp4Decoder::SrsMp4Decoder()
 {
-    reader = NULL;
+    rsio = NULL;
+    brand = SrsMp4BoxBrandForbidden;
     buf = new char[SRS_MP4_BUF_SIZE];
     stream = new SrsSimpleStream();
 }
@@ -2970,66 +2971,83 @@ SrsMp4Decoder::~SrsMp4Decoder()
     srs_freep(stream);
 }
 
-int SrsMp4Decoder::initialize(ISrsReader* r)
+int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(r);
-    reader = r;
+    srs_assert(rs);
+    rsio = rs;
     
-    // File Type Box (ftyp)
-    if (true) {
-        SrsMp4Box* box = NULL;
-        SrsAutoFree(SrsMp4Box, box);
-        
-        if ((ret = load_next_box(&box, SrsMp4BoxTypeFTYP)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        SrsMp4FileTypeBox* ftyp = dynamic_cast<SrsMp4FileTypeBox*>(box);
-        
-        bool legal_brand = false;
-        static SrsMp4BoxBrand legal_brands[] = {
-            SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41
-        };
-        for (int i = 0; i < sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
-            if (ftyp->major_brand == legal_brands[i]) {
-                legal_brand = true;
-                break;
-            }
-        }
-        if (!legal_brand) {
-            ret = ERROR_MP4_BOX_ILLEGAL_BRAND;
-            srs_error("MP4 brand is illegal, brand=%d. ret=%d", ftyp->major_brand, ret);
-            return ret;
-        }
-    }
+    // For mdat before moov, we must reset the io.
+    off_t offset = -1;
     
-    // Media Data Box (mdat) or Movie Box (moov)
-    SrsMp4Box* box = NULL;
-    SrsAutoFree(SrsMp4Box, box);
     while (true) {
+        SrsMp4Box* box = NULL;
+        
         if ((ret = load_next_box(&box, 0)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        if (!box->is_mdat() && !box->is_moov()) {
-            srs_freep(box);
-            continue;
+        if (box->is_ftyp()) {
+            SrsMp4FileTypeBox* ftyp = dynamic_cast<SrsMp4FileTypeBox*>(box);
+            if ((ret = parse_ftyp(ftyp)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        } else if (box->is_mdat()) {
+            off_t cur = 0;
+            if ((ret = rsio->lseek(0, SEEK_CUR, &cur)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            offset = off_t(cur - box->sz());
+        } else if (box->is_moov()) {
+            SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box);
+            if ((ret = parse_moov(moov)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            break;
         }
-        break;
+        
+        srs_freep(box);
     }
     
-    // Only support non-seek mp4, that is, mdat should never before moov.
-    // @see https://github.com/ossrs/srs/issues/738#issuecomment-276343669
-    if (box->is_mdat()) {
-        ret = ERROR_MP4_NOT_NON_SEEKABLE;
-        srs_error("MP4 is not non-seekable. ret=%d", ret);
+    if (brand == SrsMp4BoxBrandForbidden) {
+        ret = ERROR_MP4_BOX_ILLEGAL_SCHEMA;
+        srs_error("MP4 missing ftyp. ret=%d", ret);
         return ret;
     }
     
-    // Parse the Movie Header Box(moov).
-    SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box);
-    return parse_moov(moov);
+    // Reset the io to the start to reparse the general MP4.
+    if (offset >= 0) {
+        return rsio->lseek(offset, SEEK_SET, NULL);
+    }
+    
+    return ret;
+}
+
+int SrsMp4Decoder::parse_ftyp(SrsMp4FileTypeBox* ftyp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // File Type Box (ftyp)
+    bool legal_brand = false;
+    static SrsMp4BoxBrand legal_brands[] = {
+        SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41
+    };
+    for (int i = 0; i < sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
+        if (ftyp->major_brand == legal_brands[i]) {
+            legal_brand = true;
+            break;
+        }
+    }
+    if (!legal_brand) {
+        ret = ERROR_MP4_BOX_ILLEGAL_BRAND;
+        srs_error("MP4 brand is illegal, brand=%d. ret=%d", ftyp->major_brand, ret);
+        return ret;
+    }
+    
+    brand = ftyp->major_brand;
+    
+    return ret;
 }
 
 int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
@@ -3110,7 +3128,7 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
         uint64_t required = box? box->sz():4;
         while (stream->length() < required) {
             ssize_t nread;
-            if ((ret = reader->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
+            if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
                 srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
                 return ret;
             }
@@ -3131,17 +3149,35 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
             return ret;
         }
         
-        // Decode util we can demux the whole box.
-        if (!buffer->require((int)box->sz())) {
-            continue;
-        }
+        // For mdat, skip the content.
+        if (box->is_mdat()) {
+            // Never load the mdat box content, instead we skip it, for it's too large.
+            // The demuxer use seeker to read sample one by one.
+            if (box->is_mdat()) {
+                int offset = (int)(box->sz() - stream->length());
+                if (offset < 0) {
+                    stream->erase(stream->length() + offset);
+                } else {
+                    stream->erase(stream->length());
+                }
+                if (offset > 0 && (ret = rsio->lseek(offset, SEEK_CUR, NULL)) != ERROR_SUCCESS) {
+                    return ret;
+                }
+            }
+        } else {
+            // Util we can demux the whole box.
+            if (!buffer->require((int)box->sz())) {
+                continue;
+            }
+            
+            // Decode the matched box or any box is matched.
+            if (!required_box_type || box->type == required_box_type) {
+                ret = box->decode(buffer);
+            }
         
-        if (!required_box_type || box->type == required_box_type) {
-            ret = box->decode(buffer);
+            // Remove the consumed bytes.
+            stream->erase((int)box->sz());
         }
-        
-        // Remove the consumed bytes.
-        stream->erase((int)box->sz());
         
         if (ret != ERROR_SUCCESS) {
             srs_freep(box);
