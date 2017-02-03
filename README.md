@@ -123,7 +123,6 @@ Please select your language:
 * [SRS 2.0 English][v2_EN_Home]
 * [SRS 2.0 Chinese][v2_CN_Home]
 
-<<<<<<< HEAD
 ### SRS 3.0 wiki
 
 Please select your language:
@@ -181,6 +180,8 @@ Please select your language:
 - [ ] Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
 - [ ] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
 - [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
+
+### Change Logs
 
 ### V3 changes
 

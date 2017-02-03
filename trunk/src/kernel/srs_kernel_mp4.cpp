@@ -121,6 +121,19 @@ bool SrsMp4Box::is_mdat()
     return type == SrsMp4BoxTypeMDAT;
 }
 
+SrsMp4Box* SrsMp4Box::get(SrsMp4BoxType bt)
+{
+    vector<SrsMp4Box*>::iterator it;
+    for (it = boxes.begin(); it != boxes.end(); ++it) {
+        SrsMp4Box* box = *it;
+        if (box->type == bt) {
+            return box;
+        }
+    }
+    
+    return NULL;
+}
+
 int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
 {
     *ppbox = NULL;
@@ -625,6 +638,40 @@ SrsMp4MovieBox::~SrsMp4MovieBox()
 {
 }
 
+SrsMp4MovieHeaderBox* SrsMp4MovieBox::mvhd()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMVHD);
+    return dynamic_cast<SrsMp4MovieHeaderBox*>(box);
+}
+
+SrsMp4TrackBox* SrsMp4MovieBox::video()
+{
+    for (int i = 0; i < boxes.size(); i++) {
+        SrsMp4Box* box = boxes.at(i);
+        if (box->type == SrsMp4BoxTypeTRAK) {
+            SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
+            if ((trak->track_type() & SrsMp4TrackTypeVideo) == SrsMp4TrackTypeVideo) {
+                return trak;
+            }
+        }
+    }
+    return NULL;
+}
+
+SrsMp4TrackBox* SrsMp4MovieBox::audio()
+{
+    for (int i = 0; i < boxes.size(); i++) {
+        SrsMp4Box* box = boxes.at(i);
+        if (box->type == SrsMp4BoxTypeTRAK) {
+            SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
+            if ((trak->track_type() & SrsMp4TrackTypeAudio) == SrsMp4TrackTypeAudio) {
+                return trak;
+            }
+        }
+    }
+    return NULL;
+}
+
 int SrsMp4MovieBox::nb_header()
 {
     return SrsMp4Box::nb_header();
@@ -659,6 +706,11 @@ SrsMp4MovieHeaderBox::~SrsMp4MovieHeaderBox()
 {
 }
 
+uint64_t SrsMp4MovieHeaderBox::duration()
+{
+    return duration_in_tbn * 1000 / timescale;
+}
+
 int SrsMp4MovieHeaderBox::nb_header()
 {
     int size = SrsMp4FullBox::nb_header();
@@ -686,12 +738,12 @@ int SrsMp4MovieHeaderBox::encode_header(SrsBuffer* buf)
         buf->write_8bytes(creation_time);
         buf->write_8bytes(modification_time);
         buf->write_4bytes(timescale);
-        buf->write_8bytes(duration);
+        buf->write_8bytes(duration_in_tbn);
     } else {
         buf->write_4bytes((uint32_t)creation_time);
         buf->write_4bytes((uint32_t)modification_time);
         buf->write_4bytes(timescale);
-        buf->write_4bytes((uint32_t)duration);
+        buf->write_4bytes((uint32_t)duration_in_tbn);
     }
     
     buf->write_4bytes(rate);
@@ -721,12 +773,12 @@ int SrsMp4MovieHeaderBox::decode_header(SrsBuffer* buf)
         creation_time = buf->read_8bytes();
         modification_time = buf->read_8bytes();
         timescale = buf->read_4bytes();
-        duration = buf->read_8bytes();
+        duration_in_tbn = buf->read_8bytes();
     } else {
         creation_time = buf->read_4bytes();
         modification_time = buf->read_4bytes();
         timescale = buf->read_4bytes();
-        duration = buf->read_4bytes();
+        duration_in_tbn = buf->read_4bytes();
     }
     
     rate = buf->read_4bytes();
@@ -767,6 +819,18 @@ SrsMp4TrackHeaderBox::SrsMp4TrackHeaderBox()
 
 SrsMp4TrackHeaderBox::~SrsMp4TrackHeaderBox()
 {
+}
+
+SrsMp4TrackType SrsMp4TrackBox::track_type()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMDIA);
+    if (!box) {
+        return SrsMp4TrackTypeForbidden;
+    }
+    
+    // TODO: Maybe should discovery all mdia boxes.
+    SrsMp4MediaBox* mdia = dynamic_cast<SrsMp4MediaBox*>(box);
+    return mdia->track_type();
 }
 
 int SrsMp4TrackHeaderBox::nb_header()
@@ -962,6 +1026,23 @@ SrsMp4MediaBox::~SrsMp4MediaBox()
 {
 }
 
+SrsMp4TrackType SrsMp4MediaBox::track_type()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeHDLR);
+    if (!box) {
+        return SrsMp4TrackTypeForbidden;
+    }
+    
+    SrsMp4HandlerReferenceBox* hdlr = dynamic_cast<SrsMp4HandlerReferenceBox*>(box);
+    if (hdlr->handler_type == SrsMp4HandlerTypeSOUN) {
+        return SrsMp4TrackTypeAudio;
+    } else if (hdlr->handler_type == SrsMp4HandlerTypeVIDE) {
+        return SrsMp4TrackTypeVideo;
+    } else {
+        return SrsMp4TrackTypeForbidden;
+    }
+}
+
 SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox()
 {
     type = SrsMp4BoxTypeMDHD;
@@ -1084,12 +1165,12 @@ SrsMp4HandlerReferenceBox::~SrsMp4HandlerReferenceBox()
 
 bool SrsMp4HandlerReferenceBox::is_video()
 {
-    return handler_type == SrsMp4BoxTypeVIDE;
+    return handler_type == SrsMp4HandlerTypeVIDE;
 }
 
 bool SrsMp4HandlerReferenceBox::is_audio()
 {
-    return handler_type == SrsMp4BoxTypeSOUN;
+    return handler_type == SrsMp4HandlerTypeSOUN;
 }
 
 int SrsMp4HandlerReferenceBox::nb_header()
@@ -1124,7 +1205,7 @@ int SrsMp4HandlerReferenceBox::decode_header(SrsBuffer* buf)
     }
     
     buf->skip(4);
-    handler_type = buf->read_4bytes();
+    handler_type = (SrsMp4HandlerType)buf->read_4bytes();
     buf->skip(12);
     
     if ((ret = srs_mp4_string_read(buf, name, left_space(buf))) != ERROR_SUCCESS) {
@@ -2766,6 +2847,24 @@ int SrsMp4Decoder::initialize(ISrsReader* r)
 int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsMp4MovieHeaderBox* mvhd = moov->mvhd();
+    if (!mvhd) {
+        ret = ERROR_MP4_ILLEGAL_MOOV;
+        srs_error("MP4 missing mvhd. ret=%d", ret);
+        return ret;
+    }
+    
+    SrsMp4TrackBox* vide = moov->video();
+    SrsMp4TrackBox* soun = moov->audio();
+    if (!vide && !soun) {
+        ret = ERROR_MP4_ILLEGAL_MOOV;
+        srs_error("MP4 missing audio and video track. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_trace("MP4 moov dur=%dms, vide=%d, soun=%d", mvhd->duration(), vide != NULL, soun != NULL);
+    
     return ret;
 }
 

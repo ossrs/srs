@@ -81,9 +81,18 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeMP4A = 0x6d703461, // 'mp4a'
     SrsMp4BoxTypeESDS = 0x65736473, // 'esds'
     SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
+};
+
+/**
+ * 8.4.3.3 Semantics
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 37
+ */
+enum SrsMp4HandlerType
+{
+    SrsMp4HandlerTypeForbidden = 0x00,
     
-    SrsMp4BoxTypeVIDE = 0x76696465, // 'vide'
-    SrsMp4BoxTypeSOUN = 0x736f756e, // 'soun'
+    SrsMp4HandlerTypeVIDE = 0x76696465, // 'vide'
+    SrsMp4HandlerTypeSOUN = 0x736f756e, // 'soun'
 };
 
 /**
@@ -121,7 +130,7 @@ public:
     SrsMp4BoxType type;
     // For box 'uuid'.
     uint8_t* usertype;
-private:
+protected:
     std::vector<SrsMp4Box*> boxes;
 private:
     // The position at buffer to start demux the box.
@@ -138,6 +147,9 @@ public:
     virtual bool is_ftyp();
     virtual bool is_moov();
     virtual bool is_mdat();
+    // Get the contained box of specific type.
+    // @return The first matched box.
+    virtual SrsMp4Box* get(SrsMp4BoxType bt);
     /**
      * Discovery the box from buffer.
      * @param ppbox Output the discoveried box, which user must free it.
@@ -252,6 +264,9 @@ protected:
     virtual int decode_header(SrsBuffer* buf);
 };
 
+class SrsMp4TrackBox;
+class SrsMp4MovieHeaderBox;
+
 /**
  * 8.2.1 Movie Box (moov)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 30
@@ -263,6 +278,13 @@ class SrsMp4MovieBox : public SrsMp4Box
 public:
     SrsMp4MovieBox();
     virtual ~SrsMp4MovieBox();
+public:
+    // Get the header of moov.
+    virtual SrsMp4MovieHeaderBox* mvhd();
+    // Get the first video track.
+    virtual SrsMp4TrackBox* video();
+    // Get the first audio track.
+    virtual SrsMp4TrackBox* audio();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -282,6 +304,7 @@ public:
     // an integer that declares the most recent time the presentation was modified (in
     // seconds since midnight, Jan. 1, 1904, in UTC time)
     uint64_t modification_time;
+private:
     // an integer that specifies the time-scale for the entire presentation; this is the number of
     // time units that pass in one second. For example, a time coordinate system that measures time in
     // sixtieths of a second has a time scale of 60.
@@ -289,7 +312,7 @@ public:
     // an integer that declares length of the presentation (in the indicated timescale). This property
     // is derived from the presentation’s tracks: the value of this field corresponds to the duration of the
     // longest track in the presentation. If the duration cannot be determined then duration is set to all 1s.
-    uint64_t duration;
+    uint64_t duration_in_tbn;
 public:
     // a fixed point 16.16 number that indicates the preferred rate to play the presentation; 1.0
     // (0x00010000) is normal forward playback
@@ -309,10 +332,21 @@ public:
 public:
     SrsMp4MovieHeaderBox();
     virtual ~SrsMp4MovieHeaderBox();
+public:
+    // Get the duration in ms.
+    virtual uint64_t duration();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+};
+
+// The type of track, maybe combine of types.
+enum SrsMp4TrackType
+{
+    SrsMp4TrackTypeForbidden = 0x00,
+    SrsMp4TrackTypeAudio = 0x01,
+    SrsMp4TrackTypeVideo = 0x02,
 };
 
 /**
@@ -327,6 +361,11 @@ class SrsMp4TrackBox : public SrsMp4Box
 public:
     SrsMp4TrackBox();
     virtual ~SrsMp4TrackBox();
+public:
+    // Get the type of track, maybe combine of track type,
+    // for example, it maybe Audio|Video when contains both.
+    // Generally, only single type, no combination.
+    virtual SrsMp4TrackType track_type();
 };
 
 /**
@@ -458,6 +497,11 @@ class SrsMp4MediaBox : public SrsMp4Box
 public:
     SrsMp4MediaBox();
     virtual ~SrsMp4MediaBox();
+public:
+    // Get the type of track, maybe combine of track type,
+    // for example, it maybe Audio|Video when contains both.
+    // Generally, only single type, no combination.
+    virtual SrsMp4TrackType track_type();
 };
 
 /**
@@ -521,7 +565,7 @@ public:
     // an integer containing one of the following values, or a value from a derived specification:
     //      ‘vide’, Video track
     //      ‘soun’, Audio track
-    uint32_t handler_type;
+    SrsMp4HandlerType handler_type;
     uint32_t reserved[3];
     // a null-terminated string in UTF-8 characters which gives a human-readable name for the track
     // type (for debugging and inspection purposes).
