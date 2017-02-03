@@ -791,24 +791,6 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
     int cid = r->parse_rest_id(entry->pattern);
     
-    std::string start = r->query_get("start");
-    std::string count = r->query_get("count");
-    int cst = 0;
-    int cct = 10;
-    if(!start.empty()){
-        cst = atoi(start.c_str());
-    }
-    if(!count.empty()){
-        cct = atoi(count.c_str());
-    }
-    if(cst<0){
-        cst = 0;
-    }
-    if(cct<=0){
-        cct = 10;
-    }
-	
-	
     SrsStatisticClient* client = NULL;
     if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
         ret = ERROR_RTMP_CLIENT_NOT_FOUND;
@@ -827,7 +809,11 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             SrsJsonArray* data = SrsJsonAny::array();
             obj->set("clients", data);
             
-            if ((ret = stat->dumps_clients(data, cst, cct)) != ERROR_SUCCESS) {
+            std::string rstart = r->query_get("start");
+            std::string rcount = r->query_get("count");
+            int start = srs_max(0, atoi(rstart.c_str()));
+            int count = srs_max(10, atoi(rcount.c_str()));
+            if ((ret = stat->dumps_clients(data, start, count)) != ERROR_SUCCESS) {
                 return srs_api_response_code(w, r, ret);
             }
         } else {
