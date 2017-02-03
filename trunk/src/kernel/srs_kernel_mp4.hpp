@@ -30,12 +30,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_codec.hpp>
 
 #include <string>
 #include <vector>
 
 class ISrsReader;
+class SrsMp4TrackBox;
+class SrsMp4MediaBox;
 class SrsSimpleStream;
+class SrsMp4MovieHeaderBox;
+class SrsMp4TrackHeaderBox;
+class SrsMp4SampleTableBox;
+class SrsMp4MediaInformationBox;
+class SrsMp4SampleDescriptionBox;
+class SrsMp4AvccBox;
+class SrsMp4DecoderSpecificInfo;
+class SrsMp4VisualSampleEntry;
+class SrsMp4AvccBox;
+class SrsMp4AudioSampleEntry;
+class SrsMp4EsdsBox;
 
 /**
  * 4.2 Object Structure
@@ -264,9 +278,6 @@ protected:
     virtual int decode_header(SrsBuffer* buf);
 };
 
-class SrsMp4TrackBox;
-class SrsMp4MovieHeaderBox;
-
 /**
  * 8.2.1 Movie Box (moov)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 30
@@ -285,6 +296,10 @@ public:
     virtual SrsMp4TrackBox* video();
     // Get the first audio track.
     virtual SrsMp4TrackBox* audio();
+    // Get the number of video tracks.
+    virtual int nb_vide_tracks();
+    // Get the number of audio tracks.
+    virtual int nb_soun_tracks();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -366,6 +381,29 @@ public:
     // for example, it maybe Audio|Video when contains both.
     // Generally, only single type, no combination.
     virtual SrsMp4TrackType track_type();
+    // Get the track header box.
+    virtual SrsMp4TrackHeaderBox* tkhd();
+    // For vide track, get the video codec.
+    virtual SrsCodecVideo vide_codec();
+    // For soun track, get the audio codec.
+    virtual SrsCodecAudio soun_codec();
+    // For H.264/AVC codec, get the sps/pps.
+    virtual SrsMp4AvccBox* avcc();
+    // For AAC codec, get the asc.
+    virtual SrsMp4DecoderSpecificInfo* asc();
+private:
+    // Get the media box.
+    virtual SrsMp4MediaBox* mdia();
+    // Get the media info box.
+    virtual SrsMp4MediaInformationBox* minf();
+    // Get the sample table box.
+    virtual SrsMp4SampleTableBox* stbl();
+    // Get the sample description box
+    virtual SrsMp4SampleDescriptionBox* stsd();
+    // For H.264/AVC, get the avc1 box.
+    virtual SrsMp4VisualSampleEntry* avc1();
+    // For AAC, get the mp4a box.
+    virtual SrsMp4AudioSampleEntry* mp4a();
 };
 
 /**
@@ -502,6 +540,8 @@ public:
     // for example, it maybe Audio|Video when contains both.
     // Generally, only single type, no combination.
     virtual SrsMp4TrackType track_type();
+    // Get the media info box.
+    virtual SrsMp4MediaInformationBox* minf();
 };
 
 /**
@@ -592,6 +632,9 @@ class SrsMp4MediaInformationBox : public SrsMp4Box
 public:
     SrsMp4MediaInformationBox();
     virtual ~SrsMp4MediaInformationBox();
+public:
+    // Get the sample table box.
+    virtual SrsMp4SampleTableBox* stbl();
 };
 
 /**
@@ -734,6 +777,9 @@ class SrsMp4SampleTableBox : public SrsMp4Box
 public:
     SrsMp4SampleTableBox();
     virtual ~SrsMp4SampleTableBox();
+public:
+    // Get the sample description box
+    virtual SrsMp4SampleDescriptionBox* stsd();
 };
 
 /**
@@ -788,6 +834,9 @@ public:
 public:
     SrsMp4VisualSampleEntry();
     virtual ~SrsMp4VisualSampleEntry();
+public:
+    // For avc1, get the avcc box.
+    virtual SrsMp4AvccBox* avcC();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -828,6 +877,11 @@ public:
 public:
     SrsMp4AudioSampleEntry();
     virtual ~SrsMp4AudioSampleEntry();
+public:
+    // For AAC codec, get the esds.
+    virtual SrsMp4EsdsBox* esds();
+    // For AAC codec, get the asc.
+    virtual SrsMp4DecoderSpecificInfo* asc();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1003,6 +1057,9 @@ public:
 public:
     SrsMp4EsdsBox();
     virtual ~SrsMp4EsdsBox();
+public:
+    // For AAC codec, get the asc.
+    virtual SrsMp4DecoderSpecificInfo* asc();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1022,6 +1079,11 @@ private:
 public:
     SrsMp4SampleDescriptionBox();
     virtual ~SrsMp4SampleDescriptionBox();
+public:
+    // For H.264/AVC, get the avc1 box.
+    virtual SrsMp4VisualSampleEntry* avc1();
+    // For AAC, get the mp4a box.
+    virtual SrsMp4AudioSampleEntry* mp4a();
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4SampleEntry* entrie_at(int index);

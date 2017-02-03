@@ -97,6 +97,7 @@ enum SrsCodecVideo
 {
     // set to the zero to reserved, for array map.
     SrsCodecVideoReserved = 0,
+    SrsCodecVideoForbidden = 0,
     SrsCodecVideoReserved1 = 1,
     SrsCodecVideoReserved2 = 9,
     
@@ -135,6 +136,7 @@ enum SrsCodecAudio
 {
     // set to the max value to reserved, for array map.
     SrsCodecAudioReserved1 = 16,
+    SrsCodecAudioForbidden = 16,
     
     // for user to disable audio, for example, use pure video hls.
     SrsCodecAudioDisabled = 17,

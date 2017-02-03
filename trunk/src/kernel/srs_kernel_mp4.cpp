@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_buffer.hpp>
 
 #include <string.h>
+#include <sstream>
 using namespace std;
 
 #define SRS_MP4_EOF_SIZE 0
@@ -672,6 +673,40 @@ SrsMp4TrackBox* SrsMp4MovieBox::audio()
     return NULL;
 }
 
+int SrsMp4MovieBox::nb_vide_tracks()
+{
+    int nb_tracks = 0;
+    
+    for (int i = 0; i < boxes.size(); i++) {
+        SrsMp4Box* box = boxes.at(i);
+        if (box->type == SrsMp4BoxTypeTRAK) {
+            SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
+            if ((trak->track_type() & SrsMp4TrackTypeVideo) == SrsMp4TrackTypeVideo) {
+                nb_tracks++;
+            }
+        }
+    }
+    
+    return nb_tracks;
+}
+
+int SrsMp4MovieBox::nb_soun_tracks()
+{
+    int nb_tracks = 0;
+    
+    for (int i = 0; i < boxes.size(); i++) {
+        SrsMp4Box* box = boxes.at(i);
+        if (box->type == SrsMp4BoxTypeTRAK) {
+            SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
+            if ((trak->track_type() & SrsMp4TrackTypeAudio) == SrsMp4TrackTypeAudio) {
+                nb_tracks++;
+            }
+        }
+    }
+    
+    return nb_tracks;
+}
+
 int SrsMp4MovieBox::nb_header()
 {
     return SrsMp4Box::nb_header();
@@ -823,14 +858,102 @@ SrsMp4TrackHeaderBox::~SrsMp4TrackHeaderBox()
 
 SrsMp4TrackType SrsMp4TrackBox::track_type()
 {
-    SrsMp4Box* box = get(SrsMp4BoxTypeMDIA);
+    // TODO: Maybe should discovery all mdia boxes.
+    SrsMp4MediaBox* box = mdia();
     if (!box) {
         return SrsMp4TrackTypeForbidden;
     }
+    return box->track_type();
+}
+
+SrsMp4TrackHeaderBox* SrsMp4TrackBox::tkhd()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeTKHD);
+    return dynamic_cast<SrsMp4TrackHeaderBox*>(box);
+}
+
+SrsCodecVideo SrsMp4TrackBox::vide_codec()
+{
+    SrsMp4SampleDescriptionBox* box = stsd();
+    if (!box) {
+        return SrsCodecVideoForbidden;
+    }
     
-    // TODO: Maybe should discovery all mdia boxes.
-    SrsMp4MediaBox* mdia = dynamic_cast<SrsMp4MediaBox*>(box);
-    return mdia->track_type();
+    if (box->entry_count() == 0) {
+        return SrsCodecVideoForbidden;
+    }
+    
+    SrsMp4SampleEntry* entry = box->entrie_at(0);
+    switch(entry->type) {
+        case SrsMp4BoxTypeAVC1: return SrsCodecVideoAVC;
+        default: return SrsCodecVideoForbidden;
+    }
+}
+
+SrsCodecAudio SrsMp4TrackBox::soun_codec()
+{
+    SrsMp4SampleDescriptionBox* box = stsd();
+    if (!box) {
+        return SrsCodecAudioForbidden;
+    }
+    
+    if (box->entry_count() == 0) {
+        return SrsCodecAudioForbidden;
+    }
+    
+    SrsMp4SampleEntry* entry = box->entrie_at(0);
+    switch(entry->type) {
+        case SrsMp4BoxTypeMP4A: return SrsCodecAudioAAC;
+        default: return SrsCodecAudioForbidden;
+    }
+}
+
+SrsMp4AvccBox* SrsMp4TrackBox::avcc()
+{
+    SrsMp4VisualSampleEntry* box = avc1();
+    return box? box->avcC():NULL;
+}
+
+SrsMp4DecoderSpecificInfo* SrsMp4TrackBox::asc()
+{
+    SrsMp4AudioSampleEntry* box = mp4a();
+    return box? box->asc():NULL;
+}
+
+SrsMp4MediaBox* SrsMp4TrackBox::mdia()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMDIA);
+    return dynamic_cast<SrsMp4MediaBox*>(box);
+}
+
+SrsMp4MediaInformationBox* SrsMp4TrackBox::minf()
+{
+    SrsMp4MediaBox* box = mdia();
+    return box? box->minf():NULL;
+}
+
+SrsMp4SampleTableBox* SrsMp4TrackBox::stbl()
+{
+    SrsMp4MediaInformationBox* box = minf();
+    return box? box->stbl():NULL;
+}
+
+SrsMp4SampleDescriptionBox* SrsMp4TrackBox::stsd()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stsd():NULL;
+}
+
+SrsMp4VisualSampleEntry* SrsMp4TrackBox::avc1()
+{
+    SrsMp4SampleDescriptionBox* box = stsd();
+    return box? box->avc1():NULL;
+}
+
+SrsMp4AudioSampleEntry* SrsMp4TrackBox::mp4a()
+{
+    SrsMp4SampleDescriptionBox* box = stsd();
+    return box? box->mp4a():NULL;
 }
 
 int SrsMp4TrackHeaderBox::nb_header()
@@ -1043,6 +1166,12 @@ SrsMp4TrackType SrsMp4MediaBox::track_type()
     }
 }
 
+SrsMp4MediaInformationBox* SrsMp4MediaBox::minf()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMINF);
+    return dynamic_cast<SrsMp4MediaInformationBox*>(box);
+}
+
 SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox()
 {
     type = SrsMp4BoxTypeMDHD;
@@ -1223,6 +1352,12 @@ SrsMp4MediaInformationBox::SrsMp4MediaInformationBox()
 
 SrsMp4MediaInformationBox::~SrsMp4MediaInformationBox()
 {
+}
+
+SrsMp4SampleTableBox* SrsMp4MediaInformationBox::stbl()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTBL);
+    return dynamic_cast<SrsMp4SampleTableBox*>(box);
 }
 
 SrsMp4VideoMeidaHeaderBox::SrsMp4VideoMeidaHeaderBox()
@@ -1554,6 +1689,12 @@ SrsMp4SampleTableBox::~SrsMp4SampleTableBox()
 {
 }
 
+SrsMp4SampleDescriptionBox* SrsMp4SampleTableBox::stsd()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTSD);
+    return dynamic_cast<SrsMp4SampleDescriptionBox*>(box);
+}
+
 SrsMp4SampleEntry::SrsMp4SampleEntry()
 {
     memset(reserved, 0, 6);
@@ -1614,6 +1755,12 @@ SrsMp4VisualSampleEntry::SrsMp4VisualSampleEntry()
 
 SrsMp4VisualSampleEntry::~SrsMp4VisualSampleEntry()
 {
+}
+
+SrsMp4AvccBox* SrsMp4VisualSampleEntry::avcC()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeAVCC);
+    return dynamic_cast<SrsMp4AvccBox*>(box);
 }
 
 int SrsMp4VisualSampleEntry::nb_header()
@@ -1731,6 +1878,18 @@ SrsMp4AudioSampleEntry::SrsMp4AudioSampleEntry()
 
 SrsMp4AudioSampleEntry::~SrsMp4AudioSampleEntry()
 {
+}
+
+SrsMp4EsdsBox* SrsMp4AudioSampleEntry::esds()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeESDS);
+    return dynamic_cast<SrsMp4EsdsBox*>(box);
+}
+
+SrsMp4DecoderSpecificInfo* SrsMp4AudioSampleEntry::asc()
+{
+    SrsMp4EsdsBox* box = esds();
+    return box? box->asc():NULL;
 }
 
 int SrsMp4AudioSampleEntry::nb_header()
@@ -2165,6 +2324,11 @@ SrsMp4EsdsBox::~SrsMp4EsdsBox()
     srs_freep(es);
 }
 
+SrsMp4DecoderSpecificInfo* SrsMp4EsdsBox::asc()
+{
+    return es->decConfigDescr.decSpecificInfo;
+}
+
 int SrsMp4EsdsBox::nb_header()
 {
     return SrsMp4FullBox::nb_header() + es->nb_bytes();
@@ -2221,6 +2385,30 @@ SrsMp4SampleDescriptionBox::~SrsMp4SampleDescriptionBox()
         srs_freep(entry);
     }
     entries.clear();
+}
+
+SrsMp4VisualSampleEntry* SrsMp4SampleDescriptionBox::avc1()
+{
+    vector<SrsMp4SampleEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); ++it) {
+        SrsMp4SampleEntry* entry = *it;
+        if (entry->type == SrsMp4BoxTypeAVC1) {
+            return dynamic_cast<SrsMp4VisualSampleEntry*>(entry);
+        }
+    }
+    return NULL;
+}
+
+SrsMp4AudioSampleEntry* SrsMp4SampleDescriptionBox::mp4a()
+{
+    vector<SrsMp4SampleEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); ++it) {
+        SrsMp4SampleEntry* entry = *it;
+        if (entry->type == SrsMp4BoxTypeMP4A) {
+            return dynamic_cast<SrsMp4AudioSampleEntry*>(entry);
+        }
+    }
+    return NULL;
 }
 
 uint32_t SrsMp4SampleDescriptionBox::entry_count()
@@ -2839,7 +3027,7 @@ int SrsMp4Decoder::initialize(ISrsReader* r)
         return ret;
     }
     
-    // Parse the MOOV.
+    // Parse the Movie Header Box(moov).
     SrsMp4MovieBox* moov = dynamic_cast<SrsMp4MovieBox*>(box);
     return parse_moov(moov);
 }
@@ -2863,7 +3051,31 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         return ret;
     }
     
-    srs_trace("MP4 moov dur=%dms, vide=%d, soun=%d", mvhd->duration(), vide != NULL, soun != NULL);
+    SrsMp4AvccBox* avcc = vide? vide->avcc():NULL;
+    SrsMp4DecoderSpecificInfo* asc = soun? soun->asc():NULL;
+    if (vide && !avcc) {
+        ret = ERROR_MP4_ILLEGAL_MOOV;
+        srs_error("MP4 missing video sequence header. ret=%d", ret);
+        return ret;
+    }
+    if (soun && !asc) {
+        ret = ERROR_MP4_ILLEGAL_MOOV;
+        srs_error("MP4 missing audio sequence header. ret=%d", ret);
+        return ret;
+    }
+    
+    stringstream ss;
+    ss << "dur=" << mvhd->duration() << "ms";
+    // video codec.
+    ss << ", vide=" << moov->nb_vide_tracks() << "("
+        << srs_codec_video2str(vide?vide->vide_codec():SrsCodecVideoForbidden)
+        << "," << (avcc? avcc->nb_config:0) << "BSH" << ")";
+    // audio codec.
+    ss << ", soun=" << moov->nb_soun_tracks() << "("
+        << srs_codec_audio2str(soun?soun->soun_codec():SrsCodecAudioForbidden)
+        << "," << (asc? asc->nb_asc:0) << "BSH" << ")";
+    
+    srs_trace("MP4 moov %s", ss.str().c_str());
     
     return ret;
 }
