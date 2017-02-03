@@ -791,7 +791,7 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
     int cid = r->parse_rest_id(entry->pattern);
     
-	std::string start = r->query_get("start");
+    std::string start = r->query_get("start");
     std::string count = r->query_get("count");
     int cst = 0;
     int cct = 10;
