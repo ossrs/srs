@@ -1247,6 +1247,9 @@ public:
 public:
     SrsMp4SyncSampleBox();
     virtual ~SrsMp4SyncSampleBox();
+public:
+    // Whether the sample is sync, index starts from 0.
+    virtual bool is_sync(uint32_t sample_index);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1288,9 +1291,17 @@ public:
     uint32_t entry_count;
     // the numbers of the samples that are sync samples in the stream.
     SrsMp4StscEntry* entries;
+private:
+    // The index for counter to calc the dts for samples.
+    uint32_t index;
 public:
     SrsMp4Sample2ChunkBox();
     virtual ~SrsMp4Sample2ChunkBox();
+public:
+    // Initialize the counter.
+    virtual void initialize_counter();
+    // When got an chunk, index starts from 0.
+    virtual SrsMp4StscEntry* on_chunk(uint32_t chunk_index);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1367,6 +1378,9 @@ public:
 public:
     SrsMp4SampleSizeBox();
     virtual ~SrsMp4SampleSizeBox();
+public:
+    // Get the size of sample.
+    virtual int get_sample_size(uint32_t sample_index, uint32_t* psample_size);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);

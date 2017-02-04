@@ -2798,6 +2798,16 @@ SrsMp4SyncSampleBox::~SrsMp4SyncSampleBox()
     srs_freepa(sample_numbers);
 }
 
+bool SrsMp4SyncSampleBox::is_sync(uint32_t sample_index)
+{
+    for (uint32_t i = 0; i < entry_count; i++) {
+        if (sample_index + 1 == sample_numbers[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int SrsMp4SyncSampleBox::nb_header()
 {
     return SrsMp4FullBox::nb_header() +4 +4*entry_count;
@@ -2852,11 +2862,31 @@ SrsMp4Sample2ChunkBox::SrsMp4Sample2ChunkBox()
     
     entry_count = 0;
     entries = NULL;
+    index = 0;
 }
 
 SrsMp4Sample2ChunkBox::~SrsMp4Sample2ChunkBox()
 {
     srs_freepa(entries);
+}
+
+void SrsMp4Sample2ChunkBox::initialize_counter()
+{
+    index = 0;
+}
+
+SrsMp4StscEntry* SrsMp4Sample2ChunkBox::on_chunk(uint32_t chunk_index)
+{
+    // Last chunk?
+    if (index >= entry_count - 1) {
+        return &entries[index];
+    }
+    
+    // Move next chunk?
+    if (chunk_index + 1 >= entries[index + 1].first_chunk) {
+        index++;
+    }
+    return &entries[index];
 }
 
 int SrsMp4Sample2ChunkBox::nb_header()
@@ -3022,6 +3052,24 @@ SrsMp4SampleSizeBox::SrsMp4SampleSizeBox()
 SrsMp4SampleSizeBox::~SrsMp4SampleSizeBox()
 {
     srs_freepa(entry_sizes);
+}
+
+int SrsMp4SampleSizeBox::get_sample_size(uint32_t sample_index, uint32_t* psample_size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (sample_size != 0) {
+        *psample_size = sample_size;
+        return ret;
+    }
+    
+    if (sample_index >= sample_count) {
+        ret = ERROR_MP4_MOOV_OVERFLOW;
+        srs_error("MP4 stsz overflow, sample_count=%d. ret=%d", sample_count, ret);
+    }
+    *psample_size = entry_sizes[sample_index];
+    
+    return ret;
 }
 
 int SrsMp4SampleSizeBox::nb_header()
@@ -3247,7 +3295,7 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
     int ret = ERROR_SUCCESS;
     
      // Samples per chunk.
-    uint32_t stsci = 0;
+    stsc->initialize_counter();
     
      // DTS box.
     if ((ret = stts->initialize_counter()) != ERROR_SUCCESS) {
@@ -3262,29 +3310,20 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
     SrsMp4Sample* previous = NULL;
     
     // For each chunk offset.
-    for (uint32_t stcoi = 0; stcoi < stco->entry_count; stcoi++) {
-        uint32_t chunk_offset = stco->entries[stcoi];
-        
+    for (uint32_t ci = 0; ci < stco->entry_count; ci++) {
         // Find how many samples from stsc.
-        if (stsci < stsc->entry_count - 1 && stcoi + 1 >= stsc->entries[stsci + 1].first_chunk) {
-            stsci++;
-        }
-        uint32_t samples_per_chunk = stsc->entries[stsci].samples_per_chunk;
-        for (uint32_t i = 0; i < samples_per_chunk; i++) {
+        SrsMp4StscEntry* stsc_entry = stsc->on_chunk(ci);
+        for (uint32_t i = 0; i < stsc_entry->samples_per_chunk; i++) {
             SrsMp4Sample* sample = new SrsMp4Sample();
             sample->type = tt;
             sample->index = (previous? previous->index+1:0);
             sample->tbn = mdhd->timescale;
             
-            uint32_t sample_size = stsz->sample_size;
-            if (sample_size == 0) {
-                if (sample->index >= stsz->sample_count) {
-                    ret = ERROR_MP4_MOOV_OVERFLOW;
-                    srs_error("MP4 stsz overflow, sample_count=%d. ret=%d", stsz->sample_count, ret);
-                }
-                sample_size = stsz->entry_sizes[sample->index];
+            uint32_t sample_size = 0;
+            if ((ret = stsz->get_sample_size(sample->index, &sample_size)) != ERROR_SUCCESS) {
+                return ret;
             }
-            sample->offset = chunk_offset + sample_size * i;
+            sample->offset = stco->entries[ci] + sample_size * i;
             
             SrsMp4SttsEntry* stts_entry = NULL;
             if ((ret = stts->on_sample(sample->index, &stts_entry)) != ERROR_SUCCESS) {
@@ -3300,6 +3339,14 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
             }
             if (ctts_entry) {
                 sample->pts = sample->dts + ctts_entry->sample_offset;
+            }
+            
+            if (tt == SrsCodecFlvTagVideo) {
+                if (!stss || stss->is_sync(sample->index)) {
+                    sample->frame_type = SrsCodecVideoAVCFrameKeyFrame;
+                } else {
+                    sample->frame_type = SrsCodecVideoAVCFrameInterFrame;
+                }
             }
             
             previous = sample;
