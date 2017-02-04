@@ -42,6 +42,7 @@ enum SrsCodecAudioType
 {
     // set to the max value to reserved, for array map.
     SrsCodecAudioTypeReserved = 2,
+    SrsCodecAudioTypeForbidden = 2,
     
     SrsCodecAudioTypeSequenceHeader = 0,
     SrsCodecAudioTypeRawData = 1,
@@ -59,6 +60,7 @@ enum SrsCodecVideoAVCFrame
 {
     // set to the zero to reserved, for array map.
     SrsCodecVideoAVCFrameReserved = 0,
+    SrsCodecVideoAVCFrameForbidden = 0,
     SrsCodecVideoAVCFrameReserved1 = 6,
     
     SrsCodecVideoAVCFrameKeyFrame = 1,
@@ -78,6 +80,7 @@ enum SrsCodecVideoAVCType
 {
     // set to the max value to reserved, for array map.
     SrsCodecVideoAVCTypeReserved = 3,
+    SrsCodecVideoAVCTypeForbidden = 3,
     
     SrsCodecVideoAVCTypeSequenceHeader = 0,
     SrsCodecVideoAVCTypeNALU = 1,
@@ -170,12 +173,14 @@ enum SrsCodecAudioSampleRate
 {
     // set to the max value to reserved, for array map.
     SrsCodecAudioSampleRateReserved = 4,
+    SrsCodecAudioSampleRateForbidden = 4,
     
     SrsCodecAudioSampleRate5512 = 0,
     SrsCodecAudioSampleRate11025 = 1,
     SrsCodecAudioSampleRate22050 = 2,
     SrsCodecAudioSampleRate44100 = 3,
 };
+std::string srs_codec_audio_samplerate2str(SrsCodecAudioSampleRate v);
 
 /**
 * E.4.1 FLV Tag, page 75
@@ -263,10 +268,12 @@ enum SrsCodecAudioSampleSize
 {
     // set to the max value to reserved, for array map.
     SrsCodecAudioSampleSizeReserved = 2,
+    SrsCodecAudioSampleSizeForbidden = 2,
     
     SrsCodecAudioSampleSize8bit = 0,
     SrsCodecAudioSampleSize16bit = 1,
 };
+std::string srs_codec_audio_samplesize2str(SrsCodecAudioSampleSize v);
 
 /**
 * the FLV/RTMP supported audio sound type/channel.
@@ -277,11 +284,13 @@ enum SrsCodecAudioSampleSize
 enum SrsCodecAudioSoundType
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSoundTypeReserved = 2, 
+    SrsCodecAudioSoundTypeReserved = 2,
+    SrsCodecAudioSoundTypeForbidden = 2,
     
     SrsCodecAudioSoundTypeMono = 0,
     SrsCodecAudioSoundTypeStereo = 1,
 };
+std::string srs_codec_audio_channels2str(SrsCodecAudioSoundType v);
 
 /**
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes

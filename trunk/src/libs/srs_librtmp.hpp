@@ -513,6 +513,39 @@ extern srs_bool srs_h264_startswith_annexb(
  *************************************************************
  *************************************************************/
 typedef void* srs_mp4_t;
+// The sample struct of mp4.
+typedef struct {
+    // The handler type, it's SrsMp4HandlerType.
+    uint32_t handler_type;
+    
+    // The dts in milliseconds.
+    uint32_t dts;
+    // The codec type.
+    //      video: SrsCodecVideo.
+    //      audio: SrsCodecAudio.
+    uint16_t codec;
+    // The codec type:
+    //      video: SrsCodecVideoAVCType.
+    //      audio: SrsCodecAudioType.
+    uint16_t codec_type;
+    
+    // The video pts in milliseconds. Ignore for audio.
+    uint32_t pts;
+    // The video frame type, it's SrsCodecVideoAVCFrame.
+    uint16_t frame_type;
+    
+    // The audio sample rate, it's SrsCodecAudioSampleRate.
+    uint8_t sample_rate;
+    // The audio sound bits, it's SrsCodecAudioSampleSize.
+    uint8_t sound_bits;
+    // The audio sound type, it's SrsCodecAudioSoundType.
+    uint8_t channels;
+    
+    // The size of sample payload in bytes.
+    uint32_t nb_sample;
+    // The output sample data, user must free it by srs_mp4_free_sample.
+    uint8_t* sample;
+} srs_mp4_sample_t;
 /* Open mp4 file for muxer(write) or demuxer(read). */
 extern srs_mp4_t srs_mp4_open_read(const char* file);
 extern void srs_mp4_close(srs_mp4_t mp4);
@@ -522,6 +555,27 @@ extern void srs_mp4_close(srs_mp4_t mp4);
  *      For the live streaming, we must feed stream frame by frame.
  */
 extern int srs_mp4_init_demuxer(srs_mp4_t mp4);
+/**
+ * Read a sample form mp4.
+ * @remark User can use srs_mp4_sample_to_flv_tag to convert mp4 sampel to flv tag.
+ *      Use the srs_mp4_to_flv_tag_size to calc the flv tag data size to alloc.
+ */
+extern int srs_mp4_read_sample(srs_mp4_t mp4, srs_mp4_sample_t* sample);
+/**
+ * Free the allocated mp4 sample.
+ */
+extern void srs_mp4_free_sample(srs_mp4_sample_t* sample);
+/**
+ * Calc the size of flv tag, for the mp4 sample to convert to.
+ */
+extern int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* sample);
+/**
+ * Covert mp4 sample to flv tag.
+ */
+extern int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* sample, char* type, uint32_t* time, char* data, int32_t size);
+/* error code */
+/* whether the error code indicates EOF */
+extern srs_bool srs_mp4_is_eof(int error_code);
 
 /*************************************************************
 **************************************************************

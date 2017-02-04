@@ -400,6 +400,7 @@ private:
     virtual SrsMp4SampleTableBox* stbl();
     // Get the sample description box
     virtual SrsMp4SampleDescriptionBox* stsd();
+public:
     // For H.264/AVC, get the avc1 box.
     virtual SrsMp4VisualSampleEntry* avc1();
     // For AAC, get the mp4a box.
@@ -1344,6 +1345,32 @@ class SrsMp4Decoder
 private:
     // The major brand of decoder, parse from ftyp.
     SrsMp4BoxBrand brand;
+public:
+    // The video codec of first track, generally there is zero or one track.
+    // Forbidden if no video stream.
+    SrsCodecVideo vcodec;
+private:
+    // For H.264/AVC, the avcc contains the sps/pps.
+    int nb_avcc;
+    uint8_t* pavcc;
+    // Whether avcc is written to reader.
+    bool avcc_written;
+public:
+    // The audio codec of first track, generally there is zero or one track.
+    // Forbidden if no audio stream.
+    SrsCodecAudio acodec;
+    // The audio sample rate.
+    SrsCodecAudioSampleRate sample_rate;
+    // The audio sound bits.
+    SrsCodecAudioSampleSize sound_bits;
+    // The audio sound type.
+    SrsCodecAudioSoundType channels;
+private:
+    // For AAC, the asc in esds box.
+    int nb_asc;
+    uint8_t* pasc;
+    // Whether asc is written to reader.
+    bool asc_written;
 private:
     // Underlayer reader and seeker.
     // @remark The demuxer must use seeker for general MP4 to seek the moov.
@@ -1363,6 +1390,20 @@ public:
      *      the decoder just read data from the reader.
      */
     virtual int initialize(ISrsReadSeeker* rs);
+    /**
+     * Read a sample from mp4.
+     * @param pht The sample type, audio/soun or video/vide.
+     * @param pft, The frame type. For video, it's SrsCodecVideoAVCFrame.
+     * @param pct, The codec type. For video, it's SrsCodecVideoAVCType. For audio, it's SrsCodecAudioType.
+     * @param pdts The output dts in milliseconds.
+     * @param ppts The output pts in milliseconds.
+     * @param pnb_sample The output size of payload.
+     * @param psample The output payload, user must free it.
+     * @remark The decoder will generate the first two audio/video sequence header.
+     */
+    virtual int read_sample(SrsMp4HandlerType* pht, uint16_t* pft, uint16_t* pct,
+        uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample
+    );
 private:
     virtual int parse_ftyp(SrsMp4FileTypeBox* ftyp);
     virtual int parse_moov(SrsMp4MovieBox* moov);

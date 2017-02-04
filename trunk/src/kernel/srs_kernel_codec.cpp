@@ -162,6 +162,17 @@ string srs_codec_avc_level2str(SrsAvcLevel level)
     }
 }
 
+string srs_codec_audio_samplerate2str(SrsCodecAudioSampleRate v)
+{
+    switch (v) {
+        case SrsCodecAudioSampleRate5512: return "5512";
+        case SrsCodecAudioSampleRate11025: return "11025";
+        case SrsCodecAudioSampleRate22050: return "22050";
+        case SrsCodecAudioSampleRate44100: return "44100";
+        default: return "Other";
+    }
+}
+
 /**
 * the public data, event HLS disable, others can use it.
 */
@@ -286,6 +297,24 @@ bool SrsFlvCodec::video_is_acceptable(char* data, int size)
     }
     
     return true;
+}
+
+string srs_codec_audio_samplesize2str(SrsCodecAudioSampleSize v)
+{
+    switch (v) {
+        case SrsCodecAudioSampleSize16bit: return "16bits";
+        case SrsCodecAudioSampleSize8bit: return "8bits";
+        default: return "Other";
+    }
+}
+
+string srs_codec_audio_channels2str(SrsCodecAudioSoundType v)
+{
+    switch (v) {
+        case SrsCodecAudioSoundTypeStereo: return "Stereo";
+        case SrsCodecAudioSoundTypeMono: return "Mono";
+        default: return "Other";
+    }
 }
 
 string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)

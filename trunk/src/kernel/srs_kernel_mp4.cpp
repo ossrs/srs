@@ -2963,12 +2963,22 @@ SrsMp4Decoder::SrsMp4Decoder()
     brand = SrsMp4BoxBrandForbidden;
     buf = new char[SRS_MP4_BUF_SIZE];
     stream = new SrsSimpleStream();
+    vcodec = SrsCodecVideoForbidden;
+    acodec = SrsCodecAudioForbidden;
+    nb_asc = nb_avcc = 0;
+    pasc = pavcc = NULL;
+    asc_written = avcc_written = false;
+    sample_rate = SrsCodecAudioSampleRateForbidden;
+    sound_bits = SrsCodecAudioSampleSizeForbidden;
+    channels = SrsCodecAudioSoundTypeForbidden;
 }
 
 SrsMp4Decoder::~SrsMp4Decoder()
 {
     srs_freepa(buf);
     srs_freep(stream);
+    srs_freepa(pasc);
+    srs_freepa(pavcc);
 }
 
 int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
@@ -2978,7 +2988,7 @@ int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     srs_assert(rs);
     rsio = rs;
     
-    // For mdat before moov, we must reset the io.
+    // For mdat before moov, we must reset the offset to the mdat.
     off_t offset = -1;
     
     while (true) {
@@ -3016,9 +3026,47 @@ int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
         return ret;
     }
     
-    // Reset the io to the start to reparse the general MP4.
+    // Set the offset to the mdat.
     if (offset >= 0) {
         return rsio->lseek(offset, SEEK_SET, NULL);
+    }
+    
+    return ret;
+}
+
+int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
+    uint16_t* pft, uint16_t* pct, uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!avcc_written && nb_avcc) {
+        avcc_written = true;
+        *pdts = *ppts = 0;
+        *pht = SrsMp4HandlerTypeVIDE;
+        
+        uint32_t nb_sample = *pnb_sample = nb_avcc;
+        uint8_t* sample = *psample = new uint8_t[nb_sample];
+        memcpy(sample, pavcc, nb_sample);
+        
+        *pft = SrsCodecVideoAVCFrameKeyFrame;
+        *pct = SrsCodecVideoAVCTypeSequenceHeader;
+        
+        return ret;
+    }
+    
+    if (!asc_written && nb_asc) {
+        asc_written = true;
+        *pdts = *ppts = 0;
+        *pht = SrsMp4HandlerTypeSOUN;
+        
+        uint32_t nb_sample = *pnb_sample = nb_asc;
+        uint8_t* sample = *psample = new uint8_t[nb_sample];
+        memcpy(sample, pasc, nb_sample);
+        
+        *pft = 0x00;
+        *pct = SrsCodecAudioTypeSequenceHeader;
+        
+        return ret;
     }
     
     return ret;
@@ -3069,6 +3117,32 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         return ret;
     }
     
+    SrsMp4AudioSampleEntry* mp4a = soun? soun->mp4a():NULL;
+    if (mp4a) {
+        uint32_t sr = mp4a->samplerate>>16;
+        if (sr >= 44100) {
+            sample_rate = SrsCodecAudioSampleRate44100;
+        } else if (sr >= 22050) {
+            sample_rate = SrsCodecAudioSampleRate22050;
+        } else if (sr >= 11025) {
+            sample_rate = SrsCodecAudioSampleRate11025;
+        } else {
+            sample_rate = SrsCodecAudioSampleRate5512;
+        }
+        
+        if (mp4a->samplesize == 16) {
+            sound_bits = SrsCodecAudioSampleSize16bit;
+        } else {
+            sound_bits = SrsCodecAudioSampleSize8bit;
+        }
+        
+        if (mp4a->channelcount == 2) {
+            channels = SrsCodecAudioSoundTypeStereo;
+        } else {
+            channels = SrsCodecAudioSoundTypeMono;
+        }
+    }
+    
     SrsMp4AvccBox* avcc = vide? vide->avcc():NULL;
     SrsMp4DecoderSpecificInfo* asc = soun? soun->asc():NULL;
     if (vide && !avcc) {
@@ -3082,16 +3156,33 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         return ret;
     }
     
+    vcodec = vide?vide->vide_codec():SrsCodecVideoForbidden;
+    acodec = soun?soun->soun_codec():SrsCodecAudioForbidden;
+    
+    if (avcc && avcc->nb_config) {
+        nb_avcc = avcc->nb_config;
+        pavcc = new uint8_t[nb_avcc];
+        memcpy(pavcc, avcc->avc_config, nb_avcc);
+    }
+    if (asc && asc->nb_asc) {
+        nb_asc = asc->nb_asc;
+        pasc = new uint8_t[nb_asc];
+        memcpy(pasc, asc->asc, nb_asc);
+    }
+    
     stringstream ss;
     ss << "dur=" << mvhd->duration() << "ms";
     // video codec.
     ss << ", vide=" << moov->nb_vide_tracks() << "("
-        << srs_codec_video2str(vide?vide->vide_codec():SrsCodecVideoForbidden)
-        << "," << (avcc? avcc->nb_config:0) << "BSH" << ")";
+        << srs_codec_video2str(vcodec) << "," << nb_avcc << "BSH"
+        << ")";
     // audio codec.
     ss << ", soun=" << moov->nb_soun_tracks() << "("
-        << srs_codec_audio2str(soun?soun->soun_codec():SrsCodecAudioForbidden)
-        << "," << (asc? asc->nb_asc:0) << "BSH" << ")";
+        << srs_codec_audio2str(acodec) << "," << nb_asc << "BSH"
+        << "," << srs_codec_audio_channels2str(channels)
+        << "," << srs_codec_audio_samplesize2str(sound_bits)
+        << "," << srs_codec_audio_samplerate2str(sample_rate)
+        << ")";
     
     srs_trace("MP4 moov %s", ss.str().c_str());
     

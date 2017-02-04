@@ -250,6 +250,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_MP4_BOX_ILLEGAL_BRAND         3074
 #define ERROR_MP4_ESDS_SL_Config            3075
 #define ERROR_MP4_ILLEGAL_MOOV              3076
+#define ERROR_MP4_ILLEGAL_HANDLER           3077
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.

@@ -1548,7 +1548,6 @@ srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int*
     
 struct Mp4Context
 {
-    bool non_seekable;
     SrsFileReader reader;
     SrsMp4Decoder dec;
 };
@@ -1558,7 +1557,6 @@ srs_mp4_t srs_mp4_open_read(const char* file)
     int ret = ERROR_SUCCESS;
     
     Mp4Context* mp4 = new Mp4Context();
-    mp4->non_seekable = false;
     
     if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
         srs_freep(mp4);
@@ -1584,10 +1582,98 @@ int srs_mp4_init_demuxer(srs_mp4_t mp4)
         return ret;
     }
     
-    // OK, it's legal mp4 for live streaming.
-    context->non_seekable = true;
+    return ret;
+}
+    
+int srs_mp4_read_sample(srs_mp4_t mp4, srs_mp4_sample_t* s)
+{
+    s->sample = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* context = (Mp4Context*)mp4;
+    SrsMp4Decoder* dec = &context->dec;
+    
+    SrsMp4HandlerType ht = SrsMp4HandlerTypeForbidden;
+    if ((ret = dec->read_sample(&ht, &s->frame_type, &s->codec_type, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (ht == SrsMp4HandlerTypeForbidden) {
+        return ERROR_MP4_ILLEGAL_HANDLER;
+    }
+    
+    if (ht == SrsMp4HandlerTypeSOUN) {
+        s->codec = dec->acodec;
+        s->sample_rate = dec->sample_rate;
+        s->channels = dec->channels;
+        s->sound_bits = dec->sound_bits;
+    } else {
+        s->codec = dec->vcodec;
+    }
+    s->handler_type = (uint32_t)ht;
     
     return ret;
+}
+    
+void srs_mp4_free_sample(srs_mp4_sample_t* s)
+{
+    srs_freepa(s->sample);
+}
+    
+int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* s)
+{
+    if (s->handler_type == SrsMp4HandlerTypeSOUN) {
+        if (s->codec == SrsCodecAudioAAC) {
+            return s->nb_sample + 2;
+        }
+        return s->nb_sample + 1;
+    }
+    
+    if (s->codec == SrsCodecVideoAVC) {
+        return s->nb_sample + 5;
+    }
+    return s->nb_sample + 1;
+}
+    
+int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* s, char* type, uint32_t* time, char* data, int32_t size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    *time = s->dts;
+    
+    SrsBuffer p(data, size);
+    if (s->handler_type == SrsMp4HandlerTypeSOUN) {
+        *type = SRS_RTMP_TYPE_AUDIO;
+        
+        // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
+        p.write_1bytes(uint8_t(s->codec << 4) | uint8_t(s->sample_rate << 2) | uint8_t(s->sound_bits << 1) | s->channels);
+        if (s->codec == SrsCodecAudioAAC) {
+            p.write_1bytes(uint8_t(s->codec_type == SrsCodecAudioTypeSequenceHeader? 0:1));
+        }
+        
+        p.write_bytes((char*)s->sample, s->nb_sample);
+        return ret;
+    }
+    
+    // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
+    p.write_1bytes(uint8_t(s->frame_type<<4) | s->codec);
+    if (s->codec == SrsCodecVideoAVC) {
+        *type = SRS_RTMP_TYPE_VIDEO;
+        
+        p.write_1bytes(uint8_t(s->codec_type == SrsCodecVideoAVCTypeSequenceHeader? 0:1));
+        // cts = pts - dts, where dts = flvheader->timestamp.
+        uint32_t cts = s->pts - s->dts;
+        p.write_3bytes(cts);
+    }
+    p.write_bytes((char*)s->sample, s->nb_sample);
+    
+    return ret;
+}
+
+srs_bool srs_mp4_is_eof(int error_code)
+{
+    return error_code == ERROR_SYSTEM_FILE_EOF;
 }
 
 struct FlvContext

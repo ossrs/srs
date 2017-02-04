@@ -180,35 +180,34 @@ int do_proxy(srs_mp4_t mp4, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
 {
     int ret = 0;
     
-    // packet data
-    char type;
-    int size;
-    char* data = NULL;
-    
     srs_human_trace("start ingest mp4 to RTMP stream");
     for (;;) {
-#if 0
-        // tag header
-        if ((ret = srs_flv_read_tag_header(flv, &type, &size, ptimestamp)) != 0) {
-            if (srs_flv_is_eof(ret)) {
-                srs_human_trace("parse completed.");
-                return 0;
+        // packet data
+        char type;
+        int32_t size;
+        char* data = NULL;
+        
+        // Read a mp4 sample and convert to flv tag.
+        if (1) {
+            srs_mp4_sample_t sample;
+            if ((ret = srs_mp4_read_sample(mp4, &sample)) != 0) {
+                if (srs_mp4_is_eof(ret)) {
+                    srs_human_trace("parse completed.");
+                    return 0;
+                }
+                srs_human_trace("mp4 get sample failed. ret=%d", ret);
+                return ret;
             }
-            srs_human_trace("flv get packet failed. ret=%d", ret);
-            return ret;
+            
+            size = srs_mp4_sizeof(mp4, &sample);
+            data = (char*)malloc(size);
+            
+            if ((ret = srs_mp4_to_flv_tag(mp4, &sample, &type, ptimestamp, data, size)) != 0) {
+                return ret;
+            }
+            
+            srs_mp4_free_sample(&sample);
         }
-        
-        if (size <= 0) {
-            srs_human_trace("invalid size=%d", size);
-            break;
-        }
-        
-        // TODO: FIXME: mem leak when error.
-        data = (char*)malloc(size);
-        if ((ret = srs_flv_read_tag_data(flv, data, size)) != 0) {
-            return ret;
-        }
-#endif
         uint32_t timestamp = *ptimestamp;
         
         if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
