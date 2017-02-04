@@ -37,6 +37,8 @@ using namespace std;
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
 
+#define SRS_MP4_BUF_SIZE 4096
+
 int srs_mp4_string_length(const string& v)
 {
     return (int)v.length()+1;
@@ -872,6 +874,48 @@ SrsMp4TrackHeaderBox* SrsMp4TrackBox::tkhd()
     return dynamic_cast<SrsMp4TrackHeaderBox*>(box);
 }
 
+SrsMp4ChunkOffsetBox* SrsMp4TrackBox::stco()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stco():NULL;
+}
+
+SrsMp4SampleSizeBox* SrsMp4TrackBox::stsz()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stsz():NULL;
+}
+
+SrsMp4Sample2ChunkBox* SrsMp4TrackBox::stsc()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stsc():NULL;
+}
+
+SrsMp4DecodingTime2SampleBox* SrsMp4TrackBox::stts()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stts():NULL;
+}
+
+SrsMp4CompositionTime2SampleBox* SrsMp4TrackBox::ctts()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->ctts():NULL;
+}
+
+SrsMp4SyncSampleBox* SrsMp4TrackBox::stss()
+{
+    SrsMp4SampleTableBox* box = stbl();
+    return box? box->stss():NULL;
+}
+
+SrsMp4MediaHeaderBox* SrsMp4TrackBox::mdhd()
+{
+    SrsMp4MediaBox* box = mdia();
+    return box? box->mdhd():NULL;
+}
+
 SrsCodecVideo SrsMp4TrackBox::vide_codec()
 {
     SrsMp4SampleDescriptionBox* box = stsd();
@@ -1164,6 +1208,12 @@ SrsMp4TrackType SrsMp4MediaBox::track_type()
     } else {
         return SrsMp4TrackTypeForbidden;
     }
+}
+
+SrsMp4MediaHeaderBox* SrsMp4MediaBox::mdhd()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMDHD);
+    return dynamic_cast<SrsMp4MediaHeaderBox*>(box);
 }
 
 SrsMp4MediaInformationBox* SrsMp4MediaBox::minf()
@@ -1693,6 +1743,42 @@ SrsMp4SampleDescriptionBox* SrsMp4SampleTableBox::stsd()
 {
     SrsMp4Box* box = get(SrsMp4BoxTypeSTSD);
     return dynamic_cast<SrsMp4SampleDescriptionBox*>(box);
+}
+
+SrsMp4ChunkOffsetBox* SrsMp4SampleTableBox::stco()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTCO);
+    return dynamic_cast<SrsMp4ChunkOffsetBox*>(box);
+}
+
+SrsMp4SampleSizeBox* SrsMp4SampleTableBox::stsz()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTSZ);
+    return dynamic_cast<SrsMp4SampleSizeBox*>(box);
+}
+
+SrsMp4Sample2ChunkBox* SrsMp4SampleTableBox::stsc()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTSC);
+    return dynamic_cast<SrsMp4Sample2ChunkBox*>(box);
+}
+
+SrsMp4DecodingTime2SampleBox* SrsMp4SampleTableBox::stts()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTTS);
+    return dynamic_cast<SrsMp4DecodingTime2SampleBox*>(box);
+}
+
+SrsMp4CompositionTime2SampleBox* SrsMp4SampleTableBox::ctts()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeCTTS);
+    return dynamic_cast<SrsMp4CompositionTime2SampleBox*>(box);
+}
+
+SrsMp4SyncSampleBox* SrsMp4SampleTableBox::stss()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeSTSS);
+    return dynamic_cast<SrsMp4SyncSampleBox*>(box);
 }
 
 SrsMp4SampleEntry::SrsMp4SampleEntry()
@@ -2499,11 +2585,50 @@ SrsMp4DecodingTime2SampleBox::SrsMp4DecodingTime2SampleBox()
     
     entry_count = 0;
     entries = NULL;
+    
+    index = count = 0;
 }
 
 SrsMp4DecodingTime2SampleBox::~SrsMp4DecodingTime2SampleBox()
 {
     srs_freepa(entries);
+}
+
+int SrsMp4DecodingTime2SampleBox::initialize_counter()
+{
+    int ret = ERROR_SUCCESS;
+    
+    index = 0;
+    if (index >= entry_count) {
+        ret = ERROR_MP4_ILLEGAL_TIMESTAMP;
+        srs_error("MP4 illegal ts, empty stts. ret=%d", ret);
+        return ret;
+    }
+    
+    count = entries[0].sample_count;
+    
+    return ret;
+}
+
+int SrsMp4DecodingTime2SampleBox::on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (sample_index + 1 > count) {
+        index++;
+        
+        if (index >= entry_count) {
+            ret = ERROR_MP4_ILLEGAL_TIMESTAMP;
+            srs_error("MP4 illegal ts, stts overflow, count=%d. ret=%d", entry_count, ret);
+            return ret;
+        }
+        
+        count += entries[index].sample_count;
+    }
+    
+    *ppentry = &entries[index];
+    
+    return ret;
 }
 
 int SrsMp4DecodingTime2SampleBox::nb_header()
@@ -2562,11 +2687,50 @@ SrsMp4CompositionTime2SampleBox::SrsMp4CompositionTime2SampleBox()
     
     entry_count = 0;
     entries = NULL;
+    
+    index = count = 0;
 }
 
 SrsMp4CompositionTime2SampleBox::~SrsMp4CompositionTime2SampleBox()
 {
     srs_freepa(entries);
+}
+
+int SrsMp4CompositionTime2SampleBox::initialize_counter()
+{
+    int ret = ERROR_SUCCESS;
+    
+    index = 0;
+    if (index >= entry_count) {
+        ret = ERROR_MP4_ILLEGAL_TIMESTAMP;
+        srs_error("MP4 illegal ts, empty ctts. ret=%d", ret);
+        return ret;
+    }
+    
+    count = entries[0].sample_count;
+    
+    return ret;
+}
+
+int SrsMp4CompositionTime2SampleBox::on_sample(uint32_t sample_index, SrsMp4CttsEntry** ppentry)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (sample_index + 1 > count) {
+        index++;
+        
+        if (index >= entry_count) {
+            ret = ERROR_MP4_ILLEGAL_TIMESTAMP;
+            srs_error("MP4 illegal ts, ctts overflow, count=%d. ret=%d", entry_count, ret);
+            return ret;
+        }
+        
+        count += entries[index].sample_count;
+    }
+    
+    *ppentry = &entries[index];
+    
+    return ret;
 }
 
 int SrsMp4CompositionTime2SampleBox::nb_header()
@@ -2955,7 +3119,203 @@ int SrsMp4UserDataBox::decode_header(SrsBuffer* buf)
     return ret;
 }
 
-#define SRS_MP4_BUF_SIZE 4096
+SrsMp4Sample::SrsMp4Sample()
+{
+    type = SrsCodecFlvTagForbidden;
+    offset = 0;
+    index = 0;
+    dts = pts = 0;
+    nb_data = 0;
+    data = NULL;
+    frame_type = SrsCodecVideoAVCFrameForbidden;
+    tbn = 0;
+}
+
+SrsMp4Sample::~SrsMp4Sample()
+{
+    srs_freepa(data);
+}
+
+uint32_t SrsMp4Sample::get_dts()
+{
+    return (uint32_t)(dts * 1000 / tbn);
+}
+
+uint32_t SrsMp4Sample::get_pts()
+{
+    return (uint32_t)(pts * 1000 / tbn);
+}
+
+SrsMp4SampleManager::SrsMp4SampleManager()
+{
+}
+
+SrsMp4SampleManager::~SrsMp4SampleManager()
+{
+    vector<SrsMp4Sample*>::iterator it;
+    for (it = samples.begin(); it != samples.end(); ++it) {
+        SrsMp4Sample* sample = *it;
+        srs_freep(sample);
+    }
+    samples.clear();
+}
+
+int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
+{
+    int ret = ERROR_SUCCESS;
+    
+    map<uint64_t, SrsMp4Sample*> tses;
+    
+    // Load samples from moov, merge to temp samples.
+    if ((ret = do_load(tses, moov)) != ERROR_SUCCESS) {
+        map<uint64_t, SrsMp4Sample*>::iterator it;
+        for (it = tses.begin(); it != tses.end(); ++it) {
+            SrsMp4Sample* sample = it->second;
+            srs_freep(sample);
+        }
+        
+        return ret;
+    }
+    
+    // Dumps temp samples.
+    if (true) {
+        map<uint64_t, SrsMp4Sample*>::iterator it;
+        for (it = tses.begin(); it != tses.end(); ++it) {
+            SrsMp4Sample* sample = it->second;
+            samples.push_back(sample);
+        }
+    }
+    
+    return ret;
+}
+
+int SrsMp4SampleManager::do_load(map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsMp4TrackBox* vide = moov->video();
+    if (vide) {
+        SrsMp4MediaHeaderBox* mdhd = vide->mdhd();
+        SrsMp4TrackType tt = vide->track_type();
+        SrsMp4ChunkOffsetBox* stco = vide->stco();
+        SrsMp4SampleSizeBox* stsz = vide->stsz();
+        SrsMp4Sample2ChunkBox* stsc = vide->stsc();
+        SrsMp4DecodingTime2SampleBox* stts = vide->stts();
+        // The composition time to sample table is optional and must only be present if DT and CT differ for any samples.
+        SrsMp4CompositionTime2SampleBox* ctts = vide->ctts();
+        // If the sync sample box is not present, every sample is a sync sample.
+        SrsMp4SyncSampleBox* stss = vide->stss();
+        
+        if (!mdhd || !stco || !stsz || !stsc || !stts) {
+            ret = ERROR_MP4_ILLEGAL_TRACK;
+            srs_error("MP4 illegal track, empty mdhd/stco/stsz/stsc/stts, type=%d. ret=%d", tt, ret);
+            return ret;
+        }
+        
+        if ((ret = load_trak(tses, SrsCodecFlvTagVideo, mdhd, stco, stsz, stsc, stts, ctts, stss)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    SrsMp4TrackBox* soun = moov->audio();
+    if (soun) {
+        SrsMp4MediaHeaderBox* mdhd = soun->mdhd();
+        SrsMp4TrackType tt = soun->track_type();
+        SrsMp4ChunkOffsetBox* stco = soun->stco();
+        SrsMp4SampleSizeBox* stsz = soun->stsz();
+        SrsMp4Sample2ChunkBox* stsc = soun->stsc();
+        SrsMp4DecodingTime2SampleBox* stts = soun->stts();
+        
+        if (!mdhd || !stco || !stsz || !stsc || !stts) {
+            ret = ERROR_MP4_ILLEGAL_TRACK;
+            srs_error("MP4 illegal track, empty mdhd/stco/stsz/stsc/stts, type=%d. ret=%d", tt, ret);
+            return ret;
+        }
+        
+        if ((ret = load_trak(tses, SrsCodecFlvTagAudio, mdhd, stco, stsz, stsc, stts, NULL, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecFlvTag tt,
+    SrsMp4MediaHeaderBox* mdhd, SrsMp4ChunkOffsetBox* stco, SrsMp4SampleSizeBox* stsz, SrsMp4Sample2ChunkBox* stsc,
+    SrsMp4DecodingTime2SampleBox* stts, SrsMp4CompositionTime2SampleBox* ctts, SrsMp4SyncSampleBox* stss)
+{
+    int ret = ERROR_SUCCESS;
+    
+     // Samples per chunk.
+    uint32_t stsci = 0;
+    
+     // DTS box.
+    if ((ret = stts->initialize_counter()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // CTS/PTS box.
+    if (ctts && (ret = ctts->initialize_counter()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    SrsMp4Sample* previous = NULL;
+    
+    // For each chunk offset.
+    for (uint32_t stcoi = 0; stcoi < stco->entry_count; stcoi++) {
+        uint32_t chunk_offset = stco->entries[stcoi];
+        
+        // Find how many samples from stsc.
+        if (stsci < stsc->entry_count - 1 && stcoi + 1 >= stsc->entries[stsci + 1].first_chunk) {
+            stsci++;
+        }
+        uint32_t samples_per_chunk = stsc->entries[stsci].samples_per_chunk;
+        for (uint32_t i = 0; i < samples_per_chunk; i++) {
+            SrsMp4Sample* sample = new SrsMp4Sample();
+            sample->type = tt;
+            sample->index = (previous? previous->index+1:0);
+            sample->tbn = mdhd->timescale;
+            
+            uint32_t sample_size = stsz->sample_size;
+            if (sample_size == 0) {
+                if (sample->index >= stsz->sample_count) {
+                    ret = ERROR_MP4_MOOV_OVERFLOW;
+                    srs_error("MP4 stsz overflow, sample_count=%d. ret=%d", stsz->sample_count, ret);
+                }
+                sample_size = stsz->entry_sizes[sample->index];
+            }
+            sample->offset = chunk_offset + sample_size * i;
+            
+            SrsMp4SttsEntry* stts_entry = NULL;
+            if ((ret = stts->on_sample(sample->index, &stts_entry)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            if (previous) {
+                sample->pts = sample->dts = previous->dts + stts_entry->sample_delta;
+            }
+            
+            SrsMp4CttsEntry* ctts_entry = NULL;
+            if (ctts && (ret = ctts->on_sample(sample->index, &ctts_entry)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            if (ctts_entry) {
+                sample->pts = sample->dts + ctts_entry->sample_offset;
+            }
+            
+            previous = sample;
+            tses[sample->offset] = sample;
+        }
+    }
+    
+    // Check total samples.
+    if (previous && previous->index + 1 != stsz->sample_count) {
+        ret = ERROR_MP4_ILLEGAL_SAMPLES;
+        srs_error("MP4 illegal samples count, expect=%d, actual=%d. ret=%d", stsz->sample_count, previous->index + 1, ret);
+        return ret;
+    }
+    
+    return ret;
+}
 
 SrsMp4Decoder::SrsMp4Decoder()
 {
@@ -2971,6 +3331,7 @@ SrsMp4Decoder::SrsMp4Decoder()
     sample_rate = SrsCodecAudioSampleRateForbidden;
     sound_bits = SrsCodecAudioSampleSizeForbidden;
     channels = SrsCodecAudioSoundTypeForbidden;
+    samples = new SrsMp4SampleManager();
 }
 
 SrsMp4Decoder::~SrsMp4Decoder()
@@ -2979,6 +3340,7 @@ SrsMp4Decoder::~SrsMp4Decoder()
     srs_freep(stream);
     srs_freepa(pasc);
     srs_freepa(pavcc);
+    srs_freep(samples);
 }
 
 int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
@@ -3168,6 +3530,12 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         nb_asc = asc->nb_asc;
         pasc = new uint8_t[nb_asc];
         memcpy(pasc, asc->asc, nb_asc);
+    }
+    
+    // Build the samples structure from moov.
+    if ((ret = samples->load(moov)) != ERROR_SUCCESS) {
+        srs_error("MP4 load samples failed. ret=%d", ret);
+        return ret;
     }
     
     stringstream ss;

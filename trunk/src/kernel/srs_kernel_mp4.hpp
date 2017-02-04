@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <map>
 
 class ISrsReadSeeker;
 class SrsMp4TrackBox;
@@ -50,6 +51,13 @@ class SrsMp4VisualSampleEntry;
 class SrsMp4AvccBox;
 class SrsMp4AudioSampleEntry;
 class SrsMp4EsdsBox;
+class SrsMp4ChunkOffsetBox;
+class SrsMp4SampleSizeBox;
+class SrsMp4Sample2ChunkBox;
+class SrsMp4DecodingTime2SampleBox;
+class SrsMp4CompositionTime2SampleBox;
+class SrsMp4SyncSampleBox;
+class SrsMp4MediaHeaderBox;
 
 /**
  * 4.2 Object Structure
@@ -383,6 +391,22 @@ public:
     virtual SrsMp4TrackType track_type();
     // Get the track header box.
     virtual SrsMp4TrackHeaderBox* tkhd();
+public:
+    // Get the chunk offset box.
+    virtual SrsMp4ChunkOffsetBox* stco();
+    // Get the sample size box.
+    virtual SrsMp4SampleSizeBox* stsz();
+    // Get the sample to chunk box.
+    virtual SrsMp4Sample2ChunkBox* stsc();
+    // Get the dts box.
+    virtual SrsMp4DecodingTime2SampleBox* stts();
+    // Get the cts/pts box.
+    virtual SrsMp4CompositionTime2SampleBox* ctts();
+    // Get the sync dts box.
+    virtual SrsMp4SyncSampleBox* stss();
+    // Get the media header box.
+    virtual SrsMp4MediaHeaderBox* mdhd();
+public:
     // For vide track, get the video codec.
     virtual SrsCodecVideo vide_codec();
     // For soun track, get the audio codec.
@@ -541,6 +565,8 @@ public:
     // for example, it maybe Audio|Video when contains both.
     // Generally, only single type, no combination.
     virtual SrsMp4TrackType track_type();
+    // Get the media header box.
+    virtual SrsMp4MediaHeaderBox* mdhd();
     // Get the media info box.
     virtual SrsMp4MediaInformationBox* minf();
 };
@@ -781,6 +807,18 @@ public:
 public:
     // Get the sample description box
     virtual SrsMp4SampleDescriptionBox* stsd();
+    // Get the chunk offset box.
+    virtual SrsMp4ChunkOffsetBox* stco();
+    // Get the sample size box.
+    virtual SrsMp4SampleSizeBox* stsz();
+    // Get the sample to chunk box.
+    virtual SrsMp4Sample2ChunkBox* stsc();
+    // Get the dts box.
+    virtual SrsMp4DecodingTime2SampleBox* stts();
+    // Get the cts/pts box.
+    virtual SrsMp4CompositionTime2SampleBox* ctts();
+    // Get the sync dts box.
+    virtual SrsMp4SyncSampleBox* stss();
 };
 
 /**
@@ -1123,9 +1161,18 @@ public:
     // an integer that gives the number of entries in the following table.
     uint32_t entry_count;
     SrsMp4SttsEntry* entries;
+private:
+    // The index for counter to calc the dts for samples.
+    uint32_t index;
+    uint32_t count;
 public:
     SrsMp4DecodingTime2SampleBox();
     virtual ~SrsMp4DecodingTime2SampleBox();
+public:
+    // Initialize the counter.
+    virtual int initialize_counter();
+    // When got an sample, index starts from 0.
+    virtual int on_sample(uint32_t sample_index, SrsMp4SttsEntry** ppentry);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1165,9 +1212,18 @@ public:
     // an integer that gives the number of entries in the following table.
     uint32_t entry_count;
     SrsMp4CttsEntry* entries;
+private:
+    // The index for counter to calc the dts for samples.
+    uint32_t index;
+    uint32_t count;
 public:
     SrsMp4CompositionTime2SampleBox();
     virtual ~SrsMp4CompositionTime2SampleBox();
+public:
+    // Initialize the counter.
+    virtual int initialize_counter();
+    // When got an sample, index starts from 0.
+    virtual int on_sample(uint32_t sample_index, SrsMp4CttsEntry** ppentry);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1338,6 +1394,75 @@ protected:
 };
 
 /**
+ * Generally, a MP4 sample contains a frame, for example, a video frame or audio frame.
+ */
+class SrsMp4Sample
+{
+public:
+    // The type of sample, audio or video.
+    SrsCodecFlvTag type;
+    // The offset of sample in file.
+    uint64_t offset;
+    // The index of sample with a track, start from 0.
+    uint32_t index;
+    // The dts in tbn.
+    uint64_t dts;
+    // For video, the pts in tbn.
+    uint64_t pts;
+    // The tbn(timebase).
+    uint32_t tbn;
+    // For video, the frame type, whether keyframe.
+    SrsCodecVideoAVCFrame frame_type;
+    // The sample data.
+    uint32_t nb_data;
+    uint8_t* data;
+public:
+    SrsMp4Sample();
+    virtual ~SrsMp4Sample();
+public:
+    // Get the dts in ms.
+    virtual uint32_t get_dts();
+    // Get the pts in ms.
+    virtual uint32_t get_pts();
+};
+
+/**
+ * Build samples from moov, or write samples to moov.
+ * One or more sample are grouped to a chunk, each track contains one or more chunks.
+ *      The offset of chunk is specified by stco.
+ *      The chunk-sample series is speicified by stsc.
+ *      The sample size is specified by stsz.
+ *      The dts is specified by stts.
+ * For video:
+ *      The cts/pts is specified by ctts.
+ *      The keyframe is specified by stss.
+ */
+class SrsMp4SampleManager
+{
+private:
+    std::vector<SrsMp4Sample*> samples;
+public:
+    SrsMp4SampleManager();
+    virtual ~SrsMp4SampleManager();
+public:
+    /**
+     * Load the samples from moov.
+     * There must be atleast one track.
+     */
+    virtual int load(SrsMp4MovieBox* moov);
+private:
+    virtual int do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
+private:
+    // Load the samples of track from stco, stsz and stsc.
+    // @param tses The temporary samples, key is offset, value is sample.
+    // @param tt The type of sample, convert to flv tag type.
+    // TODO: Support co64 for stco.
+    virtual int load_trak(std::map<uint64_t, SrsMp4Sample*>& tses, SrsCodecFlvTag tt,
+        SrsMp4MediaHeaderBox* mdhd, SrsMp4ChunkOffsetBox* stco, SrsMp4SampleSizeBox* stsz, SrsMp4Sample2ChunkBox* stsc,
+        SrsMp4DecodingTime2SampleBox* stts, SrsMp4CompositionTime2SampleBox* ctts, SrsMp4SyncSampleBox* stss);
+};
+
+/**
  * The MP4 demuxer.
  */
 class SrsMp4Decoder
@@ -1345,6 +1470,7 @@ class SrsMp4Decoder
 private:
     // The major brand of decoder, parse from ftyp.
     SrsMp4BoxBrand brand;
+    SrsMp4SampleManager* samples;
 public:
     // The video codec of first track, generally there is zero or one track.
     // Forbidden if no video stream.

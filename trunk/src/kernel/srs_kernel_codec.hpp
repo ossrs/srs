@@ -189,6 +189,7 @@ enum SrsCodecFlvTag
 {
     // set to the zero to reserved, for array map.
     SrsCodecFlvTagReserved = 0,
+    SrsCodecFlvTagForbidden = 0,
 
     // 8 = audio
     SrsCodecFlvTagAudio = 8,
