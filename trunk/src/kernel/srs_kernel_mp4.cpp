@@ -3319,6 +3319,9 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
     
     // For each chunk offset.
     for (uint32_t ci = 0; ci < stco->entry_count; ci++) {
+        // The sample offset relative in chunk.
+        uint32_t sample_relative_offset = 0;
+        
         // Find how many samples from stsc.
         SrsMp4StscEntry* stsc_entry = stsc->on_chunk(ci);
         for (uint32_t i = 0; i < stsc_entry->samples_per_chunk; i++) {
@@ -3326,12 +3329,13 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
             sample->type = tt;
             sample->index = (previous? previous->index+1:0);
             sample->tbn = mdhd->timescale;
+            sample->offset = stco->entries[ci] + sample_relative_offset;
             
             uint32_t sample_size = 0;
             if ((ret = stsz->get_sample_size(sample->index, &sample_size)) != ERROR_SUCCESS) {
                 return ret;
             }
-            sample->offset = stco->entries[ci] + sample_size * i;
+            sample_relative_offset += sample_size;
             
             SrsMp4SttsEntry* stts_entry = NULL;
             if ((ret = stts->on_sample(sample->index, &stts_entry)) != ERROR_SUCCESS) {
