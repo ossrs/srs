@@ -3508,11 +3508,6 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
     *ppts = ps->pts_ms();
     *pft = ps->frame_type;
     
-    if (ps->type == SrsCodecFlvTagAudio) {
-        *pdts = ps->dts_ms() + 34;
-        *ppts = ps->pts_ms() + 34;
-    }
-    
     // Read sample from io, for we never preload the samples(too large).
     if (ps->offset != current_offset) {
         if ((ret = rsio->lseek(ps->offset, SEEK_SET, &current_offset)) != ERROR_SUCCESS) {
