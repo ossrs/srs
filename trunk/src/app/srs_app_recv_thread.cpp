@@ -288,7 +288,7 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     st_cond_destroy(error);
 }
 
-int SrsPublishRecvThread::wait(int timeout_ms)
+int SrsPublishRecvThread::wait(uint64_t timeout_ms)
 {
     if (recv_error_code != ERROR_SUCCESS) {
         return recv_error_code;

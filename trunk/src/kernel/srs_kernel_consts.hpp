@@ -68,7 +68,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
-// Never timeout in ms.
+// Never timeout in ms
+// @remake Rename from SRS_CONSTS_NO_TIMEOUT
+// @see ST_UTIME_NO_TIMEOUT
 #define SRS_CONSTS_NO_TMMS ((int64_t) -1LL)
 
 // the common io timeout, for both recv and send.

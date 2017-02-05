@@ -1435,9 +1435,9 @@ public:
     virtual ~SrsMp4Sample();
 public:
     // Get the dts in ms.
-    virtual uint32_t get_dts();
+    virtual uint32_t dts_ms();
     // Get the pts in ms.
-    virtual uint32_t get_pts();
+    virtual uint32_t pts_ms();
 };
 
 /**
@@ -1464,6 +1464,11 @@ public:
      * There must be atleast one track.
      */
     virtual int load(SrsMp4MovieBox* moov);
+    /**
+     * Get the sample at index position.
+     * @remark NULL if exceed the max index.
+     */
+    virtual SrsMp4Sample* at(uint32_t index);
 private:
     virtual int do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
 private:
@@ -1484,7 +1489,11 @@ class SrsMp4Decoder
 private:
     // The major brand of decoder, parse from ftyp.
     SrsMp4BoxBrand brand;
+    // The samples build from moov.
     SrsMp4SampleManager* samples;
+    // The current written sample information.
+    uint32_t current_index;
+    off_t current_offset;
 public:
     // The video codec of first track, generally there is zero or one track.
     // Forbidden if no video stream.

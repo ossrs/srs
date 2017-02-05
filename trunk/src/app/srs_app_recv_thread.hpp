@@ -196,7 +196,7 @@ public:
     /**
     * wait for error for some timeout.
     */
-    virtual int wait(int timeout_ms);
+    virtual int wait(uint64_t timeout_ms);
     virtual int64_t nb_msgs();
     virtual int error_code();
     virtual void set_cid(int v);

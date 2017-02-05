@@ -3184,12 +3184,12 @@ SrsMp4Sample::~SrsMp4Sample()
     srs_freepa(data);
 }
 
-uint32_t SrsMp4Sample::get_dts()
+uint32_t SrsMp4Sample::dts_ms()
 {
     return (uint32_t)(dts * 1000 / tbn);
 }
 
-uint32_t SrsMp4Sample::get_pts()
+uint32_t SrsMp4Sample::pts_ms()
 {
     return (uint32_t)(pts * 1000 / tbn);
 }
@@ -3235,6 +3235,14 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
     }
     
     return ret;
+}
+
+SrsMp4Sample* SrsMp4SampleManager::at(uint32_t index)
+{
+    if (index >= samples.size() - 1) {
+        return NULL;
+    }
+    return samples.at(index);
 }
 
 int SrsMp4SampleManager::do_load(map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov)
@@ -3349,6 +3357,10 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
                 }
             }
             
+            // Only set the sample size, read data from io when needed.
+            sample->nb_data = sample_size;
+            sample->data = NULL;
+            
             previous = sample;
             tses[sample->offset] = sample;
         }
@@ -3379,6 +3391,8 @@ SrsMp4Decoder::SrsMp4Decoder()
     sound_bits = SrsCodecAudioSampleSizeForbidden;
     channels = SrsCodecAudioSoundTypeForbidden;
     samples = new SrsMp4SampleManager();
+    current_index = 0;
+    current_offset = 0;
 }
 
 SrsMp4Decoder::~SrsMp4Decoder()
@@ -3437,7 +3451,7 @@ int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     
     // Set the offset to the mdat.
     if (offset >= 0) {
-        return rsio->lseek(offset, SEEK_SET, NULL);
+        return rsio->lseek(offset, SEEK_SET, &current_offset);
     }
     
     return ret;
@@ -3477,6 +3491,46 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
         
         return ret;
     }
+    
+    SrsMp4Sample* ps = samples->at(current_index++);
+    if (!ps) {
+        return ERROR_SYSTEM_FILE_EOF;
+    }
+    
+    if (ps->type == SrsCodecFlvTagVideo) {
+        *pht = SrsMp4HandlerTypeVIDE;
+        *pct = SrsCodecVideoAVCTypeNALU;
+    } else {
+        *pht = SrsMp4HandlerTypeSOUN;
+        *pct = SrsCodecAudioTypeRawData;
+    }
+    *pdts = ps->dts_ms();
+    *ppts = ps->pts_ms();
+    *pft = ps->frame_type;
+    
+    if (ps->type == SrsCodecFlvTagAudio) {
+        *pdts = ps->dts_ms() + 34;
+        *ppts = ps->pts_ms() + 34;
+    }
+    
+    // Read sample from io, for we never preload the samples(too large).
+    if (ps->offset != current_offset) {
+        if ((ret = rsio->lseek(ps->offset, SEEK_SET, &current_offset)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    uint32_t nb_sample = ps->nb_data;
+    uint8_t* sample = new uint8_t[nb_sample];
+    // TODO: FIXME: Use fully read.
+    if ((ret = rsio->read(sample, nb_sample, NULL)) != ERROR_SUCCESS) {
+        srs_freepa(sample);
+        return ret;
+    }
+    
+    *psample = sample;
+    *pnb_sample = nb_sample;
+    current_offset += nb_sample;
     
     return ret;
 }

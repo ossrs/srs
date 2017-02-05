@@ -4462,7 +4462,7 @@ bool SrsConfig::get_gop_cache(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return SRS_PERF_GOP_CACHE;
     }
     
@@ -4484,7 +4484,7 @@ bool SrsConfig::get_debug_srs_upnode(string vhost)
     }
     
     conf = conf->get("cluster");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4506,7 +4506,7 @@ bool SrsConfig::get_atc(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4528,7 +4528,7 @@ bool SrsConfig::get_atc_auto(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4550,7 +4550,7 @@ int SrsConfig::get_time_jitter(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return _srs_time_jitter_string2int(DEFAULT);
     }
     
@@ -4572,7 +4572,7 @@ bool SrsConfig::get_mix_correct(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4594,7 +4594,7 @@ double SrsConfig::get_queue_length(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return DEFAULT;
     }
     
@@ -4807,7 +4807,7 @@ int SrsConfig::get_mw_sleep_ms(string vhost)
     }
     
     conf = conf->get("play");
-    if (!conf || conf->arg0().empty()) {
+    if (!conf) {
         return SRS_PERF_MW_SLEEP;
     }
 

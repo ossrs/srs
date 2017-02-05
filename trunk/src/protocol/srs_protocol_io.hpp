@@ -94,7 +94,7 @@ public:
 public:
     /**
      * Set the timeout tm in ms for recv bytes from peer.
-     * @remark Use SRS_CONSTS_NO_TIMEOUT to never timeout.
+     * @remark Use SRS_CONSTS_NO_TMMS to never timeout.
      */
     virtual void set_recv_timeout(int64_t tm) = 0;
     /**
@@ -122,7 +122,7 @@ public:
 public:
     /**
      * Set the timeout tm in ms for send bytes to peer.
-     * @remark Use SRS_CONSTS_NO_TIMEOUT to never timeout.
+     * @remark Use SRS_CONSTS_NO_TMMS to never timeout.
      */
     virtual void set_send_timeout(int64_t tm) = 0;
     /**
