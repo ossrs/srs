@@ -1427,6 +1427,9 @@ public:
     uint32_t tbn;
     // For video, the frame type, whether keyframe.
     SrsCodecVideoAVCFrame frame_type;
+    // The adjust timestamp in milliseconds.
+    // For example, we can adjust a timestamp for A/V to monotonically increase.
+    int32_t adjust;
     // The sample data.
     uint32_t nb_data;
     uint8_t* data;
@@ -1434,9 +1437,9 @@ public:
     SrsMp4Sample();
     virtual ~SrsMp4Sample();
 public:
-    // Get the dts in ms.
+    // Get the adjusted dts in ms.
     virtual uint32_t dts_ms();
-    // Get the pts in ms.
+    // Get the adjusted pts in ms.
     virtual uint32_t pts_ms();
 };
 

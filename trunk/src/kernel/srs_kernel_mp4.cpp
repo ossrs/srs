@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_io.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 
 #include <string.h>
@@ -3177,6 +3178,7 @@ SrsMp4Sample::SrsMp4Sample()
     data = NULL;
     frame_type = SrsCodecVideoAVCFrameForbidden;
     tbn = 0;
+    adjust = 0;
 }
 
 SrsMp4Sample::~SrsMp4Sample()
@@ -3186,12 +3188,12 @@ SrsMp4Sample::~SrsMp4Sample()
 
 uint32_t SrsMp4Sample::dts_ms()
 {
-    return (uint32_t)(dts * 1000 / tbn);
+    return (uint32_t)(dts * 1000 / tbn) + adjust;
 }
 
 uint32_t SrsMp4Sample::pts_ms()
 {
-    return (uint32_t)(pts * 1000 / tbn);
+    return (uint32_t)(pts * 1000 / tbn) + adjust;
 }
 
 SrsMp4SampleManager::SrsMp4SampleManager()
@@ -3226,11 +3228,42 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
     }
     
     // Dumps temp samples.
+    // Adjust the sequence diff.
+    int32_t maxp = 0;
+    int32_t maxn = 0;
     if (true) {
+        uint32_t tbn = 0;
+        SrsMp4Sample* pvideo = NULL;
         map<uint64_t, SrsMp4Sample*>::iterator it;
         for (it = tses.begin(); it != tses.end(); ++it) {
             SrsMp4Sample* sample = it->second;
             samples.push_back(sample);
+            
+            if (sample->type == SrsCodecFlvTagVideo) {
+                pvideo = sample;
+            } else if (pvideo) {
+                tbn = sample->tbn;
+                int32_t diff = sample->dts_ms() - pvideo->dts_ms();
+                if (diff > 0) {
+                    maxp = srs_max(maxp, diff);
+                } else {
+                    maxn = srs_min(maxn, diff);
+                }
+                pvideo = NULL;
+            }
+        }
+    }
+    
+    // Adjust when one of maxp and maxn is zero,
+    // that means we can adjust by add maxn or sub maxp,
+    // notice that maxn is negative and maxp is positive.
+    if (maxp * maxn == 0 && maxp + maxn != 0) {
+        map<uint64_t, SrsMp4Sample*>::iterator it;
+        for (it = tses.begin(); it != tses.end(); ++it) {
+            SrsMp4Sample* sample = it->second;
+            if (sample->type == SrsCodecFlvTagAudio) {
+                sample->adjust = 0 - maxp - maxn;
+            }
         }
     }
     
