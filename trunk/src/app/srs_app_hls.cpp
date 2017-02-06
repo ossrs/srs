@@ -1265,23 +1265,6 @@ void SrsHls::on_unpublish()
     hls_enabled = false;
 }
 
-int SrsHls::on_meta_data(SrsAmf0Object* metadata)
-{
-    int ret = ERROR_SUCCESS;
-
-    if (!metadata) {
-        srs_trace("no metadata persent, hls ignored it.");
-        return ret;
-    }
-    
-    if (metadata->count() <= 0) {
-        srs_trace("no metadata persent, hls ignored it.");
-        return ret;
-    }
-    
-    return ret;
-}
-
 int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;

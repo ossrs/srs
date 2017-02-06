@@ -405,10 +405,6 @@ public:
     */
     virtual void on_unpublish();
     /**
-    * get some information from metadata, it's optinal.
-    */
-    virtual int on_meta_data(SrsAmf0Object* metadata);
-    /**
     * mux the audio packets to ts.
     * @param shared_audio, directly ptr, copy it if need to save it.
     */

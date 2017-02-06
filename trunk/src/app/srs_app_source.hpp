@@ -456,8 +456,6 @@ public:
     // for example, dispose hls in cycle.
     virtual int cycle();
 public:
-    // When got a original metadata.
-    virtual int on_original_metadata(SrsOnMetaDataPacket* metadata);
     // When got a parsed metadata.
     virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
     // When got a parsed audio packet.

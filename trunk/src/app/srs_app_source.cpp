@@ -927,27 +927,6 @@ int SrsOriginHub::cycle()
     return ret;
 }
 
-int SrsOriginHub::on_original_metadata(SrsOnMetaDataPacket* metadata)
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HLS
-    if (metadata && (ret = hls->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
-        srs_error("hls process onMetaData message failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-#ifdef SRS_AUTO_DVR
-    if (metadata && (ret = dvr->on_meta_data(metadata)) != ERROR_SUCCESS) {
-        srs_error("dvr process onMetaData message failed. ret=%d", ret);
-        return ret;
-    }
-#endif
-    
-    return ret;
-}
-
 int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
     int ret = ERROR_SUCCESS;
@@ -963,6 +942,13 @@ int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata)
             }
         }
     }
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_meta_data(shared_metadata)) != ERROR_SUCCESS) {
+        srs_error("dvr process onMetaData message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
     
     return ret;
 }
@@ -1245,26 +1231,9 @@ int SrsOriginHub::on_dvr_request_sh()
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
     // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
-    if (cache_metadata) {
-        char* payload = cache_metadata->payload;
-        int size = cache_metadata->size;
-        
-        SrsBuffer stream;
-        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
-            srs_error("dvr decode metadata stream failed. ret=%d", ret);
-            return ret;
-        }
-        
-        SrsOnMetaDataPacket pkt;
-        if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
-            srs_error("dvr decode metadata packet failed.");
-            return ret;
-        }
-        
-        if ((ret = dvr->on_meta_data(&pkt)) != ERROR_SUCCESS) {
-            srs_error("dvr process onMetaData message failed. ret=%d", ret);
-            return ret;
-        }
+    if (cache_metadata && (ret = dvr->on_meta_data(cache_metadata)) != ERROR_SUCCESS) {
+        srs_error("dvr process onMetaData message failed. ret=%d", ret);
+        return ret;
     }
     
     if (cache_sh_video && (ret = dvr->on_video(cache_sh_video)) != ERROR_SUCCESS) {
@@ -1975,11 +1944,6 @@ bool SrsSource::can_publish(bool is_edge)
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
-    
-    // Notify hub about the original metadata.
-    if ((ret = hub->on_original_metadata(metadata)) != ERROR_SUCCESS) {
-        return ret;
-    }
     
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
     SrsAmf0Any* prop = NULL;
