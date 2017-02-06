@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <map>
 
+class ISrsWriter;
 class ISrsReadSeeker;
 class SrsMp4TrackBox;
 class SrsMp4MediaBox;
@@ -1538,8 +1539,7 @@ public:
 public:
     /**
      * Initialize the decoder with a reader r.
-     * @param r The underlayer io reader, user must manage it for decoder never open/free it,
-     *      the decoder just read data from the reader.
+     * @param r The underlayer io reader, user must manage it.
      */
     virtual int initialize(ISrsReadSeeker* rs);
     /**
@@ -1565,6 +1565,24 @@ private:
     virtual int load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
     // @remark Never load the mdat box content, for it's too large.
     virtual int do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type);
+};
+
+/**
+ * The MP4 muxer.
+ */
+class SrsMp4Encoder
+{
+private:
+    ISrsWriter* writer;
+public:
+    SrsMp4Encoder();
+    virtual ~SrsMp4Encoder();
+public:
+    /**
+     * Initialize the encoder with a writer w.
+     * @param w The underlayer io writer, user must manage it.
+     */
+    virtual int initialize(ISrsWriter* w);
 };
 
 #endif

@@ -255,6 +255,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_MP4_MOOV_OVERFLOW             3079
 #define ERROR_MP4_ILLEGAL_SAMPLES           3080
 #define ERROR_MP4_ILLEGAL_TIMESTAMP         3081
+#define ERROR_DVR_CANNOT_APPEND             3082
+#define ERROR_DVR_ILLEGAL_PLAN              3083
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.

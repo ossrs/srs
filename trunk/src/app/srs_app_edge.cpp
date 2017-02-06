@@ -213,7 +213,9 @@ void SrsEdgeIngester::stop()
     upstream->close();
     
     // notice to unpublish.
-    source->on_unpublish();
+    if (source) {
+        source->on_unpublish();
+    }
 }
 
 string SrsEdgeIngester::get_curr_origin()

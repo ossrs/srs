@@ -35,7 +35,6 @@ class SrsHttpUri;
 class SrsStSocket;
 class SrsRequest;
 class SrsHttpParser;
-class SrsFlvSegment;
 class SrsHttpClient;
 
 /**

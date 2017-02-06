@@ -3783,3 +3783,18 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
     return ret;
 }
 
+SrsMp4Encoder::SrsMp4Encoder()
+{
+    writer = NULL;
+}
+
+SrsMp4Encoder::~SrsMp4Encoder()
+{
+}
+
+int SrsMp4Encoder::initialize(ISrsWriter* w)
+{
+    writer = w;
+    return ERROR_SUCCESS;
+}
+
