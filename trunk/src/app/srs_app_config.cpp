@@ -283,11 +283,6 @@ bool srs_config_dvr_is_plan_session(string plan)
     return plan == "session";
 }
 
-bool srs_config_dvr_is_plan_append(string plan)
-{
-    return plan == "append";
-}
-
 bool srs_stream_caster_is_udp(string caster)
 {
     return caster == "mpegts_over_udp";
