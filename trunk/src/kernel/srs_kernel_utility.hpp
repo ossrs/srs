@@ -81,6 +81,9 @@ extern std::string srs_string_trim_start(std::string str, std::string trim_chars
 extern std::string srs_string_remove(std::string str, std::string remove_chars);
 // whether string end with
 extern bool srs_string_ends_with(std::string str, std::string flag);
+extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1);
+extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1, std::string flag2);
+extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
 // whether string starts with
 extern bool srs_string_starts_with(std::string str, std::string flag);
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1);
@@ -95,6 +98,12 @@ extern std::string srs_string_min_match(std::string str, std::vector<std::string
 // split the string by flag to array.
 extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
 extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
+
+/**
+ * compare the memory in bytes.
+ * @return true if completely equal; otherwise, false.
+ */
+extern bool srs_bytes_equals(void* pa, void* pb, int size);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);

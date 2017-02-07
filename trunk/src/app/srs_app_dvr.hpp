@@ -60,10 +60,10 @@ class SrsDvrSegmenter : public ISrsReloadHandler
 protected:
     // The underlayer file object.
     SrsFileWriter* fs;
-    // The duration in ms of current segment.
-    int64_t duration;
     // Whether wait keyframe to reap segment.
     bool wait_keyframe;
+    // The duration in ms of current segment.
+    int64_t duration;
 private:
     // The path of current segment flv file path.
     std::string path;
@@ -74,6 +74,11 @@ private:
 private:
     SrsRtmpJitter* jitter;
     SrsRtmpJitterAlgorithm jitter_algorithm;
+private:
+    // The previous stream RTMP pkt time in ms, used to calc the duration.
+    // for the RTMP timestamp will overflow.
+    // TODO: FIXME: Use utility object to calc it.
+    int64_t stream_previous_pkt_time;
 public:
     SrsDvrSegmenter();
     virtual ~SrsDvrSegmenter();
@@ -107,11 +112,13 @@ protected:
     virtual int open_encoder() = 0;
     virtual int encode_metadata(SrsSharedPtrMessage* metadata) = 0;
     virtual int encode_audio(SrsSharedPtrMessage* audio) = 0;
-    virtual int encode_video(SrsSharedPtrMessage* video, bool sh, bool keyframe) = 0;
+    virtual int encode_video(SrsSharedPtrMessage* video) = 0;
     virtual int close_encoder() = 0;
 private:
     // Generate the flv segment path.
     virtual std::string generate_path();
+    // When update the duration of segment by rtmp msg.
+    virtual int on_update_duration(SrsSharedPtrMessage* msg);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_dvr(std::string vhost);
@@ -134,19 +141,6 @@ private:
     int64_t filesize_offset;
     // Whether current segment has keyframe.
     bool has_keyframe;
-private:
-    // The current segment starttime in ms, RTMP pkt time.
-    int64_t starttime;
-    // The stream start time in ms, to generate atc pts. abs time.
-    int64_t stream_starttime;
-    // The stream duration in ms, to generate atc segment.
-    int64_t stream_duration;
-    /**
-     * The previous stream RTMP pkt time in ms, used to calc the duration.
-     * for the RTMP timestamp will overflow.
-     */
-    // TODO: FIXME: Use utility object to calc it.
-    int64_t stream_previous_pkt_time;
 public:
     SrsDvrFlvSegmenter();
     virtual ~SrsDvrFlvSegmenter();
@@ -156,11 +150,8 @@ protected:
     virtual int open_encoder();
     virtual int encode_metadata(SrsSharedPtrMessage* metadata);
     virtual int encode_audio(SrsSharedPtrMessage* audio);
-    virtual int encode_video(SrsSharedPtrMessage* video, bool sh, bool keyframe);
+    virtual int encode_video(SrsSharedPtrMessage* video);
     virtual int close_encoder();
-private:
-    // When update the duration of segment by rtmp msg.
-    virtual int on_update_duration(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -171,6 +162,8 @@ class SrsDvrMp4Segmenter : public SrsDvrSegmenter
 private:
     // The MP4 encoder, for MP4 target.
     SrsMp4Encoder* enc;
+    // The buffer to demux the packet to mp4 sample.
+    SrsBuffer* buffer;
 public:
     SrsDvrMp4Segmenter();
     virtual ~SrsDvrMp4Segmenter();
@@ -180,7 +173,7 @@ protected:
     virtual int open_encoder();
     virtual int encode_metadata(SrsSharedPtrMessage* metadata);
     virtual int encode_audio(SrsSharedPtrMessage* audio);
-    virtual int encode_video(SrsSharedPtrMessage* video, bool sh, bool keyframe);
+    virtual int encode_video(SrsSharedPtrMessage* video);
     virtual int close_encoder();
 };
 

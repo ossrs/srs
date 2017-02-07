@@ -192,31 +192,6 @@ string srs_generate_vis_tc_url(string ip, string vhost, string app, int port)
     return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + app;
 }
 
-/**
-* compare the memory in bytes.
-*/
-bool srs_bytes_equals(void* pa, void* pb, int size)
-{
-    uint8_t* a = (uint8_t*)pa;
-    uint8_t* b = (uint8_t*)pb;
-    
-    if (!a && !b) {
-        return true;
-    }
-    
-    if (!a || !b) {
-        return false;
-    }
-    
-    for(int i = 0; i < size; i++){
-        if(a[i] != b[i]){
-            return false;
-        }
-    }
-
-    return true;
-}
-
 template<typename T>
 int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, T** ppmsg)
 {

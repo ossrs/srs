@@ -50,6 +50,7 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     jitter = NULL;
     plan = NULL;
     duration = 0;
+    stream_previous_pkt_time = -1;
     
     path = "";
     fs = new SrsFileWriter();
@@ -120,6 +121,9 @@ int SrsDvrSegmenter::open()
     jitter = new SrsRtmpJitter();
     duration = 0;
     
+    // fresh stream starting.
+    stream_previous_pkt_time = -1;
+    
     // open file writer, in append or create mode.
     if ((ret = fs->open(tmp_dvr_file)) != ERROR_SUCCESS) {
         srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
@@ -153,6 +157,10 @@ int SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio)
         return ret;
     }
     
+    if ((ret = on_update_duration(audio)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = encode_audio(audio)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -171,13 +179,11 @@ int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video)
         return ret;
     }
     
-    char* payload = video->payload;
-    int size = video->size;
+    if ((ret = encode_video(video)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
-    bool is_sequence_header = SrsFlvCodec::video_is_sequence_header(payload, size);
-    bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size)
-        && SrsFlvCodec::video_is_keyframe(payload, size) && !is_sequence_header;
-    if ((ret = encode_video(video, is_sequence_header, is_key_frame)) != ERROR_SUCCESS) {
+    if ((ret = on_update_duration(video)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -220,6 +226,24 @@ int SrsDvrSegmenter::close()
     return ret;
 }
 
+int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // no previous packet or timestamp overflow.
+    if (stream_previous_pkt_time < 0 || stream_previous_pkt_time > msg->timestamp) {
+        stream_previous_pkt_time = msg->timestamp;
+    }
+    
+    // collect segment and stream duration, timestamp overflow is ok.
+    duration += msg->timestamp - stream_previous_pkt_time;
+    
+    // update previous packet time
+    stream_previous_pkt_time = msg->timestamp;
+    
+    return ret;
+}
+
 string SrsDvrSegmenter::generate_path()
 {
     // the path in config, for example, 
@@ -227,7 +251,7 @@ string SrsDvrSegmenter::generate_path()
     std::string path_config = _srs_config->get_dvr_path(req->vhost);
     
     // add [stream].[timestamp].flv as filename for dir
-    if (!srs_string_ends_with(path_config, ".flv")) {
+    if (!srs_string_ends_with(path_config, ".flv", ".mp4")) {
         path_config += "/[stream].[timestamp].flv";
     }
     
@@ -261,11 +285,6 @@ SrsDvrFlvSegmenter::SrsDvrFlvSegmenter()
     filesize_offset = 0;
     
     has_keyframe = false;
-    
-    starttime = -1;
-    stream_starttime = 0;
-    stream_previous_pkt_time = -1;
-    stream_duration = 0;
 }
 
 SrsDvrFlvSegmenter::~SrsDvrFlvSegmenter()
@@ -335,15 +354,12 @@ int SrsDvrFlvSegmenter::open_encoder()
     
     has_keyframe = false;
     
-    // fresh stream starting.
-    starttime = -1;
-    stream_previous_pkt_time = -1;
-    stream_starttime = srs_update_system_time_ms();
-    stream_duration = 0;
-    
     // update the duration and filesize offset.
     duration_offset = 0;
     filesize_offset = 0;
+    
+    srs_freep(enc);
+    enc = new SrsFlvEncoder();
     
     if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
         return ret;
@@ -431,16 +447,18 @@ int SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     
-    if ((ret = on_update_duration(audio)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
     return ret;
 }
 
-int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video, bool sh, bool keyframe)
+int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
+    
+    char* payload = video->payload;
+    int size = video->size;
+    bool sh = SrsFlvCodec::video_is_sequence_header(payload, size);
+    bool keyframe = SrsFlvCodec::video_is_h264(payload, size)
+        && SrsFlvCodec::video_is_keyframe(payload, size) && !sh;
     
     if (keyframe) {
         has_keyframe = true;
@@ -455,14 +473,6 @@ int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video, bool sh, bool k
         }
     }
     
-    // update segment duration, session plan just update the duration,
-    // the segment plan will reap segment if exceed, this video will write to next segment.
-    if ((ret = on_update_duration(video)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    char* payload = video->payload;
-    int size = video->size;
     if ((ret = enc->write_video(video->timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -475,77 +485,133 @@ int SrsDvrFlvSegmenter::close_encoder()
     return refresh_metadata();
 }
 
-int SrsDvrFlvSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // we must assumpt that the stream timestamp is monotonically increase,
-    // that is, always use time jitter to correct the timestamp.
-    // except the time jitter is disabled in config.
-    
-    // set the segment starttime at first time
-    if (starttime < 0) {
-        starttime = msg->timestamp;
-    }
-    
-    // no previous packet or timestamp overflow.
-    if (stream_previous_pkt_time < 0 || stream_previous_pkt_time > msg->timestamp) {
-        stream_previous_pkt_time = msg->timestamp;
-    }
-    
-    // collect segment and stream duration, timestamp overflow is ok.
-    duration += msg->timestamp - stream_previous_pkt_time;
-    stream_duration += msg->timestamp - stream_previous_pkt_time;
-    
-    // update previous packet time
-    stream_previous_pkt_time = msg->timestamp;
-    
-    return ret;
-}
-
 SrsDvrMp4Segmenter::SrsDvrMp4Segmenter()
 {
     enc = new SrsMp4Encoder();
+    buffer = new SrsBuffer();
 }
 
 SrsDvrMp4Segmenter::~SrsDvrMp4Segmenter()
 {
     srs_freep(enc);
+    srs_freep(buffer);
 }
 
 int SrsDvrMp4Segmenter::refresh_metadata()
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 int SrsDvrMp4Segmenter::open_encoder()
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_freep(enc);
+    enc = new SrsMp4Encoder();
+    
+    if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return ret;
 }
 
-int SrsDvrMp4Segmenter::encode_metadata(SrsSharedPtrMessage* metadata)
+int SrsDvrMp4Segmenter::encode_metadata(SrsSharedPtrMessage* /*metadata*/)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
-    return ret;
+    
+    if ((ret = buffer->initialize(audio->payload, audio->size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
+    if (!buffer->require(1)) {
+        ret = ERROR_FLV_REQUIRE_SPACE;
+        srs_error("DVR require flva 1 byte space. ret=%d", ret);
+        return ret;
+    }
+    uint8_t v = buffer->read_1bytes();
+    SrsCodecAudio sound_format = (SrsCodecAudio)((v >> 4) & 0x0f);
+    SrsCodecAudioSampleRate sound_rate = (SrsCodecAudioSampleRate)((v >> 2) & 0x03);
+    SrsCodecAudioSampleSize sound_size = (SrsCodecAudioSampleSize)((v >> 1) & 0x01);
+    SrsCodecAudioSoundType channels = (SrsCodecAudioSoundType)(v&0x01);
+    
+    uint16_t ct = 0x00;
+    if (sound_format == SrsCodecAudioAAC) {
+        if (!buffer->require(1)) {
+            ret = ERROR_FLV_REQUIRE_SPACE;
+            srs_error("DVR require flva 1 byte space, format=%d. ret=%d", sound_format, ret);
+            return ret;
+        }
+        v = buffer->read_1bytes();
+        ct = (v == 0? SrsCodecAudioTypeSequenceHeader:SrsCodecAudioTypeRawData);
+    }
+    
+    if (ct == SrsCodecAudioTypeSequenceHeader) {
+        enc->acodec = sound_format;
+        enc->sample_rate = sound_rate;
+        enc->sound_bits = sound_size;
+        enc->channels = channels;
+    }
+    
+    uint8_t* sample = (uint8_t*)(buffer->data() + buffer->pos());
+    uint32_t nb_sample = (uint32_t)(buffer->size() - buffer->pos());
+    
+    uint32_t dts = (uint32_t)audio->timestamp;
+    return enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample);
 }
 
-int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, bool sh, bool keyframe)
+int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
-    return ret;
+    
+    if ((ret = buffer->initialize(video->payload, video->size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
+    if (!buffer->require(1)) {
+        ret = ERROR_FLV_REQUIRE_SPACE;
+        srs_error("DVR require flvv 1 byte space. ret=%d", ret);
+        return ret;
+    }
+    uint8_t v = buffer->read_1bytes();
+    SrsCodecVideoAVCFrame frame_type = (SrsCodecVideoAVCFrame)((v>>4)&0x0f);
+    SrsCodecVideo codec_id = (SrsCodecVideo)(v&0x0f);
+    
+    if (!buffer->require(4)) {
+        ret = ERROR_FLV_REQUIRE_SPACE;
+        srs_error("DVR require flvv 4 bytes space, codec=%d. ret=%d", codec_id, ret);
+        return ret;
+    }
+    SrsCodecVideoAVCType ct = (SrsCodecVideoAVCType)buffer->read_1bytes();
+    uint32_t cts = (uint32_t)buffer->read_3bytes();
+    
+    if (ct == SrsCodecVideoAVCTypeSequenceHeader) {
+        enc->vcodec = codec_id;
+    }
+    
+    uint32_t dts = (uint32_t)video->timestamp;
+    uint32_t pts = dts + cts;
+    
+    uint8_t* sample = (uint8_t*)(buffer->data() + buffer->pos());
+    uint32_t nb_sample = (uint32_t)(buffer->size() - buffer->pos());
+    return enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample);
 }
 
 int SrsDvrMp4Segmenter::close_encoder()
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->flush()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return ret;
 }
 

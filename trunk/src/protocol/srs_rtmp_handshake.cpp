@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_utility.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef SRS_AUTO_SSL
 

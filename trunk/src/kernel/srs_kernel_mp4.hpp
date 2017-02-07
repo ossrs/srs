@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <map>
 
-class ISrsWriter;
+class ISrsWriteSeeker;
 class ISrsReadSeeker;
 class SrsMp4TrackBox;
 class SrsMp4MediaBox;
@@ -59,6 +59,11 @@ class SrsMp4DecodingTime2SampleBox;
 class SrsMp4CompositionTime2SampleBox;
 class SrsMp4SyncSampleBox;
 class SrsMp4MediaHeaderBox;
+class SrsMp4HandlerReferenceBox;
+class SrsMp4VideoMeidaHeaderBox;
+class SrsMp4DataInformationBox;
+class SrsMp4DataReferenceBox;
+class SrsMp4SoundMeidaHeaderBox;
 
 /**
  * 4.2 Object Structure
@@ -173,6 +178,9 @@ public:
     // Get the contained box of specific type.
     // @return The first matched box.
     virtual SrsMp4Box* get(SrsMp4BoxType bt);
+    // Remove the contained box of specified type.
+    // @return The removed count.
+    virtual int remove(SrsMp4BoxType bt);
     /**
      * Discovery the box from buffer.
      * @param ppbox Output the discoveried box, which user must free it.
@@ -196,6 +204,13 @@ protected:
     // It's not necessary to check the buffer, unless the box is not only determined by the verson.
     // Generally, it's not necessary, that is, all boxes is determinated by version.
     virtual int decode_header(SrsBuffer* buf);
+protected:
+    // The actual size of this box, generally it must equal to nb_bytes,
+    // but for some special boxes, for instance mdat, the box encode actual size maybe large than
+    // the nb_bytes to write, because the data is written directly.
+    // That is, the actual size is used to encode the box size in header,
+    // while the nb_bytes is the bytes encoded the box.
+    virtual uint64_t encode_actual_size();
 };
 
 /**
@@ -240,6 +255,8 @@ private:
 public:
     SrsMp4FileTypeBox();
     virtual ~SrsMp4FileTypeBox();
+public:
+    virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1, SrsMp4BoxBrand b2, SrsMp4BoxBrand b3);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -256,17 +273,19 @@ protected:
  */
 class SrsMp4MediaDataBox : public SrsMp4Box
 {
-private:
+public:
     // the contained media data
+    // TODO: FIXME: Support 64bits size.
     int nb_data;
+    // @remark User must alloc the data and codec it.
     uint8_t* data;
 public:
     SrsMp4MediaDataBox();
     virtual ~SrsMp4MediaDataBox();
 protected:
-    virtual int nb_header();
-    virtual int encode_header(SrsBuffer* buf);
-    virtual int decode_header(SrsBuffer* buf);
+    virtual uint64_t encode_actual_size();
+public:
+    virtual int decode(SrsBuffer* buf);
 };
 
 /**
@@ -301,10 +320,13 @@ public:
 public:
     // Get the header of moov.
     virtual SrsMp4MovieHeaderBox* mvhd();
+    virtual void set_mvhd(SrsMp4MovieHeaderBox* v);
     // Get the first video track.
     virtual SrsMp4TrackBox* video();
     // Get the first audio track.
     virtual SrsMp4TrackBox* audio();
+    // Add a new track.
+    virtual void add_trak(SrsMp4TrackBox* v);
     // Get the number of video tracks.
     virtual int nb_vide_tracks();
     // Get the number of audio tracks.
@@ -328,7 +350,7 @@ public:
     // an integer that declares the most recent time the presentation was modified (in
     // seconds since midnight, Jan. 1, 1904, in UTC time)
     uint64_t modification_time;
-private:
+public:
     // an integer that specifies the time-scale for the entire presentation; this is the number of
     // time units that pass in one second. For example, a time coordinate system that measures time in
     // sixtieths of a second has a time scale of 60.
@@ -392,6 +414,7 @@ public:
     virtual SrsMp4TrackType track_type();
     // Get the track header box.
     virtual SrsMp4TrackHeaderBox* tkhd();
+    virtual void set_tkhd(SrsMp4TrackHeaderBox* v);
 public:
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
@@ -416,9 +439,10 @@ public:
     virtual SrsMp4AvccBox* avcc();
     // For AAC codec, get the asc.
     virtual SrsMp4DecoderSpecificInfo* asc();
-private:
+public:
     // Get the media box.
     virtual SrsMp4MediaBox* mdia();
+    virtual void set_mdia(SrsMp4MediaBox* v);
     // Get the media info box.
     virtual SrsMp4MediaInformationBox* minf();
     // Get the sample table box.
@@ -568,8 +592,13 @@ public:
     virtual SrsMp4TrackType track_type();
     // Get the media header box.
     virtual SrsMp4MediaHeaderBox* mdhd();
+    virtual void set_mdhd(SrsMp4MediaHeaderBox* v);
+    // Get the hdlr box.
+    virtual SrsMp4HandlerReferenceBox* hdlr();
+    virtual void set_hdlr(SrsMp4HandlerReferenceBox* v);
     // Get the media info box.
     virtual SrsMp4MediaInformationBox* minf();
+    virtual void set_minf(SrsMp4MediaInformationBox* v);
 };
 
 /**
@@ -608,12 +637,15 @@ public:
     // the language code for this media. See ISO 639-2/T for the set of three character
     // codes. Each character is packed as the difference between its ASCII value and 0x60. Since the code
     // is confined to being three lower-case letters, these values are strictly positive.
-    virtual uint8_t language0();
-    virtual void set_language0(uint8_t v);
-    virtual uint8_t language1();
-    virtual void set_language1(uint8_t v);
-    virtual uint8_t language2();
-    virtual void set_language2(uint8_t v);
+    // @param v The ASCII, for example, 'u'.
+    virtual char language0();
+    virtual void set_language0(char v);
+    // @param v The ASCII, for example, 'n'.
+    virtual char language1();
+    virtual void set_language1(char v);
+    // @param v The ASCII, for example, 'd'.
+    virtual char language2();
+    virtual void set_language2(char v);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -661,8 +693,18 @@ public:
     SrsMp4MediaInformationBox();
     virtual ~SrsMp4MediaInformationBox();
 public:
+    // Get the vmhd box.
+    virtual SrsMp4VideoMeidaHeaderBox* vmhd();
+    virtual void set_vmhd(SrsMp4VideoMeidaHeaderBox* v);
+    // Get the smhd box.
+    virtual SrsMp4SoundMeidaHeaderBox* smhd();
+    virtual void set_smhd(SrsMp4SoundMeidaHeaderBox* v);
+    // Get the dinf box.
+    virtual SrsMp4DataInformationBox* dinf();
+    virtual void set_dinf(SrsMp4DataInformationBox* v);
     // Get the sample table box.
     virtual SrsMp4SampleTableBox* stbl();
+    virtual void set_stbl(SrsMp4SampleTableBox* v);
 };
 
 /**
@@ -721,6 +763,10 @@ class SrsMp4DataInformationBox : public SrsMp4Box
 public:
     SrsMp4DataInformationBox();
     virtual ~SrsMp4DataInformationBox();
+public:
+    // Get the dref box.
+    virtual SrsMp4DataReferenceBox* dref();
+    virtual void set_dref(SrsMp4DataReferenceBox* v);
 };
 
 /**
@@ -787,6 +833,7 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4DataEntryBox* entry_at(int index);
+    virtual SrsMp4DataReferenceBox* append(SrsMp4DataEntryBox* v);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -808,18 +855,29 @@ public:
 public:
     // Get the sample description box
     virtual SrsMp4SampleDescriptionBox* stsd();
+    virtual void set_stsd(SrsMp4SampleDescriptionBox* v);
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
+    virtual void set_stco(SrsMp4ChunkOffsetBox* v);
     // Get the sample size box.
     virtual SrsMp4SampleSizeBox* stsz();
+    virtual void set_stsz(SrsMp4SampleSizeBox* v);
     // Get the sample to chunk box.
     virtual SrsMp4Sample2ChunkBox* stsc();
+    virtual void set_stsc(SrsMp4Sample2ChunkBox* v);
     // Get the dts box.
     virtual SrsMp4DecodingTime2SampleBox* stts();
+    virtual void set_stts(SrsMp4DecodingTime2SampleBox* v);
     // Get the cts/pts box.
     virtual SrsMp4CompositionTime2SampleBox* ctts();
+    virtual void set_ctts(SrsMp4CompositionTime2SampleBox* v);
     // Get the sync dts box.
     virtual SrsMp4SyncSampleBox* stss();
+    virtual void set_stss(SrsMp4SyncSampleBox* v);
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**
@@ -877,6 +935,7 @@ public:
 public:
     // For avc1, get the avcc box.
     virtual SrsMp4AvccBox* avcC();
+    virtual void set_avcC(SrsMp4AvccBox* v);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -920,6 +979,7 @@ public:
 public:
     // For AAC codec, get the esds.
     virtual SrsMp4EsdsBox* esds();
+    virtual void set_esds(SrsMp4EsdsBox* v);
     // For AAC codec, get the asc.
     virtual SrsMp4DecoderSpecificInfo* asc();
 protected:
@@ -1020,7 +1080,7 @@ class SrsMp4DecoderConfigDescriptor : public SrsMp4BaseDescriptor
 public:
     // an indication of the object or scene description type that needs to be supported
     // by the decoder for this elementary stream as per Table 5.
-    SrsMp4ObjectType objectTypeIndication;
+    SrsMp4ObjectType objectTypeIndication; // bit(8)
     SrsMp4StreamType streamType; // bit(6)
     uint8_t upStream; // bit(1)
     uint8_t reserved; // bit(1)
@@ -1127,6 +1187,7 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4SampleEntry* entrie_at(int index);
+    virtual SrsMp4SampleDescriptionBox* append(SrsMp4SampleEntry* v);
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
@@ -1417,7 +1478,7 @@ public:
     // The type of sample, audio or video.
     SrsCodecFlvTag type;
     // The offset of sample in file.
-    uint64_t offset;
+    off_t offset;
     // The index of sample with a track, start from 0.
     uint32_t index;
     // The dts in tbn.
@@ -1463,17 +1524,19 @@ public:
     SrsMp4SampleManager();
     virtual ~SrsMp4SampleManager();
 public:
-    /**
-     * Load the samples from moov.
-     * There must be atleast one track.
-     */
+    // Load the samples from moov. There must be atleast one track.
     virtual int load(SrsMp4MovieBox* moov);
-    /**
-     * Get the sample at index position.
-     * @remark NULL if exceed the max index.
-     */
+    // Get the sample at index position.
+    // @remark NULL if exceed the max index.
     virtual SrsMp4Sample* at(uint32_t index);
+    // Append the sample to the tail of manager.
+    virtual void append(SrsMp4Sample* sample);
+    // Write the samples info to moov.
+    virtual int write(SrsMp4MovieBox* moov);
 private:
+    virtual int write_track(SrsCodecFlvTag track,
+        SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
+        SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco);
     virtual int do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
 private:
     // Load the samples of track from stco, stsz and stsc.
@@ -1544,7 +1607,7 @@ public:
     virtual int initialize(ISrsReadSeeker* rs);
     /**
      * Read a sample from mp4.
-     * @param pht The sample type, audio/soun or video/vide.
+     * @param pht The sample hanler type, audio/soun or video/vide.
      * @param pft, The frame type. For video, it's SrsCodecVideoAVCFrame.
      * @param pct, The codec type. For video, it's SrsCodecVideoAVCType. For audio, it's SrsCodecAudioType.
      * @param pdts The output dts in milliseconds.
@@ -1573,16 +1636,69 @@ private:
 class SrsMp4Encoder
 {
 private:
-    ISrsWriter* writer;
+    ISrsWriteSeeker* wsio;
+    SrsBuffer* buffer;
+    // The mdat offset at file, we must update the header when flush.
+    off_t mdat_offset;
+    // The mdat size in bytes, we must update it to the mdat box header.
+    uint64_t mdat_bytes;
+    // The samples build from moov.
+    SrsMp4SampleManager* samples;
+public:
+    // The audio codec of first track, generally there is zero or one track.
+    // Forbidden if no audio stream.
+    SrsCodecAudio acodec;
+    // The audio sample rate.
+    SrsCodecAudioSampleRate sample_rate;
+    // The audio sound bits.
+    SrsCodecAudioSampleSize sound_bits;
+    // The audio sound type.
+    SrsCodecAudioSoundType channels;
+private:
+    // For AAC, the asc in esds box.
+    int nb_asc;
+    uint8_t* pasc;
+    // The number of audio samples.
+    int nb_audios;
+    // The duration of audio stream.
+    uint64_t aduration;
+public:
+    // The video codec of first track, generally there is zero or one track.
+    // Forbidden if no video stream.
+    SrsCodecVideo vcodec;
+private:
+    // For H.264/AVC, the avcc contains the sps/pps.
+    int nb_avcc;
+    uint8_t* pavcc;
+    // The number of video samples.
+    int nb_videos;
+    // The duration of video stream.
+    uint64_t vduration;
+    // The size width/height of video.
+    uint32_t width;
+    uint32_t height;
 public:
     SrsMp4Encoder();
     virtual ~SrsMp4Encoder();
 public:
-    /**
-     * Initialize the encoder with a writer w.
-     * @param w The underlayer io writer, user must manage it.
-     */
-    virtual int initialize(ISrsWriter* w);
+    // Initialize the encoder with a writer w.
+    // @param w The underlayer io writer, user must manage it.
+    virtual int initialize(ISrsWriteSeeker* ws);
+    // Write a sampel to mp4.
+    // @param ht, The sample handler type, audio/soun or video/vide.
+    // @param ft, The frame type. For video, it's SrsCodecVideoAVCFrame.
+    // @param ct, The codec type. For video, it's SrsCodecVideoAVCType. For audio, it's SrsCodecAudioType.
+    // @param dts The output dts in milliseconds.
+    // @param pts The output pts in milliseconds.
+    // @param sample The output payload, user must free it.
+    // @param nb_sample The output size of payload.
+    virtual int write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
+    // Flush the encoder, to write the moov.
+    virtual int flush();
+private:
+    virtual int copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_sample);
+    virtual int do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
 };
 
 #endif

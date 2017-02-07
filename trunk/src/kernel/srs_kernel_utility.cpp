@@ -320,6 +320,21 @@ bool srs_string_ends_with(string str, string flag)
     return str.rfind(flag) == str.length() - flag.length();
 }
 
+bool srs_string_ends_with(string str, string flag0, string flag1)
+{
+    return srs_string_ends_with(str, flag0) || srs_string_ends_with(str, flag1);
+}
+
+bool srs_string_ends_with(string str, string flag0, string flag1, string flag2)
+{
+    return srs_string_ends_with(str, flag0) || srs_string_ends_with(str, flag1) || srs_string_ends_with(str, flag2);
+}
+
+bool srs_string_ends_with(string str, string flag0, string flag1, string flag2, string flag3)
+{
+    return srs_string_ends_with(str, flag0) || srs_string_ends_with(str, flag1) || srs_string_ends_with(str, flag2) || srs_string_ends_with(str, flag3);
+}
+
 bool srs_string_starts_with(string str, string flag)
 {
     return str.find(flag) == 0;
@@ -469,6 +484,28 @@ int srs_do_create_dir_recursively(string dir)
     srs_info("create dir %s success.", dir.c_str());
     
     return ret;
+}
+
+bool srs_bytes_equals(void* pa, void* pb, int size)
+{
+    uint8_t* a = (uint8_t*)pa;
+    uint8_t* b = (uint8_t*)pb;
+    
+    if (!a && !b) {
+        return true;
+    }
+    
+    if (!a || !b) {
+        return false;
+    }
+    
+    for(int i = 0; i < size; i++){
+        if(a[i] != b[i]){
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 int srs_create_dir_recursively(string dir)

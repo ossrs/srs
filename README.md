@@ -185,6 +185,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-02-07, fix [#738][bug #738] support DVR general mp4. 3.0.17
 * v3.0, 2017-01-19, for [#742][bug #742] refine source, meta and origin hub. 3.0.16
 * v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
 * v3.0, 2017-01-11, fix [#735][bug #735] config transform refer_publish invalid. 3.0.14
@@ -1377,6 +1378,7 @@ Winlin
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
 [bug #742]: https://github.com/ossrs/srs/issues/742
+[bug #738]: https://github.com/ossrs/srs/issues/738
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
