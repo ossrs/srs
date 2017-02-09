@@ -421,6 +421,8 @@ class SrsOriginHub : public ISrsReloadHandler
 private:
     SrsSource* source;
     SrsRequest* req;
+    // Whether the stream hub is active, or stream is publishing.
+    bool is_active;
 private:
     // hls handler.
 #ifdef SRS_AUTO_HLS

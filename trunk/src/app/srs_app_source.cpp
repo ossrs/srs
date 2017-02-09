@@ -840,6 +840,7 @@ SrsOriginHub::SrsOriginHub(SrsSource* s)
 {
     source = s;
     req = NULL;
+    is_active = false;
     
 #ifdef SRS_AUTO_HLS
     hls = new SrsHls();
@@ -1141,11 +1142,15 @@ int SrsOriginHub::on_publish()
         return ret;
     }
     
+    is_active = true;
+    
     return ret;
 }
 
 void SrsOriginHub::on_unpublish()
 {
+    is_active = false;
+    
     // destroy all forwarders
     destroy_forwarders();
     
@@ -1261,6 +1266,12 @@ int SrsOriginHub::on_reload_vhost_forward(string vhost)
     
     // forwarders
     destroy_forwarders();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
         srs_error("create forwarders failed. ret=%d", ret);
         return ret;
@@ -1283,6 +1294,12 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
     if ((ret = hls->on_publish(true)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
@@ -1305,6 +1322,12 @@ int SrsOriginHub::on_reload_vhost_hds(string vhost)
     
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
     if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("hds publish failed. ret=%d", ret);
         return ret;
@@ -1328,6 +1351,11 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
 #ifdef SRS_AUTO_DVR
     // cleanup dvr
     dvr->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
     
     // reinitialize the dvr, update plan.
     if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
@@ -1358,6 +1386,12 @@ int SrsOriginHub::on_reload_vhost_transcode(string vhost)
     
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
@@ -1379,6 +1413,12 @@ int SrsOriginHub::on_reload_vhost_exec(string vhost)
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
     ng_exec->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
     if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start exec failed. ret=%d", ret);
         return ret;
