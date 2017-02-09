@@ -54,7 +54,7 @@ Why SRS?
 RTSP/MPEGTS-over-UDP.
 1. <strong>Popular internet delivery:</strong> RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
-1. <strong>Enhanced DVR:</strong> Segment/session/append plan, customer path and HTTP callback.
+1. <strong>Enhanced DVR:</strong> Segment/session/append plan, customer path and HTTP callback, to FLV/MP4 file.
 1. <strong>Multiple features:</strong> Transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http raw api, refer, log, bandwith test and srs-librtmp.
 1. <strong>Best maintainess:</strong> Simple arch over state-threads(coroutine), single thread, single process 
