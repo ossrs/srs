@@ -1227,6 +1227,12 @@ int SrsSource::on_reload_vhost_forward(string vhost)
 
     // forwarders
     destroy_forwarders();
+    
+    // Don't start forwarders when source is not active.
+    if (_can_publish) {
+        return ret;
+    }
+    
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
         srs_error("create forwarders failed. ret=%d", ret);
         return ret;
@@ -1247,6 +1253,12 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (_can_publish) {
+        return ret;
+    }
+    
     if ((ret = hls->on_publish(_req, true)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
@@ -1267,6 +1279,12 @@ int SrsSource::on_reload_vhost_hds(string vhost)
 
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (_can_publish) {
+        return ret;
+    }
+    
     if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("hds publish failed. ret=%d", ret);
         return ret;
@@ -1288,7 +1306,12 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
 #ifdef SRS_AUTO_DVR
     // cleanup dvr
     dvr->on_unpublish();
-
+    
+    // Don't start forwarders when source is not active.
+    if (_can_publish) {
+        return ret;
+    }
+    
     // reinitialize the dvr, update plan.
     if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
@@ -1316,6 +1339,12 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
     
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
+    
+    // Don't start forwarders when source is not active.
+    if (_can_publish) {
+        return ret;
+    }
+    
     if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
