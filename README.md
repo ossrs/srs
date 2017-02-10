@@ -2,6 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/2.0release.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/2.0release)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Wechat](https://cloud.githubusercontent.com/assets/2777660/22814515/2a606ba2-ef8f-11e6-8db6-459d50b036ac.jpeg)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
 SRS/2.0, [ZhouGuowen][release2]
 
