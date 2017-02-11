@@ -16,25 +16,25 @@ For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 * [About](#about)
 * [Product](#product)
-  * [Usage](#usage)
-  * [Wiki for v3.0](#srs-30-wiki)
-  * [Wiki for v2.0](#srs-20-wiki)
-  * [Wiki for v1.0](#srs-10-wiki)
-  * [Features](#features)
-  * [v3.0 changes](#v3-changes)
-  * [v2.0 changes](#v2-changes)
-  * [v1.0 changes](#v1-changes)
-  * [Releases](#releases)
-  * [Compare](#compare)
-  * [Performance](#performance)
+* [Usage](#usage)
+* [Wiki for v3.0](#srs-30-wiki)
+* [Wiki for v2.0](#srs-20-wiki)
+* [Wiki for v1.0](#srs-10-wiki)
+* [Features](#features)
+* [v3.0 changes](#v3-changes)
+* [v2.0 changes](#v2-changes)
+* [v1.0 changes](#v1-changes)
+* [Releases](#releases)
+* [Compare](#compare)
+* [Performance](#performance)
 * [Architecture](#architecture)
-  * [System Architecture](#system-architecture)
-  * [Modularity Architecture](#modularity-architecture)
-  * [Stream Architecture](#stream-architecture)
+* [System Architecture](#system-architecture)
+* [Modularity Architecture](#modularity-architecture)
+* [Stream Architecture](#stream-architecture)
 * [Tips](#tips)
-  * [Authors](#authors)
-  * [Mirrors](#mirrors)
-  * [System Requirements](#system-requirements)
+* [Authors](#authors)
+* [Mirrors](#mirrors)
+* [System Requirements](#system-requirements)
 
 ## About
 
@@ -871,9 +871,9 @@ Remark:
 ### Stream Architecture
 
 ```
-                   +---------+              +----------+
-                   | Publish |              |  Deliver |
-                   +---|-----+              +----|-----+
++---------+              +----------+
+| Publish |              |  Deliver |
++---|-----+              +----|-----+
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
 +----------------------+-------------------------+----------------+
