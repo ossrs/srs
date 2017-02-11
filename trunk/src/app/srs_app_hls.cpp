@@ -61,11 +61,6 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-/**
- * * the HLS section, only available when HLS enabled.
- * */
-#ifdef SRS_AUTO_HLS
-
 SrsHlsCacheWriter::SrsHlsCacheWriter(bool write_cache, bool write_file)
 {
     should_write_cache = write_cache;
@@ -1407,7 +1402,5 @@ void SrsHls::hls_show_mux_log()
             muxer->duration(), muxer->deviation());
     }
 }
-
-#endif
 
 

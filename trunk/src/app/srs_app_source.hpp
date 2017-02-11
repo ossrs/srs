@@ -54,9 +54,7 @@ class SrsMessageArray;
 class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
-#ifdef SRS_AUTO_HLS
 class SrsHls;
-#endif
 #ifdef SRS_AUTO_DVR
 class SrsDvr;
 #endif
@@ -425,9 +423,7 @@ private:
     bool is_active;
 private:
     // hls handler.
-#ifdef SRS_AUTO_HLS
     SrsHls* hls;
-#endif
     // dvr handler.
 #ifdef SRS_AUTO_DVR
     SrsDvr* dvr;

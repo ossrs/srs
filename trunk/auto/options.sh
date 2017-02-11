@@ -15,7 +15,6 @@ help=no
 
 ################################################################
 # feature options
-SRS_HLS=RESERVED
 SRS_HDS=RESERVED
 SRS_DVR=RESERVED
 SRS_NGINX=RESERVED
@@ -42,11 +41,12 @@ SRS_GPERF_CP=RESERVED
 # gprof
 SRS_GPROF=RESERVED
 #
-# Always enable the HTTP features.
+# Always enable the bellow features.
 SRS_HTTP_CALLBACK=YES
 SRS_HTTP_SERVER=YES
 SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
+SRS_HLS=YES
 # 
 ################################################################
 # libraries
@@ -116,7 +116,6 @@ Options:
   -h, --help                print this message
                           
   --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
-  --with-hls                enable hls streaming, mux RTMP to m3u8/ts files.
   --with-hds                enable hds streaming, mux RTMP to f4m/f4v files.
   --with-dvr                enable dvr, mux RTMP to flv files.
   --with-nginx              enable delivery HTTP stream with nginx.
@@ -139,7 +138,6 @@ Options:
   --with-mips-ubuntu12      cross build SRS on ubuntu12 for mips.
                           
   --without-ssl             disable rtmp complex handshake.
-  --without-hls             disable hls, the apple http live streaming.
   --without-hds             disable hds, the adobe http dynamic streaming.
   --without-dvr             disable dvr, donot support record RTMP stream to flv.
   --without-nginx           disable delivery HTTP stream with nginx.
@@ -189,6 +187,7 @@ Always Enabled:
   --with-http-api           enable http api, to manage SRS by http api.
   --with-http-callback      enable http hooks, build cherrypy as demo api server.
   --with-http-server        enable http server to delivery http stream.
+  --with-hls                enable hls streaming, mux RTMP to m3u8/ts files.
   
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -225,7 +224,6 @@ function parse_user_option() {
         --help)                         help=yes                    ;;
         
         --with-ssl)                     SRS_SSL=YES                 ;;
-        --with-hls)                     SRS_HLS=YES                 ;;
         --with-hds)                     SRS_HDS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
@@ -248,7 +246,6 @@ function parse_user_option() {
         --with-mips-ubuntu12)           SRS_MIPS_UBUNTU12=YES       ;;
                                                                  
         --without-ssl)                  SRS_SSL=NO                  ;;
-        --without-hls)                  SRS_HLS=NO                  ;;
         --without-hds)                  SRS_HDS=NO                  ;;
         --without-dvr)                  SRS_DVR=NO                  ;;
         --without-nginx)                SRS_NGINX=NO                ;;
@@ -300,9 +297,11 @@ function parse_user_option() {
         --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
         --with-http-api)                SRS_HTTP_API=YES            ;;
         --with-http-server)             SRS_HTTP_SERVER=YES         ;;
+        --with-hls)                     SRS_HLS=YES                 ;;
         --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
         --without-http-api)             SRS_HTTP_API=NO             ;;
         --without-http-server)          SRS_HTTP_SERVER=NO          ;;
+        --without-hls)                  SRS_HLS=NO                  ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -383,7 +382,6 @@ function apply_user_presets() {
 
     # all disabled.
     if [ $SRS_DISABLE_ALL = YES ]; then
-        SRS_HLS=NO
         SRS_HDS=NO
         SRS_DVR=NO
         SRS_NGINX=NO
@@ -408,7 +406,6 @@ function apply_user_presets() {
 
     # all enabled.
     if [ $SRS_ENABLE_ALL = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=YES
@@ -433,7 +430,6 @@ function apply_user_presets() {
 
     # only rtmp vp6
     if [ $SRS_FAST = YES ]; then
-        SRS_HLS=NO
         SRS_HDS=NO
         SRS_DVR=NO
         SRS_NGINX=NO
@@ -458,7 +454,6 @@ function apply_user_presets() {
 
     # only ssl for RTMP with complex handshake.
     if [ $SRS_PURE_RTMP = YES ]; then
-        SRS_HLS=NO
         SRS_HDS=NO
         SRS_DVR=NO
         SRS_NGINX=NO
@@ -483,7 +478,6 @@ function apply_user_presets() {
 
     # if arm specified, set some default to disabled.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -509,7 +503,6 @@ function apply_user_presets() {
 
     # if mips specified, set some default to disabled.
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -534,7 +527,6 @@ function apply_user_presets() {
 
     # defaults for x86/x64
     if [ $SRS_X86_X64 = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -559,7 +551,6 @@ function apply_user_presets() {
 
     # for osx(darwin)
     if [ $SRS_OSX = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -584,7 +575,6 @@ function apply_user_presets() {
 
     # if dev specified, open features if possible.
     if [ $SRS_DEV = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -609,7 +599,6 @@ function apply_user_presets() {
 
     # if fast dev specified, open main server features.
     if [ $SRS_FAST_DEV = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -634,7 +623,6 @@ function apply_user_presets() {
 	
     # for srs demo
     if [ $SRS_DEMO = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -659,7 +647,6 @@ function apply_user_presets() {
 
     # if raspberry-pi specified, open ssl/hls/static features
     if [ $SRS_PI = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -684,7 +671,6 @@ function apply_user_presets() {
 
     # if cubieboard specified, open features except ffmpeg/nginx.
     if [ $SRS_CUBIE = YES ]; then
-        SRS_HLS=YES
         SRS_HDS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
@@ -725,10 +711,11 @@ function apply_user_detail_options() {
     if [ $SRS_INGEST = YES ]; then SRS_FFMPEG_STUB=YES; fi
 
     # Always enable HTTP utilies.
-    if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable http utilies.${BLACK}"; fi
-    if [ $SRS_HTTP_CALLBACK = NO ]; then SRS_HTTP_CALLBACK=YES; echo -e "${YELLOW}[WARN] Always enable http callback.${BLACK}"; fi
-    if [ $SRS_HTTP_SERVER = NO ]; then SRS_HTTP_SERVER=YES; echo -e "${YELLOW}[WARN] Always enable http server.${BLACK}"; fi
-    if [ $SRS_HTTP_API = NO ]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable http api.${BLACK}"; fi
+    if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
+    if [ $SRS_HTTP_CALLBACK = NO ]; then SRS_HTTP_CALLBACK=YES; echo -e "${YELLOW}[WARN] Always enable HTTP callback.${BLACK}"; fi
+    if [ $SRS_HTTP_SERVER = NO ]; then SRS_HTTP_SERVER=YES; echo -e "${YELLOW}[WARN] Always enable HTTP server.${BLACK}"; fi
+    if [ $SRS_HTTP_API = NO ]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable HTTP API.${BLACK}"; fi
+    if [ $SRS_HLS = NO ]; then SRS_HLS=YES; echo -e "${YELLOW}[WARN] Always enable HLS.${BLACK}"; fi
 
     # parse the jobs for make
     if [[ "" -eq SRS_JOBS ]]; then 
@@ -744,7 +731,6 @@ function apply_user_detail_options() {
     
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        SRS_HLS=NO
         SRS_HDS=NO
         SRS_DVR=NO
         SRS_NGINX=NO
@@ -866,7 +852,6 @@ function check_option_conflicts() {
     # TODO: FIXME: check more os.
 
     # check variable neccessary
-    if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_DVR = RESERVED ]; then echo "you must specifies the dvr, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi

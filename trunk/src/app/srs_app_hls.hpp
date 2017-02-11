@@ -55,11 +55,6 @@ class SrsTsCache;
 class SrsTsContext;
 
 /**
- * * the HLS section, only available when HLS enabled.
- * */
-#ifdef SRS_AUTO_HLS
-
-/**
 * write to file and cache.
 */
 class SrsHlsCacheWriter : public SrsFileWriter
@@ -418,7 +413,5 @@ public:
 private:
     virtual void hls_show_mux_log();
 };
-
-#endif
 
 #endif

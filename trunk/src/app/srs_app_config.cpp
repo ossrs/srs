@@ -4045,11 +4045,9 @@ int SrsConfig::check_config()
             srs_warn("dvr of vhost %s is disabled by configure", vhost->arg0().c_str());
         }
 #endif
-#ifndef SRS_AUTO_HLS
         if (get_hls_enabled(vhost->arg0())) {
             srs_warn("hls of vhost %s is disabled by configure", vhost->arg0().c_str());
         }
-#endif
 #ifndef SRS_AUTO_TRANSCODE
         if (get_transcode_enabled(get_transcode(vhost->arg0(), ""))) {
             srs_warn("transcode of vhost %s is disabled by configure", vhost->arg0().c_str());

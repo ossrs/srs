@@ -842,9 +842,7 @@ SrsOriginHub::SrsOriginHub(SrsSource* s)
     req = NULL;
     is_active = false;
     
-#ifdef SRS_AUTO_HLS
     hls = new SrsHls();
-#endif
 #ifdef SRS_AUTO_DVR
     dvr = new SrsDvr();
 #endif
@@ -873,9 +871,7 @@ SrsOriginHub::~SrsOriginHub()
     }
     srs_freep(ng_exec);
     
-#ifdef SRS_AUTO_HLS
     srs_freep(hls);
-#endif
 #ifdef SRS_AUTO_DVR
     srs_freep(dvr);
 #endif
@@ -893,11 +889,9 @@ int SrsOriginHub::initialize(SrsRequest* r)
     
     req = r;
     
-#ifdef SRS_AUTO_HLS
     if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
@@ -910,20 +904,16 @@ int SrsOriginHub::initialize(SrsRequest* r)
 
 void SrsOriginHub::dispose()
 {
-#ifdef SRS_AUTO_HLS
     hls->dispose();
-#endif
 }
 
 int SrsOriginHub::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HLS
     if ((ret = hls->cycle()) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -960,7 +950,6 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     
     SrsSharedPtrMessage* msg = shared_audio;
     
-#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
@@ -985,7 +974,6 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
             return ret;
         }
     }
-#endif
     
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
@@ -1031,7 +1019,6 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
     
     SrsSharedPtrMessage* msg = shared_video;
     
-#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
@@ -1056,7 +1043,6 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
             return ret;
         }
     }
-#endif
     
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
@@ -1114,12 +1100,10 @@ int SrsOriginHub::on_publish()
     }
 #endif
     
-#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_publish(false)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
-#endif
     
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
@@ -1158,9 +1142,7 @@ void SrsOriginHub::on_unpublish()
     encoder->on_unpublish();
 #endif
     
-#ifdef SRS_AUTO_HLS
     hls->on_unpublish();
-#endif
     
 #ifdef SRS_AUTO_DVR
     dvr->on_unpublish();
@@ -1206,7 +1188,6 @@ int SrsOriginHub::on_hls_start()
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
     SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
     
-#ifdef SRS_AUTO_HLS
     // feed the hls the metadata/sequence header,
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
@@ -1219,7 +1200,6 @@ int SrsOriginHub::on_hls_start()
         srs_error("hls process audio sequence header message failed. ret=%d", ret);
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -1292,7 +1272,6 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
-#ifdef SRS_AUTO_HLS
     hls->on_unpublish();
     
     // Don't start forwarders when source is not active.
@@ -1305,7 +1284,6 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
         return ret;
     }
     srs_trace("vhost %s hls reload success", vhost.c_str());
-#endif
     
     return ret;
 }
