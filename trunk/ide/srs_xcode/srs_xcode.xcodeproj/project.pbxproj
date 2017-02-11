@@ -115,6 +115,7 @@
 		3C7175B91E1DEA8000E8C49F /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175B11E1DEA8000E8C49F /* sync.c */; };
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
 		3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */; };
+		3C9F82221E4ECA8200F5B2D2 /* srs_app_dash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */; };
 		3CA432A81E3F46DD001DA0C6 /* srs_kernel_io.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A61E3F46DD001DA0C6 /* srs_kernel_io.cpp */; };
 		3CA432AB1E40AEBC001DA0C6 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A91E40AEBC001DA0C6 /* Makefile */; };
 		3CA432AC1E40AEBC001DA0C6 /* srs_ingest_mp4.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */; };
@@ -406,6 +407,8 @@
 		3C82802B1BAFF8CC004A1794 /* srs_kafka_stack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kafka_stack.hpp; path = ../../../src/protocol/srs_kafka_stack.hpp; sourceTree = "<group>"; };
 		3C8CE01C1C3F482100548CC6 /* srs_app_hourglass.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_hourglass.hpp; path = ../../../src/app/srs_app_hourglass.hpp; sourceTree = "<group>"; };
 		3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_hourglass.cpp; path = ../../../src/app/srs_app_hourglass.cpp; sourceTree = "<group>"; };
+		3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_dash.cpp; path = ../../../src/app/srs_app_dash.cpp; sourceTree = "<group>"; };
+		3C9F82211E4ECA8200F5B2D2 /* srs_app_dash.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_dash.hpp; path = ../../../src/app/srs_app_dash.hpp; sourceTree = "<group>"; };
 		3CA432A61E3F46DD001DA0C6 /* srs_kernel_io.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_kernel_io.cpp; path = ../../../src/kernel/srs_kernel_io.cpp; sourceTree = "<group>"; };
 		3CA432A71E3F46DD001DA0C6 /* srs_kernel_io.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_io.hpp; path = ../../../src/kernel/srs_kernel_io.hpp; sourceTree = "<group>"; };
 		3CA432A91E40AEBC001DA0C6 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../research/librtmp/Makefile; sourceTree = "<group>"; };
@@ -605,6 +608,8 @@
 				3C12324F1AAE81D900CE8F6C /* srs_app_config.hpp */,
 				3C1232501AAE81D900CE8F6C /* srs_app_conn.cpp */,
 				3C1232511AAE81D900CE8F6C /* srs_app_conn.hpp */,
+				3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */,
+				3C9F82211E4ECA8200F5B2D2 /* srs_app_dash.hpp */,
 				3C1232521AAE81D900CE8F6C /* srs_app_dvr.cpp */,
 				3C1232531AAE81D900CE8F6C /* srs_app_dvr.hpp */,
 				3C1232541AAE81D900CE8F6C /* srs_app_edge.cpp */,
@@ -998,6 +1003,7 @@
 				3C1232A41AAE81D900CE8F6C /* srs_app_ingest.cpp in Sources */,
 				3C0D422E1B87165900C2508B /* srs_protocol_json.cpp in Sources */,
 				3C1232B41AAE81D900CE8F6C /* srs_app_st.cpp in Sources */,
+				3C9F82221E4ECA8200F5B2D2 /* srs_app_dash.cpp in Sources */,
 				3C1232481AAE81A400CE8F6C /* srs_rtmp_stack.cpp in Sources */,
 				3C7175B91E1DEA8000E8C49F /* sync.c in Sources */,
 				3C1232B01AAE81D900CE8F6C /* srs_app_security.cpp in Sources */,
