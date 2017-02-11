@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_kernel_ts.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_protocol_format.hpp>
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
@@ -1117,13 +1118,12 @@ SrsHls::SrsHls()
 {
     req = NULL;
     hub = NULL;
+    format = NULL;
     
     enabled = false;
     disposable = false;
     last_update_time = 0;
 
-    codec = new SrsAvcAacCodec();
-    sample = new SrsCodecSample();
     jitter = new SrsRtmpJitter();
     
     muxer = new SrsHlsMuxer();
@@ -1135,8 +1135,6 @@ SrsHls::SrsHls()
 
 SrsHls::~SrsHls()
 {
-    srs_freep(codec);
-    srs_freep(sample);
     srs_freep(jitter);
     
     srs_freep(muxer);
@@ -1188,12 +1186,13 @@ int SrsHls::cycle()
     return ret;
 }
 
-int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
+int SrsHls::initialize(SrsOriginHub* h, SrsFormat* f, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
     hub = h;
     req = r;
+    format = f;
 
     if ((ret = muxer->initialize()) != ERROR_SUCCESS) {
         return ret;

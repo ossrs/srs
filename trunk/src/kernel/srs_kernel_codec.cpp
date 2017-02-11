@@ -36,7 +36,7 @@ using namespace std;
 string srs_codec_video2str(SrsCodecVideo codec)
 {
     switch (codec) {
-        case SrsCodecVideoAVC: 
+        case SrsCodecVideoAVC:
             return "H264";
         case SrsCodecVideoOn2VP6:
         case SrsCodecVideoOn2VP6WithAlphaChannel:
@@ -75,6 +75,185 @@ string srs_codec_audio2str(SrsCodecAudio codec)
         case SrsCodecAudioReservedDeviceSpecificSound:
         default:
             return "Other";
+    }
+}
+
+string srs_codec_audio_samplerate2str(SrsCodecAudioSampleRate v)
+{
+    switch (v) {
+        case SrsCodecAudioSampleRate5512: return "5512";
+        case SrsCodecAudioSampleRate11025: return "11025";
+        case SrsCodecAudioSampleRate22050: return "22050";
+        case SrsCodecAudioSampleRate44100: return "44100";
+        default: return "Other";
+    }
+}
+
+SrsFlvCodec::SrsFlvCodec()
+{
+}
+
+SrsFlvCodec::~SrsFlvCodec()
+{
+}
+
+bool SrsFlvCodec::video_is_keyframe(char* data, int size)
+{
+    // 2bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char frame_type = data[0];
+    frame_type = (frame_type >> 4) & 0x0F;
+    
+    return frame_type == SrsCodecVideoAVCFrameKeyFrame;
+}
+
+bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
+{
+    // sequence header only for h264
+    if (!video_is_h264(data, size)) {
+        return false;
+    }
+    
+    // 2bytes required.
+    if (size < 2) {
+        return false;
+    }
+    
+    char frame_type = data[0];
+    frame_type = (frame_type >> 4) & 0x0F;
+    
+    char avc_packet_type = data[1];
+    
+    return frame_type == SrsCodecVideoAVCFrameKeyFrame
+    && avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
+}
+
+bool SrsFlvCodec::audio_is_sequence_header(char* data, int size)
+{
+    // sequence header only for aac
+    if (!audio_is_aac(data, size)) {
+        return false;
+    }
+    
+    // 2bytes required.
+    if (size < 2) {
+        return false;
+    }
+    
+    char aac_packet_type = data[1];
+    
+    return aac_packet_type == SrsCodecAudioTypeSequenceHeader;
+}
+
+bool SrsFlvCodec::video_is_h264(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char codec_id = data[0];
+    codec_id = codec_id & 0x0F;
+    
+    return codec_id == SrsCodecVideoAVC;
+}
+
+bool SrsFlvCodec::audio_is_aac(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char sound_format = data[0];
+    sound_format = (sound_format >> 4) & 0x0F;
+    
+    return sound_format == SrsCodecAudioAAC;
+}
+
+bool SrsFlvCodec::video_is_acceptable(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char frame_type = data[0];
+    char codec_id = frame_type & 0x0f;
+    frame_type = (frame_type >> 4) & 0x0f;
+    
+    if (frame_type < 1 || frame_type > 5) {
+        return false;
+    }
+    
+    if (codec_id < 2 || codec_id > 7) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * the public data, event HLS disable, others can use it.
+ */
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+
+// the sample rates in the codec,
+// in the sequence header.
+int aac_sample_rates[] =
+{
+    96000, 88200, 64000, 48000,
+    44100, 32000, 24000, 22050,
+    16000, 12000, 11025,  8000,
+    7350,     0,     0,    0
+};
+
+string srs_codec_audio_samplesize2str(SrsCodecAudioSampleSize v)
+{
+    switch (v) {
+        case SrsCodecAudioSampleSize16bit: return "16bits";
+        case SrsCodecAudioSampleSize8bit: return "8bits";
+        default: return "Other";
+    }
+}
+
+string srs_codec_audio_channels2str(SrsCodecAudioSoundType v)
+{
+    switch (v) {
+        case SrsCodecAudioSoundTypeStereo: return "Stereo";
+        case SrsCodecAudioSoundTypeMono: return "Mono";
+        default: return "Other";
+    }
+}
+
+string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
+{
+    switch (nalu_type) {
+        case SrsAvcNaluTypeNonIDR: return "NonIDR";
+        case SrsAvcNaluTypeDataPartitionA: return "DataPartitionA";
+        case SrsAvcNaluTypeDataPartitionB: return "DataPartitionB";
+        case SrsAvcNaluTypeDataPartitionC: return "DataPartitionC";
+        case SrsAvcNaluTypeIDR: return "IDR";
+        case SrsAvcNaluTypeSEI: return "SEI";
+        case SrsAvcNaluTypeSPS: return "SPS";
+        case SrsAvcNaluTypePPS: return "PPS";
+        case SrsAvcNaluTypeAccessUnitDelimiter: return "AccessUnitDelimiter";
+        case SrsAvcNaluTypeEOSequence: return "EOSequence";
+        case SrsAvcNaluTypeEOStream: return "EOStream";
+        case SrsAvcNaluTypeFilterData: return "FilterData";
+        case SrsAvcNaluTypeSPSExt: return "SPSExt";
+        case SrsAvcNaluTypePrefixNALU: return "PrefixNALU";
+        case SrsAvcNaluTypeSubsetSPS: return "SubsetSPS";
+        case SrsAvcNaluTypeLayerWithoutPartition: return "LayerWithoutPartition";
+        case SrsAvcNaluTypeCodedSliceExt: return "CodedSliceExt";
+        case SrsAvcNaluTypeReserved: default: return "Other";
     }
 }
 
@@ -162,193 +341,68 @@ string srs_codec_avc_level2str(SrsAvcLevel level)
     }
 }
 
-string srs_codec_audio_samplerate2str(SrsCodecAudioSampleRate v)
+SrsSample::SrsSample()
 {
-    switch (v) {
-        case SrsCodecAudioSampleRate5512: return "5512";
-        case SrsCodecAudioSampleRate11025: return "11025";
-        case SrsCodecAudioSampleRate22050: return "22050";
-        case SrsCodecAudioSampleRate44100: return "44100";
-        default: return "Other";
-    }
+    nb_unit = 0;
+    unit = NULL;
 }
 
-/**
-* the public data, event HLS disable, others can use it.
-*/
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
-
-// the sample rates in the codec,
-// in the sequence header.
-int aac_sample_rates[] = 
-{
-    96000, 88200, 64000, 48000,
-    44100, 32000, 24000, 22050,
-    16000, 12000, 11025,  8000,
-    7350,     0,     0,    0
-};
-
-SrsFlvCodec::SrsFlvCodec()
+SrsSample::~SrsSample()
 {
 }
 
-SrsFlvCodec::~SrsFlvCodec()
+SrsCodec::SrsCodec()
 {
 }
 
-bool SrsFlvCodec::video_is_keyframe(char* data, int size)
+SrsCodec::~SrsCodec()
 {
-    // 2bytes required.
-    if (size < 1) {
-        return false;
-    }
-
-    char frame_type = data[0];
-    frame_type = (frame_type >> 4) & 0x0F;
-    
-    return frame_type == SrsCodecVideoAVCFrameKeyFrame;
 }
 
-bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
+SrsAudioCodec::SrsAudioCodec()
 {
-    // sequence header only for h264
-    if (!video_is_h264(data, size)) {
-        return false;
-    }
-    
-    // 2bytes required.
-    if (size < 2) {
-        return false;
-    }
-
-    char frame_type = data[0];
-    frame_type = (frame_type >> 4) & 0x0F;
-
-    char avc_packet_type = data[1];
-    
-    return frame_type == SrsCodecVideoAVCFrameKeyFrame 
-        && avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
+    acodec = SrsCodecAudioForbidden;
+    sound_rate = SrsCodecAudioSampleRateForbidden;
+    sound_size = SrsCodecAudioSampleSizeForbidden;
+    sound_type = SrsCodecAudioSoundTypeForbidden;
+    aac_packet_type = SrsCodecAudioTypeForbidden;
 }
 
-bool SrsFlvCodec::audio_is_sequence_header(char* data, int size)
+SrsAudioCodec::~SrsAudioCodec()
 {
-    // sequence header only for aac
-    if (!audio_is_aac(data, size)) {
-        return false;
-    }
-    
-    // 2bytes required.
-    if (size < 2) {
-        return false;
-    }
-    
-    char aac_packet_type = data[1];
-    
-    return aac_packet_type == SrsCodecAudioTypeSequenceHeader;
 }
 
-bool SrsFlvCodec::video_is_h264(char* data, int size)
+SrsCodecFlvTag SrsAudioCodec::codec()
 {
-    // 1bytes required.
-    if (size < 1) {
-        return false;
-    }
-
-    char codec_id = data[0];
-    codec_id = codec_id & 0x0F;
-    
-    return codec_id == SrsCodecVideoAVC;
+    return SrsCodecFlvTagAudio;
 }
 
-bool SrsFlvCodec::audio_is_aac(char* data, int size)
+SrsVideoCodec::SrsVideoCodec()
 {
-    // 1bytes required.
-    if (size < 1) {
-        return false;
-    }
-    
-    char sound_format = data[0];
-    sound_format = (sound_format >> 4) & 0x0F;
-    
-    return sound_format == SrsCodecAudioAAC;
+    frame_type = SrsCodecVideoAVCFrameForbidden;
+    avc_packet_type = SrsCodecVideoAVCTypeForbidden;
+    has_idr = has_aud = has_sps_pps = false;
+    first_nalu_type = SrsAvcNaluTypeForbidden;
 }
 
-bool SrsFlvCodec::video_is_acceptable(char* data, int size)
+SrsVideoCodec::~SrsVideoCodec()
 {
-    // 1bytes required.
-    if (size < 1) {
-        return false;
-    }
-    
-    char frame_type = data[0];
-    char codec_id = frame_type & 0x0f;
-    frame_type = (frame_type >> 4) & 0x0f;
-    
-    if (frame_type < 1 || frame_type > 5) {
-        return false;
-    }
-    
-    if (codec_id < 2 || codec_id > 7) {
-        return false;
-    }
-    
-    return true;
 }
 
-string srs_codec_audio_samplesize2str(SrsCodecAudioSampleSize v)
+SrsCodecFlvTag SrsVideoCodec::codec()
 {
-    switch (v) {
-        case SrsCodecAudioSampleSize16bit: return "16bits";
-        case SrsCodecAudioSampleSize8bit: return "8bits";
-        default: return "Other";
-    }
+    return SrsCodecFlvTagVideo;
 }
 
-string srs_codec_audio_channels2str(SrsCodecAudioSoundType v)
+SrsFrame::SrsFrame()
 {
-    switch (v) {
-        case SrsCodecAudioSoundTypeStereo: return "Stereo";
-        case SrsCodecAudioSoundTypeMono: return "Mono";
-        default: return "Other";
-    }
+    codec = NULL;
+    nb_samples = 0;
 }
 
-string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
+SrsFrame::~SrsFrame()
 {
-    switch (nalu_type) {
-        case SrsAvcNaluTypeNonIDR: return "NonIDR";
-        case SrsAvcNaluTypeDataPartitionA: return "DataPartitionA";
-        case SrsAvcNaluTypeDataPartitionB: return "DataPartitionB";
-        case SrsAvcNaluTypeDataPartitionC: return "DataPartitionC";
-        case SrsAvcNaluTypeIDR: return "IDR";
-        case SrsAvcNaluTypeSEI: return "SEI";
-        case SrsAvcNaluTypeSPS: return "SPS";
-        case SrsAvcNaluTypePPS: return "PPS";
-        case SrsAvcNaluTypeAccessUnitDelimiter: return "AccessUnitDelimiter";
-        case SrsAvcNaluTypeEOSequence: return "EOSequence";
-        case SrsAvcNaluTypeEOStream: return "EOStream";
-        case SrsAvcNaluTypeFilterData: return "FilterData";
-        case SrsAvcNaluTypeSPSExt: return "SPSExt";
-        case SrsAvcNaluTypePrefixNALU: return "PrefixNALU";
-        case SrsAvcNaluTypeSubsetSPS: return "SubsetSPS";
-        case SrsAvcNaluTypeLayerWithoutPartition: return "LayerWithoutPartition";
-        case SrsAvcNaluTypeCodedSliceExt: return "CodedSliceExt";
-        case SrsAvcNaluTypeReserved: default: return "Other";
-    }
-}
-
-SrsCodecSampleUnit::SrsCodecSampleUnit()
-{
-    size = 0;
-    bytes = NULL;
-}
-
-SrsCodecSampleUnit::~SrsCodecSampleUnit()
-{
+    srs_freep(codec);
 }
 
 SrsCodecSample::SrsCodecSample()
@@ -411,8 +465,6 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
     
     return ret;
 }
-
-#if !defined(SRS_EXPORT_LIBRTMP)
 
 SrsAvcAacCodec::SrsAvcAacCodec()
 {
@@ -1205,7 +1257,7 @@ int SrsAvcAacCodec::avc_demux_annexb_format(SrsBuffer* stream, SrsCodecSample* s
         }
         
         // got the NALU.
-        if ((ret = sample->add_sample_unit(p, pp - p)) != ERROR_SUCCESS) {
+        if ((ret = sample->add_sample_unit(p, (int)(pp - p))) != ERROR_SUCCESS) {
             srs_error("annexb add video sample failed. ret=%d", ret);
             return ret;
         }
@@ -1270,6 +1322,4 @@ int SrsAvcAacCodec::avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sam
     
     return ret;
 }
-
-#endif
 

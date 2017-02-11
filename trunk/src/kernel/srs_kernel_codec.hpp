@@ -301,6 +301,7 @@ enum SrsAvcNaluType
 {
     // Unspecified
     SrsAvcNaluTypeReserved = 0,
+    SrsAvcNaluTypeForbidden = 0,
     
     // Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
     SrsAvcNaluTypeNonIDR = 1,
@@ -340,23 +341,201 @@ enum SrsAvcNaluType
 std::string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 /**
-* the codec sample unit.
-* for h.264 video packet, a NALU is a sample unit.
-* for aac raw audio packet, a NALU is the entire aac raw data.
-* for sequence header, it's not a sample unit.
-*/
-class SrsCodecSampleUnit
+ * the avc payload format, must be ibmf or annexb format.
+ * we guess by annexb first, then ibmf for the first time,
+ * and we always use the guessed format for the next time.
+ */
+enum SrsAvcPayloadFormat
+{
+    SrsAvcPayloadFormatGuess = 0,
+    SrsAvcPayloadFormatAnnexb,
+    SrsAvcPayloadFormatIbmf,
+};
+
+/**
+ * the aac profile, for ADTS(HLS/TS)
+ * @see https://github.com/ossrs/srs/issues/310
+ */
+enum SrsAacProfile
+{
+    SrsAacProfileReserved = 3,
+    
+    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
+    SrsAacProfileMain = 0,
+    SrsAacProfileLC = 1,
+    SrsAacProfileSSR = 2,
+};
+std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
+
+/**
+ * the aac object type, for RTMP sequence header
+ * for AudioSpecificConfig, @see ISO_IEC_14496-3-AAC-2001.pdf, page 33
+ * for audioObjectType, @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
+ */
+enum SrsAacObjectType
+{
+    SrsAacObjectTypeReserved = 0,
+    
+    // Table 1.1 - Audio Object Type definition
+    // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
+    SrsAacObjectTypeAacMain = 1,
+    SrsAacObjectTypeAacLC = 2,
+    SrsAacObjectTypeAacSSR = 3,
+    
+    // AAC HE = LC+SBR
+    SrsAacObjectTypeAacHE = 5,
+    // AAC HEv2 = LC+SBR+PS
+    SrsAacObjectTypeAacHEV2 = 29,
+};
+std::string srs_codec_aac_object2str(SrsAacObjectType aac_object);
+// ts/hls/adts audio header profile to RTMP sequence header object type.
+SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
+// RTMP sequence header object type to ts/hls/adts audio header profile.
+SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
+
+/**
+ * the profile for avc/h.264.
+ * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205.
+ */
+enum SrsAvcProfile
+{
+    SrsAvcProfileReserved = 0,
+    
+    // @see ffmpeg, libavcodec/avcodec.h:2713
+    SrsAvcProfileBaseline = 66,
+    // FF_PROFILE_H264_CONSTRAINED  (1<<9)  // 8+1; constraint_set1_flag
+    // FF_PROFILE_H264_CONSTRAINED_BASELINE (66|FF_PROFILE_H264_CONSTRAINED)
+    SrsAvcProfileConstrainedBaseline = 578,
+    SrsAvcProfileMain = 77,
+    SrsAvcProfileExtended = 88,
+    SrsAvcProfileHigh = 100,
+    SrsAvcProfileHigh10 = 110,
+    SrsAvcProfileHigh10Intra = 2158,
+    SrsAvcProfileHigh422 = 122,
+    SrsAvcProfileHigh422Intra = 2170,
+    SrsAvcProfileHigh444 = 144,
+    SrsAvcProfileHigh444Predictive = 244,
+    SrsAvcProfileHigh444Intra = 2192,
+};
+std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
+
+/**
+ * the level for avc/h.264.
+ * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
+ */
+enum SrsAvcLevel
+{
+    SrsAvcLevelReserved = 0,
+    
+    SrsAvcLevel_1 = 10,
+    SrsAvcLevel_11 = 11,
+    SrsAvcLevel_12 = 12,
+    SrsAvcLevel_13 = 13,
+    SrsAvcLevel_2 = 20,
+    SrsAvcLevel_21 = 21,
+    SrsAvcLevel_22 = 22,
+    SrsAvcLevel_3 = 30,
+    SrsAvcLevel_31 = 31,
+    SrsAvcLevel_32 = 32,
+    SrsAvcLevel_4 = 40,
+    SrsAvcLevel_41 = 41,
+    SrsAvcLevel_5 = 50,
+    SrsAvcLevel_51 = 51,
+};
+std::string srs_codec_avc_level2str(SrsAvcLevel level);
+
+/**
+ * A sample is the unit of frame.
+ * It's a NALU for H.264.
+ * It's the whole AAC raw data for AAC.
+ * @remark Neither SPS/PPS or ASC is sample unit, it's codec sequence header.
+ */
+class SrsSample
 {
 public:
-    /**
-    * the sample bytes is directly ptr to packet bytes,
-    * user should never use it when packet destroyed.
-    */
-    int size;
-    char* bytes;
+    // The size of unit.
+    int nb_unit;
+    // The ptr of unit, user must manage it.
+    char* unit;
 public:
-    SrsCodecSampleUnit();
-    virtual ~SrsCodecSampleUnit();
+    SrsSample();
+    virtual ~SrsSample();
+};
+
+/**
+ * The codec is the information of encoder,
+ * corresponding to the sequence header of FLV,
+ * parsed to detail info.
+ */
+class SrsCodec
+{
+public:
+    SrsCodec();
+    virtual ~SrsCodec();
+public:
+    // Get the codec type.
+    virtual SrsCodecFlvTag codec() = 0;
+};
+
+/**
+ * The audio codec info.
+ */
+class SrsAudioCodec : public SrsCodec
+{
+public:
+    // audio specified
+    SrsCodecAudio acodec;
+    // audio aac specified.
+    SrsCodecAudioSampleRate sound_rate;
+    SrsCodecAudioSampleSize sound_size;
+    SrsCodecAudioSoundType sound_type;
+    SrsCodecAudioType aac_packet_type;
+public:
+    SrsAudioCodec();
+    virtual ~SrsAudioCodec();
+public:
+    virtual SrsCodecFlvTag codec();
+};
+
+/**
+ * The video codec info.
+ */
+class SrsVideoCodec : public SrsCodec
+{
+public:
+    // video specified
+    SrsCodecVideoAVCFrame frame_type;
+    SrsCodecVideoAVCType avc_packet_type;
+    // whether sample_units contains IDR frame.
+    bool has_idr;
+    // Whether exists AUD NALU.
+    bool has_aud;
+    // Whether exists SPS/PPS NALU.
+    bool has_sps_pps;
+    // The first nalu type.
+    SrsAvcNaluType first_nalu_type;
+public:
+    SrsVideoCodec();
+    virtual ~SrsVideoCodec();
+public:
+    virtual SrsCodecFlvTag codec();
+};
+
+/**
+ * A codec frame, consists of a codec and a group of samples.
+ */
+class SrsFrame
+{
+public:
+    // The codec info of frame.
+    SrsCodec* codec;
+    // The actual parsed number of samples.
+    int nb_samples;
+    // The sampels cache.
+    SrsSample samples[SRS_MAX_CODEC_SAMPLE];
+public:
+    SrsFrame();
+    virtual ~SrsFrame();
 };
 
 /**
@@ -434,112 +613,6 @@ public:
     */
     int add_sample_unit(char* bytes, int size);
 };
-
-/**
-* the avc payload format, must be ibmf or annexb format.
-* we guess by annexb first, then ibmf for the first time,
-* and we always use the guessed format for the next time.
-*/
-enum SrsAvcPayloadFormat
-{
-    SrsAvcPayloadFormatGuess = 0,
-    SrsAvcPayloadFormatAnnexb,
-    SrsAvcPayloadFormatIbmf,
-};
-
-/**
-* the aac profile, for ADTS(HLS/TS)
-* @see https://github.com/ossrs/srs/issues/310
-*/
-enum SrsAacProfile
-{
-    SrsAacProfileReserved = 3,
-    
-    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
-    SrsAacProfileMain = 0,
-    SrsAacProfileLC = 1,
-    SrsAacProfileSSR = 2,
-};
-std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
-
-/**
-* the aac object type, for RTMP sequence header
-* for AudioSpecificConfig, @see ISO_IEC_14496-3-AAC-2001.pdf, page 33
-* for audioObjectType, @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
-*/
-enum SrsAacObjectType
-{
-    SrsAacObjectTypeReserved = 0,
-    
-    // Table 1.1 - Audio Object Type definition
-    // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
-    SrsAacObjectTypeAacMain = 1,
-    SrsAacObjectTypeAacLC = 2,
-    SrsAacObjectTypeAacSSR = 3,
-    
-    // AAC HE = LC+SBR
-    SrsAacObjectTypeAacHE = 5,
-    // AAC HEv2 = LC+SBR+PS
-    SrsAacObjectTypeAacHEV2 = 29,
-};
-std::string srs_codec_aac_object2str(SrsAacObjectType aac_object);
-// ts/hls/adts audio header profile to RTMP sequence header object type.
-SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
-// RTMP sequence header object type to ts/hls/adts audio header profile.
-SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
-
-/**
-* the profile for avc/h.264.
-* @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205.
-*/
-enum SrsAvcProfile
-{
-    SrsAvcProfileReserved = 0,
-    
-    // @see ffmpeg, libavcodec/avcodec.h:2713
-    SrsAvcProfileBaseline = 66,
-    // FF_PROFILE_H264_CONSTRAINED  (1<<9)  // 8+1; constraint_set1_flag
-    // FF_PROFILE_H264_CONSTRAINED_BASELINE (66|FF_PROFILE_H264_CONSTRAINED)
-    SrsAvcProfileConstrainedBaseline = 578,
-    SrsAvcProfileMain = 77,
-    SrsAvcProfileExtended = 88,
-    SrsAvcProfileHigh = 100,
-    SrsAvcProfileHigh10 = 110,
-    SrsAvcProfileHigh10Intra = 2158,
-    SrsAvcProfileHigh422 = 122,
-    SrsAvcProfileHigh422Intra = 2170,
-    SrsAvcProfileHigh444 = 144,
-    SrsAvcProfileHigh444Predictive = 244,
-    SrsAvcProfileHigh444Intra = 2192,
-};
-std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
-
-/**
-* the level for avc/h.264.
-* @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
-*/
-enum SrsAvcLevel
-{
-    SrsAvcLevelReserved = 0,
-    
-    SrsAvcLevel_1 = 10,
-    SrsAvcLevel_11 = 11,
-    SrsAvcLevel_12 = 12,
-    SrsAvcLevel_13 = 13,
-    SrsAvcLevel_2 = 20,
-    SrsAvcLevel_21 = 21,
-    SrsAvcLevel_22 = 22,
-    SrsAvcLevel_3 = 30,
-    SrsAvcLevel_31 = 31,
-    SrsAvcLevel_32 = 32,
-    SrsAvcLevel_4 = 40,
-    SrsAvcLevel_41 = 41,
-    SrsAvcLevel_5 = 50,
-    SrsAvcLevel_51 = 51,
-};
-std::string srs_codec_avc_level2str(SrsAvcLevel level);
-
-#if !defined(SRS_EXPORT_LIBRTMP)
 
 /**
 * the h264/avc and aac codec, for media stream.
@@ -679,8 +752,6 @@ private:
     */
     virtual int avc_demux_ibmf_format(SrsBuffer* stream, SrsCodecSample* sample);
 };
-
-#endif
 
 #endif
 

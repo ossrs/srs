@@ -36,12 +36,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_file.hpp>
 #include <srs_app_async_call.hpp>
 
+class SrsFormat;
 class SrsSharedPtrMessage;
-class SrsCodecSample;
 class SrsAmf0Object;
 class SrsRtmpJitter;
 class SrsTSMuxer;
-class SrsAvcAacCodec;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
@@ -343,8 +342,7 @@ private:
 };
 
 /**
-* delivery RTMP stream to HLS(m3u8 and ts),
-* SrsHls provides interface with SrsSource.
+* Transmux RTMP stream to HLS(m3u8 and ts).
 * TODO: FIXME: add utest for hls.
 */
 class SrsHls
@@ -359,8 +357,7 @@ private:
     int64_t last_update_time;
 private:
     SrsOriginHub* hub;
-    SrsAvcAacCodec* codec;
-    SrsCodecSample* sample;
+    SrsFormat* format;
     SrsRtmpJitter* jitter;
     SrsPithyPrint* pprint;
     /**
@@ -387,7 +384,7 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
+    virtual int initialize(SrsOriginHub* h, SrsFormat* f, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.

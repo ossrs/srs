@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_dash.hpp>
+#include <srs_protocol_format.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -853,6 +854,7 @@ SrsOriginHub::SrsOriginHub()
     hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
+    format = new SrsFormat();
     
     _srs_config->subscribe(this);
 }
@@ -871,6 +873,7 @@ SrsOriginHub::~SrsOriginHub()
     }
     srs_freep(ng_exec);
     
+    srs_freep(format);
     srs_freep(hls);
     srs_freep(dash);
     srs_freep(dvr);
@@ -889,7 +892,11 @@ int SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
     req = r;
     source = s;
     
-    if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
+    if ((ret = format->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = hls->initialize(this, format, req)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -924,9 +931,14 @@ int SrsOriginHub::cycle()
     return ret;
 }
 
-int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata)
+int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = format->on_metadata(packet)) != ERROR_SUCCESS) {
+        srs_error("Codec parse metadata failed, ret=%d", ret);
+        return ret;
+    }
     
     // copy to all forwarders
     if (true) {
@@ -953,6 +965,11 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     int ret = ERROR_SUCCESS;
     
     SrsSharedPtrMessage* msg = shared_audio;
+    
+    if ((ret = format->on_audio(msg)) != ERROR_SUCCESS) {
+        srs_error("Codec parse audio failed, ret=%d", ret);
+        return ret;
+    }
     
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
@@ -1026,6 +1043,11 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
     int ret = ERROR_SUCCESS;
     
     SrsSharedPtrMessage* msg = shared_video;
+    
+    if ((ret = format->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+        srs_error("Codec parse video failed, ret=%d", ret);
+        return ret;
+    }
     
     if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
@@ -2048,7 +2070,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     }
     
     // Copy to hub to all utilities.
-    return hub->on_meta_data(meta->data());
+    return hub->on_meta_data(meta->data(), metadata);
 }
 
 int SrsSource::on_audio(SrsCommonMessage* shared_audio)

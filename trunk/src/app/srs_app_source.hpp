@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
 
+class SrsFormat;
 class SrsConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
@@ -421,6 +422,8 @@ private:
     // Whether the stream hub is active, or stream is publishing.
     bool is_active;
 private:
+    // The format, codec information.
+    SrsFormat* format;
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -454,7 +457,7 @@ public:
     virtual int cycle();
 public:
     // When got a parsed metadata.
-    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
+    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
     // When got a parsed audio packet.
     virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     // When got a parsed video packet.
