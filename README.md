@@ -97,16 +97,16 @@ cd srs/trunk
 <strong>See also:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
-* Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
+* Usage: How to delivery HTTP FLV Live Streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
 * Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
-* Usage: How to delivery HLS?([CN][v2_CN_SampleHLS], [EN][v2_EN_SampleHLS])
-* Usage: How to delivery HLS for other codec?([CN][v2_CN_SampleTranscode2HLS], [EN][v2_EN_SampleTranscode2HLS])
+* Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
+* Usage: How to delivery HLS for other codec?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
 * Usage: How to transode RTMP stream by SRS?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other server?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
 * Usage: How to deploy low lantency application?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 * Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
 * Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP])
+* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
 * Usage: How to show the demo of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream to SRS? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
 * Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
@@ -134,11 +134,11 @@ Please select your language:
 
 - [x] Simple and stable enough.
 - [x] Support RTMP origin-edge cluster, for origin ([CN][v1_CN_DeliveryRTMP],[EN][v1_EN_DeliveryRTMP]), for edge([CN][v3_CN_Edge], [EN][v3_EN_Edge]).
-- [x] Support remux RTMP to HTTP-FLV([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv]) or HLS([CN][v2_CN_DeliveryHLS], [EN][v2_EN_DeliveryHLS]).
+- [x] Support remux RTMP to HTTP-FLV([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv]) or HLS([CN][v3_CN_DeliveryHLS], [EN][v3_EN_DeliveryHLS]).
 - [x] High-performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]): single-thread, async socket, event(st) driven.
 - [x] High-concurrency([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB.
 - [x] Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]) and \_\_defaultVhost\_\_.
-- [x] Support HLS audio-only([CN][v2_CN_DeliveryHLS2], [EN][v2_EN_DeliveryHLS2]) live streaming.
+- [x] Support HLS audio-only([CN][v3_CN_DeliveryHLS2], [EN][v3_EN_DeliveryHLS2]) live streaming.
 - [x] Support reload([CN][v1_CN_Reload], [EN][v1_EN_Reload]) config to hot apply config.
 - [x] Support gop-cache to cache last gop([CN][v3_CN_LowLatency2], [EN][v3_EN_LowLatency2]) for fast startup.
 - [x] Support listen at multiple ports.
@@ -155,7 +155,7 @@ Please select your language:
 - [x] Support DVR([CN][v3_CN_DVR], [EN][v3_EN_DVR]) to record live to flv file.
 - [x] Support tracable log, session based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
 - [x] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]).
-- [x] Support embeded HTTP server([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP]) for http streaming.
+- [x] Support embeded HTTP server([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP]) for http streaming.
 - [x] Support publish h264 raw stream([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2]) by srs-librtmp.
 - [x] Support publish aac adts raw stream([CN][v3_CN_SrsLibrtmp3], [EN][v3_EN_SrsLibrtmp3]) by srs-librtmp.
 - [x] Support low latency(0.1s+), please read [bug #257][bug #257].
@@ -522,7 +522,7 @@ Please select your language:
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
 * v1.0, 2014-02-28, add wiki [BuildArm][v3_CN_Build], [FFMPEG][v3_CN_FFMPEG], [Reload][v1_CN_Reload]
 * v1.0, 2014-02-27, add wiki [LowLatency][v3_CN_LowLatency], [HTTPCallback][v3_CN_HTTPCallback], [ServerSideScript][v1_CN_ServerSideScript], [IDE][v2_CN_IDE]
-* v1.0, 2014-01-19, add wiki [DeliveryHLS][v2_CN_DeliveryHLS]
+* v1.0, 2014-01-19, add wiki [DeliveryHLS][v3_CN_DeliveryHLS]
 * v1.0, 2014-01-12, add wiki [HowToAskQuestion][v1_CN_HowToAskQuestion], [RtmpUrlVhost][v1_CN_RtmpUrlVhost]
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
 * v1.0, 2014-01-05, add wiki [Build][v3_CN_Build], [Performance][v1_CN_Performance], [Forward][v3_CN_Forward]
@@ -625,7 +625,7 @@ Please select your language:
 * 2013-12-08, [Release v0.8.0][r0.8], support [http hooks callback][v3_CN_HTTPCallback], update [SB][srs-bench]. 19186 lines.
 * 2013-12-03, [Release v0.7.0][r0.7], support [live stream transcoding][v3_CN_FFMPEG]. 17605 lines.
 * 2013-11-29, [Release v0.6.0][r0.6], support [forward][v3_CN_Forward] stream to origin/edge. 16094 lines.
-* 2013-11-26, [Release v0.5.0][r0.5], support [HLS(m3u8)][v2_CN_DeliveryHLS], fragment and window. 14449 lines.
+* 2013-11-26, [Release v0.5.0][r0.5], support [HLS(m3u8)][v3_CN_DeliveryHLS], fragment and window. 14449 lines.
 * 2013-11-10, [Release v0.4.0][r0.4], support [reload][v1_CN_Reload] config, pause, longtime publish/play. 12500 lines.
 * 2013-11-04, [Release v0.3.0][r0.3], support [vhost][v1_CN_RtmpUrlVhost], refer, gop cache, listen multiple ports. 11773 lines.
 * 2013-10-25, [Release v0.2.0][r0.2], support [rtmp][v1_CN_RTMPHandshake] flash publish, h264, time jitter correct. 10125 lines.
@@ -1025,10 +1025,10 @@ Winlin
 [v1_EN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v1_EN_SampleRTMP
 [v3_CN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v3_CN_SampleRTMPCluster
 [v3_EN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v3_EN_SampleRTMPCluster
-[v2_CN_SampleHLS]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHLS
-[v2_EN_SampleHLS]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHLS
-[v2_CN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v2_CN_SampleTranscode2HLS
-[v2_EN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v2_EN_SampleTranscode2HLS
+[v3_CN_SampleHLS]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHLS
+[v3_EN_SampleHLS]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHLS
+[v3_CN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v3_CN_SampleTranscode2HLS
+[v3_EN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v3_EN_SampleTranscode2HLS
 [v2_CN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v2_CN_SampleFFMPEG
 [v2_EN_SampleFFMPEG]: https://github.com/ossrs/srs/wiki/v2_EN_SampleFFMPEG
 [v3_CN_SampleForward]: https://github.com/ossrs/srs/wiki/v3_CN_SampleForward
@@ -1039,8 +1039,8 @@ Winlin
 [v1_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v1_EN_SampleARM
 [v1_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v1_CN_SampleIngest
 [v1_EN_SampleIngest]: https://github.com/ossrs/srs/wiki/v1_EN_SampleIngest
-[v2_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHTTP
-[v2_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHTTP
+[v3_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHTTP
+[v3_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHTTP
 [v1_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
 [v1_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_EN_SampleDemo
 [v3_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_CN_SrsLibrtmp#publish-h264-raw-data
@@ -1074,10 +1074,10 @@ Winlin
 [v1_EN_RTMPHandshake]: https://github.com/ossrs/srs/wiki/v1_EN_RTMPHandshake
 [v2_CN_HTTPServer]: https://github.com/ossrs/srs/wiki/v2_CN_HTTPServer
 [v2_EN_HTTPServer]: https://github.com/ossrs/srs/wiki/v2_EN_HTTPServer
-[v2_CN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v2_CN_DeliveryHLS
-[v2_EN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v2_EN_DeliveryHLS
-[v2_CN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v2_CN_DeliveryHLS#hlsaudioonly
-[v2_EN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v2_EN_DeliveryHLS#hlsaudioonly
+[v3_CN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v3_CN_DeliveryHLS
+[v3_EN_DeliveryHLS]: https://github.com/ossrs/srs/wiki/v3_EN_DeliveryHLS
+[v3_CN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v3_CN_DeliveryHLS#hlsaudioonly
+[v3_EN_DeliveryHLS2]: https://github.com/ossrs/srs/wiki/v3_EN_DeliveryHLS#hlsaudioonly
 [v1_CN_Reload]: https://github.com/ossrs/srs/wiki/v1_CN_Reload
 [v1_EN_Reload]: https://github.com/ossrs/srs/wiki/v1_EN_Reload
 [v3_CN_LowLatency2]: https://github.com/ossrs/srs/wiki/v3_CN_LowLatency#gop-cache
@@ -1110,8 +1110,8 @@ Winlin
 [v1_EN_SrsLog]: https://github.com/ossrs/srs/wiki/v1_EN_SrsLog
 [v3_CN_DRM2]: https://github.com/ossrs/srs/wiki/v3_CN_DRM#tokentraverse
 [v3_EN_DRM2]: https://github.com/ossrs/srs/wiki/v3_EN_DRM#tokentraverse
-[v2_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHTTP
-[v2_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHTTP
+[v3_CN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHTTP
+[v3_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHTTP
 [v2_CN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v2_CN_FlvVodStream
 [v2_EN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v2_EN_FlvVodStream
 [v3_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_CN_SrsLibrtmp#publish-h264-raw-data
@@ -1128,8 +1128,8 @@ Winlin
 [v2_EN_Streamer]: https://github.com/ossrs/srs/wiki/v2_EN_Streamer
 [v2_CN_Streamer2]: https://github.com/ossrs/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
 [v2_EN_Streamer2]: https://github.com/ossrs/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
-[v2_CN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v2_CN_SampleHttpFlv
-[v2_EN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v2_EN_SampleHttpFlv
+[v3_CN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHttpFlv
+[v3_EN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHttpFlv
 [v3_CN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHttpFlvCluster
 [v3_EN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHttpFlvCluster
 [v3_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v3_CN_LowLatency
