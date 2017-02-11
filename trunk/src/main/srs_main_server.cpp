@@ -164,7 +164,10 @@ int main(int argc, char** argv)
         }
 #endif
         
-        srs_trace(ss.str().c_str());
+        string sss = ss.str();
+        if (!sss.empty()) {
+            srs_trace(sss.c_str());
+        }
     }
     
     // we check the config when the log initialized.
@@ -202,6 +205,7 @@ void show_macro_features()
         
         // rch(rtmp complex handshake)
         ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
+        ss << ", dash:" << "on";
         ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
         ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
         // hc(http callback)

@@ -56,6 +56,7 @@ class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
 class SrsDvr;
+class SrsMpegDash;
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
@@ -422,6 +423,8 @@ private:
 private:
     // hls handler.
     SrsHls* hls;
+    // The DASH encoder.
+    SrsMpegDash* dash;
     // dvr handler.
     SrsDvr* dvr;
     // transcoding handler.
@@ -437,12 +440,12 @@ private:
     // to forward stream to other servers
     std::vector<SrsForwarder*> forwarders;
 public:
-    SrsOriginHub(SrsSource* s);
+    SrsOriginHub();
     virtual ~SrsOriginHub();
 public:
     // Initialize the hub with source and request.
     // @param r The request object, managed by source.
-    virtual int initialize(SrsRequest* r);
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     // Dispose the hub, release utilities resource,
     // for example, delete all HLS pieces.
     virtual void dispose();
@@ -461,17 +464,16 @@ public:
     virtual int on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
-// for the tools callback
+// Internal callback.
 public:
     // for the SrsForwarder to callback to request the sequence headers.
     virtual int on_forwarder_start(SrsForwarder* forwarder);
-    // for the SrsHls to callback to request the sequence headers.
-    virtual int on_hls_start();
     // for the SrsDvr to callback to request the sequence headers.
     virtual int on_dvr_request_sh();
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_forward(std::string vhost);
+    virtual int on_reload_vhost_dash(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);

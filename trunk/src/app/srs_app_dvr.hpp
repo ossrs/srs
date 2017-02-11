@@ -289,7 +289,7 @@ public:
      * when encoder start to publish RTMP stream.
      * @param fetch_sequence_header whether fetch sequence from source.
      */
-    virtual int on_publish(bool fetch_sequence_header);
+    virtual int on_publish();
     /**
     * the unpublish event.,
     * when encoder stop(unpublish) to publish RTMP stream.

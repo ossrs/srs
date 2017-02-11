@@ -23,4 +23,80 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_dash.hpp>
 
+#include <srs_kernel_error.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_config.hpp>
+#include <srs_rtmp_stack.hpp>
+
+SrsMpegDash::SrsMpegDash()
+{
+    hub = NULL;
+    req = NULL;
+    
+    enabled = false;
+}
+
+SrsMpegDash::~SrsMpegDash()
+{
+}
+
+int SrsMpegDash::initialize(SrsOriginHub* h, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    hub = h;
+    req = r;
+    
+    return ret;
+}
+
+int SrsMpegDash::on_publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // Prevent duplicated publish.
+    if (enabled) {
+        return ret;
+    }
+    
+    if (!_srs_config->get_dash_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    enabled = true;
+    
+    return ret;
+}
+
+int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!enabled) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsMpegDash::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!enabled) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsMpegDash::on_unpublish()
+{
+    // Prevent duplicated unpublish.
+    if (!enabled) {
+        return;
+    }
+    
+    enabled = false;
+}
 

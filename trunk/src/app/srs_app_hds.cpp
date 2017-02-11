@@ -260,7 +260,7 @@ private:
     string path;
 };
 
-SrsHds::SrsHds(SrsSource *s)
+SrsHds::SrsHds()
     : currentSegment(NULL)
     , fragment_index(1)
     , video_sh(NULL)
@@ -273,7 +273,6 @@ SrsHds::SrsHds(SrsSource *s)
 
 SrsHds::~SrsHds()
 {
-
 }
 
 int SrsHds::on_publish(SrsRequest *req)

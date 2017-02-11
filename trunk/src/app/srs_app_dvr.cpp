@@ -1019,7 +1019,7 @@ int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
     return ret;
 }
 
-int SrsDvr::on_publish(bool fetch_sequence_header)
+int SrsDvr::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
@@ -1029,10 +1029,6 @@ int SrsDvr::on_publish(bool fetch_sequence_header)
     }
     
     if ((ret = plan->on_publish()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if (fetch_sequence_header && (ret = hub->on_dvr_request_sh()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1088,11 +1084,21 @@ int SrsDvr::on_reload_vhost_dvr_apply(string vhost)
     bool v = srs_config_apply_filter(conf, req);
     
     // the apply changed, republish the dvr.
-    if (v != actived) {
-        actived = v;
-        
-        on_unpublish();
-        return on_publish(true);
+    if (v == actived) {
+        return ret;
+    }
+    actived = v;
+    
+    on_unpublish();
+    if (!actived) {
+        return ret;
+    }
+    
+    if ((ret = on_publish()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = hub->on_dvr_request_sh()) != ERROR_SUCCESS) {
+        return ret;
     }
     
     return ret;

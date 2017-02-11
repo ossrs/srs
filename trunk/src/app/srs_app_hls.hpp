@@ -351,11 +351,11 @@ class SrsHls
 {
 private:
     SrsHlsMuxer* muxer;
-    SrsHlsCache* hls_cache;
+    SrsHlsCache* cache;
 private:
     SrsRequest* req;
-    bool hls_enabled;
-    bool hls_can_dispose;
+    bool enabled;
+    bool disposable;
     int64_t last_update_time;
 private:
     SrsOriginHub* hub;
@@ -393,7 +393,7 @@ public:
      * for the muxer object not destroyed.
      * @param fetch_sequence_header whether fetch sequence from source.
      */
-    virtual int on_publish(bool fetch_sequence_header);
+    virtual int on_publish();
     /**
     * the unpublish event, only close the muxer, donot destroy the 
     * muxer, for when we continue to publish, the m3u8 will continue.

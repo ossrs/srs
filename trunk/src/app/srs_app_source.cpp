@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_ng_exec.hpp>
+#include <srs_app_dash.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -836,19 +837,20 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
     return msg;
 }
 
-SrsOriginHub::SrsOriginHub(SrsSource* s)
+SrsOriginHub::SrsOriginHub()
 {
-    source = s;
+    source = NULL;
     req = NULL;
     is_active = false;
     
     hls = new SrsHls();
+    dash = new SrsMpegDash();
     dvr = new SrsDvr();
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
 #ifdef SRS_AUTO_HDS
-    hds = new SrsHds(s);
+    hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
     
@@ -870,6 +872,7 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(ng_exec);
     
     srs_freep(hls);
+    srs_freep(dash);
     srs_freep(dvr);
 #ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
@@ -879,13 +882,18 @@ SrsOriginHub::~SrsOriginHub()
 #endif
 }
 
-int SrsOriginHub::initialize(SrsRequest* r)
+int SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
     req = r;
+    source = s;
     
     if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = dash->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -899,6 +907,8 @@ int SrsOriginHub::initialize(SrsRequest* r)
 void SrsOriginHub::dispose()
 {
     hls->dispose();
+    
+    // TODO: Support dispose DASH.
 }
 
 int SrsOriginHub::cycle()
@@ -908,6 +918,8 @@ int SrsOriginHub::cycle()
     if ((ret = hls->cycle()) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // TODO: Support cycle DASH.
     
     return ret;
 }
@@ -965,6 +977,12 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
             srs_warn("hls disconnect publisher for audio error. ret=%d", ret);
             return ret;
         }
+    }
+    
+    if ((ret = dash->on_audio(msg)) != ERROR_SUCCESS) {
+        srs_warn("DASH failed, ignore and disable it. ret=%d", ret);
+        dash->on_unpublish();
+        ret = ERROR_SUCCESS;
     }
     
     if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
@@ -1034,6 +1052,12 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         }
     }
     
+    if ((ret = dash->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+        srs_warn("DASH failed, ignore and disable it. ret=%d", ret);
+        dash->on_unpublish();
+        ret = ERROR_SUCCESS;
+    }
+    
     if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
         srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
         
@@ -1088,12 +1112,17 @@ int SrsOriginHub::on_publish()
     }
 #endif
     
-    if ((ret = hls->on_publish(false)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
     
-    if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
+    if ((ret = dash->on_publish()) != ERROR_SUCCESS) {
+        srs_error("Start DASH failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = dvr->on_publish()) != ERROR_SUCCESS) {
         srs_error("start dvr failed. ret=%d", ret);
         return ret;
     }
@@ -1129,6 +1158,7 @@ void SrsOriginHub::on_unpublish()
 #endif
     
     hls->on_unpublish();
+    dash->on_unpublish();
     dvr->on_unpublish();
     
 #ifdef SRS_AUTO_HDS
@@ -1158,29 +1188,6 @@ int SrsOriginHub::on_forwarder_start(SrsForwarder* forwarder)
     }
     if (cache_sh_audio && (ret = forwarder->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
         srs_error("forwarder process audio sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsOriginHub::on_hls_start()
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
-    
-    // feed the hls the metadata/sequence header,
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsSource.on_hls_start to push the sequence header to HLS.
-    // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
-        srs_error("hls process video sequence header message failed. ret=%d", ret);
-        return ret;
-    }
-    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("hls process audio sequence header message failed. ret=%d", ret);
         return ret;
     }
     
@@ -1243,6 +1250,40 @@ int SrsOriginHub::on_reload_vhost_forward(string vhost)
     return ret;
 }
 
+int SrsOriginHub::on_reload_vhost_dash(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    dash->on_unpublish();
+    
+    // Don't start DASH when source is not active.
+    if (!is_active) {
+        return ret;
+    }
+    
+    if ((ret = dash->on_publish()) != ERROR_SUCCESS) {
+        srs_error("DASH start failed, ret=%d", ret);
+        return ret;
+    }
+    
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    if (cache_sh_video && (ret = dash->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
+        srs_error("DASH consume video failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = dash->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+        srs_error("DASH consume audio failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
 int SrsOriginHub::on_reload_vhost_hls(string vhost)
 {
     int ret = ERROR_SUCCESS;
@@ -1255,16 +1296,37 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     
     hls->on_unpublish();
     
-    // Don't start forwarders when source is not active.
+    // Don't start HLS when source is not active.
     if (!is_active) {
         return ret;
     }
     
-    if ((ret = hls->on_publish(true)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
     }
     srs_trace("vhost %s hls reload success", vhost.c_str());
+    
+    // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
+    // when reload, we must fetch the sequence header from source cache.
+    // notice the source to get the cached sequence header.
+    // when reload to start hls, hls will never get the sequence header in stream,
+    // use the SrsSource.on_hls_start to push the sequence header to HLS.
+    SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    
+    // feed the hls the metadata/sequence header,
+    // when reload to start hls, hls will never get the sequence header in stream,
+    // use the SrsSource.on_hls_start to push the sequence header to HLS.
+    // TODO: maybe need to decode the metadata?
+    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
+        srs_error("hls process video sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+        srs_error("hls process audio sequence header message failed. ret=%d", ret);
+        return ret;
+    }
     
     return ret;
 }
@@ -1282,7 +1344,7 @@ int SrsOriginHub::on_reload_vhost_hds(string vhost)
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
     
-    // Don't start forwarders when source is not active.
+    // Don't start HDS when source is not active.
     if (!is_active) {
         return ret;
     }
@@ -1310,7 +1372,7 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     // cleanup dvr
     dvr->on_unpublish();
     
-    // Don't start forwarders when source is not active.
+    // Don't start DVR when source is not active.
     if (!is_active) {
         return ret;
     }
@@ -1321,8 +1383,12 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     }
     
     // start to publish by new plan.
-    if ((ret = dvr->on_publish(true)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_publish()) != ERROR_SUCCESS) {
         srs_error("dvr publish failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = on_dvr_request_sh()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1344,7 +1410,7 @@ int SrsOriginHub::on_reload_vhost_transcode(string vhost)
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
     
-    // Don't start forwarders when source is not active.
+    // Don't start transcode when source is not active.
     if (!is_active) {
         return ret;
     }
@@ -1371,7 +1437,7 @@ int SrsOriginHub::on_reload_vhost_exec(string vhost)
     
     ng_exec->on_unpublish();
     
-    // Don't start forwarders when source is not active.
+    // Don't start exec when source is not active.
     if (!is_active) {
         return ret;
     }
@@ -1712,7 +1778,7 @@ SrsSource::SrsSource()
     publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
     aggregate_stream = new SrsBuffer();
-    hub = new SrsOriginHub(this);
+    hub = new SrsOriginHub();
     meta = new SrsMetaCache();
     
     is_monotonically_increase = false;
@@ -1790,7 +1856,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     req = r->copy();
     atc = _srs_config->get_atc(req->vhost);
     
-    if ((ret = hub->initialize(req)) != ERROR_SUCCESS) {
+    if ((ret = hub->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
 

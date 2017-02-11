@@ -147,7 +147,7 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "verb", &size)) {
+    if (!generate_header(false, tag, context_id, "Verb", &size)) {
         return;
     }
     
@@ -167,7 +167,7 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "debug", &size)) {
+    if (!generate_header(false, tag, context_id, "Debug", &size)) {
         return;
     }
     
@@ -187,7 +187,7 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "trace", &size)) {
+    if (!generate_header(false, tag, context_id, "Trace", &size)) {
         return;
     }
     
@@ -207,7 +207,7 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(true, tag, context_id, "warn", &size)) {
+    if (!generate_header(true, tag, context_id, "Warn", &size)) {
         return;
     }
     
@@ -227,7 +227,7 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(true, tag, context_id, "error", &size)) {
+    if (!generate_header(true, tag, context_id, "Error", &size)) {
         return;
     }
     

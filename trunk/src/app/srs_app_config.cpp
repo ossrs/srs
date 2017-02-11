@@ -1353,6 +1353,18 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload forward success.", vhost.c_str());
             }
             
+            // To reload DASH.
+            if (!srs_directive_equals(new_vhost->get("dash"), old_vhost->get("dash"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_dash(vhost)) != ERROR_SUCCESS) {
+                        srs_error("Reload vhost %s dash failed, ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("Reload vhost %s dash ok.", vhost.c_str());
+            }
+            
             // hls, only one per vhost
             // @remark, the hls_on_error directly support reload.
             if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
@@ -3808,7 +3820,7 @@ int SrsConfig::check_config()
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "play" && n != "publish" && n != "cluster"
-                && n != "security" && n != "http_remux"
+                && n != "security" && n != "http_remux" && n != "dash"
                 && n != "http_static" && n != "hds" && n != "exec"
                 && n != "in_ack_size" && n != "out_ack_size"
             ) {
@@ -3819,7 +3831,7 @@ int SrsConfig::check_config()
             // for each sub directives of vhost.
             if (n == "dvr") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled"  && m != "dvr_apply" && m != "dvr_path" && m != "dvr_plan"
                         && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
                     ) {
@@ -3830,7 +3842,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "refer") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "all" && m != "publish" && m != "play") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost refer directive %s, ret=%d", m.c_str(), ret);
@@ -3839,7 +3851,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "exec") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "publish") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost exec directive %s, ret=%d", m.c_str(), ret);
@@ -3848,7 +3860,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "play") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency"
                         && m != "gop_cache" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header"
                     ) {
@@ -3859,7 +3871,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "cluster") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost cluster directive %s, ret=%d", m.c_str(), ret);
@@ -3868,7 +3880,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "publish") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "mr" && m != "mr_latency" && m != "firstpkt_timeout" && m != "normal_timeout" && m != "parse_sps") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost publish directive %s, ret=%d", m.c_str(), ret);
@@ -3877,7 +3889,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "ingest") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "input" && m != "ffmpeg" && m != "engine") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
@@ -3886,7 +3898,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "http_static") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "mount" && m != "dir") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
@@ -3895,16 +3907,25 @@ int SrsConfig::check_config()
                 }
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "mount" && m != "fast_cache") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
+            } else if (n == "dash") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+                    if (m != "enabled") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("Illegal directive %s in vhost.dash, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
             } else if (n == "hls") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
@@ -3922,7 +3943,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "http_hooks") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
                         && m != "on_unpublish" && m != "on_play" && m != "on_stop"
                         && m != "on_dvr" && m != "on_hls" && m != "on_hls_notify"
@@ -3934,7 +3955,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "forward") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "destination") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
@@ -3979,7 +4000,7 @@ int SrsConfig::check_config()
                 }
             } else if (n == "bandcheck") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
-                    string m = conf->at(j)->name.c_str();
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
@@ -5944,15 +5965,33 @@ string SrsConfig::get_ffmpeg_log_dir()
     return conf->arg0();
 }
 
+SrsConfDirective* SrsConfig::get_dash(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    return conf? conf->get("dash") : NULL;
+}
+
+bool SrsConfig::get_dash_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
 SrsConfDirective* SrsConfig::get_hls(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("hls");
+    return conf? conf->get("hls") : NULL;
 }
 
 bool SrsConfig::get_hls_enabled(string vhost)

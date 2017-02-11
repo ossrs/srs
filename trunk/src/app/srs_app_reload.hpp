@@ -68,6 +68,7 @@ public:
     virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_vhost_play(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
+    virtual int on_reload_vhost_dash(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);

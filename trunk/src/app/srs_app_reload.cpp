@@ -145,6 +145,11 @@ int ISrsReloadHandler::on_reload_vhost_forward(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_dash(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_hls(string /*vhost*/)
 {
     return ERROR_SUCCESS;

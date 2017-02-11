@@ -1118,8 +1118,8 @@ SrsHls::SrsHls()
     req = NULL;
     hub = NULL;
     
-    hls_enabled = false;
-    hls_can_dispose = false;
+    enabled = false;
+    disposable = false;
     last_update_time = 0;
 
     codec = new SrsAvcAacCodec();
@@ -1127,7 +1127,7 @@ SrsHls::SrsHls()
     jitter = new SrsRtmpJitter();
     
     muxer = new SrsHlsMuxer();
-    hls_cache = new SrsHlsCache();
+    cache = new SrsHlsCache();
 
     pprint = SrsPithyPrint::create_hls();
     stream_dts = 0;
@@ -1140,14 +1140,14 @@ SrsHls::~SrsHls()
     srs_freep(jitter);
     
     srs_freep(muxer);
-    srs_freep(hls_cache);
+    srs_freep(cache);
     
     srs_freep(pprint);
 }
 
 void SrsHls::dispose()
 {
-    if (hls_enabled) {
+    if (enabled) {
         on_unpublish();
     }
     
@@ -1177,10 +1177,10 @@ int SrsHls::cycle()
     }
     last_update_time = srs_get_system_time_ms();
     
-    if (!hls_can_dispose) {
+    if (!disposable) {
         return ret;
     }
-    hls_can_dispose = false;
+    disposable = false;
     
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
@@ -1202,7 +1202,7 @@ int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
     return ret;
 }
 
-int SrsHls::on_publish(bool fetch_sequence_header)
+int SrsHls::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
@@ -1210,36 +1210,23 @@ int SrsHls::on_publish(bool fetch_sequence_header)
     last_update_time = srs_get_system_time_ms();
     
     // support multiple publish.
-    if (hls_enabled) {
+    if (enabled) {
         return ret;
     }
     
-    std::string vhost = req->vhost;
-    if (!_srs_config->get_hls_enabled(vhost)) {
+    if (!_srs_config->get_hls_enabled(req->vhost)) {
         return ret;
     }
     
-    if ((ret = hls_cache->on_publish(muxer, req, stream_dts)) != ERROR_SUCCESS) {
+    if ((ret = cache->on_publish(muxer, req, stream_dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // if enabled, open the muxer.
-    hls_enabled = true;
+    enabled = true;
     
     // ok, the hls can be dispose, or need to be dispose.
-    hls_can_dispose = true;
-    
-    // when publish, don't need to fetch sequence header, which is old and maybe corrupt.
-    // when reload, we must fetch the sequence header from source cache.
-    if (fetch_sequence_header) {
-        // notice the source to get the cached sequence header.
-        // when reload to start hls, hls will never get the sequence header in stream,
-        // use the SrsSource.on_hls_start to push the sequence header to HLS.
-        if ((ret = hub->on_hls_start()) != ERROR_SUCCESS) {
-            srs_error("callback source hls start failed. ret=%d", ret);
-            return ret;
-        }
-    }
+    disposable = true;
 
     return ret;
 }
@@ -1249,22 +1236,22 @@ void SrsHls::on_unpublish()
     int ret = ERROR_SUCCESS;
     
     // support multiple unpublish.
-    if (!hls_enabled) {
+    if (!enabled) {
         return;
     }
 
-    if ((ret = hls_cache->on_unpublish(muxer)) != ERROR_SUCCESS) {
+    if ((ret = cache->on_unpublish(muxer)) != ERROR_SUCCESS) {
         srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
     }
     
-    hls_enabled = false;
+    enabled = false;
 }
 
 int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!hls_enabled) {
+    if (!enabled) {
         return ret;
     }
     
@@ -1302,7 +1289,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     
     // ignore sequence header
     if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
-        return hls_cache->on_sequence_header(muxer);
+        return cache->on_sequence_header(muxer);
     }
     
     // TODO: FIXME: config the jitter of HLS.
@@ -1317,7 +1304,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     // for pure audio, we need to update the stream dts also.
     stream_dts = dts;
     
-    if ((ret = hls_cache->write_audio(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->write_audio(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
         srs_error("hls cache write audio failed. ret=%d", ret);
         return ret;
     }
@@ -1329,7 +1316,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!hls_enabled) {
+    if (!enabled) {
         return ret;
     }
     
@@ -1366,7 +1353,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     // ignore sequence header
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
          && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
-        return hls_cache->on_sequence_header(muxer);
+        return cache->on_sequence_header(muxer);
     }
     
     // TODO: FIXME: config the jitter of HLS.
@@ -1377,7 +1364,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     
     int64_t dts = video->timestamp * 90;
     stream_dts = dts;
-    if ((ret = hls_cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
         srs_error("hls cache write video failed. ret=%d", ret);
         return ret;
     }

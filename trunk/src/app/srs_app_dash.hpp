@@ -29,4 +29,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+class SrsRequest;
+class SrsOriginHub;
+class SrsSharedPtrMessage;
+
+/**
+ * The MPEG-DASH encoder, transmux RTMP to DASH.
+ */
+class SrsMpegDash
+{
+private:
+    bool enabled;
+private:
+    SrsRequest* req;
+    SrsOriginHub* hub;
+public:
+    SrsMpegDash();
+    virtual ~SrsMpegDash();
+public:
+    // Initalize the encoder.
+    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
+    // When stream start publishing.
+    virtual int on_publish();
+    // When got an shared audio message.
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    // When got an shared video message.
+    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
+    // When stream stop publishing.
+    virtual void on_unpublish();
+};
+
 #endif

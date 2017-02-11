@@ -1134,6 +1134,12 @@ public:
     * @remark, /dev/null to disable it.
     */
     virtual std::string         get_ffmpeg_log_dir();
+// The MPEG-DASH section.
+private:
+    virtual SrsConfDirective*   get_dash(std::string vhost);
+public:
+    // Whether DASH is enabled.
+    virtual bool                get_dash_enabled(std::string vhost);
 // hls section
 private:
     /**

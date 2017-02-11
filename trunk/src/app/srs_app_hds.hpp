@@ -38,8 +38,8 @@ class SrsSource;
 class SrsHds
 {
 public:
-    SrsHds(SrsSource* s);
-    ~SrsHds();
+    SrsHds();
+    virtual ~SrsHds();
 
     int on_publish(SrsRequest* req);
     int on_unpublish();
