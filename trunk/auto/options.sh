@@ -97,8 +97,6 @@ SRS_CUBIE=NO
 SRS_FAST=NO
 # only support RTMP with ssl.
 SRS_PURE_RTMP=NO
-# only support RTMP+HLS with ssl.
-SRS_RTMP_HLS=NO
 # the most fast compile, nothing, only support vp6 RTMP.
 SRS_DISABLE_ALL=NO
 # all features is on
@@ -122,11 +120,8 @@ Options:
   --with-hds                enable hds streaming, mux RTMP to f4m/f4v files.
   --with-dvr                enable dvr, mux RTMP to flv files.
   --with-nginx              enable delivery HTTP stream with nginx.
-  --with-http-callback      enable http hooks, build cherrypy as demo api server.
-  --with-http-server        enable http server to delivery http stream.
   --with-stream-caster      enable stream caster to serve other stream over other protocol.
   --with-kafka              enable srs kafka producer to report to kafka.
-  --with-http-api           enable http api, to manage SRS by http api.
   --with-ffmpeg             enable transcoding tool ffmpeg.
   --with-transcode          enable transcoding features.
   --with-ingest             enable ingest features.
@@ -148,11 +143,8 @@ Options:
   --without-hds             disable hds, the adobe http dynamic streaming.
   --without-dvr             disable dvr, donot support record RTMP stream to flv.
   --without-nginx           disable delivery HTTP stream with nginx.
-  --without-http-callback   disable http, http hooks callback.
-  --without-http-server     disable http server, use external server to delivery http stream.
   --without-stream-caster   disable stream caster, only listen and serve RTMP/HTTP.
   --without-kafka           disable the srs kafka producer.
-  --without-http-api        disable http api, only use console to manage SRS process.
   --without-ffmpeg          disable the ffmpeg transcode tool feature.
   --without-transcode       disable the transcoding feature.
   --without-ingest          disable the ingest feature.
@@ -186,13 +178,17 @@ Presets:
   --mips                    alias for --with-mips-ubuntu12, for ubuntu12, mips crossbuild
   --fast                    the most fast compile, nothing, only support vp6 RTMP.
   --pure-rtmp               only support RTMP with ssl.
-  --rtmp-hls                only support RTMP+HLS with ssl.
   --disable-all             disable all features, only support vp6 RTMP.
   --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
   --fast-dev                for dev fast compile, the RTMP server, without librtmp/utest/research.
   --demo                    for srs demo, @see: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
   --full                    enable all features, no gperf/gprof/arm.
   --x86-64                  alias for --x86-x64.
+
+Always Enabled:
+  --with-http-api           enable http api, to manage SRS by http api.
+  --with-http-callback      enable http hooks, build cherrypy as demo api server.
+  --with-http-server        enable http server to delivery http stream.
   
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -294,7 +290,6 @@ function parse_user_option() {
         --fast)                         SRS_FAST=YES                ;;
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
-        --rtmp-hls)                     SRS_RTMP_HLS=YES            ;;
         --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
@@ -350,22 +345,20 @@ function apply_user_presets() {
     SRS_LOG_TRACE=YES
     
     # set default preset if not specifies
-    if [ $SRS_RTMP_HLS = NO ]; then
-        if [ $SRS_PURE_RTMP = NO ]; then
-            if [ $SRS_FAST = NO ]; then
-                if [ $SRS_DISABLE_ALL = NO ]; then
-                    if [ $SRS_ENABLE_ALL = NO ]; then
-                        if [ $SRS_DEV = NO ]; then
-                            if [ $SRS_FAST_DEV = NO ]; then
-                                if [ $SRS_DEMO = NO ]; then
-                                    if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                                        if [ $SRS_MIPS_UBUNTU12 = NO ]; then
-                                            if [ $SRS_PI = NO ]; then
-                                                if [ $SRS_CUBIE = NO ]; then
-                                                    if [ $SRS_X86_X64 = NO ]; then
-                                                        if [ $SRS_OSX = NO ]; then
-                                                            SRS_X86_X64=YES; opt="--x86-x64 $opt";
-                                                        fi
+    if [ $SRS_PURE_RTMP = NO ]; then
+        if [ $SRS_FAST = NO ]; then
+            if [ $SRS_DISABLE_ALL = NO ]; then
+                if [ $SRS_ENABLE_ALL = NO ]; then
+                    if [ $SRS_DEV = NO ]; then
+                        if [ $SRS_FAST_DEV = NO ]; then
+                            if [ $SRS_DEMO = NO ]; then
+                                if [ $SRS_ARM_UBUNTU12 = NO ]; then
+                                    if [ $SRS_MIPS_UBUNTU12 = NO ]; then
+                                        if [ $SRS_PI = NO ]; then
+                                            if [ $SRS_CUBIE = NO ]; then
+                                                if [ $SRS_X86_X64 = NO ]; then
+                                                    if [ $SRS_OSX = NO ]; then
+                                                        SRS_X86_X64=YES; opt="--x86-x64 $opt";
                                                     fi
                                                 fi
                                             fi
@@ -445,31 +438,6 @@ function apply_user_presets() {
         SRS_DVR=NO
         SRS_NGINX=NO
         SRS_SSL=NO
-        SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=NO
-        SRS_INGEST=NO
-        SRS_STAT=NO
-        SRS_STREAM_CASTER=NO
-        SRS_KAFKA=NO
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
-        SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
-        SRS_STATIC=NO
-    fi
-
-    # all disabled.
-    if [ $SRS_RTMP_HLS = YES ]; then
-        SRS_HLS=YES
-        SRS_HDS=YES
-        SRS_DVR=NO
-        SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
