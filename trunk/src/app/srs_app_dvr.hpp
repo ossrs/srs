@@ -32,8 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <sstream>
 
-#ifdef SRS_AUTO_DVR
-
 class SrsSource;
 class SrsOriginHub;
 class SrsRequest;
@@ -315,8 +313,6 @@ public:
 public:
     virtual int on_reload_vhost_dvr_apply(std::string vhost);
 };
-
-#endif
 
 #endif
 

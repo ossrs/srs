@@ -553,11 +553,7 @@ int SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     features->set("callback", SrsJsonAny::boolean(true));
     features->set("api", SrsJsonAny::boolean(true));
     features->set("httpd", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_DVR
     features->set("dvr", SrsJsonAny::boolean(true));
-#else
-    features->set("dvr", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_AUTO_TRANSCODE
     features->set("transcode", SrsJsonAny::boolean(true));
 #else

@@ -843,9 +843,7 @@ SrsOriginHub::SrsOriginHub(SrsSource* s)
     is_active = false;
     
     hls = new SrsHls();
-#ifdef SRS_AUTO_DVR
     dvr = new SrsDvr();
-#endif
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
@@ -872,9 +870,7 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(ng_exec);
     
     srs_freep(hls);
-#ifdef SRS_AUTO_DVR
     srs_freep(dvr);
-#endif
 #ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
 #endif
@@ -893,11 +889,9 @@ int SrsOriginHub::initialize(SrsRequest* r)
         return ret;
     }
     
-#ifdef SRS_AUTO_DVR
     if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -934,12 +928,10 @@ int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata)
         }
     }
     
-#ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_meta_data(shared_metadata)) != ERROR_SUCCESS) {
         srs_error("dvr process onMetaData message failed. ret=%d", ret);
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -975,7 +967,6 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         }
     }
     
-#ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
         srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
         
@@ -985,7 +976,6 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         // ignore.
         ret = ERROR_SUCCESS;
     }
-#endif
     
 #ifdef SRS_AUTO_HDS
     if ((ret = hds->on_audio(msg)) != ERROR_SUCCESS) {
@@ -1044,7 +1034,6 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         }
     }
     
-#ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
         srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
         
@@ -1054,7 +1043,6 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         // ignore.
         ret = ERROR_SUCCESS;
     }
-#endif
     
 #ifdef SRS_AUTO_HDS
     if ((ret = hds->on_video(msg)) != ERROR_SUCCESS) {
@@ -1105,12 +1093,10 @@ int SrsOriginHub::on_publish()
         return ret;
     }
     
-#ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_publish(false)) != ERROR_SUCCESS) {
         srs_error("start dvr failed. ret=%d", ret);
         return ret;
     }
-#endif
     
     // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HDS
@@ -1143,10 +1129,7 @@ void SrsOriginHub::on_unpublish()
 #endif
     
     hls->on_unpublish();
-    
-#ifdef SRS_AUTO_DVR
     dvr->on_unpublish();
-#endif
     
 #ifdef SRS_AUTO_HDS
     hds->on_unpublish();
@@ -1212,7 +1195,6 @@ int SrsOriginHub::on_dvr_request_sh()
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
     SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
     
-#ifdef SRS_AUTO_DVR
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
     // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
@@ -1229,7 +1211,6 @@ int SrsOriginHub::on_dvr_request_sh()
         srs_error("dvr process audio sequence header message failed. ret=%d", ret);
         return ret;
     }
-#endif
     
     return ret;
 }
@@ -1326,7 +1307,6 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
-#ifdef SRS_AUTO_DVR
     // cleanup dvr
     dvr->on_unpublish();
     
@@ -1347,7 +1327,6 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     }
     
     srs_trace("vhost %s dvr reload success", vhost.c_str());
-#endif
     
     return ret;
 }

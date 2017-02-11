@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_dvr.hpp>
 
-#ifdef SRS_AUTO_DVR
-
 #include <fcntl.h>
 #include <sstream>
 #include <algorithm>
@@ -1099,7 +1097,5 @@ int SrsDvr::on_reload_vhost_dvr_apply(string vhost)
     
     return ret;
 }
-
-#endif
 
 

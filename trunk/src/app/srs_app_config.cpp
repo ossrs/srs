@@ -4040,11 +4040,9 @@ int SrsConfig::check_config()
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
         srs_assert(vhost != NULL);
-#ifndef SRS_AUTO_DVR
         if (get_dvr_enabled(vhost->arg0())) {
             srs_warn("dvr of vhost %s is disabled by configure", vhost->arg0().c_str());
         }
-#endif
         if (get_hls_enabled(vhost->arg0())) {
             srs_warn("hls of vhost %s is disabled by configure", vhost->arg0().c_str());
         }

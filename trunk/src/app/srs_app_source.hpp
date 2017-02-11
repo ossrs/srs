@@ -55,9 +55,7 @@ class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
-#ifdef SRS_AUTO_DVR
 class SrsDvr;
-#endif
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
@@ -425,9 +423,7 @@ private:
     // hls handler.
     SrsHls* hls;
     // dvr handler.
-#ifdef SRS_AUTO_DVR
     SrsDvr* dvr;
-#endif
     // transcoding handler.
 #ifdef SRS_AUTO_TRANSCODE
     SrsEncoder* encoder;
