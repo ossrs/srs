@@ -199,7 +199,7 @@ enum SrsAudioSampleRate
     SrsAudioSampleRate22050 = 2,
     SrsAudioSampleRate44100 = 3,
 };
-std::string srs_codec_audio_samplerate2str(SrsAudioSampleRate v);
+std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
 
 /**
  * The frame type, for example, audio, video or data.
@@ -291,40 +291,42 @@ extern int srs_aac_srates[];
 #define SrsMaxNbSamples 256
 
 /**
-* the FLV/RTMP supported audio sample size.
-* Size of each audio sample. This parameter only pertains to
-* uncompressed formats. Compressed formats always decode
-* to 16 bits internally.
-* 0 = 8-bit samples
-* 1 = 16-bit samples
-*/
-enum SrsAudioSampleSize
+ * The audio sample size in bits.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ * Size of each audio sample. This parameter only pertains to
+ * uncompressed formats. Compressed formats always decode
+ * to 16 bits internally.
+ *      0 = 8-bit samples
+ *      1 = 16-bit samples
+ */
+enum SrsAudioSampleBits
 {
     // set to the max value to reserved, for array map.
-    SrsAudioSampleSizeReserved = 2,
-    SrsAudioSampleSizeForbidden = 2,
+    SrsAudioSampleBitsReserved = 2,
+    SrsAudioSampleBitsForbidden = 2,
     
-    SrsAudioSampleSize8bit = 0,
-    SrsAudioSampleSize16bit = 1,
+    SrsAudioSampleBits8bit = 0,
+    SrsAudioSampleBits16bit = 1,
 };
-std::string srs_audio_samplesize2str(SrsAudioSampleSize v);
+std::string srs_audio_sample_bits2str(SrsAudioSampleBits v);
 
 /**
-* the FLV/RTMP supported audio sound type/channel.
-* Mono or stereo sound
-* 0 = Mono sound
-* 1 = Stereo sound
-*/
-enum SrsAudioSoundType
+ * The audio channels.
+ * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
+ * Mono or stereo sound
+ *      0 = Mono sound
+ *      1 = Stereo sound
+ */
+enum SrsAudioChannels
 {
     // set to the max value to reserved, for array map.
-    SrsAudioSoundTypeReserved = 2,
-    SrsAudioSoundTypeForbidden = 2,
+    SrsAudioChannelsReserved = 2,
+    SrsAudioChannelsForbidden = 2,
     
-    SrsAudioSoundTypeMono = 0,
-    SrsAudioSoundTypeStereo = 1,
+    SrsAudioChannelsMono = 0,
+    SrsAudioChannelsStereo = 1,
 };
-std::string srs_audio_channels2str(SrsAudioSoundType v);
+std::string srs_audio_channels2str(SrsAudioChannels v);
 
 /**
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
@@ -518,8 +520,8 @@ public:
     SrsAudioCodecId id;
     // audio aac specified.
     SrsAudioSampleRate sound_rate;
-    SrsAudioSampleSize sound_size;
-    SrsAudioSoundType sound_type;
+    SrsAudioSampleBits sound_size;
+    SrsAudioChannels sound_type;
     int audio_data_rate; // in bps
 public:
     /**

@@ -1579,9 +1579,9 @@ public:
     // The audio sample rate.
     SrsAudioSampleRate sample_rate;
     // The audio sound bits.
-    SrsAudioSampleSize sound_bits;
+    SrsAudioSampleBits sound_bits;
     // The audio sound type.
-    SrsAudioSoundType channels;
+    SrsAudioChannels channels;
 private:
     // For AAC, the asc in esds box.
     int nb_asc;
@@ -1652,9 +1652,9 @@ public:
     // The audio sample rate.
     SrsAudioSampleRate sample_rate;
     // The audio sound bits.
-    SrsAudioSampleSize sound_bits;
+    SrsAudioSampleBits sound_bits;
     // The audio sound type.
-    SrsAudioSoundType channels;
+    SrsAudioChannels channels;
 private:
     // For AAC, the asc in esds box.
     int nb_asc;

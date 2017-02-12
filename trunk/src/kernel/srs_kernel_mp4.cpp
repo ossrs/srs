@@ -3861,8 +3861,8 @@ SrsMp4Decoder::SrsMp4Decoder()
     pasc = pavcc = NULL;
     asc_written = avcc_written = false;
     sample_rate = SrsAudioSampleRateForbidden;
-    sound_bits = SrsAudioSampleSizeForbidden;
-    channels = SrsAudioSoundTypeForbidden;
+    sound_bits = SrsAudioSampleBitsForbidden;
+    channels = SrsAudioChannelsForbidden;
     samples = new SrsMp4SampleManager();
     current_index = 0;
     current_offset = 0;
@@ -4062,15 +4062,15 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         }
         
         if (mp4a->samplesize == 16) {
-            sound_bits = SrsAudioSampleSize16bit;
+            sound_bits = SrsAudioSampleBits16bit;
         } else {
-            sound_bits = SrsAudioSampleSize8bit;
+            sound_bits = SrsAudioSampleBits8bit;
         }
         
         if (mp4a->channelcount == 2) {
-            channels = SrsAudioSoundTypeStereo;
+            channels = SrsAudioChannelsStereo;
         } else {
-            channels = SrsAudioSoundTypeMono;
+            channels = SrsAudioChannelsMono;
         }
     }
     
@@ -4117,8 +4117,8 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     ss << ", soun=" << moov->nb_soun_tracks() << "("
         << srs_audio_codec_id2str(acodec) << "," << nb_asc << "BSH"
         << "," << srs_audio_channels2str(channels)
-        << "," << srs_audio_samplesize2str(sound_bits)
-        << "," << srs_codec_audio_samplerate2str(sample_rate)
+        << "," << srs_audio_sample_bits2str(sound_bits)
+        << "," << srs_audio_sample_rate2str(sample_rate)
         << ")";
     
     srs_trace("MP4 moov %s", ss.str().c_str());
@@ -4233,8 +4233,8 @@ SrsMp4Encoder::SrsMp4Encoder()
     
     acodec = SrsAudioCodecIdForbidden;
     sample_rate = SrsAudioSampleRateForbidden;
-    sound_bits = SrsAudioSampleSizeForbidden;
-    channels = SrsAudioSoundTypeForbidden;
+    sound_bits = SrsAudioSampleBitsForbidden;
+    channels = SrsAudioChannelsForbidden;
     vcodec = SrsVideoCodecIdForbidden;
 }
 
@@ -4494,12 +4494,12 @@ int SrsMp4Encoder::flush()
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
             mp4a->samplerate = uint32_t(srs_flv_srates[sample_rate]) << 16;
-            if (sound_bits == SrsAudioSampleSize16bit) {
+            if (sound_bits == SrsAudioSampleBits16bit) {
                 mp4a->samplesize = 16;
             } else {
                 mp4a->samplesize = 8;
             }
-            if (channels == SrsAudioSoundTypeStereo) {
+            if (channels == SrsAudioChannelsStereo) {
                 mp4a->channelcount = 2;
             } else {
                 mp4a->channelcount = 1;

@@ -536,8 +536,8 @@ int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio)
     uint8_t v = buffer->read_1bytes();
     SrsAudioCodecId sound_format = (SrsAudioCodecId)((v >> 4) & 0x0f);
     SrsAudioSampleRate sound_rate = (SrsAudioSampleRate)((v >> 2) & 0x03);
-    SrsAudioSampleSize sound_size = (SrsAudioSampleSize)((v >> 1) & 0x01);
-    SrsAudioSoundType channels = (SrsAudioSoundType)(v&0x01);
+    SrsAudioSampleBits sound_size = (SrsAudioSampleBits)((v >> 1) & 0x01);
+    SrsAudioChannels channels = (SrsAudioChannels)(v&0x01);
     
     uint16_t ct = 0x00;
     if (sound_format == SrsAudioCodecIdAAC) {

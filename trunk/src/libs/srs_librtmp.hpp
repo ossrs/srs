@@ -536,9 +536,9 @@ typedef struct {
     
     // The audio sample rate, it's SrsAudioSampleRate.
     uint8_t sample_rate;
-    // The audio sound bits, it's SrsAudioSampleSize.
+    // The audio sound bits, it's SrsAudioSampleBits.
     uint8_t sound_bits;
-    // The audio sound type, it's SrsAudioSoundType.
+    // The audio sound type, it's SrsAudioChannels.
     uint8_t channels;
     
     // The size of sample payload in bytes.

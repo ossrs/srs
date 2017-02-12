@@ -78,7 +78,7 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
     }
 }
 
-string srs_codec_audio_samplerate2str(SrsAudioSampleRate v)
+string srs_audio_sample_rate2str(SrsAudioSampleRate v)
 {
     switch (v) {
         case SrsAudioSampleRate5512: return "5512";
@@ -215,20 +215,20 @@ int srs_aac_srates[] =
     7350,     0,     0,    0
 };
 
-string srs_audio_samplesize2str(SrsAudioSampleSize v)
+string srs_audio_sample_bits2str(SrsAudioSampleBits v)
 {
     switch (v) {
-        case SrsAudioSampleSize16bit: return "16bits";
-        case SrsAudioSampleSize8bit: return "8bits";
+        case SrsAudioSampleBits16bit: return "16bits";
+        case SrsAudioSampleBits8bit: return "8bits";
         default: return "Other";
     }
 }
 
-string srs_audio_channels2str(SrsAudioSoundType v)
+string srs_audio_channels2str(SrsAudioChannels v)
 {
     switch (v) {
-        case SrsAudioSoundTypeStereo: return "Stereo";
-        case SrsAudioSoundTypeMono: return "Mono";
+        case SrsAudioChannelsStereo: return "Stereo";
+        case SrsAudioChannelsMono: return "Mono";
         default: return "Other";
     }
 }
@@ -363,8 +363,8 @@ SrsAudioCodecConfig::SrsAudioCodecConfig()
 {
     id = SrsAudioCodecIdForbidden;
     sound_rate = SrsAudioSampleRateForbidden;
-    sound_size = SrsAudioSampleSizeForbidden;
-    sound_type = SrsAudioSoundTypeForbidden;
+    sound_size = SrsAudioSampleBitsForbidden;
+    sound_type = SrsAudioChannelsForbidden;
     
     audio_data_rate = 0;
     
@@ -1270,9 +1270,9 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
     acodec->id = codec_id;
     
-    acodec->sound_type = (SrsAudioSoundType)sound_type;
+    acodec->sound_type = (SrsAudioChannels)sound_type;
     acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
-    acodec->sound_size = (SrsAudioSampleSize)sound_size;
+    acodec->sound_size = (SrsAudioSampleBits)sound_size;
     
     // we support h.264+mp3 for hls.
     if (codec_id == SrsAudioCodecIdMP3) {

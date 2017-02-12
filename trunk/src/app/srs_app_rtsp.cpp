@@ -521,8 +521,8 @@ int SrsRtspConn::write_sequence_header()
         SrsAudioCodecConfig* dec = format->acodec;
 
         acodec->sound_format = SrsAudioCodecIdAAC;
-        acodec->sound_type = (dec->aac_channels == 2)? SrsAudioSoundTypeStereo : SrsAudioSoundTypeMono;
-        acodec->sound_size = SrsAudioSampleSize16bit;
+        acodec->sound_type = (dec->aac_channels == 2)? SrsAudioChannelsStereo : SrsAudioChannelsMono;
+        acodec->sound_size = SrsAudioSampleBits16bit;
         acodec->aac_packet_type = 0;
 
         static int srs_aac_srates[] = {

@@ -92,7 +92,7 @@ public:
     bool has_audio;
     SrsAudioCodecId acodec;
     SrsAudioSampleRate asample_rate;
-    SrsAudioSoundType asound_type;
+    SrsAudioChannels asound_type;
     /**
     * audio specified
     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
@@ -177,7 +177,7 @@ public:
     * when got audio info for stream.
     */
     virtual int on_audio_info(SrsRequest* req,
-        SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioSoundType asound_type,
+        SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type,
         SrsAacObjectType aac_object
     );
     /**
