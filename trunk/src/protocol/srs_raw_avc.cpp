@@ -278,7 +278,7 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     // Frame Type, Type of video frame.
     // CodecID, Codec Identifier.
     // set the rtmp header
-    *p++ = (frame_type << 4) | SrsCodecVideoAVC;
+    *p++ = (frame_type << 4) | SrsVideoCodecIdAVC;
     
     // AVCPacketType
     *p++ = avc_packet_type;
@@ -424,7 +424,7 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         
         // the codec info.
         codec.protection_absent = protection_absent;
-        codec.aac_object = srs_codec_aac_ts2rtmp((SrsAacProfile)profile);
+        codec.aac_object = srs_aac_ts2rtmp((SrsAacProfile)profile);
         codec.sampling_frequency_index = sampling_frequency_index;
         codec.channel_configuration = channel_configuration;
         codec.frame_length = frame_length;
@@ -433,15 +433,15 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         // TODO: FIXME: maybe need to resample audio.
         codec.sound_format = 10; // AAC
         if (sampling_frequency_index <= 0x0c && sampling_frequency_index > 0x0a) {
-            codec.sound_rate = SrsCodecAudioSampleRate5512;
+            codec.sound_rate = SrsAudioSampleRate5512;
         } else if (sampling_frequency_index <= 0x0a && sampling_frequency_index > 0x07) {
-            codec.sound_rate = SrsCodecAudioSampleRate11025;
+            codec.sound_rate = SrsAudioSampleRate11025;
         } else if (sampling_frequency_index <= 0x07 && sampling_frequency_index > 0x04) {
-            codec.sound_rate = SrsCodecAudioSampleRate22050;
+            codec.sound_rate = SrsAudioSampleRate22050;
         } else if (sampling_frequency_index <= 0x04) {
-            codec.sound_rate = SrsCodecAudioSampleRate44100;
+            codec.sound_rate = SrsAudioSampleRate44100;
         } else {
-            codec.sound_rate = SrsCodecAudioSampleRate44100;
+            codec.sound_rate = SrsAudioSampleRate44100;
             srs_warn("adts invalid sample rate for flv, rate=%#x", sampling_frequency_index);
         }
         codec.sound_type = srs_max(0, srs_min(1, channel_configuration - 1));
@@ -475,11 +475,11 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     // override the aac samplerate by user specified.
     // @see https://github.com/ossrs/srs/issues/212#issuecomment-64146899
     switch (codec->sound_rate) {
-        case SrsCodecAudioSampleRate11025: 
+        case SrsAudioSampleRate11025: 
             samplingFrequencyIndex = 0x0a; break;
-        case SrsCodecAudioSampleRate22050: 
+        case SrsAudioSampleRate22050: 
             samplingFrequencyIndex = 0x07; break;
-        case SrsCodecAudioSampleRate44100: 
+        case SrsAudioSampleRate44100: 
             samplingFrequencyIndex = 0x04; break;
         default:
             break;
@@ -532,7 +532,7 @@ int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec
     //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType
     //      1bytes, AACPacketType for SoundFormat == 10, 0 is sequence header.
     int size = nb_frame + 1;
-    if (sound_format == SrsCodecAudioAAC) {
+    if (sound_format == SrsAudioCodecIdAAC) {
         size += 1;
     }
     char* data = new char[size];
@@ -545,7 +545,7 @@ int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec
     
     *p++ = audio_header;
     
-    if (sound_format == SrsCodecAudioAAC) {
+    if (sound_format == SrsAudioCodecIdAAC) {
         *p++ = aac_packet_type;
     }
     

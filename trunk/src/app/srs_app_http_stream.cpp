@@ -266,7 +266,7 @@ int SrsFlvStreamEncoder::write_video(int64_t timestamp, char* data, int size)
 
 int SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
 {
-    return enc->write_metadata(SrsCodecFlvTagScript, data, size);
+    return enc->write_metadata(SrsFrameTypeScript, data, size);
 }
 
 bool SrsFlvStreamEncoder::has_cache()

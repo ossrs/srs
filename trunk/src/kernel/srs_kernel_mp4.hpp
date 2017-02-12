@@ -432,9 +432,9 @@ public:
     virtual SrsMp4MediaHeaderBox* mdhd();
 public:
     // For vide track, get the video codec.
-    virtual SrsCodecVideo vide_codec();
+    virtual SrsVideoCodecId vide_codec();
     // For soun track, get the audio codec.
-    virtual SrsCodecAudio soun_codec();
+    virtual SrsAudioCodecId soun_codec();
     // For H.264/AVC codec, get the sps/pps.
     virtual SrsMp4AvccBox* avcc();
     // For AAC codec, get the asc.
@@ -1476,7 +1476,7 @@ class SrsMp4Sample
 {
 public:
     // The type of sample, audio or video.
-    SrsCodecFlvTag type;
+    SrsFrameType type;
     // The offset of sample in file.
     off_t offset;
     // The index of sample with a track, start from 0.
@@ -1488,7 +1488,7 @@ public:
     // The tbn(timebase).
     uint32_t tbn;
     // For video, the frame type, whether keyframe.
-    SrsCodecVideoAVCFrame frame_type;
+    SrsVideoAvcFrameType frame_type;
     // The adjust timestamp in milliseconds.
     // For example, we can adjust a timestamp for A/V to monotonically increase.
     int32_t adjust;
@@ -1534,7 +1534,7 @@ public:
     // Write the samples info to moov.
     virtual int write(SrsMp4MovieBox* moov);
 private:
-    virtual int write_track(SrsCodecFlvTag track,
+    virtual int write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
         SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco);
     virtual int do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
@@ -1543,7 +1543,7 @@ private:
     // @param tses The temporary samples, key is offset, value is sample.
     // @param tt The type of sample, convert to flv tag type.
     // TODO: Support co64 for stco.
-    virtual int load_trak(std::map<uint64_t, SrsMp4Sample*>& tses, SrsCodecFlvTag tt,
+    virtual int load_trak(std::map<uint64_t, SrsMp4Sample*>& tses, SrsFrameType tt,
         SrsMp4MediaHeaderBox* mdhd, SrsMp4ChunkOffsetBox* stco, SrsMp4SampleSizeBox* stsz, SrsMp4Sample2ChunkBox* stsc,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4CompositionTime2SampleBox* ctts, SrsMp4SyncSampleBox* stss);
 };
@@ -1564,7 +1564,8 @@ private:
 public:
     // The video codec of first track, generally there is zero or one track.
     // Forbidden if no video stream.
-    SrsCodecVideo vcodec;
+    // TODO: FIXME: Use SrsFormat instead.
+    SrsVideoCodecId vcodec;
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
     int nb_avcc;
@@ -1574,13 +1575,13 @@ private:
 public:
     // The audio codec of first track, generally there is zero or one track.
     // Forbidden if no audio stream.
-    SrsCodecAudio acodec;
+    SrsAudioCodecId acodec;
     // The audio sample rate.
-    SrsCodecAudioSampleRate sample_rate;
+    SrsAudioSampleRate sample_rate;
     // The audio sound bits.
-    SrsCodecAudioSampleSize sound_bits;
+    SrsAudioSampleSize sound_bits;
     // The audio sound type.
-    SrsCodecAudioSoundType channels;
+    SrsAudioSoundType channels;
 private:
     // For AAC, the asc in esds box.
     int nb_asc;
@@ -1608,8 +1609,8 @@ public:
     /**
      * Read a sample from mp4.
      * @param pht The sample hanler type, audio/soun or video/vide.
-     * @param pft, The frame type. For video, it's SrsCodecVideoAVCFrame.
-     * @param pct, The codec type. For video, it's SrsCodecVideoAVCType. For audio, it's SrsCodecAudioType.
+     * @param pft, The frame type. For video, it's SrsVideoAvcFrameType.
+     * @param pct, The codec type. For video, it's SrsVideoAvcFrameTrait. For audio, it's SrsAudioAacFrameTrait.
      * @param pdts The output dts in milliseconds.
      * @param ppts The output pts in milliseconds.
      * @param pnb_sample The output size of payload.
@@ -1647,13 +1648,13 @@ private:
 public:
     // The audio codec of first track, generally there is zero or one track.
     // Forbidden if no audio stream.
-    SrsCodecAudio acodec;
+    SrsAudioCodecId acodec;
     // The audio sample rate.
-    SrsCodecAudioSampleRate sample_rate;
+    SrsAudioSampleRate sample_rate;
     // The audio sound bits.
-    SrsCodecAudioSampleSize sound_bits;
+    SrsAudioSampleSize sound_bits;
     // The audio sound type.
-    SrsCodecAudioSoundType channels;
+    SrsAudioSoundType channels;
 private:
     // For AAC, the asc in esds box.
     int nb_asc;
@@ -1665,7 +1666,7 @@ private:
 public:
     // The video codec of first track, generally there is zero or one track.
     // Forbidden if no video stream.
-    SrsCodecVideo vcodec;
+    SrsVideoCodecId vcodec;
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
     int nb_avcc;
@@ -1686,8 +1687,8 @@ public:
     virtual int initialize(ISrsWriteSeeker* ws);
     // Write a sampel to mp4.
     // @param ht, The sample handler type, audio/soun or video/vide.
-    // @param ft, The frame type. For video, it's SrsCodecVideoAVCFrame.
-    // @param ct, The codec type. For video, it's SrsCodecVideoAVCType. For audio, it's SrsCodecAudioType.
+    // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
+    // @param ct, The codec type. For video, it's SrsVideoAvcFrameTrait. For audio, it's SrsAudioAacFrameTrait.
     // @param dts The output dts in milliseconds.
     // @param pts The output pts in milliseconds.
     // @param sample The output payload, user must free it.

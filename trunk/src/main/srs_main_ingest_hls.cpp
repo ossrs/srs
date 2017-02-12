@@ -653,7 +653,7 @@ private:
     virtual int parse_message_queue();
     virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual int write_h264_ipb_frame(std::string ibps, SrsCodecVideoAVCFrame frame_type, uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(std::string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts);
     virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
@@ -959,7 +959,7 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     uint32_t pts = (uint32_t)(msg->dts / 90);
     
     std::string ibps;
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     
     // send each frame.
     while (!avs->empty()) {
@@ -976,7 +976,7 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         
         // for IDR frame, the frame is keyframe.
         if (nal_unit_type == SrsAvcNaluTypeIDR) {
-            frame_type = SrsCodecVideoAVCFrameKeyFrame;
+            frame_type = SrsVideoAvcFrameTypeKeyFrame;
         }
         
         // ignore the nalu type aud(9)
@@ -1060,8 +1060,8 @@ int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1070,7 +1070,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
+    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1083,7 +1083,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame frame_type, uint32_t dts, uint32_t pts)
+int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1093,7 +1093,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(ibps, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1102,7 +1102,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
 int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
@@ -1175,7 +1175,7 @@ int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRa
         return ret;
     }
     
-    return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
+    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
 int SrsIngestSrsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)

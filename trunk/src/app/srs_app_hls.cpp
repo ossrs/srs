@@ -62,7 +62,7 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     duration = 0;
     sequence_no = 0;
@@ -223,7 +223,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     max_td = 0;
     _sequence_no = 0;
     current = NULL;
-    acodec = SrsCodecAudioReserved1;
+    acodec = SrsAudioCodecIdReserved1;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
 }
@@ -361,17 +361,17 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     srs_assert(!current);
 
     // load the default acodec from config.
-    SrsCodecAudio default_acodec = SrsCodecAudioAAC;
+    SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
     if (true) {
         std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
         if (default_acodec_str == "mp3") {
-            default_acodec = SrsCodecAudioMP3;
+            default_acodec = SrsAudioCodecIdMP3;
             srs_info("hls: use default mp3 acodec");
         } else if (default_acodec_str == "aac") {
-            default_acodec = SrsCodecAudioAAC;
+            default_acodec = SrsAudioCodecIdAAC;
             srs_info("hls: use default aac acodec");
         } else if (default_acodec_str == "an") {
-            default_acodec = SrsCodecAudioDisabled;
+            default_acodec = SrsAudioCodecIdDisabled;
             srs_info("hls: use default an acodec for pure video");
         } else {
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
@@ -379,14 +379,14 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     }
 
     // load the default vcodec from config.
-    SrsCodecVideo default_vcodec = SrsCodecVideoAVC;
+    SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
     if (true) {
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
-            default_vcodec = SrsCodecVideoAVC;
+            default_vcodec = SrsVideoCodecIdAVC;
             srs_info("hls: use default h264 vcodec");
         } else if (default_vcodec_str == "vn") {
-            default_vcodec = SrsCodecVideoDisabled;
+            default_vcodec = SrsVideoCodecIdDisabled;
             srs_info("hls: use default vn vcodec for pure audio");
         } else {
             srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
@@ -483,7 +483,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
 
     // set the segment muxer audio codec.
     // TODO: FIXME: refine code, use event instead.
-    if (acodec != SrsCodecAudioReserved1) {
+    if (acodec != SrsAudioCodecIdReserved1) {
         current->muxer->update_acodec(acodec);
     }
     
@@ -543,7 +543,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     return current->duration >= hls_aof_ratio * hls_fragment + deviation;
 }
 
-int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
+int SrsHlsMuxer::update_acodec(SrsAudioCodecId ac)
 {
     srs_assert(current);
     srs_assert(current->muxer);
@@ -553,7 +553,7 @@ int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
 
 bool SrsHlsMuxer::pure_audio()
 {
-    return current && current->muxer && current->muxer->video_codec() == SrsCodecVideoDisabled;
+    return current && current->muxer && current->muxer->video_codec() == SrsVideoCodecIdDisabled;
 }
 
 int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
@@ -863,7 +863,7 @@ void SrsHlsController::dispose()
     muxer->dispose();
 }
 
-int SrsHlsController::update_acodec(SrsCodecAudio ac)
+int SrsHlsController::update_acodec(SrsAudioCodecId ac)
 {
     return muxer->update_acodec(ac);
 }
@@ -1020,7 +1020,7 @@ int SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
         // do reap ts if any of:
         //      a. wait keyframe and got keyframe.
         //      b. always reap when not wait keyframe.
-        if (!muxer->wait_keyframe() || frame->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+        if (!muxer->wait_keyframe() || frame->frame_type == SrsVideoAvcFrameTypeKeyFrame) {
             // reap the segment, which will also flush the video.
             if ((ret = reap_segment("video", ts->video->dts)) != ERROR_SUCCESS) {
                 return ret;
@@ -1216,8 +1216,8 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     
     // ts support audio codec: aac/mp3
     srs_assert(format->acodec);
-    SrsCodecAudio acodec = format->acodec->id;
-    if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
+    SrsAudioCodecId acodec = format->acodec->id;
+    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
         return ret;
     }
 
@@ -1229,7 +1229,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     
     // ignore sequence header
     srs_assert(format->audio);
-    if (acodec == SrsCodecAudioAAC && format->audio->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (acodec == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         return controller->on_sequence_header();
     }
     
@@ -1270,17 +1270,17 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video);
-    if (format->video->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         return ret;
     }
     
     srs_assert(format->vcodec);
-    if (format->vcodec->id != SrsCodecVideoAVC) {
+    if (format->vcodec->id != SrsVideoCodecIdAVC) {
         return ret;
     }
     
     // ignore sequence header
-    if (format->video->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         return controller->on_sequence_header();
     }
     

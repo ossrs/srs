@@ -331,7 +331,7 @@ int SrsHds::on_video(SrsSharedPtrMessage* msg)
         return ret;
     }
 
-    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvVideo::sh(msg->payload, msg->size)) {
         srs_freep(video_sh);
         video_sh = msg->copy();
     }
@@ -383,7 +383,7 @@ int SrsHds::on_audio(SrsSharedPtrMessage* msg)
         return ret;
     }
 
-    if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvAudio::sh(msg->payload, msg->size)) {
         srs_freep(audio_sh);
         audio_sh = msg->copy();
     }

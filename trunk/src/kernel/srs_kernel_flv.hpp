@@ -470,7 +470,7 @@ public:
     /**
     * write flv metadata. 
     * @param type, the type of data, or other message type.
-    *       @see SrsCodecFlvTag
+    *       @see SrsFrameType
     * @param data, the amf0 metadata which serialize from:
     *   AMF0 string: onMetaData,
     *   AMF0 object: the metadata object.

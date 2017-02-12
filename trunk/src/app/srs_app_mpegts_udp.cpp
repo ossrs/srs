@@ -438,8 +438,8 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -448,7 +448,7 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
+    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -476,9 +476,9 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     
     // for IDR frame, the frame is keyframe.
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
     std::string ibp;
@@ -486,7 +486,7 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t
         return ret;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -495,7 +495,7 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
 int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
@@ -561,7 +561,7 @@ int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawA
         return ret;
     }
     
-    return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
+    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
 int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)

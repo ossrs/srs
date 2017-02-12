@@ -978,39 +978,39 @@ SrsMp4MediaHeaderBox* SrsMp4TrackBox::mdhd()
     return box? box->mdhd():NULL;
 }
 
-SrsCodecVideo SrsMp4TrackBox::vide_codec()
+SrsVideoCodecId SrsMp4TrackBox::vide_codec()
 {
     SrsMp4SampleDescriptionBox* box = stsd();
     if (!box) {
-        return SrsCodecVideoForbidden;
+        return SrsVideoCodecIdForbidden;
     }
     
     if (box->entry_count() == 0) {
-        return SrsCodecVideoForbidden;
+        return SrsVideoCodecIdForbidden;
     }
     
     SrsMp4SampleEntry* entry = box->entrie_at(0);
     switch(entry->type) {
-        case SrsMp4BoxTypeAVC1: return SrsCodecVideoAVC;
-        default: return SrsCodecVideoForbidden;
+        case SrsMp4BoxTypeAVC1: return SrsVideoCodecIdAVC;
+        default: return SrsVideoCodecIdForbidden;
     }
 }
 
-SrsCodecAudio SrsMp4TrackBox::soun_codec()
+SrsAudioCodecId SrsMp4TrackBox::soun_codec()
 {
     SrsMp4SampleDescriptionBox* box = stsd();
     if (!box) {
-        return SrsCodecAudioForbidden;
+        return SrsAudioCodecIdForbidden;
     }
     
     if (box->entry_count() == 0) {
-        return SrsCodecAudioForbidden;
+        return SrsAudioCodecIdForbidden;
     }
     
     SrsMp4SampleEntry* entry = box->entrie_at(0);
     switch(entry->type) {
-        case SrsMp4BoxTypeMP4A: return SrsCodecAudioAAC;
-        default: return SrsCodecAudioForbidden;
+        case SrsMp4BoxTypeMP4A: return SrsAudioCodecIdAAC;
+        default: return SrsAudioCodecIdForbidden;
     }
 }
 
@@ -3405,13 +3405,13 @@ int SrsMp4UserDataBox::decode_header(SrsBuffer* buf)
 
 SrsMp4Sample::SrsMp4Sample()
 {
-    type = SrsCodecFlvTagForbidden;
+    type = SrsFrameTypeForbidden;
     offset = 0;
     index = 0;
     dts = pts = 0;
     nb_data = 0;
     data = NULL;
-    frame_type = SrsCodecVideoAVCFrameForbidden;
+    frame_type = SrsVideoAvcFrameTypeForbidden;
     tbn = 0;
     adjust = 0;
 }
@@ -3474,7 +3474,7 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
             SrsMp4Sample* sample = it->second;
             samples.push_back(sample);
             
-            if (sample->type == SrsCodecFlvTagVideo) {
+            if (sample->type == SrsFrameTypeVideo) {
                 pvideo = sample;
             } else if (pvideo) {
                 tbn = sample->tbn;
@@ -3496,7 +3496,7 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
         map<uint64_t, SrsMp4Sample*>::iterator it;
         for (it = tses.begin(); it != tses.end(); ++it) {
             SrsMp4Sample* sample = it->second;
-            if (sample->type == SrsCodecFlvTagAudio) {
+            if (sample->type == SrsFrameTypeAudio) {
                 sample->adjust = 0 - maxp - maxn;
             }
         }
@@ -3557,7 +3557,7 @@ int SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
         SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
         stbl->set_stco(stco);
         
-        if ((ret = write_track(SrsCodecFlvTagVideo, stts, stss, ctts, stsc, stsz, stco)) != ERROR_SUCCESS) {
+        if ((ret = write_track(SrsFrameTypeVideo, stts, stss, ctts, stsc, stsz, stco)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -3581,7 +3581,7 @@ int SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
         SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
         stbl->set_stco(stco);
         
-        if ((ret = write_track(SrsCodecFlvTagAudio, stts, stss, ctts, stsc, stsz, stco)) != ERROR_SUCCESS) {
+        if ((ret = write_track(SrsFrameTypeAudio, stts, stss, ctts, stsc, stsz, stco)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -3589,7 +3589,7 @@ int SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
     return ret;
 }
 
-int SrsMp4SampleManager::write_track(SrsCodecFlvTag track,
+int SrsMp4SampleManager::write_track(SrsFrameType track,
     SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
     SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco)
 {
@@ -3616,7 +3616,7 @@ int SrsMp4SampleManager::write_track(SrsCodecFlvTag track,
         stsz_entries.push_back(sample->nb_data);
         stco_entries.push_back((uint32_t)sample->offset);
         
-        if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+        if (sample->frame_type == SrsVideoAvcFrameTypeKeyFrame) {
             stss_entries.push_back(sample->index + 1);
         }
         
@@ -3737,7 +3737,7 @@ int SrsMp4SampleManager::do_load(map<uint64_t, SrsMp4Sample*>& tses, SrsMp4Movie
             return ret;
         }
         
-        if ((ret = load_trak(tses, SrsCodecFlvTagVideo, mdhd, stco, stsz, stsc, stts, ctts, stss)) != ERROR_SUCCESS) {
+        if ((ret = load_trak(tses, SrsFrameTypeVideo, mdhd, stco, stsz, stsc, stts, ctts, stss)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -3757,7 +3757,7 @@ int SrsMp4SampleManager::do_load(map<uint64_t, SrsMp4Sample*>& tses, SrsMp4Movie
             return ret;
         }
         
-        if ((ret = load_trak(tses, SrsCodecFlvTagAudio, mdhd, stco, stsz, stsc, stts, NULL, NULL)) != ERROR_SUCCESS) {
+        if ((ret = load_trak(tses, SrsFrameTypeAudio, mdhd, stco, stsz, stsc, stts, NULL, NULL)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -3765,7 +3765,7 @@ int SrsMp4SampleManager::do_load(map<uint64_t, SrsMp4Sample*>& tses, SrsMp4Movie
     return ret;
 }
 
-int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecFlvTag tt,
+int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsFrameType tt,
     SrsMp4MediaHeaderBox* mdhd, SrsMp4ChunkOffsetBox* stco, SrsMp4SampleSizeBox* stsz, SrsMp4Sample2ChunkBox* stsc,
     SrsMp4DecodingTime2SampleBox* stts, SrsMp4CompositionTime2SampleBox* ctts, SrsMp4SyncSampleBox* stss)
 {
@@ -3822,11 +3822,11 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsCodecF
                 sample->pts = sample->dts + ctts_entry->sample_offset;
             }
             
-            if (tt == SrsCodecFlvTagVideo) {
+            if (tt == SrsFrameTypeVideo) {
                 if (!stss || stss->is_sync(sample->index)) {
-                    sample->frame_type = SrsCodecVideoAVCFrameKeyFrame;
+                    sample->frame_type = SrsVideoAvcFrameTypeKeyFrame;
                 } else {
-                    sample->frame_type = SrsCodecVideoAVCFrameInterFrame;
+                    sample->frame_type = SrsVideoAvcFrameTypeInterFrame;
                 }
             }
             
@@ -3855,14 +3855,14 @@ SrsMp4Decoder::SrsMp4Decoder()
     brand = SrsMp4BoxBrandForbidden;
     buf = new char[SRS_MP4_BUF_SIZE];
     stream = new SrsSimpleStream();
-    vcodec = SrsCodecVideoForbidden;
-    acodec = SrsCodecAudioForbidden;
+    vcodec = SrsVideoCodecIdForbidden;
+    acodec = SrsAudioCodecIdForbidden;
     nb_asc = nb_avcc = 0;
     pasc = pavcc = NULL;
     asc_written = avcc_written = false;
-    sample_rate = SrsCodecAudioSampleRateForbidden;
-    sound_bits = SrsCodecAudioSampleSizeForbidden;
-    channels = SrsCodecAudioSoundTypeForbidden;
+    sample_rate = SrsAudioSampleRateForbidden;
+    sound_bits = SrsAudioSampleSizeForbidden;
+    channels = SrsAudioSoundTypeForbidden;
     samples = new SrsMp4SampleManager();
     current_index = 0;
     current_offset = 0;
@@ -3944,8 +3944,8 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
         uint8_t* sample = *psample = new uint8_t[nb_sample];
         memcpy(sample, pavcc, nb_sample);
         
-        *pft = SrsCodecVideoAVCFrameKeyFrame;
-        *pct = SrsCodecVideoAVCTypeSequenceHeader;
+        *pft = SrsVideoAvcFrameTypeKeyFrame;
+        *pct = SrsVideoAvcFrameTraitSequenceHeader;
         
         return ret;
     }
@@ -3960,7 +3960,7 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
         memcpy(sample, pasc, nb_sample);
         
         *pft = 0x00;
-        *pct = SrsCodecAudioTypeSequenceHeader;
+        *pct = SrsAudioAacFrameTraitSequenceHeader;
         
         return ret;
     }
@@ -3970,12 +3970,12 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
         return ERROR_SYSTEM_FILE_EOF;
     }
     
-    if (ps->type == SrsCodecFlvTagVideo) {
+    if (ps->type == SrsFrameTypeVideo) {
         *pht = SrsMp4HandlerTypeVIDE;
-        *pct = SrsCodecVideoAVCTypeNALU;
+        *pct = SrsVideoAvcFrameTraitNALU;
     } else {
         *pht = SrsMp4HandlerTypeSOUN;
-        *pct = SrsCodecAudioTypeRawData;
+        *pct = SrsAudioAacFrameTraitRawData;
     }
     *pdts = ps->dts_ms();
     *ppts = ps->pts_ms();
@@ -4052,25 +4052,25 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     if (mp4a) {
         uint32_t sr = mp4a->samplerate>>16;
         if (sr >= 44100) {
-            sample_rate = SrsCodecAudioSampleRate44100;
+            sample_rate = SrsAudioSampleRate44100;
         } else if (sr >= 22050) {
-            sample_rate = SrsCodecAudioSampleRate22050;
+            sample_rate = SrsAudioSampleRate22050;
         } else if (sr >= 11025) {
-            sample_rate = SrsCodecAudioSampleRate11025;
+            sample_rate = SrsAudioSampleRate11025;
         } else {
-            sample_rate = SrsCodecAudioSampleRate5512;
+            sample_rate = SrsAudioSampleRate5512;
         }
         
         if (mp4a->samplesize == 16) {
-            sound_bits = SrsCodecAudioSampleSize16bit;
+            sound_bits = SrsAudioSampleSize16bit;
         } else {
-            sound_bits = SrsCodecAudioSampleSize8bit;
+            sound_bits = SrsAudioSampleSize8bit;
         }
         
         if (mp4a->channelcount == 2) {
-            channels = SrsCodecAudioSoundTypeStereo;
+            channels = SrsAudioSoundTypeStereo;
         } else {
-            channels = SrsCodecAudioSoundTypeMono;
+            channels = SrsAudioSoundTypeMono;
         }
     }
     
@@ -4087,8 +4087,8 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
         return ret;
     }
     
-    vcodec = vide?vide->vide_codec():SrsCodecVideoForbidden;
-    acodec = soun?soun->soun_codec():SrsCodecAudioForbidden;
+    vcodec = vide?vide->vide_codec():SrsVideoCodecIdForbidden;
+    acodec = soun?soun->soun_codec():SrsAudioCodecIdForbidden;
     
     if (avcc && avcc->nb_config) {
         nb_avcc = avcc->nb_config;
@@ -4111,13 +4111,13 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     ss << "dur=" << mvhd->duration() << "ms";
     // video codec.
     ss << ", vide=" << moov->nb_vide_tracks() << "("
-        << srs_codec_video2str(vcodec) << "," << nb_avcc << "BSH"
+        << srs_video_codec_id2str(vcodec) << "," << nb_avcc << "BSH"
         << ")";
     // audio codec.
     ss << ", soun=" << moov->nb_soun_tracks() << "("
-        << srs_codec_audio2str(acodec) << "," << nb_asc << "BSH"
-        << "," << srs_codec_audio_channels2str(channels)
-        << "," << srs_codec_audio_samplesize2str(sound_bits)
+        << srs_audio_codec_id2str(acodec) << "," << nb_asc << "BSH"
+        << "," << srs_audio_channels2str(channels)
+        << "," << srs_audio_samplesize2str(sound_bits)
         << "," << srs_codec_audio_samplerate2str(sample_rate)
         << ")";
     
@@ -4231,11 +4231,11 @@ SrsMp4Encoder::SrsMp4Encoder()
     aduration = vduration = 0;
     width = height = 0;
     
-    acodec = SrsCodecAudioForbidden;
-    sample_rate = SrsCodecAudioSampleRateForbidden;
-    sound_bits = SrsCodecAudioSampleSizeForbidden;
-    channels = SrsCodecAudioSoundTypeForbidden;
-    vcodec = SrsCodecVideoForbidden;
+    acodec = SrsAudioCodecIdForbidden;
+    sample_rate = SrsAudioSampleRateForbidden;
+    sound_bits = SrsAudioSampleSizeForbidden;
+    channels = SrsAudioSoundTypeForbidden;
+    vcodec = SrsVideoCodecIdForbidden;
 }
 
 SrsMp4Encoder::~SrsMp4Encoder()
@@ -4319,8 +4319,8 @@ int SrsMp4Encoder::write_sample(SrsMp4HandlerType ht,
     SrsMp4Sample* ps = new SrsMp4Sample();
     
     // For SPS/PPS or ASC, copy it to moov.
-    bool vsh = (ht == SrsMp4HandlerTypeVIDE) && (ct == SrsCodecVideoAVCTypeSequenceHeader);
-    bool ash = (ht == SrsMp4HandlerTypeSOUN) && (ct == SrsCodecAudioTypeSequenceHeader);
+    bool vsh = (ht == SrsMp4HandlerTypeVIDE) && (ct == SrsVideoAvcFrameTraitSequenceHeader);
+    bool ash = (ht == SrsMp4HandlerTypeSOUN) && (ct == SrsAudioAacFrameTraitSequenceHeader);
     if (vsh || ash) {
         ret = copy_sequence_header(vsh, sample, nb_sample);
         srs_freep(ps);
@@ -4328,12 +4328,12 @@ int SrsMp4Encoder::write_sample(SrsMp4HandlerType ht,
     }
     
     if (ht == SrsMp4HandlerTypeVIDE) {
-        ps->type = SrsCodecFlvTagVideo;
-        ps->frame_type = (SrsCodecVideoAVCFrame)ft;
+        ps->type = SrsFrameTypeVideo;
+        ps->frame_type = (SrsVideoAvcFrameType)ft;
         ps->index = nb_videos++;
         vduration = dts;
     } else if (ht == SrsMp4HandlerTypeSOUN) {
-        ps->type = SrsCodecFlvTagAudio;
+        ps->type = SrsFrameTypeAudio;
         ps->index = nb_audios++;
         aduration = dts;
     } else {
@@ -4493,13 +4493,13 @@ int SrsMp4Encoder::flush()
             stbl->set_stsd(stsd);
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
-            mp4a->samplerate = uint32_t(flv_sample_rates[sample_rate]) << 16;
-            if (sound_bits == SrsCodecAudioSampleSize16bit) {
+            mp4a->samplerate = uint32_t(srs_flv_srates[sample_rate]) << 16;
+            if (sound_bits == SrsAudioSampleSize16bit) {
                 mp4a->samplesize = 16;
             } else {
                 mp4a->samplesize = 8;
             }
-            if (channels == SrsCodecAudioSoundTypeStereo) {
+            if (channels == SrsAudioSoundTypeStereo) {
                 mp4a->channelcount = 2;
             } else {
                 mp4a->channelcount = 1;

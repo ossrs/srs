@@ -98,7 +98,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     //int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
     
-    if ((SrsCodecAudio)sound_format != SrsCodecAudioAAC) {
+    if ((SrsAudioCodecId)sound_format != SrsAudioCodecIdAAC) {
         ret = ERROR_AAC_DECODE_ERROR;
         srs_error("aac required, format=%d. ret=%d", sound_format, ret);
         return ret;
@@ -110,8 +110,8 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    SrsCodecAudioType aac_packet_type = (SrsCodecAudioType)stream->read_1bytes();
-    if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
+    if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
         //
@@ -187,7 +187,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         // channel_configuration 3 uimsbf
         // original/copy 1 bslbf
         // home 1 bslbf
-        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(aac_object);
+        SrsAacProfile aac_profile = srs_aac_rtmp2ts(aac_object);
         *pp++ = ((aac_profile << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS

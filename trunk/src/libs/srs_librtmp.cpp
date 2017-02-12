@@ -1243,7 +1243,7 @@ int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
     Context* context = (Context*)rtmp;
     srs_assert(context);
     
-    if (sound_format == SrsCodecAudioAAC) {
+    if (sound_format == SrsAudioCodecIdAAC) {
         // for aac, the frame must be ADTS format.
         if (!srs_aac_is_adts(frame, frame_size)) {
             return ERROR_AAC_REQUIRED_ADTS;
@@ -1340,9 +1340,9 @@ int srs_write_h264_ipb_frame(Context* context,
     }
     
     // for IDR frame, the frame is keyframe.
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (nut == SrsAvcNaluTypeIDR) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
     
     std::string ibp;
@@ -1350,7 +1350,7 @@ int srs_write_h264_ipb_frame(Context* context,
         return ret;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = context->avc_raw.mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1381,8 +1381,8 @@ int srs_write_h264_sps_pps(Context* context, uint32_t dts, uint32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = context->avc_raw.mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1595,7 +1595,7 @@ int srs_mp4_read_sample(srs_mp4_t mp4, srs_mp4_sample_t* s)
     SrsMp4Decoder* dec = &context->dec;
     
     SrsMp4HandlerType ht = SrsMp4HandlerTypeForbidden;
-    if ((ret = dec->read_sample(&ht, &s->frame_type, &s->codec_type, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != ERROR_SUCCESS) {
+    if ((ret = dec->read_sample(&ht, &s->frame_type, &s->frame_trait, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1624,13 +1624,13 @@ void srs_mp4_free_sample(srs_mp4_sample_t* s)
 int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* s)
 {
     if (s->handler_type == SrsMp4HandlerTypeSOUN) {
-        if (s->codec == SrsCodecAudioAAC) {
+        if (s->codec == SrsAudioCodecIdAAC) {
             return s->nb_sample + 2;
         }
         return s->nb_sample + 1;
     }
     
-    if (s->codec == SrsCodecVideoAVC) {
+    if (s->codec == SrsVideoCodecIdAVC) {
         return s->nb_sample + 5;
     }
     return s->nb_sample + 1;
@@ -1648,8 +1648,8 @@ int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* s, char* type, uint32_t*
         
         // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
         p.write_1bytes(uint8_t(s->codec << 4) | uint8_t(s->sample_rate << 2) | uint8_t(s->sound_bits << 1) | s->channels);
-        if (s->codec == SrsCodecAudioAAC) {
-            p.write_1bytes(uint8_t(s->codec_type == SrsCodecAudioTypeSequenceHeader? 0:1));
+        if (s->codec == SrsAudioCodecIdAAC) {
+            p.write_1bytes(uint8_t(s->frame_trait == SrsAudioAacFrameTraitSequenceHeader? 0:1));
         }
         
         p.write_bytes((char*)s->sample, s->nb_sample);
@@ -1658,10 +1658,10 @@ int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* s, char* type, uint32_t*
     
     // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
     p.write_1bytes(uint8_t(s->frame_type<<4) | s->codec);
-    if (s->codec == SrsCodecVideoAVC) {
+    if (s->codec == SrsVideoCodecIdAVC) {
         *type = SRS_RTMP_TYPE_VIDEO;
         
-        p.write_1bytes(uint8_t(s->codec_type == SrsCodecVideoAVCTypeSequenceHeader? 0:1));
+        p.write_1bytes(uint8_t(s->frame_trait == SrsVideoAvcFrameTraitSequenceHeader? 0:1));
         // cts = pts - dts, where dts = flvheader->timestamp.
         uint32_t cts = s->pts - s->dts;
         p.write_3bytes(cts);
@@ -1851,12 +1851,12 @@ srs_bool srs_flv_is_eof(int error_code)
 
 srs_bool srs_flv_is_sequence_header(char* data, int32_t size)
 {
-    return SrsFlvCodec::video_is_sequence_header(data, (int)size);
+    return SrsFlvVideo::sh(data, (int)size);
 }
 
 srs_bool srs_flv_is_keyframe(char* data, int32_t size)
 {
-    return SrsFlvCodec::video_is_keyframe(data, (int)size);
+    return SrsFlvVideo::keyframe(data, (int)size);
 }
 
 srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
@@ -2191,11 +2191,11 @@ int srs_utils_parse_timestamp(
         return ret;
     }
 
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return ERROR_FLV_INVALID_VIDEO_TAG;
     }
 
-    if (SrsFlvCodec::video_is_sequence_header(data, size)) {
+    if (SrsFlvVideo::sh(data, size)) {
         *ppts = time;
         return ret;
     }
@@ -2259,7 +2259,7 @@ char srs_utils_flv_video_avc_packet_type(char* data, int size)
         return -1;
     }
     
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return -1;
     }
     
@@ -2278,7 +2278,7 @@ char srs_utils_flv_video_frame_type(char* data, int size)
         return -1;
     }
     
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return -1;
     }
     

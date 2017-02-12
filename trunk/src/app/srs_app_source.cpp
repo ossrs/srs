@@ -362,12 +362,12 @@ void SrsMessageQueue::shrink()
     for (int i = 0; i < (int)msgs.size(); i++) {
         SrsSharedPtrMessage* msg = msgs.at(i);
 
-        if (msg->is_video() && SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+        if (msg->is_video() && SrsFlvVideo::sh(msg->payload, msg->size)) {
             srs_freep(video_sh);
             video_sh = msg;
             continue;
         }
-        else if (msg->is_audio() && SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+        else if (msg->is_audio() && SrsFlvAudio::sh(msg->payload, msg->size)) {
             srs_freep(audio_sh);
             audio_sh = msg;
             continue;
@@ -643,7 +643,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     // got video, update the video count if acceptable
     if (msg->is_video()) {
         // drop video when not h.264
-        if (!SrsFlvCodec::video_is_h264(msg->payload, msg->size)) {
+        if (!SrsFlvVideo::h264(msg->payload, msg->size)) {
             srs_info("gop cache drop video for none h.264");
             return ret;
         }
@@ -671,7 +671,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     }
     
     // clear gop cache when got key frame
-    if (msg->is_video() && SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
+    if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
         srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
             cached_video_count, (int)gop_cache.size());
             
@@ -975,22 +975,22 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     // donot cache the sequence header to gop_cache, return here.
     if (format->is_aac_sequence_header()) {
         srs_assert(format->acodec);
-        SrsAudioCodec* c = format->acodec;
+        SrsAudioCodecConfig* c = format->acodec;
         
         static int flv_sample_sizes[] = {8, 16, 0};
         static int flv_sound_types[] = {1, 2, 0};
         
         // when got audio stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_audio_info(req, SrsCodecAudioAAC, c->sound_rate, c->sound_type, c->aac_object)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_audio_info(req, SrsAudioCodecIdAAC, c->sound_rate, c->sound_type, c->aac_object)) != ERROR_SUCCESS) {
             return ret;
         }
         
         srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
-            msg->size, c->id, srs_codec_aac_object2str(c->aac_object).c_str(), c->aac_channels,
-            c->audio_data_rate / 1000, aac_sample_rates[c->aac_sample_rate],
+            msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
+            c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
             flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
-            flv_sample_rates[c->sound_rate]);
+            srs_flv_srates[c->sound_rate]);
     }
     
     if ((ret = hls->on_audio(msg, format)) != ERROR_SUCCESS) {
@@ -1080,18 +1080,18 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
     if (format->is_avc_sequence_header()) {
-        SrsVideoCodec* c = format->vcodec;
+        SrsVideoCodecConfig* c = format->vcodec;
         srs_assert(c);
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_info(req, SrsCodecVideoAVC, c->avc_profile, c->avc_level, c->width, c->height)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_video_info(req, SrsVideoCodecIdAVC, c->avc_profile, c->avc_level, c->width, c->height)) != ERROR_SUCCESS) {
             return ret;
         }
         
         srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
-            msg->size, c->id, srs_codec_avc_profile2str(c->avc_profile).c_str(),
-            srs_codec_avc_level2str(c->avc_level).c_str(), c->width, c->height,
+            msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(),
+            srs_avc_level2str(c->avc_level).c_str(), c->width, c->height,
             c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
     
@@ -2171,7 +2171,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     int ret = ERROR_SUCCESS;
     
     srs_info("Audio dts=%"PRId64", size=%d", msg->timestamp, msg->size);
-    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size);
+    bool is_aac_sequence_header = SrsFlvAudio::sh(msg->payload, msg->size);
     bool is_sequence_header = is_aac_sequence_header;
     
     // whether consumer should drop for the duplicated sequence header.
@@ -2247,7 +2247,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     
     // drop any unknown header video.
     // @see https://github.com/ossrs/srs/issues/421
-    if (!SrsFlvCodec::video_is_acceptable(shared_video->payload, shared_video->size)) {
+    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
         char b0 = 0x00;
         if (shared_video->size > 0) {
             b0 = shared_video->payload[0];
@@ -2298,7 +2298,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     srs_info("Video dts=%"PRId64", size=%d", msg->timestamp, msg->size);
     
-    bool is_sequence_header = SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size);
+    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;

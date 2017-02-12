@@ -111,7 +111,7 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     //int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
     
-    if ((SrsCodecAudio)sound_format != SrsCodecAudioMP3) {
+    if ((SrsAudioCodecId)sound_format != SrsAudioCodecIdMP3) {
         ret = ERROR_MP3_DECODE_ERROR;
         srs_error("mp3 required, format=%d. ret=%d", sound_format, ret);
         return ret;

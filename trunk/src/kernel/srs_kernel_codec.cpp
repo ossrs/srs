@@ -33,71 +33,71 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
 
-string srs_codec_video2str(SrsCodecVideo codec)
+string srs_video_codec_id2str(SrsVideoCodecId codec)
 {
     switch (codec) {
-        case SrsCodecVideoAVC:
+        case SrsVideoCodecIdAVC:
             return "H264";
-        case SrsCodecVideoOn2VP6:
-        case SrsCodecVideoOn2VP6WithAlphaChannel:
+        case SrsVideoCodecIdOn2VP6:
+        case SrsVideoCodecIdOn2VP6WithAlphaChannel:
             return "VP6";
-        case SrsCodecVideoReserved:
-        case SrsCodecVideoReserved1:
-        case SrsCodecVideoReserved2:
-        case SrsCodecVideoDisabled:
-        case SrsCodecVideoSorensonH263:
-        case SrsCodecVideoScreenVideo:
-        case SrsCodecVideoScreenVideoVersion2:
+        case SrsVideoCodecIdReserved:
+        case SrsVideoCodecIdReserved1:
+        case SrsVideoCodecIdReserved2:
+        case SrsVideoCodecIdDisabled:
+        case SrsVideoCodecIdSorensonH263:
+        case SrsVideoCodecIdScreenVideo:
+        case SrsVideoCodecIdScreenVideoVersion2:
         default:
             return "Other";
     }
 }
 
-string srs_codec_audio2str(SrsCodecAudio codec)
+string srs_audio_codec_id2str(SrsAudioCodecId codec)
 {
     switch (codec) {
-        case SrsCodecAudioAAC:
+        case SrsAudioCodecIdAAC:
             return "AAC";
-        case SrsCodecAudioMP3:
+        case SrsAudioCodecIdMP3:
             return "MP3";
-        case SrsCodecAudioReserved1:
-        case SrsCodecAudioLinearPCMPlatformEndian:
-        case SrsCodecAudioADPCM:
-        case SrsCodecAudioLinearPCMLittleEndian:
-        case SrsCodecAudioNellymoser16kHzMono:
-        case SrsCodecAudioNellymoser8kHzMono:
-        case SrsCodecAudioNellymoser:
-        case SrsCodecAudioReservedG711AlawLogarithmicPCM:
-        case SrsCodecAudioReservedG711MuLawLogarithmicPCM:
-        case SrsCodecAudioReserved:
-        case SrsCodecAudioSpeex:
-        case SrsCodecAudioReservedMP3_8kHz:
-        case SrsCodecAudioReservedDeviceSpecificSound:
+        case SrsAudioCodecIdReserved1:
+        case SrsAudioCodecIdLinearPCMPlatformEndian:
+        case SrsAudioCodecIdADPCM:
+        case SrsAudioCodecIdLinearPCMLittleEndian:
+        case SrsAudioCodecIdNellymoser16kHzMono:
+        case SrsAudioCodecIdNellymoser8kHzMono:
+        case SrsAudioCodecIdNellymoser:
+        case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
+        case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
+        case SrsAudioCodecIdReserved:
+        case SrsAudioCodecIdSpeex:
+        case SrsAudioCodecIdReservedMP3_8kHz:
+        case SrsAudioCodecIdReservedDeviceSpecificSound:
         default:
             return "Other";
     }
 }
 
-string srs_codec_audio_samplerate2str(SrsCodecAudioSampleRate v)
+string srs_codec_audio_samplerate2str(SrsAudioSampleRate v)
 {
     switch (v) {
-        case SrsCodecAudioSampleRate5512: return "5512";
-        case SrsCodecAudioSampleRate11025: return "11025";
-        case SrsCodecAudioSampleRate22050: return "22050";
-        case SrsCodecAudioSampleRate44100: return "44100";
+        case SrsAudioSampleRate5512: return "5512";
+        case SrsAudioSampleRate11025: return "11025";
+        case SrsAudioSampleRate22050: return "22050";
+        case SrsAudioSampleRate44100: return "44100";
         default: return "Other";
     }
 }
 
-SrsFlvCodec::SrsFlvCodec()
+SrsFlvVideo::SrsFlvVideo()
 {
 }
 
-SrsFlvCodec::~SrsFlvCodec()
+SrsFlvVideo::~SrsFlvVideo()
 {
 }
 
-bool SrsFlvCodec::video_is_keyframe(char* data, int size)
+bool SrsFlvVideo::keyframe(char* data, int size)
 {
     // 2bytes required.
     if (size < 1) {
@@ -107,13 +107,13 @@ bool SrsFlvCodec::video_is_keyframe(char* data, int size)
     char frame_type = data[0];
     frame_type = (frame_type >> 4) & 0x0F;
     
-    return frame_type == SrsCodecVideoAVCFrameKeyFrame;
+    return frame_type == SrsVideoAvcFrameTypeKeyFrame;
 }
 
-bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
+bool SrsFlvVideo::sh(char* data, int size)
 {
     // sequence header only for h264
-    if (!video_is_h264(data, size)) {
+    if (!h264(data, size)) {
         return false;
     }
     
@@ -127,28 +127,11 @@ bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
     
     char avc_packet_type = data[1];
     
-    return frame_type == SrsCodecVideoAVCFrameKeyFrame
-    && avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
+    return frame_type == SrsVideoAvcFrameTypeKeyFrame
+    && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
-bool SrsFlvCodec::audio_is_sequence_header(char* data, int size)
-{
-    // sequence header only for aac
-    if (!audio_is_aac(data, size)) {
-        return false;
-    }
-    
-    // 2bytes required.
-    if (size < 2) {
-        return false;
-    }
-    
-    char aac_packet_type = data[1];
-    
-    return aac_packet_type == SrsCodecAudioTypeSequenceHeader;
-}
-
-bool SrsFlvCodec::video_is_h264(char* data, int size)
+bool SrsFlvVideo::h264(char* data, int size)
 {
     // 1bytes required.
     if (size < 1) {
@@ -158,23 +141,10 @@ bool SrsFlvCodec::video_is_h264(char* data, int size)
     char codec_id = data[0];
     codec_id = codec_id & 0x0F;
     
-    return codec_id == SrsCodecVideoAVC;
+    return codec_id == SrsVideoCodecIdAVC;
 }
 
-bool SrsFlvCodec::audio_is_aac(char* data, int size)
-{
-    // 1bytes required.
-    if (size < 1) {
-        return false;
-    }
-    
-    char sound_format = data[0];
-    sound_format = (sound_format >> 4) & 0x0F;
-    
-    return sound_format == SrsCodecAudioAAC;
-}
-
-bool SrsFlvCodec::video_is_acceptable(char* data, int size)
+bool SrsFlvVideo::acceptable(char* data, int size)
 {
     // 1bytes required.
     if (size < 1) {
@@ -196,6 +166,36 @@ bool SrsFlvCodec::video_is_acceptable(char* data, int size)
     return true;
 }
 
+bool SrsFlvAudio::sh(char* data, int size)
+{
+    // sequence header only for aac
+    if (!aac(data, size)) {
+        return false;
+    }
+    
+    // 2bytes required.
+    if (size < 2) {
+        return false;
+    }
+    
+    char aac_packet_type = data[1];
+    
+    return aac_packet_type == SrsAudioAacFrameTraitSequenceHeader;
+}
+
+bool SrsFlvAudio::aac(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char sound_format = data[0];
+    sound_format = (sound_format >> 4) & 0x0F;
+    
+    return sound_format == SrsAudioCodecIdAAC;
+}
+
 /**
  * the public data, event HLS disable, others can use it.
  */
@@ -203,11 +203,11 @@ bool SrsFlvCodec::video_is_acceptable(char* data, int size)
 // 1 = 11 kHz = 11025 Hz
 // 2 = 22 kHz = 22050 Hz
 // 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+int srs_flv_srates[] = {5512, 11025, 22050, 44100};
 
 // the sample rates in the codec,
 // in the sequence header.
-int aac_sample_rates[] =
+int srs_aac_srates[] =
 {
     96000, 88200, 64000, 48000,
     44100, 32000, 24000, 22050,
@@ -215,25 +215,25 @@ int aac_sample_rates[] =
     7350,     0,     0,    0
 };
 
-string srs_codec_audio_samplesize2str(SrsCodecAudioSampleSize v)
+string srs_audio_samplesize2str(SrsAudioSampleSize v)
 {
     switch (v) {
-        case SrsCodecAudioSampleSize16bit: return "16bits";
-        case SrsCodecAudioSampleSize8bit: return "8bits";
+        case SrsAudioSampleSize16bit: return "16bits";
+        case SrsAudioSampleSize8bit: return "8bits";
         default: return "Other";
     }
 }
 
-string srs_codec_audio_channels2str(SrsCodecAudioSoundType v)
+string srs_audio_channels2str(SrsAudioSoundType v)
 {
     switch (v) {
-        case SrsCodecAudioSoundTypeStereo: return "Stereo";
-        case SrsCodecAudioSoundTypeMono: return "Mono";
+        case SrsAudioSoundTypeStereo: return "Stereo";
+        case SrsAudioSoundTypeMono: return "Mono";
         default: return "Other";
     }
 }
 
-string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
+string srs_avc_nalu2str(SrsAvcNaluType nalu_type)
 {
     switch (nalu_type) {
         case SrsAvcNaluTypeNonIDR: return "NonIDR";
@@ -257,7 +257,7 @@ string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
     }
 }
 
-string srs_codec_aac_profile2str(SrsAacProfile aac_profile)
+string srs_aac_profile2str(SrsAacProfile aac_profile)
 {
     switch (aac_profile) {
         case SrsAacProfileMain: return "Main";
@@ -267,7 +267,7 @@ string srs_codec_aac_profile2str(SrsAacProfile aac_profile)
     }
 }
 
-string srs_codec_aac_object2str(SrsAacObjectType aac_object)
+string srs_aac_object2str(SrsAacObjectType aac_object)
 {
     switch (aac_object) {
         case SrsAacObjectTypeAacMain: return "Main";
@@ -279,7 +279,7 @@ string srs_codec_aac_object2str(SrsAacObjectType aac_object)
     }
 }
 
-SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile)
+SrsAacObjectType srs_aac_ts2rtmp(SrsAacProfile profile)
 {
     switch (profile) {
         case SrsAacProfileMain: return SrsAacObjectTypeAacMain;
@@ -289,7 +289,7 @@ SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile)
     }
 }
 
-SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
+SrsAacProfile srs_aac_rtmp2ts(SrsAacObjectType object_type)
 {
     switch (object_type) {
         case SrsAacObjectTypeAacMain: return SrsAacProfileMain;
@@ -301,7 +301,7 @@ SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
     }
 }
 
-string srs_codec_avc_profile2str(SrsAvcProfile profile)
+string srs_avc_profile2str(SrsAvcProfile profile)
 {
     switch (profile) {
         case SrsAvcProfileBaseline: return "Baseline";
@@ -320,7 +320,7 @@ string srs_codec_avc_profile2str(SrsAvcProfile profile)
     }
 }
 
-string srs_codec_avc_level2str(SrsAvcLevel level)
+string srs_avc_level2str(SrsAvcLevel level)
 {
     switch (level) {
         case SrsAvcLevel_1: return "1";
@@ -351,42 +351,42 @@ SrsSample::~SrsSample()
 {
 }
 
-SrsCodec::SrsCodec()
+SrsCodecConfig::SrsCodecConfig()
 {
 }
 
-SrsCodec::~SrsCodec()
+SrsCodecConfig::~SrsCodecConfig()
 {
 }
 
-SrsAudioCodec::SrsAudioCodec()
+SrsAudioCodecConfig::SrsAudioCodecConfig()
 {
-    id = SrsCodecAudioForbidden;
-    sound_rate = SrsCodecAudioSampleRateForbidden;
-    sound_size = SrsCodecAudioSampleSizeForbidden;
-    sound_type = SrsCodecAudioSoundTypeForbidden;
+    id = SrsAudioCodecIdForbidden;
+    sound_rate = SrsAudioSampleRateForbidden;
+    sound_size = SrsAudioSampleSizeForbidden;
+    sound_type = SrsAudioSoundTypeForbidden;
     
     audio_data_rate = 0;
     
     aac_object = SrsAacObjectTypeForbidden;
-    aac_sample_rate = SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
+    aac_sample_rate = SrsAacSampleRateUnset; // sample rate ignored
     aac_channels = 0;
     aac_extra_size = 0;
     aac_extra_data = NULL;
 }
 
-SrsAudioCodec::~SrsAudioCodec()
+SrsAudioCodecConfig::~SrsAudioCodecConfig()
 {
 }
 
-bool SrsAudioCodec::is_aac_codec_ok()
+bool SrsAudioCodecConfig::is_aac_codec_ok()
 {
     return aac_extra_size > 0 && aac_extra_data;
 }
 
-SrsVideoCodec::SrsVideoCodec()
+SrsVideoCodecConfig::SrsVideoCodecConfig()
 {
-    id = SrsCodecVideoForbidden;
+    id = SrsVideoCodecIdForbidden;
     video_data_rate = 0;
     frame_rate = duration = 0;
     
@@ -407,14 +407,14 @@ SrsVideoCodec::SrsVideoCodec()
     payload_format = SrsAvcPayloadFormatGuess;
 }
 
-SrsVideoCodec::~SrsVideoCodec()
+SrsVideoCodecConfig::~SrsVideoCodecConfig()
 {
     srs_freepa(avc_extra_data);
     srs_freepa(sequenceParameterSetNALUnit);
     srs_freepa(pictureParameterSetNALUnit);
 }
 
-bool SrsVideoCodec::is_avc_codec_ok()
+bool SrsVideoCodecConfig::is_avc_codec_ok()
 {
     return avc_extra_size > 0 && avc_extra_data;
 }
@@ -432,7 +432,7 @@ SrsFrame::~SrsFrame()
     srs_freep(codec);
 }
 
-int SrsFrame::initialize(SrsCodec* c)
+int SrsFrame::initialize(SrsCodecConfig* c)
 {
     codec = c;
     nb_samples = 0;
@@ -445,9 +445,9 @@ int SrsFrame::add_sample(char* bytes, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    if (nb_samples >= SRS_MAX_CODEC_SAMPLE) {
+    if (nb_samples >= SrsMaxNbSamples) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("Frame samples overflow, max=%d. ret=%d", SRS_MAX_CODEC_SAMPLE, ret);
+        srs_error("Frame samples overflow, max=%d. ret=%d", SrsMaxNbSamples, ret);
         return ret;
     }
     
@@ -460,22 +460,22 @@ int SrsFrame::add_sample(char* bytes, int size)
 
 SrsAudioFrame::SrsAudioFrame()
 {
-    aac_packet_type = SrsCodecAudioTypeForbidden;
+    aac_packet_type = SrsAudioAacFrameTraitForbidden;
 }
 
 SrsAudioFrame::~SrsAudioFrame()
 {
 }
 
-SrsAudioCodec* SrsAudioFrame::acodec()
+SrsAudioCodecConfig* SrsAudioFrame::acodec()
 {
-    return (SrsAudioCodec*)codec;
+    return (SrsAudioCodecConfig*)codec;
 }
 
 SrsVideoFrame::SrsVideoFrame()
 {
-    frame_type = SrsCodecVideoAVCFrameForbidden;
-    avc_packet_type = SrsCodecVideoAVCTypeForbidden;
+    frame_type = SrsVideoAvcFrameTypeForbidden;
+    avc_packet_type = SrsVideoAvcFrameTraitForbidden;
     has_idr = has_aud = has_sps_pps = false;
     first_nalu_type = SrsAvcNaluTypeForbidden;
 }
@@ -510,9 +510,9 @@ int SrsVideoFrame::add_sample(char* bytes, int size)
     return ret;
 }
 
-SrsVideoCodec* SrsVideoFrame::vcodec()
+SrsVideoCodecConfig* SrsVideoFrame::vcodec()
 {
-    return (SrsVideoCodec*)codec;
+    return (SrsVideoCodecConfig*)codec;
 }
 
 SrsFormat::SrsFormat()
@@ -560,14 +560,14 @@ int SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     }
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
-    SrsCodecAudio codec = (SrsCodecAudio)((buffer->read_1bytes() >> 4) & 0x0f);
+    SrsAudioCodecId codec = (SrsAudioCodecId)((buffer->read_1bytes() >> 4) & 0x0f);
     
-    if (codec != SrsCodecAudioMP3 && codec != SrsCodecAudioAAC) {
+    if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC) {
         return ret;
     }
     
     if (!acodec) {
-        acodec = new SrsAudioCodec();
+        acodec = new SrsAudioCodecConfig();
     }
     if (!audio) {
         audio = new SrsAudioFrame();
@@ -578,9 +578,9 @@ int SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     }
     
     buffer->skip(-1 * buffer->pos());
-    if (codec == SrsCodecAudioMP3) {
+    if (codec == SrsAudioCodecIdMP3) {
         return audio_mp3_demux(buffer, timestamp);
-    } else if (codec == SrsCodecAudioAAC) {
+    } else if (codec == SrsAudioCodecIdAAC) {
         return audio_aac_demux(buffer, timestamp);
     } else {
         return ret;
@@ -609,15 +609,15 @@ int SrsFormat::on_video(int64_t timestamp, char* data, int size)
     
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = buffer->read_1bytes();
-    SrsCodecVideo codec_id = (SrsCodecVideo)(frame_type & 0x0f);
+    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
     
     // TODO: Support other codecs.
-    if (codec_id != SrsCodecVideoAVC) {
+    if (codec_id != SrsVideoCodecIdAVC) {
         return ret;
     }
     
     if (!vcodec) {
-        vcodec = new SrsVideoCodec();
+        vcodec = new SrsVideoCodecConfig();
     }
     if (!video) {
         video = new SrsVideoFrame();
@@ -636,7 +636,7 @@ int SrsFormat::on_aac_sequence_header(char* data, int size)
     int ret = ERROR_SUCCESS;
     
     if (!acodec) {
-        acodec = new SrsAudioCodec();
+        acodec = new SrsAudioCodecConfig();
     }
     if (!audio) {
         audio = new SrsAudioFrame();
@@ -651,14 +651,14 @@ int SrsFormat::on_aac_sequence_header(char* data, int size)
 
 bool SrsFormat::is_aac_sequence_header()
 {
-    return acodec && acodec->id == SrsCodecAudioAAC
-    && audio && audio->aac_packet_type == SrsCodecAudioTypeSequenceHeader;
+    return acodec && acodec->id == SrsAudioCodecIdAAC
+    && audio && audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader;
 }
 
 bool SrsFormat::is_avc_sequence_header()
 {
-    return vcodec && vcodec->id == SrsCodecVideoAVC
-    && video && video->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
+    return vcodec && vcodec->id == SrsVideoCodecIdAVC
+    && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
@@ -667,20 +667,20 @@ int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = stream->read_1bytes();
-    SrsCodecVideo codec_id = (SrsCodecVideo)(frame_type & 0x0f);
+    SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
     frame_type = (frame_type >> 4) & 0x0f;
     
-    video->frame_type = (SrsCodecVideoAVCFrame)frame_type;
+    video->frame_type = (SrsVideoAvcFrameType)frame_type;
     
     // ignore info frame without error,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
-    if (video->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    if (video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         srs_warn("avc igone the info frame, ret=%d", ret);
         return ret;
     }
     
     // only support h.264/avc
-    if (codec_id != SrsCodecVideoAVC) {
+    if (codec_id != SrsVideoCodecIdAVC) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc only support video h.264/avc codec. actual=%d, ret=%d", codec_id, ret);
         return ret;
@@ -698,13 +698,13 @@ int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     // pts = dts + cts.
     video->dts = timestamp;
     video->cts = composition_time;
-    video->avc_packet_type = (SrsCodecVideoAVCType)avc_packet_type;
+    video->avc_packet_type = (SrsVideoAvcFrameTrait)avc_packet_type;
     
-    if (avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         if ((ret = avc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
             return ret;
         }
-    } else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
+    } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
         if ((ret = video_nalu_demux(stream)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1086,7 +1086,7 @@ int SrsFormat::video_nalu_demux(SrsBuffer* stream)
     
     // ensure the sequence header demuxed
     if (!vcodec->is_avc_codec_ok()) {
-        srs_warn("avc ignore type=%d for no sequence header. ret=%d", SrsCodecVideoAVCTypeNALU, ret);
+        srs_warn("avc ignore type=%d for no sequence header. ret=%d", SrsVideoAvcFrameTraitNALU, ret);
         return ret;
     }
     
@@ -1267,20 +1267,20 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
     
-    SrsCodecAudio codec_id = (SrsCodecAudio)sound_format;
+    SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
     acodec->id = codec_id;
     
-    acodec->sound_type = (SrsCodecAudioSoundType)sound_type;
-    acodec->sound_rate = (SrsCodecAudioSampleRate)sound_rate;
-    acodec->sound_size = (SrsCodecAudioSampleSize)sound_size;
+    acodec->sound_type = (SrsAudioSoundType)sound_type;
+    acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
+    acodec->sound_size = (SrsAudioSampleSize)sound_size;
     
     // we support h.264+mp3 for hls.
-    if (codec_id == SrsCodecAudioMP3) {
+    if (codec_id == SrsAudioCodecIdMP3) {
         return ERROR_HLS_TRY_MP3;
     }
     
     // only support aac
-    if (codec_id != SrsCodecAudioAAC) {
+    if (codec_id != SrsAudioCodecIdAAC) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("aac only support mp3/aac codec. actual=%d, ret=%d", codec_id, ret);
         return ret;
@@ -1292,10 +1292,10 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
         return ret;
     }
     
-    SrsCodecAudioType aac_packet_type = (SrsCodecAudioType)stream->read_1bytes();
-    audio->aac_packet_type = (SrsCodecAudioType)aac_packet_type;
+    SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
+    audio->aac_packet_type = (SrsAudioAacFrameTrait)aac_packet_type;
     
-    if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
         acodec->aac_extra_size = stream->size() - stream->pos();
@@ -1308,7 +1308,7 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
                 return ret;
             }
         }
-    } else if (aac_packet_type == SrsCodecAudioTypeRawData) {
+    } else if (aac_packet_type == SrsAudioAacFrameTraitRawData) {
         // ensure the sequence header demuxed
         if (!acodec->is_aac_codec_ok()) {
             srs_warn("aac ignore type=%d for no sequence header. ret=%d", aac_packet_type, ret);
@@ -1326,22 +1326,22 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     }
     
     // reset the sample rate by sequence header
-    if (acodec->aac_sample_rate != SRS_AAC_SAMPLE_RATE_UNSET) {
-        static int aac_sample_rates[] = {
+    if (acodec->aac_sample_rate != SrsAacSampleRateUnset) {
+        static int srs_aac_srates[] = {
             96000, 88200, 64000, 48000,
             44100, 32000, 24000, 22050,
             16000, 12000, 11025,  8000,
             7350,     0,     0,    0
         };
-        switch (aac_sample_rates[acodec->aac_sample_rate]) {
+        switch (srs_aac_srates[acodec->aac_sample_rate]) {
             case 11025:
-                acodec->sound_rate = SrsCodecAudioSampleRate11025;
+                acodec->sound_rate = SrsAudioSampleRate11025;
                 break;
             case 22050:
-                acodec->sound_rate = SrsCodecAudioSampleRate22050;
+                acodec->sound_rate = SrsAudioSampleRate22050;
                 break;
             case 44100:
-                acodec->sound_rate = SrsCodecAudioSampleRate44100;
+                acodec->sound_rate = SrsAudioSampleRate44100;
                 break;
             default:
                 break;
@@ -1362,7 +1362,7 @@ int SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     audio->dts = timestamp;
     
     // we always decode aac then mp3.
-    srs_assert(acodec->id == SrsCodecAudioMP3);
+    srs_assert(acodec->id == SrsAudioCodecIdMP3);
     
     stream->skip(1);
     if (stream->empty()) {

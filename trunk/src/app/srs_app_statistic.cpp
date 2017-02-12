@@ -99,14 +99,14 @@ SrsStatisticStream::SrsStatisticStream()
     connection_cid = -1;
     
     has_video = false;
-    vcodec = SrsCodecVideoReserved;
+    vcodec = SrsVideoCodecIdReserved;
     avc_profile = SrsAvcProfileReserved;
     avc_level = SrsAvcLevelReserved;
     
     has_audio = false;
-    acodec = SrsCodecAudioReserved1;
-    asample_rate = SrsCodecAudioSampleRateReserved;
-    asound_type = SrsCodecAudioSoundTypeReserved;
+    acodec = SrsAudioCodecIdReserved1;
+    asample_rate = SrsAudioSampleRateReserved;
+    asound_type = SrsAudioSoundTypeReserved;
     aac_object = SrsAacObjectTypeReserved;
     width = 0;
     height = 0;
@@ -153,9 +153,9 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
         SrsJsonObject* video = SrsJsonAny::object();
         obj->set("video", video);
         
-        video->set("codec", SrsJsonAny::str(srs_codec_video2str(vcodec).c_str()));
-        video->set("profile", SrsJsonAny::str(srs_codec_avc_profile2str(avc_profile).c_str()));
-        video->set("level", SrsJsonAny::str(srs_codec_avc_level2str(avc_level).c_str()));
+        video->set("codec", SrsJsonAny::str(srs_video_codec_id2str(vcodec).c_str()));
+        video->set("profile", SrsJsonAny::str(srs_avc_profile2str(avc_profile).c_str()));
+        video->set("level", SrsJsonAny::str(srs_avc_level2str(avc_level).c_str()));
         video->set("width", SrsJsonAny::integer(width));
         video->set("height", SrsJsonAny::integer(height));
     }
@@ -166,10 +166,10 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
         SrsJsonObject* audio = SrsJsonAny::object();
         obj->set("audio", audio);
         
-        audio->set("codec", SrsJsonAny::str(srs_codec_audio2str(acodec).c_str()));
-        audio->set("sample_rate", SrsJsonAny::integer(flv_sample_rates[asample_rate]));
+        audio->set("codec", SrsJsonAny::str(srs_audio_codec_id2str(acodec).c_str()));
+        audio->set("sample_rate", SrsJsonAny::integer(srs_flv_srates[asample_rate]));
         audio->set("channel", SrsJsonAny::integer(asound_type + 1));
-        audio->set("profile", SrsJsonAny::str(srs_codec_aac_object2str(aac_object).c_str()));
+        audio->set("profile", SrsJsonAny::str(srs_aac_object2str(aac_object).c_str()));
     }
     
     return ret;
@@ -309,7 +309,7 @@ SrsStatisticClient* SrsStatistic::find_client(int cid)
 }
 
 int SrsStatistic::on_video_info(SrsRequest* req, 
-    SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
+    SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
     int width, int height
 ) {
     int ret = ERROR_SUCCESS;
@@ -329,7 +329,7 @@ int SrsStatistic::on_video_info(SrsRequest* req,
 }
 
 int SrsStatistic::on_audio_info(SrsRequest* req,
-    SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
+    SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioSoundType asound_type,
     SrsAacObjectType aac_object
 ) {
     int ret = ERROR_SUCCESS;

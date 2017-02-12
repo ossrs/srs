@@ -201,8 +201,8 @@ SrsTsContext::SrsTsContext()
 {
     pure_audio = false;
     sync_byte = 0x47; // ts default sync byte.
-    vcodec = SrsCodecVideoReserved;
-    acodec = SrsCodecAudioReserved1;
+    vcodec = SrsVideoCodecIdReserved;
+    acodec = SrsAudioCodecIdReserved1;
 }
 
 SrsTsContext::~SrsTsContext()
@@ -235,8 +235,8 @@ void SrsTsContext::on_pmt_parsed()
 
 void SrsTsContext::reset()
 {
-    vcodec = SrsCodecVideoReserved;
-    acodec = SrsCodecAudioReserved1;
+    vcodec = SrsVideoCodecIdReserved;
+    acodec = SrsAudioCodecIdReserved1;
 }
 
 SrsTsChannel* SrsTsContext::get(int pid)
@@ -294,56 +294,56 @@ int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
     return ret;
 }
 
-int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac)
+int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
 {
     int ret = ERROR_SUCCESS;
 
     SrsTsStream vs, as;
     int16_t video_pid = 0, audio_pid = 0;
     switch (vc) {
-        case SrsCodecVideoAVC: 
+        case SrsVideoCodecIdAVC: 
             vs = SrsTsStreamVideoH264; 
             video_pid = TS_VIDEO_AVC_PID;
             break;
-        case SrsCodecVideoDisabled:
+        case SrsVideoCodecIdDisabled:
             vs = SrsTsStreamReserved;
             break;
-        case SrsCodecVideoReserved:
-        case SrsCodecVideoReserved1:
-        case SrsCodecVideoReserved2:
-        case SrsCodecVideoSorensonH263:
-        case SrsCodecVideoScreenVideo:
-        case SrsCodecVideoOn2VP6:
-        case SrsCodecVideoOn2VP6WithAlphaChannel:
-        case SrsCodecVideoScreenVideoVersion2:
+        case SrsVideoCodecIdReserved:
+        case SrsVideoCodecIdReserved1:
+        case SrsVideoCodecIdReserved2:
+        case SrsVideoCodecIdSorensonH263:
+        case SrsVideoCodecIdScreenVideo:
+        case SrsVideoCodecIdOn2VP6:
+        case SrsVideoCodecIdOn2VP6WithAlphaChannel:
+        case SrsVideoCodecIdScreenVideoVersion2:
             vs = SrsTsStreamReserved;
             break;
     }
     switch (ac) {
-        case SrsCodecAudioAAC:
+        case SrsAudioCodecIdAAC:
             as = SrsTsStreamAudioAAC; 
             audio_pid = TS_AUDIO_AAC_PID;
             break;
-        case SrsCodecAudioMP3:
+        case SrsAudioCodecIdMP3:
             as = SrsTsStreamAudioMp3; 
             audio_pid = TS_AUDIO_MP3_PID;
             break;
-        case SrsCodecAudioDisabled:
+        case SrsAudioCodecIdDisabled:
             as = SrsTsStreamReserved;
             break;
-        case SrsCodecAudioReserved1:
-        case SrsCodecAudioLinearPCMPlatformEndian:
-        case SrsCodecAudioADPCM:
-        case SrsCodecAudioLinearPCMLittleEndian:
-        case SrsCodecAudioNellymoser16kHzMono:
-        case SrsCodecAudioNellymoser8kHzMono:
-        case SrsCodecAudioNellymoser:
-        case SrsCodecAudioReservedG711AlawLogarithmicPCM:
-        case SrsCodecAudioReservedG711MuLawLogarithmicPCM:
-        case SrsCodecAudioReserved:
-        case SrsCodecAudioSpeex:
-        case SrsCodecAudioReservedMP3_8kHz:
-        case SrsCodecAudioReservedDeviceSpecificSound:
+        case SrsAudioCodecIdReserved1:
+        case SrsAudioCodecIdLinearPCMPlatformEndian:
+        case SrsAudioCodecIdADPCM:
+        case SrsAudioCodecIdLinearPCMLittleEndian:
+        case SrsAudioCodecIdNellymoser16kHzMono:
+        case SrsAudioCodecIdNellymoser8kHzMono:
+        case SrsAudioCodecIdNellymoser:
+        case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
+        case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
+        case SrsAudioCodecIdReserved:
+        case SrsAudioCodecIdSpeex:
+        case SrsAudioCodecIdReservedMP3_8kHz:
+        case SrsAudioCodecIdReservedDeviceSpecificSound:
             as = SrsTsStreamReserved;
             break;
     }
@@ -2708,7 +2708,7 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     return ret;
 }
 
-SrsTsMuxer::SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsTsMuxer::SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     writer = w;
     context = c;
@@ -2740,7 +2740,7 @@ int SrsTsMuxer::open(string p)
     return ret;
 }
 
-int SrsTsMuxer::update_acodec(SrsCodecAudio ac)
+int SrsTsMuxer::update_acodec(SrsAudioCodecId ac)
 {
     acodec = ac;
     return ERROR_SUCCESS;
@@ -2783,7 +2783,7 @@ void SrsTsMuxer::close()
     writer->close();
 }
 
-SrsCodecVideo SrsTsMuxer::video_codec()
+SrsVideoCodecId SrsTsMuxer::video_codec()
 {
     return vcodec;
 }
@@ -2817,11 +2817,11 @@ int SrsTsCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
-    SrsAudioCodec* acodec = frame->acodec();
-    srs_assert(acodec->id == SrsCodecAudioAAC || acodec->id == SrsCodecAudioMP3);
+    SrsAudioCodecConfig* acodec = frame->acodec();
+    srs_assert(acodec->id == SrsAudioCodecIdAAC || acodec->id == SrsAudioCodecIdMP3);
     
     // write video to cache.
-    if (acodec->id == SrsCodecAudioAAC) {
+    if (acodec->id == SrsAudioCodecIdAAC) {
         if ((ret = do_cache_aac(frame)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -2841,7 +2841,7 @@ int SrsTsCache::cache_video(SrsVideoFrame* frame, int64_t dts)
     // create the ts video message.
     if (!video) {
         video = new SrsTsMessage();
-        video->write_pcr = (frame->frame_type == SrsCodecVideoAVCFrameKeyFrame);
+        video->write_pcr = (frame->frame_type == SrsVideoAvcFrameTypeKeyFrame);
         video->start_pts = dts;
     }
 
@@ -2875,7 +2875,7 @@ int SrsTsCache::do_cache_aac(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAudioCodec* codec = frame->acodec();
+    SrsAudioCodecConfig* codec = frame->acodec();
     srs_assert(codec);
     
     for (int i = 0; i < frame->nb_samples; i++) {
@@ -2920,7 +2920,7 @@ int SrsTsCache::do_cache_aac(SrsAudioFrame* frame)
         int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
         */
         // profile, 2bits
-        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(codec->aac_object);
+        SrsAacProfile aac_profile = srs_aac_rtmp2ts(codec->aac_object);
         adts_header[2] = (aac_profile << 6) & 0xc0;
         // sampling_frequency_index 4bits
         adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
@@ -3042,7 +3042,7 @@ int SrsTsCache::do_cache_avc(SrsVideoFrame* frame)
         video->payload->append((const char*)default_aud_nalu, 2);
     }
     
-    SrsVideoCodec* codec = frame->vcodec();
+    SrsVideoCodecConfig* codec = frame->vcodec();
     srs_assert(codec);
     
     // all sample use cont nalu header, except the sps-pps before IDR frame.
@@ -3117,7 +3117,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     writer = fw;
 
     srs_freep(muxer);
-    muxer = new SrsTsMuxer(fw, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
+    muxer = new SrsTsMuxer(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;
@@ -3136,7 +3136,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     // ts support audio codec: aac/mp3
     srs_assert(format->acodec && format->audio);
-    if (format->acodec->id != SrsCodecAudioAAC && format->acodec->id != SrsCodecAudioMP3) {
+    if (format->acodec->id != SrsAudioCodecIdAAC && format->acodec->id != SrsAudioCodecIdMP3) {
         return ret;
     }
 
@@ -3147,7 +3147,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     }
     
     // for aac: ignore sequence header
-    if (format->acodec->id == SrsCodecAudioAAC && format->audio->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (format->acodec->id == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         return ret;
     }
 
@@ -3179,17 +3179,17 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video && format->vcodec);
-    if (format->video->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         return ret;
     }
     
-    if (format->vcodec->id != SrsCodecVideoAVC) {
+    if (format->vcodec->id != SrsVideoCodecIdAVC) {
         return ret;
     }
     
     // ignore sequence header
-    if (format->video->frame_type == SrsCodecVideoAVCFrameKeyFrame
-         && format->video->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame
+         && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         return ret;
     }
     

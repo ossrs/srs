@@ -79,8 +79,8 @@ public:
     virtual int mux_ipb_frame(char* frame, int nb_frame, std::string& ibp);
     /**
     * mux the avc video packet to flv video packet.
-    * @param frame_type, SrsCodecVideoAVCFrameKeyFrame or SrsCodecVideoAVCFrameInterFrame.
-    * @param avc_packet_type, SrsCodecVideoAVCTypeSequenceHeader or SrsCodecVideoAVCTypeNALU.
+    * @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
+    * @param avc_packet_type, SrsVideoAvcFrameTraitSequenceHeader or SrsVideoAvcFrameTraitNALU.
     * @param video the h.264 raw data.
     * @param flv output the muxed flv packet.
     * @param nb_flv output the muxed flv size.

@@ -532,7 +532,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
                 return ret;
             }
         } else {
-            if ((ret = write_metadata_to_cache(SrsCodecFlvTagScript, msg->payload, msg->size, cache)) != ERROR_SUCCESS) {
+            if ((ret = write_metadata_to_cache(SrsFrameTypeScript, msg->payload, msg->size, cache)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
@@ -605,7 +605,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     
     // 11bytes tag header
     /*char tag_header[] = {
-     (char)SrsCodecFlvTagAudio, // TagType UB [5], 8 = audio
+     (char)SrsFrameTypeAudio, // TagType UB [5], 8 = audio
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
      (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
      (char)0x00, // TimestampExtended UI8
@@ -616,7 +616,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     if ((ret = tag_stream->initialize(cache, 11)) != ERROR_SUCCESS) {
         return ret;
     }
-    tag_stream->write_1bytes(SrsCodecFlvTagAudio);
+    tag_stream->write_1bytes(SrsFrameTypeAudio);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
@@ -636,7 +636,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     
     // 11bytes tag header
     /*char tag_header[] = {
-     (char)SrsCodecFlvTagVideo, // TagType UB [5], 9 = video
+     (char)SrsFrameTypeVideo, // TagType UB [5], 9 = video
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
      (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
      (char)0x00, // TimestampExtended UI8
@@ -647,7 +647,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     if ((ret = tag_stream->initialize(cache, 11)) != ERROR_SUCCESS) {
         return ret;
     }
-    tag_stream->write_1bytes(SrsCodecFlvTagVideo);
+    tag_stream->write_1bytes(SrsFrameTypeVideo);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian

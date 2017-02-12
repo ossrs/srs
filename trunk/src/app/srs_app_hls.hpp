@@ -78,7 +78,7 @@ public:
     // whether current segement is sequence header.
     bool is_sequence_header;
 public:
-    SrsHlsSegment(SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsHlsSegment();
 public:
     /**
@@ -179,7 +179,7 @@ private:
     * set the muxer audio codec.
     * @see https://github.com/ossrs/srs/issues/301
     */
-    SrsCodecAudio acodec;
+    SrsAudioCodecId acodec;
     /**
      * the ts context, to keep cc continous between ts.
      * @see https://github.com/ossrs/srs/issues/375
@@ -230,7 +230,7 @@ public:
     */
     virtual bool is_segment_absolutely_overflow();
 public:
-    virtual int update_acodec(SrsCodecAudio ac);
+    virtual int update_acodec(SrsAudioCodecId ac);
     /**
      * whether current hls muxer is pure audio mode.
      */
@@ -278,7 +278,7 @@ public:
 public:
     virtual int initialize();
     virtual void dispose();
-    virtual int update_acodec(SrsCodecAudio ac);
+    virtual int update_acodec(SrsAudioCodecId ac);
     virtual int sequence_no();
     virtual std::string ts_url();
     virtual double duration();

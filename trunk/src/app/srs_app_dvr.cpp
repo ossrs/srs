@@ -454,9 +454,9 @@ int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video)
     
     char* payload = video->payload;
     int size = video->size;
-    bool sh = SrsFlvCodec::video_is_sequence_header(payload, size);
-    bool keyframe = SrsFlvCodec::video_is_h264(payload, size)
-        && SrsFlvCodec::video_is_keyframe(payload, size) && !sh;
+    bool sh = SrsFlvVideo::sh(payload, size);
+    bool keyframe = SrsFlvVideo::h264(payload, size)
+        && SrsFlvVideo::keyframe(payload, size) && !sh;
     
     if (keyframe) {
         has_keyframe = true;
@@ -534,23 +534,23 @@ int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     uint8_t v = buffer->read_1bytes();
-    SrsCodecAudio sound_format = (SrsCodecAudio)((v >> 4) & 0x0f);
-    SrsCodecAudioSampleRate sound_rate = (SrsCodecAudioSampleRate)((v >> 2) & 0x03);
-    SrsCodecAudioSampleSize sound_size = (SrsCodecAudioSampleSize)((v >> 1) & 0x01);
-    SrsCodecAudioSoundType channels = (SrsCodecAudioSoundType)(v&0x01);
+    SrsAudioCodecId sound_format = (SrsAudioCodecId)((v >> 4) & 0x0f);
+    SrsAudioSampleRate sound_rate = (SrsAudioSampleRate)((v >> 2) & 0x03);
+    SrsAudioSampleSize sound_size = (SrsAudioSampleSize)((v >> 1) & 0x01);
+    SrsAudioSoundType channels = (SrsAudioSoundType)(v&0x01);
     
     uint16_t ct = 0x00;
-    if (sound_format == SrsCodecAudioAAC) {
+    if (sound_format == SrsAudioCodecIdAAC) {
         if (!buffer->require(1)) {
             ret = ERROR_FLV_REQUIRE_SPACE;
             srs_error("DVR require flva 1 byte space, format=%d. ret=%d", sound_format, ret);
             return ret;
         }
         v = buffer->read_1bytes();
-        ct = (v == 0? SrsCodecAudioTypeSequenceHeader:SrsCodecAudioTypeRawData);
+        ct = (v == 0? SrsAudioAacFrameTraitSequenceHeader:SrsAudioAacFrameTraitRawData);
     }
     
-    if (ct == SrsCodecAudioTypeSequenceHeader) {
+    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
         enc->acodec = sound_format;
         enc->sample_rate = sound_rate;
         enc->sound_bits = sound_size;
@@ -579,18 +579,18 @@ int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video)
         return ret;
     }
     uint8_t v = buffer->read_1bytes();
-    SrsCodecVideoAVCFrame frame_type = (SrsCodecVideoAVCFrame)((v>>4)&0x0f);
-    SrsCodecVideo codec_id = (SrsCodecVideo)(v&0x0f);
+    SrsVideoAvcFrameType frame_type = (SrsVideoAvcFrameType)((v>>4)&0x0f);
+    SrsVideoCodecId codec_id = (SrsVideoCodecId)(v&0x0f);
     
     if (!buffer->require(4)) {
         ret = ERROR_FLV_REQUIRE_SPACE;
         srs_error("DVR require flvv 4 bytes space, codec=%d. ret=%d", codec_id, ret);
         return ret;
     }
-    SrsCodecVideoAVCType ct = (SrsCodecVideoAVCType)buffer->read_1bytes();
+    SrsVideoAvcFrameTrait ct = (SrsVideoAvcFrameTrait)buffer->read_1bytes();
     uint32_t cts = (uint32_t)buffer->read_3bytes();
     
-    if (ct == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (ct == SrsVideoAvcFrameTraitSequenceHeader) {
         enc->vcodec = codec_id;
     }
     
@@ -929,9 +929,9 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         
         char* payload = msg->payload;
         int size = msg->size;
-        bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
-            && SrsFlvCodec::video_is_keyframe(payload, size) 
-            && !SrsFlvCodec::video_is_sequence_header(payload, size);
+        bool is_key_frame = SrsFlvVideo::h264(payload, size)
+            && SrsFlvVideo::keyframe(payload, size)
+            && !SrsFlvVideo::sh(payload, size);
         if (!is_key_frame) {
             return ret;
         }

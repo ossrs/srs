@@ -518,28 +518,28 @@ int SrsRtspConn::write_sequence_header()
             return ret;
         }
         
-        SrsAudioCodec* dec = format->acodec;
+        SrsAudioCodecConfig* dec = format->acodec;
 
-        acodec->sound_format = SrsCodecAudioAAC;
-        acodec->sound_type = (dec->aac_channels == 2)? SrsCodecAudioSoundTypeStereo : SrsCodecAudioSoundTypeMono;
-        acodec->sound_size = SrsCodecAudioSampleSize16bit;
+        acodec->sound_format = SrsAudioCodecIdAAC;
+        acodec->sound_type = (dec->aac_channels == 2)? SrsAudioSoundTypeStereo : SrsAudioSoundTypeMono;
+        acodec->sound_size = SrsAudioSampleSize16bit;
         acodec->aac_packet_type = 0;
 
-        static int aac_sample_rates[] = {
+        static int srs_aac_srates[] = {
             96000, 88200, 64000, 48000,
             44100, 32000, 24000, 22050,
             16000, 12000, 11025,  8000,
             7350,     0,     0,    0
         };
-        switch (aac_sample_rates[dec->aac_sample_rate]) {
+        switch (srs_aac_srates[dec->aac_sample_rate]) {
             case 11025:
-                acodec->sound_rate = SrsCodecAudioSampleRate11025;
+                acodec->sound_rate = SrsAudioSampleRate11025;
                 break;
             case 22050:
-                acodec->sound_rate = SrsCodecAudioSampleRate22050;
+                acodec->sound_rate = SrsAudioSampleRate22050;
                 break;
             case 44100:
-                acodec->sound_rate = SrsCodecAudioSampleRate44100;
+                acodec->sound_rate = SrsAudioSampleRate44100;
                 break;
             default:
                 break;
@@ -564,8 +564,8 @@ int SrsRtspConn::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -574,7 +574,7 @@ int SrsRtspConn::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
+    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -591,9 +591,9 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts,
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     
     // for IDR frame, the frame is keyframe.
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
     std::string ibp;
@@ -601,7 +601,7 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts,
         return ret;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -610,7 +610,7 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts,
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
 int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
@@ -623,7 +623,7 @@ int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStr
         return ret;
     }
     
-    return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
+    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
 int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)

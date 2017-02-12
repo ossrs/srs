@@ -353,8 +353,8 @@ private:
 // encoder
 private:
     // when any codec changed, write the PAT/PMT.
-    SrsCodecVideo vcodec;
-    SrsCodecAudio acodec;
+    SrsVideoCodecId vcodec;
+    SrsAudioCodecId acodec;
 public:
     SrsTsContext();
     virtual ~SrsTsContext();
@@ -399,7 +399,7 @@ public:
     * @param vc the video codec, write the PAT/PMT table when changed.
     * @param ac the audio codec, write the PAT/PMT table when changed.
     */
-    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac);
+    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
 // drm methods
 public:
     /**
@@ -1562,14 +1562,14 @@ protected:
 class SrsTsMuxer
 {
 private:
-    SrsCodecVideo vcodec;
-    SrsCodecAudio acodec;
+    SrsVideoCodecId vcodec;
+    SrsAudioCodecId acodec;
 private:
     SrsTsContext* context;
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsTsMuxer();
 public:
     /**
@@ -1585,7 +1585,7 @@ public:
     * @see https://github.com/ossrs/srs/issues/301
     */
     // TODO: FIXME: Remove it.
-    virtual int update_acodec(SrsCodecAudio ac);
+    virtual int update_acodec(SrsAudioCodecId ac);
     /**
     * write an audio frame to ts, 
     */
@@ -1602,7 +1602,7 @@ public:
     /**
      * get the video codec of ts muxer.
      */
-    virtual SrsCodecVideo video_codec();
+    virtual SrsVideoCodecId video_codec();
 };
 
 /**

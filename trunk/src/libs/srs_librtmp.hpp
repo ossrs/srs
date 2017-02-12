@@ -520,25 +520,25 @@ typedef struct {
     
     // The dts in milliseconds.
     uint32_t dts;
-    // The codec type.
-    //      video: SrsCodecVideo.
-    //      audio: SrsCodecAudio.
+    // The codec id.
+    //      video: SrsVideoCodecId.
+    //      audio: SrsAudioCodecId.
     uint16_t codec;
-    // The codec type:
-    //      video: SrsCodecVideoAVCType.
-    //      audio: SrsCodecAudioType.
-    uint16_t codec_type;
+    // The frame trait, some characteristic:
+    //      video: SrsVideoAvcFrameTrait.
+    //      audio: SrsAudioAacFrameTrait.
+    uint16_t frame_trait;
     
     // The video pts in milliseconds. Ignore for audio.
     uint32_t pts;
-    // The video frame type, it's SrsCodecVideoAVCFrame.
+    // The video frame type, it's SrsVideoAvcFrameType.
     uint16_t frame_type;
     
-    // The audio sample rate, it's SrsCodecAudioSampleRate.
+    // The audio sample rate, it's SrsAudioSampleRate.
     uint8_t sample_rate;
-    // The audio sound bits, it's SrsCodecAudioSampleSize.
+    // The audio sound bits, it's SrsAudioSampleSize.
     uint8_t sound_bits;
-    // The audio sound type, it's SrsCodecAudioSoundType.
+    // The audio sound type, it's SrsAudioSoundType.
     uint8_t channels;
     
     // The size of sample payload in bytes.

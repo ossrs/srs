@@ -32,11 +32,6 @@
 
 #include <srs_kernel_codec.hpp>
 
-class SrsBuffer;
-class SrsAudioFrame;
-class SrsVideoFrame;
-class SrsAudioCodec;
-class SrsVideoCodec;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 

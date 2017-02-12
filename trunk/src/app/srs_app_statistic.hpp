@@ -80,7 +80,7 @@ public:
     SrsKbps* kbps;
 public:
     bool has_video;
-    SrsCodecVideo vcodec;
+    SrsVideoCodecId vcodec;
     // profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcProfile avc_profile;
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
@@ -90,9 +90,9 @@ public:
     int height;
 public:
     bool has_audio;
-    SrsCodecAudio acodec;
-    SrsCodecAudioSampleRate asample_rate;
-    SrsCodecAudioSoundType asound_type;
+    SrsAudioCodecId acodec;
+    SrsAudioSampleRate asample_rate;
+    SrsAudioSoundType asound_type;
     /**
     * audio specified
     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
@@ -170,14 +170,14 @@ public:
     * when got video info for stream.
     */
     virtual int on_video_info(SrsRequest* req, 
-        SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
+        SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
         int width, int height
     );
     /**
     * when got audio info for stream.
     */
     virtual int on_audio_info(SrsRequest* req,
-        SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
+        SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioSoundType asound_type,
         SrsAacObjectType aac_object
     );
     /**

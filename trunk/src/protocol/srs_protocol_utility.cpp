@@ -200,7 +200,7 @@ int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, 
     *ppmsg = NULL;
     T* msg = NULL;
     
-    if (type == SrsCodecFlvTagAudio) {
+    if (type == SrsFrameTypeAudio) {
         SrsMessageHeader header;
         header.initialize_audio(size, timestamp, stream_id);
         
@@ -209,7 +209,7 @@ int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, 
             srs_freep(msg);
             return ret;
         }
-    } else if (type == SrsCodecFlvTagVideo) {
+    } else if (type == SrsFrameTypeVideo) {
         SrsMessageHeader header;
         header.initialize_video(size, timestamp, stream_id);
         
@@ -218,7 +218,7 @@ int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, 
             srs_freep(msg);
             return ret;
         }
-    } else if (type == SrsCodecFlvTagScript) {
+    } else if (type == SrsFrameTypeScript) {
         SrsMessageHeader header;
         header.initialize_amf0_script(size, stream_id);
         
