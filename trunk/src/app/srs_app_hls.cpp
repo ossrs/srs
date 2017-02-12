@@ -223,7 +223,6 @@ SrsHlsMuxer::SrsHlsMuxer()
     max_td = 0;
     _sequence_no = 0;
     current = NULL;
-    acodec = SrsAudioCodecIdReserved1;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
 }
@@ -478,14 +477,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         srs_error("open hls muxer failed. ret=%d", ret);
         return ret;
     }
-    srs_info("open HLS muxer success. path=%s, tmp=%s",
-        current->full_path.c_str(), tmp_file.c_str());
-
-    // set the segment muxer audio codec.
-    // TODO: FIXME: refine code, use event instead.
-    if (acodec != SrsAudioCodecIdReserved1) {
-        current->muxer->update_acodec(acodec);
-    }
+    srs_info("open HLS muxer success. path=%s, tmp=%s", current->full_path.c_str(), tmp_file.c_str());
     
     return ret;
 }
@@ -541,14 +533,6 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
              current->duration, hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration >= hls_aof_ratio * hls_fragment + deviation;
-}
-
-int SrsHlsMuxer::update_acodec(SrsAudioCodecId ac)
-{
-    srs_assert(current);
-    srs_assert(current->muxer);
-    acodec = ac;
-    return current->muxer->update_acodec(ac);
 }
 
 bool SrsHlsMuxer::pure_audio()
@@ -861,11 +845,6 @@ int SrsHlsController::initialize()
 void SrsHlsController::dispose()
 {
     muxer->dispose();
-}
-
-int SrsHlsController::update_acodec(SrsAudioCodecId ac)
-{
-    return muxer->update_acodec(ac);
 }
 
 int SrsHlsController::sequence_no()
@@ -1218,12 +1197,6 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     srs_assert(format->acodec);
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
-        return ret;
-    }
-
-    // when codec changed, write new header.
-    if ((ret = controller->update_acodec(acodec)) != ERROR_SUCCESS) {
-        srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     

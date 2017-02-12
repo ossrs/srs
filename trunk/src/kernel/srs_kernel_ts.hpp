@@ -1562,6 +1562,8 @@ protected:
 class SrsTsMuxer
 {
 private:
+    // User must config the codec in right way.
+    // @see https://github.com/ossrs/srs/issues/301
     SrsVideoCodecId vcodec;
     SrsAudioCodecId acodec;
 private:
@@ -1577,15 +1579,6 @@ public:
      * @param p a string indicates the path of ts file to mux to.
      */
     virtual int open(std::string p);
-    /**
-    * when open ts, we donot write the header(PSI),
-    * for user may need to update the acodec to mp3 or others,
-    * so we use delay write PSI, when write audio or video.
-    * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
-    * @see https://github.com/ossrs/srs/issues/301
-    */
-    // TODO: FIXME: Remove it.
-    virtual int update_acodec(SrsAudioCodecId ac);
     /**
     * write an audio frame to ts, 
     */

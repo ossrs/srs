@@ -2740,12 +2740,6 @@ int SrsTsMuxer::open(string p)
     return ret;
 }
 
-int SrsTsMuxer::update_acodec(SrsAudioCodecId ac)
-{
-    acodec = ac;
-    return ERROR_SUCCESS;
-}
-
 int SrsTsMuxer::write_audio(SrsTsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
@@ -3117,6 +3111,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     writer = fw;
 
     srs_freep(muxer);
+    // TODO: FIXME: Support config the codec.
     muxer = new SrsTsMuxer(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
@@ -3137,12 +3132,6 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     // ts support audio codec: aac/mp3
     srs_assert(format->acodec && format->audio);
     if (format->acodec->id != SrsAudioCodecIdAAC && format->acodec->id != SrsAudioCodecIdMP3) {
-        return ret;
-    }
-
-    // when codec changed, write new header.
-    if ((ret = muxer->update_acodec(format->acodec->id)) != ERROR_SUCCESS) {
-        srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     

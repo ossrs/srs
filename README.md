@@ -186,6 +186,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-02-12, Fix [#301][bug #301], User must config the codec in right way for HLS. 3.0.18
 * v3.0, 2017-02-07, fix [#738][bug #738] support DVR general mp4. 3.0.17
 * v3.0, 2017-01-19, for [#742][bug #742] refine source, meta and origin hub. 3.0.16
 * v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
@@ -1219,8 +1220,6 @@ Winlin
 [bug #310]: https://github.com/ossrs/srs/issues/310
 [bug #136]: https://github.com/ossrs/srs/issues/136
 [bug #250]: https://github.com/ossrs/srs/issues/250
-[bug #301]: https://github.com/ossrs/srs/issues/301
-[bug #301]: https://github.com/ossrs/srs/issues/301
 [bug #268]: https://github.com/ossrs/srs/issues/268
 [bug #151]: https://github.com/ossrs/srs/issues/151
 [bug #151]: https://github.com/ossrs/srs/issues/151
