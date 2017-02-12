@@ -182,7 +182,7 @@ ISrsBufferEncoder::~ISrsBufferEncoder()
 
 SrsTsStreamEncoder::SrsTsStreamEncoder()
 {
-    enc = new SrsTsEncoder();
+    enc = new SrsTsTransmuxer();
 }
 
 SrsTsStreamEncoder::~SrsTsStreamEncoder()
@@ -230,7 +230,7 @@ int SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJitterAlgor
 
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
 {
-    enc = new SrsFlvEncoder();
+    enc = new SrsFlvTransmuxer();
 }
 
 SrsFlvStreamEncoder::~SrsFlvStreamEncoder()
@@ -298,7 +298,7 @@ int SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
-    enc = new SrsAacEncoder();
+    enc = new SrsAacTransmuxer();
     cache = NULL;
 }
 
@@ -350,7 +350,7 @@ int SrsAacStreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorith
 
 SrsMp3StreamEncoder::SrsMp3StreamEncoder()
 {
-    enc = new SrsMp3Encoder();
+    enc = new SrsMp3Transmuxer();
     cache = NULL;
 }
 

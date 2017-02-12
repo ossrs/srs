@@ -40,7 +40,7 @@ class SrsFormat;
 class SrsSharedPtrMessage;
 class SrsAmf0Object;
 class SrsRtmpJitter;
-class SrsTsMuxer;
+class SrsTsContextWriter;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
@@ -48,9 +48,8 @@ class SrsOriginHub;
 class SrsFileWriter;
 class SrsSimpleStream;
 class SrsTsAacJitter;
-class SrsTsCache;
+class SrsTsMessageCache;
 class SrsHlsSegment;
-class SrsTsCache;
 class SrsTsContext;
 
 /**
@@ -70,9 +69,10 @@ public:
     std::string uri;
     // ts full file to write.
     std::string full_path;
-    // the muxer to write ts.
+    // the underlayer file writer.
     SrsFileWriter* writer;
-    SrsTsMuxer* muxer;
+    // The TS context writer to write TS to file.
+    SrsTsContextWriter* tscw;
     // current segment start dts for m3u8
     int64_t segment_start_dts;
     // whether current segement is sequence header.
@@ -228,8 +228,8 @@ public:
      * whether current hls muxer is pure audio mode.
      */
     virtual bool pure_audio();
-    virtual int flush_audio(SrsTsCache* cache);
-    virtual int flush_video(SrsTsCache* cache);
+    virtual int flush_audio(SrsTsMessageCache* cache);
+    virtual int flush_video(SrsTsMessageCache* cache);
     /**
     * close segment(ts).
     * @param log_desc the description for log.
@@ -261,10 +261,10 @@ class SrsHlsController
 {
 private:
     // The HLS muxer to reap ts and m3u8.
-    // The TS is cached to SrsTsCache then flush to ts segment.
+    // The TS is cached to SrsTsMessageCache then flush to ts segment.
     SrsHlsMuxer* muxer;
     // The TS cache
-    SrsTsCache* ts;
+    SrsTsMessageCache* tsmc;
 public:
     SrsHlsController();
     virtual ~SrsHlsController();

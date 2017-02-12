@@ -344,7 +344,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     return copy;
 }
 
-SrsFlvEncoder::SrsFlvEncoder()
+SrsFlvTransmuxer::SrsFlvTransmuxer()
 {
     writer = NULL;
     tag_stream = new SrsBuffer();
@@ -359,7 +359,7 @@ SrsFlvEncoder::SrsFlvEncoder()
 #endif
 }
 
-SrsFlvEncoder::~SrsFlvEncoder()
+SrsFlvTransmuxer::~SrsFlvTransmuxer()
 {
     srs_freep(tag_stream);
     
@@ -370,14 +370,14 @@ SrsFlvEncoder::~SrsFlvEncoder()
 #endif
 }
 
-int SrsFlvEncoder::initialize(ISrsWriter* fw)
+int SrsFlvTransmuxer::initialize(ISrsWriter* fw)
 {
     srs_assert(fw);
     writer = fw;
     return ERROR_SUCCESS;
 }
 
-int SrsFlvEncoder::write_header()
+int SrsFlvTransmuxer::write_header()
 {
     int ret = ERROR_SUCCESS;
     
@@ -401,7 +401,7 @@ int SrsFlvEncoder::write_header()
     return ret;
 }
 
-int SrsFlvEncoder::write_header(char flv_header[9])
+int SrsFlvTransmuxer::write_header(char flv_header[9])
 {
     int ret = ERROR_SUCCESS;
     
@@ -420,7 +420,7 @@ int SrsFlvEncoder::write_header(char flv_header[9])
     return ret;
 }
 
-int SrsFlvEncoder::write_metadata(char type, char* data, int size)
+int SrsFlvTransmuxer::write_metadata(char type, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -440,7 +440,7 @@ int SrsFlvEncoder::write_metadata(char type, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsFlvTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -460,7 +460,7 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
+int SrsFlvTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -478,14 +478,14 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::size_tag(int data_size)
+int SrsFlvTransmuxer::size_tag(int data_size)
 {
     srs_assert(data_size >= 0);
     return SRS_FLV_TAG_HEADER_SIZE + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
 }
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
+int SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -567,7 +567,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 }
 #endif
 
-int SrsFlvEncoder::write_metadata_to_cache(char type, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_metadata_to_cache(char type, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -595,7 +595,7 @@ int SrsFlvEncoder::write_metadata_to_cache(char type, char* data, int size, char
     return ret;
 }
 
-int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -626,7 +626,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     return ret;
 }
 
-int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_video_to_cache(int64_t timestamp, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -657,7 +657,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     return ret;
 }
 
-int SrsFlvEncoder::write_pts_to_cache(int size, char* cache)
+int SrsFlvTransmuxer::write_pts_to_cache(int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -669,7 +669,7 @@ int SrsFlvEncoder::write_pts_to_cache(int size, char* cache)
     return ret;
 }
 
-int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_size)
+int SrsFlvTransmuxer::write_tag(char* header, int header_size, char* tag, int tag_size)
 {
     int ret = ERROR_SUCCESS;
     

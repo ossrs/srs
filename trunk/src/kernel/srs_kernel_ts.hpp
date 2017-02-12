@@ -38,8 +38,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_codec.hpp>
 
 class SrsBuffer;
-class SrsTsCache;
-class SrsTSMuxer;
+class SrsTsMessageCache;
+class SrsTsContextWriter;
 class SrsFileWriter;
 class SrsFileReader;
 class SrsFormat;
@@ -1556,10 +1556,9 @@ protected:
 };
 
 /**
-* write data from frame(header info) and buffer(data) to ts file.
-* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
-*/
-class SrsTsMuxer
+ * Write the TS message to TS context.
+ */
+class SrsTsContextWriter
 {
 private:
     // User must config the codec in right way.
@@ -1571,8 +1570,8 @@ private:
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
-    virtual ~SrsTsMuxer();
+    SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
+    virtual ~SrsTsContextWriter();
 public:
     /**
      * open the writer, donot write the PSI of ts.
@@ -1599,24 +1598,18 @@ public:
 };
 
 /**
-* ts stream cache, 
-* use to cache ts stream.
-* 
-* about the flv tbn problem:
-*   flv tbn is 1/1000, ts tbn is 1/90000,
-*   when timestamp convert to flv tbn, it will loose precise,
-*   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
-*   we use a aac jitter to correct the audio pts.
-*/
-class SrsTsCache
+ * TS messages cache, to group frames to TS message,
+ * for example, we may write multiple AAC RAW frames to a TS message.
+ */
+class SrsTsMessageCache
 {
 public:
     // current ts message.
     SrsTsMessage* audio;
     SrsTsMessage* video;
 public:
-    SrsTsCache();
-    virtual ~SrsTsCache();
+    SrsTsMessageCache();
+    virtual ~SrsTsMessageCache();
 public:
     /**
     * write audio to cache
@@ -1633,21 +1626,20 @@ private:
 };
 
 /**
-* encode data to ts file.
-*/
-// TODO: FIXME: Rename it.
-class SrsTsEncoder
+ * Transmux the RTMP stream to TS stream.
+ */
+class SrsTsTransmuxer
 {
 private:
     SrsFileWriter* writer;
 private:
     SrsFormat* format;
-    SrsTsCache* cache;
-    SrsTsMuxer* muxer;
+    SrsTsMessageCache* tsmc;
+    SrsTsContextWriter* tscw;
     SrsTsContext* context;
 public:
-    SrsTsEncoder();
-    virtual ~SrsTsEncoder();
+    SrsTsTransmuxer();
+    virtual ~SrsTsTransmuxer();
 public:
     /**
      * initialize the underlayer file stream.

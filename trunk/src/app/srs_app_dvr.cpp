@@ -277,7 +277,7 @@ int SrsDvrSegmenter::on_reload_vhost_dvr(std::string vhost)
 
 SrsDvrFlvSegmenter::SrsDvrFlvSegmenter()
 {
-    enc = new SrsFlvEncoder();
+    enc = new SrsFlvTransmuxer();
     
     duration_offset = 0;
     filesize_offset = 0;
@@ -357,7 +357,7 @@ int SrsDvrFlvSegmenter::open_encoder()
     filesize_offset = 0;
     
     srs_freep(enc);
-    enc = new SrsFlvEncoder();
+    enc = new SrsFlvTransmuxer();
     
     if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
         return ret;

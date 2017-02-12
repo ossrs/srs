@@ -32,6 +32,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
+class SrsAacTransmuxer;
+class SrsMp3Transmuxer;
+class SrsFlvTransmuxer;
+class SrsTsTransmuxer;
+
 /**
 * for the srs http stream cache, 
 * for example, the audio stream cache to make android(weixin) happy.
@@ -98,7 +103,7 @@ public:
 class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
 protected:
-    SrsFlvEncoder* enc;
+    SrsFlvTransmuxer* enc;
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
@@ -136,7 +141,7 @@ public:
 class SrsTsStreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsTsEncoder* enc;
+    SrsTsTransmuxer* enc;
 public:
     SrsTsStreamEncoder();
     virtual ~SrsTsStreamEncoder();
@@ -156,7 +161,7 @@ public:
 class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsAacEncoder* enc;
+    SrsAacTransmuxer* enc;
     SrsBufferCache* cache;
 public:
     SrsAacStreamEncoder();
@@ -177,7 +182,7 @@ public:
 class SrsMp3StreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsMp3Encoder* enc;
+    SrsMp3Transmuxer* enc;
     SrsBufferCache* cache;
 public:
     SrsMp3StreamEncoder();
@@ -266,6 +271,7 @@ public:
 * the http stream server instance,
 * serve http stream, for example, flv/ts/mp3/aac live stream.
 */
+// TODO: Support multiple stream.
 class SrsHttpStreamServer : virtual public ISrsReloadHandler
     , virtual public ISrsHttpMatchHijacker
 {

@@ -397,7 +397,7 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
 VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     // The decoder never check the reader status.
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
 }
@@ -409,7 +409,7 @@ VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -450,7 +450,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 {
     MockSrsFileWriter fs;
     EXPECT_TRUE(ERROR_SUCCESS == fs.open(""));
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
     // 11 bytes tag header
@@ -483,7 +483,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -517,7 +517,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -550,8 +550,8 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 */
 VOID TEST(KernelFlvTest, FlvEncoderSizeTag)
 {
-    EXPECT_EQ(11+4+10, SrsFlvEncoder::size_tag(10));
-    EXPECT_EQ(11+4+0, SrsFlvEncoder::size_tag(0));
+    EXPECT_EQ(11+4+10, SrsFlvTransmuxer::size_tag(10));
+    EXPECT_EQ(11+4+0, SrsFlvTransmuxer::size_tag(0));
 }
 
 /**

@@ -40,18 +40,18 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-SrsMp3Encoder::SrsMp3Encoder()
+SrsMp3Transmuxer::SrsMp3Transmuxer()
 {
     writer = NULL;
     tag_stream = new SrsBuffer();
 }
 
-SrsMp3Encoder::~SrsMp3Encoder()
+SrsMp3Transmuxer::~SrsMp3Transmuxer()
 {
     srs_freep(tag_stream);
 }
 
-int SrsMp3Encoder::initialize(SrsFileWriter* fw)
+int SrsMp3Transmuxer::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
     
@@ -68,7 +68,7 @@ int SrsMp3Encoder::initialize(SrsFileWriter* fw)
     return ret;
 }
 
-int SrsMp3Encoder::write_header()
+int SrsMp3Transmuxer::write_header()
 {
     char id3[] = {
         (char)0x49, (char)0x44, (char)0x33, // ID3
@@ -83,7 +83,7 @@ int SrsMp3Encoder::write_header()
     return writer->write(id3, sizeof(id3), NULL);
 }
 
-int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsMp3Transmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     

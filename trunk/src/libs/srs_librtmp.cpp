@@ -1680,7 +1680,7 @@ struct FlvContext
 {
     SrsFileReader reader;
     SrsFileWriter writer;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     SrsFlvDecoder dec;
 };
 
@@ -1829,7 +1829,7 @@ int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int si
 
 int srs_flv_size_tag(int data_size)
 {
-    return SrsFlvEncoder::size_tag(data_size);
+    return SrsFlvTransmuxer::size_tag(data_size);
 }
 
 int64_t srs_flv_tellg(srs_flv_t flv)

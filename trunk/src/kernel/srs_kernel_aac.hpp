@@ -40,9 +40,9 @@ class SrsFileWriter;
 class SrsFileReader;
 
 /**
-* encode data to aac file.
-*/
-class SrsAacEncoder
+ * Transmux the RTMP packets to AAC stream.
+ */
+class SrsAacTransmuxer
 {
 private:
     SrsFileWriter* _fs;
@@ -54,8 +54,8 @@ private:
 private:
     SrsBuffer* tag_stream;
 public:
-    SrsAacEncoder();
-    virtual ~SrsAacEncoder();
+    SrsAacTransmuxer();
+    virtual ~SrsAacTransmuxer();
 public:
     /**
     * initialize the underlayer file stream.

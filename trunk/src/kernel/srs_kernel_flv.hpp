@@ -438,9 +438,9 @@ public:
 };
 
 /**
-* encode data to flv file.
-*/
-class SrsFlvEncoder
+ * Transmux RTMP packets to FLV stream.
+ */
+class SrsFlvTransmuxer
 {
 private:
     ISrsWriter* writer;
@@ -448,8 +448,8 @@ private:
     SrsBuffer* tag_stream;
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
 public:
-    SrsFlvEncoder();
-    virtual ~SrsFlvEncoder();
+    SrsFlvTransmuxer();
+    virtual ~SrsFlvTransmuxer();
 public:
     /**
     * initialize the underlayer file stream.

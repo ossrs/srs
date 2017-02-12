@@ -69,12 +69,12 @@ SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecI
     segment_start_dts = 0;
     is_sequence_header = false;
     writer = new SrsFileWriter();
-    muxer = new SrsTsMuxer(writer, c, ac, vc);
+    tscw = new SrsTsContextWriter(writer, c, ac, vc);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
 {
-    srs_freep(muxer);
+    srs_freep(tscw);
     srs_freep(writer);
 }
 
@@ -473,7 +473,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // open temp ts file.
     std::string tmp_file = current->full_path + ".tmp";
-    if ((ret = current->muxer->open(tmp_file.c_str())) != ERROR_SUCCESS) {
+    if ((ret = current->tscw->open(tmp_file.c_str())) != ERROR_SUCCESS) {
         srs_error("open hls muxer failed. ret=%d", ret);
         return ret;
     }
@@ -537,10 +537,10 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
 
 bool SrsHlsMuxer::pure_audio()
 {
-    return current && current->muxer && current->muxer->video_codec() == SrsVideoCodecIdDisabled;
+    return current && current->tscw && current->tscw->video_codec() == SrsVideoCodecIdDisabled;
 }
 
-int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
+int SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
 {
     int ret = ERROR_SUCCESS;
 
@@ -557,7 +557,7 @@ int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
     // update the duration of segment.
     current->update_duration(cache->audio->pts);
     
-    if ((ret = current->muxer->write_audio(cache->audio)) != ERROR_SUCCESS) {
+    if ((ret = current->tscw->write_audio(cache->audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -567,7 +567,7 @@ int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
     return ret;
 }
 
-int SrsHlsMuxer::flush_video(SrsTsCache* cache)
+int SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 {
     int ret = ERROR_SUCCESS;
 
@@ -586,7 +586,7 @@ int SrsHlsMuxer::flush_video(SrsTsCache* cache)
     // update the duration of segment.
     current->update_duration(cache->video->dts);
     
-    if ((ret = current->muxer->write_video(cache->video)) != ERROR_SUCCESS) {
+    if ((ret = current->tscw->write_video(cache->video)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -639,7 +639,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
             current->segment_start_dts);
         
         // close the muxer of finished segment.
-        srs_freep(current->muxer);
+        srs_freep(current->tscw);
         std::string full_path = current->full_path;
         current = NULL;
 
@@ -827,14 +827,14 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
 
 SrsHlsController::SrsHlsController()
 {
-    ts = new SrsTsCache();
+    tsmc = new SrsTsMessageCache();
     muxer = new SrsHlsMuxer();
 }
 
 SrsHlsController::~SrsHlsController()
 {
     srs_freep(muxer);
-    srs_freep(ts);
+    srs_freep(tsmc);
 }
 
 int SrsHlsController::initialize()
@@ -920,7 +920,7 @@ int SrsHlsController::on_unpublish()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(tsmc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }
@@ -948,7 +948,7 @@ int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     int ret = ERROR_SUCCESS;
     
     // write audio to cache.
-    if ((ret = ts->cache_audio(frame, pts)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_audio(frame, pts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -960,16 +960,16 @@ int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
-    if (ts->audio && muxer->is_segment_absolutely_overflow()) {
+    if (tsmc->audio && muxer->is_segment_absolutely_overflow()) {
         srs_info("hls: absolute audio reap segment.");
-        if ((ret = reap_segment("audio", ts->audio->pts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("audio", tsmc->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
     
     // for pure audio, aggregate some frame to one.
-    if (muxer->pure_audio() &&ts->audio) {
-        if (pts - ts->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
+    if (muxer->pure_audio() && tsmc->audio) {
+        if (pts - tsmc->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
             return ret;
         }
     }
@@ -978,7 +978,7 @@ int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     // it's ok for the hls overload, or maybe cause the audio corrupt,
     // which introduced by aggregate the audios to a big one.
     // @see https://github.com/ossrs/srs/issues/512
-    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(tsmc)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -990,7 +990,7 @@ int SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
     int ret = ERROR_SUCCESS;
     
     // write video to cache.
-    if ((ret = ts->cache_video(frame, dts)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_video(frame, dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1001,14 +1001,14 @@ int SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
         //      b. always reap when not wait keyframe.
         if (!muxer->wait_keyframe() || frame->frame_type == SrsVideoAvcFrameTypeKeyFrame) {
             // reap the segment, which will also flush the video.
-            if ((ret = reap_segment("video", ts->video->dts)) != ERROR_SUCCESS) {
+            if ((ret = reap_segment("video", tsmc->video->dts)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
     }
     
     // flush video when got one
-    if ((ret = muxer->flush_video(ts)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(tsmc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -1036,7 +1036,7 @@ int SrsHlsController::reap_segment(string log_desc, int64_t segment_start_dts)
     }
     
     // segment open, flush video first.
-    if ((ret = muxer->flush_video(ts)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(tsmc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -1044,7 +1044,7 @@ int SrsHlsController::reap_segment(string log_desc, int64_t segment_start_dts)
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
-    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(tsmc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }

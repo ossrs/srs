@@ -2708,7 +2708,7 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     return ret;
 }
 
-SrsTsMuxer::SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
+SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     writer = w;
     context = c;
@@ -2717,12 +2717,12 @@ SrsTsMuxer::SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, Sr
     vcodec = vc;
 }
 
-SrsTsMuxer::~SrsTsMuxer()
+SrsTsContextWriter::~SrsTsContextWriter()
 {
     close();
 }
 
-int SrsTsMuxer::open(string p)
+int SrsTsContextWriter::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2740,7 +2740,7 @@ int SrsTsMuxer::open(string p)
     return ret;
 }
 
-int SrsTsMuxer::write_audio(SrsTsMessage* audio)
+int SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2756,7 +2756,7 @@ int SrsTsMuxer::write_audio(SrsTsMessage* audio)
     return ret;
 }
 
-int SrsTsMuxer::write_video(SrsTsMessage* video)
+int SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2772,29 +2772,29 @@ int SrsTsMuxer::write_video(SrsTsMessage* video)
     return ret;
 }
 
-void SrsTsMuxer::close()
+void SrsTsContextWriter::close()
 {
     writer->close();
 }
 
-SrsVideoCodecId SrsTsMuxer::video_codec()
+SrsVideoCodecId SrsTsContextWriter::video_codec()
 {
     return vcodec;
 }
 
-SrsTsCache::SrsTsCache()
+SrsTsMessageCache::SrsTsMessageCache()
 {
     audio = NULL;
     video = NULL;
 }
 
-SrsTsCache::~SrsTsCache()
+SrsTsMessageCache::~SrsTsMessageCache()
 {
     srs_freep(audio);
     srs_freep(video);
 }
     
-int SrsTsCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
+int SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2828,7 +2828,7 @@ int SrsTsCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
     return ret;
 }
     
-int SrsTsCache::cache_video(SrsVideoFrame* frame, int64_t dts)
+int SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2851,7 +2851,7 @@ int SrsTsCache::cache_video(SrsVideoFrame* frame, int64_t dts)
     return ret;
 }
 
-int SrsTsCache::do_cache_mp3(SrsAudioFrame* frame)
+int SrsTsMessageCache::do_cache_mp3(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
         
@@ -2865,7 +2865,7 @@ int SrsTsCache::do_cache_mp3(SrsAudioFrame* frame)
     return ret;
 }
 
-int SrsTsCache::do_cache_aac(SrsAudioFrame* frame)
+int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2992,7 +2992,7 @@ void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
     }
 }
 
-int SrsTsCache::do_cache_avc(SrsVideoFrame* frame)
+int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3075,24 +3075,24 @@ int SrsTsCache::do_cache_avc(SrsVideoFrame* frame)
     return ret;
 }
 
-SrsTsEncoder::SrsTsEncoder()
+SrsTsTransmuxer::SrsTsTransmuxer()
 {
     writer = NULL;
     format = new SrsFormat();
-    cache = new SrsTsCache();
+    tsmc = new SrsTsMessageCache();
     context = new SrsTsContext();
-    muxer = NULL;
+    tscw = NULL;
 }
 
-SrsTsEncoder::~SrsTsEncoder()
+SrsTsTransmuxer::~SrsTsTransmuxer()
 {
     srs_freep(format);
-    srs_freep(cache);
-    srs_freep(muxer);
+    srs_freep(tsmc);
+    srs_freep(tscw);
     srs_freep(context);
 }
 
-int SrsTsEncoder::initialize(SrsFileWriter* fw)
+int SrsTsTransmuxer::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3110,18 +3110,18 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     
     writer = fw;
 
-    srs_freep(muxer);
+    srs_freep(tscw);
     // TODO: FIXME: Support config the codec.
-    muxer = new SrsTsMuxer(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
+    tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
 
-    if ((ret = muxer->open("")) != ERROR_SUCCESS) {
+    if ((ret = tscw->open("")) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3146,7 +3146,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     int64_t dts = timestamp * 90;
     
     // write audio to cache.
-    if ((ret = cache->cache_audio(format->audio, dts)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_audio(format->audio, dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -3157,7 +3157,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     return flush_audio();
 }
 
-int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
+int SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3185,37 +3185,37 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     int64_t dts = timestamp * 90;
     
     // write video to cache.
-    if ((ret = cache->cache_video(format->video, dts)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_video(format->video, dts)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return flush_video();
 }
 
-int SrsTsEncoder::flush_audio()
+int SrsTsTransmuxer::flush_audio()
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = muxer->write_audio(cache->audio)) != ERROR_SUCCESS) {
+    if ((ret = tscw->write_audio(tsmc->audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // write success, clear and free the ts message.
-    srs_freep(cache->audio);
+    srs_freep(tsmc->audio);
 
     return ret;
 }
 
-int SrsTsEncoder::flush_video()
+int SrsTsTransmuxer::flush_video()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->write_video(cache->video)) != ERROR_SUCCESS) {
+    if ((ret = tscw->write_video(tsmc->video)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // write success, clear and free the ts message.
-    srs_freep(cache->video);
+    srs_freep(tsmc->video);
 
     return ret;
 }

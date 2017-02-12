@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-SrsAacEncoder::SrsAacEncoder()
+SrsAacTransmuxer::SrsAacTransmuxer()
 {
     _fs = NULL;
     got_sequence_header = false;
@@ -48,12 +48,12 @@ SrsAacEncoder::SrsAacEncoder()
     aac_object = SrsAacObjectTypeReserved;
 }
 
-SrsAacEncoder::~SrsAacEncoder()
+SrsAacTransmuxer::~SrsAacTransmuxer()
 {
     srs_freep(tag_stream);
 }
 
-int SrsAacEncoder::initialize(SrsFileWriter* fs)
+int SrsAacTransmuxer::initialize(SrsFileWriter* fs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -70,7 +70,7 @@ int SrsAacEncoder::initialize(SrsFileWriter* fs)
     return ret;
 }
 
-int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     

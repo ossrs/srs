@@ -37,17 +37,17 @@ class SrsBuffer;
 class SrsFileWriter;
 
 /**
-* encode data to aac file.
-*/
-class SrsMp3Encoder
+ * Transmux RTMP packet to MP3 stream.
+ */
+class SrsMp3Transmuxer
 {
 private:
     SrsFileWriter* writer;
 private:
     SrsBuffer* tag_stream;
 public:
-    SrsMp3Encoder();
-    virtual ~SrsMp3Encoder();
+    SrsMp3Transmuxer();
+    virtual ~SrsMp3Transmuxer();
 public:
     /**
     * initialize the underlayer file stream.
