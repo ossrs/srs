@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_protocol_format.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -135,13 +136,13 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 SrsRtspAudioCache::SrsRtspAudioCache()
 {
     dts = 0;
-    audio_samples = NULL;
+    audio = NULL;
     payload = NULL;
 }
 
 SrsRtspAudioCache::~SrsRtspAudioCache()
 {
-    srs_freep(audio_samples);
+    srs_freep(audio);
     srs_freep(payload);
 }
 
@@ -456,10 +457,10 @@ int SrsRtspConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
 
     // cache current audio to kickoff.
     acache->dts = dts;
-    acache->audio_samples = pkt->audio_samples;
+    acache->audio = pkt->audio;
     acache->payload = pkt->payload;
 
-    pkt->audio_samples = NULL;
+    pkt->audio = NULL;
     pkt->payload = NULL;
 
     return ret;
@@ -474,11 +475,11 @@ int SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
         return ret;
     }
 
-    if (dts - acache->dts > 0 && acache->audio_samples->nb_sample_units > 0) {
-        int64_t delta = (dts - acache->dts) / acache->audio_samples->nb_sample_units;
-        for (int i = 0; i < acache->audio_samples->nb_sample_units; i++) {
-            char* frame = acache->audio_samples->sample_units[i].bytes;
-            int nb_frame = acache->audio_samples->sample_units[i].size;
+    if (dts - acache->dts > 0 && acache->audio->nb_samples > 0) {
+        int64_t delta = (dts - acache->dts) / acache->audio->nb_samples;
+        for (int i = 0; i < acache->audio->nb_samples; i++) {
+            char* frame = acache->audio->samples[i].bytes;
+            int nb_frame = acache->audio->samples[i].size;
             int64_t timestamp = (acache->dts + delta * i) / 90;
             acodec->aac_packet_type = 1;
             if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, (uint32_t)timestamp)) != ERROR_SUCCESS) {
@@ -488,7 +489,7 @@ int SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
     }
 
     acache->dts = 0;
-    srs_freep(acache->audio_samples);
+    srs_freep(acache->audio);
     srs_freep(acache->payload);
 
     return ret;
@@ -510,13 +511,17 @@ int SrsRtspConn::write_sequence_header()
     if (true) {
         std::string sh = aac_specific_config;
 
-        SrsAvcAacCodec dec;
-        if ((ret = dec.audio_aac_sequence_header_demux((char*)sh.c_str(), (int)sh.length())) != ERROR_SUCCESS) {
+        SrsFormat* format = new SrsFormat();
+        SrsAutoFree(SrsFormat, format);
+        
+        if ((ret = format->on_aac_sequence_header((char*)sh.c_str(), (int)sh.length())) != ERROR_SUCCESS) {
             return ret;
         }
+        
+        SrsAudioCodec* dec = format->acodec;
 
         acodec->sound_format = SrsCodecAudioAAC;
-        acodec->sound_type = (dec.aac_channels == 2)? SrsCodecAudioSoundTypeStereo : SrsCodecAudioSoundTypeMono;
+        acodec->sound_type = (dec->aac_channels == 2)? SrsCodecAudioSoundTypeStereo : SrsCodecAudioSoundTypeMono;
         acodec->sound_size = SrsCodecAudioSampleSize16bit;
         acodec->aac_packet_type = 0;
 
@@ -526,7 +531,7 @@ int SrsRtspConn::write_sequence_header()
             16000, 12000, 11025,  8000,
             7350,     0,     0,    0
         };
-        switch (aac_sample_rates[dec.aac_sample_rate]) {
+        switch (aac_sample_rates[dec->aac_sample_rate]) {
             case 11025:
                 acodec->sound_rate = SrsCodecAudioSampleRate11025;
                 break;

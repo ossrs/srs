@@ -263,58 +263,6 @@ public:
 };
 
 /**
-* the m3u8 stream handler.
-*/
-class SrsHlsM3u8Stream : public ISrsHttpHandler
-{
-private:
-    std::string m3u8;
-public:
-    SrsHlsM3u8Stream();
-    virtual ~SrsHlsM3u8Stream();
-public:
-    virtual void set_m3u8(std::string v);
-public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-};
-
-/**
-* the ts stream handler.
-*/
-class SrsHlsTsStream : public ISrsHttpHandler
-{
-private:
-    std::string ts;
-public:
-    SrsHlsTsStream();
-    virtual ~SrsHlsTsStream();
-public:
-    virtual void set_ts(std::string v);
-public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-};
-
-/**
-* the srs hls entry.
-*/
-// TODO: FIXME: use hte hls template and entry.
-struct SrsHlsEntry
-{
-    // for template, the mount contains variables.
-    // for concrete stream, the mount is url to access.
-    std::string mount;
-    
-    // the template to create the entry
-    SrsHlsEntry* tmpl;
-
-    // key: the m3u8/ts file path.
-    // value: the http handler.
-    std::map<std::string, ISrsHttpHandler*> streams;
-    
-    SrsHlsEntry();
-};
-
-/**
 * the http stream server instance,
 * serve http stream, for example, flv/ts/mp3/aac live stream.
 */

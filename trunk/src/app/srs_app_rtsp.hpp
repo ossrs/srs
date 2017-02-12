@@ -53,7 +53,7 @@ class SrsRawH264Stream;
 class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
-class SrsCodecSample;
+class SrsAudioFrame;
 class SrsSimpleStream;
 class SrsPithyPrint;
 class SrsSimpleRtmpClient;
@@ -87,7 +87,7 @@ public:
 struct SrsRtspAudioCache
 {
     int64_t dts;
-    SrsCodecSample* audio_samples;
+    SrsAudioFrame* audio;
     SrsSimpleStream* payload;
 
     SrsRtspAudioCache();

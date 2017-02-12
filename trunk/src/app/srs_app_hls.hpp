@@ -40,7 +40,7 @@ class SrsFormat;
 class SrsSharedPtrMessage;
 class SrsAmf0Object;
 class SrsRtmpJitter;
-class SrsTSMuxer;
+class SrsTsMuxer;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
@@ -52,41 +52,6 @@ class SrsTsCache;
 class SrsHlsSegment;
 class SrsTsCache;
 class SrsTsContext;
-
-/**
-* write to file and cache.
-*/
-class SrsHlsCacheWriter : public SrsFileWriter
-{
-private:
-    SrsFileWriter impl;
-    std::string data;
-    bool should_write_cache;
-    bool should_write_file;
-public:
-    SrsHlsCacheWriter(bool write_cache, bool write_file);
-    virtual ~SrsHlsCacheWriter();
-public:
-    /**
-    * open file writer, can open then close then open...
-    */
-    virtual int open(std::string file);
-    virtual void close();
-public:
-    virtual bool is_open();
-    virtual int64_t tellg();
-public:
-    /**
-    * write to file. 
-    * @param pnwrite the output nb_write, NULL to ignore.
-    */
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-public:
-    /**
-    * get the string cache.
-    */
-    virtual std::string cache();
-};
 
 /**
 * the wrapper of m3u8 segment from specification:
@@ -106,14 +71,14 @@ public:
     // ts full file to write.
     std::string full_path;
     // the muxer to write ts.
-    SrsHlsCacheWriter* writer;
-    SrsTSMuxer* muxer;
+    SrsFileWriter* writer;
+    SrsTsMuxer* muxer;
     // current segment start dts for m3u8
     int64_t segment_start_dts;
     // whether current segement is sequence header.
     bool is_sequence_header;
 public:
-    SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsHlsSegment(SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
     virtual ~SrsHlsSegment();
 public:
     /**
@@ -200,10 +165,6 @@ private:
     int max_td;
     std::string m3u8;
     std::string m3u8_url;
-private:
-    // TODO: FIXME: remove it.
-    bool should_write_cache;
-    bool should_write_file;
 private:
     /**
     * m3u8 segments.
@@ -303,34 +264,46 @@ private:
 *   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
 *   we use a aac jitter to correct the audio pts.
 */
-class SrsHlsCache
+class SrsHlsController
 {
 private:
-    SrsTsCache* cache;
+    // The HLS muxer to reap ts and m3u8.
+    // The TS is cached to SrsTsCache then flush to ts segment.
+    SrsHlsMuxer* muxer;
+    // The TS cache
+    SrsTsCache* ts;
 public:
-    SrsHlsCache();
-    virtual ~SrsHlsCache();
+    SrsHlsController();
+    virtual ~SrsHlsController();
+public:
+    virtual int initialize();
+    virtual void dispose();
+    virtual int update_acodec(SrsCodecAudio ac);
+    virtual int sequence_no();
+    virtual std::string ts_url();
+    virtual double duration();
+    virtual int deviation();
 public:
     /**
     * when publish or unpublish stream.
     */
-    virtual int on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment_start_dts);
-    virtual int on_unpublish(SrsHlsMuxer* muxer);
+    virtual int on_publish(SrsRequest* req, int64_t segment_start_dts);
+    virtual int on_unpublish();
     /**
     * when get sequence header, 
     * must write a #EXT-X-DISCONTINUITY to m3u8.
     * @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
     * @see: 3.4.11.  EXT-X-DISCONTINUITY
     */
-    virtual int on_sequence_header(SrsHlsMuxer* muxer);
+    virtual int on_sequence_header();
     /**
     * write audio to cache, if need to flush, flush to muxer.
     */
-    virtual int write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample);
+    virtual int write_audio(SrsAudioFrame* frame, int64_t pts);
     /**
     * write video to muxer.
     */
-    virtual int write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample);
+    virtual int write_video(SrsVideoFrame* frame, int64_t dts);
 private:
     /**
     * reopen the muxer for a new hls segment,
@@ -338,7 +311,7 @@ private:
     * then write the key frame to the new segment.
     * so, user must reap_segment then flush_video to hls muxer.
     */
-    virtual int reap_segment(std::string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts);
+    virtual int reap_segment(std::string log_desc, int64_t segment_start_dts);
 };
 
 /**
@@ -348,8 +321,7 @@ private:
 class SrsHls
 {
 private:
-    SrsHlsMuxer* muxer;
-    SrsHlsCache* cache;
+    SrsHlsController* controller;
 private:
     SrsRequest* req;
     bool enabled;
@@ -400,13 +372,14 @@ public:
     * mux the audio packets to ts.
     * @param shared_audio, directly ptr, copy it if need to save it.
     */
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     /**
      * mux the video packets to ts.
      * @param shared_video, directly ptr, copy it if need to save it.
      * @param is_sps_pps whether the video is h.264 sps/pps.
      */
-    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps);
+    // TODO: FIXME: Remove param is_sps_pps.
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual void hls_show_mux_log();
 };

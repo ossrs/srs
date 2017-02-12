@@ -26,24 +26,19 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_utility.hpp>
 
-SrsFormat::SrsFormat()
+SrsRtmpFormat::SrsRtmpFormat()
 {
-    audio = video = NULL;
 }
 
-SrsFormat::~SrsFormat()
+SrsRtmpFormat::~SrsRtmpFormat()
 {
-    srs_freep(audio);
-    srs_freep(video);
 }
 
-int SrsFormat::initialize()
-{
-    return ERROR_SUCCESS;
-}
-
-int SrsFormat::on_metadata(SrsOnMetaDataPacket* meta)
+int SrsRtmpFormat::on_metadata(SrsOnMetaDataPacket* meta)
 {
     int ret = ERROR_SUCCESS;
     
@@ -52,15 +47,31 @@ int SrsFormat::on_metadata(SrsOnMetaDataPacket* meta)
     return ret;
 }
 
-int SrsFormat::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsRtmpFormat::on_audio(SrsSharedPtrMessage* shared_audio)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    SrsSharedPtrMessage* msg = shared_audio;
+    char* data = msg->payload;
+    int size = msg->size;
+    
+    return SrsFormat::on_audio(msg->timestamp, data, size);
 }
 
-int SrsFormat::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
+int SrsRtmpFormat::on_audio(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return SrsFormat::on_audio(timestamp, data, size);
+}
+
+int SrsRtmpFormat::on_video(SrsSharedPtrMessage* shared_video)
+{
+    SrsSharedPtrMessage* msg = shared_video;
+    char* data = msg->payload;
+    int size = msg->size;
+    
+    return SrsFormat::on_video(msg->timestamp, data, size);
+}
+
+int SrsRtmpFormat::on_video(int64_t timestamp, char* data, int size)
+{
+    return SrsFormat::on_video(timestamp, data, size);
 }
 

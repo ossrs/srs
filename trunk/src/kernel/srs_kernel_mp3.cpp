@@ -106,7 +106,6 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();
     
-    // @see: SrsAvcAacCodec::audio_aac_demux
     //int8_t sound_type = sound_format & 0x01;
     //int8_t sound_size = (sound_format >> 1) & 0x01;
     //int8_t sound_rate = (sound_format >> 2) & 0x03;

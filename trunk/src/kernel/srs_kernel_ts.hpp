@@ -42,8 +42,7 @@ class SrsTsCache;
 class SrsTSMuxer;
 class SrsFileWriter;
 class SrsFileReader;
-class SrsAvcAacCodec;
-class SrsCodecSample;
+class SrsFormat;
 class SrsSimpleStream;
 class SrsTsAdaptationField;
 class SrsTsPayload;
@@ -1560,7 +1559,7 @@ protected:
 * write data from frame(header info) and buffer(data) to ts file.
 * it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
 */
-class SrsTSMuxer
+class SrsTsMuxer
 {
 private:
     SrsCodecVideo vcodec;
@@ -1570,8 +1569,8 @@ private:
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
-    virtual ~SrsTSMuxer();
+    SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
+    virtual ~SrsTsMuxer();
 public:
     /**
      * open the writer, donot write the PSI of ts.
@@ -1585,6 +1584,7 @@ public:
     * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
     * @see https://github.com/ossrs/srs/issues/301
     */
+    // TODO: FIXME: Remove it.
     virtual int update_acodec(SrsCodecAudio ac);
     /**
     * write an audio frame to ts, 
@@ -1628,29 +1628,29 @@ public:
     /**
     * write audio to cache
     */
-    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+    virtual int cache_audio(SrsAudioFrame* frame, int64_t dts);
     /**
     * write video to muxer.
     */
-    virtual int cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+    virtual int cache_video(SrsVideoFrame* frame, int64_t dts);
 private:
-    virtual int do_cache_mp3(SrsAvcAacCodec* codec, SrsCodecSample* sample);
-    virtual int do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample);
-    virtual int do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_mp3(SrsAudioFrame* frame);
+    virtual int do_cache_aac(SrsAudioFrame* frame);
+    virtual int do_cache_avc(SrsVideoFrame* frame);
 };
 
 /**
 * encode data to ts file.
 */
+// TODO: FIXME: Rename it.
 class SrsTsEncoder
 {
 private:
     SrsFileWriter* writer;
 private:
-    SrsAvcAacCodec* codec;
-    SrsCodecSample* sample;
+    SrsFormat* format;
     SrsTsCache* cache;
-    SrsTSMuxer* muxer;
+    SrsTsMuxer* muxer;
     SrsTsContext* context;
 public:
     SrsTsEncoder();

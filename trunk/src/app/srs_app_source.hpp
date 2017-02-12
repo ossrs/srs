@@ -38,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
 
-class SrsFormat;
+class SrsRtmpFormat;
 class SrsConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
@@ -423,7 +423,7 @@ private:
     bool is_active;
 private:
     // The format, codec information.
-    SrsFormat* format;
+    SrsRtmpFormat* format;
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.

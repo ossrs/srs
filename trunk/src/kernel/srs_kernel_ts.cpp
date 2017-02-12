@@ -2708,7 +2708,7 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsTsMuxer::SrsTsMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     writer = w;
     context = c;
@@ -2717,12 +2717,12 @@ SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsC
     vcodec = vc;
 }
 
-SrsTSMuxer::~SrsTSMuxer()
+SrsTsMuxer::~SrsTsMuxer()
 {
     close();
 }
 
-int SrsTSMuxer::open(string p)
+int SrsTsMuxer::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2740,13 +2740,13 @@ int SrsTSMuxer::open(string p)
     return ret;
 }
 
-int SrsTSMuxer::update_acodec(SrsCodecAudio ac)
+int SrsTsMuxer::update_acodec(SrsCodecAudio ac)
 {
     acodec = ac;
     return ERROR_SUCCESS;
 }
 
-int SrsTSMuxer::write_audio(SrsTsMessage* audio)
+int SrsTsMuxer::write_audio(SrsTsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2762,7 +2762,7 @@ int SrsTSMuxer::write_audio(SrsTsMessage* audio)
     return ret;
 }
 
-int SrsTSMuxer::write_video(SrsTsMessage* video)
+int SrsTsMuxer::write_video(SrsTsMessage* video)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2778,12 +2778,12 @@ int SrsTSMuxer::write_video(SrsTsMessage* video)
     return ret;
 }
 
-void SrsTSMuxer::close()
+void SrsTsMuxer::close()
 {
     writer->close();
 }
 
-SrsCodecVideo SrsTSMuxer::video_codec()
+SrsCodecVideo SrsTsMuxer::video_codec()
 {
     return vcodec;
 }
@@ -2800,7 +2800,7 @@ SrsTsCache::~SrsTsCache()
     srs_freep(video);
 }
     
-int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample)
+int SrsTsCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2817,16 +2817,16 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
-    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
-    srs_assert(acodec == SrsCodecAudioAAC || acodec == SrsCodecAudioMP3);
+    SrsAudioCodec* acodec = frame->acodec();
+    srs_assert(acodec->id == SrsCodecAudioAAC || acodec->id == SrsCodecAudioMP3);
     
     // write video to cache.
-    if (codec->audio_codec_id == SrsCodecAudioAAC) {
-        if ((ret = do_cache_aac(codec, sample)) != ERROR_SUCCESS) {
+    if (acodec->id == SrsCodecAudioAAC) {
+        if ((ret = do_cache_aac(frame)) != ERROR_SUCCESS) {
             return ret;
         }
     } else {
-        if ((ret = do_cache_mp3(codec, sample)) != ERROR_SUCCESS) {
+        if ((ret = do_cache_mp3(frame)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -2834,52 +2834,55 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     return ret;
 }
     
-int SrsTsCache::cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample)
+int SrsTsCache::cache_video(SrsVideoFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
     
     // create the ts video message.
     if (!video) {
         video = new SrsTsMessage();
-        video->write_pcr = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+        video->write_pcr = (frame->frame_type == SrsCodecVideoAVCFrameKeyFrame);
         video->start_pts = dts;
     }
 
     video->dts = dts;
-    video->pts = video->dts + sample->cts * 90;
+    video->pts = video->dts + frame->cts * 90;
     video->sid = SrsTsPESStreamIdVideoCommon;
     
     // write video to cache.
-    if ((ret = do_cache_avc(codec, sample)) != ERROR_SUCCESS) {
+    if ((ret = do_cache_avc(frame)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsTsCache::do_cache_mp3(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsCache::do_cache_mp3(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
         
     // for mp3, directly write to cache.
     // TODO: FIXME: implements the ts jitter.
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        audio->payload->append(sample_unit->bytes, sample_unit->size);
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        audio->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
 }
 
-int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsCache::do_cache_aac(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
+    SrsAudioCodec* codec = frame->acodec();
+    srs_assert(codec);
+    
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        int32_t size = sample->size;
         
-        if (!sample_unit->bytes || size <= 0 || size > 0x1fff) {
+        if (!sample->bytes || size <= 0 || size > 0x1fff) {
             ret = ERROR_HLS_AAC_FRAME_LENGTH;
             srs_error("invalid aac frame length=%d, ret=%d", size, ret);
             return ret;
@@ -2933,7 +2936,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 
         // copy to audio buffer
         audio->payload->append((const char*)adts_header, sizeof(adts_header));
-        audio->payload->append(sample_unit->bytes, sample_unit->size);
+        audio->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
@@ -2995,7 +2998,7 @@ void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
     }
 }
 
-int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsCache::do_cache_avc(SrsVideoFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3003,7 +3006,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     bool aud_inserted = false;
     
     // Insert a default AUD NALU when no AUD in samples.
-    if (!sample->has_aud) {
+    if (!frame->has_aud) {
         // the aud(access unit delimiter) before each frame.
         // 7.3.2.4 Access unit delimiter RBSP syntax
         // ISO_IEC_14496-10-AVC-2012.pdf, page 66.
@@ -3039,12 +3042,15 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         video->payload->append((const char*)default_aud_nalu, 2);
     }
     
+    SrsVideoCodec* codec = frame->vcodec();
+    srs_assert(codec);
+    
     // all sample use cont nalu header, except the sps-pps before IDR frame.
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        int32_t size = sample->size;
         
-        if (!sample_unit->bytes || size <= 0) {
+        if (!sample->bytes || size <= 0) {
             ret = ERROR_HLS_AVC_SAMPLE_SIZE;
             srs_error("invalid avc sample length=%d, ret=%d", size, ret);
             return ret;
@@ -3052,11 +3058,11 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample_unit->bytes[0] & 0x1f);
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x1f);
         
         // Insert sps/pps before IDR when there is no sps/pps in samples.
         // The sps/pps is parsed from sequence header(generally the first flv packet).
-        if (nal_unit_type == SrsAvcNaluTypeIDR && !sample->has_sps_pps) {
+        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps) {
             if (codec->sequenceParameterSetLength > 0) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
                 video->payload->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
@@ -3069,7 +3075,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         
         // Insert the NALU to video in annexb.
         srs_avc_insert_aud(video->payload, aud_inserted);
-        video->payload->append(sample_unit->bytes, sample_unit->size);
+        video->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
@@ -3078,8 +3084,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 SrsTsEncoder::SrsTsEncoder()
 {
     writer = NULL;
-    codec = new SrsAvcAacCodec();
-    sample = new SrsCodecSample();
+    format = new SrsFormat();
     cache = new SrsTsCache();
     context = new SrsTsContext();
     muxer = NULL;
@@ -3087,8 +3092,7 @@ SrsTsEncoder::SrsTsEncoder()
 
 SrsTsEncoder::~SrsTsEncoder()
 {
-    srs_freep(codec);
-    srs_freep(sample);
+    srs_freep(format);
     srs_freep(cache);
     srs_freep(muxer);
     srs_freep(context);
@@ -3097,6 +3101,10 @@ SrsTsEncoder::~SrsTsEncoder()
 int SrsTsEncoder::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = format->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     srs_assert(fw);
     
@@ -3109,7 +3117,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     writer = fw;
 
     srs_freep(muxer);
-    muxer = new SrsTSMuxer(fw, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
+    muxer = new SrsTsMuxer(fw, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;
@@ -3122,32 +3130,24 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    sample->clear();
-    if ((ret = codec->audio_aac_demux(data, size, sample)) != ERROR_SUCCESS) {
-        if (ret != ERROR_HLS_TRY_MP3) {
-            srs_error("http: ts aac demux audio failed. ret=%d", ret);
-            return ret;
-        }
-        if ((ret = codec->audio_mp3_demux(data, size, sample)) != ERROR_SUCCESS) {
-            srs_error("http: ts mp3 demux audio failed. ret=%d", ret);
-            return ret;
-        }
+    if ((ret = format->on_audio(timestamp, data, size)) != ERROR_SUCCESS) {
+        return ret;
     }
-    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
     
     // ts support audio codec: aac/mp3
-    if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
+    srs_assert(format->acodec && format->audio);
+    if (format->acodec->id != SrsCodecAudioAAC && format->acodec->id != SrsCodecAudioMP3) {
         return ret;
     }
 
     // when codec changed, write new header.
-    if ((ret = muxer->update_acodec(acodec)) != ERROR_SUCCESS) {
+    if ((ret = muxer->update_acodec(format->acodec->id)) != ERROR_SUCCESS) {
         srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     
     // for aac: ignore sequence header
-    if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (format->acodec->id == SrsCodecAudioAAC && format->audio->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         return ret;
     }
 
@@ -3157,7 +3157,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     int64_t dts = timestamp * 90;
     
     // write audio to cache.
-    if ((ret = cache->cache_audio(codec, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->cache_audio(format->audio, dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -3172,32 +3172,31 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    sample->clear();
-    if ((ret = codec->video_avc_demux(data, size, sample)) != ERROR_SUCCESS) {
-        srs_error("http: ts codec demux video failed. ret=%d", ret);
+    if ((ret = format->on_video(timestamp, data, size)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
-    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    srs_assert(format->video && format->vcodec);
+    if (format->video->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
     
-    if (codec->video_codec_id != SrsCodecVideoAVC) {
+    if (format->vcodec->id != SrsCodecVideoAVC) {
         return ret;
     }
     
     // ignore sequence header
-    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
-         && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (format->video->frame_type == SrsCodecVideoAVCFrameKeyFrame
+         && format->video->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
         return ret;
     }
     
     int64_t dts = timestamp * 90;
     
     // write video to cache.
-    if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->cache_video(format->video, dts)) != ERROR_SUCCESS) {
         return ret;
     }
 

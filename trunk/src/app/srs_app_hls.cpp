@@ -62,80 +62,14 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-SrsHlsCacheWriter::SrsHlsCacheWriter(bool write_cache, bool write_file)
-{
-    should_write_cache = write_cache;
-    should_write_file = write_file;
-}
-
-SrsHlsCacheWriter::~SrsHlsCacheWriter()
-{
-}
-
-int SrsHlsCacheWriter::open(string file)
-{
-    if (!should_write_file) {
-        return ERROR_SUCCESS;
-    }
-
-    return impl.open(file);
-}
-
-void SrsHlsCacheWriter::close()
-{
-    if (!should_write_file) {
-        return;
-    }
-
-    impl.close();
-}
-
-bool SrsHlsCacheWriter::is_open()
-{
-    if (!should_write_file) {
-        return true;
-    }
-
-    return impl.is_open();
-}
-
-int64_t SrsHlsCacheWriter::tellg()
-{
-    if (!should_write_file) {
-        return 0;
-    }
-
-    return impl.tellg();
-}
-
-int SrsHlsCacheWriter::write(void* buf, size_t count, ssize_t* pnwrite)
-{
-    if (should_write_cache) {
-        if (count > 0) {
-            data.append((char*)buf, count);
-        }
-    }
-
-    if (should_write_file) {
-        return impl.write(buf, count, pnwrite);
-    }
-
-    return ERROR_SUCCESS;
-}
-
-string SrsHlsCacheWriter::cache()
-{
-    return data;
-}
-
-SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     duration = 0;
     sequence_no = 0;
     segment_start_dts = 0;
     is_sequence_header = false;
-    writer = new SrsHlsCacheWriter(write_cache, write_file);
-    muxer = new SrsTSMuxer(writer, c, ac, vc);
+    writer = new SrsFileWriter();
+    muxer = new SrsTsMuxer(writer, c, ac, vc);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -290,8 +224,6 @@ SrsHlsMuxer::SrsHlsMuxer()
     _sequence_no = 0;
     current = NULL;
     acodec = SrsCodecAudioReserved1;
-    should_write_cache = false;
-    should_write_file = true;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
 }
@@ -313,28 +245,26 @@ SrsHlsMuxer::~SrsHlsMuxer()
 
 void SrsHlsMuxer::dispose()
 {
-    if (should_write_file) {
-        std::vector<SrsHlsSegment*>::iterator it;
-        for (it = segments.begin(); it != segments.end(); ++it) {
-            SrsHlsSegment* segment = *it;
-            if (unlink(segment->full_path.c_str()) < 0) {
-                srs_warn("dispose unlink path failed, file=%s.", segment->full_path.c_str());
-            }
-            srs_freep(segment);
+    std::vector<SrsHlsSegment*>::iterator it;
+    for (it = segments.begin(); it != segments.end(); ++it) {
+        SrsHlsSegment* segment = *it;
+        if (unlink(segment->full_path.c_str()) < 0) {
+            srs_warn("dispose unlink path failed, file=%s.", segment->full_path.c_str());
         }
-        segments.clear();
-        
-        if (current) {
-            std::string path = current->full_path + ".tmp";
-            if (unlink(path.c_str()) < 0) {
-                srs_warn("dispose unlink path failed, file=%s", path.c_str());
-            }
-            srs_freep(current);
+        srs_freep(segment);
+    }
+    segments.clear();
+    
+    if (current) {
+        std::string path = current->full_path + ".tmp";
+        if (unlink(path.c_str()) < 0) {
+            srs_warn("dispose unlink path failed, file=%s", path.c_str());
         }
-        
-        if (unlink(m3u8.c_str()) < 0) {
-            srs_warn("dispose unlink path failed. file=%s", m3u8.c_str());
-        }
+        srs_freep(current);
+    }
+    
+    if (unlink(m3u8.c_str()) < 0) {
+        srs_warn("dispose unlink path failed. file=%s", m3u8.c_str());
     }
     
     // TODO: FIXME: support hls dispose in HTTP cache.
@@ -407,13 +337,9 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     // when update config, reset the history target duration.
     max_td = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
     
-    // TODO: FIXME: refine better for SRS2 only support disk.
-    should_write_cache = false;
-    should_write_file = true;
-    
     // create m3u8 dir once.
     m3u8_dir = srs_path_dirname(m3u8);
-    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
+    if ((ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
         srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
         return ret;
     }
@@ -468,7 +394,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     }
     
     // new segment.
-    current = new SrsHlsSegment(context, should_write_cache, should_write_file, default_acodec, default_vcodec);
+    current = new SrsHlsSegment(context, default_acodec, default_vcodec);
     current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     
@@ -540,7 +466,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // create dir recursively for hls.
     std::string ts_dir = srs_path_dirname(current->full_path);
-    if (should_write_file && (ret = srs_create_dir_recursively(ts_dir)) != ERROR_SUCCESS) {
+    if ((ret = srs_create_dir_recursively(ts_dir)) != ERROR_SUCCESS) {
         srs_error("create app dir %s failed. ret=%d", ts_dir.c_str(), ret);
         return ret;
     }
@@ -735,7 +661,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
 
         // rename from tmp to real path
         std::string tmp_file = full_path + ".tmp";
-        if (should_write_file && rename(tmp_file.c_str(), full_path.c_str()) < 0) {
+        if (rename(tmp_file.c_str(), full_path.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("rename ts file failed, %s => %s. ret=%d", 
                 tmp_file.c_str(), full_path.c_str(), ret);
@@ -751,10 +677,8 @@ int SrsHlsMuxer::segment_close(string log_desc)
 
         // rename from tmp to real path
         std::string tmp_file = current->full_path + ".tmp";
-        if (should_write_file) {
-            if (unlink(tmp_file.c_str()) < 0) {
-                srs_warn("ignore unlink path failed, file=%s.", tmp_file.c_str());
-            }
+        if (unlink(tmp_file.c_str()) < 0) {
+            srs_warn("ignore unlink path failed, file=%s.", tmp_file.c_str());
         }
 
         srs_freep(current);
@@ -788,10 +712,8 @@ int SrsHlsMuxer::segment_close(string log_desc)
     for (int i = 0; i < (int)segment_to_remove.size(); i++) {
         SrsHlsSegment* segment = segment_to_remove[i];
         
-        if (hls_cleanup && should_write_file) {
-            if (unlink(segment->full_path.c_str()) < 0) {
-                srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
-            }
+        if (hls_cleanup && unlink(segment->full_path.c_str()) < 0) {
+            srs_warn("cleanup unlink path failed, file=%s.", segment->full_path.c_str());
         }
         
         srs_freep(segment);
@@ -818,7 +740,7 @@ int SrsHlsMuxer::refresh_m3u8()
     
     std::string temp_m3u8 = m3u8 + ".temp";
     if ((ret = _refresh_m3u8(temp_m3u8)) == ERROR_SUCCESS) {
-        if (should_write_file && rename(temp_m3u8.c_str(), m3u8.c_str()) < 0) {
+        if (rename(temp_m3u8.c_str(), m3u8.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("rename m3u8 file failed. %s => %s, ret=%d", temp_m3u8.c_str(), m3u8.c_str(), ret);
         }
@@ -843,7 +765,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         return ret;
     }
 
-    SrsHlsCacheWriter writer(should_write_cache, should_write_file);
+    SrsFileWriter writer;
     if ((ret = writer.open(m3u8_file)) != ERROR_SUCCESS) {
         srs_error("open m3u8 file %s failed. ret=%d", m3u8_file.c_str(), ret);
         return ret;
@@ -919,17 +841,54 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     return ret;
 }
 
-SrsHlsCache::SrsHlsCache()
+SrsHlsController::SrsHlsController()
 {
-    cache = new SrsTsCache();
+    ts = new SrsTsCache();
+    muxer = new SrsHlsMuxer();
 }
 
-SrsHlsCache::~SrsHlsCache()
+SrsHlsController::~SrsHlsController()
 {
-    srs_freep(cache);
+    srs_freep(muxer);
+    srs_freep(ts);
 }
 
-int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment_start_dts)
+int SrsHlsController::initialize()
+{
+    return muxer->initialize();
+}
+
+void SrsHlsController::dispose()
+{
+    muxer->dispose();
+}
+
+int SrsHlsController::update_acodec(SrsCodecAudio ac)
+{
+    return muxer->update_acodec(ac);
+}
+
+int SrsHlsController::sequence_no()
+{
+    return muxer->sequence_no();
+}
+
+string SrsHlsController::ts_url()
+{
+    return muxer->ts_url();
+}
+
+double SrsHlsController::duration()
+{
+    return muxer->duration();
+}
+
+int SrsHlsController::deviation()
+{
+    return muxer->deviation();
+}
+
+int SrsHlsController::on_publish(SrsRequest* req, int64_t segment_start_dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -978,11 +937,11 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     return ret;
 }
 
-int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
+int SrsHlsController::on_unpublish()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }
@@ -994,7 +953,7 @@ int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
     return ret;
 }
 
-int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
+int SrsHlsController::on_sequence_header()
 {
     // TODO: support discontinuity for the same stream
     // currently we reap and insert discontinity when encoder republish,
@@ -1005,12 +964,12 @@ int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
     return muxer->on_sequence_header();
 }
 
-int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample)
+int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
 {
     int ret = ERROR_SUCCESS;
     
     // write audio to cache.
-    if ((ret = cache->cache_audio(codec, pts, sample)) != ERROR_SUCCESS) {
+    if ((ret = ts->cache_audio(frame, pts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1022,16 +981,16 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // @see https://github.com/ossrs/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
-    if (cache->audio && muxer->is_segment_absolutely_overflow()) {
+    if (ts->audio && muxer->is_segment_absolutely_overflow()) {
         srs_info("hls: absolute audio reap segment.");
-        if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("audio", ts->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
     
     // for pure audio, aggregate some frame to one.
-    if (muxer->pure_audio() && cache->audio) {
-        if (pts - cache->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
+    if (muxer->pure_audio() &&ts->audio) {
+        if (pts - ts->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
             return ret;
         }
     }
@@ -1040,19 +999,19 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // it's ok for the hls overload, or maybe cause the audio corrupt,
     // which introduced by aggregate the audios to a big one.
     // @see https://github.com/ossrs/srs/issues/512
-    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
     
-int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
+int SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
     
     // write video to cache.
-    if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = ts->cache_video(frame, dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1061,16 +1020,16 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         // do reap ts if any of:
         //      a. wait keyframe and got keyframe.
         //      b. always reap when not wait keyframe.
-        if (!muxer->wait_keyframe() || sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+        if (!muxer->wait_keyframe() || frame->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
             // reap the segment, which will also flush the video.
-            if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
+            if ((ret = reap_segment("video", ts->video->dts)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
     }
     
     // flush video when got one
-    if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(ts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -1078,7 +1037,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     return ret;
 }
 
-int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts)
+int SrsHlsController::reap_segment(string log_desc, int64_t segment_start_dts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1098,7 +1057,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     }
     
     // segment open, flush video first.
-    if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(ts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -1106,7 +1065,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
-    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(ts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }
@@ -1125,9 +1084,7 @@ SrsHls::SrsHls()
     last_update_time = 0;
 
     jitter = new SrsRtmpJitter();
-    
-    muxer = new SrsHlsMuxer();
-    cache = new SrsHlsCache();
+    controller = new SrsHlsController();
 
     pprint = SrsPithyPrint::create_hls();
     stream_dts = 0;
@@ -1136,10 +1093,7 @@ SrsHls::SrsHls()
 SrsHls::~SrsHls()
 {
     srs_freep(jitter);
-    
-    srs_freep(muxer);
-    srs_freep(cache);
-    
+    srs_freep(controller);
     srs_freep(pprint);
 }
 
@@ -1149,7 +1103,7 @@ void SrsHls::dispose()
         on_unpublish();
     }
     
-    muxer->dispose();
+    controller->dispose();
 }
 
 int SrsHls::cycle()
@@ -1194,7 +1148,7 @@ int SrsHls::initialize(SrsOriginHub* h, SrsFormat* f, SrsRequest* r)
     req = r;
     format = f;
 
-    if ((ret = muxer->initialize()) != ERROR_SUCCESS) {
+    if ((ret = controller->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -1217,7 +1171,7 @@ int SrsHls::on_publish()
         return ret;
     }
     
-    if ((ret = cache->on_publish(muxer, req, stream_dts)) != ERROR_SUCCESS) {
+    if ((ret = controller->on_publish(req, stream_dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1239,14 +1193,14 @@ void SrsHls::on_unpublish()
         return;
     }
 
-    if ((ret = cache->on_unpublish(muxer)) != ERROR_SUCCESS) {
+    if ((ret = controller->on_unpublish()) != ERROR_SUCCESS) {
         srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
     }
     
     enabled = false;
 }
 
-int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1260,35 +1214,23 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
-    sample->clear();
-    if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
-        if (ret != ERROR_HLS_TRY_MP3) {
-            srs_error("hls aac demux audio failed. ret=%d", ret);
-            return ret;
-        }
-        if ((ret = codec->audio_mp3_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
-            srs_error("hls mp3 demux audio failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    srs_info("audio decoded, type=%d, codec=%d, cts=%d, size=%d, time=%"PRId64, 
-        sample->frame_type, codec->audio_codec_id, sample->cts, audio->size, audio->timestamp);
-    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
-    
     // ts support audio codec: aac/mp3
+    srs_assert(format->acodec);
+    SrsCodecAudio acodec = format->acodec->id;
     if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
         return ret;
     }
 
     // when codec changed, write new header.
-    if ((ret = muxer->update_acodec(acodec)) != ERROR_SUCCESS) {
+    if ((ret = controller->update_acodec(acodec)) != ERROR_SUCCESS) {
         srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     
     // ignore sequence header
-    if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
-        return cache->on_sequence_header(muxer);
+    srs_assert(format->audio);
+    if (acodec == SrsCodecAudioAAC && format->audio->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+        return controller->on_sequence_header();
     }
     
     // TODO: FIXME: config the jitter of HLS.
@@ -1303,7 +1245,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     // for pure audio, we need to update the stream dts also.
     stream_dts = dts;
     
-    if ((ret = cache->write_audio(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = controller->write_audio(format->audio, dts)) != ERROR_SUCCESS) {
         srs_error("hls cache write audio failed. ret=%d", ret);
         return ret;
     }
@@ -1311,7 +1253,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
+int SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1325,34 +1267,21 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
     
-    // user can disable the sps parse to workaround when parse sps failed.
-    // @see https://github.com/ossrs/srs/issues/474
-    if (is_sps_pps) {
-        codec->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
-    }
-    
-    sample->clear();
-    if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
-        srs_error("hls codec demux video failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("video decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d, time=%"PRId64, 
-        sample->frame_type, codec->video_codec_id, sample->avc_packet_type, sample->cts, video->size, video->timestamp);
-    
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
-    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    srs_assert(format->video);
+    if (format->video->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
     
-    if (codec->video_codec_id != SrsCodecVideoAVC) {
+    srs_assert(format->vcodec);
+    if (format->vcodec->id != SrsCodecVideoAVC) {
         return ret;
     }
     
     // ignore sequence header
-    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
-         && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
-        return cache->on_sequence_header(muxer);
+    if (format->video->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+        return controller->on_sequence_header();
     }
     
     // TODO: FIXME: config the jitter of HLS.
@@ -1363,7 +1292,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, bool is_sps_pps)
     
     int64_t dts = video->timestamp * 90;
     stream_dts = dts;
-    if ((ret = cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = controller->write_video(format->video, dts)) != ERROR_SUCCESS) {
         srs_error("hls cache write video failed. ret=%d", ret);
         return ret;
     }
@@ -1378,15 +1307,16 @@ void SrsHls::hls_show_mux_log()
 {
     pprint->elapse();
 
-    // reportable
-    if (pprint->can_print()) {
-        // the run time is not equals to stream time,
-        // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
-        // it's ok.
-        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%dp",
-            pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),
-            muxer->duration(), muxer->deviation());
+    if (!pprint->can_print()) {
+        return;
     }
+    
+    // the run time is not equals to stream time,
+    // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
+    // it's ok.
+    srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%dp",
+        pprint->age(), stream_dts, stream_dts / 90, controller->sequence_no(), controller->ts_url().c_str(),
+        controller->duration(), controller->deviation());
 }
 
 

@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsBuffer;
 class SrsSimpleStream;
-class SrsCodecSample;
+class SrsAudioFrame;
 class ISrsProtocolReaderWriter;
 
 // rtsp specification
@@ -299,7 +299,7 @@ public:
     /**
     * the audio samples, one rtp packets may contains multiple audio samples.
     */
-    SrsCodecSample* audio_samples;
+    SrsAudioFrame* audio;
 public:
     SrsRtpPacket();
     virtual ~SrsRtpPacket();

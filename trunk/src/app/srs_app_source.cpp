@@ -854,7 +854,7 @@ SrsOriginHub::SrsOriginHub()
     hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
-    format = new SrsFormat();
+    format = new SrsRtmpFormat();
     
     _srs_config->subscribe(this);
 }
@@ -971,7 +971,29 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         return ret;
     }
     
-    if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
+    // cache the sequence header if aac
+    // donot cache the sequence header to gop_cache, return here.
+    if (format->is_aac_sequence_header()) {
+        srs_assert(format->acodec);
+        SrsAudioCodec* c = format->acodec;
+        
+        static int flv_sample_sizes[] = {8, 16, 0};
+        static int flv_sound_types[] = {1, 2, 0};
+        
+        // when got audio stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_audio_info(req, SrsCodecAudioAAC, c->sound_rate, c->sound_type, c->aac_object)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
+            msg->size, c->id, srs_codec_aac_object2str(c->aac_object).c_str(), c->aac_channels,
+            c->audio_data_rate / 1000, aac_sample_rates[c->aac_sample_rate],
+            flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
+            flv_sample_rates[c->sound_rate]);
+    }
+    
+    if ((ret = hls->on_audio(msg, format)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1044,12 +1066,36 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
     
     SrsSharedPtrMessage* msg = shared_video;
     
-    if ((ret = format->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/ossrs/srs/issues/474
+    if (is_sequence_header) {
+        format->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
+    }
+    
+    if ((ret = format->on_video(msg)) != ERROR_SUCCESS) {
         srs_error("Codec parse video failed, ret=%d", ret);
         return ret;
     }
     
-    if ((ret = hls->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+    // cache the sequence header if h264
+    // donot cache the sequence header to gop_cache, return here.
+    if (format->is_avc_sequence_header()) {
+        SrsVideoCodec* c = format->vcodec;
+        srs_assert(c);
+        
+        // when got video stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_video_info(req, SrsCodecVideoAVC, c->avc_profile, c->avc_level, c->width, c->height)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
+            msg->size, c->id, srs_codec_avc_profile2str(c->avc_profile).c_str(),
+            srs_codec_avc_level2str(c->avc_level).c_str(), c->width, c->height,
+            c->video_data_rate / 1000, c->frame_rate, c->duration);
+    }
+    
+    if ((ret = hls->on_video(msg, format)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1341,11 +1387,11 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
     // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
+    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
         srs_error("hls process video sequence header message failed. ret=%d", ret);
         return ret;
     }
-    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
         srs_error("hls process audio sequence header message failed. ret=%d", ret);
         return ret;
     }
@@ -2137,35 +2183,6 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         }
     }
     
-    // cache the sequence header if aac
-    // donot cache the sequence header to gop_cache, return here.
-    if (is_aac_sequence_header) {
-        // parse detail audio codec
-        SrsAvcAacCodec codec;
-        SrsCodecSample sample;
-        if ((ret = codec.audio_aac_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
-            srs_error("source codec demux audio failed. ret=%d", ret);
-            return ret;
-        }
-        
-        static int flv_sample_sizes[] = {8, 16, 0};
-        static int flv_sound_types[] = {1, 2, 0};
-        
-        // when got audio stream info.
-        SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_audio_info(req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
-            "flv(%dbits, %dchannels, %dHZ)",
-            msg->size, codec.audio_codec_id,
-            srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels,
-            codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate],
-            flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type],
-            flv_sample_rates[sample.sound_rate]);
-    }
-    
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -2296,31 +2313,6 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     // donot cache the sequence header to gop_cache, return here.
     if (is_sequence_header) {
         meta->update_vsh(msg);
-        
-        // parse detail audio codec
-        SrsAvcAacCodec codec;
-        
-        // user can disable the sps parse to workaround when parse sps failed.
-        // @see https://github.com/ossrs/srs/issues/474
-        codec.avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
-        
-        SrsCodecSample sample;
-        if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
-            srs_error("source codec demux video failed. ret=%d", ret);
-            return ret;
-        }
-        
-        // when got video stream info.
-        SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_info(req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level, codec.width, codec.height)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
-            msg->size, codec.video_codec_id,
-            srs_codec_avc_profile2str(codec.avc_profile).c_str(),
-            srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
-            codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
     }
     
     // Copy to hub to all utilities.

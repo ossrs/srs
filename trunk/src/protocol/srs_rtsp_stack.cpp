@@ -136,7 +136,7 @@ SrsRtpPacket::SrsRtpPacket()
     ssrc = 0;
 
     payload = new SrsSimpleStream();
-    audio_samples = new SrsCodecSample();
+    audio = new SrsAudioFrame();
     chunked = false;
     completed = false;
 }
@@ -144,7 +144,7 @@ SrsRtpPacket::SrsRtpPacket()
 SrsRtpPacket::~SrsRtpPacket()
 {
     srs_freep(payload);
-    srs_freep(audio_samples);
+    srs_freep(audio);
 }
 
 void SrsRtpPacket::copy(SrsRtpPacket* src)
@@ -161,7 +161,9 @@ void SrsRtpPacket::copy(SrsRtpPacket* src)
 
     chunked = src->chunked;
     completed = src->completed;
-    audio_samples = new SrsCodecSample();
+    
+    srs_freep(audio);
+    audio = new SrsAudioFrame();
 }
 
 void SrsRtpPacket::reap(SrsRtpPacket* src)
@@ -172,9 +174,9 @@ void SrsRtpPacket::reap(SrsRtpPacket* src)
     payload = src->payload;
     src->payload = NULL;
     
-    srs_freep(audio_samples);
-    audio_samples = src->audio_samples;
-    src->audio_samples = NULL;
+    srs_freep(audio);
+    audio = src->audio;
+    src->audio = NULL;
 }
 
 int SrsRtpPacket::decode(SrsBuffer* stream)
@@ -263,7 +265,7 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
             return ret;
         }
 
-        if ((ret = audio_samples->add_sample_unit(sample, sample_size)) != ERROR_SUCCESS) {
+        if ((ret = audio->add_sample(sample, sample_size)) != ERROR_SUCCESS) {
             srs_error("rtsp: rtp type97 add sample failed. ret=%d", ret);
             return ret;
         }

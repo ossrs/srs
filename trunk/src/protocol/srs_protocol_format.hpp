@@ -30,32 +30,33 @@
 
 #include <srs_core.hpp>
 
-class SrsFrame;
+#include <srs_kernel_codec.hpp>
+
+class SrsBuffer;
+class SrsAudioFrame;
+class SrsVideoFrame;
+class SrsAudioCodec;
+class SrsVideoCodec;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 
 /**
- * A codec format, including one or many stream, each stream identified by a frame.
- * For example, a typical RTMP stream format, consits of a video and audio frame.
- * Maybe some RTMP stream only has a audio stream, for instance, redio application.
+ * Create special structure from RTMP stream, for example, the metadata.
  */
-class SrsFormat
+class SrsRtmpFormat : public SrsFormat
 {
 public:
-    SrsFrame* audio;
-    SrsFrame* video;
+    SrsRtmpFormat();
+    virtual ~SrsRtmpFormat();
 public:
-    SrsFormat();
-    virtual ~SrsFormat();
-public:
-    // Initialize the format.
-    virtual int initialize();
     // Initialize the format from metadata, optional.
     virtual int on_metadata(SrsOnMetaDataPacket* meta);
     // When got a parsed audio packet.
     virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_audio(int64_t timestamp, char* data, int size);
     // When got a parsed video packet.
-    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
+    virtual int on_video(SrsSharedPtrMessage* shared_video);
+    virtual int on_video(int64_t timestamp, char* data, int size);
 };
 
 #endif
