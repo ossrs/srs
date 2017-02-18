@@ -13,7 +13,7 @@ openssl-1.0.1f.zip
 CherryPy-3.2.4.zip
     sample api server for srs.
 
-ffmpeg-2.1.1.tar.gz
+ffmpeg-3.2.4.tar.gz
 yasm-1.2.0.tar.gz
 lame-3.99.5.tar.gz
 speex-1.2rc1.zip
@@ -45,7 +45,7 @@ links:
         http://sourceforge.net/projects/state-threads
     ffmpeg: 
         http://ffmpeg.org/ 
-        http://ffmpeg.org/releases/ffmpeg-2.1.1.tar.gz
+        http://ffmpeg.org/releases/ffmpeg-3.2.4.tar.gz
     x264: 
         http://www.videolan.org/ 
         ftp://ftp.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20131129-2245-stable.tar.bz2
