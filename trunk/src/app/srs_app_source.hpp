@@ -57,7 +57,7 @@ class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
 class SrsDvr;
-class SrsMpegDash;
+class SrsDash;
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
@@ -427,7 +427,7 @@ private:
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
-    SrsMpegDash* dash;
+    SrsDash* dash;
     // dvr handler.
     SrsDvr* dvr;
     // transcoding handler.

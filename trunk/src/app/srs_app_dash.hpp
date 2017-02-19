@@ -35,25 +35,49 @@ class SrsSharedPtrMessage;
 class SrsFormat;
 
 /**
+ * The FMP4(Fragmented MP4) for DASH streaming.
  */
 class SrsFragmentedMp4
 {
 public:
+    SrsFragmentedMp4();
+    virtual ~SrsFragmentedMp4();
+};
+
+/**
+ * The writer to write MPD for DASH.
+ */
+class SrsMpdWriter
+{
+public:
+    SrsMpdWriter();
+    virtual ~SrsMpdWriter();
+};
+
+/**
+ * The controller for DASH, control the MPD and FMP4 generating system.
+ */
+class SrsDashController
+{
+public:
+    SrsDashController();
+    virtual ~SrsDashController();
 };
 
 /**
  * The MPEG-DASH encoder, transmux RTMP to DASH.
  */
-class SrsMpegDash
+class SrsDash
 {
 private:
     bool enabled;
 private:
     SrsRequest* req;
     SrsOriginHub* hub;
+    SrsDashController* controller;
 public:
-    SrsMpegDash();
-    virtual ~SrsMpegDash();
+    SrsDash();
+    virtual ~SrsDash();
 public:
     // Initalize the encoder.
     virtual int initialize(SrsOriginHub* h, SrsRequest* r);
@@ -68,3 +92,4 @@ public:
 };
 
 #endif
+

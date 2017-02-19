@@ -845,7 +845,7 @@ SrsOriginHub::SrsOriginHub()
     is_active = false;
     
     hls = new SrsHls();
-    dash = new SrsMpegDash();
+    dash = new SrsDash();
     dvr = new SrsDvr();
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();

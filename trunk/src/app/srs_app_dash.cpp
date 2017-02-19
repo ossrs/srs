@@ -28,19 +28,45 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_rtmp_stack.hpp>
 
-SrsMpegDash::SrsMpegDash()
+SrsFragmentedMp4::SrsFragmentedMp4()
+{
+}
+
+SrsFragmentedMp4::~SrsFragmentedMp4()
+{
+}
+
+SrsMpdWriter::SrsMpdWriter()
+{
+}
+
+SrsMpdWriter::~SrsMpdWriter()
+{
+}
+
+SrsDashController::SrsDashController()
+{
+}
+
+SrsDashController::~SrsDashController()
+{
+}
+
+SrsDash::SrsDash()
 {
     hub = NULL;
     req = NULL;
+    controller = new SrsDashController();
     
     enabled = false;
 }
 
-SrsMpegDash::~SrsMpegDash()
+SrsDash::~SrsDash()
 {
+    srs_freep(controller);
 }
 
-int SrsMpegDash::initialize(SrsOriginHub* h, SrsRequest* r)
+int SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -50,7 +76,7 @@ int SrsMpegDash::initialize(SrsOriginHub* h, SrsRequest* r)
     return ret;
 }
 
-int SrsMpegDash::on_publish()
+int SrsDash::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
@@ -68,7 +94,7 @@ int SrsMpegDash::on_publish()
     return ret;
 }
 
-int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
+int SrsDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -79,7 +105,7 @@ int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     return ret;
 }
 
-int SrsMpegDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
+int SrsDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -90,7 +116,7 @@ int SrsMpegDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     return ret;
 }
 
-void SrsMpegDash::on_unpublish()
+void SrsDash::on_unpublish()
 {
     // Prevent duplicated unpublish.
     if (!enabled) {
