@@ -1626,7 +1626,7 @@ private:
 };
 
 /**
- * Transmux the RTMP stream to TS stream.
+ * Transmux the RTMP stream to HTTP-TS stream.
  */
 class SrsTsTransmuxer
 {

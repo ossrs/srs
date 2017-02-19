@@ -321,7 +321,6 @@ private:
     int64_t last_update_time;
 private:
     SrsOriginHub* hub;
-    SrsFormat* format;
     SrsRtmpJitter* jitter;
     SrsPithyPrint* pprint;
     /**
@@ -348,7 +347,7 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsOriginHub* h, SrsFormat* f, SrsRequest* r);
+    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.

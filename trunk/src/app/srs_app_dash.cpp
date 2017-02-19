@@ -68,7 +68,7 @@ int SrsMpegDash::on_publish()
     return ret;
 }
 
-int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -79,7 +79,7 @@ int SrsMpegDash::on_audio(SrsSharedPtrMessage* shared_audio)
     return ret;
 }
 
-int SrsMpegDash::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
+int SrsMpegDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     

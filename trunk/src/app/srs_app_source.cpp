@@ -896,7 +896,7 @@ int SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
         return ret;
     }
     
-    if ((ret = hls->initialize(this, format, req)) != ERROR_SUCCESS) {
+    if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1018,7 +1018,7 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         }
     }
     
-    if ((ret = dash->on_audio(msg)) != ERROR_SUCCESS) {
+    if ((ret = dash->on_audio(msg, format)) != ERROR_SUCCESS) {
         srs_warn("DASH failed, ignore and disable it. ret=%d", ret);
         dash->on_unpublish();
         ret = ERROR_SUCCESS;
@@ -1120,7 +1120,7 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         }
     }
     
-    if ((ret = dash->on_video(msg, is_sequence_header)) != ERROR_SUCCESS) {
+    if ((ret = dash->on_video(msg, format)) != ERROR_SUCCESS) {
         srs_warn("DASH failed, ignore and disable it. ret=%d", ret);
         dash->on_unpublish();
         ret = ERROR_SUCCESS;
@@ -1339,14 +1339,25 @@ int SrsOriginHub::on_reload_vhost_dash(string vhost)
     }
     
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
-    if (cache_sh_video && (ret = dash->on_video(cache_sh_video, true)) != ERROR_SUCCESS) {
-        srs_error("DASH consume video failed. ret=%d", ret);
-        return ret;
+    if (cache_sh_video) {
+        if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = dash->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
+            srs_error("DASH consume video failed. ret=%d", ret);
+            return ret;
+        }
     }
-    if (cache_sh_audio && (ret = dash->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("DASH consume audio failed. ret=%d", ret);
-        return ret;
+    
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    if (cache_sh_audio) {
+        if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = dash->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
+            srs_error("DASH consume audio failed. ret=%d", ret);
+            return ret;
+        }
     }
     
     return ret;
@@ -1381,19 +1392,25 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
-    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
-    
-    // feed the hls the metadata/sequence header,
-    // when reload to start hls, hls will never get the sequence header in stream,
-    // use the SrsSource.on_hls_start to push the sequence header to HLS.
-    // TODO: maybe need to decode the metadata?
-    if (cache_sh_video && (ret = hls->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
-        srs_error("hls process video sequence header message failed. ret=%d", ret);
-        return ret;
+    if (cache_sh_video) {
+        if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = hls->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
+            srs_error("hls process video sequence header message failed. ret=%d", ret);
+            return ret;
+        }
     }
-    if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
-        srs_error("hls process audio sequence header message failed. ret=%d", ret);
-        return ret;
+    
+    SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
+    if (cache_sh_audio) {
+        if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = hls->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
+            srs_error("hls process audio sequence header message failed. ret=%d", ret);
+            return ret;
+        }
     }
     
     return ret;

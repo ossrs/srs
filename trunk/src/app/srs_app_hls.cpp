@@ -1056,7 +1056,6 @@ SrsHls::SrsHls()
 {
     req = NULL;
     hub = NULL;
-    format = NULL;
     
     enabled = false;
     disposable = false;
@@ -1119,13 +1118,12 @@ int SrsHls::cycle()
     return ret;
 }
 
-int SrsHls::initialize(SrsOriginHub* h, SrsFormat* f, SrsRequest* r)
+int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
 
     hub = h;
     req = r;
-    format = f;
 
     if ((ret = controller->initialize()) != ERROR_SUCCESS) {
         return ret;

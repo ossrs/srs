@@ -32,6 +32,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsRequest;
 class SrsOriginHub;
 class SrsSharedPtrMessage;
+class SrsFormat;
+
+/**
+ */
+class SrsFragmentedMp4
+{
+public:
+};
 
 /**
  * The MPEG-DASH encoder, transmux RTMP to DASH.
@@ -52,9 +60,9 @@ public:
     // When stream start publishing.
     virtual int on_publish();
     // When got an shared audio message.
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     // When got an shared video message.
-    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
     // When stream stop publishing.
     virtual void on_unpublish();
 };
