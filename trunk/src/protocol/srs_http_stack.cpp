@@ -3063,6 +3063,9 @@ int SrsHttpUri::initialize(string _url)
     if(!field.empty()){
         port = atoi(field.c_str());
     }
+	if(port<=0){
+		port = 80;
+	}
     
     path = get_uri_field(url, &hp_u, UF_PATH);
     srs_info("parse url %s success", purl);
