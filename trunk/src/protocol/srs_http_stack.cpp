@@ -3064,7 +3064,7 @@ int SrsHttpUri::initialize(string _url)
         port = atoi(field.c_str());
     }
 	if(port<=0){
-		port = 80;
+		port = SRS_DEFAULT_HTTP_PORT;
 	}
     
     path = get_uri_field(url, &hp_u, UF_PATH);
