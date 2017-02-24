@@ -255,6 +255,7 @@ int SrsRtspConn::do_cycle()
 
         if (req->is_options()) {
             SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+            SrsAutoFree(SrsRtspOptionsResponse,res);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -292,6 +293,7 @@ int SrsRtspConn::do_cycle()
             );
 
             SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsAutoFree(SrsRtspResponse,res);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -332,6 +334,7 @@ int SrsRtspConn::do_cycle()
             }
 
             SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+            SrsAutoFree(SrsRtspSetupResponse,res);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
             res->local_port_min = lpm;
@@ -345,6 +348,7 @@ int SrsRtspConn::do_cycle()
             }
         } else if (req->is_record()) {
             SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsAutoFree(SrsRtspResponse,res);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
