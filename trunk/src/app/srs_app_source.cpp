@@ -1881,7 +1881,6 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     } else {
         ret = on_video_imp(m);
     }
-    srs_freep(m);
     
     return ret;
 }
