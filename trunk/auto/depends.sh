@@ -625,7 +625,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
                     unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm $OPENSSL_HOTFIX &&
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm no-threads $OPENSSL_HOTFIX &&
                     make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
                         LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
                     make install_sw &&
@@ -642,7 +642,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
                     unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared $OPENSSL_HOTFIX &&
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
                     make && make install_sw &&
                     cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
                     cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
