@@ -45,63 +45,69 @@ using namespace _srs_internal;
 #include <openssl/dh.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+
 static HMAC_CTX *HMAC_CTX_new(void)
 {
-   HMAC_CTX *ctx = (HMAC_CTX *)malloc(sizeof(*ctx));
-   if (ctx != NULL)
-       HMAC_CTX_init(ctx);
-   return ctx;
+    HMAC_CTX *ctx = (HMAC_CTX *)malloc(sizeof(*ctx));
+    if (ctx != NULL) {
+        HMAC_CTX_init(ctx);
+    }
+    return ctx;
 }
+
 static void HMAC_CTX_free(HMAC_CTX *ctx)
 {
-   if (ctx != NULL) {
-       HMAC_CTX_cleanup(ctx);
-       free(ctx);
-   }
+    if (ctx != NULL) {
+        HMAC_CTX_cleanup(ctx);
+        free(ctx);
+    }
 }
 
 static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key)
 {
-   if (pub_key != NULL)
-       *pub_key = dh->pub_key;
-   if (priv_key != NULL)
-       *priv_key = dh->priv_key;
+    if (pub_key != NULL) {
+        *pub_key = dh->pub_key;
+    }
+    if (priv_key != NULL) {
+        *priv_key = dh->priv_key;
+    }
 }
 
 static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
 {
-   /* If the fields p and g in d are NULL, the corresponding input
-    * parameters MUST be non-NULL.  q may remain NULL.
-    */
-   if ((dh->p == NULL && p == NULL)
-       || (dh->g == NULL && g == NULL))
-       return 0;
-
-   if (p != NULL) {
-       BN_free(dh->p);
-       dh->p = p;
-   }
-   if (q != NULL) {
-       BN_free(dh->q);
-       dh->q = q;
-   }
-   if (g != NULL) {
-       BN_free(dh->g);
-       dh->g = g;
-   }
-
-   if (q != NULL) {
-       dh->length = BN_num_bits(q);
-   }
-
-   return 1;
+    /* If the fields p and g in d are NULL, the corresponding input
+     * parameters MUST be non-NULL.  q may remain NULL.
+     */
+    if ((dh->p == NULL && p == NULL)
+        || (dh->g == NULL && g == NULL))
+        return 0;
+    
+    if (p != NULL) {
+        BN_free(dh->p);
+        dh->p = p;
+    }
+    if (q != NULL) {
+        BN_free(dh->q);
+        dh->q = q;
+    }
+    if (g != NULL) {
+        BN_free(dh->g);
+        dh->g = g;
+    }
+    
+    if (q != NULL) {
+        dh->length = BN_num_bits(q);
+    }
+    
+    return 1;
 }
 
 static int DH_set_length(DH *dh, long length)
 {
-   dh->length = length;
-   return 1;
+    dh->length = length;
+    return 1;
 }
+
 #endif
 
 namespace _srs_internal
