@@ -1635,7 +1635,6 @@ int SrsProtocol::response_acknowledgement_message()
     
     SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
     pkt->sequence_number = sequence_number;
-    srs_warn("ack sequence=%#x", sequence_number);
     
     // cache the message and use flush to send.
     if (!auto_response_when_recv) {

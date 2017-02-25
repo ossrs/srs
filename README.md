@@ -335,6 +335,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-02-25, for [#730][bug #730], remove the test code. 2.0.234
 * v2.0, 2017-02-09, fix [#503][bug #503] disable utilities when reload a source. 2.0.233
 * v2.0, 2017-01-22, for [#752][bug #752] release the io then free it for kbps. 2.0.232
 * v2.0, 2017-01-18, fix [#750][bug #750] use specific error code for dns resolve. 2.0.231
