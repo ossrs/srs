@@ -130,7 +130,7 @@ LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 if [ $SRS_GPERF_MD = YES ]; then LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a"; fi
 # the link options, always use static link
-SrsLinkOptions="-lpthread -ldl";
+SrsLinkOptions="-ldl";
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto"; fi fi
 # if static specified, add static
 # TODO: FIXME: remove static.
