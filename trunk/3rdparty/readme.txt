@@ -7,7 +7,7 @@ nginx-1.5.7.zip
 st-1.9.zip
     basic framework for srs.
     
-openssl-1.0.1f.zip
+openssl-1.1.0e.zip
     openssl for SRS(with-ssl) RTMP complex handshake to delivery h264+aac stream.
 
 CherryPy-3.2.4.zip
@@ -60,7 +60,7 @@ links:
         https://pypi.python.org/pypi/CherryPy/3.2.4
     openssl:
         http://www.openssl.org/
-        http://www.openssl.org/source/openssl-1.0.1f.tar.gz
+        http://www.openssl.org/source/openssl-1.1.0e.tar.gz
     gtest:
         https://code.google.com/p/googletest
         https://code.google.com/p/googletest/downloads/list

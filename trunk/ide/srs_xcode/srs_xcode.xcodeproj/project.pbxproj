@@ -296,8 +296,8 @@
 		3C1232D01AAE833300CE8F6C /* stop.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = stop.sh; path = ../../../scripts/stop.sh; sourceTree = "<group>"; };
 		3C1232D11AAE833300CE8F6C /* test_configure.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = test_configure.sh; path = ../../../scripts/test_configure.sh; sourceTree = "<group>"; };
 		3C1232D21AAEA56B00CE8F6C /* libst.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libst.a; path = "../../objs/st-1.9/DARWIN_14.0.0_DBG/libst.a"; sourceTree = "<group>"; };
-		3C1232E71AAEA5D000CE8F6C /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "../../objs/openssl-1.0.1f/_release/lib/libcrypto.a"; sourceTree = "<group>"; };
-		3C1232E81AAEA5D000CE8F6C /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libssl.a; path = "../../objs/openssl-1.0.1f/_release/lib/libssl.a"; sourceTree = "<group>"; };
+		3C1232E71AAEA5D000CE8F6C /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "../../objs/openssl-1.1.0e/_release/lib/libcrypto.a"; sourceTree = "<group>"; };
+		3C1232E81AAEA5D000CE8F6C /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libssl.a; path = "../../objs/openssl-1.1.0e/_release/lib/libssl.a"; sourceTree = "<group>"; };
 		3C1232EC1AAEA70F00CE8F6C /* libhttp_parser.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libhttp_parser.a; path = "../../objs/http-parser-2.1/libhttp_parser.a"; sourceTree = "<group>"; };
 		3C1232F11AAEAC7000CE8F6C /* srs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = srs; path = ../../../etc/init.d/srs; sourceTree = "<group>"; };
 		3C1232F21AAEAC7000CE8F6C /* srs-api */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = "srs-api"; path = "../../../etc/init.d/srs-api"; sourceTree = "<group>"; };

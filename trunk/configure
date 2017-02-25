@@ -122,7 +122,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
-# openssl-1.0.1f, for the RTMP complex handshake.
+# openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi
 # gperftools-2.1, for mem check and mem/cpu profile
@@ -130,7 +130,7 @@ LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 if [ $SRS_GPERF_MD = YES ]; then LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a"; fi
 # the link options, always use static link
-SrsLinkOptions="-ldl"; 
+SrsLinkOptions="-lpthread -ldl";
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto"; fi fi
 # if static specified, add static
 # TODO: FIXME: remove static.

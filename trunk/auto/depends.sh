@@ -609,7 +609,7 @@ if [ $SRS_OSX = YES ]; then
 fi
 OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
 # @see http://www.openssl.org/news/secadv/20140407.txt
-# Affected users should upgrade to OpenSSL 1.0.1g. Users unable to immediately
+# Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
     if [ $SRS_USE_SYS_SSL = YES ]; then
@@ -619,39 +619,39 @@ if [ $SRS_SSL = YES ]; then
         if [ $SRS_CROSS_BUILD = YES ]; then
             # ok, arm specified, if the flag filed does not exists, need to rebuild.
             if [[ -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "The openssl-1.0.1f for arm is ok.";
+                echo "The openssl-1.1.0e for arm is ok.";
             else
-                echo "Building openssl-1.0.1f for ARM.";
+                echo "Building openssl-1.1.0e for ARM.";
                 (
-                    rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
-                    unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                    rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
+                    unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
                     $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm $OPENSSL_HOTFIX &&
                     make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
                         LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
                     make install_sw &&
-                    cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
+                    cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
                     cd .. && touch ${SRS_OBJS}/_flag.ssl.cross.build.tmp
                 )
             fi
         else
             # cross build not specified, if exists flag, need to rebuild for no-arm platform.
             if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "Openssl-1.0.1f is ok.";
+                echo "Openssl-1.1.0e is ok.";
             else
-                echo "Building openssl-1.0.1f.";
+                echo "Building openssl-1.1.0e.";
                 (
-                    rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
-                    unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                    rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
+                    unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
                     $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared $OPENSSL_HOTFIX &&
                     make && make install_sw &&
-                    cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
+                    cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
                     cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
                 )
             fi
         fi
         # check status
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
-        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.0.1f failed."; exit -1; fi
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
     fi
 fi
 
