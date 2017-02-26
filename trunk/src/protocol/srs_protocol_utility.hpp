@@ -89,19 +89,19 @@ extern std::string srs_generate_tc_url(
  * srs_detect_tools generate the normal tcUrl
  */
 extern std::string srs_generate_normal_tc_url(
-    std::string ip, std::string vhost, std::string app, int port);
+    std::string ip, std::string vhost, std::string app, int port, std::string param);
 
 /**
  * srs_detect_tools generate the normal tcUrl
  */
 extern std::string srs_generate_via_tc_url(
-    std::string ip, std::string vhost, std::string app, int port);
+    std::string ip, std::string vhost, std::string app, int port, std::string param);
 
 /**
  * srs_detect_tools generate the vis/vis2 tcUrl
  */
 extern std::string srs_generate_vis_tc_url(
-    std::string ip, std::string vhost, std::string app, int port);
+    std::string ip, std::string vhost, std::string app, int port, std::string param);
 
 /**
 * create shared ptr message from bytes.

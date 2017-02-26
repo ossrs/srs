@@ -753,14 +753,14 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     string tcUrl;
     switch(context->schema) {
         case srs_url_schema_normal:
-            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
+            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
             break;
         case srs_url_schema_via:
-            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
+            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
             break;
         case srs_url_schema_vis:
         case srs_url_schema_vis2:
-            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
+            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
             break;
         default:
             break;

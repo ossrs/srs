@@ -177,19 +177,19 @@ string srs_generate_tc_url(string ip, string vhost, string app, int port, string
     return tcUrl;
 }
 
-string srs_generate_normal_tc_url(string ip, string vhost, string app, int port)
+string srs_generate_normal_tc_url(string ip, string vhost, string app, int port, string param)
 {
-    return "rtmp://" + vhost + ":" + srs_int2str(port) + "/" + app;
+    return "rtmp://" + vhost + ":" + srs_int2str(port) + "/" + app + (param.empty() ? "" : "?" + param);
 }
 
-string srs_generate_via_tc_url(string ip, string vhost, string app, int port)
+string srs_generate_via_tc_url(string ip, string vhost, string app, int port, string param)
 {
-    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + vhost + "/" + app;
+    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + vhost + "/" + app + (param.empty() ? "" : "?" + param);
 }
 
-string srs_generate_vis_tc_url(string ip, string vhost, string app, int port)
+string srs_generate_vis_tc_url(string ip, string vhost, string app, int port, string param)
 {
-    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + app;
+    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + app + (param.empty() ? "" : "?" + param);
 }
 
 template<typename T>
