@@ -89,39 +89,52 @@ int SrsMpdWriter::write(SrsFormat* format)
     
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
-        << "<MPD xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
-        << "    xmlns=\"urn:mpeg:DASH:schema:MPD:2011\" " << endl
-        << "    xsi:schemaLocation=\"urn:mpeg:DASH:schema:MPD:2011 DASH-MPD.xsd\" " << endl
+        << "<MPD profiles=\"urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple\" " << endl
+        << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
+        << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
         << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
         << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
-        << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT1S\">" << endl
-        << "    <Period>" << endl;
+        << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT" << fragment / 1000 << "S\" >" << endl
+        << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
+        << "    <Period start=\"PT0S\">" << endl;
     if (format->acodec) {
-        ss  << "        <AdaptationSet mimeType=\"audio/mp4\" codecs=\"mp4a.40.2\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss  << "            <SegmentTemplate initialization=\"$RepresentationID$/init.mp4\" media=\"$RepresentationID$/$Number$.m4s\" />" << endl;
-        ss  << "            <Representation id=\"audio\" bandwidth=\"48000\"/>" << endl;
+        ss  << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
+        ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
+                                << "initialization=\"$RepresentationID$-init.mp4\" "
+                                << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
+        ss  << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\" />" << endl;
         ss  << "        </AdaptationSet>" << endl;
     }
     if (format->vcodec) {
         int w = format->vcodec->width;
         int h = format->vcodec->height;
-        ss  << "        <AdaptationSet mimeType=\"video/mp4\" codecs=\"avc1.64001e\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss  << "            <SegmentTemplate initialization=\"$RepresentationID$/init.mp4\" media=\"$RepresentationID$/$Number$.m4s\" />" << endl;
-        ss  << "            <Representation id=\"video\" bandwidth=\"800000\" width=\"" << w << "\" height=\"" << h << "\"/>" << endl;
+        ss  << "        <AdaptationSet mimeType=\"video/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
+        ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
+                                << "initialization=\"$RepresentationID$-init.mp4\" "
+                                << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
+        ss  << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" "
+                                << "width=\"" << w << "\" height=\"" << h << "\"/>" << endl;
         ss  << "        </AdaptationSet>" << endl;
     }
     ss  << "    </Period>" << endl
         << "</MPD>" << endl;
     
     SrsFileWriter fw;
-    if ((ret = fw.open(full_path)) != ERROR_SUCCESS) {
-        srs_error("DASH: open MPD file=%s failed, ret=%d", full_path.c_str(), ret);
+    string full_path_tmp = full_path + ".tmp";
+    if ((ret = fw.open(full_path_tmp)) != ERROR_SUCCESS) {
+        srs_error("DASH: open MPD file=%s failed, ret=%d", full_path_tmp.c_str(), ret);
         return ret;
     }
     
     string content = ss.str();
     if ((ret = fw.write((void*)content.data(), content.length(), NULL)) != ERROR_SUCCESS) {
         srs_error("DASH: write MPD file=%s failed, ret=%d", full_path.c_str(), ret);
+        return ret;
+    }
+    
+    if (::rename(full_path_tmp.c_str(), full_path.c_str()) < 0) {
+        ret = ERROR_DASH_WRITE_FAILED;
+        srs_error("DASH: rename %s to %s failed, ret=%d", full_path_tmp.c_str(), full_path.c_str(), ret);
         return ret;
     }
     

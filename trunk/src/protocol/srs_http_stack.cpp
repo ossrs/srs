@@ -787,16 +787,24 @@ int SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabled)
 
 int SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    // method is OPTIONS and enable crossdomain, required crossdomain header.
-    if (r->is_http_options() && enabled) {
-        required = true;
+    // If CORS enabled, and there is a "Origin" header, it's CORS.
+    if (enabled) {
+        for (int i = 0; i < r->request_header_count(); i++) {
+            string k = r->request_header_key_at(i);
+            if (k == "Origin" || k == "origin") {
+                required = true;
+                break;
+            }
+        }
     }
     
-    // whenever crossdomain required, set crossdomain header.
+    // When CORS required, set the CORS headers.
     if (required) {
-        w->header()->set("Access-Control-Allow-Origin", "*");
-        w->header()->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE");
-        w->header()->set("Access-Control-Allow-Headers", "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
+        SrsHttpHeader* h = w->header();
+        h->set("Access-Control-Allow-Origin", "*");
+        h->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE, OPTIONS");
+        h->set("Access-Control-Expose-Headers", "Server,range,Content-Length,Content-Range");
+        h->set("Access-Control-Allow-Headers", "origin,range,accept-encoding,referer,Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
     }
     
     // handle the http options.

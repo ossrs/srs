@@ -261,6 +261,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_FLV_REQUIRE_SPACE             3084
 #define ERROR_MP4_AVCC_CHANGE               3085
 #define ERROR_MP4_ASC_CHANGE                3086
+#define ERROR_DASH_WRITE_FAILED             3087
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.
