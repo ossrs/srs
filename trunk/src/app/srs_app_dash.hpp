@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <string>
+
 class SrsRequest;
 class SrsOriginHub;
 class SrsSharedPtrMessage;
@@ -49,9 +51,27 @@ public:
  */
 class SrsMpdWriter
 {
+private:
+    SrsRequest* req;
+    int64_t last_update_mpd;
+private:
+    // The duration of fragment in ms.
+    int fragment;
+    // The period to update the mpd in ms.
+    int update_period;
+    // The timeshift buffer depth.
+    int timeshit;
+    // The base or home dir for dash to write files.
+    std::string home;
+    // The MPD path template, from which to build the file path.
+    std::string mpd_file;
 public:
     SrsMpdWriter();
     virtual ~SrsMpdWriter();
+public:
+    virtual int initialize(SrsRequest* r);
+    // Write MPD according to parsed format of stream.
+    virtual int write(SrsFormat* format);
 };
 
 /**
@@ -59,9 +79,17 @@ public:
  */
 class SrsDashController
 {
+private:
+    SrsMpdWriter* mpd;
 public:
     SrsDashController();
     virtual ~SrsDashController();
+public:
+    virtual int initialize(SrsRequest* r);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+private:
+    virtual int refresh_mpd(SrsFormat* format);
 };
 
 /**

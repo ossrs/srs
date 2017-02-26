@@ -27,6 +27,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_config.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_kernel_codec.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_kernel_file.hpp>
+
+#include <sstream>
+using namespace std;
 
 SrsFragmentedMp4::SrsFragmentedMp4()
 {
@@ -38,18 +45,150 @@ SrsFragmentedMp4::~SrsFragmentedMp4()
 
 SrsMpdWriter::SrsMpdWriter()
 {
+    req = NULL;
+    timeshit = update_period = fragment = 0;
+    last_update_mpd = -1;
 }
 
 SrsMpdWriter::~SrsMpdWriter()
 {
 }
 
+int SrsMpdWriter::initialize(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    req = r;
+    fragment = _srs_config->get_dash_fragment(r->vhost);
+    update_period = _srs_config->get_dash_update_period(r->vhost);
+    timeshit = _srs_config->get_dash_timeshift(r->vhost);
+    home = _srs_config->get_dash_path(r->vhost);
+    mpd_file = _srs_config->get_dash_mpd_file(r->vhost);
+    
+    return ret;
+}
+
+int SrsMpdWriter::write(SrsFormat* format)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // MPD is not expired?
+    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < update_period) {
+        return ret;
+    }
+    last_update_mpd = srs_get_system_time_ms();
+    
+    string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
+    string full_path = home + "/" + mpd_path;
+    string full_home = srs_path_dirname(full_path);
+    
+    if ((ret = srs_create_dir_recursively(full_home)) != ERROR_SUCCESS) {
+        srs_error("DASH: create MPD home failed, home=%s, ret=%d", full_home.c_str(), ret);
+        return ret;
+    }
+    
+    stringstream ss;
+    ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
+        << "<MPD xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
+        << "    xmlns=\"urn:mpeg:DASH:schema:MPD:2011\" " << endl
+        << "    xsi:schemaLocation=\"urn:mpeg:DASH:schema:MPD:2011 DASH-MPD.xsd\" " << endl
+        << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
+        << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
+        << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT1S\">" << endl
+        << "    <Period>" << endl;
+    if (format->acodec) {
+        ss  << "        <AdaptationSet mimeType=\"audio/mp4\" codecs=\"mp4a.40.2\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
+        ss  << "            <SegmentTemplate initialization=\"$RepresentationID$/init.mp4\" media=\"$RepresentationID$/$Number$.m4s\" />" << endl;
+        ss  << "            <Representation id=\"audio\" bandwidth=\"48000\"/>" << endl;
+        ss  << "        </AdaptationSet>" << endl;
+    }
+    if (format->vcodec) {
+        int w = format->vcodec->width;
+        int h = format->vcodec->height;
+        ss  << "        <AdaptationSet mimeType=\"video/mp4\" codecs=\"avc1.64001e\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
+        ss  << "            <SegmentTemplate initialization=\"$RepresentationID$/init.mp4\" media=\"$RepresentationID$/$Number$.m4s\" />" << endl;
+        ss  << "            <Representation id=\"video\" bandwidth=\"800000\" width=\"" << w << "\" height=\"" << h << "\"/>" << endl;
+        ss  << "        </AdaptationSet>" << endl;
+    }
+    ss  << "    </Period>" << endl
+        << "</MPD>" << endl;
+    
+    SrsFileWriter fw;
+    if ((ret = fw.open(full_path)) != ERROR_SUCCESS) {
+        srs_error("DASH: open MPD file=%s failed, ret=%d", full_path.c_str(), ret);
+        return ret;
+    }
+    
+    string content = ss.str();
+    if ((ret = fw.write((void*)content.data(), content.length(), NULL)) != ERROR_SUCCESS) {
+        srs_error("DASH: write MPD file=%s failed, ret=%d", full_path.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("DASH: refresh MPD successed, size=%dB, file=%s", content.length(), full_path.c_str());
+    
+    return ret;
+}
+
 SrsDashController::SrsDashController()
 {
+    mpd = new SrsMpdWriter();
 }
 
 SrsDashController::~SrsDashController()
 {
+    srs_freep(mpd);
+}
+
+int SrsDashController::initialize(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = mpd->initialize(r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {
+        srs_error("DASH: refresh the MPD failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {
+        srs_error("DASH: refresh the MPD failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDashController::refresh_mpd(SrsFormat* format)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: Support pure audio streaming.
+    if (!format->acodec || !format->vcodec) {
+        return ret;
+    }
+    
+    if ((ret = mpd->write(format)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 SrsDash::SrsDash()
@@ -73,6 +212,11 @@ int SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
     hub = h;
     req = r;
     
+    if ((ret = controller->initialize(req)) != ERROR_SUCCESS) {
+        srs_error("DASH: initialize controller failed. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -88,7 +232,6 @@ int SrsDash::on_publish()
     if (!_srs_config->get_dash_enabled(req->vhost)) {
         return ret;
     }
-    
     enabled = true;
     
     return ret;
@@ -102,6 +245,11 @@ int SrsDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
         return ret;
     }
     
+    if ((ret = controller->on_audio(shared_audio, format)) != ERROR_SUCCESS) {
+        srs_error("DASH: consume audio failed. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -110,6 +258,11 @@ int SrsDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     int ret = ERROR_SUCCESS;
     
     if (!enabled) {
+        return ret;
+    }
+    
+    if ((ret = controller->on_video(shared_video, format)) != ERROR_SUCCESS) {
+        srs_error("DASH: consume video failed. ret=%d", ret);
         return ret;
     }
     

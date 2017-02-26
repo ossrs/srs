@@ -1140,6 +1140,16 @@ private:
 public:
     // Whether DASH is enabled.
     virtual bool                get_dash_enabled(std::string vhost);
+    // Get the duration of segment in milliseconds.
+    virtual int                 get_dash_fragment(std::string vhost);
+    // Get the period to update MPD in milliseconds.
+    virtual int                 get_dash_update_period(std::string vhost);
+    // Get the depth of timeshift buffer in milliseconds.
+    virtual int                 get_dash_timeshift(std::string vhost);
+    // Get the base/home dir/path for dash, into which write files.
+    virtual std::string         get_dash_path(std::string vhost);
+    // Get the path for DASH MPD, to generate the MPD file.
+    virtual std::string         get_dash_mpd_file(std::string vhost);
 // hls section
 private:
     /**

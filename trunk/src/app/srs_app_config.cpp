@@ -3917,7 +3917,8 @@ int SrsConfig::check_config()
             } else if (n == "dash") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled") {
+                    if (m != "enabled" && m != "dash_fragment" && m != "dash_update_period" && m != "dash_timeshift" && m != "dash_path"
+                        && m != "dash_mpd_file") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("Illegal directive %s in vhost.dash, ret=%d", m.c_str(), ret);
                         return ret;
@@ -5986,6 +5987,91 @@ bool SrsConfig::get_dash_enabled(string vhost)
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_dash_fragment(string vhost)
+{
+    static int DEFAULT = 10 * 1000;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_fragment");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (int)(1000 * ::atof(conf->arg0().c_str()));
+}
+
+int SrsConfig::get_dash_update_period(string vhost)
+{
+    static int DEFAULT = 30 * 1000;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_update_period");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (int)(1000 * ::atof(conf->arg0().c_str()));
+}
+
+int SrsConfig::get_dash_timeshift(string vhost)
+{
+    static int DEFAULT = 60 * 1000;
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_timeshift");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (int)(1000 * ::atof(conf->arg0().c_str()));
+}
+
+string SrsConfig::get_dash_path(string vhost)
+{
+    static string DEFAULT = "./objs/nginx/html";
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_path");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_dash_mpd_file(string vhost)
+{
+    static string DEFAULT = "[app]/[stream].mpd";
+    
+    SrsConfDirective* conf = get_dash(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("dash_mpd_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_hls(string vhost)

@@ -374,6 +374,11 @@ int SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r,
         _mime[".jpeg"] = "image/jpeg";
         _mime[".jpg"] = "image/jpeg";
         _mime[".gif"] = "image/gif";
+        // For MPEG-DASH.
+        //_mime[".mpd"] = "application/dash+xml";
+        _mime[".mpd"] = "text/xml";
+        _mime[".m4s"] = "video/iso.segment";
+        _mime[".mp4v"] = "video/mp4";
     }
     
     if (true) {

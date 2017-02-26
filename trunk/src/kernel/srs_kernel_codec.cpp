@@ -652,13 +652,13 @@ int SrsFormat::on_aac_sequence_header(char* data, int size)
 bool SrsFormat::is_aac_sequence_header()
 {
     return acodec && acodec->id == SrsAudioCodecIdAAC
-    && audio && audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader;
+        && audio && audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader;
 }
 
 bool SrsFormat::is_avc_sequence_header()
 {
     return vcodec && vcodec->id == SrsVideoCodecIdAVC
-    && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
+        && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
