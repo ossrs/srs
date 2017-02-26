@@ -636,7 +636,7 @@ Please select your language:
 
 ### Compare
 
-Compare SRS with other media server.
+Compare SRS with other media server, more compare please read Product([CN](v1_CN_Compare)/[EN](v1_EN_Compare)).
 
 #### Stream Delivery
 
@@ -659,6 +659,7 @@ Compare SRS with other media server.
 |   Reload      |   Stable  |   X       |   X       |   X       |   X       |
 |   Forward     |   Stable  |   X       |   X       |   X       |   X       |
 |   ATC         |   Stable  |   X       |   X       |   X       |   X       |
+|   KAFKA       | Experiment|   X       |   X       |   X       |   X       |
 
 #### Stream Service
 
@@ -666,6 +667,7 @@ Compare SRS with other media server.
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
 |   DVR API     |   Stable  |   Stable  |   X       |   X       |   X       |
+|   DVR MP4     |   Stable  |   X       |   X       |   X       |   X       |
 |   EXEC        |   Stable  |   Stable  |   X       |   X       |   X       |
 |   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
 |   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
@@ -717,7 +719,7 @@ Compare SRS with other media server.
 Remark:
 
 1. Concurrency: The concurrency of single process.
-1. MultipleProcess: SRS is single process, while [srs-dolphin][srs-dolphin] is a MultipleProcess SRS.
+1. MultipleProcess: SRS is single process, while [go-oryx][oryx] is a MultipleProcess SRS.
 1. HLS aonly: The HLS audio only streaming delivery.
 1. BW check: The bandwidth check.
 1. Security: To allow or deny stream publish or play.
@@ -729,7 +731,7 @@ Performance benchmark history, on virtual box.
 
 * See also: [Performance for x86/x64 Test Guide][v1_CN_Performance]
 * See also: [Performance for RaspberryPi][v1_CN_RaspberryPi]
-* About multiple-process performance, read [srs-dolphin][srs-dolphin].
+* About multiple-process performance, read [go-oryx][oryx].
 
 #### Play RTMP benchmark
 
