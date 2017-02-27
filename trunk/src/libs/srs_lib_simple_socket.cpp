@@ -252,7 +252,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         
         return ret;
     }
-    bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm)
+    int srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm)
     {
         return tm == SRS_CONSTS_NO_TMMS;
     }

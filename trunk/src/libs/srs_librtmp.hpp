@@ -73,16 +73,24 @@ extern "C"{
 #endif
 
 /**
-* the schema of url, now bravo support 4 kinds of url:
+* The schema of RTMP url, the following are legal urls:
 *     srs_url_schema_normal:    rtmp://vhost:port/app/stream
 *     srs_url_schema_via   :    rtmp://ip:port/vhost/app/stream
 *     srs_url_schema_vis   :    rtmp://ip:port/app/stream?vhost=xxx
 *     srs_url_schema_vis2  :    rtmp://ip:port/app/stream?domain=xxx
 */
 enum srs_url_schema{
+    // Normal RTMP URL, the vhost put in host field, using DNS to resolve the server ip.
+    // For example, rtmp://vhost:port/app/stream
     srs_url_schema_normal = 0,
+    // VIA(vhost in app), the vhost put in app field.
+    // For example, rtmp://ip:port/vhost/app/stream
     srs_url_schema_via,
+    // VIS(vhost in stream), the vhost put in query string, keyword use vhost=xxx.
+    // For example, rtmp://ip:port/app/stream?vhost=xxx
     srs_url_schema_vis,
+    // VIS, keyword use domain=xxx.
+    // For example, rtmp://ip:port/app/stream?domain=xxx
     srs_url_schema_vis2
 };
 
@@ -1139,10 +1147,9 @@ typedef void* srs_hijack_io_t;
     extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
     /**
      * whether the timeout is never timeout in ms.
-     * @return 0, success; otherswise, failed.
+     * @return 0, with timeout specified; otherwise, never timeout.
      */
-    // TODO: FIXME: Upgrade srs-bench and change the us to ms for timeout.
-    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
+    extern int srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
      * read fully, fill the buf exactly size bytes.
      * @return 0, success; otherswise, failed.
