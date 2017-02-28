@@ -72,6 +72,7 @@ struct Context
     std::string app;
     std::string stream;
     std::string param;
+    srs_url_schema schema;
 
     // extra request object for connect to server, NULL to ignore.
     SrsRequest* req;
@@ -122,6 +123,7 @@ struct Context
         h264_sps_changed = false;
         h264_pps_changed = false;
         rtimeout = stimeout = SRS_CONSTS_NO_TMMS;
+        schema = srs_url_schema_forbidden;
     }
     virtual ~Context() {
         srs_freep(req);
@@ -741,11 +743,22 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
-
-    string tcUrl = srs_generate_tc_url(
-            context->ip, context->vhost, context->app, context->port,
-            context->param
-        );
+    
+    string tcUrl;
+    switch(context->schema) {
+        case srs_url_schema_normal:
+            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_via:
+            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_vis:
+        case srs_url_schema_vis2:
+            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        default:
+            break;
+    }
     
     if ((ret = context->rtmp->connect_app(
         context->app, tcUrl, context->req, true)) != ERROR_SUCCESS) 
@@ -774,10 +787,21 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    string tcUrl = srs_generate_tc_url(
-        context->ip, context->vhost, context->app, context->port,
-        context->param
-    );
+    string tcUrl;
+    switch(context->schema) {
+        case srs_url_schema_normal:
+            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_via:
+            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        case srs_url_schema_vis:
+        case srs_url_schema_vis2:
+            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
+            break;
+        default:
+            break;
+    }
     
     std::string sip, sserver, sprimary, sauthors, sversion;
     
@@ -795,34 +819,14 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     return ret;
 }
 
-int srs_rtmp_connect_app3(srs_rtmp_t rtmp, enum srs_url_schema sus)
+int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema)
 {
     int ret = ERROR_SUCCESS;
 
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
-
-    string tcUrl;
-    switch(sus) {
-        case srs_url_schema_normal:
-            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        case srs_url_schema_via:
-            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        case srs_url_schema_vis:
-        case srs_url_schema_vis2:
-            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        default:
-            break;
-    }
-
-    if ((ret = context->rtmp->connect_app(
-            context->app, tcUrl, context->req, true)) != ERROR_SUCCESS)
-    {
-        return ret;
-    }
+    
+    context->schema = schema;
 
     return ret;
 }

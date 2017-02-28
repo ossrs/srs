@@ -549,22 +549,22 @@ fi
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
-if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
-    echo "CherryPy-3.2.4 is ok.";
-else
-    require_sudoer "install CherryPy-3.2.4"
-    echo "Installing CherryPy-3.2.4";
-    (
-        sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
-        unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
-        sudo python setup.py install
-    )
-fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
-
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
+        echo "CherryPy-3.2.4 is ok.";
+    else
+        require_sudoer "install CherryPy-3.2.4"
+        echo "Installing CherryPy-3.2.4";
+        (
+            sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
+            sudo python setup.py install
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+
     echo "Link players to cherrypy static-dir"
     rm -rf research/api-server/static-dir/players &&
     ln -sf `pwd`/research/players research/api-server/static-dir/players &&

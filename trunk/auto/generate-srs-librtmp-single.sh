@@ -59,7 +59,7 @@ ret=$?; if [[ $ret -ne 0 ]]; then
     echo -e "${RED}failed to generate the srs_librtmp.cpp${BLACK}"
     exit $ret
 fi
-# module to cpp files.
+# module to hpp files.
 function build_module_hpp()
 {
     echo "build files ${SRS_LIBRTMP_OBJS} to $FILE"
