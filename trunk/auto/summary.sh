@@ -23,6 +23,7 @@ SrsGperfMDSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MD = YES ]; then 
 SrsGperfMPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\${YELLOW}"; fi
 SrsGperfCPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
 SrsGprofSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
+SrsValgrindSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_VALGRIND = YES ]; then SrsValgrindSummaryColor="\${GREEN}"; fi
 
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
@@ -54,6 +55,7 @@ echo -e "     |     ${SrsHttpServerSummaryColor}Aoubt embeded http-server, pleas
 echo -e "     |     ${SrsHttpApiSummaryColor}About http-api, please read https://github.com/ossrs/srs/wiki/v3_CN_HTTPApi\${BLACK}"
 echo -e "     |     ${SrsStreamCasterSummaryColor}About stream-caster, please read https://github.com/ossrs/srs/wiki/v2_CN_Streamer\${BLACK}"
 echo -e "     |     ${SrsKafkaSummaryColor}About kafka, please read https://github.com/ossrs/srs/wiki/v3_CN_Kafka\${BLACK}"
+echo -e "     |     ${SrsValgrindSummaryColor}About VALGRIND, please read https://github.com/ossrs/state-threads/issues/2\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries, please read https://github.com/ossrs/srs/wiki/v2_CN_Build\${BLACK}"
 

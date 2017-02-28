@@ -98,21 +98,6 @@
 		3C663F181AB0155100286D8B /* srs_play.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0B1AB0155100286D8B /* srs_play.c */; };
 		3C663F191AB0155100286D8B /* srs_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0C1AB0155100286D8B /* srs_publish.c */; };
 		3C663F1A1AB0155100286D8B /* srs_rtmp_dump.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0D1AB0155100286D8B /* srs_rtmp_dump.c */; };
-		3C689F961AB6AAAC00C9CEEE /* event.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F921AB6AAAC00C9CEEE /* event.c */; };
-		3C689F971AB6AAAC00C9CEEE /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F931AB6AAAC00C9CEEE /* io.c */; };
-		3C689F981AB6AAAC00C9CEEE /* key.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F941AB6AAAC00C9CEEE /* key.c */; };
-		3C689F9E1AB6AAC800C9CEEE /* md.S in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F991AB6AAC800C9CEEE /* md.S */; };
-		3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9B1AB6AAC800C9CEEE /* sched.c */; };
-		3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9C1AB6AAC800C9CEEE /* stk.c */; };
-		3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9D1AB6AAC800C9CEEE /* sync.c */; };
-		3C7175B21E1DEA8000E8C49F /* event.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175A81E1DEA8000E8C49F /* event.c */; };
-		3C7175B31E1DEA8000E8C49F /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175A91E1DEA8000E8C49F /* io.c */; };
-		3C7175B41E1DEA8000E8C49F /* key.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175AA1E1DEA8000E8C49F /* key.c */; };
-		3C7175B51E1DEA8000E8C49F /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175AB1E1DEA8000E8C49F /* Makefile */; };
-		3C7175B61E1DEA8000E8C49F /* md.S in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175AD1E1DEA8000E8C49F /* md.S */; };
-		3C7175B71E1DEA8000E8C49F /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175AF1E1DEA8000E8C49F /* sched.c */; };
-		3C7175B81E1DEA8000E8C49F /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175B01E1DEA8000E8C49F /* stk.c */; };
-		3C7175B91E1DEA8000E8C49F /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C7175B11E1DEA8000E8C49F /* sync.c */; };
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
 		3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */; };
 		3C9F82221E4ECA8200F5B2D2 /* srs_app_dash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */; };
@@ -120,6 +105,14 @@
 		3CA432A81E3F46DD001DA0C6 /* srs_kernel_io.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A61E3F46DD001DA0C6 /* srs_kernel_io.cpp */; };
 		3CA432AB1E40AEBC001DA0C6 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432A91E40AEBC001DA0C6 /* Makefile */; };
 		3CA432AC1E40AEBC001DA0C6 /* srs_ingest_mp4.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */; };
+		3CA5F1411E65543700E442C7 /* event.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F1371E65543700E442C7 /* event.c */; };
+		3CA5F1421E65543700E442C7 /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F1381E65543700E442C7 /* io.c */; };
+		3CA5F1431E65543700E442C7 /* key.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F1391E65543700E442C7 /* key.c */; };
+		3CA5F1441E65543700E442C7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F13A1E65543700E442C7 /* Makefile */; };
+		3CA5F1451E65543700E442C7 /* md.S in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F13C1E65543700E442C7 /* md.S */; };
+		3CA5F1461E65543700E442C7 /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F13E1E65543700E442C7 /* sched.c */; };
+		3CA5F1471E65543700E442C7 /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F13F1E65543700E442C7 /* stk.c */; };
+		3CA5F1481E65543700E442C7 /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CA5F1401E65543700E442C7 /* sync.c */; };
 		3CB25C2A1BB269FD00C97A63 /* jmp_sp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */; };
 		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
 		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
@@ -377,27 +370,6 @@
 		3C663F0D1AB0155100286D8B /* srs_rtmp_dump.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_rtmp_dump.c; path = ../../../research/librtmp/srs_rtmp_dump.c; sourceTree = "<group>"; };
 		3C6673CF1DF7B93200A6DF57 /* readme.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = readme.txt; path = ../../../modules/readme.txt; sourceTree = "<group>"; };
 		3C6673D11DF7B95E00A6DF57 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/hls-ingester/config"; sourceTree = "<group>"; };
-		3C689F911AB6AAAC00C9CEEE /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = "../../objs/st-1.9/common.h"; sourceTree = "<group>"; };
-		3C689F921AB6AAAC00C9CEEE /* event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = event.c; path = "../../objs/st-1.9/event.c"; sourceTree = "<group>"; };
-		3C689F931AB6AAAC00C9CEEE /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = "../../objs/st-1.9/io.c"; sourceTree = "<group>"; };
-		3C689F941AB6AAAC00C9CEEE /* key.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = key.c; path = "../../objs/st-1.9/key.c"; sourceTree = "<group>"; };
-		3C689F951AB6AAAC00C9CEEE /* md.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = md.h; path = "../../objs/st-1.9/md.h"; sourceTree = "<group>"; };
-		3C689F991AB6AAC800C9CEEE /* md.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = md.S; path = "../../objs/st-1.9/md.S"; sourceTree = "<group>"; };
-		3C689F9A1AB6AAC800C9CEEE /* public.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = public.h; path = "../../objs/st-1.9/public.h"; sourceTree = "<group>"; };
-		3C689F9B1AB6AAC800C9CEEE /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../objs/st-1.9/sched.c"; sourceTree = "<group>"; };
-		3C689F9C1AB6AAC800C9CEEE /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../objs/st-1.9/stk.c"; sourceTree = "<group>"; };
-		3C689F9D1AB6AAC800C9CEEE /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../objs/st-1.9/sync.c"; sourceTree = "<group>"; };
-		3C7175A71E1DEA8000E8C49F /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = "../../../objs/state-threads-1.9.1/common.h"; sourceTree = "<group>"; };
-		3C7175A81E1DEA8000E8C49F /* event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = event.c; path = "../../../objs/state-threads-1.9.1/event.c"; sourceTree = "<group>"; };
-		3C7175A91E1DEA8000E8C49F /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = "../../../objs/state-threads-1.9.1/io.c"; sourceTree = "<group>"; };
-		3C7175AA1E1DEA8000E8C49F /* key.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = key.c; path = "../../../objs/state-threads-1.9.1/key.c"; sourceTree = "<group>"; };
-		3C7175AB1E1DEA8000E8C49F /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = "../../../objs/state-threads-1.9.1/Makefile"; sourceTree = "<group>"; };
-		3C7175AC1E1DEA8000E8C49F /* md.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = md.h; path = "../../../objs/state-threads-1.9.1/md.h"; sourceTree = "<group>"; };
-		3C7175AD1E1DEA8000E8C49F /* md.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = md.S; path = "../../../objs/state-threads-1.9.1/md.S"; sourceTree = "<group>"; };
-		3C7175AE1E1DEA8000E8C49F /* public.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = public.h; path = "../../../objs/state-threads-1.9.1/public.h"; sourceTree = "<group>"; };
-		3C7175AF1E1DEA8000E8C49F /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../../objs/state-threads-1.9.1/sched.c"; sourceTree = "<group>"; };
-		3C7175B01E1DEA8000E8C49F /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../../objs/state-threads-1.9.1/stk.c"; sourceTree = "<group>"; };
-		3C7175B11E1DEA8000E8C49F /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../../objs/state-threads-1.9.1/sync.c"; sourceTree = "<group>"; };
 		3C8280241BAFF896004A1794 /* compatible.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = compatible.conf; path = ../../../conf/compatible.conf; sourceTree = "<group>"; };
 		3C8280251BAFF896004A1794 /* full.one.vhost.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = full.one.vhost.conf; path = ../../../conf/full.one.vhost.conf; sourceTree = "<group>"; };
 		3C8280261BAFF896004A1794 /* http.flv.live.edge1.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge1.conf; path = ../../../conf/http.flv.live.edge1.conf; sourceTree = "<group>"; };
@@ -416,6 +388,17 @@
 		3CA432A71E3F46DD001DA0C6 /* srs_kernel_io.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_kernel_io.hpp; path = ../../../src/kernel/srs_kernel_io.hpp; sourceTree = "<group>"; };
 		3CA432A91E40AEBC001DA0C6 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../research/librtmp/Makefile; sourceTree = "<group>"; };
 		3CA432AA1E40AEBC001DA0C6 /* srs_ingest_mp4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_ingest_mp4.c; path = ../../../research/librtmp/srs_ingest_mp4.c; sourceTree = "<group>"; };
+		3CA5F1361E65543700E442C7 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = common.h; path = "../../../objs/st-1.9/common.h"; sourceTree = "<group>"; };
+		3CA5F1371E65543700E442C7 /* event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = event.c; path = "../../../objs/st-1.9/event.c"; sourceTree = "<group>"; };
+		3CA5F1381E65543700E442C7 /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = "../../../objs/st-1.9/io.c"; sourceTree = "<group>"; };
+		3CA5F1391E65543700E442C7 /* key.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = key.c; path = "../../../objs/st-1.9/key.c"; sourceTree = "<group>"; };
+		3CA5F13A1E65543700E442C7 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = "../../../objs/st-1.9/Makefile"; sourceTree = "<group>"; };
+		3CA5F13B1E65543700E442C7 /* md.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = md.h; path = "../../../objs/st-1.9/md.h"; sourceTree = "<group>"; };
+		3CA5F13C1E65543700E442C7 /* md.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = md.S; path = "../../../objs/st-1.9/md.S"; sourceTree = "<group>"; };
+		3CA5F13D1E65543700E442C7 /* public.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = public.h; path = "../../../objs/st-1.9/public.h"; sourceTree = "<group>"; };
+		3CA5F13E1E65543700E442C7 /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../../objs/st-1.9/sched.c"; sourceTree = "<group>"; };
+		3CA5F13F1E65543700E442C7 /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../../objs/st-1.9/stk.c"; sourceTree = "<group>"; };
+		3CA5F1401E65543700E442C7 /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../../objs/st-1.9/sync.c"; sourceTree = "<group>"; };
 		3CB25C281BB2596300C97A63 /* setup_variables.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = setup_variables.sh; path = ../../../auto/setup_variables.sh; sourceTree = "<group>"; };
 		3CB25C291BB269FD00C97A63 /* jmp_sp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = jmp_sp.cpp; path = ../../../research/arm/jmp_sp.cpp; sourceTree = "<group>"; };
 		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
@@ -457,7 +440,6 @@
 		3C1231DC1AAE64A400CE8F6C = {
 			isa = PBXGroup;
 			children = (
-				3C689F901AB6AA9100C9CEEE /* st-1.9 */,
 				3C1EE6D21AB1366500576EE9 /* doc */,
 				3C1231E61AAE64A400CE8F6C /* Products */,
 				3C1232EE1AAEA71C00CE8F6C /* links */,
@@ -491,7 +473,7 @@
 				3C1EE6AF1AB107EE00576EE9 /* conf */,
 				3C1232EF1AAEAC5800CE8F6C /* etc */,
 				3C1232B91AAE825100CE8F6C /* scripts */,
-				3C7175A61E1DEA0500E8C49F /* state-threads */,
+				3C7175A61E1DEA0500E8C49F /* st */,
 			);
 			path = srs_xcode;
 			sourceTree = "<group>";
@@ -863,39 +845,22 @@
 			name = "hls-ingester";
 			sourceTree = "<group>";
 		};
-		3C689F901AB6AA9100C9CEEE /* st-1.9 */ = {
+		3C7175A61E1DEA0500E8C49F /* st */ = {
 			isa = PBXGroup;
 			children = (
-				3C689F991AB6AAC800C9CEEE /* md.S */,
-				3C689F9A1AB6AAC800C9CEEE /* public.h */,
-				3C689F9B1AB6AAC800C9CEEE /* sched.c */,
-				3C689F9C1AB6AAC800C9CEEE /* stk.c */,
-				3C689F9D1AB6AAC800C9CEEE /* sync.c */,
-				3C689F911AB6AAAC00C9CEEE /* common.h */,
-				3C689F921AB6AAAC00C9CEEE /* event.c */,
-				3C689F931AB6AAAC00C9CEEE /* io.c */,
-				3C689F941AB6AAAC00C9CEEE /* key.c */,
-				3C689F951AB6AAAC00C9CEEE /* md.h */,
+				3CA5F1361E65543700E442C7 /* common.h */,
+				3CA5F1371E65543700E442C7 /* event.c */,
+				3CA5F1381E65543700E442C7 /* io.c */,
+				3CA5F1391E65543700E442C7 /* key.c */,
+				3CA5F13A1E65543700E442C7 /* Makefile */,
+				3CA5F13B1E65543700E442C7 /* md.h */,
+				3CA5F13C1E65543700E442C7 /* md.S */,
+				3CA5F13D1E65543700E442C7 /* public.h */,
+				3CA5F13E1E65543700E442C7 /* sched.c */,
+				3CA5F13F1E65543700E442C7 /* stk.c */,
+				3CA5F1401E65543700E442C7 /* sync.c */,
 			);
-			name = "st-1.9";
-			sourceTree = "<group>";
-		};
-		3C7175A61E1DEA0500E8C49F /* state-threads */ = {
-			isa = PBXGroup;
-			children = (
-				3C7175A71E1DEA8000E8C49F /* common.h */,
-				3C7175A81E1DEA8000E8C49F /* event.c */,
-				3C7175A91E1DEA8000E8C49F /* io.c */,
-				3C7175AA1E1DEA8000E8C49F /* key.c */,
-				3C7175AB1E1DEA8000E8C49F /* Makefile */,
-				3C7175AC1E1DEA8000E8C49F /* md.h */,
-				3C7175AD1E1DEA8000E8C49F /* md.S */,
-				3C7175AE1E1DEA8000E8C49F /* public.h */,
-				3C7175AF1E1DEA8000E8C49F /* sched.c */,
-				3C7175B01E1DEA8000E8C49F /* stk.c */,
-				3C7175B11E1DEA8000E8C49F /* sync.c */,
-			);
-			name = "state-threads";
+			name = st;
 			sourceTree = "<group>";
 		};
 		3C96ADC41B00A71000885304 /* modules */ = {
@@ -986,13 +951,9 @@
 			files = (
 				3C1232951AAE81D900CE8F6C /* srs_app_config.cpp in Sources */,
 				3C663F0F1AB0155100286D8B /* srs_aac_raw_publish.c in Sources */,
-				3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */,
 				3CD88B3F1ACA9C58000359E0 /* srs_app_async_call.cpp in Sources */,
 				3C1232961AAE81D900CE8F6C /* srs_app_conn.cpp in Sources */,
 				3C12322A1AAE814D00CE8F6C /* srs_kernel_ts.cpp in Sources */,
-				3C7175B51E1DEA8000E8C49F /* Makefile in Sources */,
-				3C7175B71E1DEA8000E8C49F /* sched.c in Sources */,
-				3C7175B21E1DEA8000E8C49F /* event.c in Sources */,
 				3C12329E1AAE81D900CE8F6C /* srs_app_hls.cpp in Sources */,
 				3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */,
 				3C663F171AB0155100286D8B /* srs_ingest_rtmp.c in Sources */,
@@ -1001,23 +962,24 @@
 				3C24ECCD1C3B824800460622 /* memory.error.notcmalloc.cpp in Sources */,
 				3C1232971AAE81D900CE8F6C /* srs_app_dvr.cpp in Sources */,
 				3CD247C31BB3F14100DC1922 /* srs_kernel_balance.cpp in Sources */,
-				3C7175B31E1DEA8000E8C49F /* io.c in Sources */,
 				3C1232271AAE814D00CE8F6C /* srs_kernel_log.cpp in Sources */,
-				3C689F961AB6AAAC00C9CEEE /* event.c in Sources */,
 				3C1232A81AAE81D900CE8F6C /* srs_app_log.cpp in Sources */,
 				3C1232A41AAE81D900CE8F6C /* srs_app_ingest.cpp in Sources */,
 				3C0D422E1B87165900C2508B /* srs_protocol_json.cpp in Sources */,
 				3C1232B41AAE81D900CE8F6C /* srs_app_st.cpp in Sources */,
 				3C9F82221E4ECA8200F5B2D2 /* srs_app_dash.cpp in Sources */,
 				3C1232481AAE81A400CE8F6C /* srs_rtmp_stack.cpp in Sources */,
-				3C7175B91E1DEA8000E8C49F /* sync.c in Sources */,
+				3CA5F1451E65543700E442C7 /* md.S in Sources */,
 				3C1232B01AAE81D900CE8F6C /* srs_app_security.cpp in Sources */,
 				3C12322B1AAE814D00CE8F6C /* srs_kernel_utility.cpp in Sources */,
+				3CA5F1411E65543700E442C7 /* event.c in Sources */,
 				3C12324A1AAE81A400CE8F6C /* srs_rtsp_stack.cpp in Sources */,
 				3C36DB5D1ABD1CB90066CCAF /* srs_librtmp.cpp in Sources */,
+				3CA5F1421E65543700E442C7 /* io.c in Sources */,
 				3C12329F1AAE81D900CE8F6C /* srs_app_http_api.cpp in Sources */,
 				3C1EE6AE1AB1055800576EE9 /* srs_app_hds.cpp in Sources */,
 				3C663F101AB0155100286D8B /* srs_audio_raw_publish.c in Sources */,
+				3CA5F1431E65543700E442C7 /* key.c in Sources */,
 				3C663F111AB0155100286D8B /* srs_bandwidth_check.c in Sources */,
 				3CC52DDE1ACE4023006FEB01 /* srs_utest.cpp in Sources */,
 				3C1232A11AAE81D900CE8F6C /* srs_app_http_conn.cpp in Sources */,
@@ -1025,10 +987,8 @@
 				3C1232991AAE81D900CE8F6C /* srs_app_empty.cpp in Sources */,
 				3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */,
 				3C36DB5C1ABD1CB90066CCAF /* srs_lib_simple_socket.cpp in Sources */,
-				3C7175B61E1DEA8000E8C49F /* md.S in Sources */,
 				3C1232201AAE814D00CE8F6C /* srs_kernel_aac.cpp in Sources */,
 				3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */,
-				3C7175B81E1DEA8000E8C49F /* stk.c in Sources */,
 				3C1232941AAE81D900CE8F6C /* srs_app_bandwidth.cpp in Sources */,
 				3C1232221AAE814D00CE8F6C /* srs_kernel_codec.cpp in Sources */,
 				3C1232B71AAE81D900CE8F6C /* srs_app_utility.cpp in Sources */,
@@ -1037,6 +997,7 @@
 				3C663F151AB0155100286D8B /* srs_h264_raw_publish.c in Sources */,
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
 				3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */,
+				3CA5F1481E65543700E442C7 /* sync.c in Sources */,
 				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
 				3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */,
 				3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */,
@@ -1045,11 +1006,10 @@
 				3C9F82251E4F5D2A00F5B2D2 /* srs_protocol_format.cpp in Sources */,
 				3C0E1B8D1B0F5ADF003ADEF7 /* srs_http_stack.cpp in Sources */,
 				3C1232A01AAE81D900CE8F6C /* srs_app_http_client.cpp in Sources */,
-				3C689F981AB6AAAC00C9CEEE /* key.c in Sources */,
-				3C7175B41E1DEA8000E8C49F /* key.c in Sources */,
 				3C12329B1AAE81D900CE8F6C /* srs_app_ffmpeg.cpp in Sources */,
 				3C1232421AAE81A400CE8F6C /* srs_protocol_amf0.cpp in Sources */,
 				3C4AB9331B8C9148006627D3 /* srs_app_ng_exec.cpp in Sources */,
+				3CA5F1471E65543700E442C7 /* stk.c in Sources */,
 				3C1232AA1AAE81D900CE8F6C /* srs_app_pithy_print.cpp in Sources */,
 				3C12329C1AAE81D900CE8F6C /* srs_app_forward.cpp in Sources */,
 				3C1232251AAE814D00CE8F6C /* srs_kernel_file.cpp in Sources */,
@@ -1058,7 +1018,6 @@
 				3C1232A21AAE81D900CE8F6C /* srs_app_http_hooks.cpp in Sources */,
 				3C663F121AB0155100286D8B /* srs_detect_rtmp.c in Sources */,
 				3C1232B11AAE81D900CE8F6C /* srs_app_server.cpp in Sources */,
-				3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */,
 				3C1232061AAE812C00CE8F6C /* srs_main_server.cpp in Sources */,
 				3C1232281AAE814D00CE8F6C /* srs_kernel_mp3.cpp in Sources */,
 				3CA432AC1E40AEBC001DA0C6 /* srs_ingest_mp4.c in Sources */,
@@ -1070,10 +1029,10 @@
 				3C4F97121B8B466D00FF0E46 /* srs_app_process.cpp in Sources */,
 				3C1232981AAE81D900CE8F6C /* srs_app_edge.cpp in Sources */,
 				3CC52DDB1ACE4023006FEB01 /* srs_utest_kernel.cpp in Sources */,
-				3C689F9E1AB6AAC800C9CEEE /* md.S in Sources */,
 				3C1232461AAE81A400CE8F6C /* srs_rtmp_msg_array.cpp in Sources */,
 				3C1232A71AAE81D900CE8F6C /* srs_app_listener.cpp in Sources */,
 				3C1232261AAE814D00CE8F6C /* srs_kernel_flv.cpp in Sources */,
+				3CA5F1441E65543700E442C7 /* Makefile in Sources */,
 				3C036B551B2D0AC10078E2E0 /* srs_app_http_static.cpp in Sources */,
 				3C663F1A1AB0155100286D8B /* srs_rtmp_dump.c in Sources */,
 				3CE6CD311AE4AFB800706E07 /* srs_main_ingest_hls.cpp in Sources */,
@@ -1086,7 +1045,6 @@
 				3C1232441AAE81A400CE8F6C /* srs_rtmp_handshake.cpp in Sources */,
 				3C1232291AAE814D00CE8F6C /* srs_kernel_buffer.cpp in Sources */,
 				3C663F181AB0155100286D8B /* srs_play.c in Sources */,
-				3C689F971AB6AAAC00C9CEEE /* io.c in Sources */,
 				3C1232B61AAE81D900CE8F6C /* srs_app_thread.cpp in Sources */,
 				3C1232A91AAE81D900CE8F6C /* srs_app_mpegts_udp.cpp in Sources */,
 				3C1232AE1AAE81D900CE8F6C /* srs_app_rtmp_conn.cpp in Sources */,
@@ -1101,10 +1059,10 @@
 				3C1232AF1AAE81D900CE8F6C /* srs_app_rtsp.cpp in Sources */,
 				3CA432A81E3F46DD001DA0C6 /* srs_kernel_io.cpp in Sources */,
 				3CC52DDD1ACE4023006FEB01 /* srs_utest_reload.cpp in Sources */,
-				3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */,
 				3C068D6A1B10149F00AA722C /* srs_protocol_kbps.cpp in Sources */,
 				3C12329A1AAE81D900CE8F6C /* srs_app_encoder.cpp in Sources */,
 				3C44AACF1E3AF50200D4ABC3 /* srs_kernel_mp4.cpp in Sources */,
+				3CA5F1461E65543700E442C7 /* sched.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

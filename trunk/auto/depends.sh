@@ -101,19 +101,23 @@ function Ubuntu_prepare()
         sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
     fi
-    
-    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing valgrind."
-        require_sudoer "sudo apt-get install -y --force-yes valgrind"
-        sudo apt-get install -y --force-yes valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The valgrind is installed."
+
+    if [[ $SRS_VALGRIND == YES ]]; then
+        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing valgrind."
+            require_sudoer "sudo apt-get install -y --force-yes valgrind"
+            sudo apt-get install -y --force-yes valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "The valgrind is installed."
+        fi
     fi
-        
-    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-        echo "Installing valgrind-dev."
-        require_sudoer "sudo apt-get install -y --force-yes valgrind-dev"
-        sudo apt-get install -y --force-yes valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The valgrind-dev is installed."
+
+    if [[ $SRS_VALGRIND == YES ]]; then
+        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+            echo "Installing valgrind-dev."
+            require_sudoer "sudo apt-get install -y --force-yes valgrind-dev"
+            sudo apt-get install -y --force-yes valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "The valgrind-dev is installed."
+        fi
     fi
 
     if [ $SRS_NGINX = YES ]; then
@@ -208,19 +212,23 @@ function Centos_prepare()
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
     fi
-    
-    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing valgrind."
-        require_sudoer "sudo yum install -y valgrind"
-        sudo yum install -y valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The valgrind is installed."
+
+    if [[ $SRS_VALGRIND == YES ]]; then
+        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing valgrind."
+            require_sudoer "sudo yum install -y valgrind"
+            sudo yum install -y valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "The valgrind is installed."
+        fi
     fi
 
-    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-        echo "Installing valgrind-devel."
-        require_sudoer "sudo yum install -y valgrind-devel"
-        sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The valgrind-devel is installed."
+    if [[ $SRS_VALGRIND == YES ]]; then
+        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+            echo "Installing valgrind-devel."
+            require_sudoer "sudo yum install -y valgrind-devel"
+            sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "The valgrind-devel is installed."
+        fi
     fi
 
     if [ $SRS_NGINX = YES ]; then
@@ -341,12 +349,14 @@ function OSX_prepare()
         brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
     fi
-    
-    valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing valgrind."
-        echo "brew install valgrind"
-        brew install valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The valgrind is installed."
+
+    if [[ $SRS_VALGRIND == YES ]]; then
+        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing valgrind."
+            echo "brew install valgrind"
+            brew install valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "The valgrind is installed."
+        fi
     fi
 
     if [ $SRS_NGINX = YES ]; then
@@ -436,10 +446,13 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL -DMD_VALGRIND"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE -DMD_VALGRIND -I/usr/local/include"
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE -I/usr/local/include"
+    fi
+    if [[ $SRS_VALGRIND == YES ]]; then
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
     if [ $SRS_CROSS_BUILD = YES ]; then

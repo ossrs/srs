@@ -636,6 +636,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Note: The mips-ubuntu12 is disabled.${BLACK}"
     fi
+    if [ $SRS_VALGRIND = YES ]; then
+        echo -e "${GREEN}The valgrind is enabled.${BLACK}"
+    else
+        echo -e "${GREEN}Note: The valgrind is disabled.${BLACK}"
+    fi
     # add each modules for application
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         echo -e "${GREEN}Enable module: $SRS_MODULE${BLACK}"

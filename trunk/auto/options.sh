@@ -72,6 +72,8 @@ SRS_MEM_WATCH=NO
 SRS_EXPORT_LIBRTMP_PROJECT=NO
 # export the srs-librtmp to a single .h and .c, NO to disable it.
 SRS_EXPORT_LIBRTMP_SINGLE=NO
+# valgrind
+SRS_VALGRIND=YES
 #
 ################################################################
 # presets
@@ -201,6 +203,7 @@ Experts:
   --memory-watch                    enable memory watch to detect memory leaking(hurts performance).
   --export-librtmp-project=<path>   export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    export srs-librtmp to a single file(.h+.cpp) in path.
+  --no-valgrind                     donot support valgrind for memory check.
 
 Workflow:
   1. apply "Presets". if not specified, use default preset.
@@ -290,6 +293,7 @@ function parse_user_option() {
         --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
+        --no-valgrind)                  SRS_VALGRIND=NO             ;;
 
         --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
         --with-http-api)                SRS_HTTP_API=YES            ;;
