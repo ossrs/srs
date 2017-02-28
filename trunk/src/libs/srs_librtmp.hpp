@@ -63,6 +63,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         void  *iov_base;    /* Starting address */
         size_t iov_len;     /* Number of bytes to transfer */
     };
+
+    // for pid.
+    typedef int pid_t;
+    pid_t getpid(void);
 #endif
 
 #include <stdint.h>
@@ -1051,13 +1055,30 @@ extern const char* srs_human_format_time();
     // for getpid.
     #include <unistd.h>
 #endif
-// when disabled log, donot compile it.
+// The log function for librtmp.
+// User can disable it by define macro SRS_DISABLE_LOG.
+// Or user can directly use them, or define the alias by:
+//      #define trace(msg, ...) srs_human_trace(msg, ##__VA_ARGS__)
+//      #define warn(msg, ...) srs_human_warn(msg, ##__VA_ARGS__)
+//      #define error(msg, ...) srs_human_error(msg, ##__VA_ARGS__)
 #ifdef SRS_DISABLE_LOG
     #define srs_human_trace(msg, ...) (void)0
+    #define srs_human_warn(msg, ...) (void)0
+    #define srs_human_error(msg, ...) (void)0
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) (void)0
 #else
-    #define srs_human_trace(msg, ...) printf("[%s][%d] ", srs_human_format_time(), getpid());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_trace(msg, ...) \
+        fprintf(stdout, "[Trace][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid());\
+        fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n")
+    #define srs_human_warn(msg, ...) \
+        fprintf(stdout, "[Warn][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid()); \
+        fprintf(stdout, msg, ##__VA_ARGS__); \
+        fprintf(stdout, "\n")
+    #define srs_human_error(msg, ...) \
+        fprintf(stderr, "[Error][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid());\
+        fprintf(stderr, msg, ##__VA_ARGS__); \
+        fprintf(stderr, "\n")
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 #endif
@@ -1202,10 +1223,6 @@ typedef void* srs_hijack_io_t;
     #define lseek _lseek
     #define write _write
     #define read _read
-    
-    // for pid.
-    typedef int pid_t;
-    pid_t getpid(void);
     
     // for socket.
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
