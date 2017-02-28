@@ -2176,16 +2176,19 @@ int SrsRtmpClient::connect_app(string app, string tcUrl, SrsRequest* r, bool dsu
         if ((prop = arr->ensure_property_number("srs_pid")) != NULL) {
             si->pid = (int)prop->to_number();
         }
-        if ((prop = arr->ensure_property_number("srs_version")) != NULL) {
+        if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
             vector<string> versions = srs_string_split(prop->to_str(), ".");
-            if (versions.size() > 3) {
-                si->build = ::atoi(versions.at(3).c_str());
-            } else if (versions.size() > 2) {
-                si->revision = ::atoi(versions.at(2).c_str());
-            } else if (versions.size() > 1) {
-                si->minor = ::atoi(versions.at(1).c_str());
-            } else if (versions.size() > 0) {
+            if (versions.size() > 0) {
                 si->major = ::atoi(versions.at(0).c_str());
+                if (versions.size() > 1) {
+                    si->minor = ::atoi(versions.at(1).c_str());
+                    if (versions.size() > 2) {
+                        si->revision = ::atoi(versions.at(2).c_str());
+                        if (versions.size() > 3) {
+                            si->build = ::atoi(versions.at(3).c_str());
+                        }
+                    }
+                }
             }
         }
     }
