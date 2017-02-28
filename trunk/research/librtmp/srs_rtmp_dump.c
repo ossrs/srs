@@ -75,25 +75,170 @@ void parse_amf0_object(char* p, srs_amf0_t args)
     }
 }
 
+// srs debug info.
+char* ip = NULL;
+char* sig = NULL;
+int pid = 0, cid = 0;
+int major = 0, minor = 0, revision= 0, build = 0;
+// User options.
+int complex_handshake = 0;
+const char* rtmp_url = NULL;
+const char* output_flv = NULL;
+const char* swfUrl = NULL;
+const char* tcUrl = NULL;
+const char* pageUrl = NULL;
+srs_amf0_t args = NULL;
+
+int do_proxy(srs_rtmp_t rtmp, srs_flv_t flv)
+{
+    int ret = 0;
+    
+    if ((ret = srs_rtmp_dns_resolve(rtmp)) != 0) {
+        srs_human_trace("dns resolve failed, ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = srs_rtmp_connect_server(rtmp)) != 0) {
+        srs_human_trace("connect to server failed, ret=%d", ret);
+        return ret;
+    }
+    
+    if (complex_handshake) {
+        if ((ret = srs_rtmp_do_complex_handshake(rtmp)) != 0) {
+            srs_human_trace("complex handshake failed, ret=%d", ret);
+            return ret;
+        }
+        srs_human_trace("do complex handshake success");
+    } else {
+        if ((ret = srs_rtmp_do_simple_handshake(rtmp)) != 0) {
+            srs_human_trace("simple handshake failed, ret=%d", ret);
+            return ret;
+        }
+        srs_human_trace("do simple handshake success");
+    }
+    
+    if ((ret = srs_rtmp_set_connect_args(rtmp, tcUrl, swfUrl, pageUrl, args)) != 0) {
+        srs_human_trace("set connect args failed, ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = srs_rtmp_connect_app(rtmp)) != 0) {
+        srs_human_trace("connect vhost/app failed, ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = srs_rtmp_get_server_sig(rtmp, &sig)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_id(rtmp, &ip, &pid, &cid)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_version(rtmp, &major, &minor, &revision, &build)) != 0) {
+        srs_human_trace("Retrieve server version failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
+                    ip, sig, major, minor, revision, build, pid, cid);
+    
+    if ((ret = srs_rtmp_play_stream(rtmp)) != 0) {
+        srs_human_trace("play stream failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("play stream success");
+    
+    if (flv) {
+        // flv header
+        char header[9];
+        // 3bytes, signature, "FLV",
+        header[0] = 'F';
+        header[1] = 'L';
+        header[2] = 'V';
+        // 1bytes, version, 0x01,
+        header[3] = 0x01;
+        // 1bytes, flags, UB[5] 0, UB[1] audio present, UB[1] 0, UB[1] video present.
+        header[4] = 0x03; // audio + video.
+        // 4bytes, dataoffset
+        header[5] = 0x00;
+        header[6] = 0x00;
+        header[7] = 0x00;
+        header[8] = 0x09;
+        if ((ret = srs_flv_write_header(flv, header)) != 0) {
+            srs_human_trace("write flv header failed, ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    int64_t nb_packets = 0;
+    uint32_t pre_timestamp = 0;
+    int64_t pre_now = -1;
+    int64_t start_time = -1;
+    for (;;) {
+        int size;
+        char type;
+        char* data;
+        uint32_t timestamp;
+        
+        if ((ret = srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size)) != 0) {
+            srs_human_trace("read rtmp packet failed, ret=%d", ret);
+            return ret;
+        }
+        
+        if (pre_now == -1) {
+            pre_now = srs_utils_time_ms();
+        }
+        if (start_time == -1) {
+            start_time = srs_utils_time_ms();
+        }
+        
+        if ((ret = srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++)) != 0) {
+            srs_human_trace("print rtmp packet failed, ret=%d", ret);
+            return ret;
+        }
+        pre_timestamp = timestamp;
+        pre_now = srs_utils_time_ms();
+        
+        // we only write some types of messages to flv file.
+        int is_flv_msg = type == SRS_RTMP_TYPE_AUDIO
+        || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
+        
+        // for script data, ignore except onMetaData
+        if (type == SRS_RTMP_TYPE_SCRIPT) {
+            if (!srs_rtmp_is_onMetaData(type, data, size)) {
+                is_flv_msg = 0;
+            }
+        }
+        
+        if (flv) {
+            if (is_flv_msg) {
+                if ((ret = srs_flv_write_tag(flv, type, timestamp, data, size)) != 0) {
+                    srs_human_trace("dump rtmp packet failed, ret=%d", ret);
+                    return ret;
+                }
+            } else {
+                srs_human_trace("drop message type=%#x, size=%dB", type, size);
+            }
+        }
+        
+        free(data);
+    }
+    
+    return ret;
+}
+
 int main(int argc, char** argv)
 {
     srs_flv_t flv = NULL;
     srs_rtmp_t rtmp = NULL;
-    
-    // srs debug info.
-    char srs_server_ip[128];
-    char srs_server[128];
-    char srs_primary[128];
-    char srs_authors[128];
-    char srs_version[32];
-    int srs_id = 0;
-    int srs_pid = 0;
     
     printf("dump rtmp stream to flv file\n");
     printf("srs(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     printf("@refer to http://rtmpdump.mplayerhq.hu/rtmpdump.1.html\n");
     
+    int show_help = 0;
+    const char* short_options = "hxr:o:s:t:p:C:";
     struct option long_options[] = {
         {"rtmp", required_argument, 0, 'r'},
         {"flv", required_argument, 0, 'o'},
@@ -106,25 +251,9 @@ int main(int argc, char** argv)
         {0, 0, 0, 0}
     };
     
-    int show_help = 0;
-    int complex_handshake = 0;
-    const char* rtmp_url = NULL;
-    const char* output_flv = NULL;
-    const char* swfUrl = NULL;
-    const char* tcUrl = NULL;
-    const char* pageUrl = NULL;
-    srs_amf0_t args = NULL;
-    
-    // set to zero.
-    srs_server_ip[0] = 0;
-    srs_server[0] = 0;
-    srs_primary[0] = 0;
-    srs_authors[0] = 0;
-    srs_version[0] = 0;
-    
     int opt = 0;
     int option_index = 0;
-    while((opt = getopt_long(argc, argv, "hxr:o:s:t:p:C:", long_options, &option_index)) != -1){
+    while((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1){
         switch(opt){
             case 'r':
                 rtmp_url = optarg;
@@ -201,131 +330,15 @@ int main(int argc, char** argv)
     }
     
     rtmp = srs_rtmp_create(rtmp_url);
-    
-    if (srs_rtmp_dns_resolve(rtmp) != 0) {
-        srs_human_trace("dns resolve failed.");
-        goto rtmp_destroy;
-    }
-    
-    if (srs_rtmp_connect_server(rtmp) != 0) {
-        srs_human_trace("connect to server failed.");
-        goto rtmp_destroy;
-    }
-    
-    if (complex_handshake) {
-        if (srs_rtmp_do_complex_handshake(rtmp) != 0) {
-            srs_human_trace("complex handshake failed.");
-            goto rtmp_destroy;
-        }
-        srs_human_trace("do complex handshake success");
-    } else {
-        if (srs_rtmp_do_simple_handshake(rtmp) != 0) {
-            srs_human_trace("simple handshake failed.");
-            goto rtmp_destroy;
-        }
-        srs_human_trace("do simple handshake success");
-    }
-    
-    if (srs_rtmp_set_connect_args(rtmp, tcUrl, swfUrl, pageUrl, args) != 0) {
-        srs_human_trace("set connect args failed.");
-        goto rtmp_destroy;
-    }
-    
-    if (srs_rtmp_connect_app2(rtmp,
-        srs_server_ip, srs_server, srs_primary, srs_authors, srs_version,
-        &srs_id, &srs_pid) != 0) {
-        srs_human_trace("connect vhost/app failed.");
-        goto rtmp_destroy;
-    }
-    srs_human_trace("connect ok, ip=%s, server=%s/%s, pid=%d, cid=%d", srs_server_ip, srs_server, srs_version, srs_pid, srs_id);
-    
-    if (srs_rtmp_play_stream(rtmp) != 0) {
-        srs_human_trace("play stream failed.");
-        goto rtmp_destroy;
-    }
-    srs_human_trace("play stream success");
-    
     if (output_flv) {
         flv = srs_flv_open_write(output_flv);
     }
     
-    if (flv) {
-        // flv header
-        char header[9];
-        // 3bytes, signature, "FLV",
-        header[0] = 'F';
-        header[1] = 'L';
-        header[2] = 'V';
-        // 1bytes, version, 0x01,
-        header[3] = 0x01;
-        // 1bytes, flags, UB[5] 0, UB[1] audio present, UB[1] 0, UB[1] video present.
-        header[4] = 0x03; // audio + video.
-        // 4bytes, dataoffset
-        header[5] = 0x00;
-        header[6] = 0x00;
-        header[7] = 0x00;
-        header[8] = 0x09;
-        if (srs_flv_write_header(flv, header) != 0) {
-            srs_human_trace("write flv header failed.");
-            goto rtmp_destroy;
-        }
+    int ret = 0;
+    if ((ret = do_proxy(rtmp, flv)) != 0) {
+        srs_human_trace("Dump RTMP failed, ret=%d", ret);
     }
     
-    int64_t nb_packets = 0;
-    uint32_t pre_timestamp = 0;
-    int64_t pre_now = -1;
-    int64_t start_time = -1;
-    for (;;) {
-        int size;
-        char type;
-        char* data;
-        uint32_t timestamp;
-        
-        if (srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
-            srs_human_trace("read rtmp packet failed.");
-            goto rtmp_destroy;
-        }
-        
-        if (pre_now == -1) {
-            pre_now = srs_utils_time_ms();
-        }
-        if (start_time == -1) {
-            start_time = srs_utils_time_ms();
-        }
-        
-        if (srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++) != 0) {
-            srs_human_trace("print rtmp packet failed.");
-            goto rtmp_destroy;
-        }
-        pre_timestamp = timestamp;
-        pre_now = srs_utils_time_ms();
-        
-        // we only write some types of messages to flv file.
-        int is_flv_msg = type == SRS_RTMP_TYPE_AUDIO
-            || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
-            
-        // for script data, ignore except onMetaData
-        if (type == SRS_RTMP_TYPE_SCRIPT) {
-            if (!srs_rtmp_is_onMetaData(type, data, size)) {
-                is_flv_msg = 0;
-            }
-        }
-
-        if (flv) {
-            if (is_flv_msg) {
-                if (srs_flv_write_tag(flv, type, timestamp, data, size) != 0) {
-                    srs_human_trace("dump rtmp packet failed.");
-                    goto rtmp_destroy;
-                }
-            } else {
-                srs_human_trace("drop message type=%#x, size=%dB", type, size);
-            }
-        }
-        
-        free(data);
-    }
-    
-rtmp_destroy:
     srs_rtmp_destroy(rtmp);
     srs_flv_close(flv);
     srs_human_trace("completed");

@@ -174,20 +174,10 @@ int connect_ic(srs_rtmp_t irtmp)
     int ret = 0;
     
     // srs debug info.
-    char srs_server_ip[128];
-    char srs_server[128];
-    char srs_primary[128];
-    char srs_authors[128];
-    char srs_version[32];
-    int srs_id = 0;
-    int srs_pid = 0;
-    
-    // set to zero.
-    srs_server_ip[0] = 0;
-    srs_server[0] = 0;
-    srs_primary[0] = 0;
-    srs_authors[0] = 0;
-    srs_version[0] = 0;
+    char* ip = NULL;
+    char* sig = NULL;
+    int pid = 0, cid = 0;
+    int major = 0, minor = 0, revision= 0, build = 0;
     
     if ((ret = srs_rtmp_handshake(irtmp)) != 0) {
         srs_human_trace("irtmp simple handshake failed. ret=%d", ret);
@@ -199,13 +189,25 @@ int connect_ic(srs_rtmp_t irtmp)
         srs_human_verbose("irtmp simple handshake success");
     }
     
-    if (srs_rtmp_connect_app2(irtmp,
-        srs_server_ip, srs_server, srs_primary, srs_authors, srs_version,
-        &srs_id, &srs_pid) != 0) {
+    if (srs_rtmp_connect_app(irtmp) != 0) {
         srs_human_trace("irtmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("irtmp connect ok, ip=%s, server=%s/%s, pid=%d, cid=%d", srs_server_ip, srs_server, srs_version, srs_pid, srs_id);
+    
+    if ((ret = srs_rtmp_get_server_sig(irtmp, &sig)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_id(irtmp, &ip, &pid, &cid)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_version(irtmp, &major, &minor, &revision, &build)) != 0) {
+        srs_human_trace("Retrieve server version failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("irtmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
+        ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_play_stream(irtmp)) != 0) {
         srs_human_trace("irtmp play stream failed. ret=%d", ret);
@@ -225,20 +227,10 @@ int connect_oc(srs_rtmp_t ortmp)
     int ret = 0;
     
     // srs debug info.
-    char srs_server_ip[128];
-    char srs_server[128];
-    char srs_primary[128];
-    char srs_authors[128];
-    char srs_version[32];
-    int srs_id = 0;
-    int srs_pid = 0;
-    
-    // set to zero.
-    srs_server_ip[0] = 0;
-    srs_server[0] = 0;
-    srs_primary[0] = 0;
-    srs_authors[0] = 0;
-    srs_version[0] = 0;
+    char* ip = NULL;
+    char* sig = NULL;
+    int pid = 0, cid = 0;
+    int major = 0, minor = 0, revision= 0, build = 0;
     
     if ((ret = srs_rtmp_handshake(ortmp)) != 0) {
         srs_human_trace("ortmp simple handshake failed. ret=%d", ret);
@@ -250,13 +242,25 @@ int connect_oc(srs_rtmp_t ortmp)
         srs_human_verbose("ortmp simple handshake success");
     }
     
-    if (srs_rtmp_connect_app2(ortmp,
-        srs_server_ip, srs_server, srs_primary, srs_authors, srs_version,
-        &srs_id, &srs_pid) != 0) {
+    if (srs_rtmp_connect_app(ortmp) != 0) {
         srs_human_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("ortmp connect ok, ip=%s, server=%s/%s, pid=%d, cid=%d", srs_server_ip, srs_server, srs_version, srs_pid, srs_id);
+    
+    if ((ret = srs_rtmp_get_server_sig(ortmp, &sig)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_id(ortmp, &ip, &pid, &cid)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_version(ortmp, &major, &minor, &revision, &build)) != 0) {
+        srs_human_trace("Retrieve server version failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("ortmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
+        ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_publish_stream(ortmp)) != 0) {
         srs_human_trace("ortmp publish stream failed. ret=%d", ret);
