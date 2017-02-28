@@ -72,7 +72,9 @@ int main(int argc, char** argv)
         exit(-1);
     }
     
-    rtmp = srs_rtmp_create2(argv[1]);
+    char url[512];
+    snprintf(url, sizeof(url), "%s/%s", argv[1], "livestream");
+    rtmp = srs_rtmp_create((const char*)url);
     
     srs_human_trace("bandwidth check/test url: %s", argv[1]);
     

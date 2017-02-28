@@ -1969,6 +1969,12 @@ int SrsHandshakeBytes::create_c2()
     return ret;
 }
 
+SrsServerInfo::SrsServerInfo()
+{
+    pid = cid = 0;
+    major = minor = revision = build = 0;
+}
+
 SrsRtmpClient::SrsRtmpClient(ISrsProtocolReaderWriter* skt)
 {
     io = skt;
@@ -2089,27 +2095,8 @@ int SrsRtmpClient::complex_handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req, bool debug_srs_upnode)
+int SrsRtmpClient::connect_app(string app, string tcUrl, SrsRequest* r, bool dsu, SrsServerInfo* si)
 {
-    std::string srs_server_ip;
-    std::string srs_server;
-    std::string srs_primary;
-    std::string srs_authors;
-    std::string srs_version;
-    int srs_id = 0;
-    int srs_pid = 0;
-    
-    return connect_app2(app, tc_url, req, debug_srs_upnode,
-        srs_server_ip, srs_server, srs_primary, srs_authors,
-        srs_version, srs_id, srs_pid);
-}
-
-int SrsRtmpClient::connect_app2(
-    string app, string tc_url, SrsRequest* req, bool debug_srs_upnode,
-    string& srs_server_ip, string& srs_server, string& srs_primary,
-    string& srs_authors, string& srs_version, int& srs_id,
-    int& srs_pid
-){
     int ret = ERROR_SUCCESS;
     
     // Connect(vhost, app)
@@ -2118,23 +2105,23 @@ int SrsRtmpClient::connect_app2(
         
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
         pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 15,0,0,239"));
-        if (req) {
-            pkt->command_object->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
+        if (r) {
+            pkt->command_object->set("swfUrl", SrsAmf0Any::str(r->swfUrl.c_str()));
         } else {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         }
-        if (req && req->tcUrl != "") {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+        if (r && r->tcUrl != "") {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(r->tcUrl.c_str()));
         } else {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tcUrl.c_str()));
         }
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
         pkt->command_object->set("videoCodecs", SrsAmf0Any::number(252));
         pkt->command_object->set("videoFunction", SrsAmf0Any::number(1));
-        if (req) {
-            pkt->command_object->set("pageUrl", SrsAmf0Any::str(req->pageUrl.c_str()));
+        if (r) {
+            pkt->command_object->set("pageUrl", SrsAmf0Any::str(r->pageUrl.c_str()));
         } else {
             pkt->command_object->set("pageUrl", SrsAmf0Any::str());
         }
@@ -2142,9 +2129,9 @@ int SrsRtmpClient::connect_app2(
         
         // @see https://github.com/ossrs/srs/issues/160
         // the debug_srs_upnode is config in vhost and default to true.
-        if (debug_srs_upnode && req && req->args) {
+        if (dsu && r && r->args) {
             srs_freep(pkt->args);
-            pkt->args = req->args->copy()->to_object();
+            pkt->args = r->args->copy()->to_object();
         }
         
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
@@ -2173,34 +2160,42 @@ int SrsRtmpClient::connect_app2(
     
     // server info
     SrsAmf0Any* data = pkt->info->get_property("data");
-    if (data && data->is_ecma_array()) {
+    if (si && data && data->is_ecma_array()) {
         SrsAmf0EcmaArray* arr = data->to_ecma_array();
         
         SrsAmf0Any* prop = NULL;
-        if ((prop = arr->ensure_property_string("srs_primary")) != NULL) {
-            srs_primary = prop->to_str();
-        }
-        if ((prop = arr->ensure_property_string("srs_authors")) != NULL) {
-            srs_authors = prop->to_str();
-        }
-        if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
-            srs_version = prop->to_str();
-        }
         if ((prop = arr->ensure_property_string("srs_server_ip")) != NULL) {
-            srs_server_ip = prop->to_str();
+            si->ip = prop->to_str();
         }
         if ((prop = arr->ensure_property_string("srs_server")) != NULL) {
-            srs_server = prop->to_str();
+            si->sig = prop->to_str();
         }
         if ((prop = arr->ensure_property_number("srs_id")) != NULL) {
-            srs_id = (int)prop->to_number();
+            si->cid = (int)prop->to_number();
         }
         if ((prop = arr->ensure_property_number("srs_pid")) != NULL) {
-            srs_pid = (int)prop->to_number();
+            si->pid = (int)prop->to_number();
+        }
+        if ((prop = arr->ensure_property_number("srs_version")) != NULL) {
+            vector<string> versions = srs_string_split(prop->to_str(), ".");
+            if (versions.size() > 3) {
+                si->build = ::atoi(versions.at(3).c_str());
+            } else if (versions.size() > 2) {
+                si->revision = ::atoi(versions.at(2).c_str());
+            } else if (versions.size() > 1) {
+                si->minor = ::atoi(versions.at(1).c_str());
+            } else if (versions.size() > 0) {
+                si->major = ::atoi(versions.at(0).c_str());
+            }
         }
     }
-    srs_trace("connected, version=%s, ip=%s, pid=%d, id=%d, dsu=%d",
-              srs_version.c_str(), srs_server_ip.c_str(), srs_pid, srs_id, debug_srs_upnode);
+    
+    if (si) {
+        srs_trace("connected, version=%d.%d.%d.%d, ip=%s, pid=%d, id=%d, dsu=%d",
+            si->major, si->minor, si->revision, si->build, si->ip.c_str(), si->pid, si->cid, dsu);
+    } else {
+        srs_trace("connected, dsu=%d", dsu);
+    }
     
     return ret;
 }

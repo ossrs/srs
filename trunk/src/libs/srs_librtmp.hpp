@@ -123,25 +123,14 @@ typedef void* srs_rtmp_t;
 typedef void* srs_amf0_t;
     
 /**
- * create/destroy a rtmp protocol stack.
- * @url rtmp url, for example:
- *         rtmp://localhost/live/livestream
+ * Create a RTMP handler.
+ * @param url The RTMP url, for example, rtmp://localhost/live/livestream
  * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
+ * @remark default schema to srs_url_schema_normal, use srs_rtmp_set_schema to change it.
  *
  * @return a rtmp handler, or NULL if error occured.
  */
 extern srs_rtmp_t srs_rtmp_create(const char* url);
-/**
- * create rtmp with url, used for connection specified application.
- * @param url the tcUrl, for exmple:
- *         rtmp://localhost/live
- * @remark this is used to create application connection-oriented,
- *       for example, the bandwidth client used this, no stream specified.
- * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
- *
- * @return a rtmp handler, or NULL if error occured.
- */
-extern srs_rtmp_t srs_rtmp_create2(const char* url);
 /**
  * set socket timeout
  * @param recv_timeout_ms the timeout for receiving messages in ms.
@@ -202,43 +191,47 @@ extern int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp);
 extern int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
     const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
 );
-
-/**
-* connect to rtmp vhost/app
-* category: publish/play
-* previous: handshake
-* next: publish or play
-*
-* @return 0, success; otherswise, failed.
-*/
-extern int srs_rtmp_connect_app(srs_rtmp_t rtmp);
-
-/**
-* connect to server, get the debug srs info.
-* 
-* SRS debug info:
-* @param srs_server_ip, 128bytes, debug info, server ip client connected at.
-* @param srs_server, 128bytes, server info.
-* @param srs_primary, 128bytes, primary authors.
-* @param srs_authors, 128bytes, authors.
-* @param srs_version, 32bytes, server version.
-* @param srs_id, int, debug info, client id in server log.
-* @param srs_pid, int, debug info, server pid in log.
-*
-* @return 0, success; otherswise, failed.
-*/
-extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128], char srs_server[128], 
-    char srs_primary[128], char srs_authors[128], 
-    char srs_version[32], int* srs_id, int* srs_pid
-);
     
 /**
- * Set the schema of URL when connect to server.
+ * Set the schema of URL when connect to tcUrl by srs_rtmp_connect_app.
  * @param schema, The schema of URL, @see srs_url_schema.
  * @return 0, success; otherswise, failed.
  */
 extern int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema);
+    
+/**
+ * Connect to RTMP tcUrl(Vhost/App), similar to flash AS3 NetConnection.connect(tcUrl).
+ * @remark When connected to server, user can retrieve informations from RTMP handler,
+ *      for example, use srs_rtmp_get_server_id to get server ip/pid/cid.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_connect_app(srs_rtmp_t rtmp);
+    
+/**
+ * Retrieve server ip from RTMP handler.
+ * @Param ip A NULL terminated string specifies the server ip.
+ * @Param pid An int specifies the PID of server. -1 is no PID information.
+ * @Param cid An int specifies the CID of connection. -1 is no CID information.
+ * @remark For SRS, ip/pid/cid is the UUID of a client. For other server, these values maybe unknown.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_id(srs_rtmp_t rtmp, char** ip, int* pid, int* cid);
+    
+/**
+ * Retrieve server signature from RTMP handler.
+ * @Param sig A NULL terminated string specifies the server signature.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_sig(srs_rtmp_t rtmp, char** sig);
+    
+/**
+ * Retrieve server version from RTMP handler, which in major.minor.revision.build format.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_version(srs_rtmp_t rtmp, int* major, int* minor, int* revision, int* build);
 
 /**
 * play a live/vod stream.
@@ -1234,6 +1227,26 @@ typedef void* srs_hijack_io_t;
     // others.
     #define snprintf _snprintf
 #endif
+
+/*************************************************************
+ *************************************************************
+ * Deprecated APIs.
+ *************************************************************
+ *************************************************************/
+/**
+ * @Deprecated For bandwidth test check only.
+ */
+extern srs_rtmp_t srs_rtmp_create2(const char* url);
+    
+/**
+ * @Deprecated Use seperate function to retrieve information from rtmp,
+ *      for example, use srs_rtmp_get_server_ip to get server ip.
+ */
+extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128], char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+);
 
 #ifdef __cplusplus
 }

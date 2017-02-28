@@ -189,7 +189,7 @@ int SrsSimpleRtmpClient::connect_app()
     // @see https://github.com/ossrs/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode, NULL)) != ERROR_SUCCESS) {
         srs_error("sdk: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
                   tc_url.c_str(), debug_srs_upnode, ret);
         return ret;
@@ -1533,7 +1533,7 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     }
     
     // for token tranverse, always take the debug info(which carries token).
-    if ((ret = client->connect_app(req->app, req->tcUrl, req, true)) != ERROR_SUCCESS) {
+    if ((ret = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
         return ret;
     }

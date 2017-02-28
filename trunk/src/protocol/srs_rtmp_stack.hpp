@@ -669,6 +669,23 @@ public:
 };
 
 /**
+ * The information return from RTMP server.
+ */
+struct SrsServerInfo
+{
+    std::string ip;
+    std::string sig;
+    int pid;
+    int cid;
+    int major;
+    int minor;
+    int revision;
+    int build;
+    
+    SrsServerInfo();
+};
+
+/**
  * implements the client role protocol.
  */
 class SrsRtmpClient
@@ -706,32 +723,15 @@ public:
      */
     virtual int complex_handshake();
     /**
-     * set req to use the original request of client:
-     *      pageUrl and swfUrl for refer antisuck.
-     *      args for edge to origin traverse auth, @see SrsRequest.args
-     */
-    virtual int connect_app(std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode);
-    /**
-     * connect to server, get the debug srs info.
+     * Connect to RTMP tcUrl and app, get the server info.
      *
-     * @param app, the app to connect at.
-     * @param tc_url, the tcUrl to connect at.
+     * @param app, The app to connect at, for example, live.
+     * @param tcUrl, The tcUrl to connect at, for example, rtmp://ossrs.net/live.
      * @param req, the optional req object, use the swfUrl/pageUrl if specified. NULL to ignore.
-     *
-     * SRS debug info:
-     * @param srs_server_ip, debug info, server ip client connected at.
-     * @param srs_server, server info.
-     * @param srs_primary, primary authors.
-     * @param srs_authors, authors.
-     * @param srs_id, int, debug info, client id in server log.
-     * @param srs_pid, int, debug info, server pid in log.
+     * @Param dsu, Whether debug SRS upnode. For edge, set to true to send its info to upnode.
+     * @Param si, The server information, retrieve from response of connect app request. NULL to ignore.
      */
-    virtual int connect_app2(
-        std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode,
-        std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary,
-        std::string& srs_authors, std::string& srs_version, int& srs_id,
-        int& srs_pid
-    );
+    virtual int connect_app(std::string app, std::string tcUrl, SrsRequest* r, bool dsu, SrsServerInfo* si);
     /**
      * create a stream, then play/publish data over this stream.
      */

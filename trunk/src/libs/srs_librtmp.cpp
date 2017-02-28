@@ -63,18 +63,27 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 */
 struct Context
 {
+    // The original RTMP url.
     std::string url;
+    
+    // Parse from url.
     std::string tcUrl;
     std::string host;
-    std::string ip;
-    int port;
     std::string vhost;
     std::string app;
     std::string stream;
     std::string param;
+    
+    // Parse ip:port from host.
+    std::string ip;
+    int port;
+    
+    // The URL schema, about vhost/app/stream?param
     srs_url_schema schema;
+    // The server information, response by connect app.
+    SrsServerInfo si;
 
-    // extra request object for connect to server, NULL to ignore.
+    // The extra request object for connect to server, NULL to ignore.
     SrsRequest* req;
     
     // the message received cache,
@@ -123,7 +132,7 @@ struct Context
         h264_sps_changed = false;
         h264_pps_changed = false;
         rtimeout = stimeout = SRS_CONSTS_NO_TMMS;
-        schema = srs_url_schema_forbidden;
+        schema = srs_url_schema_normal;
     }
     virtual ~Context() {
         srs_freep(req);
@@ -550,28 +559,6 @@ srs_rtmp_t srs_rtmp_create(const char* url)
     
     return context;
 }
-
-srs_rtmp_t srs_rtmp_create2(const char* url)
-{
-    Context* context = new Context();
-    
-    // use url as tcUrl.
-    context->url = url;
-    // auto append stream.
-    context->url += "/livestream";
-    
-    // create socket
-    srs_freep(context->skt);
-    context->skt = new SimpleSocketStream();
-    
-    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
-        // free the context and return NULL
-        srs_freep(context);
-        return NULL;
-    }
-    
-    return context;
-}
    
 int srs_rtmp_set_timeout(srs_rtmp_t rtmp, int recv_timeout_ms, int send_timeout_ms)
 {
@@ -690,6 +677,26 @@ int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
     return ret;
 }
 
+int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    srs_assert(context->skt != NULL);
+    
+    // simple handshake
+    srs_freep(context->rtmp);
+    context->rtmp = new SrsRtmpClient(context->skt);
+    
+    if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
     const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
 ) {
@@ -716,23 +723,15 @@ int srs_rtmp_set_connect_args(srs_rtmp_t rtmp,
     
     return ret;
 }
-
-int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
+    
+int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    srs_assert(context->skt != NULL);
-    
-    // simple handshake
-    srs_freep(context->rtmp);
-    context->rtmp = new SrsRtmpClient(context->skt);
-    
-    if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
-        return ret;
-    }
+    context->schema = schema;
     
     return ret;
 }
@@ -760,74 +759,46 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
             break;
     }
     
-    if ((ret = context->rtmp->connect_app(
-        context->app, tcUrl, context->req, true)) != ERROR_SUCCESS) 
-    {
+    Context* c = context;
+    if ((ret = context->rtmp->connect_app(c->app, tcUrl, c->req, true, &c->si)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
-
-int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128],char srs_server[128], 
-    char srs_primary[128], char srs_authors[128], 
-    char srs_version[32], int* srs_id, int* srs_pid
-) {
-    srs_server_ip[0] = 0;
-    srs_server[0] = 0;
-    srs_primary[0] = 0;
-    srs_authors[0] = 0;
-    srs_version[0] = 0;
-    *srs_id = 0;
-    *srs_pid = 0;
-
-    int ret = ERROR_SUCCESS;
     
-    srs_assert(rtmp != NULL);
-    Context* context = (Context*)rtmp;
-    
-    string tcUrl;
-    switch(context->schema) {
-        case srs_url_schema_normal:
-            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        case srs_url_schema_via:
-            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        case srs_url_schema_vis:
-        case srs_url_schema_vis2:
-            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port);
-            break;
-        default:
-            break;
-    }
-    
-    std::string sip, sserver, sprimary, sauthors, sversion;
-    
-    if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, true,
-        sip, sserver, sprimary, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    snprintf(srs_server_ip, 128, "%s", sip.c_str());
-    snprintf(srs_server, 128, "%s", sserver.c_str());
-    snprintf(srs_primary, 128, "%s", sprimary.c_str());
-    snprintf(srs_authors, 128, "%s", sauthors.c_str());
-    snprintf(srs_version, 32, "%s", sversion.c_str());
-    
-    return ret;
-}
-
-int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema)
+int srs_rtmp_get_server_id(srs_rtmp_t rtmp, char** ip, int* pid, int* cid)
 {
     int ret = ERROR_SUCCESS;
-
-    srs_assert(rtmp != NULL);
-    Context* context = (Context*)rtmp;
     
-    context->schema = schema;
-
+    Context* context = (Context*)rtmp;
+    *pid = context->si.pid;
+    *cid = context->si.cid;
+    *ip = context->si.ip.empty()? NULL:(char*)context->si.ip.c_str();
+    
+    return ret;
+}
+    
+int srs_rtmp_get_server_sig(srs_rtmp_t rtmp, char** sig)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Context* context = (Context*)rtmp;
+    *sig = context->si.sig.empty()? NULL:(char*)context->si.sig.c_str();
+    
+    return ret;
+}
+    
+int srs_rtmp_get_server_version(srs_rtmp_t rtmp, int* major, int* minor, int* revision, int* build)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Context* context = (Context*)rtmp;
+    *major = context->si.major;
+    *minor = context->si.minor;
+    *revision = context->si.revision;
+    *build = context->si.build;
+    
     return ret;
 }
 
@@ -2712,6 +2683,58 @@ srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp)
     return context->skt->hijack_io();
 }
 #endif
+
+srs_rtmp_t srs_rtmp_create2(const char* url)
+{
+    Context* context = new Context();
+    
+    // use url as tcUrl.
+    context->url = url;
+    // auto append stream.
+    context->url += "/livestream";
+    
+    // create socket
+    srs_freep(context->skt);
+    context->skt = new SimpleSocketStream();
+    
+    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
+        // free the context and return NULL
+        srs_freep(context);
+        return NULL;
+    }
+    
+    return context;
+}
+
+int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128],char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+) {
+    srs_server_ip[0] = 0;
+    srs_server[0] = 0;
+    srs_primary[0] = 0;
+    srs_authors[0] = 0;
+    srs_version[0] = 0;
+    *srs_id = 0;
+    *srs_pid = 0;
+
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = srs_rtmp_connect_app(rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    SrsServerInfo* si = &context->si;
+    
+    snprintf(srs_server_ip, 128, "%s", si->ip.c_str());
+    snprintf(srs_server, 128, "%s", si->sig.c_str());
+    snprintf(srs_version, 32, "%d.%d.%d.%d", si->major, si->minor, si->revision, si->build);
+    
+    return ret;
+}
 
 #ifdef __cplusplus
 }
