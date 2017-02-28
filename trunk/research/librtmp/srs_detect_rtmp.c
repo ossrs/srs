@@ -140,8 +140,13 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     srs_human_trace("do simple handshake success");
+    
+    if ((ret = srs_rtmp_set_schema(rtmp, sus)) != 0) {
+        srs_human_trace("set url schema=%d failed, ret=%d", sus, ret);
+        goto rtmp_destroy;
+    }
 
-    if ((ret = srs_rtmp_connect_app3(rtmp, sus)) != 0) {
+    if ((ret = srs_rtmp_connect_app(rtmp)) != 0) {
         srs_human_trace("connect vhost/app failed. ret=%d", ret);
         goto rtmp_destroy;
     }
