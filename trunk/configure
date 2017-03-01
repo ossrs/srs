@@ -95,17 +95,12 @@ CppStd="-ansi"
 if [[ $SRS_EXPORT_LIBRTMP_PROJECT == YES ]]; then
     LibraryCompile=" -fPIC"
 fi
-# For MacOS, disable the link warnings:
-#       srs_librtmp.a(srs_kernel_io.o) unable to open object file: No such file or directory
-if [[ $SRS_OSX == YES ]]; then
-    CxxMacOS=" -D GCC_GENERATE_DEBUGGING_SYMBOLS=no"
-fi
 # performance of gprof
 SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
 # performance of gperf
 SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpthread"; fi
 # the cxx flag generated.
-CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}${CxxMacOS}"
+CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
 # Start to generate the Makefile.
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
