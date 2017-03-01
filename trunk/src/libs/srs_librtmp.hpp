@@ -128,7 +128,7 @@ typedef void* srs_amf0_t;
  * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
  * @remark default schema to srs_url_schema_normal, use srs_rtmp_set_schema to change it.
  *
- * @return a rtmp handler, or NULL if error occured.
+ * @return a rtmp handler, or NULL if error occured, and errno set to srs error code.
  */
 extern srs_rtmp_t srs_rtmp_create(const char* url);
 /**
@@ -551,8 +551,14 @@ typedef struct {
     // The output sample data, user must free it by srs_mp4_free_sample.
     uint8_t* sample;
 } srs_mp4_sample_t;
-/* Open mp4 file for muxer(write) or demuxer(read). */
+/**
+ * Open mp4 file for muxer(write) or demuxer(read). 
+ * @return A MP4 demuxer, NULL if failed, and errno set to srs error code.
+ */
 extern srs_mp4_t srs_mp4_open_read(const char* file);
+/**
+ * Close the MP4 demuxer.
+ */
 extern void srs_mp4_close(srs_mp4_t mp4);
 /**
  * Initialize mp4 demuxer in non-seek mode.
@@ -592,9 +598,19 @@ extern srs_bool srs_mp4_is_eof(int error_code);
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
-/* open flv file for both read/write. */
+/**
+ * Open FLV file in demux mode.
+ * @return A FLV demuxer, NULL if failed, and errno set to srs error code.
+ */
 extern srs_flv_t srs_flv_open_read(const char* file);
+/**
+ * Open FlV file in mux mode.
+ * @return A FLV muxer, NULL if failed, and errno set to srs error code.
+ */
 extern srs_flv_t srs_flv_open_write(const char* file);
+/**
+ * Close the FLV demuxer or muxer.
+ */
 extern void srs_flv_close(srs_flv_t flv);
 /**
 * read the flv header. 9bytes header. 

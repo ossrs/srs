@@ -557,7 +557,9 @@ srs_rtmp_t srs_rtmp_create(const char* url)
     context->skt = new SimpleSocketStream();
 
     if ((ret = context->skt->create_socket(context)) != ERROR_SUCCESS) {
+        srs_human_error("Create socket failed, ret=%d", ret);
         errno = ret;
+        
         // free the context and return NULL
         srs_freep(context);
         return NULL;
@@ -1540,6 +1542,9 @@ srs_mp4_t srs_mp4_open_read(const char* file)
     Mp4Context* mp4 = new Mp4Context();
     
     if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open MP4 file failed, ret=%d", ret);
+        errno = ret;
+        
         srs_freep(mp4);
         return NULL;
     }
@@ -1672,11 +1677,17 @@ srs_flv_t srs_flv_open_read(const char* file)
     FlvContext* flv = new FlvContext();
     
     if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open FLV file failed, ret=%d", ret);
+        errno = ret;
+        
         srs_freep(flv);
         return NULL;
     }
     
     if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
+        srs_human_error("Initialize FLV demuxer failed, ret=%d", ret);
+        errno = ret;
+        
         srs_freep(flv);
         return NULL;
     }
@@ -1691,11 +1702,17 @@ srs_flv_t srs_flv_open_write(const char* file)
     FlvContext* flv = new FlvContext();
     
     if ((ret = flv->writer.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open FLV file failed, ret=%d", ret);
+        errno = ret;
+        
         srs_freep(flv);
         return NULL;
     }
     
     if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
+        srs_human_error("Initilize FLV muxer failed, ret=%d", ret);
+        errno = ret;
+        
         srs_freep(flv);
         return NULL;
     }
@@ -2695,7 +2712,11 @@ srs_rtmp_t srs_rtmp_create2(const char* url)
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
     
-    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
+    int ret = ERROR_SUCCESS;
+    if ((ret = context->skt->create_socket(context)) != ERROR_SUCCESS) {
+        srs_human_error("Create socket failed, ret=%d", ret);
+        errno = ret;
+        
         // free the context and return NULL
         srs_freep(context);
         return NULL;
