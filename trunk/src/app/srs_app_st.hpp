@@ -100,14 +100,11 @@ namespace internal
     class SrsThread
     {
     private:
-        st_thread_t tid;
-        int _cid;
+        st_thread_t trd;
+        int context_id;
         bool loop;
-        bool can_run;
-        bool really_terminated;
-        bool _joinable;
-        const char* _name;
-        bool disposed;
+        bool joinable;
+        const char* name;
     private:
         ISrsThreadHandler* handler;
         // The cycle interval in ms.
@@ -115,10 +112,10 @@ namespace internal
     public:
         /**
          * initialize the thread.
-         * @param name, human readable name for st debug.
-         * @param thread_handler, the cycle handler for the thread.
+         * @param n, human readable name for st debug.
+         * @param h, the cycle handler for the thread.
          * @param ims, the sleep interval in ms when cycle finished.
-         * @param joinable, if joinable, other thread must stop the thread.
+         * @param j, if joinable, other thread must stop the thread.
          * @remark if joinable, thread never quit itself, or memory leak.
          * @see: https://github.com/ossrs/srs/issues/78
          * @remark about st debug, see st-1.9/README, _st_iterate_threads_flag
@@ -127,7 +124,7 @@ namespace internal
          * TODO: FIXME: maybe all thread must be reap by others threads,
          * @see: https://github.com/ossrs/srs/issues/77
          */
-        SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t ims, bool joinable);
+        SrsThread(const char* n, ISrsThreadHandler* h, int64_t ims, bool j);
         virtual ~SrsThread();
     public:
         /**
@@ -163,9 +160,8 @@ namespace internal
          */
         virtual void stop_loop();
     private:
-        virtual void dispose();
-        virtual void thread_cycle();
-        static void* thread_fun(void* arg);
+        virtual void cycle();
+        static void* pfn(void* arg);
     };
 }
 
