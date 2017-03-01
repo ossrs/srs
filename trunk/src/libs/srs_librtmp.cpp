@@ -2555,7 +2555,67 @@ const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type)
     
 int srs_human_format_rtmp_packet(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size)
 {
-    return srs_human_format_rtmp_packet2(buffer, nb_buffer, type, timestamp, data, size, 0, 0, 0, 0);
+    int ret = ERROR_SUCCESS;
+    
+    // Initialize to empty NULL terminated string.
+    buffer[0] = 0;
+    
+    char sbytes[40];
+    if (true) {
+        int nb = srs_min(8, size);
+        int p = 0;
+        for (int i = 0; i < nb; i++) {
+            p += snprintf(sbytes+p, 40-p, "0x%02x ", (uint8_t)data[i]);
+        }
+    }
+    
+    uint32_t pts;
+    if ((ret = srs_utils_parse_timestamp(timestamp, type, data, size, &pts)) != ERROR_SUCCESS) {
+        snprintf(buffer, nb_buffer, "Rtmp packet type=%s, dts=%d, size=%d, DecodeError, (%s), ret=%d",
+            srs_human_flv_tag_type2string(type), timestamp, size, sbytes, ret);
+        return ret;
+    }
+    
+    if (type == SRS_RTMP_TYPE_VIDEO) {
+        snprintf(buffer, nb_buffer, "Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s), (%s)",
+            srs_human_flv_tag_type2string(type), timestamp, pts, size,
+            srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
+            srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
+            srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size)),
+            sbytes);
+    } else if (type == SRS_RTMP_TYPE_AUDIO) {
+        snprintf(buffer, nb_buffer, "Audio packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
+                 srs_human_flv_tag_type2string(type), timestamp, pts, size,
+                 srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
+                 srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
+                 srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
+                 srs_human_flv_audio_sound_type2string(srs_utils_flv_audio_sound_type(data, size)),
+                 srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size)),
+                 sbytes);
+    } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+        int nb = snprintf(buffer, nb_buffer, "Data packet type=%s, time=%d, size=%d, (%s)",
+            srs_human_flv_tag_type2string(type), timestamp, size, sbytes);
+        int nparsed = 0;
+        while (nparsed < size) {
+            int nb_parsed_this = 0;
+            srs_amf0_t amf0 = srs_amf0_parse(data + nparsed, size - nparsed, &nb_parsed_this);
+            if (amf0 == NULL) {
+                break;
+            }
+            
+            nparsed += nb_parsed_this;
+            
+            char* amf0_str = NULL;
+            nb += snprintf(buffer + nb, nb_buffer - nb, "\n%s", srs_human_amf0_print(amf0, &amf0_str, NULL)) - 1;
+            srs_freepa(amf0_str);
+        }
+        buffer[nb] = 0;
+    } else {
+        snprintf(buffer, nb_buffer, "Rtmp packet type=%#x, dts=%d, pts=%d, size=%d, (%s)",
+            type, timestamp, pts, size, sbytes);
+    }
+    
+    return ret;
 }
     
 int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size,
@@ -2649,7 +2709,7 @@ int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32
 const char* srs_human_format_time()
 {
     struct timeval tv;
-    static char buf[23];
+    static char buf[24];
     
     memset(buf, 0, sizeof(buf));
     
@@ -2750,7 +2810,7 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     
 int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size)
 {
-    return srs_human_print_rtmp_packet2(type, timestamp, data, size, 0);
+    return srs_human_print_rtmp_packet(type, timestamp, data, size);
 }
 
 int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp)

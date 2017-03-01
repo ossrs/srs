@@ -308,6 +308,7 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 extern int srs_rtmp_read_packet(srs_rtmp_t rtmp, 
     char* type, uint32_t* timestamp, char** data, int* size
 );
+// @Param data User should never free it anymore.
 extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
     char type, uint32_t timestamp, char* data, int size
 );
