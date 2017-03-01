@@ -341,14 +341,9 @@ void show_macro_features()
     srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
 #endif
     
-#if defined(SRS_AUTO_STREAM_CASTER)
-#warning "stream caster is experiment feature."
-    srs_warn("stream caster is experiment feature.");
-#endif
-    
 #if VERSION_MAJOR > VERSION_STABLE
-#warning "current branch is not stable, please use stable branch instead."
-    srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
+#warning "Current branch is unstable."
+    srs_warn("Develop is unstable, please use branch: git checkout %s", VERSION_STABLE_BRANCH);
 #endif
     
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)

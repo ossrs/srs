@@ -41,7 +41,7 @@ echo -n "	@bash auto/generate_header.sh ${SRS_OBJS_DIR}" >> ${FILE}
 echo "" >> ${FILE}
 
 # archive librtmp.a
-echo -n "	\$(AR) -rs ${LIB_TAGET_STATIC} " >> ${FILE}
+echo -n "	\$(AR) \$(ARFLAGS) ${LIB_TAGET_STATIC} " >> ${FILE}
 for item in ${MODULE_OBJS[*]}; do
     FILE_NAME=`basename $item`
     FILE_NAME=${FILE_NAME%.*}
