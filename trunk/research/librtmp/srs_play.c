@@ -62,6 +62,7 @@ int main(int argc, char** argv)
     }
     srs_human_trace("play stream success");
     
+    char buffer[1024];
     for (;;) {
         int size;
         char type;
@@ -72,9 +73,10 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
-        if (srs_human_print_rtmp_packet(type, timestamp, data, size) != 0) {
+        if (srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size) != 0) {
             goto rtmp_destroy;
         }
+        srs_human_trace("%s", buffer);
         
         free(data);
     }

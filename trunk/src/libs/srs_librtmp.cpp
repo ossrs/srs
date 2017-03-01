@@ -123,6 +123,9 @@ struct Context
     int64_t stimeout;
     int64_t rtimeout;
     
+    // The RTMP handler level buffer, can used to format packet.
+    char buffer[1024];
+    
     Context() {
         rtmp = NULL;
         skt = NULL;
@@ -544,6 +547,8 @@ int srs_version_revision()
 
 srs_rtmp_t srs_rtmp_create(const char* url)
 {
+    int ret = ERROR_SUCCESS;
+    
     Context* context = new Context();
     context->url = url;
 
@@ -551,7 +556,8 @@ srs_rtmp_t srs_rtmp_create(const char* url)
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
 
-    if (context->skt->create_socket(context) != ERROR_SUCCESS) {
+    if ((ret = context->skt->create_socket(context)) != ERROR_SUCCESS) {
+        errno = ret;
         // free the context and return NULL
         srs_freep(context);
         return NULL;
@@ -2536,24 +2542,18 @@ const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type)
     return unknown;
 }
     
-int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size)
+int srs_human_format_rtmp_packet(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size)
 {
-    return srs_human_print_rtmp_packet2(type, timestamp, data, size, 0);
-}
-
-int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp)
-{
-    return srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, 0);
+    return srs_human_format_rtmp_packet2(buffer, nb_buffer, type, timestamp, data, size, 0, 0, 0, 0);
 }
     
-int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now)
-{
-    return srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, 0, 0);
-}
-    
-int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets)
-{
+int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size,
+   uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets
+) {
     int ret = ERROR_SUCCESS;
+    
+    // Initialize to empty NULL terminated string.
+    buffer[0] = 0;
     
     // packets interval in milliseconds.
     double pi = 0;
@@ -2587,33 +2587,30 @@ int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int 
     }
     
     uint32_t pts;
-    if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
-        srs_human_trace("Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError, (%s)",
-            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes
-        );
+    if ((ret = srs_utils_parse_timestamp(timestamp, type, data, size, &pts)) != ERROR_SUCCESS) {
+        snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError, (%s), ret=%d",
+            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes, ret);
         return ret;
     }
     
     if (type == SRS_RTMP_TYPE_VIDEO) {
-        srs_human_trace("Video packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s), (%s)",
+        snprintf(buffer, nb_buffer, "Video packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s), (%s)",
             nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
             srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
             srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
             srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size)),
-            sbytes
-        );
+            sbytes);
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_human_trace("Audio packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
+        snprintf(buffer, nb_buffer, "Audio packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
             nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
             srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
             srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
             srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
             srs_human_flv_audio_sound_type2string(srs_utils_flv_audio_sound_type(data, size)),
             srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size)),
-            sbytes
-        );
+            sbytes);
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-        srs_human_trace("Data packet id=%"PRId64"/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+        int nb = snprintf(buffer, nb_buffer, "Data packet id=%"PRId64"/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d, (%s)",
             nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes);
         int nparsed = 0;
         while (nparsed < size) {
@@ -2622,15 +2619,16 @@ int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int 
             if (amf0 == NULL) {
                 break;
             }
-    
+            
             nparsed += nb_parsed_this;
             
             char* amf0_str = NULL;
-            srs_human_raw("%s", srs_human_amf0_print(amf0, &amf0_str, NULL));
+            nb += snprintf(buffer + nb, nb_buffer - nb, "\n%s", srs_human_amf0_print(amf0, &amf0_str, NULL)) - 1;
             srs_freepa(amf0_str);
         }
+        buffer[nb] = 0;
     } else {
-        srs_human_trace("Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+        snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, (%s)",
             nb_packets, pi, gfps, type, timestamp, pts, ndiff, diff, size, sbytes);
     }
     
@@ -2733,6 +2731,29 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     snprintf(srs_server, 128, "%s", si->sig.c_str());
     snprintf(srs_version, 32, "%d.%d.%d.%d", si->major, si->minor, si->revision, si->build);
     
+    return ret;
+}
+    
+int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size)
+{
+    return srs_human_print_rtmp_packet2(type, timestamp, data, size, 0);
+}
+
+int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp)
+{
+    return srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, 0);
+}
+
+int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now)
+{
+    return srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, 0, 0);
+}
+
+int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets)
+{
+    char buffer[1024];
+    int ret = srs_human_format_rtmp_packet2(buffer, sizeof(buffer), type, timestamp, data, size, pre_timestamp, pre_now, starttime, nb_packets);
+    srs_human_trace("%s", buffer);
     return ret;
 }
 

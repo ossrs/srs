@@ -174,6 +174,7 @@ int do_proxy(srs_rtmp_t rtmp, srs_flv_t flv)
     uint32_t pre_timestamp = 0;
     int64_t pre_now = -1;
     int64_t start_time = -1;
+    char buffer[1024];
     for (;;) {
         int size;
         char type;
@@ -192,10 +193,12 @@ int do_proxy(srs_rtmp_t rtmp, srs_flv_t flv)
             start_time = srs_utils_time_ms();
         }
         
-        if ((ret = srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++)) != 0) {
+        if ((ret = srs_human_format_rtmp_packet2(buffer, sizeof(buffer), type, timestamp, data, size, pre_timestamp, pre_now, start_time, nb_packets++)) != 0) {
             srs_human_trace("print rtmp packet failed, ret=%d", ret);
             return ret;
         }
+        srs_human_trace("%s", buffer);
+        
         pre_timestamp = timestamp;
         pre_now = srs_utils_time_ms();
         

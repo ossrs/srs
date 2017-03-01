@@ -184,6 +184,7 @@ int do_proxy(srs_mp4_t mp4, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
     int ret = 0;
     
     srs_human_trace("start ingest mp4 to RTMP stream");
+    char buffer[1024];
     for (;;) {
         // packet data
         char type;
@@ -213,10 +214,11 @@ int do_proxy(srs_mp4_t mp4, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
         }
         uint32_t timestamp = *ptimestamp;
         
-        if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+        if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) != 0) {
             srs_human_trace("print packet failed. ret=%d", ret);
             return ret;
         }
+        srs_human_trace("%s", buffer);
         
         if ((ret = srs_rtmp_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);

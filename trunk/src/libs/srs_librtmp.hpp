@@ -1020,28 +1020,19 @@ extern const char* srs_human_flv_audio_sound_type2string(char sound_type);
 *   it's static shared const string.
 */
 extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type);
+    
+/**
+ * Format the RTMP packet to human readable buffer.
+ * @return Whether parse RTMP packet ok. 0, success; otherwise, failed.
+ */
+extern int srs_human_format_rtmp_packet(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size);
+extern int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size,
+    uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
 
 /**
-* print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
-* and use srs_human_raw for script data body.
-* @return an error code for parse the timetstamp to dts and pts.
+ * Format current time to human readable string.
+ * @return A NULL terminated string.
  */
-extern int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size);
-/**
- * @param pre_timestamp the previous timestamp in ms to calc the diff.
- */
-extern int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp);
-/**
- * @param pre_now the previous system time in ms to calc the ndiff.
- */
-extern int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now);
-/**
- * @param starttime the rtmpdump starttime in ms.
- * @param nb_packets the number of packets received, to calc the packets interval in ms.
- */
-extern int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
-
-// log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
     
 #ifndef _WIN32
@@ -1062,14 +1053,14 @@ extern const char* srs_human_format_time();
     #define srs_human_raw(msg, ...) (void)0
 #else
     #define srs_human_trace(msg, ...) \
-        fprintf(stdout, "[Trace][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid());\
+        fprintf(stdout, "[T][%d][%s] ", getpid(), srs_human_format_time());\
         fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n")
     #define srs_human_warn(msg, ...) \
-        fprintf(stdout, "[Warn][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid()); \
+        fprintf(stdout, "[W][%d][%s] ", getpid(), srs_human_format_time()); \
         fprintf(stdout, msg, ##__VA_ARGS__); \
         fprintf(stdout, "\n")
     #define srs_human_error(msg, ...) \
-        fprintf(stderr, "[Error][%d][%s][%d] ", getpid(), srs_human_format_time(), getpid());\
+        fprintf(stderr, "[E][%d][%s] ", getpid(), srs_human_format_time());\
         fprintf(stderr, msg, ##__VA_ARGS__); \
         fprintf(stderr, "\n")
     #define srs_human_verbose(msg, ...) (void)0
@@ -1234,12 +1225,12 @@ typedef void* srs_hijack_io_t;
  *************************************************************
  *************************************************************/
 /**
- * @Deprecated For bandwidth test check only.
+ * Deprecated, for bandwidth test check only.
  */
 extern srs_rtmp_t srs_rtmp_create2(const char* url);
     
 /**
- * @Deprecated Use seperate function to retrieve information from rtmp,
+ * Deprecated, use seperate function to retrieve information from rtmp,
  *      for example, use srs_rtmp_get_server_ip to get server ip.
  */
 extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
@@ -1247,6 +1238,15 @@ extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     char srs_primary[128], char srs_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 );
+    
+/**
+ * Deprecated, use srs_human_format_rtmp_packet instead.
+ */
+extern int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size);
+extern int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp);
+extern int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now);
+extern int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now,
+    int64_t starttime, int64_t nb_packets);
 
 #ifdef __cplusplus
 }

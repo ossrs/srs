@@ -129,6 +129,8 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     } else {
         srs_human_verbose("start proxy RTMP stream");
     }
+    
+    char buffer[1024];
     for (;;) {
         if ((ret = srs_rtmp_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
@@ -146,10 +148,11 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         }
         
         if (verbose || ((nb_msgs++ % PITHY_PRINT_EVERY_MSGS) == 0 && nb_msgs > 10)) {
-            if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+            if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) != 0) {
                 srs_human_trace("print packet failed. ret=%d", ret);
                 return ret;
             }
+            srs_human_trace("%s", buffer);
         }
         
         if ((ret = srs_rtmp_write_packet(ortmp, type, timestamp, data, size)) != 0) {

@@ -141,6 +141,7 @@ int parse_flv(srs_flv_t flv)
     }
     
     srs_human_trace("start parse flv");
+    char buffer[1024];
     for (;;) {
         offset = srs_flv_tellg(flv);
         
@@ -162,7 +163,9 @@ int parse_flv(srs_flv_t flv)
         data = (char*)malloc(size);
         
         if ((ret = srs_flv_read_tag_data(flv, data, size)) == 0) {
-            if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) == 0) {
+            if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) == 0) {
+                srs_human_trace("%s", buffer);
+                
                 char hbuf[48]; char tbuf[48];
                 parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
                 srs_human_raw("offset=%d, first and last 16 bytes:\n"
