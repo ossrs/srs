@@ -128,7 +128,7 @@ typedef void* srs_amf0_t;
  * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
  * @remark default schema to srs_url_schema_normal, use srs_rtmp_set_schema to change it.
  *
- * @return a rtmp handler, or NULL if error occured, and errno set to srs error code.
+ * @return a rtmp handler, or NULL if error occured.
  */
 extern srs_rtmp_t srs_rtmp_create(const char* url);
 /**
@@ -553,7 +553,7 @@ typedef struct {
 } srs_mp4_sample_t;
 /**
  * Open mp4 file for muxer(write) or demuxer(read). 
- * @return A MP4 demuxer, NULL if failed, and errno set to srs error code.
+ * @return A MP4 demuxer, NULL if failed.
  */
 extern srs_mp4_t srs_mp4_open_read(const char* file);
 /**
@@ -600,12 +600,12 @@ extern srs_bool srs_mp4_is_eof(int error_code);
 typedef void* srs_flv_t;
 /**
  * Open FLV file in demux mode.
- * @return A FLV demuxer, NULL if failed, and errno set to srs error code.
+ * @return A FLV demuxer, NULL if failed.
  */
 extern srs_flv_t srs_flv_open_read(const char* file);
 /**
  * Open FlV file in mux mode.
- * @return A FLV muxer, NULL if failed, and errno set to srs error code.
+ * @return A FLV muxer, NULL if failed.
  */
 extern srs_flv_t srs_flv_open_write(const char* file);
 /**
@@ -1068,17 +1068,18 @@ extern const char* srs_human_format_time();
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) (void)0
 #else
+    #include <string.h>
     #define srs_human_trace(msg, ...) \
         fprintf(stdout, "[T][%d][%s] ", getpid(), srs_human_format_time());\
         fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n")
     #define srs_human_warn(msg, ...) \
-        fprintf(stdout, "[W][%d][%s] ", getpid(), srs_human_format_time()); \
+        fprintf(stdout, "[W][%d][%s][%d] ", getpid(), srs_human_format_time(), errno); \
         fprintf(stdout, msg, ##__VA_ARGS__); \
         fprintf(stdout, "\n")
     #define srs_human_error(msg, ...) \
-        fprintf(stderr, "[E][%d][%s] ", getpid(), srs_human_format_time());\
+        fprintf(stderr, "[E][%d][%s][%d] ", getpid(), srs_human_format_time(), errno);\
         fprintf(stderr, msg, ##__VA_ARGS__); \
-        fprintf(stderr, "\n")
+        fprintf(stderr, " (%s)\n", strerror(errno))
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 #endif
