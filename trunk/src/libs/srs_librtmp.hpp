@@ -1069,6 +1069,7 @@ extern const char* srs_human_format_time();
     #define srs_human_raw(msg, ...) (void)0
 #else
     #include <string.h>
+    #include <errno.h>
     #define srs_human_trace(msg, ...) \
         fprintf(stdout, "[T][%d][%s] ", getpid(), srs_human_format_time());\
         fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n")
