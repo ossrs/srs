@@ -48,7 +48,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
     expired = false;
     create_time = srs_get_system_time_ms();
 
-    skt = new SrsStSocket(c);
+    skt = new SrsStSocket();
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
 
@@ -105,6 +105,12 @@ void SrsConnection::dispose()
 
 int SrsConnection::start()
 {
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return pthread->start();
 }
 

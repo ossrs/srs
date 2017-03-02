@@ -208,15 +208,21 @@ namespace internal
     }
 }
 
-SrsStSocket::SrsStSocket(st_netfd_t client_stfd)
+SrsStSocket::SrsStSocket()
 {
-    stfd = client_stfd;
+    stfd = NULL;
     stm = rtm = SRS_CONSTS_NO_TMMS;
     rbytes = sbytes = 0;
 }
 
 SrsStSocket::~SrsStSocket()
 {
+}
+
+int SrsStSocket::initialize(st_netfd_t fd)
+{
+    stfd = fd;
+    return ERROR_SUCCESS;
 }
 
 bool SrsStSocket::is_never_timeout(int64_t tm)
@@ -390,8 +396,8 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 
 SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
 {
-    io = NULL;
     stfd = NULL;
+    io = new SrsStSocket();
     
     host = h;
     port = p;
@@ -401,6 +407,8 @@ SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
 SrsTcpClient::~SrsTcpClient()
 {
     close();
+    
+    srs_freep(io);
 }
 
 int SrsTcpClient::connect()
@@ -415,8 +423,9 @@ int SrsTcpClient::connect()
         return ret;
     }
     
-    srs_assert(io == NULL);
-    io = new SrsStSocket(stfd);
+    if ((ret = io->initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ret;
 }
@@ -428,7 +437,6 @@ void SrsTcpClient::close()
         return;
     }
     
-    srs_freep(io);
     srs_close_stfd(stfd);
 }
 

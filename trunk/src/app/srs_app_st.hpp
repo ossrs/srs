@@ -182,8 +182,11 @@ private:
     // The underlayer st fd.
     st_netfd_t stfd;
 public:
-    SrsStSocket(st_netfd_t client_stfd);
+    SrsStSocket();
     virtual ~SrsStSocket();
+public:
+    // Initialize the socket with stfd, user must manage it.
+    virtual int initialize(st_netfd_t fd);
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);
@@ -240,6 +243,7 @@ public:
      * @remark We will close the exists connection before do connect.
      */
     virtual int connect();
+private:
     /**
      * Close the connection to server.
      * @remark User should never use the client when close it.

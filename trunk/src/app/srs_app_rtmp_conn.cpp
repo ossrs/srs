@@ -302,7 +302,6 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
 {
     server = svr;
     
-    skt = new SrsStSocket(c);
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
     bandwidth = new SrsBandwidth();
@@ -328,7 +327,6 @@ SrsRtmpConn::~SrsRtmpConn()
     
     srs_freep(info);
     srs_freep(rtmp);
-    srs_freep(skt);
     srs_freep(refer);
     srs_freep(bandwidth);
     srs_freep(security);

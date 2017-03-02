@@ -1342,12 +1342,9 @@ int SrsHttpApi::do_cycle()
         return ret;
     }
     
-    // underlayer socket
-    SrsStSocket skt(stfd);
-    
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
-    skt.set_recv_timeout(SRS_HTTP_RECV_TMMS);
+    skt->set_recv_timeout(SRS_HTTP_RECV_TMMS);
     
     // initialize the cors, which will proxy to mux.
     bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();
@@ -1360,7 +1357,7 @@ int SrsHttpApi::do_cycle()
         ISrsHttpMessage* req = NULL;
         
         // get a http message
-        if ((ret = parser->parse_message(&skt, this, &req)) != ERROR_SUCCESS) {
+        if ((ret = parser->parse_message(skt, this, &req)) != ERROR_SUCCESS) {
             return ret;
         }
 
@@ -1371,7 +1368,7 @@ int SrsHttpApi::do_cycle()
         SrsAutoFree(ISrsHttpMessage, req);
         
         // ok, handle http request.
-        SrsHttpResponseWriter writer(&skt);
+        SrsHttpResponseWriter writer(skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }

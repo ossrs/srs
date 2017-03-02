@@ -139,7 +139,6 @@ class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandl
     friend class SrsPublishRecvThread;
 private:
     SrsServer* server;
-    SrsStSocket* skt;
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
     SrsBandwidth* bandwidth;

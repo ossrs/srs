@@ -193,7 +193,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 
     caster = c;
     stfd = fd;
-    skt = new SrsStSocket(fd);
+    skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
     trd = new SrsOneCycleThread("rtsp", this);
 
@@ -232,6 +232,11 @@ SrsRtspConn::~SrsRtspConn()
 
 int SrsRtspConn::serve()
 {
+    int ret = ERROR_SUCCESS;
+    if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return trd->start();
 }
 
