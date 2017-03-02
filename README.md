@@ -1283,6 +1283,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r0]: https://github.com/ossrs/srs/releases/tag/v2.0-r0
 [r2.0b4]: https://github.com/ossrs/srs/releases/tag/v2.0-b4
 [r2.0b3]: https://github.com/ossrs/srs/releases/tag/v2.0-b3
 [r2.0b2]: https://github.com/ossrs/srs/releases/tag/v2.0-b2
