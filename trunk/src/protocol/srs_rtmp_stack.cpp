@@ -5298,7 +5298,7 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
     stream->write_2bytes(event_type);
     
     if (event_type == SrsPCUCFmsEvent0) {
-        stream->write_1bytes(event_data);
+        stream->write_1bytes(1);
     } else {
         stream->write_4bytes(event_data);
     }
