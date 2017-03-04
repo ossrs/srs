@@ -1974,9 +1974,9 @@ enum SrcPCUCEventType
     SrcPCUCPingResponse = 0x07,
     
     /**
-     * for PCUC size=3, the payload is "00 1A 01",
-     * where we think the event is 0x001a, fms defined msg,
-     * which has only 1bytes event data.
+     * For PCUC size=3, for example the payload is "00 1A 01",
+     * it's a FMS control event, where the event type is 0x001a and event data is 0x01,
+     * please notice that the event data is only 1 byte for this event.
      */
     SrsPCUCFmsEvent0 = 0x1a,
 };
