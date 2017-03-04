@@ -69,6 +69,11 @@ int do_check(srs_rtmp_t rtmp)
         srs_human_trace("Retrieve server version failed, ret=%d", ret);
         return ret;
     }
+
+    if ((ret = srs_rtmp_play_stream(rtmp)) != 0) {
+        srs_human_trace("Play rtmp stream failed. ret=%d", ret);
+        return ret;
+    }
     
     if ((ret = srs_rtmp_bandwidth_check(rtmp,
         &start_time, &end_time, &play_kbps, &publish_kbps,
