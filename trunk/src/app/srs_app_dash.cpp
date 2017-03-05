@@ -83,7 +83,7 @@ int SrsMpdWriter::write(SrsFormat* format)
     string full_home = srs_path_dirname(full_path);
     
     if ((ret = srs_create_dir_recursively(full_home)) != ERROR_SUCCESS) {
-        srs_error("DASH: create MPD home failed, home=%s, ret=%d", full_home.c_str(), ret);
+        srs_error("DASH: Create MPD home failed, home=%s, ret=%d", full_home.c_str(), ret);
         return ret;
     }
     
@@ -122,23 +122,23 @@ int SrsMpdWriter::write(SrsFormat* format)
     SrsFileWriter fw;
     string full_path_tmp = full_path + ".tmp";
     if ((ret = fw.open(full_path_tmp)) != ERROR_SUCCESS) {
-        srs_error("DASH: open MPD file=%s failed, ret=%d", full_path_tmp.c_str(), ret);
+        srs_error("DASH: Open MPD file=%s failed, ret=%d", full_path_tmp.c_str(), ret);
         return ret;
     }
     
     string content = ss.str();
     if ((ret = fw.write((void*)content.data(), content.length(), NULL)) != ERROR_SUCCESS) {
-        srs_error("DASH: write MPD file=%s failed, ret=%d", full_path.c_str(), ret);
+        srs_error("DASH: Write MPD file=%s failed, ret=%d", full_path.c_str(), ret);
         return ret;
     }
     
     if (::rename(full_path_tmp.c_str(), full_path.c_str()) < 0) {
         ret = ERROR_DASH_WRITE_FAILED;
-        srs_error("DASH: rename %s to %s failed, ret=%d", full_path_tmp.c_str(), full_path.c_str(), ret);
+        srs_error("DASH: Rename %s to %s failed, ret=%d", full_path_tmp.c_str(), full_path.c_str(), ret);
         return ret;
     }
     
-    srs_trace("DASH: refresh MPD successed, size=%dB, file=%s", content.length(), full_path.c_str());
+    srs_trace("DASH: Refresh MPD successed, size=%dB, file=%s", content.length(), full_path.c_str());
     
     return ret;
 }
@@ -169,7 +169,7 @@ int SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* fo
     int ret = ERROR_SUCCESS;
     
     if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {
-        srs_error("DASH: refresh the MPD failed. ret=%d", ret);
+        srs_error("DASH: Refresh the MPD failed. ret=%d", ret);
         return ret;
     }
     
@@ -181,7 +181,7 @@ int SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* fo
     int ret = ERROR_SUCCESS;
     
     if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {
-        srs_error("DASH: refresh the MPD failed. ret=%d", ret);
+        srs_error("DASH: Refresh the MPD failed. ret=%d", ret);
         return ret;
     }
     
@@ -226,7 +226,7 @@ int SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
     req = r;
     
     if ((ret = controller->initialize(req)) != ERROR_SUCCESS) {
-        srs_error("DASH: initialize controller failed. ret=%d", ret);
+        srs_error("DASH: Initialize controller failed. ret=%d", ret);
         return ret;
     }
     
@@ -259,7 +259,7 @@ int SrsDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     }
     
     if ((ret = controller->on_audio(shared_audio, format)) != ERROR_SUCCESS) {
-        srs_error("DASH: consume audio failed. ret=%d", ret);
+        srs_error("DASH: Consume audio failed. ret=%d", ret);
         return ret;
     }
     
@@ -275,7 +275,7 @@ int SrsDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     }
     
     if ((ret = controller->on_video(shared_video, format)) != ERROR_SUCCESS) {
-        srs_error("DASH: consume video failed. ret=%d", ret);
+        srs_error("DASH: Consume video failed. ret=%d", ret);
         return ret;
     }
     
