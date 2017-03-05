@@ -515,14 +515,17 @@ public:
  */
 class SrsAudioCodecConfig : public SrsCodecConfig
 {
+// In FLV specification.
 public:
     // audio specified
     SrsAudioCodecId id;
     // audio aac specified.
     SrsAudioSampleRate sound_rate;
     SrsAudioSampleBits sound_size;
+    // TODO: FIXME: Rename to sound_channels.
     SrsAudioChannels sound_type;
     int audio_data_rate; // in bps
+// In AAC specification.
 public:
     /**
      * audio specified
@@ -539,6 +542,7 @@ public:
      * channelConfiguration
      */
     uint8_t aac_channels;
+// Sequence header payload.
 public:
     /**
      * the aac extra data, the AAC sequence header,

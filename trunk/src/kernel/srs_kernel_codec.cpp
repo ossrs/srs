@@ -560,7 +560,8 @@ int SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     }
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
-    SrsAudioCodecId codec = (SrsAudioCodecId)((buffer->read_1bytes() >> 4) & 0x0f);
+    uint8_t v = buffer->read_1bytes();
+    SrsAudioCodecId codec = (SrsAudioCodecId)((v >> 4) & 0x0f);
     
     if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC) {
         return ret;
@@ -1360,6 +1361,21 @@ int SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     
     audio->cts = 0;
     audio->dts = timestamp;
+    
+    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
+    int8_t sound_format = stream->read_1bytes();
+    
+    int8_t sound_type = sound_format & 0x01;
+    int8_t sound_size = (sound_format >> 1) & 0x01;
+    int8_t sound_rate = (sound_format >> 2) & 0x03;
+    sound_format = (sound_format >> 4) & 0x0f;
+    
+    SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
+    acodec->id = codec_id;
+    
+    acodec->sound_type = (SrsAudioChannels)sound_type;
+    acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
+    acodec->sound_size = (SrsAudioSampleBits)sound_size;
     
     // we always decode aac then mp3.
     srs_assert(acodec->id == SrsAudioCodecIdMP3);

@@ -64,6 +64,8 @@ class SrsMp4VideoMeidaHeaderBox;
 class SrsMp4DataInformationBox;
 class SrsMp4DataReferenceBox;
 class SrsMp4SoundMeidaHeaderBox;
+class SrsMp4MovieExtendsBox;
+class SrsMp4TrackExtendsBox;
 
 /**
  * 4.2 Object Structure
@@ -109,6 +111,8 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeMP4A = 0x6d703461, // 'mp4a'
     SrsMp4BoxTypeESDS = 0x65736473, // 'esds'
     SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
+    SrsMp4BoxTypeMVEX = 0x6d766578, // 'mvex'
+    SrsMp4BoxTypeTREX = 0x74726578, // 'trex'
 };
 
 /**
@@ -134,6 +138,9 @@ enum SrsMp4BoxBrand
     SrsMp4BoxBrandISO2 = 0x69736f32, // 'iso2'
     SrsMp4BoxBrandAVC1 = 0x61766331, // 'avc1'
     SrsMp4BoxBrandMP41 = 0x6d703431, // 'mp41'
+    SrsMp4BoxBrandISO5 = 0x69736f35, // 'iso5'
+    SrsMp4BoxBrandMP42 = 0x6d703432, // 'mp42'
+    SrsMp4BoxBrandDASH = 0x64617368, // 'dash'
 };
 
 /**
@@ -321,6 +328,9 @@ public:
     // Get the header of moov.
     virtual SrsMp4MovieHeaderBox* mvhd();
     virtual void set_mvhd(SrsMp4MovieHeaderBox* v);
+    // Get the movie extends header.
+    virtual SrsMp4MovieExtendsBox* mvex();
+    virtual void set_mvex(SrsMp4MovieExtendsBox* v);
     // Get the first video track.
     virtual SrsMp4TrackBox* video();
     // Get the first audio track.
@@ -393,6 +403,47 @@ enum SrsMp4TrackType
     SrsMp4TrackTypeForbidden = 0x00,
     SrsMp4TrackTypeAudio = 0x01,
     SrsMp4TrackTypeVideo = 0x02,
+};
+
+/**
+ * 8.8.1 Movie Extends Box (mvex)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 64
+ * This box warns readers that there might be Movie Fragment Boxes in this file. To know of all samples in the
+ * tracks, these Movie Fragment Boxes must be found and scanned in order, and their information logically
+ * added to that found in the Movie Box.
+ */
+class SrsMp4MovieExtendsBox : public SrsMp4Box
+{
+public:
+    SrsMp4MovieExtendsBox();
+    virtual ~SrsMp4MovieExtendsBox();
+public:
+    // Get the track extends box.
+    virtual SrsMp4TrackExtendsBox* trex();
+    virtual void set_trex(SrsMp4TrackExtendsBox* v);
+};
+
+/**
+ * 8.8.3 Track Extends Box(trex)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 65
+ */
+class SrsMp4TrackExtendsBox : public SrsMp4FullBox
+{
+public:
+    // identifies the track; this shall be the track ID of a track in the Movie Box
+    uint32_t track_ID;
+    // these fields set up defaults used in the track fragments.
+    uint32_t default_sample_description_index;
+    uint32_t default_sample_duration;
+    uint32_t default_sample_size;
+    uint32_t default_sample_flags;
+public:
+    SrsMp4TrackExtendsBox();
+    virtual ~SrsMp4TrackExtendsBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
 };
 
 /**

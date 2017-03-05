@@ -80,7 +80,12 @@ public:
 class SrsDashController
 {
 private:
+    SrsRequest* req;
     SrsMpdWriter* mpd;
+private:
+    std::string home;
+    int video_tack_id;
+    int audio_track_id;
 public:
     SrsDashController();
     virtual ~SrsDashController();
@@ -90,6 +95,7 @@ public:
     virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual int refresh_mpd(SrsFormat* format);
+    virtual int refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* format);
 };
 
 /**

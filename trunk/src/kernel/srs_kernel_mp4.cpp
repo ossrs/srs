@@ -226,6 +226,8 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeMP4A: box = new SrsMp4AudioSampleEntry(); break;
         case SrsMp4BoxTypeESDS: box = new SrsMp4EsdsBox(); break;
         case SrsMp4BoxTypeUDTA: box = new SrsMp4UserDataBox(); break;
+        case SrsMp4BoxTypeMVEX: box = new SrsMp4MovieExtendsBox(); break;
+        case SrsMp4BoxTypeTREX: box = new SrsMp4TrackExtendsBox(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -690,7 +692,19 @@ SrsMp4MovieHeaderBox* SrsMp4MovieBox::mvhd()
 void SrsMp4MovieBox::set_mvhd(SrsMp4MovieHeaderBox* v)
 {
     remove(SrsMp4BoxTypeMVHD);
-    boxes.insert(boxes.begin(), v);
+    boxes.push_back(v);
+}
+
+SrsMp4MovieExtendsBox* SrsMp4MovieBox::mvex()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeMVEX);
+    return dynamic_cast<SrsMp4MovieExtendsBox*>(box);
+}
+
+void SrsMp4MovieBox::set_mvex(SrsMp4MovieExtendsBox* v)
+{
+    remove(SrsMp4BoxTypeMVEX);
+    boxes.push_back(v);
 }
 
 SrsMp4TrackBox* SrsMp4MovieBox::video()
@@ -880,6 +894,77 @@ int SrsMp4MovieHeaderBox::decode_header(SrsBuffer* buf)
     }
     buf->skip(24);
     next_track_ID = buf->read_4bytes();
+    
+    return ret;
+}
+
+SrsMp4MovieExtendsBox::SrsMp4MovieExtendsBox()
+{
+    type = SrsMp4BoxTypeMVEX;
+}
+
+SrsMp4MovieExtendsBox::~SrsMp4MovieExtendsBox()
+{
+}
+
+SrsMp4TrackExtendsBox* SrsMp4MovieExtendsBox::trex()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeTREX);
+    return dynamic_cast<SrsMp4TrackExtendsBox*>(box);
+}
+
+void SrsMp4MovieExtendsBox::set_trex(SrsMp4TrackExtendsBox* v)
+{
+    remove(SrsMp4BoxTypeTREX);
+    boxes.push_back(v);
+}
+
+SrsMp4TrackExtendsBox::SrsMp4TrackExtendsBox()
+{
+    type = SrsMp4BoxTypeTREX;
+    track_ID = default_sample_size = default_sample_flags = 0;
+    default_sample_size = default_sample_duration = default_sample_description_index = 0;
+}
+
+SrsMp4TrackExtendsBox::~SrsMp4TrackExtendsBox()
+{
+}
+
+int SrsMp4TrackExtendsBox::nb_header()
+{
+    return SrsMp4FullBox::nb_header() + 4*5;
+}
+
+int SrsMp4TrackExtendsBox::encode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::encode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    buf->write_4bytes(track_ID);
+    buf->write_4bytes(default_sample_description_index);
+    buf->write_4bytes(default_sample_duration);
+    buf->write_4bytes(default_sample_size);
+    buf->write_4bytes(default_sample_flags);
+    
+    return ret;
+}
+
+int SrsMp4TrackExtendsBox::decode_header(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    track_ID = buf->read_4bytes();
+    default_sample_description_index = buf->read_4bytes();
+    default_sample_duration = buf->read_4bytes();
+    default_sample_size = buf->read_4bytes();
+    default_sample_flags = buf->read_4bytes();
     
     return ret;
 }
@@ -4010,7 +4095,8 @@ int SrsMp4Decoder::parse_ftyp(SrsMp4FileTypeBox* ftyp)
     // File Type Box (ftyp)
     bool legal_brand = false;
     static SrsMp4BoxBrand legal_brands[] = {
-        SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41
+        SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41,
+        SrsMp4BoxBrandISO5
     };
     for (int i = 0; i < sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
         if (ftyp->major_brand == legal_brands[i]) {
@@ -4375,7 +4461,7 @@ int SrsMp4Encoder::flush()
         
         mvhd->timescale = 1000; // Use tbn ms.
         mvhd->duration_in_tbn = srs_max(vduration, aduration);
-        mvhd->next_track_ID++;
+        mvhd->next_track_ID = 1; // Starts from 1, increase when use it.
         
         if (nb_videos) {
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
