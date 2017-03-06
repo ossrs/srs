@@ -395,7 +395,7 @@ enum SrsAacProfile
 {
     SrsAacProfileReserved = 3,
     
-    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
+    // @see 7.1 Profiles, ISO_IEC_13818-7-AAC-2004.pdf, page 40
     SrsAacProfileMain = 0,
     SrsAacProfileLC = 1,
     SrsAacProfileSSR = 2,

@@ -318,7 +318,7 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         int adts_header_start = stream->pos();
         
         // decode the ADTS.
-        // @see aac-iso-13818-7.pdf, page 26
+        // @see ISO_IEC_13818-7-AAC-2004.pdf, page 26
         //      6.2 Audio Data Transport Stream, ADTS
         // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
         // byte_alignment()

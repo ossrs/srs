@@ -2887,7 +2887,7 @@ int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
         
         // AAC-ADTS
         // 6.2 Audio Data Transport Stream, ADTS
-        // in aac-iso-13818-7.pdf, page 26.
+        // in ISO_IEC_13818-7-AAC-2004.pdf, page 26.
         // fixed 7bytes header
         uint8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*

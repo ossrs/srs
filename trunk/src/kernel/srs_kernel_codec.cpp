@@ -1317,7 +1317,7 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
         }
         
         // Raw AAC frame data in UI8 []
-        // 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
+        // 6.3 Raw Data, ISO_IEC_13818-7-AAC-2004.pdf, page 28
         if ((ret = audio->add_sample(stream->data() + stream->pos(), stream->size() - stream->pos())) != ERROR_SUCCESS) {
             srs_error("aac add sample failed. ret=%d", ret);
             return ret;

@@ -80,4 +80,8 @@ kafka协议:
 kafka-160915-0553-82964.pdf
     https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol
 
+STUN: https://tools.ietf.org/html/rfc5389
+TURN: https://tools.ietf.org/html/rfc5766
+
 Winlin
+
