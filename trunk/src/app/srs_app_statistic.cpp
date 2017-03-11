@@ -359,18 +359,22 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     stream->close();
-	
-	//TODO Is this correct? Something is not released?
-	std::map<int64_t, SrsStatisticStream*>::iterator it;
-	if ((it=streams.find(stream->id)) != streams.end()) {
-		streams.erase(it);
-	}
-
-	std::map<std::string, SrsStatisticStream*>::iterator sit;
-	if ((sit=rstreams.find(stream->url)) != rstreams.end()) {
-		rstreams.erase(sit);
-	}
-
+    
+    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
+    if (true) {
+        std::map<int64_t, SrsStatisticStream*>::iterator it;
+        if ((it=streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+    }
+    
+    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it=rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+    }
 }
 
 int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
