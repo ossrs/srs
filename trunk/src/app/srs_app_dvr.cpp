@@ -41,16 +41,15 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_mp4.hpp>
+#include <srs_app_fragment.hpp>
 
 SrsDvrSegmenter::SrsDvrSegmenter()
 {
     req = NULL;
     jitter = NULL;
     plan = NULL;
-    duration = 0;
-    stream_previous_pkt_time = -1;
     
-    path = "";
+    fragment = new SrsFragment();
     fs = new SrsFileWriter();
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
 
@@ -61,6 +60,7 @@ SrsDvrSegmenter::~SrsDvrSegmenter()
 {
     _srs_config->unsubscribe(this);
 
+    srs_freep(fragment);
     srs_freep(jitter);
     srs_freep(fs);
 }
@@ -78,14 +78,9 @@ int SrsDvrSegmenter::initialize(SrsDvrPlan* p, SrsRequest* r)
     return ret;
 }
 
-string SrsDvrSegmenter::get_path()
+SrsFragment* SrsDvrSegmenter::current()
 {
-    return path;
-}
-
-int64_t SrsDvrSegmenter::get_duration()
-{
-    return duration;
+    return fragment;
 }
 
 int SrsDvrSegmenter::open()
@@ -97,32 +92,25 @@ int SrsDvrSegmenter::open()
         return ret;
     }
 
-    path = generate_path();
+    string path = generate_path();
     if (srs_path_exists(path)) {
         ret = ERROR_DVR_CANNOT_APPEND;
         srs_error("DVR can't append to exists path=%s. ret=%d", path.c_str(), ret);
         return ret;
     }
-    
-    tmp_dvr_file = path + ".tmp";
+    fragment->set_path(path);
     
     // create dir first.
-    std::string dir = srs_path_dirname(path);
-    if ((ret = srs_create_dir_recursively(dir)) != ERROR_SUCCESS) {
-        srs_error("create dir=%s failed. ret=%d", dir.c_str(), ret);
+    if ((ret = fragment->create_dir()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_info("create dir=%s ok", dir.c_str());
 
     // create jitter.
     srs_freep(jitter);
     jitter = new SrsRtmpJitter();
-    duration = 0;
-    
-    // fresh stream starting.
-    stream_previous_pkt_time = -1;
     
     // open file writer, in append or create mode.
+    string tmp_dvr_file = fragment->tmppath();
     if ((ret = fs->open(tmp_dvr_file)) != ERROR_SUCCESS) {
         srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
         return ret;
@@ -205,13 +193,8 @@ int SrsDvrSegmenter::close()
     fs->close();
     
     // when tmp flv file exists, reap it.
-    if (tmp_dvr_file != path) {
-        if (rename(tmp_dvr_file.c_str(), path.c_str()) < 0) {
-            ret = ERROR_SYSTEM_FILE_RENAME;
-            srs_error("rename flv file failed, %s => %s. ret=%d", 
-                tmp_dvr_file.c_str(), path.c_str(), ret);
-            return ret;
-        }
+    if ((ret = fragment->rename()) != ERROR_SUCCESS) {
+        return ret;
     }
 
     // TODO: FIXME: the http callback is async, which will trigger thread switch,
@@ -228,16 +211,7 @@ int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    // no previous packet or timestamp overflow.
-    if (stream_previous_pkt_time < 0 || stream_previous_pkt_time > msg->timestamp) {
-        stream_previous_pkt_time = msg->timestamp;
-    }
-    
-    // collect segment and stream duration, timestamp overflow is ok.
-    duration += msg->timestamp - stream_previous_pkt_time;
-    
-    // update previous packet time
-    stream_previous_pkt_time = msg->timestamp;
+    fragment->append(msg->timestamp);
     
     return ret;
 }
@@ -326,7 +300,7 @@ int SrsDvrFlvSegmenter::refresh_metadata()
     }
     
     // duration to buf
-    SrsAmf0Any* dur = SrsAmf0Any::number((double)duration / 1000.0);
+    SrsAmf0Any* dur = SrsAmf0Any::number((double)fragment->duration() / 1000.0);
     SrsAutoFree(SrsAmf0Any, dur);
     
     stream.skip(-1 * stream.pos());
@@ -747,7 +721,11 @@ int SrsDvrPlan::on_reap_segment()
     int ret = ERROR_SUCCESS;
 
     int cid = _srs_context->get_id();
-    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, segment->get_path()))) != ERROR_SUCCESS) {
+    
+    SrsFragment* fragment = segment->current();
+    string fullpath = fragment->fullpath();
+    
+    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -916,7 +894,8 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     srs_assert(segment);
     
     // ignore if duration ok.
-    if (cduration <= 0 || segment->get_duration() < cduration) {
+    SrsFragment* fragment = segment->current();
+    if (cduration <= 0 || fragment->duration() < cduration) {
         return ret;
     }
     

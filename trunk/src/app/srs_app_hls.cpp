@@ -423,12 +423,9 @@ int SrsHlsMuxer::segment_open()
     current->uri += ts_url;
     
     // create dir recursively for hls.
-    std::string ts_dir = srs_path_dirname(current->fullpath());
-    if ((ret = srs_create_dir_recursively(ts_dir)) != ERROR_SUCCESS) {
-        srs_error("create app dir %s failed. ret=%d", ts_dir.c_str(), ret);
+    if ((ret = current->create_dir()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_info("create ts dir %s ok", ts_dir.c_str());
     
     // open temp ts file.
     std::string tmp_file = current->tmppath();

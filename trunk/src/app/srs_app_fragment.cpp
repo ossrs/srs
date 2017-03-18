@@ -90,6 +90,22 @@ int SrsFragment::unlink_file()
     return ret;
 }
 
+int SrsFragment::create_dir()
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string segment_dir = srs_path_dirname(filepath);
+    
+    if ((ret = srs_create_dir_recursively(segment_dir)) != ERROR_SUCCESS) {
+        srs_error("Create dir %s failed. ret=%d", segment_dir.c_str(), ret);
+        return ret;
+    }
+    
+    srs_info("Create dir %s ok", segment_dir.c_str());
+    
+    return ret;
+}
+
 string SrsFragment::tmppath()
 {
     return filepath + ".tmp";

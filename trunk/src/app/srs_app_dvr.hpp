@@ -45,6 +45,7 @@ class SrsJsonAny;
 class SrsJsonObject;
 class SrsThread;
 class SrsMp4Encoder;
+class SrsFragment;
 
 #include <srs_app_source.hpp>
 #include <srs_app_reload.hpp>
@@ -60,33 +61,22 @@ protected:
     SrsFileWriter* fs;
     // Whether wait keyframe to reap segment.
     bool wait_keyframe;
-    // The duration in ms of current segment.
-    int64_t duration;
-private:
-    // The path of current segment flv file path.
-    std::string path;
-    std::string tmp_dvr_file;
+    // The FLV/MP4 fragment file.
+    SrsFragment* fragment;
 private:
     SrsRequest* req;
     SrsDvrPlan* plan;
 private:
     SrsRtmpJitter* jitter;
     SrsRtmpJitterAlgorithm jitter_algorithm;
-private:
-    // The previous stream RTMP pkt time in ms, used to calc the duration.
-    // for the RTMP timestamp will overflow.
-    // TODO: FIXME: Use utility object to calc it.
-    int64_t stream_previous_pkt_time;
 public:
     SrsDvrSegmenter();
     virtual ~SrsDvrSegmenter();
 public:
     // Initialize the segment.
     virtual int initialize(SrsDvrPlan* p, SrsRequest* r);
-    // Get the current dvr path.
-    virtual std::string get_path();
-    // Get the duration in ms of segment.
-    virtual int64_t get_duration();
+    // Get the current framgnet.
+    virtual SrsFragment* current();
     // Open new segment file.
     // @param use_tmp_file Whether use tmp file for DVR, and rename when close.
     // @remark Ignore when file is already open.

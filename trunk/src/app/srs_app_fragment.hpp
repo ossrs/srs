@@ -67,6 +67,8 @@ public:
     // Unlink the fragment, to delete the file.
     // @remark Ignore any error.
     virtual int unlink_file();
+    // Create the dir for file recursively.
+    virtual int create_dir();
 public:
     // Get the temporary path for file.
     virtual std::string tmppath();
