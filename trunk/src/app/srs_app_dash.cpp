@@ -158,6 +158,13 @@ SrsDashController::SrsDashController()
 SrsDashController::~SrsDashController()
 {
     srs_freep(mpd);
+    
+    vector<SrsFragmentedMp4*>::iterator it;
+    for (it = fragments.begin(); it != fragments.end(); ++it) {
+        SrsFragmentedMp4* fragment = *it;
+        srs_freep(fragment);
+    }
+    fragments.clear();
 }
 
 int SrsDashController::initialize(SrsRequest* r)

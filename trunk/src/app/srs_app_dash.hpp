@@ -30,6 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
+
+#include <srs_app_fragment.hpp>
 
 class SrsRequest;
 class SrsOriginHub;
@@ -39,7 +42,7 @@ class SrsFormat;
 /**
  * The FMP4(Fragmented MP4) for DASH streaming.
  */
-class SrsFragmentedMp4
+class SrsFragmentedMp4 : public SrsFragment
 {
 public:
     SrsFragmentedMp4();
@@ -82,6 +85,7 @@ class SrsDashController
 private:
     SrsRequest* req;
     SrsMpdWriter* mpd;
+    std::vector<SrsFragmentedMp4*> fragments;
 private:
     std::string home;
     int video_tack_id;

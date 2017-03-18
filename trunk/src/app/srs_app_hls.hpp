@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_async_call.hpp>
+#include <srs_app_fragment.hpp>
 
 class SrsFormat;
 class SrsSharedPtrMessage;
@@ -58,34 +59,20 @@ class SrsTsContext;
 * 3.3.2.  EXTINF
 * The EXTINF tag specifies the duration of a media segment.
 */
-class SrsHlsSegment
+class SrsHlsSegment : public SrsFragment
 {
 public:
-    // duration in seconds in m3u8.
-    double duration;
     // sequence number in m3u8.
     int sequence_no;
     // ts uri in m3u8.
     std::string uri;
-    // ts full file to write.
-    std::string full_path;
     // the underlayer file writer.
     SrsFileWriter* writer;
     // The TS context writer to write TS to file.
     SrsTsContextWriter* tscw;
-    // current segment start dts for m3u8
-    int64_t segment_start_dts;
-    // whether current segement is sequence header.
-    bool is_sequence_header;
 public:
     SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsHlsSegment();
-public:
-    /**
-    * update the segment duration.
-    * @current_frame_dts the dts of frame, in tbn of ts.
-    */
-    virtual void update_duration(int64_t current_frame_dts);
 };
 
 /**
@@ -103,6 +90,7 @@ private:
     SrsRequest* req;
     double duration;
 public:
+    // TODO: FIXME: Use TBN 1000.
     SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
@@ -147,6 +135,7 @@ private:
     bool hls_wait_keyframe;
     std::string m3u8_dir;
     double hls_aof_ratio;
+    // TODO: FIXME: Use TBN 1000.
     double hls_fragment;
     double hls_window;
     SrsAsyncCallWorker* async;
@@ -166,13 +155,9 @@ private:
     std::string m3u8;
     std::string m3u8_url;
 private:
-    /**
-    * m3u8 segments.
-    */
-    std::vector<SrsHlsSegment*> segments;
-    /**
-    * current writing segment.
-    */
+    // The available cached segments in m3u8.
+    SrsFragmentWindow* segments;
+    // The current writing segment.
     SrsHlsSegment* current;
     /**
      * the ts context, to keep cc continous between ts.
@@ -202,11 +187,9 @@ public:
         double fragment, double window, bool ts_floor, double aof_ratio,
         bool cleanup, bool wait_keyframe);
     /**
-    * open a new segment(a new ts file),
-    * @param segment_start_dts use to calc the segment duration,
-    *       use 0 for the first segment of HLS.
-    */
-    virtual int segment_open(int64_t segment_start_dts);
+     * open a new segment(a new ts file)
+     */
+    virtual int segment_open();
     virtual int on_sequence_header();
     /**
     * whether segment overflow,
@@ -231,10 +214,9 @@ public:
     virtual int flush_audio(SrsTsMessageCache* cache);
     virtual int flush_video(SrsTsMessageCache* cache);
     /**
-    * close segment(ts).
-    * @param log_desc the description for log.
-    */
-    virtual int segment_close(std::string log_desc);
+     * Close segment(ts).
+     */
+    virtual int segment_close();
 private:
     virtual int refresh_m3u8();
     virtual int _refresh_m3u8(std::string m3u8_file);
@@ -279,7 +261,7 @@ public:
     /**
     * when publish or unpublish stream.
     */
-    virtual int on_publish(SrsRequest* req, int64_t segment_start_dts);
+    virtual int on_publish(SrsRequest* req);
     virtual int on_unpublish();
     /**
     * when get sequence header, 
@@ -303,7 +285,7 @@ private:
     * then write the key frame to the new segment.
     * so, user must reap_segment then flush_video to hls muxer.
     */
-    virtual int reap_segment(std::string log_desc, int64_t segment_start_dts);
+    virtual int reap_segment();
 };
 
 /**
@@ -323,20 +305,6 @@ private:
     SrsOriginHub* hub;
     SrsRtmpJitter* jitter;
     SrsPithyPrint* pprint;
-    /**
-    * we store the stream dts,
-    * for when we notice the hls cache to publish,
-    * it need to know the segment start dts.
-    * 
-    * for example. when republish, the stream dts will 
-    * monotonically increase, and the ts dts should start 
-    * from current dts.
-    * 
-    * or, simply because the HlsCache never free when unpublish,
-    * so when publish or republish it must start at stream dts,
-    * not zero dts.
-    */
-    int64_t stream_dts;
 public:
     SrsHls();
     virtual ~SrsHls();
