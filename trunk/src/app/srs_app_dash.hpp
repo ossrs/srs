@@ -68,7 +68,7 @@ public:
     virtual ~SrsFragmentedMp4();
 public:
     // Initialize the fragment, create the home dir, open the file.
-    virtual int initialize(bool video, SrsMpdWriter* mpd);
+    virtual int initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd);
     // Write media message to fragment.
     virtual int write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
     // Reap the fragment, close the fd and rename tmp to official file.
@@ -105,8 +105,8 @@ public:
     // Write MPD according to parsed format of stream.
     virtual int write(SrsFormat* format);
 public:
-    // Get the fragment home and path.
-    virtual int get_fragment(bool video, std::string& home, std::string& path);
+    // Get the fragment relative home and filename.
+    virtual int get_fragment(bool video, std::string& home, std::string& filename);
 };
 
 /**
