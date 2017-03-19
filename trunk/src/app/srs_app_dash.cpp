@@ -51,9 +51,9 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
 {
     int ret = ERROR_SUCCESS;
     
-    string path_tmp = fullpath() + ".tmp";
+    string path_tmp = tmppath();
     if ((ret = fw->open(path_tmp)) != ERROR_SUCCESS) {
-        srs_error("DASH: Open media failed, path=%s, ret=%d", path_tmp.c_str(), ret);
+        srs_error("DASH: Open init mp4 failed, path=%s, ret=%d", path_tmp.c_str(), ret);
         return ret;
     }
     
@@ -291,10 +291,56 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
 
 SrsFragmentedMp4::SrsFragmentedMp4()
 {
+    fw = new SrsFileWriter();
 }
 
 SrsFragmentedMp4::~SrsFragmentedMp4()
 {
+    srs_freep(fw);
+}
+
+int SrsFragmentedMp4::initialize(bool video, SrsMpdWriter* mpd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    string home;
+    string path;
+    
+    if ((ret = mpd->get_fragment(video, home, path)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    set_path(home + "/" + path);
+    
+    if ((ret = create_dir()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    string path_tmp = tmppath();
+    if ((ret = fw->open(path_tmp)) != ERROR_SUCCESS) {
+        srs_error("DASH: Open fmp4 failed, path=%s, ret=%d", path_tmp.c_str(), ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsFragmentedMp4::write(SrsSharedPtrMessage* shared_msg, SrsFormat* format)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsFragmentedMp4::reap()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_freep(fw);
+    
+    if ((ret = rename()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 SrsMpdWriter::SrsMpdWriter()
@@ -335,6 +381,8 @@ int SrsMpdWriter::write(SrsFormat* format)
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     string full_path = home + "/" + mpd_path;
     string full_home = srs_path_dirname(full_path);
+    
+    fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
     
     if ((ret = srs_create_dir_recursively(full_home)) != ERROR_SUCCESS) {
         srs_error("DASH: Create MPD home failed, home=%s, ret=%d", full_home.c_str(), ret);
@@ -399,19 +447,40 @@ int SrsMpdWriter::write(SrsFormat* format)
     return ret;
 }
 
+int SrsMpdWriter::get_fragment(bool video, std::string& home, std::string& path)
+{
+    int ret = ERROR_SUCCESS;
+    
+    home = fragment_home;
+    
+    int64_t sequence_number = srs_update_system_time_ms() / fragment / 1000;
+    if (video) {
+        path = "video-" + srs_int2str(sequence_number) + ".m4s";
+    } else {
+        path = "audio-" + srs_int2str(sequence_number) + ".m4s";
+    }
+    
+    return ret;
+}
+
 SrsDashController::SrsDashController()
 {
     req = NULL;
     video_tack_id = 2;
     audio_track_id = 1;
     mpd = new SrsMpdWriter();
-    fragments = new SrsFragmentWindow();
+    vcurrent = acurrent = NULL;
+    vfragments = new SrsFragmentWindow();
+    afragments = new SrsFragmentWindow();
 }
 
 SrsDashController::~SrsDashController()
 {
     srs_freep(mpd);
-    srs_freep(fragments);
+    srs_freep(vcurrent);
+    srs_freep(acurrent);
+    srs_freep(vfragments);
+    srs_freep(afragments);
 }
 
 int SrsDashController::initialize(SrsRequest* r)
@@ -419,9 +488,26 @@ int SrsDashController::initialize(SrsRequest* r)
     int ret = ERROR_SUCCESS;
     
     req = r;
+    fragment = _srs_config->get_dash_fragment(r->vhost);
     home = _srs_config->get_dash_path(r->vhost);
     
     if ((ret = mpd->initialize(r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    string home, path;
+    
+    srs_freep(vcurrent);
+    vcurrent = new SrsFragmentedMp4();
+    if ((ret = vcurrent->initialize(true, mpd)) != ERROR_SUCCESS) {
+        srs_error("DASH: Initialize the video fragment failed, ret=%d", ret);
+        return ret;
+    }
+    
+    srs_freep(acurrent);
+    acurrent = new SrsFragmentedMp4();
+    if ((ret = acurrent->initialize(false, mpd)) != ERROR_SUCCESS) {
+        srs_error("DASH: Initialize the audio fragment failed, ret=%d", ret);
         return ret;
     }
     
@@ -434,6 +520,25 @@ int SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* fo
     
     if (format->is_aac_sequence_header()) {
         return refresh_init_mp4(shared_audio, format);
+    }
+    
+    if (acurrent->duration() >= fragment) {
+        if ((ret = acurrent->reap()) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        afragments->append(acurrent);
+        acurrent = new SrsFragmentedMp4();
+        
+        if ((ret = acurrent->initialize(false, mpd)) != ERROR_SUCCESS) {
+            srs_error("DASH: Initialize the audio fragment failed, ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    if ((ret = acurrent->write(shared_audio, format)) != ERROR_SUCCESS) {
+        srs_error("DASH: Write audio to fragment failed, ret=%d", ret);
+        return ret;
     }
     
     if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {
@@ -450,6 +555,27 @@ int SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* fo
     
     if (format->is_avc_sequence_header()) {
         return refresh_init_mp4(shared_video, format);
+    }
+    
+    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame
+        && vcurrent->duration() >= fragment;
+    if (reopen) {
+        if ((ret = vcurrent->reap()) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        vfragments->append(vcurrent);
+        vcurrent = new SrsFragmentedMp4();
+        
+        if ((ret = vcurrent->initialize(true, mpd)) != ERROR_SUCCESS) {
+            srs_error("DASH: Initialize the video fragment failed, ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    if ((ret = vcurrent->write(shared_video, format)) != ERROR_SUCCESS) {
+        srs_error("DASH: Write video to fragment failed, ret=%d", ret);
+        return ret;
     }
     
     if ((ret = refresh_mpd(format)) != ERROR_SUCCESS) {

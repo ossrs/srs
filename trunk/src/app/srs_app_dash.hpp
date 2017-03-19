@@ -39,6 +39,7 @@ class SrsOriginHub;
 class SrsSharedPtrMessage;
 class SrsFormat;
 class SrsFileWriter;
+class SrsMpdWriter;
 
 /**
  * The init mp4 for FMP4.
@@ -60,9 +61,18 @@ public:
  */
 class SrsFragmentedMp4 : public SrsFragment
 {
+private:
+    SrsFileWriter* fw;
 public:
     SrsFragmentedMp4();
     virtual ~SrsFragmentedMp4();
+public:
+    // Initialize the fragment, create the home dir, open the file.
+    virtual int initialize(bool video, SrsMpdWriter* mpd);
+    // Write media message to fragment.
+    virtual int write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
+    // Reap the fragment, close the fd and rename tmp to official file.
+    virtual int reap();
 };
 
 /**
@@ -84,6 +94,9 @@ private:
     std::string home;
     // The MPD path template, from which to build the file path.
     std::string mpd_file;
+private:
+    // The home for fragment, relative to home.
+    std::string fragment_home;
 public:
     SrsMpdWriter();
     virtual ~SrsMpdWriter();
@@ -91,6 +104,9 @@ public:
     virtual int initialize(SrsRequest* r);
     // Write MPD according to parsed format of stream.
     virtual int write(SrsFormat* format);
+public:
+    // Get the fragment home and path.
+    virtual int get_fragment(bool video, std::string& home, std::string& path);
 };
 
 /**
@@ -101,7 +117,14 @@ class SrsDashController
 private:
     SrsRequest* req;
     SrsMpdWriter* mpd;
-    SrsFragmentWindow* fragments;
+private:
+    SrsFragmentedMp4* vcurrent;
+    SrsFragmentWindow* vfragments;
+    SrsFragmentedMp4* acurrent;
+    SrsFragmentWindow* afragments;
+private:
+    // The fragment duration in ms to reap it.
+    int fragment;
 private:
     std::string home;
     int video_tack_id;
