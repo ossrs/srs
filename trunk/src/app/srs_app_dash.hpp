@@ -38,6 +38,22 @@ class SrsRequest;
 class SrsOriginHub;
 class SrsSharedPtrMessage;
 class SrsFormat;
+class SrsFileWriter;
+
+/**
+ * The init mp4 for FMP4.
+ */
+class SrsInitMp4 : public SrsFragment
+{
+private:
+    SrsFileWriter* fw;
+public:
+    SrsInitMp4();
+    virtual ~SrsInitMp4();
+public:
+    // Write the init mp4 file, with the tid(track id).
+    virtual int write(SrsFormat* format, bool video, int tid);
+};
 
 /**
  * The FMP4(Fragmented MP4) for DASH streaming.
@@ -85,7 +101,7 @@ class SrsDashController
 private:
     SrsRequest* req;
     SrsMpdWriter* mpd;
-    std::vector<SrsFragmentedMp4*> fragments;
+    SrsFragmentWindow* fragments;
 private:
     std::string home;
     int video_tack_id;
