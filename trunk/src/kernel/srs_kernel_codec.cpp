@@ -713,8 +713,9 @@ int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         // ignored.
     }
     
+    int size = stream->size() - stream->pos();
     srs_info("avc decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d",
-             frame_type, video_codec_id, avc_packet_type, composition_time, size);
+             frame_type, codec_id, avc_packet_type, composition_time,size);
     
     return ret;
 }
@@ -1348,7 +1349,7 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
                 break;
         };
     }
-    
+    int size = stream->size() - stream->pos();
     srs_info("aac decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d",
              sound_type, codec_id, sound_size, sound_rate, sound_format, size);
     
@@ -1394,8 +1395,9 @@ int SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
         return ret;
     }
     
+	// format is sound_format?
     srs_info("audio decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d",
-             acodec->sound_type, acodec->id, acodec->sound_size, acodec->sound_rate, acodec->acodec, size);
+             acodec->sound_type, acodec->id, acodec->sound_size, acodec->sound_rate, sound_format, size);
     
     return ret;
 }

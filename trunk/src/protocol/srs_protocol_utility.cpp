@@ -104,7 +104,7 @@ void srs_discovery_tc_url(
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
-        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
+        srs_info("discovery host=%s, port=%d", host.c_str(), port);
     }
 
     if (url.empty()) {

@@ -88,7 +88,7 @@ namespace internal
         int ret = ERROR_SUCCESS;
         
         if(trd) {
-            srs_info("thread %s already running.", _name);
+            srs_info("thread %s already running.", name);
             return ret;
         }
         
@@ -155,7 +155,7 @@ namespace internal
                 srs_warn("thread %s on before cycle failed, ignored and retry, ret=%d", name, ret);
                 goto failed;
             }
-            srs_info("thread %s on before cycle success", _name);
+            srs_info("thread %s on before cycle success", name);
             
             if ((ret = handler->cycle()) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
@@ -163,13 +163,13 @@ namespace internal
                 }
                 goto failed;
             }
-            srs_info("thread %s cycle success", _name);
+            srs_info("thread %s cycle success", name);
             
             if ((ret = handler->on_end_cycle()) != ERROR_SUCCESS) {
                 srs_warn("thread %s on end cycle failed, ignored and retry, ret=%d", name, ret);
                 goto failed;
             }
-            srs_info("thread %s on end cycle success", _name);
+            srs_info("thread %s on end cycle success", name);
             
         failed:
             if (!loop) {

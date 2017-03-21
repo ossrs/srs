@@ -410,7 +410,7 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         
         // ibp frame.
         // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", ibpframe_size, dts);
+        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
         if ((ret = write_h264_ipb_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
             return ret;
         }
