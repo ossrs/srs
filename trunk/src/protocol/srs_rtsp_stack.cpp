@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,14 +29,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 using namespace std;
 
-#include <srs_rtmp_io.hpp>
-#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_io.hpp>
+#include <srs_kernel_stream.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
@@ -48,50 +48,50 @@ string srs_generate_rtsp_status_text(int status)
 {
     static std::map<int, std::string> _status_map;
     if (_status_map.empty()) {
-        _status_map[SRS_CONSTS_RTSP_Continue                       ] = SRS_CONSTS_RTSP_Continue_str                        ;      
-        _status_map[SRS_CONSTS_RTSP_OK                             ] = SRS_CONSTS_RTSP_OK_str                              ;      
-        _status_map[SRS_CONSTS_RTSP_Created                        ] = SRS_CONSTS_RTSP_Created_str                         ;      
-        _status_map[SRS_CONSTS_RTSP_LowOnStorageSpace              ] = SRS_CONSTS_RTSP_LowOnStorageSpace_str               ;      
-        _status_map[SRS_CONSTS_RTSP_MultipleChoices                ] = SRS_CONSTS_RTSP_MultipleChoices_str                 ;      
-        _status_map[SRS_CONSTS_RTSP_MovedPermanently               ] = SRS_CONSTS_RTSP_MovedPermanently_str                ;      
-        _status_map[SRS_CONSTS_RTSP_MovedTemporarily               ] = SRS_CONSTS_RTSP_MovedTemporarily_str                ;      
-        _status_map[SRS_CONSTS_RTSP_SeeOther                       ] = SRS_CONSTS_RTSP_SeeOther_str                        ;      
-        _status_map[SRS_CONSTS_RTSP_NotModified                    ] = SRS_CONSTS_RTSP_NotModified_str                     ;      
-        _status_map[SRS_CONSTS_RTSP_UseProxy                       ] = SRS_CONSTS_RTSP_UseProxy_str                        ;      
-        _status_map[SRS_CONSTS_RTSP_BadRequest                     ] = SRS_CONSTS_RTSP_BadRequest_str                      ;      
-        _status_map[SRS_CONSTS_RTSP_Unauthorized                   ] = SRS_CONSTS_RTSP_Unauthorized_str                    ;      
-        _status_map[SRS_CONSTS_RTSP_PaymentRequired                ] = SRS_CONSTS_RTSP_PaymentRequired_str                 ;      
-        _status_map[SRS_CONSTS_RTSP_Forbidden                      ] = SRS_CONSTS_RTSP_Forbidden_str                       ;      
-        _status_map[SRS_CONSTS_RTSP_NotFound                       ] = SRS_CONSTS_RTSP_NotFound_str                        ;      
-        _status_map[SRS_CONSTS_RTSP_MethodNotAllowed               ] = SRS_CONSTS_RTSP_MethodNotAllowed_str                ;      
-        _status_map[SRS_CONSTS_RTSP_NotAcceptable                  ] = SRS_CONSTS_RTSP_NotAcceptable_str                   ;      
-        _status_map[SRS_CONSTS_RTSP_ProxyAuthenticationRequired    ] = SRS_CONSTS_RTSP_ProxyAuthenticationRequired_str     ;      
-        _status_map[SRS_CONSTS_RTSP_RequestTimeout                 ] = SRS_CONSTS_RTSP_RequestTimeout_str                  ;      
-        _status_map[SRS_CONSTS_RTSP_Gone                           ] = SRS_CONSTS_RTSP_Gone_str                            ;      
-        _status_map[SRS_CONSTS_RTSP_LengthRequired                 ] = SRS_CONSTS_RTSP_LengthRequired_str                  ;      
-        _status_map[SRS_CONSTS_RTSP_PreconditionFailed             ] = SRS_CONSTS_RTSP_PreconditionFailed_str              ;      
-        _status_map[SRS_CONSTS_RTSP_RequestEntityTooLarge          ] = SRS_CONSTS_RTSP_RequestEntityTooLarge_str           ;      
-        _status_map[SRS_CONSTS_RTSP_RequestURITooLarge             ] = SRS_CONSTS_RTSP_RequestURITooLarge_str              ;      
-        _status_map[SRS_CONSTS_RTSP_UnsupportedMediaType           ] = SRS_CONSTS_RTSP_UnsupportedMediaType_str            ;      
-        _status_map[SRS_CONSTS_RTSP_ParameterNotUnderstood         ] = SRS_CONSTS_RTSP_ParameterNotUnderstood_str          ;      
-        _status_map[SRS_CONSTS_RTSP_ConferenceNotFound             ] = SRS_CONSTS_RTSP_ConferenceNotFound_str              ;      
-        _status_map[SRS_CONSTS_RTSP_NotEnoughBandwidth             ] = SRS_CONSTS_RTSP_NotEnoughBandwidth_str              ;      
-        _status_map[SRS_CONSTS_RTSP_SessionNotFound                ] = SRS_CONSTS_RTSP_SessionNotFound_str                 ;      
-        _status_map[SRS_CONSTS_RTSP_MethodNotValidInThisState      ] = SRS_CONSTS_RTSP_MethodNotValidInThisState_str       ;      
-        _status_map[SRS_CONSTS_RTSP_HeaderFieldNotValidForResource ] = SRS_CONSTS_RTSP_HeaderFieldNotValidForResource_str  ;      
-        _status_map[SRS_CONSTS_RTSP_InvalidRange                   ] = SRS_CONSTS_RTSP_InvalidRange_str                    ;      
-        _status_map[SRS_CONSTS_RTSP_ParameterIsReadOnly            ] = SRS_CONSTS_RTSP_ParameterIsReadOnly_str             ;      
-        _status_map[SRS_CONSTS_RTSP_AggregateOperationNotAllowed   ] = SRS_CONSTS_RTSP_AggregateOperationNotAllowed_str    ;      
-        _status_map[SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed  ] = SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed_str   ;      
-        _status_map[SRS_CONSTS_RTSP_UnsupportedTransport           ] = SRS_CONSTS_RTSP_UnsupportedTransport_str            ;      
-        _status_map[SRS_CONSTS_RTSP_DestinationUnreachable         ] = SRS_CONSTS_RTSP_DestinationUnreachable_str          ;      
-        _status_map[SRS_CONSTS_RTSP_InternalServerError            ] = SRS_CONSTS_RTSP_InternalServerError_str             ;      
-        _status_map[SRS_CONSTS_RTSP_NotImplemented                 ] = SRS_CONSTS_RTSP_NotImplemented_str                  ;      
-        _status_map[SRS_CONSTS_RTSP_BadGateway                     ] = SRS_CONSTS_RTSP_BadGateway_str                      ;     
-        _status_map[SRS_CONSTS_RTSP_ServiceUnavailable             ] = SRS_CONSTS_RTSP_ServiceUnavailable_str              ;     
-        _status_map[SRS_CONSTS_RTSP_GatewayTimeout                 ] = SRS_CONSTS_RTSP_GatewayTimeout_str                  ;     
-        _status_map[SRS_CONSTS_RTSP_RTSPVersionNotSupported        ] = SRS_CONSTS_RTSP_RTSPVersionNotSupported_str         ;     
-        _status_map[SRS_CONSTS_RTSP_OptionNotSupported             ] = SRS_CONSTS_RTSP_OptionNotSupported_str              ;        
+        _status_map[SRS_CONSTS_RTSP_Continue] = SRS_CONSTS_RTSP_Continue_str;      
+        _status_map[SRS_CONSTS_RTSP_OK] = SRS_CONSTS_RTSP_OK_str;      
+        _status_map[SRS_CONSTS_RTSP_Created] = SRS_CONSTS_RTSP_Created_str;      
+        _status_map[SRS_CONSTS_RTSP_LowOnStorageSpace] = SRS_CONSTS_RTSP_LowOnStorageSpace_str;      
+        _status_map[SRS_CONSTS_RTSP_MultipleChoices] = SRS_CONSTS_RTSP_MultipleChoices_str;      
+        _status_map[SRS_CONSTS_RTSP_MovedPermanently] = SRS_CONSTS_RTSP_MovedPermanently_str;      
+        _status_map[SRS_CONSTS_RTSP_MovedTemporarily] = SRS_CONSTS_RTSP_MovedTemporarily_str;      
+        _status_map[SRS_CONSTS_RTSP_SeeOther] = SRS_CONSTS_RTSP_SeeOther_str;      
+        _status_map[SRS_CONSTS_RTSP_NotModified] = SRS_CONSTS_RTSP_NotModified_str;      
+        _status_map[SRS_CONSTS_RTSP_UseProxy] = SRS_CONSTS_RTSP_UseProxy_str;      
+        _status_map[SRS_CONSTS_RTSP_BadRequest] = SRS_CONSTS_RTSP_BadRequest_str;      
+        _status_map[SRS_CONSTS_RTSP_Unauthorized] = SRS_CONSTS_RTSP_Unauthorized_str;      
+        _status_map[SRS_CONSTS_RTSP_PaymentRequired] = SRS_CONSTS_RTSP_PaymentRequired_str;      
+        _status_map[SRS_CONSTS_RTSP_Forbidden] = SRS_CONSTS_RTSP_Forbidden_str;      
+        _status_map[SRS_CONSTS_RTSP_NotFound] = SRS_CONSTS_RTSP_NotFound_str;      
+        _status_map[SRS_CONSTS_RTSP_MethodNotAllowed] = SRS_CONSTS_RTSP_MethodNotAllowed_str;      
+        _status_map[SRS_CONSTS_RTSP_NotAcceptable] = SRS_CONSTS_RTSP_NotAcceptable_str;      
+        _status_map[SRS_CONSTS_RTSP_ProxyAuthenticationRequired] = SRS_CONSTS_RTSP_ProxyAuthenticationRequired_str;      
+        _status_map[SRS_CONSTS_RTSP_RequestTimeout] = SRS_CONSTS_RTSP_RequestTimeout_str;      
+        _status_map[SRS_CONSTS_RTSP_Gone] = SRS_CONSTS_RTSP_Gone_str;      
+        _status_map[SRS_CONSTS_RTSP_LengthRequired] = SRS_CONSTS_RTSP_LengthRequired_str;      
+        _status_map[SRS_CONSTS_RTSP_PreconditionFailed] = SRS_CONSTS_RTSP_PreconditionFailed_str;      
+        _status_map[SRS_CONSTS_RTSP_RequestEntityTooLarge] = SRS_CONSTS_RTSP_RequestEntityTooLarge_str;      
+        _status_map[SRS_CONSTS_RTSP_RequestURITooLarge] = SRS_CONSTS_RTSP_RequestURITooLarge_str;      
+        _status_map[SRS_CONSTS_RTSP_UnsupportedMediaType] = SRS_CONSTS_RTSP_UnsupportedMediaType_str;      
+        _status_map[SRS_CONSTS_RTSP_ParameterNotUnderstood] = SRS_CONSTS_RTSP_ParameterNotUnderstood_str;      
+        _status_map[SRS_CONSTS_RTSP_ConferenceNotFound] = SRS_CONSTS_RTSP_ConferenceNotFound_str;      
+        _status_map[SRS_CONSTS_RTSP_NotEnoughBandwidth] = SRS_CONSTS_RTSP_NotEnoughBandwidth_str;      
+        _status_map[SRS_CONSTS_RTSP_SessionNotFound] = SRS_CONSTS_RTSP_SessionNotFound_str;      
+        _status_map[SRS_CONSTS_RTSP_MethodNotValidInThisState] = SRS_CONSTS_RTSP_MethodNotValidInThisState_str;      
+        _status_map[SRS_CONSTS_RTSP_HeaderFieldNotValidForResource] = SRS_CONSTS_RTSP_HeaderFieldNotValidForResource_str;      
+        _status_map[SRS_CONSTS_RTSP_InvalidRange] = SRS_CONSTS_RTSP_InvalidRange_str;      
+        _status_map[SRS_CONSTS_RTSP_ParameterIsReadOnly] = SRS_CONSTS_RTSP_ParameterIsReadOnly_str;      
+        _status_map[SRS_CONSTS_RTSP_AggregateOperationNotAllowed] = SRS_CONSTS_RTSP_AggregateOperationNotAllowed_str;      
+        _status_map[SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed] = SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed_str;      
+        _status_map[SRS_CONSTS_RTSP_UnsupportedTransport] = SRS_CONSTS_RTSP_UnsupportedTransport_str;      
+        _status_map[SRS_CONSTS_RTSP_DestinationUnreachable] = SRS_CONSTS_RTSP_DestinationUnreachable_str;      
+        _status_map[SRS_CONSTS_RTSP_InternalServerError] = SRS_CONSTS_RTSP_InternalServerError_str;      
+        _status_map[SRS_CONSTS_RTSP_NotImplemented] = SRS_CONSTS_RTSP_NotImplemented_str;      
+        _status_map[SRS_CONSTS_RTSP_BadGateway] = SRS_CONSTS_RTSP_BadGateway_str;     
+        _status_map[SRS_CONSTS_RTSP_ServiceUnavailable] = SRS_CONSTS_RTSP_ServiceUnavailable_str;     
+        _status_map[SRS_CONSTS_RTSP_GatewayTimeout] = SRS_CONSTS_RTSP_GatewayTimeout_str;     
+        _status_map[SRS_CONSTS_RTSP_RTSPVersionNotSupported] = SRS_CONSTS_RTSP_RTSPVersionNotSupported_str;     
+        _status_map[SRS_CONSTS_RTSP_OptionNotSupported] = SRS_CONSTS_RTSP_OptionNotSupported_str;        
     }
     
     std::string status_text;
@@ -135,8 +135,8 @@ SrsRtpPacket::SrsRtpPacket()
     timestamp = 0;
     ssrc = 0;
 
-    payload = new SrsSimpleBuffer();
-    audio_samples = new SrsCodecSample();
+    payload = new SrsSimpleStream();
+    audio = new SrsAudioFrame();
     chunked = false;
     completed = false;
 }
@@ -144,7 +144,7 @@ SrsRtpPacket::SrsRtpPacket()
 SrsRtpPacket::~SrsRtpPacket()
 {
     srs_freep(payload);
-    srs_freep(audio_samples);
+    srs_freep(audio);
 }
 
 void SrsRtpPacket::copy(SrsRtpPacket* src)
@@ -161,7 +161,9 @@ void SrsRtpPacket::copy(SrsRtpPacket* src)
 
     chunked = src->chunked;
     completed = src->completed;
-    audio_samples = new SrsCodecSample();
+    
+    srs_freep(audio);
+    audio = new SrsAudioFrame();
 }
 
 void SrsRtpPacket::reap(SrsRtpPacket* src)
@@ -172,12 +174,12 @@ void SrsRtpPacket::reap(SrsRtpPacket* src)
     payload = src->payload;
     src->payload = NULL;
     
-    srs_freep(audio_samples);
-    audio_samples = src->audio_samples;
-    src->audio_samples = NULL;
+    srs_freep(audio);
+    audio = src->audio;
+    src->audio = NULL;
 }
 
-int SrsRtpPacket::decode(SrsStream* stream)
+int SrsRtpPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -214,7 +216,7 @@ int SrsRtpPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsRtpPacket::decode_97(SrsStream* stream)
+int SrsRtpPacket::decode_97(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -227,7 +229,7 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
 
     int8_t hasv = stream->read_1bytes();
     int8_t lasv = stream->read_1bytes();
-    u_int16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+    uint16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
 
     if (!stream->require(au_size)) {
         ret = ERROR_RTP_TYPE97_CORRUPT;
@@ -248,7 +250,7 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
         hasv = stream->read_1bytes();
         lasv = stream->read_1bytes();
 
-        u_int16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+        uint16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
         // TODO: FIXME: finger out how to parse the size of sample.
         if (sample_size < 0x100 && stream->require(required_size + sample_size + 0x100)) {
             sample_size = sample_size | 0x100;
@@ -263,7 +265,7 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
             return ret;
         }
 
-        if ((ret = audio_samples->add_sample_unit(sample, sample_size)) != ERROR_SUCCESS) {
+        if ((ret = audio->add_sample(sample, sample_size)) != ERROR_SUCCESS) {
             srs_error("rtsp: rtp type97 add sample failed. ret=%d", ret);
             return ret;
         }
@@ -275,7 +277,7 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
     return ret;
 }
 
-int SrsRtpPacket::decode_96(SrsStream* stream)
+int SrsRtpPacket::decode_96(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -549,7 +551,7 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
 
                 char* tmp_sh = new char[item_value.length()];
                 SrsAutoFreeA(char, tmp_sh);
-                int nb_tmp_sh = ff_hex_to_data((u_int8_t*)tmp_sh, item_value.c_str());
+                int nb_tmp_sh = ff_hex_to_data((uint8_t*)tmp_sh, item_value.c_str());
                 srs_assert(nb_tmp_sh > 0);
                 audio_sh.append(tmp_sh, nb_tmp_sh);
             }
@@ -602,8 +604,8 @@ string SrsRtspSdp::base64_decode(string value)
     }
 
     int nb_output = (int)(value.length() * 2);
-    u_int8_t* output = new u_int8_t[nb_output];
-    SrsAutoFreeA(u_int8_t, output);
+    uint8_t* output = new uint8_t[nb_output];
+    SrsAutoFreeA(uint8_t, output);
 
     int ret = srs_av_base64_decode(output, (char*)value.c_str(), nb_output);
     if (ret <= 0) {
@@ -831,7 +833,7 @@ int SrsRtspSetupResponse::encode_header(stringstream& ss)
 
 SrsRtspStack::SrsRtspStack(ISrsProtocolReaderWriter* s)
 {
-    buf = new SrsSimpleBuffer();
+    buf = new SrsSimpleStream();
     skt = s;
 }
 
@@ -988,10 +990,7 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
     // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         size_t pos = string::npos;
-        std::string stream_id;
-        if ((pos = req->uri.rfind("/")) != string::npos) {
-            stream_id = req->uri.substr(pos + 1);
-        }
+        std::string stream_id = srs_path_basename(req->uri);
         if ((pos = stream_id.find("=")) != string::npos) {
             stream_id = stream_id.substr(pos + 1);
         }

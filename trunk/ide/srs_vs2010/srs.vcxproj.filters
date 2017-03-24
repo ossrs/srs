@@ -157,7 +157,7 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_mp3.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp">
+    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\kernel\srs_kernel_utility.cpp">
@@ -199,10 +199,10 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp">
+    <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_amf0.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp">
@@ -211,7 +211,7 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_io.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp">
@@ -220,7 +220,7 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp">
+    <ClCompile Include="..\..\src\protocol\srs_protocol_utility.cpp">
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\app\srs_app_mpegts_udp.cpp">
@@ -372,7 +372,7 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_mp3.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp">
+    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\kernel\srs_kernel_utility.hpp">
@@ -393,10 +393,10 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp">
+    <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_amf0.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp">
@@ -405,7 +405,7 @@
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_io.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp">
@@ -414,7 +414,7 @@
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp">
+    <ClInclude Include="..\..\src\protocol\srs_protocol_utility.hpp">
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\app\srs_app_mpegts_udp.hpp">

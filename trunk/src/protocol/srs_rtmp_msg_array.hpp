@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -21,8 +21,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_RTMP_PROTOCOL_MSG_ARRAY_HPP
-#define SRS_RTMP_PROTOCOL_MSG_ARRAY_HPP
+#ifndef SRS_PROTOCOL_MESSAGE_ARRAY_HPP
+#define SRS_PROTOCOL_MESSAGE_ARRAY_HPP
 
 /*
 #include <srs_rtmp_msg_array.hpp>

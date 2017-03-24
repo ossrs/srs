@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -36,24 +36,24 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-SrsAacEncoder::SrsAacEncoder()
+SrsAacTransmuxer::SrsAacTransmuxer()
 {
     _fs = NULL;
     got_sequence_header = false;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
     aac_object = SrsAacObjectTypeReserved;
 }
 
-SrsAacEncoder::~SrsAacEncoder()
+SrsAacTransmuxer::~SrsAacTransmuxer()
 {
     srs_freep(tag_stream);
 }
 
-int SrsAacEncoder::initialize(SrsFileWriter* fs)
+int SrsAacTransmuxer::initialize(SrsFileWriter* fs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -70,7 +70,7 @@ int SrsAacEncoder::initialize(SrsFileWriter* fs)
     return ret;
 }
 
-int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -78,7 +78,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     timestamp &= 0x7fffffff;
     
-    SrsStream* stream = tag_stream;
+    SrsBuffer* stream = tag_stream;
     if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -93,13 +93,12 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();
     
-    // @see: SrsAvcAacCodec::audio_aac_demux
     //int8_t sound_type = sound_format & 0x01;
     //int8_t sound_size = (sound_format >> 1) & 0x01;
     //int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
     
-    if ((SrsCodecAudio)sound_format != SrsCodecAudioAAC) {
+    if ((SrsAudioCodecId)sound_format != SrsAudioCodecIdAAC) {
         ret = ERROR_AAC_DECODE_ERROR;
         srs_error("aac required, format=%d. ret=%d", sound_format, ret);
         return ret;
@@ -111,10 +110,10 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
-    SrsCodecAudioType aac_packet_type = (SrsCodecAudioType)stream->read_1bytes();
-    if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
+    if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         // AudioSpecificConfig
-        // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+        // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
         //
         // only need to decode the first 2bytes:
         // audioObjectType, 5bits.
@@ -150,7 +149,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     int16_t aac_raw_length = stream->size() - stream->pos();
     
     // write the ADTS header.
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
+    // @see ISO_IEC_14496-3-AAC-2001.pdf, page 75,
     //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
     // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
     // byte_alignment()
@@ -188,7 +187,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         // channel_configuration 3 uimsbf
         // original/copy 1 bslbf
         // home 1 bslbf
-        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(aac_object);
+        SrsAacProfile aac_profile = srs_aac_rtmp2ts(aac_object);
         *pp++ = ((aac_profile << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS

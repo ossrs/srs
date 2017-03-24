@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,8 +28,8 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_utility.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_kernel_buffer.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -131,7 +131,7 @@ void MockSrsFileReader::skip(int64_t _size)
     offset += _size;
 }
 
-int64_t MockSrsFileReader::lseek(int64_t _offset)
+int64_t MockSrsFileReader::seek2(int64_t _offset)
 {
     offset = (int)_offset;
     return offset;
@@ -161,6 +161,12 @@ int MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     offset += s;
     
     return ret;
+}
+
+int MockSrsFileReader::lseek(off_t _offset, int /*whence*/, off_t* /*seeked*/)
+{
+    offset = (int)_offset;
+    return ERROR_SUCCESS;
 }
 
 void MockSrsFileReader::mock_append_data(const char* _data, int _size)
@@ -203,7 +209,7 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
 
 VOID TEST(KernelBufferTest, DefaultObject)
 {
-    SrsSimpleBuffer b;
+    SrsSimpleStream b;
     
     EXPECT_EQ(0, b.length());
     EXPECT_EQ(NULL, b.bytes());
@@ -211,7 +217,7 @@ VOID TEST(KernelBufferTest, DefaultObject)
 
 VOID TEST(KernelBufferTest, AppendBytes)
 {
-    SrsSimpleBuffer b;
+    SrsSimpleStream b;
     
     char winlin[] = "winlin";
     b.append(winlin, strlen(winlin));
@@ -231,7 +237,7 @@ VOID TEST(KernelBufferTest, AppendBytes)
 
 VOID TEST(KernelBufferTest, EraseBytes)
 {
-    SrsSimpleBuffer b;
+    SrsSimpleStream b;
     
     b.erase(0);
     b.erase(-1);
@@ -267,7 +273,7 @@ VOID TEST(KernelBufferTest, EraseBytes)
 
 VOID TEST(KernelFastBufferTest, Grow)
 {
-    SrsFastBuffer b;
+    SrsFastStream b;
     MockBufferReader r("winlin");
     
     b.grow(&r, 1);
@@ -291,11 +297,11 @@ VOID TEST(KernelCodecTest, IsKeyFrame)
     char data;
     
     data = 0x10;
-    EXPECT_TRUE(SrsFlvCodec::video_is_keyframe(&data, 1));
-    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 0));
+    EXPECT_TRUE(SrsFlvVideo::keyframe(&data, 1));
+    EXPECT_FALSE(SrsFlvVideo::keyframe(&data, 0));
     
     data = 0x20;
-    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 1));
+    EXPECT_FALSE(SrsFlvVideo::keyframe(&data, 1));
 }
 
 /**
@@ -306,16 +312,16 @@ VOID TEST(KernelCodecTest, IsH264)
 {
     char data;
     
-    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 0));
+    EXPECT_FALSE(SrsFlvVideo::h264(&data, 0));
     
     data = 0x17;
-    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
+    EXPECT_TRUE(SrsFlvVideo::h264(&data, 1));
     
     data = 0x07;
-    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
+    EXPECT_TRUE(SrsFlvVideo::h264(&data, 1));
     
     data = 0x08;
-    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 1));
+    EXPECT_FALSE(SrsFlvVideo::h264(&data, 1));
 }
 
 /**
@@ -327,19 +333,19 @@ VOID TEST(KernelCodecTest, IsSequenceHeader)
     int16_t data;
     char* pp = (char*)&data;
     
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 1));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 0));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 1));
     
     pp[0] = 0x17;
     pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_TRUE(SrsFlvVideo::sh((char*)pp, 2));
     pp[0] = 0x18;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 2));
     pp[0] = 0x27;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 2));
     pp[0] = 0x17;
     pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 2));
 }
 
 /**
@@ -350,16 +356,16 @@ VOID TEST(KernelCodecTest, IsAAC)
 {
     char data;
     
-    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 0));
+    EXPECT_FALSE(SrsFlvAudio::aac(&data, 0));
     
     data = 0xa0;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
+    EXPECT_TRUE(SrsFlvAudio::aac(&data, 1));
     
     data = 0xa7;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
+    EXPECT_TRUE(SrsFlvAudio::aac(&data, 1));
     
     data = 0x00;
-    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 1));
+    EXPECT_FALSE(SrsFlvAudio::aac(&data, 1));
 }
 
 /**
@@ -371,17 +377,17 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
     int16_t data;
     char* pp = (char*)&data;
     
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 1));
+    EXPECT_FALSE(SrsFlvAudio::sh((char*)pp, 0));
+    EXPECT_FALSE(SrsFlvAudio::sh((char*)pp, 1));
     
     pp[0] = 0xa0;
     pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 2));
+    EXPECT_TRUE(SrsFlvAudio::sh((char*)pp, 2));
     pp[0] = 0x00;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 2));
     pp[0] = 0xa0;
     pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
+    EXPECT_FALSE(SrsFlvVideo::sh((char*)pp, 2));
 }
 
 /**
@@ -391,8 +397,9 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
 VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
-    ASSERT_TRUE(ERROR_SUCCESS != enc.initialize(&fs));
+    SrsFlvTransmuxer enc;
+    // The decoder never check the reader status.
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
 }
 
 /**
@@ -402,7 +409,7 @@ VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -443,7 +450,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 {
     MockSrsFileWriter fs;
     EXPECT_TRUE(ERROR_SUCCESS == fs.open(""));
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
     // 11 bytes tag header
@@ -476,7 +483,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -510,7 +517,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 {
     MockSrsFileWriter fs;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
     
@@ -543,8 +550,8 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 */
 VOID TEST(KernelFlvTest, FlvEncoderSizeTag)
 {
-    EXPECT_EQ(11+4+10, SrsFlvEncoder::size_tag(10));
-    EXPECT_EQ(11+4+0, SrsFlvEncoder::size_tag(0));
+    EXPECT_EQ(11+4+10, SrsFlvTransmuxer::size_tag(10));
+    EXPECT_EQ(11+4+0, SrsFlvTransmuxer::size_tag(0));
 }
 
 /**
@@ -555,7 +562,8 @@ VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
 {
     MockSrsFileReader fs;
     SrsFlvDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
+    // The decoder never check the reader status.
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
 }
 
 /**
@@ -620,7 +628,7 @@ VOID TEST(KernelFlvTest, FlvDecoderMetadata)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     
@@ -666,7 +674,7 @@ VOID TEST(KernelFlvTest, FlvDecoderAudio)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     
@@ -712,7 +720,7 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
     
     char type = 0;
     int32_t size = 0;
-    u_int32_t time = 0;
+    uint32_t time = 0;
     char data[1024];
     fs.mock_reset_offset();
     
@@ -950,10 +958,10 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
     fs.mock_append_data(tag_header, 11);
     EXPECT_TRUE(11 == fs.offset);
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(0));
+    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(0));
     EXPECT_TRUE(0 == fs.offset);
 
-    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(5));
+    EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
     EXPECT_TRUE(5 == fs.offset);
 }
 
@@ -962,7 +970,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 */
 VOID TEST(KernelStreamTest, StreamInitialize)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -976,7 +984,7 @@ VOID TEST(KernelStreamTest, StreamInitialize)
 */
 VOID TEST(KernelStreamTest, StreamData)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.data() == NULL);
@@ -989,7 +997,7 @@ VOID TEST(KernelStreamTest, StreamData)
 */
 VOID TEST(KernelStreamTest, StreamSize)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.size() == 0);
@@ -1002,7 +1010,7 @@ VOID TEST(KernelStreamTest, StreamSize)
 */
 VOID TEST(KernelStreamTest, StreamPos)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.pos() == 0);
@@ -1018,7 +1026,7 @@ VOID TEST(KernelStreamTest, StreamPos)
 */
 VOID TEST(KernelStreamTest, StreamEmpty)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(s.empty());
@@ -1034,7 +1042,7 @@ VOID TEST(KernelStreamTest, StreamEmpty)
 */
 VOID TEST(KernelStreamTest, StreamRequire)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_FALSE(s.require(1));
@@ -1054,7 +1062,7 @@ VOID TEST(KernelStreamTest, StreamRequire)
 */
 VOID TEST(KernelStreamTest, StreamSkip)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1072,7 +1080,7 @@ VOID TEST(KernelStreamTest, StreamSkip)
 */
 VOID TEST(KernelStreamTest, StreamRead1Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1093,7 +1101,7 @@ VOID TEST(KernelStreamTest, StreamRead1Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead2Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1122,7 +1130,7 @@ VOID TEST(KernelStreamTest, StreamRead2Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead3Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1151,7 +1159,7 @@ VOID TEST(KernelStreamTest, StreamRead3Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead4Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1180,7 +1188,7 @@ VOID TEST(KernelStreamTest, StreamRead4Bytes)
 */
 VOID TEST(KernelStreamTest, StreamRead8Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1219,7 +1227,7 @@ VOID TEST(KernelStreamTest, StreamRead8Bytes)
 */
 VOID TEST(KernelStreamTest, StreamReadString)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[] = "Hello, world!";
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
@@ -1242,7 +1250,7 @@ VOID TEST(KernelStreamTest, StreamReadString)
 */
 VOID TEST(KernelStreamTest, StreamReadBytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[] = "Hello, world!";
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
@@ -1269,7 +1277,7 @@ VOID TEST(KernelStreamTest, StreamReadBytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite1Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1290,7 +1298,7 @@ VOID TEST(KernelStreamTest, StreamWrite1Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite2Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1314,7 +1322,7 @@ VOID TEST(KernelStreamTest, StreamWrite2Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite3Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1337,7 +1345,7 @@ VOID TEST(KernelStreamTest, StreamWrite3Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite4Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1359,7 +1367,7 @@ VOID TEST(KernelStreamTest, StreamWrite4Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWrite8Bytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1380,7 +1388,7 @@ VOID TEST(KernelStreamTest, StreamWrite8Bytes)
 */
 VOID TEST(KernelStreamTest, StreamWriteString)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1408,7 +1416,7 @@ VOID TEST(KernelStreamTest, StreamWriteString)
 */
 VOID TEST(KernelStreamTest, StreamWriteBytes)
 {
-    SrsStream s;
+    SrsBuffer s;
     char data[1024];
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
@@ -1509,6 +1517,98 @@ VOID TEST(KernelUtilityTest, UtilityString)
     EXPECT_FALSE(srs_string_ends_with("Hello", "x"));
     EXPECT_TRUE(srs_string_ends_with("Hello", "o"));
     EXPECT_TRUE(srs_string_ends_with("Hello", "lo"));
+}
+
+VOID TEST(KernelUtility, AvcUev)
+{
+    int32_t v;
+    SrsBuffer buf;
+    SrsBitBuffer bb;
+    char data[32];
+    
+    if (true) {
+        data[0] = 0xff;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 1;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(0, v);
+    }
+    
+    if (true) {
+        data[0] = 0x40;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(1, v);
+    }
+    
+    if (true) {
+        data[0] = 0x60;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(2, v);
+    }
+    
+    if (true) {
+        data[0] = 0x20;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(3, v);
+    }
+    
+    if (true) {
+        data[0] = 0x28;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(4, v);
+    }
+    
+    if (true) {
+        data[0] = 0x30;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(5, v);
+    }
+    
+    if (true) {
+        data[0] = 0x38;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(6, v);
+    }
+    
+    if (true) {
+        data[0] = 0x10;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(7, v);
+    }
+    
+    if (true) {
+        data[0] = 0x12;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(8, v);
+    }
+    
+    if (true) {
+        data[0] = 0x14;
+        buf.initialize((char*)data, 1); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(9, v);
+    }
+    
+    if (true) {
+        data[0] = 0x01; data[1] = 0x12;
+        buf.initialize((char*)data, 2); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(128-1+9, v);
+    }
+    
+    if (true) {
+        data[0] = 0x00; data[1] = 0x91; data[2] = 0x00;
+        buf.initialize((char*)data, 3); bb.initialize(&buf); v = 0;
+        srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_EQ(256-1+0x22, v);
+    }
 }
 
 #endif

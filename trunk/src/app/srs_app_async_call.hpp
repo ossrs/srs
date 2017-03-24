@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -62,7 +62,7 @@ public:
 };
 
 /**
- * the async callback for dvr.
+ * the async callback for dvr, callback and other async worker.
  * when worker call with the task, the worker will do it in isolate thread.
  * that is, the task is execute/call in async mode.
  */
@@ -70,12 +70,15 @@ class SrsAsyncCallWorker : public ISrsReusableThreadHandler
 {
 private:
     SrsReusableThread* pthread;
+protected:
     std::vector<ISrsAsyncCallTask*> tasks;
+    st_cond_t wait;
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
 public:
     virtual int execute(ISrsAsyncCallTask* t);
+    virtual int count();
 public:
     virtual int start();
     virtual void stop();

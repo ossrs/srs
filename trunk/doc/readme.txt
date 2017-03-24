@@ -18,6 +18,15 @@ amf3_spec_121207.pdf
     
 H.264-AVC-ISO_IEC_14496-10.pdf
     avc标准，编码部分。
+
+H.264-AVC-ISO_IEC_14496-12_2012-mp4.pdf
+    mp4标准。
+
+ISO_14496-14_2003_mp4-file-format.pdf
+    mp4文件格式。
+
+MPEG-DASH-ISO_IEC_23009-1_2012.pdf
+    MPEG-DASH标准。
     
 H.264-AVC-ISO_IEC_14496-10-2012.pdf
     avc标准，编码部分。
@@ -66,5 +75,15 @@ arpa-internet-text-messages-rfc822.txt
 mp3规范：
 mp3.id3v2.3.0.pdf
     http://id3.org/id3v2.3.0
+    
+kafka协议:
+kafka-160915-0553-82964.pdf
+    https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol
+
+STUN: https://tools.ietf.org/html/rfc5389
+TURN: https://tools.ietf.org/html/rfc5766
+ICE: https://tools.ietf.org/html/rfc5245
+SIP: https://tools.ietf.org/html/rfc3261
 
 Winlin
+

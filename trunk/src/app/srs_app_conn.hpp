@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_protocol_kbps.hpp>
+#include <srs_app_reload.hpp>
 
 class SrsConnection;
 
@@ -58,7 +59,7 @@ public:
 * all connections accept from listener must extends from this base class,
 * server will add the connection to manager, and delete it when remove.
 */
-class SrsConnection : public virtual ISrsOneCycleThreadHandler, public virtual IKbpsDelta
+class SrsConnection : virtual public ISrsOneCycleThreadHandler, virtual public IKbpsDelta, virtual public ISrsReloadHandler
 {
 private:
     /**
@@ -93,9 +94,31 @@ protected:
      * when expired, the connection must never be served and quit ASAP.
      */
     bool expired;
+    /**
+    * the underlayer socket.
+    */
+    SrsStSocket* skt;
+    /**
+     * connection total kbps.
+     * not only the rtmp or http connection, all type of connection are
+     * need to statistic the kbps of io.
+     * the SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
+     */
+    SrsKbps* kbps;
+    /**
+     * the create time in milliseconds.
+     * for current connection to log self create time and calculate the living time.
+     */
+    int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, st_netfd_t c);
+    SrsConnection(IConnectionManager* cm, st_netfd_t c, std::string cip);
     virtual ~SrsConnection();
+// interface IKbpsDelta
+public:
+    virtual void resample();
+    virtual int64_t get_send_bytes_delta();
+    virtual int64_t get_recv_bytes_delta();
+    virtual void cleanup();
 public:
     /**
      * to dipose the connection.

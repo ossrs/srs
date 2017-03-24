@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -36,8 +36,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/uio.h>
 #endif
 
-class SrsStream;
-class SrsFileWriter;
+class SrsBuffer;
+class ISrsWriter;
+class ISrsReader;
 class SrsFileReader;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
@@ -248,11 +249,11 @@ public:
     /**
      * create a audio header, set the size, timestamp and stream_id.
      */
-    void initialize_audio(int size, u_int32_t time, int stream);
+    void initialize_audio(int size, uint32_t time, int stream);
     /**
      * create a video header, set the size, timestamp and stream_id.
      */
-    void initialize_video(int size, u_int32_t time, int stream);
+    void initialize_video(int size, uint32_t time, int stream);
 };
 
 /**
@@ -289,6 +290,14 @@ public:
      * alloc the payload to specified size of bytes.
      */
     virtual void create_payload(int size);
+public:
+    /**
+     * create common message,
+     * from the header and body.
+     * @remark user should never free the body.
+     * @param pheader, the header to copy to the message. NULL to ignore.
+     */
+    virtual int create(SrsMessageHeader* pheader, char* body, int size);
 };
 
 /**
@@ -429,25 +438,25 @@ public:
 };
 
 /**
-* encode data to flv file.
-*/
-class SrsFlvEncoder
+ * Transmux RTMP packets to FLV stream.
+ */
+class SrsFlvTransmuxer
 {
 private:
-    SrsFileWriter* reader;
+    ISrsWriter* writer;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
 public:
-    SrsFlvEncoder();
-    virtual ~SrsFlvEncoder();
+    SrsFlvTransmuxer();
+    virtual ~SrsFlvTransmuxer();
 public:
     /**
     * initialize the underlayer file stream.
     * @remark user can initialize multiple times to encode multiple flv files.
-    * @remark, user must free the @param fr, flv encoder never close/free it.
+    * @remark, user must free the @param fw, flv encoder never close/free it.
     */
-    virtual int initialize(SrsFileWriter* fr);
+    virtual int initialize(ISrsWriter* fw);
 public:
     /**
     * write flv header.
@@ -461,7 +470,7 @@ public:
     /**
     * write flv metadata. 
     * @param type, the type of data, or other message type.
-    *       @see SrsCodecFlvTag
+    *       @see SrsFrameType
     * @param data, the amf0 metadata which serialize from:
     *   AMF0 string: onMetaData,
     *   AMF0 object: the metadata object.
@@ -512,9 +521,9 @@ private:
 class SrsFlvDecoder
 {
 private:
-    SrsFileReader* reader;
+    ISrsReader* reader;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsFlvDecoder();
     virtual ~SrsFlvDecoder();
@@ -522,9 +531,9 @@ public:
     /**
     * initialize the underlayer file stream
     * @remark user can initialize multiple times to decode multiple flv files.
-    * @remark user must free the @param fr, flv decoder never close/free it.
+    * @remark user must free the @param fr, flv decoder never close/free it
     */
-    virtual int initialize(SrsFileReader* fr);
+    virtual int initialize(ISrsReader* fr);
 public:
     /**
     * read the flv header, donot including the 4bytes previous tag size.
@@ -535,7 +544,7 @@ public:
     * read the tag header infos.
     * @remark assert ptype/pdata_size/ptime not NULL.
     */
-    virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+    virtual int read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime);
     /**
     * read the tag data.
     * @remark assert data not NULL.
@@ -558,7 +567,7 @@ class SrsFlvVodStreamDecoder
 private:
     SrsFileReader* reader;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
     SrsFlvVodStreamDecoder();
     virtual ~SrsFlvVodStreamDecoder();
@@ -568,7 +577,7 @@ public:
     * @remark user can initialize multiple times to decode multiple flv files.
     * @remark user must free the @param fr, flv decoder never close/free it.
     */
-    virtual int initialize(SrsFileReader* fr);
+    virtual int initialize(ISrsReader* fr);
 public:
     /**
     * read the flv header and its size.
@@ -588,7 +597,7 @@ public:
     /**
     * for start offset, seed to this position and response flv stream.
     */
-    virtual int lseek(int64_t offset);
+    virtual int seek2(int64_t offset);
 };
 
 #endif

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -49,10 +49,7 @@ public:
     bool vhost_http_updated_reloaded;
     bool vhost_added_reloaded;
     bool vhost_removed_reloaded;
-    bool vhost_atc_reloaded;
-    bool vhost_gop_cache_reloaded;
-    bool vhost_queue_length_reloaded;
-    bool vhost_time_jitter_reloaded;
+    bool vhost_play_reloaded;
     bool vhost_forward_reloaded;
     bool vhost_hls_reloaded;
     bool vhost_dvr_reloaded;
@@ -85,10 +82,7 @@ public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_vhost_atc(std::string vhost);
-    virtual int on_reload_vhost_gop_cache(std::string vhost);
-    virtual int on_reload_vhost_queue_length(std::string vhost);
-    virtual int on_reload_vhost_time_jitter(std::string vhost);
+    virtual int on_reload_vhost_play(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
@@ -105,7 +99,7 @@ public:
     MockSrsReloadConfig();
     virtual ~MockSrsReloadConfig();
 public:
-    virtual int reload(std::string buf);
+    virtual int do_reload(std::string buf);
 };
 
 #endif

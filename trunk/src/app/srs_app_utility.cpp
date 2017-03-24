@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 #include <map>
 using namespace std;
 
@@ -45,15 +46,21 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
-int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
+int srs_socket_connect(string server, int port, int64_t tm, st_netfd_t* pstfd)
 {
     int ret = ERROR_SUCCESS;
+    
+    st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
+    if (tm != SRS_CONSTS_NO_TMMS) {
+        timeout = (st_utime_t)(tm * 1000);
+    }
     
     *pstfd = NULL;
     st_netfd_t stfd = NULL;
@@ -199,30 +206,10 @@ string srs_path_build_timestamp(string template_path)
     // [timestamp],replace this const to current UNIX timestamp in ms.
     if (true) {
         int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
-        snprintf(buf, sizeof(buf), "%"PRId64, now_us / 1000);
-        path = srs_string_replace(path, "[timestamp]", buf);
+        path = srs_string_replace(path, "[timestamp]", srs_int2str(now_us / 1000));
     }
     
     return path;
-}
-
-void srs_parse_endpoint(string ip_port, string& ip, string& port)
-{
-    ip = "0.0.0.0";
-    port = ip_port;
-    
-    size_t pos = string::npos;
-    if ((pos = port.find(":")) != string::npos) {
-        ip = port.substr(0, pos);
-        port = port.substr(pos + 1);
-    }
-}
-
-void srs_parse_endpoint(string ip_port, string& ip, int& port)
-{
-    std::string the_port;
-    srs_parse_endpoint(ip_port, ip, the_port);
-    port = ::atoi(the_port.c_str());
 }
 
 int srs_kill_forced(int& pid)
@@ -1038,7 +1025,7 @@ bool srs_net_device_is_internet(string ifname)
 
 bool srs_net_device_is_internet(in_addr_t addr)
 {
-    u_int32_t addr_h = ntohl(addr);
+    uint32_t addr_h = ntohl(addr);
     
     // lo, 127.0.0.0-127.0.0.1
     if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
@@ -1081,7 +1068,7 @@ SrsNetworkRtmpServer* srs_get_network_rtmp_server()
 
 // @see: http://stackoverflow.com/questions/5992211/list-of-possible-internal-socket-statuses-from-proc
 enum {
-    SYS_TCP_ESTABLISHED =      0x01,
+    SYS_TCP_ESTABLISHED = 0x01,
     SYS_TCP_SYN_SENT,       // 0x02
     SYS_TCP_SYN_RECV,       // 0x03
     SYS_TCP_FIN_WAIT1,      // 0x04
@@ -1229,6 +1216,12 @@ void retrieve_local_ipv4_ips()
         return;
     }
     
+    stringstream ss0;
+    ss0 << "ips";
+    
+    stringstream ss1;
+    ss1 << "devices";
+    
     ifaddrs* p = ifap;
     while (p != NULL) {
         ifaddrs* cur = p;
@@ -1252,20 +1245,23 @@ void retrieve_local_ipv4_ips()
             
             std::string ip = buf;
             if (ip != SRS_CONSTS_LOCALHOST) {
-                srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
+                ss0 << ", local[" << (int)ips.size() << "] ipv4 " << ip;
                 ips.push_back(ip);
             }
             
             // set the device internet status.
             if (!srs_net_device_is_internet(inaddr->s_addr)) {
-                srs_trace("detect intranet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                ss1 << ", intranet ";
                 _srs_device_ifs[cur->ifa_name] = false;
             } else {
-                srs_trace("detect internet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
+                ss1 << ", internet ";
                 _srs_device_ifs[cur->ifa_name] = true;
             }
+            ss1 << cur->ifa_name << " " << ip;
         }
     }
+    srs_trace(ss0.str().c_str());
+    srs_trace(ss1.str().c_str());
 
     freeifaddrs(ifap);
 }
@@ -1293,7 +1289,7 @@ string srs_get_public_internet_address()
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
         in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
+        uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
         if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
             srs_trace("ignore private address: %s", ip.c_str());
@@ -1324,7 +1320,7 @@ string srs_get_public_internet_address()
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
         in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
+        uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
         if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
             srs_trace("ignore private address: %s", ip.c_str());
@@ -1416,6 +1412,11 @@ bool srs_string_is_http(string url)
     return srs_string_starts_with(url, "http://", "https://");
 }
 
+bool srs_string_is_rtmp(string url)
+{
+    return srs_string_starts_with(url, "rtmp://");
+}
+
 bool srs_is_digit_number(const string& str)
 {
     if (str.empty()) {
@@ -1432,7 +1433,7 @@ bool srs_is_boolean(const string& str)
     return str == "true" || str == "false";
 }
 
-void srs_api_dump_summaries(std::stringstream& ss)
+void srs_api_dump_summaries(SrsJsonObject* obj)
 {
     SrsRusage* r = srs_get_system_rusage();
     SrsProcSelfStat* u = srs_get_self_proc_stat();
@@ -1485,57 +1486,61 @@ void srs_api_dump_summaries(std::stringstream& ss)
     bool ok = (r->ok && u->ok && s->ok && c->ok 
         && d->ok && m->ok && p->ok && nrs->ok);
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("now_ms", now) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("self", SRS_JOBJECT_START)
-                << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("pid", getpid()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ppid", u->ppid) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("argv", _srs_config->argv()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("cwd", _srs_config->cwd()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_percent", self_mem_percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpu_percent", u->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_uptime", srs_uptime)
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("system", SRS_JOBJECT_START)
-                << SRS_JFIELD_ORG("cpu_percent", s->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_read_KBps", d->in_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_write_KBps", d->out_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_busy_percent", d->busy) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_percent", m->percent_swap) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus", c->nb_processors) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus_online", c->nb_processors_online) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("uptime", p->os_uptime) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ilde_time", p->os_ilde_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << SRS_JFIELD_CONT
-                // system network bytes stat.
-                << SRS_JFIELD_ORG("net_sample_time", n_sample_time) << SRS_JFIELD_CONT
-                // internet public address network device bytes.
-                << SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << SRS_JFIELD_CONT
-                // intranet private address network device bytes.
-                << SRS_JFIELD_ORG("net_recvi_bytes", nri_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_sendi_bytes", nsi_bytes) << SRS_JFIELD_CONT
-                // srs network bytes stat.
-                << SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_udp", nrs->nb_conn_sys_udp) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
-            << SRS_JOBJECT_END
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+    
+    data->set("ok", SrsJsonAny::boolean(ok));
+    data->set("now_ms", SrsJsonAny::integer(now));
+    
+    // self
+    SrsJsonObject* self = SrsJsonAny::object();
+    data->set("self", self);
+    
+    self->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
+    self->set("pid", SrsJsonAny::integer(getpid()));
+    self->set("ppid", SrsJsonAny::integer(u->ppid));
+    self->set("argv", SrsJsonAny::str(_srs_config->argv().c_str()));
+    self->set("cwd", SrsJsonAny::str(_srs_config->cwd().c_str()));
+    self->set("mem_kbyte", SrsJsonAny::integer(r->r.ru_maxrss));
+    self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
+    self->set("cpu_percent", SrsJsonAny::number(u->percent));
+    self->set("srs_uptime", SrsJsonAny::integer(srs_uptime));
+    
+    // system
+    SrsJsonObject* sys = SrsJsonAny::object();
+    data->set("system", sys);
+    
+    sys->set("cpu_percent", SrsJsonAny::number(s->percent));
+    sys->set("disk_read_KBps", SrsJsonAny::integer(d->in_KBps));
+    sys->set("disk_write_KBps", SrsJsonAny::integer(d->out_KBps));
+    sys->set("disk_busy_percent", SrsJsonAny::number(d->busy));
+    sys->set("mem_ram_kbyte", SrsJsonAny::integer(m->MemTotal));
+    sys->set("mem_ram_percent", SrsJsonAny::number(m->percent_ram));
+    sys->set("mem_swap_kbyte", SrsJsonAny::integer(m->SwapTotal));
+    sys->set("mem_swap_percent", SrsJsonAny::number(m->percent_swap));
+    sys->set("cpus", SrsJsonAny::integer(c->nb_processors));
+    sys->set("cpus_online", SrsJsonAny::integer(c->nb_processors_online));
+    sys->set("uptime", SrsJsonAny::number(p->os_uptime));
+    sys->set("ilde_time", SrsJsonAny::number(p->os_ilde_time));
+    sys->set("load_1m", SrsJsonAny::number(p->load_one_minutes));
+    sys->set("load_5m", SrsJsonAny::number(p->load_five_minutes));
+    sys->set("load_15m", SrsJsonAny::number(p->load_fifteen_minutes));
+    // system network bytes stat.
+    sys->set("net_sample_time", SrsJsonAny::integer(n_sample_time));
+    // internet public address network device bytes.
+    sys->set("net_recv_bytes", SrsJsonAny::integer(nr_bytes));
+    sys->set("net_send_bytes", SrsJsonAny::integer(ns_bytes));
+    // intranet private address network device bytes.
+    sys->set("net_recvi_bytes", SrsJsonAny::integer(nri_bytes));
+    sys->set("net_sendi_bytes", SrsJsonAny::integer(nsi_bytes));
+    // srs network bytes stat.
+    sys->set("srs_sample_time", SrsJsonAny::integer(nrs->sample_time));
+    sys->set("srs_recv_bytes", SrsJsonAny::integer(nrs->rbytes));
+    sys->set("srs_send_bytes", SrsJsonAny::integer(nrs->sbytes));
+    sys->set("conn_sys", SrsJsonAny::integer(nrs->nb_conn_sys));
+    sys->set("conn_sys_et", SrsJsonAny::integer(nrs->nb_conn_sys_et));
+    sys->set("conn_sys_tw", SrsJsonAny::integer(nrs->nb_conn_sys_tw));
+    sys->set("conn_sys_udp", SrsJsonAny::integer(nrs->nb_conn_sys_udp));
+    sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 

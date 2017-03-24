@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,13 +23,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtmp_stack.hpp>
 
-#include <srs_rtmp_amf0.hpp>
-#include <srs_rtmp_io.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_protocol_io.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_buffer.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_stream.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_rtmp_handshake.hpp>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
@@ -144,7 +144,7 @@ int SrsPacket::encode(int& psize, char*& ppayload)
     int size = get_size();
     char* payload = NULL;
     
-    SrsStream stream;
+    SrsBuffer stream;
     
     if (size > 0) {
         payload = new char[size];
@@ -169,7 +169,7 @@ int SrsPacket::encode(int& psize, char*& ppayload)
     return ret;
 }
 
-int SrsPacket::decode(SrsStream* stream)
+int SrsPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -196,7 +196,7 @@ int SrsPacket::get_size()
     return 0;
 }
 
-int SrsPacket::encode_packet(SrsStream* stream)
+int SrsPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -216,7 +216,7 @@ SrsProtocol::AckWindowSize::AckWindowSize()
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 {
-    in_buffer = new SrsFastBuffer();
+    in_buffer = new SrsFastStream();
     skt = io;
     
     in_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;
@@ -325,9 +325,9 @@ void SrsProtocol::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsProtocol::set_recv_timeout(int64_t timeout_us)
+void SrsProtocol::set_recv_timeout(int64_t tm)
 {
-    return skt->set_recv_timeout(timeout_us);
+    return skt->set_recv_timeout(tm);
 }
 
 int64_t SrsProtocol::get_recv_timeout()
@@ -335,9 +335,9 @@ int64_t SrsProtocol::get_recv_timeout()
     return skt->get_recv_timeout();
 }
 
-void SrsProtocol::set_send_timeout(int64_t timeout_us)
+void SrsProtocol::set_send_timeout(int64_t tm)
 {
-    return skt->set_send_timeout(timeout_us);
+    return skt->set_send_timeout(tm);
 }
 
 int64_t SrsProtocol::get_send_timeout()
@@ -353,6 +353,12 @@ int64_t SrsProtocol::get_recv_bytes()
 int64_t SrsProtocol::get_send_bytes()
 {
     return skt->get_send_bytes();
+}
+
+int SrsProtocol::set_in_window_ack_size(int ack_size)
+{
+    in_ack_size.window = ack_size;
+    return ERROR_SUCCESS;
 }
 
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
@@ -412,7 +418,7 @@ int SrsProtocol::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
     srs_assert(msg->payload != NULL);
     srs_assert(msg->size > 0);
     
-    SrsStream stream;
+    SrsBuffer stream;
 
     // initialize the decode stream for all message,
     // it's ok for the initialize if fast and without memory copy.
@@ -656,12 +662,12 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         int nbh = 0;
         if (p == payload) {
             nbh = srs_chunk_header_c0(
-                mh->perfer_cid, mh->timestamp, mh->payload_length,
+                mh->perfer_cid, (uint32_t)mh->timestamp, mh->payload_length,
                 mh->message_type, mh->stream_id,
                 c0c3, sizeof(c0c3));
         } else {
             nbh = srs_chunk_header_c3(
-                mh->perfer_cid, mh->timestamp,
+                mh->perfer_cid, (uint32_t)mh->timestamp,
                 c0c3, sizeof(c0c3));
         }
         srs_assert(nbh > 0);;
@@ -670,7 +676,7 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         iovs[0].iov_base = c0c3;
         iovs[0].iov_len = nbh;
         
-        int payload_size = srs_min(end - p, out_chunk_size);
+        int payload_size = srs_min((int)(end - p), out_chunk_size);
         iovs[1].iov_base = p;
         iovs[1].iov_len = payload_size;
         p += payload_size;
@@ -686,7 +692,7 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
     return ret;
 }
 
-int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket)
+int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1078,7 +1084,7 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid)
         }
         
         cid = 64;
-        cid += (u_int8_t)in_buffer->read_1byte();
+        cid += (uint8_t)in_buffer->read_1byte();
         srs_verbose("2bytes basic header parsed. fmt=%d, cid=%d", fmt, cid);
     // 64-65599, 3B chunk header
     } else if (cid == 1) {
@@ -1090,8 +1096,8 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid)
         }
         
         cid = 64;
-        cid += (u_int8_t)in_buffer->read_1byte();
-        cid += ((u_int8_t)in_buffer->read_1byte()) * 256;
+        cid += (uint8_t)in_buffer->read_1byte();
+        cid += ((uint8_t)in_buffer->read_1byte()) * 256;
         srs_verbose("3bytes basic header parsed. fmt=%d, cid=%d", fmt, cid);
     } else {
         srs_error("invalid path, impossible basic header.");
@@ -1314,7 +1320,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // reset the p to get 4bytes slice.
         char* p = in_buffer->read_slice(4);
 
-        u_int32_t timestamp = 0x00;
+        uint32_t timestamp = 0x00;
         char* pp = (char*)&timestamp;
         pp[3] = *p++;
         pp[2] = *p++;
@@ -1342,7 +1348,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         * @remark, srs always send the extended-timestamp, to keep simple,
         * and compatible with adobe products.
         */
-        u_int32_t chunk_timestamp = (u_int32_t)chunk->header.timestamp;
+        uint32_t chunk_timestamp = (uint32_t)chunk->header.timestamp;
         
         /**
         * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
@@ -1706,6 +1712,7 @@ SrsRequest::SrsRequest()
 {
     objectEncoding = RTMP_SIG_AMF0_VER;
     duration = -1;
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     args = NULL;
 }
 
@@ -1719,6 +1726,7 @@ SrsRequest* SrsRequest::copy()
     SrsRequest* cp = new SrsRequest();
     
     cp->ip = ip;
+    cp->vhost = vhost;
     cp->app = app;
     cp->objectEncoding = objectEncoding;
     cp->pageUrl = pageUrl;
@@ -1729,7 +1737,6 @@ SrsRequest* SrsRequest::copy()
     cp->stream = stream;
     cp->swfUrl = swfUrl;
     cp->tcUrl = tcUrl;
-    cp->vhost = vhost;
     cp->duration = duration;
     if (args) {
         cp->args = args->copy()->to_object();
@@ -1743,6 +1750,16 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    
+    ip = req->ip;
+    vhost = req->vhost;
+    app = req->app;
+    objectEncoding = req->objectEncoding;
+    host = req->host;
+    port = req->port;
+    param = req->param;
+    schema = req->schema;
+    duration = req->duration;
     
     if (args) {
         srs_freep(args);
@@ -1884,7 +1901,7 @@ int SrsHandshakeBytes::create_c0c1()
     srs_random_generate(c0c1, 1537);
     
     // plain text required.
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(c0c1, 9)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1907,7 +1924,7 @@ int SrsHandshakeBytes::create_s0s1s2(const char* c1)
     srs_random_generate(s0s1s2, 3073);
     
     // plain text required.
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(s0s1s2, 9)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1939,7 +1956,7 @@ int SrsHandshakeBytes::create_c2()
     srs_random_generate(c2, 1536);
     
     // time
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(c2, 8)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1950,6 +1967,12 @@ int SrsHandshakeBytes::create_c2()
     }
     
     return ret;
+}
+
+SrsServerInfo::SrsServerInfo()
+{
+    pid = cid = 0;
+    major = minor = revision = build = 0;
 }
 
 SrsRtmpClient::SrsRtmpClient(ISrsProtocolReaderWriter* skt)
@@ -1965,14 +1988,14 @@ SrsRtmpClient::~SrsRtmpClient()
     srs_freep(hs_bytes);
 }
 
-void SrsRtmpClient::set_recv_timeout(int64_t timeout_us)
+void SrsRtmpClient::set_recv_timeout(int64_t tm)
 {
-    protocol->set_recv_timeout(timeout_us);
+    protocol->set_recv_timeout(tm);
 }
 
-void SrsRtmpClient::set_send_timeout(int64_t timeout_us)
+void SrsRtmpClient::set_send_timeout(int64_t tm)
 {
-    protocol->set_send_timeout(timeout_us);
+    protocol->set_send_timeout(tm);
 }
 
 int64_t SrsRtmpClient::get_recv_bytes()
@@ -2072,27 +2095,8 @@ int SrsRtmpClient::complex_handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req, bool debug_srs_upnode)
+int SrsRtmpClient::connect_app(string app, string tcUrl, SrsRequest* r, bool dsu, SrsServerInfo* si)
 {
-    std::string srs_server_ip;
-    std::string srs_server;
-    std::string srs_primary;
-    std::string srs_authors;
-    std::string srs_version;
-    int srs_id = 0;
-    int srs_pid = 0;
-    
-    return connect_app2(app, tc_url, req, debug_srs_upnode,
-        srs_server_ip, srs_server, srs_primary, srs_authors,
-        srs_version, srs_id, srs_pid);
-}
-
-int SrsRtmpClient::connect_app2(
-    string app, string tc_url, SrsRequest* req, bool debug_srs_upnode,
-    string& srs_server_ip, string& srs_server, string& srs_primary,
-    string& srs_authors, string& srs_version, int& srs_id,
-    int& srs_pid
-){
     int ret = ERROR_SUCCESS;
     
     // Connect(vhost, app)
@@ -2101,23 +2105,23 @@ int SrsRtmpClient::connect_app2(
         
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
         pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 15,0,0,239"));
-        if (req) {
-            pkt->command_object->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
+        if (r) {
+            pkt->command_object->set("swfUrl", SrsAmf0Any::str(r->swfUrl.c_str()));
         } else {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         }
-        if (req && req->tcUrl != "") {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+        if (r && r->tcUrl != "") {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(r->tcUrl.c_str()));
         } else {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tcUrl.c_str()));
         }
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
         pkt->command_object->set("videoCodecs", SrsAmf0Any::number(252));
         pkt->command_object->set("videoFunction", SrsAmf0Any::number(1));
-        if (req) {
-            pkt->command_object->set("pageUrl", SrsAmf0Any::str(req->pageUrl.c_str()));
+        if (r) {
+            pkt->command_object->set("pageUrl", SrsAmf0Any::str(r->pageUrl.c_str()));
         } else {
             pkt->command_object->set("pageUrl", SrsAmf0Any::str());
         }
@@ -2125,9 +2129,9 @@ int SrsRtmpClient::connect_app2(
         
         // @see https://github.com/ossrs/srs/issues/160
         // the debug_srs_upnode is config in vhost and default to true.
-        if (debug_srs_upnode && req && req->args) {
+        if (dsu && r && r->args) {
             srs_freep(pkt->args);
-            pkt->args = req->args->copy()->to_object();
+            pkt->args = r->args->copy()->to_object();
         }
         
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
@@ -2156,34 +2160,45 @@ int SrsRtmpClient::connect_app2(
     
     // server info
     SrsAmf0Any* data = pkt->info->get_property("data");
-    if (data && data->is_ecma_array()) {
+    if (si && data && data->is_ecma_array()) {
         SrsAmf0EcmaArray* arr = data->to_ecma_array();
         
         SrsAmf0Any* prop = NULL;
-        if ((prop = arr->ensure_property_string("srs_primary")) != NULL) {
-            srs_primary = prop->to_str();
-        }
-        if ((prop = arr->ensure_property_string("srs_authors")) != NULL) {
-            srs_authors = prop->to_str();
-        }
-        if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
-            srs_version = prop->to_str();
-        }
         if ((prop = arr->ensure_property_string("srs_server_ip")) != NULL) {
-            srs_server_ip = prop->to_str();
+            si->ip = prop->to_str();
         }
         if ((prop = arr->ensure_property_string("srs_server")) != NULL) {
-            srs_server = prop->to_str();
+            si->sig = prop->to_str();
         }
         if ((prop = arr->ensure_property_number("srs_id")) != NULL) {
-            srs_id = (int)prop->to_number();
+            si->cid = (int)prop->to_number();
         }
         if ((prop = arr->ensure_property_number("srs_pid")) != NULL) {
-            srs_pid = (int)prop->to_number();
+            si->pid = (int)prop->to_number();
+        }
+        if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
+            vector<string> versions = srs_string_split(prop->to_str(), ".");
+            if (versions.size() > 0) {
+                si->major = ::atoi(versions.at(0).c_str());
+                if (versions.size() > 1) {
+                    si->minor = ::atoi(versions.at(1).c_str());
+                    if (versions.size() > 2) {
+                        si->revision = ::atoi(versions.at(2).c_str());
+                        if (versions.size() > 3) {
+                            si->build = ::atoi(versions.at(3).c_str());
+                        }
+                    }
+                }
+            }
         }
     }
-    srs_trace("connected, version=%s, ip=%s, pid=%d, id=%d, dsu=%d",
-              srs_version.c_str(), srs_server_ip.c_str(), srs_pid, srs_id, debug_srs_upnode);
+    
+    if (si) {
+        srs_trace("connected, version=%d.%d.%d.%d, ip=%s, pid=%d, id=%d, dsu=%d",
+            si->major, si->minor, si->revision, si->build, si->ip.c_str(), si->pid, si->cid, dsu);
+    } else {
+        srs_trace("connected, dsu=%d", dsu);
+    }
     
     return ret;
 }
@@ -2393,9 +2408,9 @@ void SrsRtmpServer::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsRtmpServer::set_recv_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_recv_timeout(int64_t tm)
 {
-    protocol->set_recv_timeout(timeout_us);
+    protocol->set_recv_timeout(tm);
 }
 
 int64_t SrsRtmpServer::get_recv_timeout()
@@ -2403,9 +2418,9 @@ int64_t SrsRtmpServer::get_recv_timeout()
     return protocol->get_recv_timeout();
 }
 
-void SrsRtmpServer::set_send_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_send_timeout(int64_t tm)
 {
-    protocol->set_send_timeout(timeout_us);
+    protocol->set_send_timeout(tm);
 }
 
 int64_t SrsRtmpServer::get_send_timeout()
@@ -2536,6 +2551,11 @@ int SrsRtmpServer::set_window_ack_size(int ack_size)
     return ret;
 }
 
+int SrsRtmpServer::set_in_window_ack_size(int ack_size)
+{
+    return protocol->set_in_window_ack_size(ack_size);
+}
+
 int SrsRtmpServer::set_peer_bandwidth(int bandwidth, int type)
 {
     int ret = ERROR_SUCCESS;
@@ -2595,6 +2615,57 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
         return ret;
     }
     srs_info("send connect app response message success.");
+    
+    return ret;
+}
+
+#define SRS_RTMP_REDIRECT_TMMS 3000
+int SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (true) {
+        string url = srs_generate_rtmp_url(host, port, r->vhost, r->app, "");
+        
+        SrsAmf0Object* ex = SrsAmf0Any::object();
+        ex->set("code", SrsAmf0Any::number(302));
+        ex->set("redirect", SrsAmf0Any::str(url.c_str()));
+        
+        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+        
+        pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
+        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
+        pkt->data->set(StatusDescription, SrsAmf0Any::str("RTMP 302 Redirect"));
+        pkt->data->set("ex", ex);
+        
+        if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+            srs_error("send redirect/rejected message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("send redirect/rejected message success.");
+    }
+    
+    // client must response a call message.
+    // or we never know whether the client is ok to redirect.
+    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TMMS);
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        SrsCallPacket* pkt = NULL;
+        if ((ret = expect_message<SrsCallPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+            // ignore any error of redirect response.
+            return ERROR_SUCCESS;
+        }
+        SrsAutoFree(SrsCommonMessage, msg);
+        SrsAutoFree(SrsCallPacket, pkt);
+        
+        string message;
+        if (pkt->arguments && pkt->arguments->is_string()) {
+            message = pkt->arguments->to_str();
+            srs_info("confirm redirected to %s", message.c_str());
+            accepted = true;
+        }
+        srs_info("get redirect response message");
+    }
     
     return ret;
 }
@@ -3167,7 +3238,7 @@ SrsConnectAppPacket::~SrsConnectAppPacket()
     srs_freep(args);
 }
 
-int SrsConnectAppPacket::decode(SrsStream* stream)
+int SrsConnectAppPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3257,7 +3328,7 @@ int SrsConnectAppPacket::get_size()
     return size;
 }
 
-int SrsConnectAppPacket::encode_packet(SrsStream* stream)
+int SrsConnectAppPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3304,7 +3375,7 @@ SrsConnectAppResPacket::~SrsConnectAppResPacket()
     srs_freep(info);
 }
 
-int SrsConnectAppResPacket::decode(SrsStream* stream)
+int SrsConnectAppResPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3343,7 +3414,7 @@ int SrsConnectAppResPacket::decode(SrsStream* stream)
         
         // ignore when props is not amf0 object.
         if (!p->is_object()) {
-            srs_warn("ignore connect response props marker=%#x.", (u_int8_t)p->marker);
+            srs_warn("ignore connect response props marker=%#x.", (uint8_t)p->marker);
             srs_freep(p);
         } else {
             srs_freep(props);
@@ -3378,7 +3449,7 @@ int SrsConnectAppResPacket::get_size()
         + SrsAmf0Size::object(props) + SrsAmf0Size::object(info);
 }
 
-int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
+int SrsConnectAppResPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3427,7 +3498,7 @@ SrsCallPacket::~SrsCallPacket()
     srs_freep(arguments);
 }
 
-int SrsCallPacket::decode(SrsStream* stream)
+int SrsCallPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3501,7 +3572,7 @@ int SrsCallPacket::get_size()
     return size;
 }
 
-int SrsCallPacket::encode_packet(SrsStream* stream)
+int SrsCallPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3575,7 +3646,7 @@ int SrsCallResPacket::get_size()
     return size;
 }
 
-int SrsCallResPacket::encode_packet(SrsStream* stream)
+int SrsCallResPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3621,7 +3692,7 @@ SrsCreateStreamPacket::~SrsCreateStreamPacket()
     srs_freep(command_object);
 }
 
-int SrsCreateStreamPacket::decode(SrsStream* stream)
+int SrsCreateStreamPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3667,7 +3738,7 @@ int SrsCreateStreamPacket::get_size()
         + SrsAmf0Size::null();
 }
 
-int SrsCreateStreamPacket::encode_packet(SrsStream* stream)
+int SrsCreateStreamPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3707,7 +3778,7 @@ SrsCreateStreamResPacket::~SrsCreateStreamResPacket()
     srs_freep(command_object);
 }
 
-int SrsCreateStreamResPacket::decode(SrsStream* stream)
+int SrsCreateStreamResPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3758,7 +3829,7 @@ int SrsCreateStreamResPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::number();
 }
 
-int SrsCreateStreamResPacket::encode_packet(SrsStream* stream)
+int SrsCreateStreamResPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3804,7 +3875,7 @@ SrsCloseStreamPacket::~SrsCloseStreamPacket()
     srs_freep(command_object);
 }
 
-int SrsCloseStreamPacket::decode(SrsStream* stream)
+int SrsCloseStreamPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3839,7 +3910,7 @@ SrsFMLEStartPacket::~SrsFMLEStartPacket()
     srs_freep(command_object);
 }
 
-int SrsFMLEStartPacket::decode(SrsStream* stream)
+int SrsFMLEStartPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -3894,7 +3965,7 @@ int SrsFMLEStartPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::str(stream_name);
 }
 
-int SrsFMLEStartPacket::encode_packet(SrsStream* stream)
+int SrsFMLEStartPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -3964,7 +4035,7 @@ SrsFMLEStartResPacket::~SrsFMLEStartResPacket()
     srs_freep(args);
 }
 
-int SrsFMLEStartResPacket::decode(SrsStream* stream)
+int SrsFMLEStartResPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -4015,7 +4086,7 @@ int SrsFMLEStartResPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::undefined();
 }
 
-int SrsFMLEStartResPacket::encode_packet(SrsStream* stream)
+int SrsFMLEStartResPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4062,7 +4133,7 @@ SrsPublishPacket::~SrsPublishPacket()
     srs_freep(command_object);
 }
 
-int SrsPublishPacket::decode(SrsStream* stream)
+int SrsPublishPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -4119,7 +4190,7 @@ int SrsPublishPacket::get_size()
         + SrsAmf0Size::str(type);
 }
 
-int SrsPublishPacket::encode_packet(SrsStream* stream)
+int SrsPublishPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4173,7 +4244,7 @@ SrsPausePacket::~SrsPausePacket()
     srs_freep(command_object);
 }
 
-int SrsPausePacket::decode(SrsStream* stream)
+int SrsPausePacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -4229,7 +4300,7 @@ SrsPlayPacket::~SrsPlayPacket()
     srs_freep(command_object);
 }
 
-int SrsPlayPacket::decode(SrsStream* stream)
+int SrsPlayPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -4330,7 +4401,7 @@ int SrsPlayPacket::get_size()
     return size;
 }
 
-int SrsPlayPacket::encode_packet(SrsStream* stream)
+int SrsPlayPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4411,7 +4482,7 @@ int SrsPlayResPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::object(desc);
 }
 
-int SrsPlayResPacket::encode_packet(SrsStream* stream)
+int SrsPlayResPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4473,7 +4544,7 @@ int SrsOnBWDonePacket::get_size()
         + SrsAmf0Size::null();
 }
 
-int SrsOnBWDonePacket::encode_packet(SrsStream* stream)
+int SrsOnBWDonePacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4530,7 +4601,7 @@ int SrsOnStatusCallPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::object(data);
 }
 
-int SrsOnStatusCallPacket::encode_packet(SrsStream* stream)
+int SrsOnStatusCallPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4577,7 +4648,7 @@ SrsBandwidthPacket::~SrsBandwidthPacket()
     srs_freep(data);
 }
 
-int SrsBandwidthPacket::decode(SrsStream *stream)
+int SrsBandwidthPacket::decode(SrsBuffer *stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -4626,7 +4697,7 @@ int SrsBandwidthPacket::get_size()
         + SrsAmf0Size::null() + SrsAmf0Size::object(data);
 }
 
-int SrsBandwidthPacket::encode_packet(SrsStream* stream)
+int SrsBandwidthPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4814,7 +4885,7 @@ int SrsOnStatusDataPacket::get_size()
     return SrsAmf0Size::str(command_name) + SrsAmf0Size::object(data);
 }
 
-int SrsOnStatusDataPacket::encode_packet(SrsStream* stream)
+int SrsOnStatusDataPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4862,7 +4933,7 @@ int SrsSampleAccessPacket::get_size()
         + SrsAmf0Size::boolean() + SrsAmf0Size::boolean();
 }
 
-int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
+int SrsSampleAccessPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4900,7 +4971,7 @@ SrsOnMetaDataPacket::~SrsOnMetaDataPacket()
     srs_freep(metadata);
 }
 
-int SrsOnMetaDataPacket::decode(SrsStream* stream)
+int SrsOnMetaDataPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4965,7 +5036,7 @@ int SrsOnMetaDataPacket::get_size()
     return SrsAmf0Size::str(name) + SrsAmf0Size::object(metadata);
 }
 
-int SrsOnMetaDataPacket::encode_packet(SrsStream* stream)
+int SrsOnMetaDataPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4994,7 +5065,7 @@ SrsSetWindowAckSizePacket::~SrsSetWindowAckSizePacket()
 {
 }
 
-int SrsSetWindowAckSizePacket::decode(SrsStream* stream)
+int SrsSetWindowAckSizePacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5025,7 +5096,7 @@ int SrsSetWindowAckSizePacket::get_size()
     return 4;
 }
 
-int SrsSetWindowAckSizePacket::encode_packet(SrsStream* stream)
+int SrsSetWindowAckSizePacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5052,7 +5123,7 @@ SrsAcknowledgementPacket::~SrsAcknowledgementPacket()
 {
 }
 
-int SrsAcknowledgementPacket::decode(SrsStream* stream)
+int SrsAcknowledgementPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5083,7 +5154,7 @@ int SrsAcknowledgementPacket::get_size()
     return 4;
 }
 
-int SrsAcknowledgementPacket::encode_packet(SrsStream* stream)
+int SrsAcknowledgementPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5110,7 +5181,7 @@ SrsSetChunkSizePacket::~SrsSetChunkSizePacket()
 {
 }
 
-int SrsSetChunkSizePacket::decode(SrsStream* stream)
+int SrsSetChunkSizePacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5141,7 +5212,7 @@ int SrsSetChunkSizePacket::get_size()
     return 4;
 }
 
-int SrsSetChunkSizePacket::encode_packet(SrsStream* stream)
+int SrsSetChunkSizePacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5183,7 +5254,7 @@ int SrsSetPeerBandwidthPacket::get_size()
     return 5;
 }
 
-int SrsSetPeerBandwidthPacket::encode_packet(SrsStream* stream)
+int SrsSetPeerBandwidthPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5213,7 +5284,7 @@ SrsUserControlPacket::~SrsUserControlPacket()
 {
 }
 
-int SrsUserControlPacket::decode(SrsStream* stream)
+int SrsUserControlPacket::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -5284,7 +5355,7 @@ int SrsUserControlPacket::get_size()
     return size;
 }
 
-int SrsUserControlPacket::encode_packet(SrsStream* stream)
+int SrsUserControlPacket::encode_packet(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
     

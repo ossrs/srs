@@ -24,6 +24,20 @@
     <script type="text/javascript" src="js/jwplayer.js" ></script>
     <script type='text/javascript'>jwplayer.key = 'N8zhkmYvvRwOhz4aTGkySoEri4x+9pQwR7GHIQ=='; </script>
     <script type="text/javascript">
+        /****
+        * The parameters for this page:
+        *       schema, the protocol schema, rtmp or http.
+        *       server, the ip of the url.
+        *       port, the rtmp port of url.
+        *       vhost, the vhost of url, can equals to server.
+        *       app, the app of url.
+        *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
+        *       autostart, whether auto play the stream.
+        * Additional params:
+        *       hls_vhost, the vhost for hls.
+        *       hls_port, the port for hls play.
+        *       hls_autostart, whether auto play the hls stream.
+        */
         var _player = null;
         var _url = null;
         $(function(){

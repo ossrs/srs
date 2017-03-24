@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -21,8 +21,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_RTMP_PROTOCOL_HANDSHKAE_HPP
-#define SRS_RTMP_PROTOCOL_HANDSHKAE_HPP
+#ifndef SRS_PROTOCOL_HANDSHAKE_HPP
+#define SRS_PROTOCOL_HANDSHAKE_HPP
 
 /*
 #include <srs_rtmp_handshake.hpp>
@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
 class SrsHandshakeBytes;
-class SrsStream;
+class SrsBuffer;
 
 #ifdef SRS_AUTO_SSL
 
@@ -44,8 +44,8 @@ namespace _srs_internal
 {
     // the digest key generate size.
     #define SRS_OpensslHashSize 512
-    extern u_int8_t SrsGenuineFMSKey[];
-    extern u_int8_t SrsGenuineFPKey[];
+    extern uint8_t SrsGenuineFMSKey[];
+    extern uint8_t SrsGenuineFPKey[];
     int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
     int openssl_generate_key(char* public_key, int32_t size);
     
@@ -141,7 +141,7 @@ namespace _srs_internal
         // parse key block from c1s1.
         // if created, user must free it by srs_key_block_free
         // @stream contains c1s1_key_bytes the key start bytes
-        int parse(SrsStream* stream);
+        int parse(SrsBuffer* stream);
     private:
         // calc the offset of key,
         // the key->offset cannot be used as the offset of key.
@@ -179,7 +179,7 @@ namespace _srs_internal
         // parse digest block from c1s1.
         // if created, user must free it by srs_digest_block_free
         // @stream contains c1s1_digest_bytes the digest start bytes
-        int parse(SrsStream* stream);
+        int parse(SrsBuffer* stream);
     private:
         // calc the offset of digest,
         // the key->offset cannot be used as the offset of digest.
@@ -294,15 +294,15 @@ namespace _srs_internal
         /**
         * copy time and version to stream.
         */
-        virtual void copy_time_version(SrsStream* stream, c1s1* owner);
+        virtual void copy_time_version(SrsBuffer* stream, c1s1* owner);
         /**
         * copy key to stream.
         */
-        virtual void copy_key(SrsStream* stream);
+        virtual void copy_key(SrsBuffer* stream);
         /**
         * copy digest to stream.
         */
-        virtual void copy_digest(SrsStream* stream, bool with_digest);
+        virtual void copy_digest(SrsBuffer* stream, bool with_digest);
     };
     
     /**

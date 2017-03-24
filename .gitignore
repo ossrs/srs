@@ -15,6 +15,7 @@
 # by winlin
 *.pyc
 *.swp
+.DS_Store
 /trunk/Makefile
 /trunk/objs
 /trunk/src/build-qt-Desktop-Debug

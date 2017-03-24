@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_rtmp_conn.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_config.hpp>
@@ -37,19 +37,27 @@ using namespace std;
 // the max small bytes to group
 #define SRS_MR_SMALL_BYTES 4096
 
-ISrsMessageHandler::ISrsMessageHandler()
+ISrsMessageConsumer::ISrsMessageConsumer()
 {
 }
 
-ISrsMessageHandler::~ISrsMessageHandler()
+ISrsMessageConsumer::~ISrsMessageConsumer()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms)
+ISrsMessagePumper::ISrsMessagePumper()
 {
-    timeout = timeout_ms;
-    handler = msg_handler;
-    rtmp = rtmp_sdk;
+}
+
+ISrsMessagePumper::~ISrsMessagePumper()
+{
+}
+
+SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm)
+{
+    rtmp = r;
+    pumper = p;
+    timeout = tm;
     trd = new SrsReusableThread2("recv", this);
 }
 
@@ -87,29 +95,29 @@ int SrsRecvThread::cycle()
     int ret = ERROR_SUCCESS;
 
     while (!trd->interrupted()) {
-        if (!handler->can_handle()) {
+        // When the pumper is interrupted, wait then retry.
+        if (pumper->interrupted()) {
             st_usleep(timeout * 1000);
             continue;
         }
     
         SrsCommonMessage* msg = NULL;
         
-        // recv and handle message
-        ret = rtmp->recv_message(&msg);
-        if (ret == ERROR_SUCCESS) {
-            ret = handler->handle(msg);
+        // Process the received message.
+        if ((ret = rtmp->recv_message(&msg)) == ERROR_SUCCESS) {
+            ret = pumper->consume(msg);
         }
     
         if (ret != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
-                srs_error("thread process message failed. ret=%d", ret);
+                srs_error("recv thread error. ret=%d", ret);
             }
     
-            // we use no timeout to recv, should never got any error.
+            // Interrupt the receive thread for any error.
             trd->interrupt();
             
-            // notice the handler got a recv error.
-            handler->on_recv_error(ret);
+            // Notify the pumper to quit for error.
+            pumper->interrupt(ret);
     
             return ret;
         }
@@ -126,9 +134,9 @@ void SrsRecvThread::on_thread_start()
     // to use isolate thread to recv, can improve about 33% performance.
     // @see https://github.com/ossrs/srs/issues/194
     // @see: https://github.com/ossrs/srs/issues/217
-    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
+    rtmp->set_recv_timeout(SRS_CONSTS_NO_TMMS);
     
-    handler->on_thread_start();
+    pumper->on_start();
 }
 
 void SrsRecvThread::on_thread_stop()
@@ -136,7 +144,7 @@ void SrsRecvThread::on_thread_stop()
     // reset the timeout to pulse mode.
     rtmp->set_recv_timeout(timeout * 1000);
     
-    handler->on_thread_stop();
+    pumper->on_stop();
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)
@@ -196,16 +204,7 @@ int SrsQueueRecvThread::error_code()
     return recv_error_code;
 }
 
-bool SrsQueueRecvThread::can_handle()
-{
-    // we only recv one message and then process it,
-    // for the message may cause the thread to stop,
-    // when stop, the thread is freed, so the messages
-    // are dropped.
-    return empty();
-}
-
-int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
+int SrsQueueRecvThread::consume(SrsCommonMessage* msg)
 {
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
@@ -218,9 +217,19 @@ int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
     return ERROR_SUCCESS;
 }
 
-void SrsQueueRecvThread::on_recv_error(int ret)
+bool SrsQueueRecvThread::interrupted()
+{
+    // we only recv one message and then process it,
+    // for the message may cause the thread to stop,
+    // when stop, the thread is freed, so the messages
+    // are dropped.
+    return !empty();
+}
+
+void SrsQueueRecvThread::interrupt(int ret)
 {
     recv_error_code = ret;
+    
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (_consumer) {
         _consumer->wakeup();
@@ -228,14 +237,14 @@ void SrsQueueRecvThread::on_recv_error(int ret)
 #endif
 }
 
-void SrsQueueRecvThread::on_thread_start()
+void SrsQueueRecvThread::on_start()
 {
     // disable the protocol auto response,
     // for the isolate recv thread should never send any messages.
     rtmp->set_auto_response(false);
 }
 
-void SrsQueueRecvThread::on_thread_stop()
+void SrsQueueRecvThread::on_stop()
 {
     // enable the protocol auto response,
     // for the isolate recv thread terminated.
@@ -245,15 +254,13 @@ void SrsQueueRecvThread::on_thread_stop()
 SrsPublishRecvThread::SrsPublishRecvThread(
     SrsRtmpServer* rtmp_sdk, 
     SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-    SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge
+    SrsRtmpConn* conn, SrsSource* source
 ): trd(this, rtmp_sdk, timeout_ms)
 {
     rtmp = rtmp_sdk;
 
     _conn = conn;
     _source = source;
-    _is_fmle = is_fmle;
-    _is_edge = is_edge;
 
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
@@ -281,7 +288,7 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     st_cond_destroy(error);
 }
 
-int SrsPublishRecvThread::wait(int timeout_ms)
+int SrsPublishRecvThread::wait(uint64_t timeout_ms)
 {
     if (recv_error_code != ERROR_SUCCESS) {
         return recv_error_code;
@@ -325,7 +332,48 @@ void SrsPublishRecvThread::stop()
     trd.stop();
 }
 
-void SrsPublishRecvThread::on_thread_start()
+int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when cid changed, change it.
+    if (ncid != cid) {
+        _srs_context->set_id(ncid);
+        cid = ncid;
+    }
+    
+    _nb_msgs++;
+    
+    // log to show the time of recv thread.
+    srs_verbose("recv thread now=%"PRId64"us, got msg time=%"PRId64"ms, size=%d",
+                srs_update_system_time_ms(), msg->header.timestamp, msg->size);
+    
+    // the rtmp connection will handle this message
+    ret = _conn->handle_publish_message(_source, msg);
+    
+    // must always free it,
+    // the source will copy it if need to use.
+    srs_freep(msg);
+    
+    return ret;
+}
+
+bool SrsPublishRecvThread::interrupted()
+{
+    // Never interrupted, always can handle message.
+    return false;
+}
+
+void SrsPublishRecvThread::interrupt(int ret)
+{
+    recv_error_code = ret;
+    
+    // when recv thread error, signal the conn thread to process it.
+    // @see https://github.com/ossrs/srs/issues/244
+    st_cond_signal(error);
+}
+
+void SrsPublishRecvThread::on_start()
 {
     // we donot set the auto response to false,
     // for the main thread never send message.
@@ -342,7 +390,7 @@ void SrsPublishRecvThread::on_thread_start()
 #endif
 }
 
-void SrsPublishRecvThread::on_thread_stop()
+void SrsPublishRecvThread::on_stop()
 {
     // we donot set the auto response to true,
     // for we donot set to false yet.
@@ -358,47 +406,6 @@ void SrsPublishRecvThread::on_thread_stop()
         rtmp->set_merge_read(false, NULL);
     }
 #endif
-}
-
-bool SrsPublishRecvThread::can_handle()
-{
-    // publish thread always can handle message.
-    return true;
-}
-
-int SrsPublishRecvThread::handle(SrsCommonMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // when cid changed, change it.
-    if (ncid != cid) {
-        _srs_context->set_id(ncid);
-        cid = ncid;
-    }
-
-    _nb_msgs++;
-    
-    // log to show the time of recv thread.
-    srs_verbose("recv thread now=%"PRId64"us, got msg time=%"PRId64"ms, size=%d",
-        srs_update_system_time_ms(), msg->header.timestamp, msg->size);
-
-    // the rtmp connection will handle this message
-    ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
-
-    // must always free it,
-    // the source will copy it if need to use.
-    srs_freep(msg);
-    
-    return ret;
-}
-
-void SrsPublishRecvThread::on_recv_error(int ret)
-{
-    recv_error_code = ret;
-
-    // when recv thread error, signal the conn thread to process it.
-    // @see https://github.com/ossrs/srs/issues/244
-    st_cond_signal(error);
 }
 
 #ifdef SRS_PERF_MERGED_READ
@@ -424,7 +431,7 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 }
 #endif
 
-int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
+int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
 {
     int ret = ERROR_SUCCESS;
     

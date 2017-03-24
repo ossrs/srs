@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -53,9 +53,10 @@ class SrsRawH264Stream;
 class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
-class SrsCodecSample;
-class SrsSimpleBuffer;
+class SrsAudioFrame;
+class SrsSimpleStream;
 class SrsPithyPrint;
+class SrsSimpleRtmpClient;
 
 /**
 * a rtp connection which transport a stream.
@@ -86,8 +87,8 @@ public:
 struct SrsRtspAudioCache
 {
     int64_t dts;
-    SrsCodecSample* audio_samples;
-    SrsSimpleBuffer* payload;
+    SrsAudioFrame* audio;
+    SrsSimpleStream* payload;
 
     SrsRtspAudioCache();
     virtual ~SrsRtspAudioCache();
@@ -139,11 +140,9 @@ private:
     SrsOneCycleThread* trd;
 private:
     SrsRequest* req;
-    SrsStSocket* io;
-    SrsRtmpClient* client;
+    SrsSimpleRtmpClient* sdk;
     SrsRtspJitter* vjitter;
     SrsRtspJitter* ajitter;
-    int stream_id;
 private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -173,15 +172,15 @@ private:
     virtual int kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
 private:
     virtual int write_sequence_header();
-    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
-    virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 private:
-    // connect to rtmp output url. 
-    // @remark ignore when not connected, reconnect when disconnected.
+    // Connect to RTMP server.
     virtual int connect();
-    virtual int connect_app(std::string ep_server, std::string ep_port);
+    // Close the connection to RTMP server.
+    virtual void close();
 };
 
 /**

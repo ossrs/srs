@@ -105,7 +105,7 @@
     <ClInclude Include="..\..\src\core\srs_core_performance.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_aac.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp" />
-    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_codec.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_consts.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_error.hpp" />
@@ -113,7 +113,7 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_flv.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_log.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_mp3.hpp" />
-    <ClInclude Include="..\..\src\kernel\srs_kernel_stream.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_ts.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_utility.hpp" />
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp" />
@@ -121,13 +121,13 @@
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_http_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_raw_avc.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_protocol_buffer.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_amf0.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_stream.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_io.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp" />
-    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_protocol_utility.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtsp_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_protocol_kbps.hpp" />
   </ItemGroup>
@@ -187,7 +187,7 @@
     <ClCompile Include="..\..\src\core\srs_core_performance.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_aac.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp" />
-    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_codec.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_consts.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_error.cpp" />
@@ -195,7 +195,7 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_flv.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_log.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_mp3.cpp" />
-    <ClCompile Include="..\..\src\kernel\srs_kernel_stream.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_ts.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_utility.cpp" />
     <ClCompile Include="..\..\src\libs\srs_librtmp.cpp" />
@@ -204,13 +204,13 @@
     <ClCompile Include="..\..\src\main\srs_main_server.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_http_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_raw_avc.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_protocol_buffer.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_amf0.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_stream.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_io.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp" />
-    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_protocol_utility.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtsp_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_protocol_kbps.cpp" />
   </ItemGroup>

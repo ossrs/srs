@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -56,9 +56,6 @@ VOID TEST(CoreMacroseTest, Check)
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_AUTO_CONFIGURE
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_EMBEDED_TOOL_CHAIN
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_AUTO_PREFIX

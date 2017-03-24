@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -33,21 +33,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-class SrsStream;
+class SrsBuffer;
 class SrsFileWriter;
 
 /**
-* encode data to aac file.
-*/
-class SrsMp3Encoder
+ * Transmux RTMP packet to MP3 stream.
+ */
+class SrsMp3Transmuxer
 {
 private:
     SrsFileWriter* writer;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
-    SrsMp3Encoder();
-    virtual ~SrsMp3Encoder();
+    SrsMp3Transmuxer();
+    virtual ~SrsMp3Transmuxer();
 public:
     /**
     * initialize the underlayer file stream.

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,16 +30,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_API
-
 class SrsStSocket;
 class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
+class SrsServer;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_http_stack.hpp>
+#include <srs_app_reload.hpp>
 
 // for http root.
 class SrsGoApiRoot : public ISrsHttpHandler
@@ -177,6 +177,25 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+class SrsGoApiRaw : virtual public ISrsHttpHandler, virtual public ISrsReloadHandler
+{
+private:
+    SrsServer* server;
+private:
+    bool raw_api;
+    bool allow_reload;
+    bool allow_query;
+    bool allow_update;
+public:
+    SrsGoApiRaw(SrsServer* svr);
+    virtual ~SrsGoApiRaw();
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_api_raw_api();
+};
+
 class SrsGoApiError : public ISrsHttpHandler
 {
 public:
@@ -186,14 +205,14 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-class SrsHttpApi : public SrsConnection
+class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
 {
 private:
     SrsHttpParser* parser;
+    SrsHttpCorsMux* cors;
     SrsHttpServeMux* mux;
-    bool crossdomain_required;
 public:
-    SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpApi();
 // interface IKbpsDelta
 public:
@@ -205,9 +224,10 @@ protected:
     virtual int do_cycle();
 private:
     virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_api_crossdomain();
 };
-
-#endif
 
 #endif
 

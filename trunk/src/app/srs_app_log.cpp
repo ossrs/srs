@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -127,6 +127,19 @@ int SrsFastLog::initialize()
     return ret;
 }
 
+void SrsFastLog::reopen()
+{
+    if (fd > 0) {
+        ::close(fd);
+    }
+    
+    if (!log_to_file_tank) {
+        return;
+    }
+    
+    open_log_file();
+}
+
 void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
 {
     if (_level > SrsLogLevel::Verbose) {
@@ -134,7 +147,7 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "verb", &size)) {
+    if (!generate_header(false, tag, context_id, "Verb", &size)) {
         return;
     }
     
@@ -154,7 +167,7 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "debug", &size)) {
+    if (!generate_header(false, tag, context_id, "Debug", &size)) {
         return;
     }
     
@@ -174,7 +187,7 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(false, tag, context_id, "trace", &size)) {
+    if (!generate_header(false, tag, context_id, "Trace", &size)) {
         return;
     }
     
@@ -194,7 +207,7 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(true, tag, context_id, "warn", &size)) {
+    if (!generate_header(true, tag, context_id, "Warn", &size)) {
         return;
     }
     
@@ -214,7 +227,7 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(true, tag, context_id, "error", &size)) {
+    if (!generate_header(true, tag, context_id, "Error", &size)) {
         return;
     }
     

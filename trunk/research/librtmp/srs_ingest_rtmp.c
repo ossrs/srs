@@ -1,28 +1,25 @@
 /*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-/**
-gcc srs_ingest_rtmp.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_rtmp
-*/
+ The MIT License (MIT)
+ 
+ Copyright (c) 2013-2017 SRS(ossrs)
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of
+ this software and associated documentation files (the "Software"), to deal in
+ the Software without restriction, including without limitation the rights to
+ use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ the Software, and to permit persons to whom the Software is furnished to do so,
+ subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +30,11 @@ gcc srs_ingest_rtmp.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest
 int connect_ic(srs_rtmp_t irtmp);
 int connect_oc(srs_rtmp_t ortmp);
 int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp);
+
+// whether use verbose log.
+int verbose = 0;
+// 2000 is about 30s.
+#define PITHY_PRINT_EVERY_MSGS 2000
 
 int main(int argc, char** argv)
 {
@@ -46,18 +48,19 @@ int main(int argc, char** argv)
     // rtmp handler
     srs_rtmp_t irtmp, ortmp;
     
-    printf("ingest RTMP and publish to RTMP server like edge.\n");
-    printf("srs(ossrs) client librtmp library.\n");
-    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    printf("Ingest RTMP to server like FFMPEG over srs-librtmp %d.%d.%d\n",
+        srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
         printf("ingest RTMP and publish to RTMP server\n"
-            "Usage: %s <-i in_rtmp_url> <-y out_rtmp_url>\n"
+            "Usage: %s <-i in_rtmp_url> <-y out_rtmp_url> [-v verbose]\n"
             "   in_rtmp_url     input rtmp url, ingest from this url.\n"
             "   out_rtmp_url    output rtmp url, publish to this url.\n"
-            "For example:\n"
-            "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n",
-            argv[0], argv[0]);
+            "   verbose         output verbose log.\n"
+           "For example:\n"
+           "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n"
+           "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo -v verbose\n",
+            argv[0], argv[0], argv[0]);
         exit(-1);
     }
     
@@ -73,8 +76,9 @@ int main(int argc, char** argv)
         
         // parse according the option name.
         switch (p[1]) {
-            case 'i': in_rtmp_url = argv[opt + 1]; break;
-            case 'y': out_rtmp_url = argv[opt + 1]; break;
+            case 'i': in_rtmp_url = argv[++opt]; break;
+            case 'y': out_rtmp_url = argv[++opt]; break;
+            case 'v': verbose=1; opt++; break;
             default: break;
         }
     }
@@ -88,8 +92,7 @@ int main(int argc, char** argv)
         return -1;
     }
     
-    srs_human_trace("input:  %s", in_rtmp_url);
-    srs_human_trace("output: %s", out_rtmp_url);
+    srs_human_trace("ingest %s to %s, verbose=%d", in_rtmp_url, out_rtmp_url, verbose);
     
     irtmp = srs_rtmp_create(in_rtmp_url);
     ortmp = srs_rtmp_create(out_rtmp_url);
@@ -111,7 +114,8 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     int size;
     char type;
     char* data;
-    u_int32_t timestamp;
+    uint32_t timestamp;
+    uint64_t nb_msgs = 0;
 
     if ((ret = connect_ic(irtmp)) != 0) {
         return ret;
@@ -120,7 +124,13 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         return ret;
     }
     
-    srs_human_trace("start proxy RTMP stream");
+    if (verbose) {
+        srs_human_trace("start proxy RTMP stream");
+    } else {
+        srs_human_verbose("start proxy RTMP stream");
+    }
+    
+    char buffer[1024];
     for (;;) {
         if ((ret = srs_rtmp_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
@@ -128,22 +138,35 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         }
         
         if (!srs_utils_flv_tag_is_ok(type)) {
-            srs_human_trace("ignore invalid flv tag=%d, dts=%d, %d bytes", type, timestamp, size);
+            if (verbose) {
+                srs_human_trace("ignore invalid flv tag=%d, dts=%d, %d bytes", type, timestamp, size);
+            } else {
+                srs_human_verbose("ignore invalid flv tag=%d, dts=%d, %d bytes", type, timestamp, size);
+            }
             free(data);
             continue;
         }
         
-        if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
-            srs_human_trace("print packet failed. ret=%d", ret);
-            return ret;
+        if (verbose || ((nb_msgs++ % PITHY_PRINT_EVERY_MSGS) == 0 && nb_msgs > 10)) {
+            if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) != 0) {
+                srs_human_trace("print packet failed. ret=%d", ret);
+                return ret;
+            }
+            srs_human_trace("%s", buffer);
         }
         
         if ((ret = srs_rtmp_write_packet(ortmp, type, timestamp, data, size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        srs_human_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
-            srs_human_flv_tag_type2string(type), timestamp, size);
+        
+        if (verbose) {
+            srs_human_trace("ortmp sent packet: type=%s, time=%d, size=%d",
+                srs_human_flv_tag_type2string(type), timestamp, size);
+        } else {
+            srs_human_verbose("ortmp sent packet: type=%s, time=%d, size=%d",
+                srs_human_flv_tag_type2string(type), timestamp, size);
+        }
     }
     
     return ret;
@@ -153,23 +176,51 @@ int connect_ic(srs_rtmp_t irtmp)
 {
     int ret = 0;
     
+    // srs debug info.
+    char* ip = NULL;
+    char* sig = NULL;
+    int pid = 0, cid = 0;
+    int major = 0, minor = 0, revision= 0, build = 0;
+    
     if ((ret = srs_rtmp_handshake(irtmp)) != 0) {
         srs_human_trace("irtmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("irtmp simple handshake success");
+    if (verbose) {
+        srs_human_trace("irtmp simple handshake success");
+    } else {
+        srs_human_verbose("irtmp simple handshake success");
+    }
     
-    if ((ret = srs_rtmp_connect_app(irtmp)) != 0) {
+    if (srs_rtmp_connect_app(irtmp) != 0) {
         srs_human_trace("irtmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("irtmp connect vhost/app success");
+    
+    if ((ret = srs_rtmp_get_server_sig(irtmp, &sig)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_id(irtmp, &ip, &pid, &cid)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_version(irtmp, &major, &minor, &revision, &build)) != 0) {
+        srs_human_trace("Retrieve server version failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("irtmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
+        ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_play_stream(irtmp)) != 0) {
         srs_human_trace("irtmp play stream failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("irtmp play stream success");
+    if (verbose) {
+        srs_human_trace("irtmp play stream success");
+    } else {
+        srs_human_verbose("irtmp play stream success");
+    }
     
     return ret;
 }
@@ -178,23 +229,51 @@ int connect_oc(srs_rtmp_t ortmp)
 {
     int ret = 0;
     
+    // srs debug info.
+    char* ip = NULL;
+    char* sig = NULL;
+    int pid = 0, cid = 0;
+    int major = 0, minor = 0, revision= 0, build = 0;
+    
     if ((ret = srs_rtmp_handshake(ortmp)) != 0) {
         srs_human_trace("ortmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("ortmp simple handshake success");
+    if (verbose) {
+        srs_human_trace("ortmp simple handshake success");
+    } else {
+        srs_human_verbose("ortmp simple handshake success");
+    }
     
-    if ((ret = srs_rtmp_connect_app(ortmp)) != 0) {
+    if (srs_rtmp_connect_app(ortmp) != 0) {
         srs_human_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("ortmp connect vhost/app success");
+    
+    if ((ret = srs_rtmp_get_server_sig(ortmp, &sig)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_id(ortmp, &ip, &pid, &cid)) != 0) {
+        srs_human_trace("Retrieve server ID failed, ret=%d", ret);
+        return ret;
+    }
+    if ((ret = srs_rtmp_get_server_version(ortmp, &major, &minor, &revision, &build)) != 0) {
+        srs_human_trace("Retrieve server version failed, ret=%d", ret);
+        return ret;
+    }
+    srs_human_trace("ortmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
+        ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_publish_stream(ortmp)) != 0) {
         srs_human_trace("ortmp publish stream failed. ret=%d", ret);
         return ret;
     }
-    srs_human_trace("ortmp publish stream success");
+    if (verbose) {
+        srs_human_trace("ortmp publish stream success");
+    } else {
+        srs_human_verbose("ortmp publish stream success");
+    }
     
     return ret;
 }

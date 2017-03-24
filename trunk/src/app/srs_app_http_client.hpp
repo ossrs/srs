@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,8 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
-
-#ifdef SRS_AUTO_HTTP_CORE
+#include <map>
 
 #include <srs_app_st.hpp>
 
@@ -39,23 +38,33 @@ class SrsHttpUri;
 class SrsHttpParser;
 class ISrsHttpMessage;
 class SrsStSocket;
+class SrsKbps;
 
 // the default timeout for http client.
-#define SRS_HTTP_CLIENT_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_HTTP_CLIENT_TMMS (30*1000)
 
 /**
-* http client to GET/POST/PUT/DELETE uri
-*/
+ * The client to GET/POST/PUT/DELETE over HTTP.
+ * @remark We will reuse the TCP transport until initialize or channel error,
+ *      such as send/recv failed.
+ * Usage:
+ *      SrsHttpClient hc;
+ *      hc.initialize("127.0.0.1", 80, 9000);
+ *      hc.post("/api/v1/version", "Hello world!", NULL);
+ */
 class SrsHttpClient
 {
 private:
-    bool connected;
-    st_netfd_t stfd;
-    SrsStSocket* skt;
+    // The underlayer TCP transport, set to NULL when disconnect, or never not NULL when connected.
+    // We will disconnect transport when initialize or channel error, such as send/recv error.
+    SrsTcpClient* transport;
     SrsHttpParser* parser;
+    std::map<std::string, std::string> headers;
+    SrsKbps* kbps;
 private:
-    int64_t timeout_us;
-    // host name or ip.
+    // The timeout in ms.
+    int64_t timeout;
+    // The host name or ip.
     std::string host;
     int port;
 public:
@@ -63,30 +72,41 @@ public:
     virtual ~SrsHttpClient();
 public:
     /**
-    * initialize the client, connect to host and port.
-    */
-    virtual int initialize(std::string h, int p, int64_t t_us = SRS_HTTP_CLIENT_TIMEOUT_US);
+     * Initliaze the client, disconnect the transport, renew the HTTP parser.
+     * @param tm The underlayer TCP transport timeout in ms.
+     * @remark we will set default values in headers, which can be override by set_header.
+     */
+    virtual int initialize(std::string h, int p, int64_t tm = SRS_HTTP_CLIENT_TMMS);
+    /**
+     * Set HTTP request header in header[k]=v.
+     * @return the HTTP client itself.
+     */
+    virtual SrsHttpClient* set_header(std::string k, std::string v);
 public:
     /**
-    * to post data to the uri.
-    * @param the path to request on.
-    * @param req the data post to uri. empty string to ignore.
-    * @param ppmsg output the http message to read the response.
-    */
+     * to post data to the uri.
+     * @param the path to request on.
+     * @param req the data post to uri. empty string to ignore.
+     * @param ppmsg output the http message to read the response.
+     * @remark user must free the ppmsg if not NULL.
+     */
     virtual int post(std::string path, std::string req, ISrsHttpMessage** ppmsg);
     /**
-    * to get data from the uri.
-    * @param the path to request on.
-    * @param req the data post to uri. empty string to ignore.
-    * @param ppmsg output the http message to read the response.
-    */
+     * to get data from the uri.
+     * @param the path to request on.
+     * @param req the data post to uri. empty string to ignore.
+     * @param ppmsg output the http message to read the response.
+     * @remark user must free the ppmsg if not NULL.
+     */
     virtual int get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+private:
+    virtual void set_recv_timeout(int64_t tm);
+public:
+    virtual void kbps_sample(const char* label, int64_t age);
 private:
     virtual void disconnect();
     virtual int connect();
 };
-
-#endif
 
 #endif
 

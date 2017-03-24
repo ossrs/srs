@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,10 +28,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_rtmp_io.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_io.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef SRS_AUTO_SSL
 
@@ -43,10 +44,76 @@ using namespace _srs_internal;
 // for openssl_generate_key
 #include <openssl/dh.h>
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+static HMAC_CTX *HMAC_CTX_new(void)
+{
+    HMAC_CTX *ctx = (HMAC_CTX *)malloc(sizeof(*ctx));
+    if (ctx != NULL) {
+        HMAC_CTX_init(ctx);
+    }
+    return ctx;
+}
+
+static void HMAC_CTX_free(HMAC_CTX *ctx)
+{
+    if (ctx != NULL) {
+        HMAC_CTX_cleanup(ctx);
+        free(ctx);
+    }
+}
+
+static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key)
+{
+    if (pub_key != NULL) {
+        *pub_key = dh->pub_key;
+    }
+    if (priv_key != NULL) {
+        *priv_key = dh->priv_key;
+    }
+}
+
+static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
+{
+    /* If the fields p and g in d are NULL, the corresponding input
+     * parameters MUST be non-NULL.  q may remain NULL.
+     */
+    if ((dh->p == NULL && p == NULL)
+        || (dh->g == NULL && g == NULL))
+        return 0;
+    
+    if (p != NULL) {
+        BN_free(dh->p);
+        dh->p = p;
+    }
+    if (q != NULL) {
+        BN_free(dh->q);
+        dh->q = q;
+    }
+    if (g != NULL) {
+        BN_free(dh->g);
+        dh->g = g;
+    }
+    
+    if (q != NULL) {
+        dh->length = BN_num_bits(q);
+    }
+    
+    return 1;
+}
+
+static int DH_set_length(DH *dh, long length)
+{
+    dh->length = length;
+    return 1;
+}
+
+#endif
+
 namespace _srs_internal
 {
     // 68bytes FMS key which is used to sign the sever packet.
-    u_int8_t SrsGenuineFMSKey[] = {
+    uint8_t SrsGenuineFMSKey[] = {
         0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
         0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,
         0x61, 0x73, 0x68, 0x20, 0x4d, 0x65, 0x64, 0x69,
@@ -59,7 +126,7 @@ namespace _srs_internal
     }; // 68
     
     // 62bytes FP key which is used to sign the client packet.
-    u_int8_t SrsGenuineFPKey[] = {
+    uint8_t SrsGenuineFPKey[] = {
         0x47, 0x65, 0x6E, 0x75, 0x69, 0x6E, 0x65, 0x20,
         0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x46, 0x6C,
         0x61, 0x73, 0x68, 0x20, 0x50, 0x6C, 0x61, 0x79,
@@ -111,18 +178,21 @@ namespace _srs_internal
             }
         } else {
             // use key-data to digest.
-            HMAC_CTX ctx;
-            
+            HMAC_CTX *ctx = HMAC_CTX_new();
+            if (ctx == NULL) {
+               ret = ERROR_OpenSslCreateHMAC;
+               return ret;
+            }
             // @remark, if no key, use EVP_Digest to digest,
             // for instance, in python, hashlib.sha256(data).digest().
-            HMAC_CTX_init(&ctx);
-            if (HMAC_Init_ex(&ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
+            if (HMAC_Init_ex(ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
                 ret = ERROR_OpenSslSha256Init;
+                HMAC_CTX_free(ctx);
                 return ret;
             }
             
-            ret = do_openssl_HMACsha256(&ctx, data, data_size, temp_digest, &digest_size);
-            HMAC_CTX_cleanup(&ctx);
+            ret = do_openssl_HMACsha256(ctx, data, data_size, temp_digest, &digest_size);
+            HMAC_CTX_free(ctx);
             
             if (ret != ERROR_SUCCESS) {
                 return ret;
@@ -158,14 +228,6 @@ namespace _srs_internal
     void SrsDH::close()
     {
         if (pdh != NULL) {
-            if (pdh->p != NULL) {
-                BN_free(pdh->p);
-                pdh->p = NULL;
-            }
-            if (pdh->g != NULL) {
-                BN_free(pdh->g);
-                pdh->g = NULL;
-            }
             DH_free(pdh);
             pdh = NULL;
         }
@@ -181,7 +243,9 @@ namespace _srs_internal
             }
             
             if (ensure_128bytes_public_key) {
-                int32_t key_size = BN_num_bytes(pdh->pub_key);
+                const BIGNUM *pub_key = NULL;
+                DH_get0_key(pdh, &pub_key, NULL);
+                int32_t key_size = BN_num_bytes(pub_key);
                 if (key_size != 128) {
                     srs_warn("regenerate 128B key, current=%dB", key_size);
                     continue;
@@ -200,13 +264,15 @@ namespace _srs_internal
         
         // copy public key to bytes.
         // sometimes, the key_size is 127, seems ok.
-        int32_t key_size = BN_num_bytes(pdh->pub_key);
+        const BIGNUM *pub_key = NULL;
+        DH_get0_key(pdh, &pub_key, NULL);
+        int32_t key_size = BN_num_bytes(pub_key);
         srs_assert(key_size > 0);
         
         // maybe the key_size is 127, but dh will write all 128bytes pkey,
         // so, donot need to set/initialize the pkey.
         // @see https://github.com/ossrs/srs/issues/165
-        key_size = BN_bn2bin(pdh->pub_key, (unsigned char*)pkey);
+        key_size = BN_bn2bin(pub_key, (unsigned char*)pkey);
         srs_assert(key_size > 0);
         
         // output the size of public key.
@@ -265,28 +331,31 @@ namespace _srs_internal
         }
     
         //2. Create his internal p and g
-        if ((pdh->p = BN_new()) == NULL) {
+        BIGNUM *p, *g;
+        if ((p = BN_new()) == NULL) {
             ret = ERROR_OpenSslCreateP; 
             return ret;
         }
-        if ((pdh->g = BN_new()) == NULL) {
+        if ((g = BN_new()) == NULL) {
             ret = ERROR_OpenSslCreateG; 
+            BN_free(p);
             return ret;
         }
-    
+        DH_set0_pqg(pdh, p, NULL, g);
+
         //3. initialize p and g, @see ./test/ectest.c:260
-        if (!BN_hex2bn(&pdh->p, RFC2409_PRIME_1024)) {
+        if (!BN_hex2bn(&p, RFC2409_PRIME_1024)) {
             ret = ERROR_OpenSslParseP1024; 
             return ret;
         }
         // @see ./test/bntest.c:1764
-        if (!BN_set_word(pdh->g, 2)) {
+        if (!BN_set_word(g, 2)) {
             ret = ERROR_OpenSslSetG;
             return ret;
         }
     
         // 4. Set the key length
-        pdh->length = bits_count;
+        DH_set_length(pdh, bits_count);
     
         // 5. Generate private and public key
         // @see ./test/dhtest.c:152
@@ -330,7 +399,7 @@ namespace _srs_internal
         srs_freepa(random1);
     }
     
-    int key_block::parse(SrsStream* stream)
+    int key_block::parse(SrsBuffer* stream)
     {
         int ret = ERROR_SUCCESS;
         
@@ -371,7 +440,7 @@ namespace _srs_internal
         int max_offset_size = 764 - 128 - 4;
         
         int valid_offset = 0;
-        u_int8_t* pp = (u_int8_t*)&offset;
+        uint8_t* pp = (uint8_t*)&offset;
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;
@@ -412,7 +481,7 @@ namespace _srs_internal
         srs_freepa(random1);
     }
 
-    int digest_block::parse(SrsStream* stream)
+    int digest_block::parse(SrsBuffer* stream)
     {
         int ret = ERROR_SUCCESS;
         
@@ -448,7 +517,7 @@ namespace _srs_internal
         int max_offset_size = 764 - 32 - 4;
         
         int valid_offset = 0;
-        u_int8_t* pp = (u_int8_t*)&offset;
+        uint8_t* pp = (uint8_t*)&offset;
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;
@@ -539,7 +608,7 @@ namespace _srs_internal
             return ret;
         }
 
-        // altough the public key is always 128bytes, but the share key maybe not.
+        // although the public key is always 128bytes, but the share key maybe not.
         // we just ignore the actual key size, but if need to use the key, must use the actual size.
         // TODO: FIXME: use the actual key size.
         //srs_assert(pkey_size == 128);
@@ -636,7 +705,7 @@ namespace _srs_internal
         return ret;
     }
     
-    void c1s1_strategy::copy_time_version(SrsStream* stream, c1s1* owner)
+    void c1s1_strategy::copy_time_version(SrsBuffer* stream, c1s1* owner)
     {
         srs_assert(stream->require(8));
         
@@ -646,7 +715,7 @@ namespace _srs_internal
         // 4bytes version
         stream->write_4bytes(owner->version);
     }
-    void c1s1_strategy::copy_key(SrsStream* stream)
+    void c1s1_strategy::copy_key(SrsBuffer* stream)
     {
         srs_assert(key.random0_size >= 0);
         srs_assert(key.random1_size >= 0);
@@ -667,7 +736,7 @@ namespace _srs_internal
         
         stream->write_4bytes(key.offset);
     }
-    void c1s1_strategy::copy_digest(SrsStream* stream, bool with_digest)
+    void c1s1_strategy::copy_digest(SrsBuffer* stream, bool with_digest)
     {
         srs_assert(key.random0_size >= 0);
         srs_assert(key.random1_size >= 0);
@@ -717,7 +786,7 @@ namespace _srs_internal
         
         srs_assert(size == 1536);
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
             return ret;
@@ -752,7 +821,7 @@ namespace _srs_internal
             srs_assert(size == 1504);
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -786,7 +855,7 @@ namespace _srs_internal
         
         srs_assert(size == 1536);
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
             return ret;
@@ -821,7 +890,7 @@ namespace _srs_internal
             srs_assert(size == 1504);
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -882,7 +951,7 @@ namespace _srs_internal
             return ret;
         }
         
-        SrsStream stream;
+        SrsBuffer stream;
         
         if ((ret = stream.initialize(_c1s1, size)) != ERROR_SUCCESS) {
             return ret;

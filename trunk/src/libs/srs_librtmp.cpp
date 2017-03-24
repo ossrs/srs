@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 
 #include <string>
@@ -37,41 +38,52 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_lib_simple_socket.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_kernel_stream.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_lib_bandwidth.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_kernel_mp4.hpp>
 
 // kernel module.
 ISrsLog* _srs_log = new ISrsLog();
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
 
-// use this default timeout in us, if user not set.
-#define SRS_SOCKET_DEFAULT_TIMEOUT 30 * 1000 * 1000LL
+// The default socket timeout in ms.
+#define SRS_SOCKET_DEFAULT_TMMS (30 * 1000)
 
 /**
 * export runtime context.
 */
 struct Context
 {
+    // The original RTMP url.
     std::string url;
+    
+    // Parse from url.
     std::string tcUrl;
     std::string host;
-    std::string ip;
-    std::string port;
     std::string vhost;
     std::string app;
     std::string stream;
     std::string param;
+    
+    // Parse ip:port from host.
+    std::string ip;
+    int port;
+    
+    // The URL schema, about vhost/app/stream?param
+    srs_url_schema schema;
+    // The server information, response by connect app.
+    SrsServerInfo si;
 
-    // extra request object for connect to server, NULL to ignore.
+    // The extra request object for connect to server, NULL to ignore.
     SrsRequest* req;
     
     // the message received cache,
@@ -90,8 +102,8 @@ struct Context
 
     // for h264 raw stream, 
     // @see: https://github.com/ossrs/srs/issues/66#issuecomment-62240521
-    SrsStream h264_raw_stream;
-    // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
+    SrsBuffer h264_raw_stream;
+    // about SPS, @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
     // whether the sps and pps sent,
@@ -103,13 +115,16 @@ struct Context
     bool h264_pps_changed;
     // for aac raw stream,
     // @see: https://github.com/ossrs/srs/issues/212#issuecomment-64146250
-    SrsStream aac_raw_stream;
+    SrsBuffer aac_raw_stream;
     // the aac sequence header.
     std::string aac_specific_config;
     
-    // user set timeout, in us.
+    // user set timeout, in ms.
     int64_t stimeout;
     int64_t rtimeout;
+    
+    // The RTMP handler level buffer, can used to format packet.
+    char buffer[1024];
     
     Context() {
         rtmp = NULL;
@@ -119,7 +134,8 @@ struct Context
         h264_sps_pps_sent = false;
         h264_sps_changed = false;
         h264_pps_changed = false;
-        rtimeout = stimeout = -1;
+        rtimeout = stimeout = SRS_CONSTS_NO_TMMS;
+        schema = srs_url_schema_normal;
     }
     virtual ~Context() {
         srs_freep(req);
@@ -471,16 +487,11 @@ int srs_librtmp_context_parse_uri(Context* context)
 {
     int ret = ERROR_SUCCESS;
     
-    // parse uri
-    size_t pos = string::npos;
-    string uri = context->url;
-    // tcUrl, stream
-    if ((pos = uri.rfind("/")) != string::npos) {
-        context->stream = uri.substr(pos + 1);
-        context->tcUrl = uri = uri.substr(0, pos);
-    }
-    
     std::string schema;
+    
+    srs_parse_rtmp_url(context->url, context->tcUrl, context->stream);
+
+    // when connect, we only need to parse the tcUrl
     srs_discovery_tc_url(context->tcUrl, 
         schema, context->host, context->vhost, context->app, context->port,
         context->param);
@@ -508,9 +519,7 @@ int srs_librtmp_context_connect(Context* context)
     srs_assert(context->skt);
     
     std::string ip = context->ip;
-    int port = ::atoi(context->port.c_str());
-    
-    if ((ret = context->skt->connect(ip.c_str(), port)) != ERROR_SUCCESS) {
+    if ((ret = context->skt->connect(ip.c_str(), context->port)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -538,6 +547,8 @@ int srs_version_revision()
 
 srs_rtmp_t srs_rtmp_create(const char* url)
 {
+    int ret = ERROR_SUCCESS;
+    
     Context* context = new Context();
     context->url = url;
 
@@ -545,29 +556,9 @@ srs_rtmp_t srs_rtmp_create(const char* url)
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
 
-    if (context->skt->create_socket() != ERROR_SUCCESS) {
-        // free the context and return NULL
-        srs_freep(context);
-        return NULL;
-    }
-    
-    return context;
-}
-
-srs_rtmp_t srs_rtmp_create2(const char* url)
-{
-    Context* context = new Context();
-    
-    // use url as tcUrl.
-    context->url = url;
-    // auto append stream.
-    context->url += "/livestream";
-    
-    // create socket
-    srs_freep(context->skt);
-    context->skt = new SimpleSocketStream();
-    
-    if (context->skt->create_socket() != ERROR_SUCCESS) {
+    if ((ret = context->skt->create_socket(context)) != ERROR_SUCCESS) {
+        srs_human_error("Create socket failed, ret=%d", ret);
+        
         // free the context and return NULL
         srs_freep(context);
         return NULL;
@@ -586,8 +577,8 @@ int srs_rtmp_set_timeout(srs_rtmp_t rtmp, int recv_timeout_ms, int send_timeout_
 
     Context* context = (Context*)rtmp;
     
-    context->stimeout = send_timeout_ms * 1000;
-    context->rtimeout = recv_timeout_ms * 1000;
+    context->stimeout = send_timeout_ms;
+    context->rtimeout = recv_timeout_ms;
 
     context->skt->set_recv_timeout(context->rtimeout);
     context->skt->set_send_timeout(context->stimeout);
@@ -652,12 +643,12 @@ int srs_rtmp_connect_server(srs_rtmp_t rtmp)
     Context* context = (Context*)rtmp;
     
     // set timeout if user not set.
-    if (context->stimeout == -1) {
-        context->stimeout = SRS_SOCKET_DEFAULT_TIMEOUT;
+    if (context->stimeout == SRS_CONSTS_NO_TMMS) {
+        context->stimeout = SRS_SOCKET_DEFAULT_TMMS;
         context->skt->set_send_timeout(context->stimeout);
     }
-    if (context->rtimeout == -1) {
-        context->rtimeout = SRS_SOCKET_DEFAULT_TIMEOUT;
+    if (context->rtimeout == SRS_CONSTS_NO_TMMS) {
+        context->rtimeout = SRS_SOCKET_DEFAULT_TMMS;
         context->skt->set_recv_timeout(context->rtimeout);
     }
     
@@ -693,6 +684,26 @@ int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
     return ret;
 }
 
+int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    srs_assert(context->skt != NULL);
+    
+    // simple handshake
+    srs_freep(context->rtmp);
+    context->rtmp = new SrsRtmpClient(context->skt);
+    
+    if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
     const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
 ) {
@@ -719,23 +730,15 @@ int srs_rtmp_set_connect_args(srs_rtmp_t rtmp,
     
     return ret;
 }
-
-int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
+    
+int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    srs_assert(context->skt != NULL);
-    
-    // simple handshake
-    srs_freep(context->rtmp);
-    context->rtmp = new SrsRtmpClient(context->skt);
-    
-    if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
-        return ret;
-    }
+    context->schema = schema;
     
     return ret;
 }
@@ -747,55 +750,61 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    string tcUrl = srs_generate_tc_url(
-        context->ip, context->vhost, context->app, context->port,
-        context->param
-    );
+    string tcUrl;
+    switch(context->schema) {
+        case srs_url_schema_normal:
+            tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
+            break;
+        case srs_url_schema_via:
+            tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
+            break;
+        case srs_url_schema_vis:
+        case srs_url_schema_vis2:
+            tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
+            break;
+        default:
+            break;
+    }
     
-    if ((ret = context->rtmp->connect_app(
-        context->app, tcUrl, context->req, true)) != ERROR_SUCCESS) 
-    {
+    Context* c = context;
+    if ((ret = context->rtmp->connect_app(c->app, tcUrl, c->req, true, &c->si)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
-
-int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128],char srs_server[128], 
-    char srs_primary[128], char srs_authors[128], 
-    char srs_version[32], int* srs_id, int* srs_pid
-) {
-    srs_server_ip[0] = 0;
-    srs_server[0] = 0;
-    srs_primary[0] = 0;
-    srs_authors[0] = 0;
-    srs_version[0] = 0;
-    *srs_id = 0;
-    *srs_pid = 0;
-
+    
+int srs_rtmp_get_server_id(srs_rtmp_t rtmp, char** ip, int* pid, int* cid)
+{
     int ret = ERROR_SUCCESS;
     
-    srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
+    *pid = context->si.pid;
+    *cid = context->si.cid;
+    *ip = context->si.ip.empty()? NULL:(char*)context->si.ip.c_str();
     
-    string tcUrl = srs_generate_tc_url(
-        context->ip, context->vhost, context->app, context->port,
-        context->param
-    );
+    return ret;
+}
     
-    std::string sip, sserver, sprimary, sauthors, sversion;
+int srs_rtmp_get_server_sig(srs_rtmp_t rtmp, char** sig)
+{
+    int ret = ERROR_SUCCESS;
     
-    if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, true,
-        sip, sserver, sprimary, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    Context* context = (Context*)rtmp;
+    *sig = context->si.sig.empty()? NULL:(char*)context->si.sig.c_str();
     
-    snprintf(srs_server_ip, 128, "%s", sip.c_str());
-    snprintf(srs_server, 128, "%s", sserver.c_str());
-    snprintf(srs_primary, 128, "%s", sprimary.c_str());
-    snprintf(srs_authors, 128, "%s", sauthors.c_str());
-    snprintf(srs_version, 32, "%s", sversion.c_str());
+    return ret;
+}
+    
+int srs_rtmp_get_server_version(srs_rtmp_t rtmp, int* major, int* minor, int* revision, int* build)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Context* context = (Context*)rtmp;
+    *major = context->si.major;
+    *minor = context->si.minor;
+    *revision = context->si.revision;
+    *build = context->si.build;
     
     return ret;
 }
@@ -872,8 +881,8 @@ int srs_rtmp_on_aggregate(Context* context, SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsStream aggregate_stream;
-    SrsStream* stream = &aggregate_stream;
+    SrsBuffer aggregate_stream;
+    SrsBuffer* stream = &aggregate_stream;
     if ((ret = stream->initialize(msg->payload, msg->size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -974,7 +983,7 @@ int srs_rtmp_on_aggregate(Context* context, SrsCommonMessage* msg)
 }
 
 int srs_rtmp_go_packet(Context* context, SrsCommonMessage* msg, 
-    char* type, u_int32_t* timestamp, char** data, int* size,
+    char* type, uint32_t* timestamp, char** data, int* size,
     bool* got_msg
 ) {
     int ret = ERROR_SUCCESS;
@@ -984,14 +993,14 @@ int srs_rtmp_go_packet(Context* context, SrsCommonMessage* msg,
     
     if (msg->header.is_audio()) {
         *type = SRS_RTMP_TYPE_AUDIO;
-        *timestamp = (u_int32_t)msg->header.timestamp;
+        *timestamp = (uint32_t)msg->header.timestamp;
         *data = (char*)msg->payload;
         *size = (int)msg->size;
         // detach bytes from packet.
         msg->payload = NULL;
     } else if (msg->header.is_video()) {
         *type = SRS_RTMP_TYPE_VIDEO;
-        *timestamp = (u_int32_t)msg->header.timestamp;
+        *timestamp = (uint32_t)msg->header.timestamp;
         *data = (char*)msg->payload;
         *size = (int)msg->size;
         // detach bytes from packet.
@@ -1018,7 +1027,7 @@ int srs_rtmp_go_packet(Context* context, SrsCommonMessage* msg,
     return ret;
 }
 
-int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char** data, int* size)
+int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, uint32_t* timestamp, char** data, int* size)
 {
     *type = 0;
     *timestamp = 0;
@@ -1067,7 +1076,7 @@ int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char
     return ret;
 }
 
-int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char* data, int size)
+int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1089,6 +1098,11 @@ int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char*
     
     return ret;
 }
+    
+void srs_rtmp_free_packet(char* data)
+{
+    srs_freepa(data);
+}
 
 srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
 {
@@ -1098,7 +1112,7 @@ srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
         return false;
     }
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return false;
     }
@@ -1123,7 +1137,7 @@ srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
 * directly write a audio frame.
 */
 int srs_write_audio_raw_frame(Context* context,
-    char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t timestamp
+    char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
 
@@ -1140,7 +1154,7 @@ int srs_write_audio_raw_frame(Context* context,
 * write aac frame in adts.
 */
 int srs_write_aac_adts_frame(Context* context, 
-    SrsRawAacStreamCodec* codec, char* frame, int frame_size, u_int32_t timestamp
+    SrsRawAacStreamCodec* codec, char* frame, int frame_size, uint32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -1168,11 +1182,11 @@ int srs_write_aac_adts_frame(Context* context,
 */
 int srs_write_aac_adts_frames(Context* context,
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char* frames, int frames_size, u_int32_t timestamp
+    char* frames, int frames_size, uint32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
     
-    SrsStream* stream = &context->aac_raw_stream;
+    SrsBuffer* stream = &context->aac_raw_stream;
     if ((ret = stream->initialize(frames, frames_size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1204,14 +1218,14 @@ int srs_write_aac_adts_frames(Context* context,
 */
 int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char* frame, int frame_size, u_int32_t timestamp
+    char* frame, int frame_size, uint32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
     
     Context* context = (Context*)rtmp;
     srs_assert(context);
     
-    if (sound_format == SrsCodecAudioAAC) {
+    if (sound_format == SrsAudioCodecIdAAC) {
         // for aac, the frame must be ADTS format.
         if (!srs_aac_is_adts(frame, frame_size)) {
             return ERROR_AAC_REQUIRED_ADTS;
@@ -1244,7 +1258,7 @@ int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
 */
 srs_bool srs_aac_is_adts(char* aac_raw_data, int ac_raw_size)
 {
-    SrsStream stream;
+    SrsBuffer stream;
     if (stream.initialize(aac_raw_data, ac_raw_size) != ERROR_SUCCESS) {
         return false;
     }
@@ -1284,7 +1298,7 @@ int srs_aac_adts_frame_size(char* aac_raw_data, int ac_raw_size)
 * write h264 IPB-frame.
 */
 int srs_write_h264_ipb_frame(Context* context, 
-    char* frame, int frame_size, u_int32_t dts, u_int32_t pts
+    char* frame, int frame_size, uint32_t dts, uint32_t pts
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -1295,7 +1309,7 @@ int srs_write_h264_ipb_frame(Context* context,
     }
     
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  5: I Frame, 1: P/B Frame
     // @remark we already group sps/pps to sequence header frame;
     //      for I/P NALU, we send them in isolate frame, each NALU in a frame;
@@ -1308,9 +1322,9 @@ int srs_write_h264_ipb_frame(Context* context,
     }
     
     // for IDR frame, the frame is keyframe.
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (nut == SrsAvcNaluTypeIDR) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
     
     std::string ibp;
@@ -1318,7 +1332,7 @@ int srs_write_h264_ipb_frame(Context* context,
         return ret;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = context->avc_raw.mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1326,14 +1340,14 @@ int srs_write_h264_ipb_frame(Context* context,
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     return srs_rtmp_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, flv, nb_flv);
 }
 
 /**
 * write the h264 sps/pps in context over RTMP.
 */
-int srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
+int srs_write_h264_sps_pps(Context* context, uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1349,8 +1363,8 @@ int srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = context->avc_raw.mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1363,7 +1377,7 @@ int srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
     context->h264_sps_pps_sent = true;
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
+    uint32_t timestamp = dts;
     return srs_rtmp_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, flv, nb_flv);
 }
 
@@ -1371,7 +1385,7 @@ int srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
 * write h264 raw frame, maybe sps/pps/IPB-frame.
 */
 int srs_write_h264_raw_frame(Context* context, 
-    char* frame, int frame_size, u_int32_t dts, u_int32_t pts
+    char* frame, int frame_size, uint32_t dts, uint32_t pts
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -1414,7 +1428,7 @@ int srs_write_h264_raw_frame(Context* context,
     
     // ignore others.
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 9: AUD
     SrsAvcNaluType nut = (SrsAvcNaluType)(frame[0] & 0x1f);
     if (nut != SrsAvcNaluTypeSPS && nut != SrsAvcNaluTypePPS
@@ -1437,7 +1451,7 @@ int srs_write_h264_raw_frame(Context* context,
 * write h264 multiple frames, in annexb format.
 */
 int srs_h264_write_raw_frames(srs_rtmp_t rtmp, 
-    char* frames, int frames_size, u_int32_t dts, u_int32_t pts
+    char* frames, int frames_size, uint32_t dts, uint32_t pts
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -1506,19 +1520,151 @@ srs_bool srs_h264_is_duplicated_pps_error(int error_code)
 
 srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int* pnb_start_code)
 {
-    SrsStream stream;
+    SrsBuffer stream;
     if (stream.initialize(h264_raw_data, h264_raw_size) != ERROR_SUCCESS) {
         return false;
     }
     
     return srs_avc_startswith_annexb(&stream, pnb_start_code);
 }
+    
+struct Mp4Context
+{
+    SrsFileReader reader;
+    SrsMp4Decoder dec;
+};
+    
+srs_mp4_t srs_mp4_open_read(const char* file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* mp4 = new Mp4Context();
+    
+    if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open MP4 file failed, ret=%d", ret);
+        
+        srs_freep(mp4);
+        return NULL;
+    }
+    
+    return mp4;
+}
+
+void srs_mp4_close(srs_mp4_t mp4)
+{
+    Mp4Context* context = (Mp4Context*)mp4;
+    srs_freep(context);
+}
+    
+int srs_mp4_init_demuxer(srs_mp4_t mp4)
+{
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* context = (Mp4Context*)mp4;
+    
+    if ((ret = context->dec.initialize(&context->reader)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+    
+int srs_mp4_read_sample(srs_mp4_t mp4, srs_mp4_sample_t* s)
+{
+    s->sample = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    Mp4Context* context = (Mp4Context*)mp4;
+    SrsMp4Decoder* dec = &context->dec;
+    
+    SrsMp4HandlerType ht = SrsMp4HandlerTypeForbidden;
+    if ((ret = dec->read_sample(&ht, &s->frame_type, &s->frame_trait, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (ht == SrsMp4HandlerTypeForbidden) {
+        return ERROR_MP4_ILLEGAL_HANDLER;
+    }
+    
+    if (ht == SrsMp4HandlerTypeSOUN) {
+        s->codec = dec->acodec;
+        s->sample_rate = dec->sample_rate;
+        s->channels = dec->channels;
+        s->sound_bits = dec->sound_bits;
+    } else {
+        s->codec = dec->vcodec;
+    }
+    s->handler_type = (uint32_t)ht;
+    
+    return ret;
+}
+    
+void srs_mp4_free_sample(srs_mp4_sample_t* s)
+{
+    srs_freepa(s->sample);
+}
+    
+int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* s)
+{
+    if (s->handler_type == SrsMp4HandlerTypeSOUN) {
+        if (s->codec == SrsAudioCodecIdAAC) {
+            return s->nb_sample + 2;
+        }
+        return s->nb_sample + 1;
+    }
+    
+    if (s->codec == SrsVideoCodecIdAVC) {
+        return s->nb_sample + 5;
+    }
+    return s->nb_sample + 1;
+}
+    
+int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* s, char* type, uint32_t* time, char* data, int32_t size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    *time = s->dts;
+    
+    SrsBuffer p(data, size);
+    if (s->handler_type == SrsMp4HandlerTypeSOUN) {
+        *type = SRS_RTMP_TYPE_AUDIO;
+        
+        // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
+        p.write_1bytes(uint8_t(s->codec << 4) | uint8_t(s->sample_rate << 2) | uint8_t(s->sound_bits << 1) | s->channels);
+        if (s->codec == SrsAudioCodecIdAAC) {
+            p.write_1bytes(uint8_t(s->frame_trait == SrsAudioAacFrameTraitSequenceHeader? 0:1));
+        }
+        
+        p.write_bytes((char*)s->sample, s->nb_sample);
+        return ret;
+    }
+    
+    // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
+    p.write_1bytes(uint8_t(s->frame_type<<4) | s->codec);
+    if (s->codec == SrsVideoCodecIdAVC) {
+        *type = SRS_RTMP_TYPE_VIDEO;
+        
+        p.write_1bytes(uint8_t(s->frame_trait == SrsVideoAvcFrameTraitSequenceHeader? 0:1));
+        // cts = pts - dts, where dts = flvheader->timestamp.
+        uint32_t cts = s->pts - s->dts;
+        p.write_3bytes(cts);
+    }
+    p.write_bytes((char*)s->sample, s->nb_sample);
+    
+    return ret;
+}
+
+srs_bool srs_mp4_is_eof(int error_code)
+{
+    return error_code == ERROR_SYSTEM_FILE_EOF;
+}
 
 struct FlvContext
 {
     SrsFileReader reader;
     SrsFileWriter writer;
-    SrsFlvEncoder enc;
+    SrsFlvTransmuxer enc;
     SrsFlvDecoder dec;
 };
 
@@ -1529,11 +1675,15 @@ srs_flv_t srs_flv_open_read(const char* file)
     FlvContext* flv = new FlvContext();
     
     if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open FLV file failed, ret=%d", ret);
+        
         srs_freep(flv);
         return NULL;
     }
     
     if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
+        srs_human_error("Initialize FLV demuxer failed, ret=%d", ret);
+        
         srs_freep(flv);
         return NULL;
     }
@@ -1548,11 +1698,15 @@ srs_flv_t srs_flv_open_write(const char* file)
     FlvContext* flv = new FlvContext();
     
     if ((ret = flv->writer.open(file)) != ERROR_SUCCESS) {
+        srs_human_error("Open FLV file failed, ret=%d", ret);
+        
         srs_freep(flv);
         return NULL;
     }
     
     if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
+        srs_human_error("Initilize FLV muxer failed, ret=%d", ret);
+        
         srs_freep(flv);
         return NULL;
     }
@@ -1588,7 +1742,7 @@ int srs_flv_read_header(srs_flv_t flv, char header[9])
     return ret;
 }
 
-int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, u_int32_t* ptime)
+int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, uint32_t* ptime)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1667,7 +1821,7 @@ int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int si
 
 int srs_flv_size_tag(int data_size)
 {
-    return SrsFlvEncoder::size_tag(data_size);
+    return SrsFlvTransmuxer::size_tag(data_size);
 }
 
 int64_t srs_flv_tellg(srs_flv_t flv)
@@ -1679,7 +1833,7 @@ int64_t srs_flv_tellg(srs_flv_t flv)
 void srs_flv_lseek(srs_flv_t flv, int64_t offset)
 {
     FlvContext* context = (FlvContext*)flv;
-    context->reader.lseek(offset);
+    context->reader.seek2(offset);
 }
 
 srs_bool srs_flv_is_eof(int error_code)
@@ -1689,12 +1843,12 @@ srs_bool srs_flv_is_eof(int error_code)
 
 srs_bool srs_flv_is_sequence_header(char* data, int32_t size)
 {
-    return SrsFlvCodec::video_is_sequence_header(data, (int)size);
+    return SrsFlvVideo::sh(data, (int)size);
 }
 
 srs_bool srs_flv_is_keyframe(char* data, int32_t size)
 {
-    return SrsFlvCodec::video_is_keyframe(data, (int)size);
+    return SrsFlvVideo::keyframe(data, (int)size);
 }
 
 srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
@@ -1703,7 +1857,7 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     
     srs_amf0_t amf0 = NULL;
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return amf0;
     }
@@ -1786,7 +1940,7 @@ int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size)
     
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -2019,8 +2173,8 @@ int64_t srs_utils_recv_bytes(srs_rtmp_t rtmp)
 }
 
 int srs_utils_parse_timestamp(
-    u_int32_t time, char type, char* data, int size,
-    u_int32_t* ppts
+    uint32_t time, char type, char* data, int size,
+    uint32_t* ppts
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -2029,11 +2183,11 @@ int srs_utils_parse_timestamp(
         return ret;
     }
 
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return ERROR_FLV_INVALID_VIDEO_TAG;
     }
 
-    if (SrsFlvCodec::video_is_sequence_header(data, size)) {
+    if (SrsFlvVideo::sh(data, size)) {
         *ppts = time;
         return ret;
     }
@@ -2047,7 +2201,7 @@ int srs_utils_parse_timestamp(
         return ERROR_FLV_INVALID_VIDEO_TAG;
     }
     
-    u_int32_t cts = 0;
+    uint32_t cts = 0;
     char* p = data + 2;
     char* pp = (char*)&cts;
     pp[2] = *p++;
@@ -2097,11 +2251,11 @@ char srs_utils_flv_video_avc_packet_type(char* data, int size)
         return -1;
     }
     
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return -1;
     }
     
-    u_int8_t avc_packet_type = data[1];
+    uint8_t avc_packet_type = data[1];
     
     if (avc_packet_type > 2) {
         return -1;
@@ -2116,11 +2270,11 @@ char srs_utils_flv_video_frame_type(char* data, int size)
         return -1;
     }
     
-    if (!SrsFlvCodec::video_is_h264(data, size)) {
+    if (!SrsFlvVideo::h264(data, size)) {
         return -1;
     }
     
-    u_int8_t frame_type = data[0];
+    uint8_t frame_type = data[0];
     frame_type = (frame_type >> 4) & 0x0f;
     if (frame_type < 1 || frame_type > 5) {
         return -1;
@@ -2135,7 +2289,7 @@ char srs_utils_flv_audio_sound_format(char* data, int size)
         return -1;
     }
     
-    u_int8_t sound_format = data[0];
+    uint8_t sound_format = data[0];
     sound_format = (sound_format >> 4) & 0x0f;
     if (sound_format > 15 || sound_format == 12 || sound_format == 13) {
         return -1;
@@ -2150,7 +2304,7 @@ char srs_utils_flv_audio_sound_rate(char* data, int size)
         return -1;
     }
     
-    u_int8_t sound_rate = data[0];
+    uint8_t sound_rate = data[0];
     sound_rate = (sound_rate >> 2) & 0x03;
     if (sound_rate > 3) {
         return -1;
@@ -2165,7 +2319,7 @@ char srs_utils_flv_audio_sound_size(char* data, int size)
         return -1;
     }
     
-    u_int8_t sound_size = data[0];
+    uint8_t sound_size = data[0];
     sound_size = (sound_size >> 1) & 0x01;
     if (sound_size > 1) {
         return -1;
@@ -2180,7 +2334,7 @@ char srs_utils_flv_audio_sound_type(char* data, int size)
         return -1;
     }
     
-    u_int8_t sound_type = data[0];
+    uint8_t sound_type = data[0];
     sound_type = sound_type & 0x01;
     if (sound_type > 1) {
         return -1;
@@ -2199,7 +2353,7 @@ char srs_utils_flv_audio_aac_packet_type(char* data, int size)
         return -1;
     }
     
-    u_int8_t aac_packet_type = data[1];
+    uint8_t aac_packet_type = data[1];
     if (aac_packet_type > 1) {
         return -1;
     }
@@ -2399,24 +2553,78 @@ const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type)
     return unknown;
 }
     
-int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
-{
-    return srs_human_print_rtmp_packet2(type, timestamp, data, size, 0);
-}
-
-int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp)
-{
-    return srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, 0);
-}
-    
-int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now)
-{
-    return srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, 0, 0);
-}
-    
-int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets)
+int srs_human_format_rtmp_packet(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    
+    // Initialize to empty NULL terminated string.
+    buffer[0] = 0;
+    
+    char sbytes[40];
+    if (true) {
+        int nb = srs_min(8, size);
+        int p = 0;
+        for (int i = 0; i < nb; i++) {
+            p += snprintf(sbytes+p, 40-p, "0x%02x ", (uint8_t)data[i]);
+        }
+    }
+    
+    uint32_t pts;
+    if ((ret = srs_utils_parse_timestamp(timestamp, type, data, size, &pts)) != ERROR_SUCCESS) {
+        snprintf(buffer, nb_buffer, "Rtmp packet type=%s, dts=%d, size=%d, DecodeError, (%s), ret=%d",
+            srs_human_flv_tag_type2string(type), timestamp, size, sbytes, ret);
+        return ret;
+    }
+    
+    if (type == SRS_RTMP_TYPE_VIDEO) {
+        snprintf(buffer, nb_buffer, "Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s), (%s)",
+            srs_human_flv_tag_type2string(type), timestamp, pts, size,
+            srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
+            srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
+            srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size)),
+            sbytes);
+    } else if (type == SRS_RTMP_TYPE_AUDIO) {
+        snprintf(buffer, nb_buffer, "Audio packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
+                 srs_human_flv_tag_type2string(type), timestamp, pts, size,
+                 srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
+                 srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
+                 srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
+                 srs_human_flv_audio_sound_type2string(srs_utils_flv_audio_sound_type(data, size)),
+                 srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size)),
+                 sbytes);
+    } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+        int nb = snprintf(buffer, nb_buffer, "Data packet type=%s, time=%d, size=%d, (%s)",
+            srs_human_flv_tag_type2string(type), timestamp, size, sbytes);
+        int nparsed = 0;
+        while (nparsed < size) {
+            int nb_parsed_this = 0;
+            srs_amf0_t amf0 = srs_amf0_parse(data + nparsed, size - nparsed, &nb_parsed_this);
+            if (amf0 == NULL) {
+                break;
+            }
+            
+            nparsed += nb_parsed_this;
+            
+            char* amf0_str = NULL;
+            nb += snprintf(buffer + nb, nb_buffer - nb, "\n%s", srs_human_amf0_print(amf0, &amf0_str, NULL)) - 1;
+            srs_freepa(amf0_str);
+        }
+        buffer[nb] = 0;
+    } else {
+        snprintf(buffer, nb_buffer, "Rtmp packet type=%#x, dts=%d, pts=%d, size=%d, (%s)",
+            type, timestamp, pts, size, sbytes);
+    }
+    
+    return ret;
+}
+    
+int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size,
+   uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets
+) {
+    int ret = ERROR_SUCCESS;
+    
+    // Initialize to empty NULL terminated string.
+    buffer[0] = 0;
     
     // packets interval in milliseconds.
     double pi = 0;
@@ -2440,33 +2648,41 @@ int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int
         ndiff = (int)(srs_utils_time_ms() - pre_now);
     }
     
-    u_int32_t pts;
-    if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
-        srs_human_trace("Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError",
-            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size
-        );
+    char sbytes[40];
+    if (true) {
+        int nb = srs_min(8, size);
+        int p = 0;
+        for (int i = 0; i < nb; i++) {
+            p += snprintf(sbytes+p, 40-p, "0x%02x ", (uint8_t)data[i]);
+        }
+    }
+    
+    uint32_t pts;
+    if ((ret = srs_utils_parse_timestamp(timestamp, type, data, size, &pts)) != ERROR_SUCCESS) {
+        snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError, (%s), ret=%d",
+            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes, ret);
         return ret;
     }
     
     if (type == SRS_RTMP_TYPE_VIDEO) {
-        srs_human_trace("Video packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s)",
+        snprintf(buffer, nb_buffer, "Video packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s), (%s)",
             nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
             srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
             srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
-            srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size))
-        );
+            srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size)),
+            sbytes);
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_human_trace("Audio packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s)",
+        snprintf(buffer, nb_buffer, "Audio packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
             nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
             srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
             srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
             srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
             srs_human_flv_audio_sound_type2string(srs_utils_flv_audio_sound_type(data, size)),
-            srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size))
-        );
+            srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size)),
+            sbytes);
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-        srs_human_verbose("Data packet id=%"PRId64"/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d",
-            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size);
+        int nb = snprintf(buffer, nb_buffer, "Data packet id=%"PRId64"/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+            nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes);
         int nparsed = 0;
         while (nparsed < size) {
             int nb_parsed_this = 0;
@@ -2474,16 +2690,17 @@ int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int
             if (amf0 == NULL) {
                 break;
             }
-    
+            
             nparsed += nb_parsed_this;
             
             char* amf0_str = NULL;
-            srs_human_raw("%s", srs_human_amf0_print(amf0, &amf0_str, NULL));
+            nb += snprintf(buffer + nb, nb_buffer - nb, "\n%s", srs_human_amf0_print(amf0, &amf0_str, NULL)) - 1;
             srs_freepa(amf0_str);
         }
+        buffer[nb] = 0;
     } else {
-        srs_human_trace("Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d",
-            nb_packets, pi, gfps, type, timestamp, pts, ndiff, diff, size);
+        snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+            nb_packets, pi, gfps, type, timestamp, pts, ndiff, diff, size, sbytes);
     }
     
     return ret;
@@ -2492,7 +2709,7 @@ int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int
 const char* srs_human_format_time()
 {
     struct timeval tv;
-    static char buf[23];
+    static char buf[24];
     
     memset(buf, 0, sizeof(buf));
     
@@ -2535,6 +2752,84 @@ srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp)
     return context->skt->hijack_io();
 }
 #endif
+
+srs_rtmp_t srs_rtmp_create2(const char* url)
+{
+    Context* context = new Context();
+    
+    // use url as tcUrl.
+    context->url = url;
+    // auto append stream.
+    context->url += "/livestream";
+    
+    // create socket
+    srs_freep(context->skt);
+    context->skt = new SimpleSocketStream();
+    
+    int ret = ERROR_SUCCESS;
+    if ((ret = context->skt->create_socket(context)) != ERROR_SUCCESS) {
+        srs_human_error("Create socket failed, ret=%d", ret);
+        
+        // free the context and return NULL
+        srs_freep(context);
+        return NULL;
+    }
+    
+    return context;
+}
+
+int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128],char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+) {
+    srs_server_ip[0] = 0;
+    srs_server[0] = 0;
+    srs_primary[0] = 0;
+    srs_authors[0] = 0;
+    srs_version[0] = 0;
+    *srs_id = 0;
+    *srs_pid = 0;
+
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = srs_rtmp_connect_app(rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    SrsServerInfo* si = &context->si;
+    
+    snprintf(srs_server_ip, 128, "%s", si->ip.c_str());
+    snprintf(srs_server, 128, "%s", si->sig.c_str());
+    snprintf(srs_version, 32, "%d.%d.%d.%d", si->major, si->minor, si->revision, si->build);
+    
+    return ret;
+}
+    
+int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size)
+{
+    return srs_human_print_rtmp_packet(type, timestamp, data, size);
+}
+
+int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp)
+{
+    return srs_human_print_rtmp_packet3(type, timestamp, data, size, pre_timestamp, 0);
+}
+
+int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now)
+{
+    return srs_human_print_rtmp_packet4(type, timestamp, data, size, pre_timestamp, pre_now, 0, 0);
+}
+
+int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets)
+{
+    char buffer[1024];
+    int ret = srs_human_format_rtmp_packet2(buffer, sizeof(buffer), type, timestamp, data, size, pre_timestamp, pre_now, starttime, nb_packets);
+    srs_human_trace("%s", buffer);
+    return ret;
+}
 
 #ifdef __cplusplus
 }

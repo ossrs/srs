@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,8 +29,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_CORE
-
 /**
 * the http heartbeat to api-server to notice api
 * that the information of SRS.
@@ -43,8 +41,6 @@ public:
 public:
     virtual void heartbeat();
 };
-
-#endif
 
 #endif
 

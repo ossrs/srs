@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -38,9 +38,9 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
-#include <srs_kernel_buffer.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
 
 // in ms, for HLS aac sync time.
@@ -97,7 +97,7 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
     sid = (SrsTsPESStreamId)0x00;
     continuity_counter = 0;
     PES_packet_length = 0;
-    payload = new SrsSimpleBuffer();
+    payload = new SrsSimpleStream();
     is_discontinuity = false;
 
     start_pts = 0;
@@ -109,7 +109,7 @@ SrsTsMessage::~SrsTsMessage()
     srs_freep(payload);
 }
 
-int SrsTsMessage::dump(SrsStream* stream, int* pnb_bytes)
+int SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
 {
     int ret = ERROR_SUCCESS;
 
@@ -200,8 +200,9 @@ ISrsTsHandler::~ISrsTsHandler()
 SrsTsContext::SrsTsContext()
 {
     pure_audio = false;
-    vcodec = SrsCodecVideoReserved;
-    acodec = SrsCodecAudioReserved1;
+    sync_byte = 0x47; // ts default sync byte.
+    vcodec = SrsVideoCodecIdReserved;
+    acodec = SrsAudioCodecIdReserved1;
 }
 
 SrsTsContext::~SrsTsContext()
@@ -234,8 +235,8 @@ void SrsTsContext::on_pmt_parsed()
 
 void SrsTsContext::reset()
 {
-    vcodec = SrsCodecVideoReserved;
-    acodec = SrsCodecAudioReserved1;
+    vcodec = SrsVideoCodecIdReserved;
+    acodec = SrsAudioCodecIdReserved1;
 }
 
 SrsTsChannel* SrsTsContext::get(int pid)
@@ -263,7 +264,7 @@ void SrsTsContext::set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream)
     channel->stream = stream;
 }
 
-int SrsTsContext::decode(SrsStream* stream, ISrsTsHandler* handler)
+int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
 {
     int ret = ERROR_SUCCESS;
 
@@ -293,56 +294,56 @@ int SrsTsContext::decode(SrsStream* stream, ISrsTsHandler* handler)
     return ret;
 }
 
-int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac)
+int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
 {
     int ret = ERROR_SUCCESS;
 
     SrsTsStream vs, as;
     int16_t video_pid = 0, audio_pid = 0;
     switch (vc) {
-        case SrsCodecVideoAVC: 
+        case SrsVideoCodecIdAVC: 
             vs = SrsTsStreamVideoH264; 
             video_pid = TS_VIDEO_AVC_PID;
             break;
-        case SrsCodecVideoDisabled:
+        case SrsVideoCodecIdDisabled:
             vs = SrsTsStreamReserved;
             break;
-        case SrsCodecVideoReserved:
-        case SrsCodecVideoReserved1:
-        case SrsCodecVideoReserved2:
-        case SrsCodecVideoSorensonH263:
-        case SrsCodecVideoScreenVideo:
-        case SrsCodecVideoOn2VP6:
-        case SrsCodecVideoOn2VP6WithAlphaChannel:
-        case SrsCodecVideoScreenVideoVersion2:
+        case SrsVideoCodecIdReserved:
+        case SrsVideoCodecIdReserved1:
+        case SrsVideoCodecIdReserved2:
+        case SrsVideoCodecIdSorensonH263:
+        case SrsVideoCodecIdScreenVideo:
+        case SrsVideoCodecIdOn2VP6:
+        case SrsVideoCodecIdOn2VP6WithAlphaChannel:
+        case SrsVideoCodecIdScreenVideoVersion2:
             vs = SrsTsStreamReserved;
             break;
     }
     switch (ac) {
-        case SrsCodecAudioAAC:
+        case SrsAudioCodecIdAAC:
             as = SrsTsStreamAudioAAC; 
             audio_pid = TS_AUDIO_AAC_PID;
             break;
-        case SrsCodecAudioMP3:
+        case SrsAudioCodecIdMP3:
             as = SrsTsStreamAudioMp3; 
             audio_pid = TS_AUDIO_MP3_PID;
             break;
-        case SrsCodecAudioDisabled:
+        case SrsAudioCodecIdDisabled:
             as = SrsTsStreamReserved;
             break;
-        case SrsCodecAudioReserved1:
-        case SrsCodecAudioLinearPCMPlatformEndian:
-        case SrsCodecAudioADPCM:
-        case SrsCodecAudioLinearPCMLittleEndian:
-        case SrsCodecAudioNellymoser16kHzMono:
-        case SrsCodecAudioNellymoser8kHzMono:
-        case SrsCodecAudioNellymoser:
-        case SrsCodecAudioReservedG711AlawLogarithmicPCM:
-        case SrsCodecAudioReservedG711MuLawLogarithmicPCM:
-        case SrsCodecAudioReserved:
-        case SrsCodecAudioSpeex:
-        case SrsCodecAudioReservedMP3_8kHz:
-        case SrsCodecAudioReservedDeviceSpecificSound:
+        case SrsAudioCodecIdReserved1:
+        case SrsAudioCodecIdLinearPCMPlatformEndian:
+        case SrsAudioCodecIdADPCM:
+        case SrsAudioCodecIdLinearPCMLittleEndian:
+        case SrsAudioCodecIdNellymoser16kHzMono:
+        case SrsAudioCodecIdNellymoser8kHzMono:
+        case SrsAudioCodecIdNellymoser:
+        case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
+        case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
+        case SrsAudioCodecIdReserved:
+        case SrsAudioCodecIdSpeex:
+        case SrsAudioCodecIdReservedMP3_8kHz:
+        case SrsAudioCodecIdReservedDeviceSpecificSound:
             as = SrsTsStreamReserved;
             break;
     }
@@ -370,6 +371,11 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
     }
 }
 
+void SrsTsContext::set_sync_byte(int8_t sb)
+{
+    sync_byte = sb;
+}
+
 int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     int ret = ERROR_SUCCESS;
@@ -386,6 +392,8 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsTsPacket* pkt = SrsTsPacket::create_pat(this, pmt_number, pmt_pid);
         SrsAutoFree(SrsTsPacket, pkt);
 
+        pkt->sync_byte = sync_byte;
+
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFreeA(char, buf);
 
@@ -394,7 +402,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -411,6 +419,8 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         SrsTsPacket* pkt = SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as);
         SrsAutoFree(SrsTsPacket, pkt);
 
+        pkt->sync_byte = sync_byte;
+
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFreeA(char, buf);
 
@@ -419,7 +429,7 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -492,6 +502,8 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         }
         SrsAutoFree(SrsTsPacket, pkt);
 
+        pkt->sync_byte = sync_byte;
+
         char* buf = new char[SRS_TS_PACKET_SIZE];
         SrsAutoFreeA(char, buf);
 
@@ -519,7 +531,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         memcpy(buf + nb_buf, p, left);
         p += left;
 
-        SrsStream stream;
+        SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -558,7 +570,7 @@ SrsTsPacket::~SrsTsPacket()
     srs_freep(payload);
 }
 
-int SrsTsPacket::decode(SrsStream* stream, SrsTsMessage** ppmsg)
+int SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -651,7 +663,7 @@ int SrsTsPacket::size()
     return sz;
 }
 
-int SrsTsPacket::encode(SrsStream* stream)
+int SrsTsPacket::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -806,7 +818,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context, 
-    int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter, bool discontinuity, 
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity, 
     int64_t pcr, int64_t dts, int64_t pts, int size
 ) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
@@ -841,7 +853,7 @@ SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
     }
 
     pes->packet_start_code_prefix = 0x01;
-    pes->stream_id = (u_int8_t)sid;
+    pes->stream_id = (uint8_t)sid;
     pes->PES_packet_length = (size > 0xFFFF)? 0:size;
     pes->PES_scrambling_control = 0;
     pes->PES_priority = 0;
@@ -862,7 +874,7 @@ SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_continue(SrsTsContext* context, 
-    int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter
 ) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
@@ -926,7 +938,7 @@ SrsTsAdaptationField::~SrsTsAdaptationField()
     srs_freepa(transport_private_data);
 }
 
-int SrsTsAdaptationField::decode(SrsStream* stream)
+int SrsTsAdaptationField::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -962,14 +974,14 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
     int pos_af = stream->pos();
     int8_t tmpv = stream->read_1bytes();
     
-    discontinuity_indicator              =   (tmpv >> 7) & 0x01;
-    random_access_indicator              =   (tmpv >> 6) & 0x01;
-    elementary_stream_priority_indicator =   (tmpv >> 5) & 0x01;
-    PCR_flag                             =   (tmpv >> 4) & 0x01;
-    OPCR_flag                            =   (tmpv >> 3) & 0x01;
-    splicing_point_flag                  =   (tmpv >> 2) & 0x01;
-    transport_private_data_flag          =   (tmpv >> 1) & 0x01;
-    adaptation_field_extension_flag      =   tmpv & 0x01;
+    discontinuity_indicator = (tmpv >> 7) & 0x01;
+    random_access_indicator = (tmpv >> 6) & 0x01;
+    elementary_stream_priority_indicator = (tmpv >> 5) & 0x01;
+    PCR_flag = (tmpv >> 4) & 0x01;
+    OPCR_flag = (tmpv >> 3) & 0x01;
+    splicing_point_flag = (tmpv >> 2) & 0x01;
+    transport_private_data_flag = (tmpv >> 1) & 0x01;
+    adaptation_field_extension_flag = tmpv & 0x01;
     
     if (PCR_flag) {
         if (!stream->require(6)) {
@@ -1040,7 +1052,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
             srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
             return ret;
         }
-        transport_private_data_length = (u_int8_t)stream->read_1bytes();
+        transport_private_data_length = (uint8_t)stream->read_1bytes();
 
         if (transport_private_data_length> 0) {
             if (!stream->require(transport_private_data_length)) {
@@ -1062,7 +1074,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
             srs_error("ts: demux af adaptation_field_extension_flag failed. ret=%d", ret);
             return ret;
         }
-        adaptation_field_extension_length = (u_int8_t)stream->read_1bytes();
+        adaptation_field_extension_length = (uint8_t)stream->read_1bytes();
         int8_t ltwfv = stream->read_1bytes();
         
         piecewise_rate_flag = (ltwfv >> 6) & 0x01;
@@ -1146,7 +1158,7 @@ int SrsTsAdaptationField::size()
     return sz;
 }
 
-int SrsTsAdaptationField::encode(SrsStream* stream)
+int SrsTsAdaptationField::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1338,7 +1350,7 @@ SrsTsPayloadPES::~SrsTsPayloadPES()
     srs_freepa(PES_extension_field);
 }
 
-int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
+int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1693,7 +1705,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
             // first PES_packet_data_byte.
             /**
             * when actual packet length > 0xffff(65535),
-            * which exceed the max u_int16_t packet length,
+            * which exceed the max uint16_t packet length,
             * use 0 packet length, the next unit start indicates the end of packet.
             */
             if (PES_packet_length > 0) {
@@ -1809,7 +1821,7 @@ int SrsTsPayloadPES::size()
     return sz;
 }
 
-int SrsTsPayloadPES::encode(SrsStream* stream)
+int SrsTsPayloadPES::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1970,7 +1982,7 @@ int SrsTsPayloadPES::encode(SrsStream* stream)
     return ret;
 }
 
-int SrsTsPayloadPES::decode_33bits_dts_pts(SrsStream* stream, int64_t* pv)
+int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2031,7 +2043,7 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsStream* stream, int64_t* pv)
     return ret;
 }
 
-int SrsTsPayloadPES::encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64_t v)
+int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2072,7 +2084,7 @@ SrsTsPayloadPSI::~SrsTsPayloadPSI()
 {
 }
 
-int SrsTsPayloadPSI::decode(SrsStream* stream, SrsTsMessage** /*ppmsg*/)
+int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2140,7 +2152,7 @@ int SrsTsPayloadPSI::decode(SrsStream* stream, SrsTsMessage** /*ppmsg*/)
     CRC_32 = stream->read_4bytes();
 
     // verify crc32.
-    int32_t crc32 = srs_crc32(ppat, stream->pos() - pat_pos - 4);
+    int32_t crc32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos - 4);
     if (crc32 != CRC_32) {
         ret = ERROR_STREAM_CASTER_TS_CRC32;
         srs_error("ts: verify PSI crc32 failed. ret=%d", ret);
@@ -2155,7 +2167,7 @@ int SrsTsPayloadPSI::decode(SrsStream* stream, SrsTsMessage** /*ppmsg*/)
         // all stuffing must be 0xff.
         // TODO: FIXME: maybe need to remove the following.
         for (int i = 0; i < nb_stuffings; i++) {
-            if ((u_int8_t)stuffing[i] != 0xff) {
+            if ((uint8_t)stuffing[i] != 0xff) {
                 srs_warn("ts: stuff is not 0xff, actual=%#x", stuffing[i]);
                 break;
             }
@@ -2181,7 +2193,7 @@ int SrsTsPayloadPSI::size()
     return sz;
 }
 
-int SrsTsPayloadPSI::encode(SrsStream* stream)
+int SrsTsPayloadPSI::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2237,7 +2249,7 @@ int SrsTsPayloadPSI::encode(SrsStream* stream)
         srs_error("ts: mux PSI crc32 failed. ret=%d", ret);
         return ret;
     }
-    CRC_32 = srs_crc32(ppat, stream->pos() - pat_pos);
+    CRC_32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos);
     stream->write_4bytes(CRC_32);
 
     return ret;
@@ -2254,7 +2266,7 @@ SrsTsPayloadPATProgram::~SrsTsPayloadPATProgram()
 {
 }
 
-int SrsTsPayloadPATProgram::decode(SrsStream* stream)
+int SrsTsPayloadPATProgram::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2278,7 +2290,7 @@ int SrsTsPayloadPATProgram::size()
     return 4;
 }
 
-int SrsTsPayloadPATProgram::encode(SrsStream* stream)
+int SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2312,7 +2324,7 @@ SrsTsPayloadPAT::~SrsTsPayloadPAT()
     programs.clear();
 }
 
-int SrsTsPayloadPAT::psi_decode(SrsStream* stream)
+int SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2374,7 +2386,7 @@ int SrsTsPayloadPAT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPAT::psi_encode(SrsStream* stream)
+int SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2432,7 +2444,7 @@ SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
     srs_freepa(ES_info);
 }
 
-int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
+int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2472,7 +2484,7 @@ int SrsTsPayloadPMTESInfo::size()
     return 5 + ES_info_length;
 }
 
-int SrsTsPayloadPMTESInfo::encode(SrsStream* stream)
+int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2526,7 +2538,7 @@ SrsTsPayloadPMT::~SrsTsPayloadPMT()
     infos.clear();
 }
 
-int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
+int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2620,7 +2632,7 @@ int SrsTsPayloadPMT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
+int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2696,7 +2708,7 @@ int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
     return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     writer = w;
     context = c;
@@ -2705,19 +2717,19 @@ SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsC
     vcodec = vc;
 }
 
-SrsTSMuxer::~SrsTSMuxer()
+SrsTsContextWriter::~SrsTsContextWriter()
 {
     close();
 }
 
-int SrsTSMuxer::open(string p)
+int SrsTsContextWriter::open(string p)
 {
     int ret = ERROR_SUCCESS;
     
     path = p;
     
     close();
-    
+
     // reset the context for a new ts start.
     context->reset();
     
@@ -2728,13 +2740,7 @@ int SrsTSMuxer::open(string p)
     return ret;
 }
 
-int SrsTSMuxer::update_acodec(SrsCodecAudio ac)
-{
-    acodec = ac;
-    return ERROR_SUCCESS;
-}
-
-int SrsTSMuxer::write_audio(SrsTsMessage* audio)
+int SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2750,7 +2756,7 @@ int SrsTSMuxer::write_audio(SrsTsMessage* audio)
     return ret;
 }
 
-int SrsTSMuxer::write_video(SrsTsMessage* video)
+int SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2766,29 +2772,29 @@ int SrsTSMuxer::write_video(SrsTsMessage* video)
     return ret;
 }
 
-void SrsTSMuxer::close()
+void SrsTsContextWriter::close()
 {
     writer->close();
 }
 
-SrsCodecVideo SrsTSMuxer::video_codec()
+SrsVideoCodecId SrsTsContextWriter::video_codec()
 {
     return vcodec;
 }
 
-SrsTsCache::SrsTsCache()
+SrsTsMessageCache::SrsTsMessageCache()
 {
     audio = NULL;
     video = NULL;
 }
 
-SrsTsCache::~SrsTsCache()
+SrsTsMessageCache::~SrsTsMessageCache()
 {
     srs_freep(audio);
     srs_freep(video);
 }
     
-int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample)
+int SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2805,16 +2811,16 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     audio->sid = SrsTsPESStreamIdAudioCommon;
     
     // must be aac or mp3
-    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
-    srs_assert(acodec == SrsCodecAudioAAC || acodec == SrsCodecAudioMP3);
+    SrsAudioCodecConfig* acodec = frame->acodec();
+    srs_assert(acodec->id == SrsAudioCodecIdAAC || acodec->id == SrsAudioCodecIdMP3);
     
     // write video to cache.
-    if (codec->audio_codec_id == SrsCodecAudioAAC) {
-        if ((ret = do_cache_aac(codec, sample)) != ERROR_SUCCESS) {
+    if (acodec->id == SrsAudioCodecIdAAC) {
+        if ((ret = do_cache_aac(frame)) != ERROR_SUCCESS) {
             return ret;
         }
     } else {
-        if ((ret = do_cache_mp3(codec, sample)) != ERROR_SUCCESS) {
+        if ((ret = do_cache_mp3(frame)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -2822,52 +2828,55 @@ int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     return ret;
 }
     
-int SrsTsCache::cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample)
+int SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
     
     // create the ts video message.
     if (!video) {
         video = new SrsTsMessage();
-        video->write_pcr = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+        video->write_pcr = (frame->frame_type == SrsVideoAvcFrameTypeKeyFrame);
         video->start_pts = dts;
     }
 
     video->dts = dts;
-    video->pts = video->dts + sample->cts * 90;
+    video->pts = video->dts + frame->cts * 90;
     video->sid = SrsTsPESStreamIdVideoCommon;
     
     // write video to cache.
-    if ((ret = do_cache_avc(codec, sample)) != ERROR_SUCCESS) {
+    if ((ret = do_cache_avc(frame)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsTsCache::do_cache_mp3(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsMessageCache::do_cache_mp3(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
         
     // for mp3, directly write to cache.
     // TODO: FIXME: implements the ts jitter.
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        audio->payload->append(sample_unit->bytes, sample_unit->size);
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        audio->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
 }
 
-int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
+    SrsAudioCodecConfig* codec = frame->acodec();
+    srs_assert(codec);
+    
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        int32_t size = sample->size;
         
-        if (!sample_unit->bytes || size <= 0 || size > 0x1fff) {
+        if (!sample->bytes || size <= 0 || size > 0x1fff) {
             ret = ERROR_HLS_AAC_FRAME_LENGTH;
             srs_error("invalid aac frame length=%d, ret=%d", size, ret);
             return ret;
@@ -2878,9 +2887,9 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         
         // AAC-ADTS
         // 6.2 Audio Data Transport Stream, ADTS
-        // in aac-iso-13818-7.pdf, page 26.
+        // in ISO_IEC_13818-7-AAC-2004.pdf, page 26.
         // fixed 7bytes header
-        u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        uint8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
@@ -2905,7 +2914,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
         */
         // profile, 2bits
-        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(codec->aac_object);
+        SrsAacProfile aac_profile = srs_aac_rtmp2ts(codec->aac_object);
         adts_header[2] = (aac_profile << 6) & 0xc0;
         // sampling_frequency_index 4bits
         adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
@@ -2921,16 +2930,16 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 
         // copy to audio buffer
         audio->payload->append((const char*)adts_header, sizeof(adts_header));
-        audio->payload->append(sample_unit->bytes, sample_unit->size);
+        audio->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
 }
 
-void srs_avc_insert_aud(SrsSimpleBuffer* payload, bool& aud_inserted)
+void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
 {
     // mux the samples in annexb format,
-    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 324.
+    // ISO_IEC_14496-10-AVC-2012.pdf, page 324.
     /**
      * 00 00 00 01 // header
      *       xxxxxxx // data bytes
@@ -2939,7 +2948,7 @@ void srs_avc_insert_aud(SrsSimpleBuffer* payload, bool& aud_inserted)
      *
      * nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
      * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
-     * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+     * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
      *      1, Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
      *      2, Coded slice data partition A slice_data_partition_a_layer_rbsp( )
      *      3, Coded slice data partition B slice_data_partition_b_layer_rbsp( )
@@ -2972,8 +2981,8 @@ void srs_avc_insert_aud(SrsSimpleBuffer* payload, bool& aud_inserted)
      *      annexb 3B header, 406B nalu(nal_unit_type:1)(non-IDR,P/B)
      * @remark we use the sequence of apple samples http://ossrs.net/apple-sample/bipbopall.m3u8
      */
-    static u_int8_t fresh_nalu_header[] = { 0x00, 0x00, 0x00, 0x01 };
-    static u_int8_t cont_nalu_header[] = { 0x00, 0x00, 0x01 };
+    static uint8_t fresh_nalu_header[] = { 0x00, 0x00, 0x00, 0x01 };
+    static uint8_t cont_nalu_header[] = { 0x00, 0x00, 0x01 };
     
     if (!aud_inserted) {
         aud_inserted = true;
@@ -2983,7 +2992,7 @@ void srs_avc_insert_aud(SrsSimpleBuffer* payload, bool& aud_inserted)
     }
 }
 
-int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
+int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
 {
     int ret = ERROR_SUCCESS;
     
@@ -2991,10 +3000,10 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     bool aud_inserted = false;
     
     // Insert a default AUD NALU when no AUD in samples.
-    if (!sample->has_aud) {
+    if (!frame->has_aud) {
         // the aud(access unit delimiter) before each frame.
         // 7.3.2.4 Access unit delimiter RBSP syntax
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 66.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 66.
         //
         // primary_pic_type u(3), the first 3bits, primary_pic_type indicates that the slice_type values
         //      for all slices of the primary coded picture are members of the set listed in Table 7-5 for
@@ -3008,7 +3017,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //      6, slice_type 0, 2, 3, 4, 5, 7, 8, 9
         //      7, slice_type 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
         // 7.4.2.4 Access unit delimiter RBSP semantics
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 102.
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 102.
         //
         // slice_type specifies the coding type of the slice according to Table 7-6.
         //      0, P (P slice)
@@ -3021,30 +3030,33 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //      7, I (I slice)
         //      8, SP (SP slice)
         //      9, SI (SI slice)
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 105.
-        static u_int8_t default_aud_nalu[] = { 0x09, 0xf0};
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 105.
+        static uint8_t default_aud_nalu[] = { 0x09, 0xf0};
         srs_avc_insert_aud(video->payload, aud_inserted);
         video->payload->append((const char*)default_aud_nalu, 2);
     }
     
+    SrsVideoCodecConfig* codec = frame->vcodec();
+    srs_assert(codec);
+    
     // all sample use cont nalu header, except the sps-pps before IDR frame.
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
+    for (int i = 0; i < frame->nb_samples; i++) {
+        SrsSample* sample = &frame->samples[i];
+        int32_t size = sample->size;
         
-        if (!sample_unit->bytes || size <= 0) {
+        if (!sample->bytes || size <= 0) {
             ret = ERROR_HLS_AVC_SAMPLE_SIZE;
             srs_error("invalid avc sample length=%d, ret=%d", size, ret);
             return ret;
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
-        // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample_unit->bytes[0] & 0x1f);
+        // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x1f);
         
         // Insert sps/pps before IDR when there is no sps/pps in samples.
         // The sps/pps is parsed from sequence header(generally the first flv packet).
-        if (nal_unit_type == SrsAvcNaluTypeIDR && !sample->has_sps_pps) {
+        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps) {
             if (codec->sequenceParameterSetLength > 0) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
                 video->payload->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
@@ -3057,34 +3069,36 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         
         // Insert the NALU to video in annexb.
         srs_avc_insert_aud(video->payload, aud_inserted);
-        video->payload->append(sample_unit->bytes, sample_unit->size);
+        video->payload->append(sample->bytes, sample->size);
     }
     
     return ret;
 }
 
-SrsTsEncoder::SrsTsEncoder()
+SrsTsTransmuxer::SrsTsTransmuxer()
 {
     writer = NULL;
-    codec = new SrsAvcAacCodec();
-    sample = new SrsCodecSample();
-    cache = new SrsTsCache();
+    format = new SrsFormat();
+    tsmc = new SrsTsMessageCache();
     context = new SrsTsContext();
-    muxer = NULL;
+    tscw = NULL;
 }
 
-SrsTsEncoder::~SrsTsEncoder()
+SrsTsTransmuxer::~SrsTsTransmuxer()
 {
-    srs_freep(codec);
-    srs_freep(sample);
-    srs_freep(cache);
-    srs_freep(muxer);
+    srs_freep(format);
+    srs_freep(tsmc);
+    srs_freep(tscw);
     srs_freep(context);
 }
 
-int SrsTsEncoder::initialize(SrsFileWriter* fw)
+int SrsTsTransmuxer::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = format->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     srs_assert(fw);
     
@@ -3096,46 +3110,33 @@ int SrsTsEncoder::initialize(SrsFileWriter* fw)
     
     writer = fw;
 
-    srs_freep(muxer);
-    muxer = new SrsTSMuxer(fw, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
+    srs_freep(tscw);
+    // TODO: FIXME: Support config the codec.
+    tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
 
-    if ((ret = muxer->open("")) != ERROR_SUCCESS) {
+    if ((ret = tscw->open("")) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    sample->clear();
-    if ((ret = codec->audio_aac_demux(data, size, sample)) != ERROR_SUCCESS) {
-        if (ret != ERROR_HLS_TRY_MP3) {
-            srs_error("http: ts aac demux audio failed. ret=%d", ret);
-            return ret;
-        }
-        if ((ret = codec->audio_mp3_demux(data, size, sample)) != ERROR_SUCCESS) {
-            srs_error("http: ts mp3 demux audio failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
-    
-    // ts support audio codec: aac/mp3
-    if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
+    if ((ret = format->on_audio(timestamp, data, size)) != ERROR_SUCCESS) {
         return ret;
     }
-
-    // when codec changed, write new header.
-    if ((ret = muxer->update_acodec(acodec)) != ERROR_SUCCESS) {
-        srs_error("http: ts audio write header failed. ret=%d", ret);
+    
+    // ts support audio codec: aac/mp3
+    srs_assert(format->acodec && format->audio);
+    if (format->acodec->id != SrsAudioCodecIdAAC && format->acodec->id != SrsAudioCodecIdMP3) {
         return ret;
     }
     
     // for aac: ignore sequence header
-    if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (format->acodec->id == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         return ret;
     }
 
@@ -3145,7 +3146,7 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     int64_t dts = timestamp * 90;
     
     // write audio to cache.
-    if ((ret = cache->cache_audio(codec, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_audio(format->audio, dts)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -3156,66 +3157,65 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     return flush_audio();
 }
 
-int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
+int SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    sample->clear();
-    if ((ret = codec->video_avc_demux(data, size, sample)) != ERROR_SUCCESS) {
-        srs_error("http: ts codec demux video failed. ret=%d", ret);
+    if ((ret = format->on_video(timestamp, data, size)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
-    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+    srs_assert(format->video && format->vcodec);
+    if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
         return ret;
     }
     
-    if (codec->video_codec_id != SrsCodecVideoAVC) {
+    if (format->vcodec->id != SrsVideoCodecIdAVC) {
         return ret;
     }
     
     // ignore sequence header
-    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
-         && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+    if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame
+         && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         return ret;
     }
     
     int64_t dts = timestamp * 90;
     
     // write video to cache.
-    if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
+    if ((ret = tsmc->cache_video(format->video, dts)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return flush_video();
 }
 
-int SrsTsEncoder::flush_audio()
+int SrsTsTransmuxer::flush_audio()
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = muxer->write_audio(cache->audio)) != ERROR_SUCCESS) {
+    if ((ret = tscw->write_audio(tsmc->audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // write success, clear and free the ts message.
-    srs_freep(cache->audio);
+    srs_freep(tsmc->audio);
 
     return ret;
 }
 
-int SrsTsEncoder::flush_video()
+int SrsTsTransmuxer::flush_video()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->write_video(cache->video)) != ERROR_SUCCESS) {
+    if ((ret = tscw->write_video(tsmc->video)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // write success, clear and free the ts message.
-    srs_freep(cache->video);
+    srs_freep(tsmc->video);
 
     return ret;
 }

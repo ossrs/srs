@@ -187,4 +187,4 @@ END
 # parent Makefile, to create module output dir before compile it.
 echo "	@mkdir -p ${SRS_OBJS_DIR}/utest" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
-echo -n "generate utest ok"; echo '!';
+echo -n "Generate utest ok"; echo '!';

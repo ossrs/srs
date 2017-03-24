@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -117,7 +117,7 @@ bool SrsFileWriter::is_open()
     return fd > 0;
 }
 
-void SrsFileWriter::lseek(int64_t offset)
+void SrsFileWriter::seek2(int64_t offset)
 {
     ::lseek(fd, (off_t)offset, SEEK_SET);
 }
@@ -146,13 +146,13 @@ int SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return ret;
 }
 
-int SrsFileWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
+int SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
     
     ssize_t nwrite = 0;
     for (int i = 0; i < iovcnt; i++) {
-        iovec* piov = iov + i;
+        const iovec* piov = iov + i;
         ssize_t this_nwrite = 0;
         if ((ret = write(piov->iov_base, piov->iov_len, &this_nwrite)) != ERROR_SUCCESS) {
             return ret;
@@ -165,6 +165,19 @@ int SrsFileWriter::writev(iovec* iov, int iovcnt, ssize_t* pnwrite)
     }
     
     return ret;
+}
+
+int SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
+{
+    off_t sk = ::lseek(fd, offset, whence);
+    if (sk < 0) {
+        return ERROR_SYSTEM_FILE_SEEK;
+    }
+    
+    if (seeked) {
+        *seeked = sk;
+    }
+    return ERROR_SUCCESS;
 }
 
 SrsFileReader::SrsFileReader()
@@ -231,7 +244,7 @@ void SrsFileReader::skip(int64_t size)
     ::lseek(fd, (off_t)size, SEEK_CUR);
 }
 
-int64_t SrsFileReader::lseek(int64_t offset)
+int64_t SrsFileReader::seek2(int64_t offset)
 {
     return (int64_t)::lseek(fd, (off_t)offset, SEEK_SET);
 }
@@ -266,5 +279,18 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     }
     
     return ret;
+}
+
+int SrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
+{
+    off_t sk = ::lseek(fd, offset, whence);
+    if (sk < 0) {
+        return ERROR_SYSTEM_FILE_SEEK;
+    }
+    
+    if (seeked) {
+        *seeked = sk;
+    }
+    return ERROR_SUCCESS;
 }
 

@@ -7,13 +7,13 @@ nginx-1.5.7.zip
 st-1.9.zip
     basic framework for srs.
     
-openssl-1.0.1f.zip
+openssl-1.1.0e.zip
     openssl for SRS(with-ssl) RTMP complex handshake to delivery h264+aac stream.
 
 CherryPy-3.2.4.zip
     sample api server for srs.
 
-ffmpeg-2.1.1.tar.gz
+ffmpeg-3.2.4.tar.gz
 yasm-1.2.0.tar.gz
 lame-3.99.5.tar.gz
 speex-1.2rc1.zip
@@ -27,15 +27,14 @@ fdk-aac-0.1.3.zip
 tools/ccache-3.1.9.zip
     to fast build.
     
-1.st.arm.Makefile.patch
-    st编译脚本补丁，允许用户指定cc编译器。
-    
 gtest-1.6.0.zip
-    google单元测试框架。
+    google test framework.
     
 gperftools-2.1.zip
-    google性能分析和测试工具。
-    编译和使用参考压缩文件中的README和doc目录。
+    gperf tools for performance benchmark.
+
+state-threads-1.9.1.tar.gz:
+    patched st from https://github.com/ossrs/state-threads/releases/tag/v1.9.1
 
 links:
     nginx:
@@ -46,7 +45,7 @@ links:
         http://sourceforge.net/projects/state-threads
     ffmpeg: 
         http://ffmpeg.org/ 
-        http://ffmpeg.org/releases/ffmpeg-2.1.1.tar.gz
+        http://ffmpeg.org/releases/ffmpeg-3.2.4.tar.gz
     x264: 
         http://www.videolan.org/ 
         ftp://ftp.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20131129-2245-stable.tar.bz2
@@ -61,7 +60,7 @@ links:
         https://pypi.python.org/pypi/CherryPy/3.2.4
     openssl:
         http://www.openssl.org/
-        http://www.openssl.org/source/openssl-1.0.1f.tar.gz
+        http://www.openssl.org/source/openssl-1.1.0e.tar.gz
     gtest:
         https://code.google.com/p/googletest
         https://code.google.com/p/googletest/downloads/list

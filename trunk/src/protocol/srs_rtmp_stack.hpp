@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -21,8 +21,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_RTMP_PROTOCOL_STACK_HPP
-#define SRS_RTMP_PROTOCOL_STACK_HPP
+#ifndef SRS_PROTOCOL_RTMP_HPP
+#define SRS_PROTOCOL_RTMP_HPP
 
 /*
 #include <srs_rtmp_stack.hpp>
@@ -46,9 +46,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_flv.hpp>
 
 class ISrsProtocolReaderWriter;
-class SrsFastBuffer;
+class SrsFastStream;
 class SrsPacket;
-class SrsStream;
+class SrsBuffer;
 class SrsAmf0Object;
 class SrsAmf0Any;
 class SrsMessageHeader;
@@ -152,7 +152,7 @@ public:
      * subpacket must override to decode packet from stream.
      * @remark never invoke the super.decode, it always failed.
      */
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
     // encode functions for concrete packet to override.
 public:
     /**
@@ -176,7 +176,7 @@ protected:
      * subpacket can override to encode the payload to stream.
      * @remark never invoke the super.encode_packet, it always failed.
      */
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -225,7 +225,7 @@ private:
     /**
     * bytes buffer cache, recv from skt, provide services for stream.
     */
-    SrsFastBuffer* in_buffer;
+    SrsFastStream* in_buffer;
     /**
     * input chunk size, default to 128, set by peer packet.
     */
@@ -313,22 +313,30 @@ public:
 #endif
 public:
     /**
-    * set/get the recv timeout in us.
+    * set/get the recv timeout in ms.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-    * set/get the send timeout in us.
+    * set/get the send timeout in ms.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     /**
     * get recv/send bytes.
     */
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
+public:
+    // Set the input default ack size. This is generally set by the message from peer,
+    // but for some encoder, it never send the ack message while it default to a none zone size.
+    // This will cause the encoder to block after publishing some messages to server,
+    // because it wait for server to send acknowledge, but server default to 0 which means no need
+    // to ack encoder. We can change the default input ack size. We will always response the
+    // ack size whatever the encoder set or not.
+    virtual int set_in_window_ack_size(int ack_size);
 public:
     /**
     * recv a RTMP message, which is bytes oriented.
@@ -455,7 +463,7 @@ private:
     /**
     * imp for decode_message
     */
-    virtual int do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket);
+    virtual int do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket);
     /**
     * recv bytes oriented RTMP message from protocol stack.
     * return error if error occur and nerver set the pmsg,
@@ -565,7 +573,7 @@ public:
     // the host in tcUrl.
     std::string host;
     // the port in tcUrl.
-    std::string port;
+    int port;
     // the app in tcUrl, without param.
     std::string app;
     // the param in tcUrl(app).
@@ -661,6 +669,23 @@ public:
 };
 
 /**
+ * The information return from RTMP server.
+ */
+struct SrsServerInfo
+{
+    std::string ip;
+    std::string sig;
+    int pid;
+    int cid;
+    int major;
+    int minor;
+    int revision;
+    int build;
+    
+    SrsServerInfo();
+};
+
+/**
  * implements the client role protocol.
  */
 class SrsRtmpClient
@@ -673,64 +698,16 @@ protected:
 public:
     SrsRtmpClient(ISrsProtocolReaderWriter* skt);
     virtual ~SrsRtmpClient();
-    // protocol methods proxy
+// protocol methods proxy
 public:
-    /**
-     * set the recv timeout in us.
-     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
-     */
-    virtual void set_recv_timeout(int64_t timeout_us);
-    /**
-     * set the send timeout in us.
-     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
-     */
-    virtual void set_send_timeout(int64_t timeout_us);
-    /**
-     * get recv/send bytes.
-     */
+    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    /**
-     * recv a RTMP message, which is bytes oriented.
-     * user can use decode_message to get the decoded RTMP packet.
-     * @param pmsg, set the received message,
-     *       always NULL if error,
-     *       NULL for unknown packet but return success.
-     *       never NULL if decode success.
-     * @remark, drop message when msg is empty or payload length is empty.
-     */
     virtual int recv_message(SrsCommonMessage** pmsg);
-    /**
-     * decode bytes oriented RTMP message to RTMP packet,
-     * @param ppacket, output decoded packet,
-     *       always NULL if error, never NULL if success.
-     * @return error when unknown packet, error when decode failed.
-     */
     virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
-    /**
-     * send the RTMP message and always free it.
-     * user must never free or use the msg after this method,
-     * for it will always free the msg.
-     * @param msg, the msg to send out, never be NULL.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_message(SrsSharedPtrMessage* msg, int stream_id);
-    /**
-     * send the RTMP message and always free it.
-     * user must never free or use the msg after this method,
-     * for it will always free the msg.
-     * @param msgs, the msgs to send out, never be NULL.
-     * @param nb_msgs, the size of msgs to send out.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
-    /**
-     * send the RTMP packet and always free it.
-     * user must never free or use the packet after this method,
-     * for it will always free the packet.
-     * @param packet, the packet to send out, never be NULL.
-     * @param stream_id, the stream id of packet to send over, 0 for control message.
-     */
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     /**
@@ -746,32 +723,15 @@ public:
      */
     virtual int complex_handshake();
     /**
-     * set req to use the original request of client:
-     *      pageUrl and swfUrl for refer antisuck.
-     *      args for edge to origin traverse auth, @see SrsRequest.args
-     */
-    virtual int connect_app(std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode);
-    /**
-     * connect to server, get the debug srs info.
+     * Connect to RTMP tcUrl and app, get the server info.
      *
-     * @param app, the app to connect at.
-     * @param tc_url, the tcUrl to connect at.
+     * @param app, The app to connect at, for example, live.
+     * @param tcUrl, The tcUrl to connect at, for example, rtmp://ossrs.net/live.
      * @param req, the optional req object, use the swfUrl/pageUrl if specified. NULL to ignore.
-     *
-     * SRS debug info:
-     * @param srs_server_ip, debug info, server ip client connected at.
-     * @param srs_server, server info.
-     * @param srs_primary, primary authors.
-     * @param srs_authors, authors.
-     * @param srs_id, int, debug info, client id in server log.
-     * @param srs_pid, int, debug info, server pid in log.
+     * @Param dsu, Whether debug SRS upnode. For edge, set to true to send its info to upnode.
+     * @Param si, The server information, retrieve from response of connect app request. NULL to ignore.
      */
-    virtual int connect_app2(
-        std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode,
-        std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary,
-        std::string& srs_authors, std::string& srs_version, int& srs_id,
-        int& srs_pid
-    );
+    virtual int connect_app(std::string app, std::string tcUrl, SrsRequest* r, bool dsu, SrsServerInfo* si);
     /**
      * create a stream, then play/publish data over this stream.
      */
@@ -857,16 +817,16 @@ public:
     virtual void set_recv_buffer(int buffer_size);
 #endif
     /**
-     * set/get the recv timeout in us.
+     * set/get the recv timeout in ms.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-     * set/get the send timeout in us.
+     * set/get the send timeout in ms.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     /**
      * get recv/send bytes.
@@ -928,9 +888,11 @@ public:
      */
     virtual int connect_app(SrsRequest* req);
     /**
-     * set ack size to client, client will send ack-size for each ack window
+     * set output ack size to client, client will send ack-size for each ack window
      */
     virtual int set_window_ack_size(int ack_size);
+    // Set the default input ack size value.
+    virtual int set_in_window_ack_size(int ack_size);
     /**
      * @type: The sender can mark this message hard (0), soft (1), or dynamic (2)
      * using the Limit type field.
@@ -940,6 +902,12 @@ public:
      * @param server_ip the ip of server.
      */
     virtual int response_connect_app(SrsRequest* req, const char* server_ip = NULL);
+    /**
+     * redirect the connection to another rtmp server.
+     * @param the hostname or ip of target.
+     * @param whether the client accept the redirect.
+     */
+    virtual int redirect(SrsRequest* r, std::string host, int port, bool& accepted);
     /**
      * reject the connect app request.
      */
@@ -1008,7 +976,7 @@ public:
      * for example:
      *          SrsCommonMessage* msg = NULL;
      *          SrsConnectAppResPacket* pkt = NULL;
-     *          if ((ret = server->expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+     *          if ((ret = server->expect_message<SrsConnectAppResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
      *              return ret;
      *          }
      *          // use then free msg and pkt
@@ -1063,14 +1031,14 @@ public:
     virtual ~SrsConnectAppPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsConnectAppPacket.
@@ -1102,14 +1070,14 @@ public:
     virtual ~SrsConnectAppResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1145,14 +1113,14 @@ public:
     virtual ~SrsCallPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsCallPacket.
@@ -1187,7 +1155,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1218,14 +1186,14 @@ public:
     virtual ~SrsCreateStreamPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 /**
 * response for SrsCreateStreamPacket.
@@ -1255,14 +1223,14 @@ public:
     virtual ~SrsCreateStreamResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1289,7 +1257,7 @@ public:
     virtual ~SrsCloseStreamPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 };
 
 /**
@@ -1320,14 +1288,14 @@ public:
     virtual ~SrsFMLEStartPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 // factory method to create specified FMLE packet.
 public:
     static SrsFMLEStartPacket* create_release_stream(std::string stream);
@@ -1362,14 +1330,14 @@ public:
     virtual ~SrsFMLEStartResPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1417,14 +1385,14 @@ public:
     virtual ~SrsPublishPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1464,7 +1432,7 @@ public:
     virtual ~SrsPausePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 };
 
 /**
@@ -1536,14 +1504,14 @@ public:
     virtual ~SrsPlayPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1583,7 +1551,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1614,7 +1582,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1652,7 +1620,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1663,8 +1631,6 @@ protected:
 */
 class SrsBandwidthPacket : public SrsPacket
 {
-private:
-    disable_default_copy(SrsBandwidthPacket);
 public:
     /**
     * Name of command. 
@@ -1690,14 +1656,14 @@ public:
     virtual ~SrsBandwidthPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 // help function for bandwidth packet.
 public:
     virtual bool is_start_play();
@@ -1752,7 +1718,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1787,7 +1753,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1812,14 +1778,14 @@ public:
     virtual ~SrsOnMetaDataPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1836,14 +1802,14 @@ public:
     virtual ~SrsSetWindowAckSizePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1860,14 +1826,14 @@ public:
     virtual ~SrsAcknowledgementPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 /**
@@ -1888,14 +1854,14 @@ public:
     virtual ~SrsSetChunkSizePacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 // 5.6. Set Peer Bandwidth (6)
@@ -1928,7 +1894,7 @@ public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 // 3.7. User Control message
@@ -1946,7 +1912,7 @@ enum SrcPCUCEventType
     * the stream ID of the stream that became
     * functional.
     */
-    SrcPCUCStreamBegin              = 0x00,
+    SrcPCUCStreamBegin = 0x00,
 
     /**
     * The server sends this event to notify the client
@@ -1957,7 +1923,7 @@ enum SrcPCUCEventType
     * 4 bytes of event data represent the ID of the
     * stream on which playback has ended.
     */
-    SrcPCUCStreamEOF                = 0x01,
+    SrcPCUCStreamEOF = 0x01,
 
     /**
     * The server sends this event to notify the client
@@ -1967,7 +1933,7 @@ enum SrcPCUCEventType
     * that the stream is dry. The 4 bytes of event 
     * data represent the stream ID of the dry stream. 
     */
-    SrcPCUCStreamDry                = 0x02,
+    SrcPCUCStreamDry = 0x02,
 
     /**
     * The client sends this event to inform the server
@@ -1979,7 +1945,7 @@ enum SrcPCUCEventType
     * 4 bytes represent the buffer length, in 
     * milliseconds.
     */
-    SrcPCUCSetBufferLength          = 0x03, // 8bytes event-data
+    SrcPCUCSetBufferLength = 0x03, // 8bytes event-data
 
     /**
     * The server sends this event to notify the client
@@ -1987,7 +1953,7 @@ enum SrcPCUCEventType
     * 4 bytes event data represent the stream ID of
     * the recorded stream.
     */
-    SrcPCUCStreamIsRecorded         = 0x04,
+    SrcPCUCStreamIsRecorded = 0x04,
 
     /**
     * The server sends this event to test whether the
@@ -1997,7 +1963,7 @@ enum SrcPCUCEventType
     * client responds with kMsgPingResponse on
     * receiving kMsgPingRequest.  
     */
-    SrcPCUCPingRequest              = 0x06,
+    SrcPCUCPingRequest = 0x06,
 
     /**
     * The client sends this event to the server in
@@ -2005,14 +1971,14 @@ enum SrcPCUCEventType
     * a 4-byte timestamp, which was received with the
     * kMsgPingRequest request.
     */
-    SrcPCUCPingResponse             = 0x07,
+    SrcPCUCPingResponse = 0x07,
     
     /**
-     * for PCUC size=3, the payload is "00 1A 01",
-     * where we think the event is 0x001a, fms defined msg,
-     * which has only 1bytes event data.
+     * For PCUC size=3, for example the payload is "00 1A 01",
+     * it's a FMS control event, where the event type is 0x001a and event data is 0x01,
+     * please notice that the event data is only 1 byte for this event.
      */
-    SrsPCUCFmsEvent0                = 0x1a,
+    SrsPCUCFmsEvent0 = 0x1a,
 };
 
 /**
@@ -2056,14 +2022,14 @@ public:
     virtual ~SrsUserControlPacket();
 // decode functions for concrete packet to override.
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 // encode functions for concrete packet to override.
 public:
     virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
-    virtual int encode_packet(SrsStream* stream);
+    virtual int encode_packet(SrsBuffer* stream);
 };
 
 #endif

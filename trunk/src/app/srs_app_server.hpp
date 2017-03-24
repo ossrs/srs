@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -55,23 +55,26 @@ class SrsTcpListener;
 #ifdef SRS_AUTO_STREAM_CASTER
 class SrsAppCasterFlv;
 #endif
+#ifdef SRS_AUTO_KAFKA
+class SrsKafkaProducer;
+#endif
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
 enum SrsListenerType 
 {
     // RTMP client,
-    SrsListenerRtmpStream       = 0,
+    SrsListenerRtmpStream = 0,
     // HTTP api,
-    SrsListenerHttpApi          = 1,
+    SrsListenerHttpApi = 1,
     // HTTP stream, HDS/HLS/DASH
-    SrsListenerHttpStream       = 2,
+    SrsListenerHttpStream = 2,
     // UDP stream, MPEG-TS over udp.
-    SrsListenerMpegTsOverUdp    = 3,
+    SrsListenerMpegTsOverUdp = 3,
     // TCP stream, RTSP stream.
-    SrsListenerRtsp             = 4,
+    SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
-    SrsListenerFlv              = 5,
+    SrsListenerFlv = 5,
 };
 
 /**
@@ -96,13 +99,13 @@ public:
 /**
 * tcp listener.
 */
-class SrsStreamListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsBufferListener : virtual public SrsListener, virtual public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
 public:
-    SrsStreamListener(SrsServer* server, SrsListenerType type);
-    virtual ~SrsStreamListener();
+    SrsBufferListener(SrsServer* server, SrsListenerType type);
+    virtual ~SrsBufferListener();
 public:
     virtual int listen(std::string ip, int port);
 // ISrsTcpHandler
@@ -222,7 +225,11 @@ public:
     /**
     * do on_cycle while server doing cycle.
     */
-    virtual int on_cycle(int connections) = 0;
+    virtual int on_cycle() = 0;
+    /**
+     * callback the handler when got client.
+     */
+    virtual int on_accept_client(int conf_conns, int curr_conns) = 0;
 };
 
 /**
@@ -234,16 +241,10 @@ class SrsServer : virtual public ISrsReloadHandler
     , virtual public IConnectionManager
 {
 private:
-#ifdef SRS_AUTO_HTTP_API
     // TODO: FIXME: rename to http_api
     SrsHttpServeMux* http_api_mux;
-#endif
-#ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpServer* http_server;
-#endif
-#ifdef SRS_AUTO_HTTP_CORE
     SrsHttpHeartbeat* http_heartbeat;
-#endif
 #ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
 #endif
@@ -275,6 +276,7 @@ private:
     * user send the signal, convert to variable.
     */
     bool signal_reload;
+    bool signal_persistence_config;
     bool signal_gmc_stop;
     bool signal_gracefully_quit;
     // parent pid for asprocess.
@@ -309,26 +311,22 @@ public:
     virtual int http_handle();
     virtual int ingest();
     virtual int cycle();
-// IConnectionManager
-public:
-    /**
-    * callback for connection to remove itself.
-    * when connection thread cycle terminated, callback this to delete connection.
-    * @see SrsConnection.on_thread_stop().
-    */
-    virtual void remove(SrsConnection* conn);
 // server utilities.
 public:
     /**
-    * callback for signal manager got a signal.
-    * the signal manager convert signal to io message,
-    * whatever, we will got the signo like the orignal signal(int signo) handler.
-    * @remark, direclty exit for SIGTERM.
-    * @remark, do reload for SIGNAL_RELOAD.
-    * @remark, for SIGINT and SIGUSR2:
-    *       no gmc, directly exit.
-    *       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
-    */
+     * callback for signal manager got a signal.
+     * the signal manager convert signal to io message,
+     * whatever, we will got the signo like the orignal signal(int signo) handler.
+     * @param signo the signal number from user, where:
+     *      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGTERM, dispose then quit.
+     *      SRS_SIGNAL_REOPEN_LOG, the SIGUSR1, reopen the log file.
+     *      SRS_SIGNAL_RELOAD, the SIGHUP, reload the config.
+     *      SRS_SIGNAL_PERSISTENCE_CONFIG, application level signal, persistence config to file.
+     * @remark, for SIGINT:
+     *       no gmc, directly exit.
+     *       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
+     * @remark, maybe the HTTP RAW API will trigger the on_signal() also.
+     */
     virtual void on_signal(int signo);
 private:
     /**
@@ -359,9 +357,19 @@ public:
     * when listener got a fd, notice server to accept it.
     * @param type, the client type, used to create concrete connection, 
     *       for instance RTMP connection to serve client.
-    * @param client_stfd, the client fd in st boxed, the underlayer fd.
+    * @param stfd, the client fd in st boxed, the underlayer fd.
     */
-    virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+    virtual int accept_client(SrsListenerType type, st_netfd_t stfd);
+private:
+    virtual SrsConnection* fd2conn(SrsListenerType type, st_netfd_t stfd);
+// IConnectionManager
+public:
+    /**
+     * callback for connection to remove itself.
+     * when connection thread cycle terminated, callback this to delete connection.
+     * @see SrsConnection.on_thread_stop().
+     */
+    virtual void remove(SrsConnection* conn);
 // interface ISrsReloadHandler.
 public:
     virtual int on_reload_listen();

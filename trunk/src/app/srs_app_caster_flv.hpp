@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -43,6 +43,8 @@ class SrsRequest;
 class SrsPithyPrint;
 class ISrsHttpResponseReader;
 class SrsFlvDecoder;
+class SrsTcpClient;
+class SrsSimpleRtmpClient;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -84,14 +86,9 @@ class SrsDynamicHttpConn : public SrsHttpConn
 private:
     std::string output;
     SrsPithyPrint* pprint;
-private:
-    SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
-    SrsRtmpClient* client;
-    int stream_id;
+    SrsSimpleRtmpClient* sdk;
 public:
-    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsDynamicHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);
@@ -99,14 +96,6 @@ public:
     virtual int proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
     virtual int do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
-private:
-    // connect to rtmp output url.
-    // @remark ignore when not connected, reconnect when disconnected.
-    virtual int connect();
-    virtual int connect_app(std::string ep_server, std::string ep_port);
-    // close the connected io and rtmp to ready to be re-connect.
-    virtual void close();
 };
 
 /**
@@ -131,14 +120,11 @@ public:
     virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);
-    virtual int64_t lseek(int64_t offset);
+    virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
 public:
-    /**
-     * read from file.
-     * @param pnread the output nb_read, NULL to ignore.
-     */
     virtual int read(void* buf, size_t count, ssize_t* pnread);
+    virtual int lseek(off_t offset, int whence, off_t* seeked);
 };
 
 #endif

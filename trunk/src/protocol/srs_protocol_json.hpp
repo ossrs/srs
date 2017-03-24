@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -60,6 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // @see: https://bitbucket.org/yarosla/nxjson
 // @see: https://github.com/udp/json-parser
 
+class SrsAmf0Any;
 class SrsJsonArray;
 class SrsJsonObject;
 
@@ -113,9 +114,12 @@ public:
     */
     virtual SrsJsonArray* to_array();
 public:
+    virtual std::string dumps();
+    virtual SrsAmf0Any* to_amf0();
+public:
     static SrsJsonAny* str(const char* value = NULL); 
     static SrsJsonAny* boolean(bool value = false);
-    static SrsJsonAny* ingeter(int64_t value = 0);
+    static SrsJsonAny* integer(int64_t value = 0);
     static SrsJsonAny* number(double value = 0.0);
     static SrsJsonAny* null();
     static SrsJsonObject* object();
@@ -146,11 +150,17 @@ public:
     // @remark: max index is count().
     virtual SrsJsonAny* value_at(int index);
 public:
+    virtual std::string dumps();
+    virtual SrsAmf0Any* to_amf0();
+public:
     virtual void set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
     virtual SrsJsonAny* ensure_property_string(std::string name);
     virtual SrsJsonAny* ensure_property_integer(std::string name);
+    virtual SrsJsonAny* ensure_property_number(std::string name);
     virtual SrsJsonAny* ensure_property_boolean(std::string name);
+    virtual SrsJsonAny* ensure_property_object(std::string name);
+    virtual SrsJsonAny* ensure_property_array(std::string name);
 };
 
 class SrsJsonArray : public SrsJsonAny
@@ -169,61 +179,16 @@ public:
     // @remark: max index is count().
     virtual SrsJsonAny* at(int index);
     virtual void add(SrsJsonAny* value);
+    // alias to add.
+    virtual void append(SrsJsonAny* value);
+public:
+    virtual std::string dumps();
+    virtual SrsAmf0Any* to_amf0();
 };
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-/* json encode
-    cout<< SRS_JOBJECT_START
-            << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
-            << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
-                << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("dash", "plan")
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_STR("author", "srs team")
-        << SRS_JOBJECT_END
-it's:
-    cont<< "{"
-            << "name:" << "srs" << ","
-            << "version:" << 100 << ","
-            << "features:" << "{"
-                << "rtmp:" << "released" << ","
-                << "hls:" << "released" << ","
-                << "dash:" << "plan"
-            << "}" << ","
-            << "author:" << "srs team"
-        << "}"
-that is:
-    """
-        {
-            "name": "srs",
-            "version": 100,
-            "features": {
-                "rtmp": "released",
-                "hls": "released",
-                "dash": "plan"
-            },
-            "author": "srs team"
-        }
-    """
-*/
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-#define SRS_JOBJECT_START "{"
-#define SRS_JFIELD_NAME(k) "\"" << k << "\":"
-#define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
-#define SRS_JFIELD_STR(k, v) SRS_JFIELD_NAME(k) << "\"" << v << "\""
-#define SRS_JFIELD_ORG(k, v) SRS_JFIELD_NAME(k) << std::dec << v
-#define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
-#define SRS_JFIELD_NULL(k) SRS_JFIELD_NAME(k) << "null"
-#define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
-#define SRS_JFIELD_CONT ","
-#define SRS_JOBJECT_END "}"
-#define SRS_JARRAY_START "["
-#define SRS_JARRAY_END "]"
+// json encode, please use JSON.dumps() to encode json object.
 
 #endif

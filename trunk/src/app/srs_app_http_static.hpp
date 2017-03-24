@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,8 +31,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_app_http_conn.hpp>
-
-#ifdef SRS_AUTO_HTTP_SERVER
 
 /**
  * the flv vod stream supports flv?start=offset-bytes.
@@ -65,12 +63,13 @@ public:
     virtual ~SrsHttpStaticServer();
 public:
     virtual int initialize();
+private:
+    virtual int mount_vhost(std::string vhost, std::string& pmount);
 // interface ISrsReloadHandler.
 public:
+    virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_http_updated();
 };
-
-#endif
 
 #endif
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,13 +31,101 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 #include <string>
+#include <map>
+#include <sstream>
 
 #include <srs_app_reload.hpp>
+#include <srs_app_async_call.hpp>
+#include <srs_app_thread.hpp>
+
+class SrsRequest;
+class SrsFileWriter;
+class SrsJsonObject;
+class SrsJsonArray;
+class SrsJsonAny;
+
+class SrsConfig;
+class SrsRequest;
+class SrsJsonArray;
+class SrsConfDirective;
+
 
 namespace _srs_internal
 {
-    class SrsConfigBuffer;
-}
+    /**
+     * the buffer of config content.
+     */
+    class SrsConfigBuffer
+    {
+    protected:
+        // last available position.
+        char* last;
+        // end of buffer.
+        char* end;
+        // start of buffer.
+        char* start;
+    public:
+        // current consumed position.
+        char* pos;
+        // current parsed line.
+        int line;
+    public:
+        SrsConfigBuffer();
+        virtual ~SrsConfigBuffer();
+    public:
+        /**
+         * fullfill the buffer with content of file specified by filename.
+         */
+        virtual int fullfill(const char* filename);
+        /**
+         * whether buffer is empty.
+         */
+        virtual bool empty();
+    };
+};
+
+/**
+ * deep compare directive.
+ */
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, std::string except);
+
+/**
+ * helper utilities, used for compare the consts values.
+ */
+extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
+extern bool srs_config_hls_is_on_error_continue(std::string strategy);
+extern bool srs_config_ingest_is_file(std::string type);
+extern bool srs_config_ingest_is_stream(std::string type);
+extern bool srs_config_dvr_is_plan_segment(std::string plan);
+extern bool srs_config_dvr_is_plan_session(std::string plan);
+extern bool srs_stream_caster_is_udp(std::string caster);
+extern bool srs_stream_caster_is_rtsp(std::string caster);
+extern bool srs_stream_caster_is_flv(std::string caster);
+// whether the dvr_apply active the stream specified by req.
+extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
+
+/**
+ * convert bool in str to on/off
+ */
+extern std::string srs_config_bool2switch(const std::string& sbool);
+
+/**
+ * parse loaded vhost directives to compatible mode.
+ * for exmaple, SRS1/2 use the follow refer style:
+ *          refer   a.domain.com b.domain.com;
+ * while SRS3 use the following:
+ *          refer {
+ *              enabled on;
+ *              all a.domain.com b.domain.com;
+ *          }
+ * so we must transform the vhost directive anytime load the config.
+ * @param root the root directive to transform, in and out parameter.
+ */
+extern int srs_config_transform_vhost(SrsConfDirective* root);
+
+// @global config object.
+extern SrsConfig* _srs_config;
 
 /**
 * the config directive.
@@ -66,20 +154,20 @@ class SrsConfDirective
 {
 public:
     /**
-    * the line of config file in which the directive from
-    */
+     * the line of config file in which the directive from
+     */
     int conf_line;
     /**
-    * the name of directive, for example, the following config text:
-    *       enabled     on;
-    * will be parsed to a directive, its name is "enalbed"
-    */
+     * the name of directive, for example, the following config text:
+     *       enabled     on;
+     * will be parsed to a directive, its name is "enalbed"
+     */
     std::string name;
     /**
-    * the args of directive, for example, the following config text:
-    *       listen      1935 1936;
-    * will be parsed to a directive, its args is ["1935", "1936"].
-    */
+     * the args of directive, for example, the following config text:
+     *       listen      1935 1936;
+     * will be parsed to a directive, its args is ["1935", "1936"].
+     */
     std::vector<std::string> args;
     /**
     * the child directives, for example, the following config text:
@@ -96,6 +184,15 @@ public:
 public:
     SrsConfDirective();
     virtual ~SrsConfDirective();
+public:
+    /**
+     * deep copy the directive, for SrsConfig to use it to support reload in upyun cluster,
+     * for when reload the upyun dynamic config, the root will be changed,
+     * so need to copy it to an old root directive, and use the copy result to do reload.
+     */
+    virtual SrsConfDirective* copy();
+    // @param except the name of sub directive.
+    virtual SrsConfDirective* copy(std::string except);
 // args
 public:
     /**
@@ -105,6 +202,7 @@ public:
     virtual std::string arg0();
     virtual std::string arg1();
     virtual std::string arg2();
+    virtual std::string arg3();
 // directives
 public:
     /**
@@ -120,6 +218,15 @@ public:
     * get the directive by name and its arg0, return the first match.
     */
     virtual SrsConfDirective* get(std::string _name, std::string _arg0);
+// raw
+public:
+    virtual SrsConfDirective* get_or_create(std::string n);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* set_arg0(std::string a0);
+    /**
+     * remove the v from sub directives, user must free the v.
+     */
+    virtual void remove(SrsConfDirective* v);
 // help utilities
 public:
     /**
@@ -136,6 +243,22 @@ public:
     * parse config directive from file buffer.
     */
     virtual int parse(_srs_internal::SrsConfigBuffer* buffer);
+    /**
+     * persistence the directive to writer.
+     * @param level, the root is level0, all its directives are level1, and so on.
+     */
+    virtual int persistence(SrsFileWriter* writer, int level);
+    /**
+     * dumps the args[0-N] to array(string).
+     */
+    virtual SrsJsonArray* dumps_args();
+    /**
+     * dumps arg0 to str, number or boolean.
+     */
+    virtual SrsJsonAny* dumps_arg0_to_str();
+    virtual SrsJsonAny* dumps_arg0_to_integer();
+    virtual SrsJsonAny* dumps_arg0_to_number();
+    virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
 private:
     /**
@@ -198,6 +321,10 @@ private:
     * whether show SRS version and exit.
     */
     bool show_version;
+    /**
+     * whether show SRS signature and exit.
+     */
+    bool show_signature;
 // global env variables.
 private:
     /**
@@ -216,6 +343,7 @@ private:
     * if reload, reload the config file.
     */
     std::string config_file;
+protected:
     /**
     * the directive root.
     */
@@ -272,6 +400,7 @@ private:
     /**
     * reload the http_stream section of config.
     */
+    // TODO: FIXME: rename to http_server.
     virtual int reload_http_stream(SrsConfDirective* old_root);
     /**
     * reload the transcode section of vhost of config.
@@ -284,8 +413,8 @@ private:
 // parse options and file
 public:
     /**
-    * parse the cli, the main(argc,argv) function.
-    */
+     * parse the cli, the main(argc,argv) function.
+     */
     virtual int parse_options(int argc, char** argv);
     /**
      * initialize the cwd for server,
@@ -293,8 +422,112 @@ public:
      */
     virtual int initialize_cwd();
     /**
-    * get the config file path.
-    */
+     * persistence current config to file.
+     */
+    virtual int persistence();
+private:
+    virtual int do_persistence(SrsFileWriter* fw);
+public:
+    /**
+     * dumps the global sections to json.
+     */
+    virtual int global_to_json(SrsJsonObject* obj);
+    /**
+     * dumps the minimal sections to json.
+     */
+    virtual int minimal_to_json(SrsJsonObject* obj);
+    /**
+     * dumps the vhost section to json.
+     */
+    virtual int vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
+    /**
+     * dumps the http_api sections to json for raw api info.
+     */
+    virtual int raw_to_json(SrsJsonObject* obj);
+    /**
+     * raw set the global listen.
+     */
+    virtual int raw_set_listen(const std::vector<std::string>& eps, bool& applied);
+    /**
+     * raw set the global pid.
+     */
+    virtual int raw_set_pid(std::string pid, bool& applied);
+    /**
+     * raw set the global chunk size.
+     */
+    virtual int raw_set_chunk_size(std::string chunk_size, bool& applied);
+    /**
+     * raw set the global ffmpeg log dir.
+     */
+    virtual int raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
+    /**
+     * raw set the global log tank.
+     */
+    virtual int raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
+    /**
+     * raw set the global log level.
+     */
+    virtual int raw_set_srs_log_level(std::string srs_log_level, bool& applied);
+    /**
+     * raw set the global log file path for file tank.
+     */
+    virtual int raw_set_srs_log_file(std::string srs_log_file, bool& applied);
+    /**
+     * raw set the global max connections of srs.
+     */
+    virtual int raw_set_max_connections(std::string max_connections, bool& applied);
+    /**
+     * raw set the global whether use utc time.
+     */
+    virtual int raw_set_utc_time(std::string utc_time, bool& applied);
+    /**
+     * raw set the global pithy print interval in ms.
+     */
+    virtual int raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
+    /**
+     * raw create the new vhost.
+     */
+    virtual int raw_create_vhost(std::string vhost, bool& applied);
+    /**
+     * raw update the disabled vhost name.
+     */
+    virtual int raw_update_vhost(std::string vhost, std::string name, bool& applied);
+    /**
+     * raw delete the disabled vhost.
+     */
+    virtual int raw_delete_vhost(std::string vhost, bool& applied);
+    /**
+     * raw disable the enabled vhost.
+     */
+    virtual int raw_disable_vhost(std::string vhost, bool& applied);
+    /**
+     * raw enable the disabled vhost.
+     */
+    virtual int raw_enable_vhost(std::string vhost, bool& applied);
+    /**
+     * raw enable the dvr of stream of vhost.
+     */
+    virtual int raw_enable_dvr(std::string vhost, std::string stream, bool& applied);
+    /**
+     * raw disable the dvr of stream of vhost.
+     */
+    virtual int raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
+private:
+    virtual int do_reload_listen();
+    virtual int do_reload_pid();
+    virtual int do_reload_srs_log_tank();
+    virtual int do_reload_srs_log_level();
+    virtual int do_reload_srs_log_file();
+    virtual int do_reload_max_connections();
+    virtual int do_reload_utc_time();
+    virtual int do_reload_pithy_print_ms();
+    virtual int do_reload_vhost_added(std::string vhost);
+    virtual int do_reload_vhost_removed(std::string vhost);
+    virtual int do_reload_vhost_dvr_apply(std::string vhost);
+public:
+    /**
+     * get the config file path.
+     */
     virtual std::string config();
 private:
     /**
@@ -395,37 +628,52 @@ public:
     /**
     * get whether the specified stream_caster is enabled.
     */
-    virtual bool                get_stream_caster_enabled(SrsConfDirective* sc);
+    virtual bool                get_stream_caster_enabled(SrsConfDirective* conf);
     /**
     * get the engine of stream_caster, the caster config.
     */
-    virtual std::string         get_stream_caster_engine(SrsConfDirective* sc);
+    virtual std::string         get_stream_caster_engine(SrsConfDirective* conf);
     /**
     * get the output rtmp url of stream_caster, the output config.
     */
-    virtual std::string         get_stream_caster_output(SrsConfDirective* sc);
+    virtual std::string         get_stream_caster_output(SrsConfDirective* conf);
     /**
     * get the listen port of stream caster.
     */
-    virtual int                 get_stream_caster_listen(SrsConfDirective* sc);
+    virtual int                 get_stream_caster_listen(SrsConfDirective* conf);
     /**
     * get the min udp port for rtp of stream caster rtsp.
     */
-    virtual int                 get_stream_caster_rtp_port_min(SrsConfDirective* sc);
+    virtual int                 get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     /**
     * get the max udp port for rtp of stream caster rtsp.
     */
-    virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* sc);
+    virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* conf);
+// kafka section.
+public:
+    /**
+     * whether the kafka enabled.
+     */
+    virtual bool                get_kafka_enabled();
+    /**
+     * get the broker list, each is format in <ip:port>.
+     */
+    virtual SrsConfDirective*   get_kafka_brokers();
+    /**
+     * get the kafka topic to use for srs.
+     */
+    virtual std::string         get_kafka_topic();
 // vhost specified section
 public:
     /**
-    * get the vhost directive by vhost name.
-    * @param vhost, the name of vhost to get.
-    */
-    virtual SrsConfDirective*   get_vhost(std::string vhost);
+     * get the vhost directive by vhost name.
+     * @param vhost, the name of vhost to get.
+     * @param try_default_vhost whether try default when get specified vhost failed.
+     */
+    virtual SrsConfDirective*   get_vhost(std::string vhost, bool try_default_vhost = true);
     /**
-    * get all vhosts in config file.
-    */
+     * get all vhosts in config file.
+     */
     virtual void get_vhosts(std::vector<SrsConfDirective*>& vhosts);
     /**
     * whether vhost is enabled
@@ -438,7 +686,7 @@ public:
     * @param vhost, the vhost directive.
     * @return true when vhost is ok; otherwise, false.
     */
-    virtual bool                get_vhost_enabled(SrsConfDirective* vhost);
+    virtual bool                get_vhost_enabled(SrsConfDirective* conf);
     /**
     * whether gop_cache is enabled of vhost.
     * gop_cache used to cache last gop, for client to fast startup.
@@ -487,23 +735,28 @@ public:
     */
     virtual double              get_queue_length(std::string vhost);
     /**
-    * get the refer antisuck directive.
-    * each args of directive is a refer config.
-    * when the client refer(pageUrl) not match the refer config,
-    * SRS will reject the connection.
-    * @remark, default NULL.
-    */
-    virtual SrsConfDirective*   get_refer(std::string vhost);
+     * whether the refer hotlink-denial enabled.
+     */
+    virtual bool                get_refer_enabled(std::string vhost);
     /**
-    * get the play refer, refer for play clients.
-    * @remark, default NULL.
-    */
+     * get the refer hotlink-denial for all type.
+     * @return the refer, NULL for not configed.
+     */
+    virtual SrsConfDirective*   get_refer_all(std::string vhost);
+    /**
+     * get the refer hotlink-denial for play.
+     * @return the refer, NULL for not configed.
+     */
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
     /**
-    * get the publish refer, refer for publish clients.
-    * @remark, default NULL.
-    */
+     * get the refer hotlink-denial for publish.
+     * @return the refer, NULL for not configed.
+     */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
+    // Get the input default ack size, which is generally set by message from peer.
+    virtual int                 get_in_ack_size(std::string vhost);
+    // Get the output default ack size, to notify the peer to send acknowledge to server.
+    virtual int                 get_out_ack_size(std::string vhost);
     /**
     * get the chunk size of vhost.
     * @param vhost, the vhost to get the chunk size. use global if not specified.
@@ -566,9 +819,13 @@ private:
 // forward section
 public:
     /**
+     * whether the forwarder enabled.
+     */
+    virtual bool                get_forward_enabled(std::string vhost);
+    /**
     * get the forward directive of vhost.
     */
-    virtual SrsConfDirective*   get_forward(std::string vhost);
+    virtual SrsConfDirective*   get_forwards(std::string vhost);
 // http_hooks section
 private:
     /**
@@ -651,7 +908,7 @@ public:
     * @remark this is used to protect the service bandwidth.
     */
     virtual int                 get_bw_check_limit_kbps(std::string vhost);
-// vhost edge section
+// vhost cluster section
 public:
     /**
     * whether vhost is edge mode.
@@ -664,7 +921,7 @@ public:
     * for edge, publish client will be proxyed to upnode,
     * for edge, play client will share a connection to get stream from upnode.
     */
-    virtual bool                get_vhost_is_edge(SrsConfDirective* vhost);
+    virtual bool                get_vhost_is_edge(SrsConfDirective* conf);
     /**
     * get the origin config of edge,
     * specifies the origin ip address, port.
@@ -709,106 +966,125 @@ public:
     /**
     * whether the transcode directive is enabled.
     */
-    virtual bool                get_transcode_enabled(SrsConfDirective* transcode);
+    virtual bool                get_transcode_enabled(SrsConfDirective* conf);
     /**
     * get the ffmpeg tool path of transcode.
     */
-    virtual std::string         get_transcode_ffmpeg(SrsConfDirective* transcode);
+    virtual std::string         get_transcode_ffmpeg(SrsConfDirective* conf);
     /**
     * get the engines of transcode.
     */
-    virtual std::vector<SrsConfDirective*>      get_transcode_engines(SrsConfDirective* transcode);
+    virtual std::vector<SrsConfDirective*>      get_transcode_engines(SrsConfDirective* conf);
     /**
     * whether the engine is enabled.
     */
-    virtual bool                get_engine_enabled(SrsConfDirective* engine);
+    virtual bool                get_engine_enabled(SrsConfDirective* conf);
+    /**
+     * get the perfile of engine
+     */
+    virtual std::vector<std::string> get_engine_perfile(SrsConfDirective* conf);
     /**
     * get the iformat of engine
     */
-    virtual std::string         get_engine_iformat(SrsConfDirective* engine);
+    virtual std::string         get_engine_iformat(SrsConfDirective* conf);
     /**
     * get the vfilter of engine,
     * the video filter set before the vcodec of FFMPEG.
     */
-    virtual std::vector<std::string> get_engine_vfilter(SrsConfDirective* engine);
+    virtual std::vector<std::string> get_engine_vfilter(SrsConfDirective* conf);
     /**
     * get the vcodec of engine,
     * the codec of video, can be vn, copy or libx264
     */
-    virtual std::string         get_engine_vcodec(SrsConfDirective* engine);
+    virtual std::string         get_engine_vcodec(SrsConfDirective* conf);
     /**
     * get the vbitrate of engine,
     * the bitrate in kbps of video, for example, 800kbps
     */
-    virtual int                 get_engine_vbitrate(SrsConfDirective* engine);
+    virtual int                 get_engine_vbitrate(SrsConfDirective* conf);
     /**
     * get the vfps of engine.
     * the video fps, for example, 25fps
     */
-    virtual double              get_engine_vfps(SrsConfDirective* engine);
+    virtual double              get_engine_vfps(SrsConfDirective* conf);
     /**
     * get the vwidth of engine,
     * the video width, for example, 1024
     */
-    virtual int                 get_engine_vwidth(SrsConfDirective* engine);
+    virtual int                 get_engine_vwidth(SrsConfDirective* conf);
     /**
     * get the vheight of engine,
     * the video height, for example, 576
     */
-    virtual int                 get_engine_vheight(SrsConfDirective* engine);
+    virtual int                 get_engine_vheight(SrsConfDirective* conf);
     /**
     * get the vthreads of engine,
     * the video transcode libx264 threads, for instance, 8
     */
-    virtual int                 get_engine_vthreads(SrsConfDirective* engine);
+    virtual int                 get_engine_vthreads(SrsConfDirective* conf);
     /**
     * get the vprofile of engine,
     * the libx264 profile, can be high,main,baseline
     */
-    virtual std::string         get_engine_vprofile(SrsConfDirective* engine);
+    virtual std::string         get_engine_vprofile(SrsConfDirective* conf);
     /**
     * get the vpreset of engine,
     * the libx264 preset, can be ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
     */
-    virtual std::string         get_engine_vpreset(SrsConfDirective* engine);
+    virtual std::string         get_engine_vpreset(SrsConfDirective* conf);
     /**
     * get the additional video params.
     */
-    virtual std::vector<std::string> get_engine_vparams(SrsConfDirective* engine);
+    virtual std::vector<std::string> get_engine_vparams(SrsConfDirective* conf);
     /**
     * get the acodec of engine,
     * the audio codec can be an, copy or libfdk_aac
     */
-    virtual std::string         get_engine_acodec(SrsConfDirective* engine);
+    virtual std::string         get_engine_acodec(SrsConfDirective* conf);
     /**
     * get the abitrate of engine,
     * the audio bitrate in kbps, for instance, 64kbps.
     */
-    virtual int                 get_engine_abitrate(SrsConfDirective* engine);
+    virtual int                 get_engine_abitrate(SrsConfDirective* conf);
     /**
     * get the asample_rate of engine,
     * the audio sample_rate, for instance, 44100HZ
     */
-    virtual int                 get_engine_asample_rate(SrsConfDirective* engine);
+    virtual int                 get_engine_asample_rate(SrsConfDirective* conf);
     /**
     * get the achannels of engine,
     * the audio channel, for instance, 1 for mono, 2 for stereo.
     */
-    virtual int                 get_engine_achannels(SrsConfDirective* engine);
+    virtual int                 get_engine_achannels(SrsConfDirective* conf);
     /**
     * get the aparams of engine,
     * the audio additional params.
     */
-    virtual std::vector<std::string> get_engine_aparams(SrsConfDirective* engine);
+    virtual std::vector<std::string> get_engine_aparams(SrsConfDirective* conf);
     /**
     * get the oformat of engine
     */
-    virtual std::string         get_engine_oformat(SrsConfDirective* engine);
+    virtual std::string         get_engine_oformat(SrsConfDirective* conf);
     /**
     * get the output of engine, for example, rtmp://localhost/live/livestream,
     * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
     */
-    virtual std::string         get_engine_output(SrsConfDirective* engine);
+    virtual std::string         get_engine_output(SrsConfDirective* conf);
+// vhost exec secion
+private:
+    /**
+     * get the exec directive of vhost.
+     */
+    virtual SrsConfDirective*   get_exec(std::string vhost);
+public:
+    /**
+     * whether the exec is enabled of vhost.
+     */
+    virtual bool                get_exec_enabled(std::string vhost);
+    /**
+     * get all exec publish directives of vhost.
+     */
+    virtual std::vector<SrsConfDirective*>      get_exec_publishs(std::string vhost);
 // vhost ingest section
 public:
     /**
@@ -822,19 +1098,19 @@ public:
     /**
     * whether ingest is enalbed.
     */
-    virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
+    virtual bool                get_ingest_enabled(SrsConfDirective* conf);
     /**
     * get the ingest ffmpeg tool
     */
-    virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_ffmpeg(SrsConfDirective* conf);
     /**
     * get the ingest input type, file or stream.
     */
-    virtual std::string         get_ingest_input_type(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_input_type(SrsConfDirective* conf);
     /**
     * get the ingest input url.
     */
-    virtual std::string         get_ingest_input_url(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_input_url(SrsConfDirective* conf);
 // log section
 public:
     /**
@@ -858,6 +1134,22 @@ public:
     * @remark, /dev/null to disable it.
     */
     virtual std::string         get_ffmpeg_log_dir();
+// The MPEG-DASH section.
+private:
+    virtual SrsConfDirective*   get_dash(std::string vhost);
+public:
+    // Whether DASH is enabled.
+    virtual bool                get_dash_enabled(std::string vhost);
+    // Get the duration of segment in milliseconds.
+    virtual int                 get_dash_fragment(std::string vhost);
+    // Get the period to update MPD in milliseconds.
+    virtual int                 get_dash_update_period(std::string vhost);
+    // Get the depth of timeshift buffer in milliseconds.
+    virtual int                 get_dash_timeshift(std::string vhost);
+    // Get the base/home dir/path for dash, into which write files.
+    virtual std::string         get_dash_path(std::string vhost);
+    // Get the path for DASH MPD, to generate the MPD file.
+    virtual std::string         get_dash_mpd_file(std::string vhost);
 // hls section
 private:
     /**
@@ -976,6 +1268,11 @@ public:
     */
     virtual bool                get_dvr_enabled(std::string vhost);
     /**
+     * get the filter of dvr to apply to.
+     * @remark user can use srs_config_apply_filter(conf, req):bool to check it.
+     */
+    virtual SrsConfDirective*   get_dvr_apply(std::string vhost);
+    /**
     * get the dvr path, the flv file to save in.
     */
     virtual std::string         get_dvr_path(std::string vhost);
@@ -998,10 +1295,6 @@ public:
 // http api section
 private:
     /**
-    * get the http api directive.
-    */
-    virtual SrsConfDirective*   get_http_api();
-    /**
     * whether http api enabled
     */
     virtual bool                get_http_api_enabled(SrsConfDirective* conf);
@@ -1018,12 +1311,24 @@ public:
     * whether enable crossdomain for http api.
     */
     virtual bool                get_http_api_crossdomain();
+    /**
+     * whether enable the HTTP RAW API.
+     */
+    virtual bool                get_raw_api();
+    /**
+     * whether allow rpc reload.
+     */
+    virtual bool                get_raw_api_allow_reload();
+    /**
+     * whether allow rpc query.
+     */
+    virtual bool                get_raw_api_allow_query();
+    /**
+     * whether allow rpc update.
+     */
+    virtual bool                get_raw_api_allow_update();
 // http stream section
 private:
-    /**
-    * get the http stream directive.
-    */
-    virtual SrsConfDirective*   get_http_stream();
     /**
     * whether http stream enabled.
     */
@@ -1032,6 +1337,7 @@ public:
     /**
     * whether http stream enabled.
     */
+    // TODO: FIXME: rename to http_static.
     virtual bool                get_http_stream_enabled();
     /**
     * get the http stream listen port.
@@ -1041,6 +1347,10 @@ public:
     * get the http stream root dir.
     */
     virtual std::string         get_http_stream_dir();
+    /**
+     * whether enable crossdomain for http static and stream server.
+     */
+    virtual bool                get_http_stream_crossdomain();
 public:
     /**
     * get whether vhost enabled http stream
@@ -1071,10 +1381,6 @@ public:
     * used to generate the flv stream mount path.
     */
     virtual std::string         get_vhost_http_remux_mount(std::string vhost);
-    /**
-    * get whether the hstrs(http stream trigger rtmp source) enabled.
-    */
-    virtual bool                get_vhost_http_remux_hstrs(std::string vhost);
 // http heartbeart section
 private:
     /**
@@ -1122,62 +1428,6 @@ public:
     */
     virtual SrsConfDirective*   get_stats_disk_device();
 };
-
-namespace _srs_internal
-{
-    /**
-    * the buffer of config content.
-    */
-    class SrsConfigBuffer
-    {
-    protected:
-        // last available position.
-        char* last;
-        // end of buffer.
-        char* end;
-        // start of buffer.
-        char* start;
-    public:
-        // current consumed position.
-        char* pos;
-        // current parsed line.
-        int line;
-    public:
-        SrsConfigBuffer();
-        virtual ~SrsConfigBuffer();
-    public:
-        /**
-        * fullfill the buffer with content of file specified by filename.
-        */
-        virtual int fullfill(const char* filename);
-        /**
-        * whether buffer is empty.
-        */
-        virtual bool empty();
-    };
-};
-
-/**
-* deep compare directive.
-*/
-extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
-
-/**
- * helper utilities, used for compare the consts values.
- */
-extern bool srs_config_hls_is_on_error_ignore(std::string strategy);
-extern bool srs_config_hls_is_on_error_continue(std::string strategy);
-extern bool srs_config_ingest_is_file(std::string type);
-extern bool srs_config_ingest_is_stream(std::string type);
-extern bool srs_config_dvr_is_plan_segment(std::string plan);
-extern bool srs_config_dvr_is_plan_session(std::string plan);
-extern bool srs_config_dvr_is_plan_append(std::string plan);
-extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_rtsp(std::string caster);
-extern bool srs_stream_caster_is_flv(std::string caster);
-
-// global config
-extern SrsConfig* _srs_config;
 
 #endif
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_static.hpp>
 
-#if defined(SRS_AUTO_HTTP_CORE)
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -33,8 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
-#include <srs_protocol_buffer.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_stream.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_st.hpp>
@@ -52,10 +50,6 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
-
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsHttpFileServer(root_dir)
@@ -137,7 +131,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     }
     
     // write body.
-    if ((ret = ffd.lseek(offset)) != ERROR_SUCCESS) {
+    if ((ret = ffd.seek2(offset)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -192,7 +186,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     w->header()->set("Content-Range", content_range.str());
     
     // write body.
-    fs.lseek(start);
+    fs.seek2(start);
     
     // send data
     if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
@@ -206,10 +200,12 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
 SrsHttpStaticServer::SrsHttpStaticServer(SrsServer* svr)
 {
     server = svr;
+    _srs_config->subscribe(this);
 }
 
 SrsHttpStaticServer::~SrsHttpStaticServer()
 {
+    _srs_config->unsubscribe(this);
 }
 
 int SrsHttpStaticServer::initialize()
@@ -227,36 +223,17 @@ int SrsHttpStaticServer::initialize()
             continue;
         }
         
-        std::string vhost = conf->arg0();
-        if (!_srs_config->get_vhost_http_enabled(vhost)) {
-            continue;
-        }
-        
-        std::string mount = _srs_config->get_vhost_http_mount(vhost);
-        std::string dir = _srs_config->get_vhost_http_dir(vhost);
-        
-        // replace the vhost variable
-        mount = srs_string_replace(mount, "[vhost]", vhost);
-        
-        // remove the default vhost mount
-        mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
-        
-        // the dir mount must always ends with "/"
-        if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
-            mount += "/";
-        }
-        
-        // mount the http of vhost.
-        if ((ret = mux.handle(mount, new SrsVodStream(dir))) != ERROR_SUCCESS) {
-            srs_error("http: mount dir=%s for vhost=%s failed. ret=%d", dir.c_str(), vhost.c_str(), ret);
+        string pmount;
+        string vhost = conf->arg0();
+        if ((ret = mount_vhost(vhost, pmount)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        if (mount == "/") {
+        if (pmount == "/") {
             default_root_exists = true;
+            std::string dir = _srs_config->get_vhost_http_dir(vhost);
             srs_warn("http: root mount to %s", dir.c_str());
         }
-        srs_trace("http: vhost=%s mount to %s", vhost.c_str(), mount.c_str());
     }
     
     if (!default_root_exists) {
@@ -272,12 +249,63 @@ int SrsHttpStaticServer::initialize()
     return ret;
 }
 
+int SrsHttpStaticServer::mount_vhost(string vhost, string& pmount)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when vhost disabled, ignore.
+    if (!_srs_config->get_vhost_enabled(vhost)) {
+        return ret;
+    }
+    
+    // when vhost http_static disabled, ignore.
+    if (!_srs_config->get_vhost_http_enabled(vhost)) {
+        return ret;
+    }
+    
+    std::string mount = _srs_config->get_vhost_http_mount(vhost);
+    std::string dir = _srs_config->get_vhost_http_dir(vhost);
+    
+    // replace the vhost variable
+    mount = srs_string_replace(mount, "[vhost]", vhost);
+    dir = srs_string_replace(dir, "[vhost]", vhost);
+    
+    // remove the default vhost mount
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
+    
+    // the dir mount must always ends with "/"
+    if (mount != "/" && !srs_string_ends_with(mount, "/")) {
+        mount += "/";
+    }
+    
+    // mount the http of vhost.
+    if ((ret = mux.handle(mount, new SrsVodStream(dir))) != ERROR_SUCCESS) {
+        srs_error("http: mount dir=%s for vhost=%s failed. ret=%d", dir.c_str(), vhost.c_str(), ret);
+        return ret;
+    }
+    srs_trace("http: vhost=%s mount to %s at %s", vhost.c_str(), mount.c_str(), dir.c_str());
+    
+    pmount = mount;
+    
+    return ret;
+}
+
+int SrsHttpStaticServer::on_reload_vhost_added(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    string pmount;
+    if ((ret = mount_vhost(vhost, pmount)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int SrsHttpStaticServer::on_reload_vhost_http_updated()
 {
     int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
     return ret;
 }
-
-#endif
 

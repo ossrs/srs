@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -47,26 +47,59 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #include <windows.h>
     // the type used by this header for windows.
     typedef unsigned long long u_int64_t;
+    typedef u_int64_t uint64_t;
     typedef long long int64_t;
     typedef unsigned int u_int32_t;
     typedef u_int32_t uint32_t;
     typedef int int32_t;
     typedef unsigned char u_int8_t;
+    typedef u_int8_t uint8_t;
     typedef char int8_t;
     typedef unsigned short u_int16_t;
+    typedef u_int16_t uint16_t;
     typedef short int16_t;
     typedef int64_t ssize_t;
     struct iovec {
         void  *iov_base;    /* Starting address */
         size_t iov_len;     /* Number of bytes to transfer */
     };
+
+    // for pid.
+    typedef int pid_t;
+    pid_t getpid(void);
 #endif
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+/**
+* The schema of RTMP url, the following are legal urls:
+*     srs_url_schema_normal:    rtmp://vhost:port/app/stream
+*     srs_url_schema_via   :    rtmp://ip:port/vhost/app/stream
+*     srs_url_schema_vis   :    rtmp://ip:port/app/stream?vhost=xxx
+*     srs_url_schema_vis2  :    rtmp://ip:port/app/stream?domain=xxx
+*/
+enum srs_url_schema
+{
+    // Forbidden.
+    srs_url_schema_forbidden = 0,
+    // Normal RTMP URL, the vhost put in host field, using DNS to resolve the server ip.
+    // For example, rtmp://vhost:port/app/stream
+    srs_url_schema_normal,
+    // VIA(vhost in app), the vhost put in app field.
+    // For example, rtmp://ip:port/vhost/app/stream
+    srs_url_schema_via,
+    // VIS(vhost in stream), the vhost put in query string, keyword use vhost=xxx.
+    // For example, rtmp://ip:port/app/stream?vhost=xxx
+    srs_url_schema_vis,
+    // VIS, keyword use domain=xxx.
+    // For example, rtmp://ip:port/app/stream?domain=xxx
+    srs_url_schema_vis2
+};
 
 // typedefs
 typedef int srs_bool;
@@ -90,25 +123,14 @@ typedef void* srs_rtmp_t;
 typedef void* srs_amf0_t;
     
 /**
- * create/destroy a rtmp protocol stack.
- * @url rtmp url, for example:
- *         rtmp://localhost/live/livestream
+ * Create a RTMP handler.
+ * @param url The RTMP url, for example, rtmp://localhost/live/livestream
  * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
+ * @remark default schema to srs_url_schema_normal, use srs_rtmp_set_schema to change it.
  *
  * @return a rtmp handler, or NULL if error occured.
  */
 extern srs_rtmp_t srs_rtmp_create(const char* url);
-/**
- * create rtmp with url, used for connection specified application.
- * @param url the tcUrl, for exmple:
- *         rtmp://localhost/live
- * @remark this is used to create application connection-oriented,
- *       for example, the bandwidth client used this, no stream specified.
- * @remark default timeout to 30s if not set by srs_rtmp_set_timeout.
- *
- * @return a rtmp handler, or NULL if error occured.
- */
-extern srs_rtmp_t srs_rtmp_create2(const char* url);
 /**
  * set socket timeout
  * @param recv_timeout_ms the timeout for receiving messages in ms.
@@ -169,36 +191,47 @@ extern int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp);
 extern int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
     const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
 );
-
+    
 /**
-* connect to rtmp vhost/app
-* category: publish/play
-* previous: handshake
-* next: publish or play
-*
-* @return 0, success; otherswise, failed.
-*/
+ * Set the schema of URL when connect to tcUrl by srs_rtmp_connect_app.
+ * @param schema, The schema of URL, @see srs_url_schema.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_set_schema(srs_rtmp_t rtmp, enum srs_url_schema schema);
+    
+/**
+ * Connect to RTMP tcUrl(Vhost/App), similar to flash AS3 NetConnection.connect(tcUrl).
+ * @remark When connected to server, user can retrieve informations from RTMP handler,
+ *      for example, use srs_rtmp_get_server_id to get server ip/pid/cid.
+ * @return 0, success; otherswise, failed.
+ */
 extern int srs_rtmp_connect_app(srs_rtmp_t rtmp);
-
+    
 /**
-* connect to server, get the debug srs info.
-* 
-* SRS debug info:
-* @param srs_server_ip, 128bytes, debug info, server ip client connected at.
-* @param srs_server, 128bytes, server info.
-* @param srs_primary, 128bytes, primary authors.
-* @param srs_authors, 128bytes, authors.
-* @param srs_version, 32bytes, server version.
-* @param srs_id, int, debug info, client id in server log.
-* @param srs_pid, int, debug info, server pid in log.
-*
-* @return 0, success; otherswise, failed.
-*/
-extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128], char srs_server[128], 
-    char srs_primary[128], char srs_authors[128], 
-    char srs_version[32], int* srs_id, int* srs_pid
-);
+ * Retrieve server ip from RTMP handler.
+ * @Param ip A NULL terminated string specifies the server ip.
+ * @Param pid An int specifies the PID of server. -1 is no PID information.
+ * @Param cid An int specifies the CID of connection. -1 is no CID information.
+ * @remark For SRS, ip/pid/cid is the UUID of a client. For other server, these values maybe unknown.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_id(srs_rtmp_t rtmp, char** ip, int* pid, int* cid);
+    
+/**
+ * Retrieve server signature from RTMP handler.
+ * @Param sig A NULL terminated string specifies the server signature.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_sig(srs_rtmp_t rtmp, char** sig);
+    
+/**
+ * Retrieve server version from RTMP handler, which in major.minor.revision.build format.
+ * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
+ * @return 0, success; otherswise, failed.
+ */
+extern int srs_rtmp_get_server_version(srs_rtmp_t rtmp, int* major, int* minor, int* revision, int* build);
 
 /**
 * play a live/vod stream.
@@ -261,6 +294,7 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 *             FlvTagAudio, @see "E.4.2.1 AUDIODATA"
 *            FlvTagVideo, @see "E.4.3.1 VIDEODATA"
 *            FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
+*            User can free the packet by srs_rtmp_free_packet.
 * @param size, size of packet.
 * @return the error code. 0 for success; otherwise, error.
 *
@@ -272,11 +306,17 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 * @return 0, success; otherswise, failed.
 */
 extern int srs_rtmp_read_packet(srs_rtmp_t rtmp, 
-    char* type, u_int32_t* timestamp, char** data, int* size
+    char* type, uint32_t* timestamp, char** data, int* size
 );
+// @Param data User should never free it anymore.
 extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
-    char type, u_int32_t timestamp, char* data, int size
+    char type, uint32_t timestamp, char* data, int size
 );
+    
+/**
+ * Free the packet allocated by srs_rtmp_read_packet.
+ */
+extern void srs_rtmp_free_packet(char* data);
 
 /**
 * whether type is script data and the data is onMetaData.
@@ -330,9 +370,9 @@ extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
 * @example /trunk/research/librtmp/srs_audio_raw_publish.c
 *
 * @remark for aac, the frame must be in ADTS format. 
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS
 * @remark for aac, only support profile 1-4, AAC main/LC/SSR/LTP,
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23, 1.5.1.1 Audio object type
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 23, 1.5.1.1 Audio object type
 *
 * @see https://github.com/ossrs/srs/issues/212
 * @see E.4.2.1 AUDIODATA of video_file_format_spec_v10_1.pdf
@@ -341,7 +381,7 @@ extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
 */
 extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char* frame, int frame_size, u_int32_t timestamp
+    char* frame, int frame_size, uint32_t timestamp
 );
 
 /**
@@ -351,7 +391,7 @@ extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
 * @param ac_raw_size the size of aac raw data.
 *
 * @reamrk used to check whether current frame is in adts format.
-*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+*       @see ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS
 * @example /trunk/research/librtmp/srs_aac_raw_publish.c
 *
 * @return 0 false; otherwise, true.
@@ -379,7 +419,7 @@ extern int srs_aac_adts_frame_size(char* aac_raw_data, int ac_raw_size);
 *       frames can be one or more than one frame,
 *       each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
 *       for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
-*       about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+*       about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
 * @param frames_size the size of h264 raw data. 
 *       assert frames_size > 0, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
@@ -427,7 +467,7 @@ User also can send one by one:
     srs_h264_write_raw_frames('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts) 
 */
 extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp, 
-    char* frames, int frames_size, u_int32_t dts, u_int32_t pts
+    char* frames, int frames_size, uint32_t dts, uint32_t pts
 );
 /**
 * whether error_code is dvbsp(drop video before sps/pps/sequence-header) error.
@@ -471,6 +511,83 @@ extern srs_bool srs_h264_startswith_annexb(
     char* h264_raw_data, int h264_raw_size, 
     int* pnb_start_code
 );
+    
+/*************************************************************
+ *************************************************************
+ * MP4 muxer and demuxer.
+ * @example /trunk/research/librtmp/srs_ingest_mp4.c
+ *************************************************************
+ *************************************************************/
+typedef void* srs_mp4_t;
+// The sample struct of mp4.
+typedef struct {
+    // The handler type, it's SrsMp4HandlerType.
+    uint32_t handler_type;
+    
+    // The dts in milliseconds.
+    uint32_t dts;
+    // The codec id.
+    //      video: SrsVideoCodecId.
+    //      audio: SrsAudioCodecId.
+    uint16_t codec;
+    // The frame trait, some characteristic:
+    //      video: SrsVideoAvcFrameTrait.
+    //      audio: SrsAudioAacFrameTrait.
+    uint16_t frame_trait;
+    
+    // The video pts in milliseconds. Ignore for audio.
+    uint32_t pts;
+    // The video frame type, it's SrsVideoAvcFrameType.
+    uint16_t frame_type;
+    
+    // The audio sample rate, it's SrsAudioSampleRate.
+    uint8_t sample_rate;
+    // The audio sound bits, it's SrsAudioSampleBits.
+    uint8_t sound_bits;
+    // The audio sound type, it's SrsAudioChannels.
+    uint8_t channels;
+    
+    // The size of sample payload in bytes.
+    uint32_t nb_sample;
+    // The output sample data, user must free it by srs_mp4_free_sample.
+    uint8_t* sample;
+} srs_mp4_sample_t;
+/**
+ * Open mp4 file for muxer(write) or demuxer(read). 
+ * @return A MP4 demuxer, NULL if failed.
+ */
+extern srs_mp4_t srs_mp4_open_read(const char* file);
+/**
+ * Close the MP4 demuxer.
+ */
+extern void srs_mp4_close(srs_mp4_t mp4);
+/**
+ * Initialize mp4 demuxer in non-seek mode.
+ * @remark Only support non-seek mode, that is fmp4 or moov before mdata.
+ *      For the live streaming, we must feed stream frame by frame.
+ */
+extern int srs_mp4_init_demuxer(srs_mp4_t mp4);
+/**
+ * Read a sample form mp4.
+ * @remark User can use srs_mp4_sample_to_flv_tag to convert mp4 sampel to flv tag.
+ *      Use the srs_mp4_to_flv_tag_size to calc the flv tag data size to alloc.
+ */
+extern int srs_mp4_read_sample(srs_mp4_t mp4, srs_mp4_sample_t* sample);
+/**
+ * Free the allocated mp4 sample.
+ */
+extern void srs_mp4_free_sample(srs_mp4_sample_t* sample);
+/**
+ * Calc the size of flv tag, for the mp4 sample to convert to.
+ */
+extern int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* sample);
+/**
+ * Covert mp4 sample to flv tag.
+ */
+extern int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* sample, char* type, uint32_t* time, char* data, int32_t size);
+/* error code */
+/* whether the error code indicates EOF */
+extern srs_bool srs_mp4_is_eof(int error_code);
 
 /*************************************************************
 **************************************************************
@@ -482,9 +599,19 @@ extern srs_bool srs_h264_startswith_annexb(
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
-/* open flv file for both read/write. */
+/**
+ * Open FLV file in demux mode.
+ * @return A FLV demuxer, NULL if failed.
+ */
 extern srs_flv_t srs_flv_open_read(const char* file);
+/**
+ * Open FlV file in mux mode.
+ * @return A FLV muxer, NULL if failed.
+ */
 extern srs_flv_t srs_flv_open_write(const char* file);
+/**
+ * Close the FLV demuxer or muxer.
+ */
 extern void srs_flv_close(srs_flv_t flv);
 /**
 * read the flv header. 9bytes header. 
@@ -512,7 +639,7 @@ extern int srs_flv_read_header(srs_flv_t flv, char header[9]);
 * @remark, user must ensure the next is a tag, srs never check it.
 */
 extern int srs_flv_read_tag_header(srs_flv_t flv, 
-    char* ptype, int32_t* pdata_size, u_int32_t* ptime
+    char* ptype, int32_t* pdata_size, uint32_t* ptime
 );
 /**
 * read the tag data. drop the 4bytes previous tag size 
@@ -666,8 +793,8 @@ extern int64_t srs_utils_recv_bytes(srs_rtmp_t rtmp);
 * @remark, video only support h.264.
 */
 extern int srs_utils_parse_timestamp(
-    u_int32_t time, char type, char* data, int size,
-    u_int32_t* ppts
+    uint32_t time, char type, char* data, int size,
+    uint32_t* ppts
 );
     
 /**
@@ -910,38 +1037,52 @@ extern const char* srs_human_flv_audio_sound_type2string(char sound_type);
 *   it's static shared const string.
 */
 extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type);
+    
+/**
+ * Format the RTMP packet to human readable buffer.
+ * @return Whether parse RTMP packet ok. 0, success; otherwise, failed.
+ */
+extern int srs_human_format_rtmp_packet(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size);
+extern int srs_human_format_rtmp_packet2(char* buffer, int nb_buffer, char type, uint32_t timestamp, char* data, int size,
+    uint32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
 
 /**
-* print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
-* and use srs_human_raw for script data body.
-* @return an error code for parse the timetstamp to dts and pts.
+ * Format current time to human readable string.
+ * @return A NULL terminated string.
  */
-extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
-/**
- * @param pre_timestamp the previous timestamp in ms to calc the diff.
- */
-extern int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp);
-/**
- * @param pre_now the previous system time in ms to calc the ndiff.
- */
-extern int srs_human_print_rtmp_packet3(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now);
-/**
- * @param starttime the rtmpdump starttime in ms.
- * @param nb_packets the number of packets received, to calc the packets interval in ms.
- */
-extern int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp, int64_t pre_now, int64_t starttime, int64_t nb_packets);
-
-// log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
-
-// when disabled log, donot compile it.
+    
+#ifndef _WIN32
+    // for getpid.
+    #include <unistd.h>
+#endif
+// The log function for librtmp.
+// User can disable it by define macro SRS_DISABLE_LOG.
+// Or user can directly use them, or define the alias by:
+//      #define trace(msg, ...) srs_human_trace(msg, ##__VA_ARGS__)
+//      #define warn(msg, ...) srs_human_warn(msg, ##__VA_ARGS__)
+//      #define error(msg, ...) srs_human_error(msg, ##__VA_ARGS__)
 #ifdef SRS_DISABLE_LOG
     #define srs_human_trace(msg, ...) (void)0
+    #define srs_human_warn(msg, ...) (void)0
+    #define srs_human_error(msg, ...) (void)0
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) (void)0
 #else
-    #define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+    #include <string.h>
+    #include <errno.h>
+    #define srs_human_trace(msg, ...) \
+        fprintf(stdout, "[T][%d][%s] ", getpid(), srs_human_format_time());\
+        fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n")
+    #define srs_human_warn(msg, ...) \
+        fprintf(stdout, "[W][%d][%s][%d] ", getpid(), srs_human_format_time(), errno); \
+        fprintf(stdout, msg, ##__VA_ARGS__); \
+        fprintf(stdout, "\n")
+    #define srs_human_error(msg, ...) \
+        fprintf(stderr, "[E][%d][%s][%d] ", getpid(), srs_human_format_time(), errno);\
+        fprintf(stderr, msg, ##__VA_ARGS__); \
+        fprintf(stderr, " (%s)\n", strerror(errno))
+    #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 #endif
 
@@ -949,7 +1090,7 @@ extern const char* srs_human_format_time();
 **************************************************************
 * IO hijack, use your specified io functions.
 **************************************************************
-*************************************************************/
+ *************************************************************/
 // the void* will convert to your handler for io hijack.
 typedef void* srs_hijack_io_t;
 #ifdef SRS_HIJACK_IO
@@ -964,82 +1105,85 @@ typedef void* srs_hijack_io_t;
     extern srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp);
 #endif
 // define the following macro and functions in your module to hijack the io.
-// the example @see https://github.com/winlinvip/st-load
+// the example @see https://github.com/ossrs/srs-bench
 // which use librtmp but use its own io(use st also).
 #ifdef SRS_HIJACK_IO
     /**
-    * create hijack.
-    * @return NULL for error; otherwise, ok.
-    */
+     * create hijack.
+     * @return NULL for error; otherwise, ok.
+     */
     extern srs_hijack_io_t srs_hijack_io_create();
     /**
-    * destroy the context, user must close the socket.
-    */
+     * destroy the context, user must close the socket.
+     */
     extern void srs_hijack_io_destroy(srs_hijack_io_t ctx);
     /**
-    * create socket, not connect yet.
-    * @return 0, success; otherswise, failed.
-    */
-    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx);
+     * create socket, not connect yet.
+     * @param owner, the rtmp context which create this socket.
+     * @return 0, success; otherswise, failed.
+     */
+    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner);
     /**
-    * connect socket at server_ip:port.
-    * @return 0, success; otherswise, failed.
-    */
+     * connect socket at server_ip:port.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port);
     /**
-    * read from socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * read from socket.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * set the socket recv timeout.
-    * @return 0, success; otherswise, failed.
-    */
-    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+     * set the socket recv timeout in ms.
+     * @return 0, success; otherswise, failed.
+     */
+    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * get the socket recv timeout.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket recv timeout.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx);
     /**
-    * get the socket recv bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket recv bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx);
     /**
-    * set the socket send timeout.
-    * @return 0, success; otherswise, failed.
-    */
-    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+     * set the socket send timeout in ms.
+     * @return 0, success; otherswise, failed.
+     */
+    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * get the socket send timeout.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket send timeout.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_send_timeout(srs_hijack_io_t ctx);
     /**
-    * get the socket send bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * get the socket send bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int64_t srs_hijack_io_get_send_bytes(srs_hijack_io_t ctx);
     /**
-    * writev of socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * writev of socket.
+     * @return 0, success; otherswise, failed.
+     * @remark We assume that the writev always write all data to peer, like what ST or block-socket done.
+     */
     extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
     /**
-    * whether the timeout is never timeout.
-    * @return 0, success; otherswise, failed.
-    */
-    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+     * whether the timeout is never timeout in ms.
+     * @return 0, with timeout specified; otherwise, never timeout.
+     */
+    extern int srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
     /**
-    * read fully, fill the buf exactly size bytes.
-    * @return 0, success; otherswise, failed.
-    */
+     * read fully, fill the buf exactly size bytes.
+     * @return 0, success; otherswise, failed.
+     */
     extern int srs_hijack_io_read_fully(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * write bytes to socket.
-    * @return 0, success; otherswise, failed.
-    */
+     * write bytes to socket.
+     * @return 0, success; otherswise, failed.
+     * @remark We assume that the write always write all data to peer, like what ST or block-socket done.
+     */
     extern int srs_hijack_io_write(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nwrite);
 #endif
 
@@ -1083,10 +1227,6 @@ typedef void* srs_hijack_io_t;
     #define write _write
     #define read _read
     
-    // for pid.
-    typedef int pid_t;
-    pid_t getpid(void);
-    
     // for socket.
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
     typedef int64_t useconds_t;
@@ -1097,6 +1237,35 @@ typedef void* srs_hijack_io_t;
     // others.
     #define snprintf _snprintf
 #endif
+
+/*************************************************************
+ *************************************************************
+ * Deprecated APIs, maybe removed in future versions.
+ *************************************************************
+ *************************************************************/
+/**
+ * Deprecated, for bandwidth test check only.
+ */
+extern srs_rtmp_t srs_rtmp_create2(const char* url);
+    
+/**
+ * Deprecated, use seperate function to retrieve information from rtmp,
+ *      for example, use srs_rtmp_get_server_ip to get server ip.
+ */
+extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128], char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+);
+    
+/**
+ * Deprecated, use srs_human_format_rtmp_packet instead.
+ */
+extern int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size);
+extern int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp);
+extern int srs_human_print_rtmp_packet3(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now);
+extern int srs_human_print_rtmp_packet4(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp, int64_t pre_now,
+    int64_t starttime, int64_t nb_packets);
 
 #ifdef __cplusplus
 }

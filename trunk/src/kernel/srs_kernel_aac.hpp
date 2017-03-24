@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,14 +35,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-class SrsStream;
+class SrsBuffer;
 class SrsFileWriter;
 class SrsFileReader;
 
 /**
-* encode data to aac file.
-*/
-class SrsAacEncoder
+ * Transmux the RTMP packets to AAC stream.
+ */
+class SrsAacTransmuxer
 {
 private:
     SrsFileWriter* _fs;
@@ -52,10 +52,10 @@ private:
     int8_t aac_channels;
     bool got_sequence_header;
 private:
-    SrsStream* tag_stream;
+    SrsBuffer* tag_stream;
 public:
-    SrsAacEncoder();
-    virtual ~SrsAacEncoder();
+    SrsAacTransmuxer();
+    virtual ~SrsAacTransmuxer();
 public:
     /**
     * initialize the underlayer file stream.

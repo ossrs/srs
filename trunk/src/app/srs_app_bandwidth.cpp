@@ -1,8 +1,8 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
@@ -190,8 +190,8 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     SrsBandwidthSample publish_sample;
     
     // timeout for a packet.
-    _rtmp->set_send_timeout(play_sample.duration_ms * 1000 * 2);
-    _rtmp->set_recv_timeout(publish_sample.duration_ms * 1000 * 2);
+    _rtmp->set_send_timeout(play_sample.duration_ms * 2);
+    _rtmp->set_recv_timeout(publish_sample.duration_ms * 2);
 
     // start test.
     srs_update_system_time_ms();

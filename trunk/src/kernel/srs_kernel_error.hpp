@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -97,7 +97,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_DIR_EXISTS             1056
 #define ERROR_SYSTEM_CREATE_DIR             1057
 #define ERROR_SYSTEM_KILL                   1058
-#define ERROR_SYSTEM_DNS_RESOLVE            1059
+#define ERROR_SYSTEM_CONFIG_PERSISTENCE     1059
+#define ERROR_SYSTEM_CONFIG_RAW             1060
+#define ERROR_SYSTEM_CONFIG_RAW_DISABLED    1061
+#define ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED 1062
+#define ERROR_SYSTEM_CONFIG_RAW_PARAMS      1063
+#define ERROR_SYSTEM_FILE_NOT_EXISTS        1064
+#define ERROR_SYSTEM_HOURGLASS_RESOLUTION   1065
+#define ERROR_SYSTEM_DNS_RESOLVE            1066
+#define ERROR_SYSTEM_FRAGMENT_UNLINK        1067
+#define ERROR_SYSTEM_FRAGMENT_RENAME        1068
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
@@ -152,9 +161,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTSP_AUDIO_CONFIG             2047
 #define ERROR_RTMP_STREAM_NOT_FOUND         2048
 #define ERROR_RTMP_CLIENT_NOT_FOUND         2049
+#define ERROR_OpenSslCreateHMAC             2050
 //                                           
 // system control message, 
 // not an error, but special control logic.
+//
+// connection is redirect to another server.
+#define ERROR_CONTROL_REDIRECT              2997
 // sys ctl: rtmp close stream, support replay.
 #define ERROR_CONTROL_RTMP_CLOSE            2998
 // FMLE stop publish and republish.
@@ -193,8 +206,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_ENCODER_VBITRATE              3027
 #define ERROR_ENCODER_FORK                  3028
 #define ERROR_ENCODER_LOOP                  3029
-#define ERROR_ENCODER_OPEN                  3030
-#define ERROR_ENCODER_DUP2                  3031
+#define ERROR_FORK_OPEN_LOG                 3030
+#define ERROR_FORK_DUP2_LOG                 3031
 #define ERROR_ENCODER_PARSE                 3032
 #define ERROR_ENCODER_NO_INPUT              3033
 #define ERROR_ENCODER_NO_OUTPUT             3034
@@ -230,9 +243,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RESPONSE_CODE                 3064
 #define ERROR_RESPONSE_DATA                 3065
 #define ERROR_REQUEST_DATA                  3066
+#define ERROR_EDGE_PORT_INVALID             3067
+#define ERROR_EXPECT_FILE_IO                3068
+#define ERROR_MP4_BOX_OVERFLOW              3069
+#define ERROR_MP4_BOX_REQUIRE_SPACE         3070
+#define ERROR_MP4_BOX_ILLEGAL_TYPE          3071
+#define ERROR_MP4_BOX_ILLEGAL_SCHEMA        3072
+#define ERROR_MP4_BOX_STRING                3073
+#define ERROR_MP4_BOX_ILLEGAL_BRAND         3074
+#define ERROR_MP4_ESDS_SL_Config            3075
+#define ERROR_MP4_ILLEGAL_MOOV              3076
+#define ERROR_MP4_ILLEGAL_HANDLER           3077
+#define ERROR_MP4_ILLEGAL_TRACK             3078
+#define ERROR_MP4_MOOV_OVERFLOW             3079
+#define ERROR_MP4_ILLEGAL_SAMPLES           3080
+#define ERROR_MP4_ILLEGAL_TIMESTAMP         3081
+#define ERROR_DVR_CANNOT_APPEND             3082
+#define ERROR_DVR_ILLEGAL_PLAN              3083
+#define ERROR_FLV_REQUIRE_SPACE             3084
+#define ERROR_MP4_AVCC_CHANGE               3085
+#define ERROR_MP4_ASC_CHANGE                3086
+#define ERROR_DASH_WRITE_FAILED             3087
 
 ///////////////////////////////////////////////////////
-// HTTP/StreamCaster protocol error.
+// HTTP/StreamCaster/KAFKA protocol error.
 ///////////////////////////////////////////////////////
 #define ERROR_HTTP_PATTERN_EMPTY            4000
 #define ERROR_HTTP_PATTERN_DUPLICATED       4001
@@ -264,6 +298,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AVC_NALU_UEV                  4027
 #define ERROR_AAC_BYTES_INVALID             4028
 #define ERROR_HTTP_REQUEST_EOF              4029
+#define ERROR_KAFKA_CODEC_STRING            4030
+#define ERROR_KAFKA_CODEC_BYTES             4031
+#define ERROR_KAFKA_CODEC_REQUEST           4032
+#define ERROR_KAFKA_CODEC_RESPONSE          4033
+#define ERROR_KAFKA_CODEC_ARRAY             4034
+#define ERROR_KAFKA_CODEC_METADATA          4035
+#define ERROR_KAFKA_CODEC_MESSAGE           4036
+#define ERROR_KAFKA_CODEC_PRODUCER          4037
+#define ERROR_HTTP_302_INVALID              4038
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

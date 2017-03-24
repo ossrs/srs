@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -66,24 +66,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 
 #include <srs_kernel_utility.hpp>
-
-#ifndef ST_UTIME_NO_TIMEOUT
-    #define ST_UTIME_NO_TIMEOUT -1
-#endif
+#include <srs_kernel_consts.hpp>
 
 // when io not hijacked, use simple socket, the block sync stream.
 #ifndef SRS_HIJACK_IO
     struct SrsBlockSyncSocket
     {
         SOCKET fd;
-        int64_t recv_timeout;
-        int64_t send_timeout;
-        int64_t recv_bytes;
-        int64_t send_bytes;
+        int64_t rbytes;
+        int64_t sbytes;
+        // The send/recv timeout in ms.
+        int64_t rtm;
+        int64_t stm;
         
         SrsBlockSyncSocket() {
-            send_timeout = recv_timeout = ST_UTIME_NO_TIMEOUT;
-            recv_bytes = send_bytes = 0;
+            stm = rtm = SRS_CONSTS_NO_TMMS;
+            rbytes = sbytes = 0;
             
             SOCKET_RESET(fd);
             SOCKET_SETUP();
@@ -104,7 +102,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         srs_freep(skt);
     }
-    int srs_hijack_io_create_socket(srs_hijack_io_t ctx)
+    int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
@@ -156,66 +154,75 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             return ERROR_SOCKET_READ;
         }
         
-        skt->recv_bytes += nb_read;
+        skt->rbytes += nb_read;
         
         return ret;
     }
-    int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
+    int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
-        int sec = (int)(timeout_us / 1000000LL);
-        int microsec = (int)(timeout_us % 1000000LL);
+        // The default for this option is zero,
+        // which indicates that a receive operation shall not time out.
+        int32_t sec = 0;
+        int32_t usec = 0;
         
-        sec = srs_max(0, sec);
-        microsec = srs_max(0, microsec);
+        if (tm != SRS_CONSTS_NO_TMMS) {
+            sec = (int32_t)(tm / 1000);
+            usec = (int32_t)((tm % 1000)*1000);
+        }
         
-        struct timeval tv = { sec , microsec };
+        struct timeval tv = { sec , usec };
         if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
             return SOCKET_ERRNO();
         }
-        skt->recv_timeout = timeout_us;
+        
+        skt->rtm = tm;
         
         return ERROR_SUCCESS;
     }
     int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-        return skt->recv_timeout;
+        return skt->rtm;
     }
     int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-        return skt->recv_bytes;
+        return skt->rbytes;
     }
-    int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
+    int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
-        int sec = (int)(timeout_us / 1000000LL);
-        int microsec = (int)(timeout_us % 1000000LL);
-
-        sec = srs_max(0, sec);
-        microsec = srs_max(0, microsec);
-
-        struct timeval tv = { sec , microsec };
+        // The default for this option is zero,
+        // which indicates that a receive operation shall not time out.
+        int32_t sec = 0;
+        int32_t usec = 0;
+        
+        if (tm != SRS_CONSTS_NO_TMMS) {
+            sec = (int32_t)(tm / 1000);
+            usec = (int32_t)((tm % 1000)*1000);
+        }
+        
+        struct timeval tv = { sec , usec };
         if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
             return SOCKET_ERRNO();
         }
 
-        skt->send_timeout = timeout_us;
+        skt->stm = tm;
         
         return ERROR_SUCCESS;
     }
     int64_t srs_hijack_io_get_send_timeout(srs_hijack_io_t ctx)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-        return skt->send_timeout;
+        return skt->stm;
     }
     int64_t srs_hijack_io_get_send_bytes(srs_hijack_io_t ctx)
     {
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-        return skt->send_bytes;
+        return skt->sbytes;
     }
     int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite)
     {
@@ -241,13 +248,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             return ERROR_SOCKET_WRITE;
         }
         
-        skt->send_bytes += nb_write;
+        skt->sbytes += nb_write;
         
         return ret;
     }
-    bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t timeout_us)
+    int srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm)
     {
-        return timeout_us == (int64_t)ST_UTIME_NO_TIMEOUT;
+        return tm == SRS_CONSTS_NO_TMMS;
     }
     int srs_hijack_io_read_fully(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread)
     {
@@ -273,7 +280,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         if (nread) {
             *nread = nb_read;
         }
-        skt->recv_bytes += nb_read;
+        skt->rbytes += nb_read;
         
         return ret;
     }
@@ -298,7 +305,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             return ERROR_SOCKET_WRITE;
         }
         
-        skt->send_bytes += nb_write;
+        skt->sbytes += nb_write;
         
         return ret;
     }
@@ -322,10 +329,10 @@ srs_hijack_io_t SimpleSocketStream::hijack_io()
     return io;
 }
 
-int SimpleSocketStream::create_socket()
+int SimpleSocketStream::create_socket(srs_rtmp_t owner)
 {
     srs_assert(io);
-    return srs_hijack_io_create_socket(io);
+    return srs_hijack_io_create_socket(io, owner);
 }
 
 int SimpleSocketStream::connect(const char* server_ip, int port)
@@ -334,7 +341,7 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
     return srs_hijack_io_connect(io, server_ip, port);
 }
 
-// ISrsBufferReader
+// ISrsReader
 int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);
@@ -342,10 +349,10 @@ int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 }
 
 // ISrsProtocolReader
-void SimpleSocketStream::set_recv_timeout(int64_t timeout_us)
+void SimpleSocketStream::set_recv_timeout(int64_t tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_recv_timeout(io, timeout_us);
+    srs_hijack_io_set_recv_timeout(io, tm);
 }
 
 int64_t SimpleSocketStream::get_recv_timeout()
@@ -361,10 +368,10 @@ int64_t SimpleSocketStream::get_recv_bytes()
 }
 
 // ISrsProtocolWriter
-void SimpleSocketStream::set_send_timeout(int64_t timeout_us)
+void SimpleSocketStream::set_send_timeout(int64_t tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_send_timeout(io, timeout_us);
+    srs_hijack_io_set_send_timeout(io, tm);
 }
 
 int64_t SimpleSocketStream::get_send_timeout()
@@ -386,10 +393,10 @@ int SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 }
 
 // ISrsProtocolReaderWriter
-bool SimpleSocketStream::is_never_timeout(int64_t timeout_us)
+bool SimpleSocketStream::is_never_timeout(int64_t tm)
 {
     srs_assert(io);
-    return srs_hijack_io_is_never_timeout(io, timeout_us);
+    return srs_hijack_io_is_never_timeout(io, tm);
 }
 
 int SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)

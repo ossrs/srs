@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -37,7 +37,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_config.hpp>
@@ -57,7 +57,7 @@ char flv_header[] = {'F', 'L', 'V',
 
 string serialFlv(SrsSharedPtrMessage *msg)
 {
-   SrsStream *stream = new SrsStream;
+   SrsBuffer *stream = new SrsBuffer;
 
    int size = 15 + msg->size;
    char *byte = new char[size];
@@ -147,7 +147,7 @@ public:
         }
 
         char box_header[8];
-        SrsStream ss;
+        SrsBuffer ss;
         ss.initialize(box_header, 8);
         ss.write_4bytes(8 + data.size());
         ss.write_string("mdat");
@@ -260,7 +260,7 @@ private:
     string path;
 };
 
-SrsHds::SrsHds(SrsSource *s)
+SrsHds::SrsHds()
     : currentSegment(NULL)
     , fragment_index(1)
     , video_sh(NULL)
@@ -273,7 +273,6 @@ SrsHds::SrsHds(SrsSource *s)
 
 SrsHds::~SrsHds()
 {
-
 }
 
 int SrsHds::on_publish(SrsRequest *req)
@@ -332,7 +331,7 @@ int SrsHds::on_video(SrsSharedPtrMessage* msg)
         return ret;
     }
 
-    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvVideo::sh(msg->payload, msg->size)) {
         srs_freep(video_sh);
         video_sh = msg->copy();
     }
@@ -384,7 +383,7 @@ int SrsHds::on_audio(SrsSharedPtrMessage* msg)
         return ret;
     }
 
-    if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvAudio::sh(msg->payload, msg->size)) {
         srs_freep(audio_sh);
         audio_sh = msg->copy();
     }
@@ -477,7 +476,7 @@ int SrsHds::flush_bootstrap()
 {
     int ret = ERROR_SUCCESS;
 
-    SrsStream abst;
+    SrsBuffer abst;
 
     int size = 1024*100;
 

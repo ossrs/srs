@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_hooks.hpp>
 
-#ifdef SRS_AUTO_HTTP_CALLBACK
-
 #include <sstream>
 using namespace std;
 
@@ -38,16 +36,17 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
-#define SRS_HTTP_HEADER_BUFFER        1024
-#define SRS_HTTP_READ_BUFFER    4096
-#define SRS_HTTP_BODY_BUFFER        32 * 1024
+#define SRS_HTTP_HEADER_BUFFER 1024
+#define SRS_HTTP_READ_BUFFER 4096
+#define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
-// the timeout for hls notify, in us.
-#define SRS_HLS_NOTIFY_TIMEOUT_US (int64_t)(10*1000*1000LL)
+// the timeout for hls notify, in ms.
+#define SRS_HLS_NOTIFY_TMMS (10 * 1000)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -63,21 +62,23 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_connect") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("pageUrl", req->pageUrl)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_connect"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
+    obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_connect uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -97,21 +98,23 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_close") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("send_bytes", send_bytes) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("recv_bytes", recv_bytes) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_close"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("send_bytes", SrsJsonAny::integer(send_bytes));
+    obj->set("recv_bytes", SrsJsonAny::integer(recv_bytes));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_close uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -131,21 +134,23 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_publish") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT  // Add tcUrl for auth publish rtmp stream client
-        << SRS_JFIELD_STR("stream", req->stream)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_publish"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_publish uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -165,20 +170,22 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_unpublish") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_unpublish"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_unpublish uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -198,21 +205,23 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_play") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("pageUrl", req->pageUrl)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_play"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_play uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -232,20 +241,22 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     
     int client_id = _srs_context->get_id();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_stop") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_stop"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_stop uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -266,22 +277,24 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     int client_id = cid;
     std::string cwd = _srs_config->cwd();
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_dvr") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("file", file)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_dvr"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
+    obj->set("file", SrsJsonAny::str(file.c_str()));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_dvr uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -308,27 +321,29 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
         ts_url = prefix + "/" + ts_url;
     }
     
-    std::stringstream ss;
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_hls") << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("duration", duration) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("file", file) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("url", ts_url) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("m3u8", m3u8) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("m3u8_url", m3u8_url) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("seq_no", sn)
-        << SRS_JOBJECT_END;
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("action", SrsJsonAny::str("on_hls"));
+    obj->set("client_id", SrsJsonAny::integer(client_id));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("duration", SrsJsonAny::number(duration));
+    obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
+    obj->set("file", SrsJsonAny::str(file.c_str()));
+    obj->set("url", SrsJsonAny::str(ts_url.c_str()));
+    obj->set("m3u8", SrsJsonAny::str(m3u8.c_str()));
+    obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
+    obj->set("seq_no", SrsJsonAny::integer(sn));
         
-    std::string data = ss.str();
+    std::string data = obj->dumps();
     std::string res;
     int status_code;
-    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
+    
+    SrsHttpClient http;
+    if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_hls uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
@@ -366,7 +381,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     }
     
     SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT_US)) != ERROR_SUCCESS) {
+    if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TMMS)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -410,7 +425,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     return ret;
 }
 
-int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& res)
+int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
     int ret = ERROR_SUCCESS;
     
@@ -420,13 +435,12 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         return ret;
     }
     
-    SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+    if ((ret = hc->initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
         return ret;
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
+    if ((ret = hc->post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
@@ -438,7 +452,7 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
     
     // ensure the http status is ok.
     // https://github.com/ossrs/srs/issues/158
-    if (code != SRS_CONSTS_HTTP_OK) {
+    if (code != SRS_CONSTS_HTTP_OK && code != SRS_CONSTS_HTTP_Created) {
         ret = ERROR_HTTP_STATUS_INVALID;
         srs_error("invalid response status=%d. ret=%d", code, ret);
         return ret;
@@ -478,14 +492,12 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         srs_error("invalid response without code, ret=%d", ret);
         return ret;
     }
-
+    
     if ((res_code->to_integer()) != ERROR_SUCCESS) {
         ret = ERROR_RESPONSE_CODE;
         srs_error("error response code=%d. ret=%d", res_code->to_integer(), ret);
         return ret;
     }
-
+    
     return ret;
 }
-
-#endif

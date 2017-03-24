@@ -68,15 +68,19 @@ __mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
 done
 
 # variables for makefile for all modules.
-__mphonys="" && __mdefaults="" && __mcleanups=""
+__mphonys="" && __mdefaults="" && __mcleanups="" && __makefiles=""
 # add each modules for application
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo "install module at: $SRS_MODULE"
     . $SRS_MODULE/config
-    if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
-    __mphonys="$__mphonys $SRS_MODULE_NAME"
-    __mdefaults="$__mdefaults $SRS_MODULE_NAME"
-    __mcleanups="$__mcleanups $SRS_MODULE_NAME"
+    if [[ $SRS_MODULE_MAKEFILE != "" ]]; then
+        __makefiles="$__makefiles $SRS_MODULE_MAKEFILE"
+    fi
+    if [[ 0 -ne ${#SRS_MODULE_MAIN[@]} ]]; then
+        __mphonys="$__mphonys $SRS_MODULE_NAME"
+        __mdefaults="$__mdefaults $SRS_MODULE_NAME"
+        __mcleanups="$__mcleanups $SRS_MODULE_NAME"
+    fi
 done
 
 #####################################################################################
@@ -88,7 +92,9 @@ WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
 # for library compile
-LibraryCompile=" -fPIC"
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == YES ]]; then
+    LibraryCompile=" -fPIC"
+fi
 # performance of gprof
 SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
 # performance of gperf
@@ -96,10 +102,12 @@ SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpth
 # the cxx flag generated.
 CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
+# Start to generate the Makefile.
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
 CXX = g++
 AR = ar
+ARFLAGS = -rs
 LINK = g++
 CXXFLAGS = ${CXXFLAGS}
 
@@ -116,17 +124,15 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
-# hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
-LibHttpParserRoot=""; LibHttpParserfile=""
-if [ $SRS_HTTP_CORE = YES ]; then LibHttpParserRoot="${SRS_OBJS_DIR}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
-# openssl-1.0.1f, for the RTMP complex handshake.
+# openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a"; fi
+if [ $SRS_GPERF_MD = YES ]; then LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a"; fi
 # the link options, always use static link
-SrsLinkOptions="-ldl"; 
+SrsLinkOptions="-ldl";
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto"; fi fi
 # if static specified, add static
 # TODO: FIXME: remove static.
@@ -149,10 +155,10 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream"
-        "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_file" 
+MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_buffer"
+        "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_io"
         "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts"
-        "srs_kernel_buffer")
+        "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file")
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -160,9 +166,10 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
-MODULE_FILES=("srs_rtmp_amf0" "srs_rtmp_io" "srs_rtmp_stack"
-        "srs_rtmp_handshake" "srs_rtmp_utility" "srs_rtmp_msg_array" "srs_protocol_buffer"
-        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json")
+MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
+        "srs_rtmp_handshake" "srs_protocol_utility" "srs_rtmp_msg_array" "srs_protocol_stream"
+        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
+        "srs_kafka_stack" "srs_protocol_format")
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -170,7 +177,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
-    ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
+    ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -179,7 +186,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
-            "srs_app_caster_flv")
+            "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec" "srs_app_kafka"
+            "srs_app_hourglass" "srs_app_dash" "srs_app_fragment")
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -203,12 +211,14 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot} ${LibSSLRoot})
-    MODULE_FILES=("srs_main_server" "srs_main_ingest_hls")
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    MODULE_FILES=("srs_main_server")
+    DEFINES=""
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
         MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
+        DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -229,7 +239,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     done
     # 
     # all depends libraries
-    ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
@@ -259,7 +269,7 @@ if [ $SRS_UTEST = YES ]; then
             "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
             "srs_utest_reload")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
-    ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
@@ -271,7 +281,7 @@ fi
 
 #####################################################################################
 # makefile
-echo "generate Makefile"
+echo "Generate Makefile"
 
 # backup old makefile.
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk &&
@@ -307,15 +317,14 @@ fi
 #       the server, librtmp and utest
 # where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server srs_ingest_hls librtmp utest $__mdefaults
+_default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<srs_ingest_hls>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
-	@echo "     srs_ingest_hls     build the hls ingest tool of srs."
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
@@ -335,23 +344,26 @@ clean:
 
 END
 
+# for Makefile of all modules.
+# depends on server, for some modules maybe use srs files.
+echo "__modules: server" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+for MMF in ${__makefiles[*]}; do
+    echo "	\$(MAKE) -f $MMF" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+done
+echo "" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+
 # if export librtmp, donot build the srs server.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "donot build the srs(simple rtmp server) for srs-librtmp"
-srs_ingest_hls: _prepare_dir
-	@echo "donot build the srs_ingest_hls for srs-librtmp"
+	@echo "Ingore srs(simple rtmp server) for srs-librtmp"
 
 END
 else
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "build the srs(simple rtmp server) over st(state-threads)"
+	@echo "Build the srs(simple rtmp server) over ST(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
-srs_ingest_hls: _prepare_dir
-	@echo "build the srs_ingest_hls for srs"
-	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs_ingest_hls
 
 END
 fi
@@ -362,13 +374,13 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 $SRS_MODULE_NAME: _prepare_dir
-	@echo "donot build the $SRS_MODULE_NAME for srs-librtmp"
+	@echo "Ingore the $SRS_MODULE_NAME for srs-librtmp"
 
 END
     else
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 $SRS_MODULE_NAME: _prepare_dir
-	@echo "build the $SRS_MODULE_NAME over SRS"
+	@echo "Build the $SRS_MODULE_NAME over SRS"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} $SRS_MODULE_NAME
 
 END
@@ -379,13 +391,13 @@ done
 if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 uninstall: 
-	@echo "disable uninstall for srs-librtmp"
+	@echo "Disable uninstall for srs-librtmp"
 
 install-api: 
-	@echo "disable install-api for srs-librtmp"
+	@echo "Disable install-api for srs-librtmp"
 
 install: 
-	@echo "disable install for srs-librtmp"
+	@echo "Disable install for srs-librtmp"
 
 END
 else
@@ -395,47 +407,47 @@ uninstall:
 	@rm -rf \$(SRS_PREFIX)
 
 install-api: install
-	@echo "mkdir \$(__REAL_INSTALL)"
+	@echo "Now mkdir \$(__REAL_INSTALL)"
 	@mkdir -p \$(__REAL_INSTALL)
-	@echo "copy binary files"
+	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/research/api-server
 	@cp research/api-server/server.py \$(__REAL_INSTALL)/research/api-server
 	@mkdir -p \$(__REAL_INSTALL)/objs/ffmpeg/bin
 	@cp objs/ffmpeg/bin/ffmpeg \$(__REAL_INSTALL)/objs/ffmpeg/bin
-	@echo "copy html files"
+	@echo "Now copy html files"
 	@mkdir -p \$(__REAL_INSTALL)/research/api-server/static-dir/players
 	@cp research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/research/api-server/static-dir
 	@cp research/api-server/static-dir/index.html \$(__REAL_INSTALL)/research/api-server/static-dir
 	@cp -r research/api-server/static-dir/players/* \$(__REAL_INSTALL)/research/api-server/static-dir/players
-	@echo "copy init.d script files"
+	@echo "Now copy init.d script files"
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
 	@cp etc/init.d/srs-api \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs-api
 	@echo ""
-	@echo "api installed, to link and start api:"
+	@echo "The api installed, to link and start api:"
 	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs-api /etc/init.d/srs-api"
 	@echo "     /etc/init.d/srs-api start"
 	@echo "     http://\$(shell bash auto/local_ip.sh):8085"
 	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
 
 install:
-	@echo "mkdir \$(__REAL_INSTALL)"
+	@echo "Now mkdir \$(__REAL_INSTALL)"
 	@mkdir -p \$(__REAL_INSTALL)
-	@echo "make the http root dir"
+	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
 	@cp research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
-	@echo "copy binary files"
+	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
 	@cp objs/srs \$(__REAL_INSTALL)/objs
-	@echo "copy srs conf files"
+	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
 	@cp conf/*.conf \$(__REAL_INSTALL)/conf
-	@echo "copy init.d script files"
+	@echo "Now copy init.d script files"
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
 	@cp etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
 	@echo ""
-	@echo "srs installed, to link and start srs:"
+	@echo "SRS is installed, to link and start srs:"
 	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs"
 	@echo "     /etc/init.d/srs start"
 	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
@@ -447,16 +459,16 @@ fi
 if [ $SRS_LIBRTMP = YES ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 librtmp: server
-	@echo "build the client publish/play library."
+	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
-	@echo "build the srs-librtmp sample"
+	@echo "Building the srs-librtmp example."
 	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
 
 END
 else
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 librtmp: server
-	@echo "srs-librtmp is disabled, ignore."
+	@echo "Ignore srs-librtmp for it's disabled."
 
 END
 fi
@@ -464,15 +476,15 @@ fi
 if [ $SRS_UTEST = YES ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 utest: server
-	@echo "build the utest for srs"
+	@echo "Building the utest for srs"
 	${SrsUtestMakeEntry}
-	@echo "utest for srs build success"
+	@echo "The utest is built ok."
 
 END
 else
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 utest: server
-	@echo "utest is disabled, ignore"
+	@echo "Ignore utest for it's disabled."
 
 END
 fi
@@ -487,7 +499,7 @@ END
 cat ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk >> ${SRS_WORKDIR}/${SRS_MAKEFILE} &&
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
-echo 'configure ok! '
+echo 'Configure ok! '
 
 #####################################################################################
 # when configure success, prepare build
@@ -503,122 +515,137 @@ fi
 # summary
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo ""
-    echo "configure summary:"
-    echo "      ${SRS_AUTO_USER_CONFIGURE}"
+    echo "Configure summary:"
+    echo "     ${SRS_AUTO_USER_CONFIGURE}"
     echo "      ${SRS_AUTO_CONFIGURE}"
     if [ $SRS_HLS = YES ]; then
-        echo -e "${GREEN}HLS is enabled${BLACK}"
+        echo -e "${GREEN}HLS is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}warning: without HLS support${BLACK}"
+        echo -e "${YELLOW}Warning: HLS is disabled.${BLACK}"
     fi
     if [ $SRS_STREAM_CASTER = YES ]; then
-        echo -e "${YELLOW}Experiment: StreamCaster is enabled${BLACK}"
+        echo -e "${YELLOW}Experiment: StreamCaster is enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: without StreamCaster support${BLACK}"
+        echo -e "${GREEN}Note: StreamCaster is disabled.${BLACK}"
+    fi
+    if [ $SRS_KAFKA = YES ]; then
+        echo -e "${GREEN}Kafka is enabled.${BLACK}"
+    else
+        echo -e "${YELLOW}Warning: Kafka is disabled.${BLACK}"
     fi
     if [ $SRS_HDS = YES ]; then
-        echo -e "${YELLOW}Experiment: HDS is enabled${BLACK}"
+        echo -e "${YELLOW}Experiment: HDS is enabled.${BLACK}"
     else
-        echo -e "${GREEN}warning: without HDS support${BLACK}"
+        echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
     fi
     if [ $SRS_NGINX = YES ]; then
-        echo -e "${GREEN}Nginx http server is enabled${BLACK}"
+        echo -e "${GREEN}Nginx is enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: Nginx http server is disabled${BLACK}"
+        echo -e "${GREEN}Note: Nginx is disabled.${BLACK}"
     fi
     if [ $SRS_DVR = YES ]; then
-        echo -e "${GREEN}DVR is enabled${BLACK}"
+        echo -e "${GREEN}DVR is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}warning: without DVR support${BLACK}"
+        echo -e "${YELLOW}Warning: DVR is disabled.${BLACK}"
     fi
     if [ $SRS_SSL = YES ]; then
-        echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"
+        echo -e "${GREEN}RTMP complex handshake is enabled${BLACK}"
     else
-        echo -e "${YELLOW}warning: without rtmp complex handshake support, donot support h264/aac to adobe flash player${BLACK}"
+        echo -e "${YELLOW}Warning: RTMP complex handshake is disabled, flash cann't play h264/aac.${BLACK}"
     fi
     if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "${GREEN}transcode/mux/ingest tool FFMPEG is enabled${BLACK}"
+        echo -e "${GREEN}The FFMPEG tool is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}warning: without transcode/mux/ingest tool FFMPEG support${BLACK}"
+        echo -e "${YELLOW}Warning: The FFMPEG tool is disabled, please use other tools for transcode/mux/ingest.${BLACK}"
     fi
     if [ $SRS_TRANSCODE = YES ]; then
-        echo -e "${GREEN}transcoding RTMP stream is enabled${BLACK}"
+        echo -e "${GREEN}The transcoding is enabled${BLACK}"
     else
-        echo -e "${YELLOW}warning: without transcoding RTMP stream support${BLACK}"
+        echo -e "${YELLOW}Warning: The transcoding is disabled.${BLACK}"
     fi
     if [ $SRS_INGEST = YES ]; then
-        echo -e "${GREEN}ingest file/stream/device is enabled${BLACK}"
+        echo -e "${GREEN}The ingesting is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}warning: without ingest file/stream/device support${BLACK}"
+        echo -e "${YELLOW}Warning: The ingesting is disabled.${BLACK}"
     fi
     if [ $SRS_HTTP_CALLBACK = YES ]; then
-        echo -e "${GREEN}http hooks callback over CherryPy is enabled${BLACK}"
+        echo -e "${GREEN}The http-callback is enabled${BLACK}"
     else
-        echo -e "${YELLOW}warning: without http hooks callback over CherryPy support${BLACK}"
+        echo -e "${YELLOW}Warning: The http-callback is disabled.${BLACK}"
     fi
     if [ $SRS_HTTP_SERVER = YES ]; then
-        echo -e "${GREEN}http server to delivery http stream is enabled${BLACK}"
+        echo -e "${GREEN}Embeded HTTP server for HTTP-FLV/HLS is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}warning: without http server to delivery http stream support${BLACK}"
+        echo -e "${YELLOW}Warning: Embeded HTTP server is disabled, HTTP-FLV is disabled, please use nginx to delivery HLS.${BLACK}"
     fi
     if [ $SRS_HTTP_API = YES ]; then
-        echo -e "${GREEN}http api to manage server is enabled${BLACK}"
+        echo -e "${GREEN}The HTTP API is enabled${BLACK}"
     else
-        echo -e "${YELLOW}warning: without http api to manage server support${BLACK}"
+        echo -e "${YELLOW}Warning: The HTTP API is disabled.${BLACK}"
     fi
     if [ $SRS_LIBRTMP = YES ]; then
-        echo -e "${GREEN}srs-librtmp for client is enabled${BLACK}"
+        echo -e "${GREEN}The client-side srs-librtmp is enabled.${BLACK}"
     else
-        echo -e "${YELLOW}note: srs-librtmp for client is disabled${BLACK}"
+        echo -e "${YELLOW}Note: The client-side srs-librtmp is disabled.${BLACK}"
     fi
     if [ $SRS_RESEARCH = YES ]; then
-        echo -e "${GREEN}research tools are builded${BLACK}"
+        echo -e "${GREEN}The research tools are enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: research tools are not builded${BLACK}"
+        echo -e "${GREEN}Note: The research tools are disabled.${BLACK}"
     fi
     if [ $SRS_UTEST = YES ]; then
-        echo -e "${GREEN}utest for srs are builded${BLACK}"
+        echo -e "${GREEN}The utests are enabled.${BLACK}"
     else
-        echo -e "${YELLOW}note: utest for srs are not builded${BLACK}"
+        echo -e "${YELLOW}Note: The utests are disabled.${BLACK}"
     fi
     if [ $SRS_GPERF = YES ]; then
-        echo -e "${GREEN}gperf(tcmalloc) for srs are builded${BLACK}"
+        echo -e "${GREEN}The gperf(tcmalloc) is enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: gperf(tcmalloc) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The gperf(tcmalloc) is disabled.${BLACK}"
     fi
     if [ $SRS_GPERF_MC = YES ]; then
-        echo -e "${YELLOW}gmc(gperf memory check) for srs are builded -- Performance may suffer${BLACK}"
+        echo -e "${YELLOW}The gmc(gperf memory check) is enabled, performance may suffer.${BLACK}"
     else
-        echo -e "${GREEN}note: gmc(gperf memory check) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The gmc(gperf memory check) is disabled.${BLACK}"
+    fi
+    if [ $SRS_GPERF_MD = YES ]; then
+        echo -e "${YELLOW}The gmd(gperf memory defense) is enabled, performance may suffer.${BLACK}"
+    else
+        echo -e "${GREEN}Note: The gmd(gperf memory defense) is disabled.${BLACK}"
     fi
     if [ $SRS_GPERF_MP = YES ]; then
-        echo -e "${YELLOW}gmp(gperf memory profile) for srs are builded -- Performance may suffer${BLACK}"
+        echo -e "${YELLOW}The gmp(gperf memory profile) is enabled, performance may suffer.${BLACK}"
     else
-        echo -e "${GREEN}note: gmp(gperf memory profile) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The gmp(gperf memory profile) is disabled.${BLACK}"
     fi
     if [ $SRS_GPERF_CP = YES ]; then
-        echo -e "${YELLOW}gcp(gperf cpu profile) for srs are builded -- Performance may suffer${BLACK}"
+        echo -e "${YELLOW}The gcp(gperf cpu profile) is enabled, performance may suffer.${BLACK}"
     else
-        echo -e "${GREEN}note: gcp(gperf cpu profile) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The gcp(gperf cpu profile) is disabled.${BLACK}"
     fi
     if [ $SRS_GPROF = YES ]; then
-        echo -e "${YELLOW}gprof(GNU profile tool) for srs are builded -- Performance may suffer${BLACK}"
+        echo -e "${YELLOW}The gprof(GNU profile tool) is enabled, performance may suffer.${BLACK}"
     else
-        echo -e "${GREEN}note: gprof(GNU profile tool) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
     fi
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}arm-ubuntu12(armhf, v7cpu) for srs are builded${BLACK}"
+        echo -e "${GREEN}The cross-build arm-ubuntu12(armhf, v7cpu) is enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: arm-ubuntu12(armhf, v7cpu) for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The cross-build arm-ubuntu12(armhf, v7cpu)is disabled.${BLACK}"
     fi
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}mips-ubuntu12 for srs are builded${BLACK}"
+        echo -e "${GREEN}The mips-ubuntu12 is enabled.${BLACK}"
     else
-        echo -e "${GREEN}note: mips-ubuntu12 for srs are not builded${BLACK}"
+        echo -e "${GREEN}Note: The mips-ubuntu12 is disabled.${BLACK}"
+    fi
+    if [ $SRS_VALGRIND = YES ]; then
+        echo -e "${GREEN}The valgrind is enabled.${BLACK}"
+    else
+        echo -e "${GREEN}Note: The valgrind is disabled.${BLACK}"
     fi
     # add each modules for application
     for SRS_MODULE in ${SRS_MODULES[*]}; do
-        echo -e "${GREEN}module: $SRS_MODULE${BLACK}"
+        echo -e "${GREEN}Enable module: $SRS_MODULE${BLACK}"
     done
 fi
 
@@ -628,7 +655,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
     echo ""
-    echo "to run 3rdparty application:"
+    echo "You can run 3rdparty applications:"
     if [ $SRS_NGINX = YES ]; then
         echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
     fi
@@ -639,14 +666,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
     fi
     echo ""
-    echo "to build:"
+    echo "You can build SRS:"
     echo "\" make \" to build the srs(simple rtmp server)."
     echo "\" make help \" to get the usage of make"
 else
     # for srs-librtmp single file, 
     # package the whole project to srs_librtmp.h and srs_librtmp.cpp
     if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        echo "package the whole project to srs_librtmp.h and srs_librtmp.cpp"
+        echo "Packaging the whole project to srs_librtmp.h and srs_librtmp.cpp"
         . $SRS_EXPORT_LIBRTMP_SINGLE/auto/generate-srs-librtmp-single.sh
         echo -e "${GREEN}Please use the srs-librtmp files: ${BLACK}"
         echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.h ${BLACK}"

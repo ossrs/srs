@@ -35,6 +35,7 @@ do
         --help)                         help=yes                  ;;
         
         --x86-x64)                      X86_X64=YES               ;;
+        --x86-64)                       X86_X64=YES               ;;
         --mips)                         MIPS=YES                  ;;
         --arm)                          ARM=YES                   ;;
         --pi)                           PI=YES                    ;;
@@ -54,6 +55,7 @@ if [ $help = yes ]; then
   --arm                    for arm cross-build platform, configure/make/package.
   --mips                   for mips cross-build platform, configure/make/package.
   --pi                     for pi platform, configure/make/package.
+  --x86-64                 alias for --x86-x64.
 END
     exit 0
 fi

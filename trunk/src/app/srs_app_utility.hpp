@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -40,10 +40,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 
 class SrsKbps;
-class SrsStream;
+class SrsBuffer;
+class SrsJsonObject;
 
 // client open socket and connect to server.
-extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
+// @param tm The timeout in ms.
+extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
 
 /**
 * convert level in string to log level in int.
@@ -73,13 +75,6 @@ extern std::string srs_path_build_stream(std::string template_path, std::string 
 * @return the replaced path.
 */
 extern std::string srs_path_build_timestamp(std::string template_path);
-
-/**
-* parse the endpoint to ip and port.
-* @param ip_port the ip and port which formats in <[ip:]port>
- */
-extern void srs_parse_endpoint(std::string ip_port, std::string& ip, std::string& port);
-extern void srs_parse_endpoint(std::string ip_port, std::string& ip, int& port);
 
 /**
  * kill the pid by SIGINT, then wait to quit,
@@ -486,14 +481,14 @@ public:
 // data of /proc/meminfo
 public:
     // MemActive = MemTotal - MemFree
-    u_int64_t MemActive;
+    uint64_t MemActive;
     // RealInUse = MemActive - Buffers - Cached
-    u_int64_t RealInUse;
+    uint64_t RealInUse;
     // NotInUse = MemTotal - RealInUse
     //          = MemTotal - MemActive + Buffers + Cached
     //          = MemTotal - MemTotal + MemFree + Buffers + Cached
     //          = MemFree + Buffers + Cached
-    u_int64_t NotInUse;
+    uint64_t NotInUse;
     
     unsigned long MemTotal;
     unsigned long MemFree;
@@ -673,6 +668,7 @@ extern std::string srs_get_peer_ip(int fd);
 
 // whether the url is starts with http:// or https://
 extern bool srs_string_is_http(std::string url);
+extern bool srs_string_is_rtmp(std::string url);
 
 // whether string is digit number
 //      is_digit("1234567890")  === true
@@ -687,7 +683,7 @@ extern bool srs_is_digit_number(const std::string& str);
 extern bool srs_is_boolean(const std::string& str);
 
 // dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(std::stringstream& ss);
+extern void srs_api_dump_summaries(SrsJsonObject* obj);
 
 #endif
 

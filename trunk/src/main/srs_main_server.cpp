@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <sstream>
+using namespace std;
+
 #ifdef SRS_AUTO_GPERF_MP
     #include <gperftools/heap-profiler.h>
 #endif
@@ -42,221 +45,35 @@ using namespace std;
 #include <srs_app_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 // pre-declare
-int run();
-int run_master();
+int run(SrsServer* svr);
+int run_master(SrsServer* svr);
+void show_macro_features();
+string srs_getenv(const char* name);
 
-// for the main objects(server, config, log, context),
-// never subscribe handler in constructor,
-// instead, subscribe handler in initialize method.
-// kernel module.
+// @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
 ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
+// @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
-// version of srs, which can grep keyword "XCORE"
+
+// @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
 
 /**
-* show the features by macro, the actual macro values.
-*/
-void show_macro_features()
-{
-#ifdef SRS_AUTO_SSL
-    srs_trace("check feature rtmp handshake: on");
-#else
-    srs_warn("check feature rtmp handshake: off");
-#endif
-
-#ifdef SRS_AUTO_HLS
-    srs_trace("check feature hls: on");
-#else
-    srs_warn("check feature hls: off");
-#endif
-
-#ifdef SRS_AUTO_HDS
-    srs_trace("check feature hds: on");
-#else
-    srs_warn("check feature hds: off");
-#endif
-
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    srs_trace("check feature http callback: on");
-#else
-    srs_warn("check feature http callback: off");
-#endif
-
-#ifdef SRS_AUTO_HTTP_API
-    srs_trace("check feature http api: on");
-#else
-    srs_warn("check feature http api: off");
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
-    srs_trace("check feature http server: on");
-#else
-    srs_warn("check feature http server: off");
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
-    srs_trace("check feature http parser: on");
-#else
-    srs_warn("check feature http parser: off");
-#endif
-
-#ifdef SRS_AUTO_DVR
-    srs_trace("check feature dvr: on");
-#else
-    srs_warn("check feature dvr: off");
-#endif
-
-#ifdef SRS_AUTO_TRANSCODE
-    srs_trace("check feature transcode: on");
-#else
-    srs_warn("check feature transcode: off");
-#endif
-
-#ifdef SRS_AUTO_INGEST
-    srs_trace("check feature ingest: on");
-#else
-    srs_warn("check feature ingest: off");
-#endif
-
-#ifdef SRS_AUTO_STAT
-    srs_trace("check feature system stat: on");
-#else
-    srs_warn("check feature system stat: off");
-#endif
-
-#ifdef SRS_AUTO_NGINX
-    srs_trace("check feature compile nginx: on");
-#else
-    srs_warn("check feature compile nginx: off");
-#endif
-
-#ifdef SRS_AUTO_FFMPEG_TOOL
-    srs_trace("check feature compile ffmpeg: on");
-#else
-    srs_warn("check feature compile ffmpeg: off");
-#endif
-
-#ifdef SRS_AUTO_STREAM_CASTER
-    srs_trace("stream caster: on");
-#else
-    srs_warn("stream caster: off");
-#endif
-
-#ifdef SRS_PERF_MERGED_READ
-    srs_trace("MR(merged-read): on, @see %s", RTMP_SIG_SRS_ISSUES(241));
-#else
-    srs_warn("MR(merged-read): off, @see %s", RTMP_SIG_SRS_ISSUES(241));
-#endif
-
-    srs_trace("MR(merged-read) default %d sleep %d", SRS_PERF_MR_ENABLED, SRS_PERF_MR_SLEEP);
-    srs_trace("MW(merged-write) default sleep %d", SRS_PERF_MW_SLEEP);
-    srs_trace("read chunk stream cache cid [0, %d)", SRS_PERF_CHUNK_STREAM_CACHE);
-    srs_trace("default gop cache %d, play queue %ds", SRS_PERF_GOP_CACHE, SRS_PERF_PLAY_QUEUE);
-    
-#ifndef SRS_PERF_COMPLEX_SEND
-    srs_warn("complex send algorithm disabled.");
-#else
-    srs_trace("complex send algorithm enabled.");
-#endif
-
-#ifdef SRS_PERF_TCP_NODELAY
-    srs_warn("TCP_NODELAY enabled, may hurts performance.");
-#else
-    srs_trace("TCP_NODELAY disabled.");
-#endif
-
-#ifdef SRS_PERF_SO_SNDBUF_SIZE
-    srs_warn("socket send buffer size %d", SRS_PERF_SO_SNDBUF_SIZE);
-#else
-    srs_trace("auto guess socket send buffer by merged write");
-#endif
-
-    int possible_mr_latency = 0;
-#ifdef SRS_PERF_MERGED_READ
-    possible_mr_latency = SRS_PERF_MR_SLEEP;
-#endif
-    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
-        SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
-}
-
-void check_macro_features()
-{
-    // important preset.
-#ifdef SRS_OSX
-    srs_trace("SRS for OSX");
-#endif
-#ifdef SRS_PI
-    srs_trace("SRS for pi");
-#endif
-#ifdef SRS_CUBIE
-    srs_trace("SRS for cubieboard");
-#endif
-#ifdef SRS_ARM_UBUNTU12
-    srs_trace("SRS for arm(build on ubuntu)");
-#endif
-#ifdef SRS_MIPS_UBUNTU12
-    srs_trace("SRS for mips(build on ubuntu)");
-#endif
-    
-    // for special features.
-#ifndef SRS_PERF_MERGED_READ
-    srs_warn("MR(merged-read) is disabled, hurts read performance. @see %s", RTMP_SIG_SRS_ISSUES(241));
-#endif
-
-    srs_trace("writev limits write %d iovs a time", sysconf(_SC_IOV_MAX));
-
-#if VERSION_MAJOR > VERSION_STABLE
-    #warning "current branch is not stable, please use stable branch instead."
-    srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
-#endif
-    
-#ifdef SRS_AUTO_MEM_WATCH
-    #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
-    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
-#endif
-
-#if defined(SRS_AUTO_STREAM_CASTER)
-    #warning "stream caster is experiment feature."
-    srs_warn("stream caster is experiment feature.");
-#endif
-
-#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
-    #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
-#endif
-    
-#ifndef SRS_OSX
-    #if defined(__amd64__)
-        srs_trace("cpu is amd64, glibc %d.%d", (int)__GLIBC__, (int)__GLIBC_MINOR__);
-    #endif
-    #if defined(__x86_64__)
-        srs_trace("cpu is x86_64, glibc %d.%d", (int)__GLIBC__, (int)__GLIBC_MINOR__);
-    #endif
-    #if defined(__i386__)
-        srs_trace("cpu is i386, glibc %d.%d", (int)__GLIBC__, (int)__GLIBC_MINOR__);
-    #endif
-    #if defined(__arm__)
-        srs_trace("cpu is arm, glibc %d.%d", (int)__GLIBC__, (int)__GLIBC_MINOR__);
-    #endif
-#endif
-}
-
-/**
 * main entrance.
-*/
-int main(int argc, char** argv) 
+ */
+int main(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
-
-    // for gperf gmp or gcp, 
+    
+    // for gperf gmp or gcp,
     // should never enable it when not enabled for performance issue.
 #ifdef SRS_AUTO_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
@@ -264,18 +81,18 @@ int main(int argc, char** argv)
 #ifdef SRS_AUTO_GPERF_CP
     ProfilerStart("gperf.srs.gcp");
 #endif
-
+    
     // directly compile error when these two macro defines.
 #if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
-    #error ("option --with-gmc confict with --with-gmp, "
-        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-        "Note that since the heap-checker uses the heap-profiling framework internally, "
-        "it is not possible to run both the heap-checker and heap profiler at the same time");
+#error ("option --with-gmc confict with --with-gmp, "
+    "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+    "Note that since the heap-checker uses the heap-profiling framework internally, "
+    "it is not possible to run both the heap-checker and heap profiler at the same time");
 #endif
     
     // never use gmp to check memory leak.
 #ifdef SRS_AUTO_GPERF_MP
-    #warning "gmp is not used for memory leak, please use gmc instead."
+#warning "gmp is not used for memory leak, please use gmc instead."
 #endif
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
@@ -298,47 +115,258 @@ int main(int argc, char** argv)
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
+    // config already applied to log.
+    srs_trace(RTMP_SIG_SRS_SERVER", stable is "RTMP_SIG_SRS_PRIMARY);
+    srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
+    srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);
+    srs_trace("contributors: "SRS_AUTO_CONSTRIBUTORS);
+    srs_trace("build: %s, configure:%s, uname: %s", SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
+    srs_trace("configure detail: "SRS_AUTO_CONFIGURE);
+#ifdef SRS_AUTO_EMBEDED_TOOL_CHAIN
+    srs_trace("crossbuild tool chain: "SRS_AUTO_EMBEDED_TOOL_CHAIN);
+#endif
+    srs_trace("cwd=%s, work_dir=%s", _srs_config->cwd().c_str(), cwd.c_str());
+    
+    // for memory check or detect.
+    if (true) {
+        stringstream ss;
+        
+#ifdef SRS_PERF_GLIBC_MEMORY_CHECK
+        // ensure glibc write error to stderr.
+        string lfsov = srs_getenv("LIBC_FATAL_STDERR_");
+        setenv("LIBC_FATAL_STDERR_", "1", 1);
+        string lfsnv = srs_getenv("LIBC_FATAL_STDERR_");
+        //
+        // ensure glibc to do alloc check.
+        string mcov = srs_getenv("MALLOC_CHECK_");
+        setenv("MALLOC_CHECK_", "1", 1);
+        string mcnv = srs_getenv("MALLOC_CHECK_");
+        ss << "glic mem-check env MALLOC_CHECK_ " << mcov << "=>" << mcnv << ", LIBC_FATAL_STDERR_ " << lfsov << "=>" << lfsnv << ".";
+#endif
+        
+#ifdef SRS_AUTO_GPERF_MC
+        string hcov = srs_getenv("HEAPCHECK");
+        if (hcov.empty()) {
+            string cpath = _srs_config->config();
+            srs_warn("gmc HEAPCHECK is required, for example: env HEAPCHECK=normal ./objs/srs -c %s", cpath.c_str());
+        } else {
+            ss << "gmc env HEAPCHECK=" << hcov << ".";
+        }
+#endif
+        
+#ifdef SRS_AUTO_GPERF_MD
+        char* TCMALLOC_PAGE_FENCE = getenv("TCMALLOC_PAGE_FENCE");
+        if (!TCMALLOC_PAGE_FENCE || strcmp(TCMALLOC_PAGE_FENCE, "1")) {
+            srs_warn("gmd enabled without env TCMALLOC_PAGE_FENCE=1");
+        } else {
+            ss << "gmd env TCMALLOC_PAGE_FENCE=" << TCMALLOC_PAGE_FENCE << ".";
+        }
+#endif
+        
+        string sss = ss.str();
+        if (!sss.empty()) {
+            srs_trace(sss.c_str());
+        }
+    }
+    
     // we check the config when the log initialized.
     if ((ret = _srs_config->check_config()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    srs_trace(RTMP_SIG_SRS_SERVER", stable is "RTMP_SIG_SRS_PRIMARY);
-    srs_trace("license: "RTMP_SIG_SRS_LICENSE", "RTMP_SIG_SRS_COPYRIGHT);
-    srs_trace("primary/master: "RTMP_SIG_SRS_PRIMARY);
-    srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);
-    srs_trace("contributors: "SRS_AUTO_CONSTRIBUTORS);
-    srs_trace("uname: "SRS_AUTO_UNAME);
-    srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
-    srs_trace("configure: "SRS_AUTO_USER_CONFIGURE);
-    srs_trace("features: "SRS_AUTO_CONFIGURE);
-#ifdef SRS_AUTO_ARM_UBUNTU12
-    srs_trace("arm tool chain: "SRS_AUTO_EMBEDED_TOOL_CHAIN);
-#endif
-    srs_trace("conf: %s, limit: %d", _srs_config->config().c_str(), _srs_config->get_max_connections());
-    
     // features
-    check_macro_features();
     show_macro_features();
     
+    SrsServer* svr = new SrsServer();
+    SrsAutoFree(SrsServer, svr);
+    
     /**
-    * we do nothing in the constructor of server,
-    * and use initialize to create members, set hooks for instance the reload handler,
-    * all initialize will done in this stage.
-    */
-    if ((ret = _srs_server->initialize(NULL)) != ERROR_SUCCESS) {
+     * we do nothing in the constructor of server,
+     * and use initialize to create members, set hooks for instance the reload handler,
+     * all initialize will done in this stage.
+     */
+    if ((ret = svr->initialize(NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    return run();
+    return run(svr);
 }
 
-int run()
+/**
+ * show the features by macro, the actual macro values.
+ */
+void show_macro_features()
+{
+    if (true) {
+        stringstream ss;
+        
+        ss << "features";
+        
+        // rch(rtmp complex handshake)
+        ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
+        ss << ", dash:" << "on";
+        ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
+        ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
+        // hc(http callback)
+        ss << ", hc:" << srs_bool2switch(true);
+        // ha(http api)
+        ss << ", ha:" << srs_bool2switch(true);
+        // hs(http server)
+        ss << ", hs:" << srs_bool2switch(true);
+        // hp(http parser)
+        ss << ", hp:" << srs_bool2switch(true);
+        ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
+        // trans(transcode)
+        ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
+        // inge(ingest)
+        ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
+        ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);
+        ss << ", stat:" << srs_bool2switch(SRS_AUTO_STAT_BOOL);
+        ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);
+        // ff(ffmpeg)
+        ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);
+        // sc(stream-caster)
+        ss << ", sc:" << srs_bool2switch(SRS_AUTO_STREAM_CASTER_BOOL);
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        ss << "SRS on ";
+#ifdef SRS_OSX
+        ss << "OSX";
+#endif
+#ifdef SRS_PI
+        ss << "RespberryPi";
+#endif
+#ifdef SRS_CUBIE
+        ss << "CubieBoard";
+#endif
+#ifdef SRS_ARM_UBUNTU12
+        ss << "ARM(build on ubuntu)";
+#endif
+#ifdef SRS_MIPS_UBUNTU12
+        ss << "MIPS(build on ubuntu)";
+#endif
+        
+#if defined(__amd64__)
+        ss << " amd64";
+#endif
+#if defined(__x86_64__)
+        ss << " x86_64";
+#endif
+#if defined(__i386__)
+        ss << " i386";
+#endif
+#if defined(__arm__)
+        ss << "arm";
+#endif
+        
+#ifndef SRS_OSX
+        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
+#endif
+        
+        ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()
+        << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian()? "little-endian":"big-endian")
+        << ", HZ:" << (int)sysconf(_SC_CLK_TCK);
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        
+        // mw(merged-write)
+        ss << "mw sleep:" << SRS_PERF_MW_SLEEP << "ms";
+        
+        // mr(merged-read)
+        ss << ". mr ";
+#ifdef SRS_PERF_MERGED_READ
+        ss << "enabled:on";
+#else
+        ss << "enabled:off";
+#endif
+        ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP << "ms";
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    if (true) {
+        stringstream ss;
+        
+        // gc(gop-cache)
+        ss << "gc:" << srs_bool2switch(SRS_PERF_GOP_CACHE);
+        // pq(play-queue)
+        ss << ", pq:" << SRS_PERF_PLAY_QUEUE << "s";
+        // cscc(chunk stream cache cid)
+        ss << ", cscc:[0," << SRS_PERF_CHUNK_STREAM_CACHE << ")";
+        // csa(complex send algorithm)
+        ss << ", csa:";
+#ifndef SRS_PERF_COMPLEX_SEND
+        ss << "off";
+#else
+        ss << "on";
+#endif
+        
+        // tn(TCP_NODELAY)
+        ss << ", tn:";
+#ifdef SRS_PERF_TCP_NODELAY
+        ss << "on(may hurts performance)";
+#else
+        ss << "off";
+#endif
+        
+        // ss(SO_SENDBUF)
+        ss << ", ss:";
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
+        ss << SRS_PERF_SO_SNDBUF_SIZE;
+#else
+        ss << "auto(guess by merged write)";
+#endif
+        
+        srs_trace(ss.str().c_str());
+    }
+    
+    // others
+    int possible_mr_latency = 0;
+#ifdef SRS_PERF_MERGED_READ
+    possible_mr_latency = SRS_PERF_MR_SLEEP;
+#endif
+    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
+              SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
+    
+#ifdef SRS_AUTO_MEM_WATCH
+#warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
+    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
+#endif
+    
+#if VERSION_MAJOR > VERSION_STABLE
+#warning "Current branch is unstable."
+    srs_warn("Develop is unstable, please use branch: git checkout %s", VERSION_STABLE_BRANCH);
+#endif
+    
+#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
+#error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
+#endif
+}
+
+string srs_getenv(const char* name)
+{
+    char* cv = ::getenv(name);
+    
+    if (cv) {
+        return cv;
+    }
+    
+    return "";
+}
+
+int run(SrsServer* svr)
 {
     // if not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
-        return run_master();
+        return run_master(svr);
     }
     
     srs_trace("start deamon mode...");
@@ -376,42 +404,42 @@ int run()
     // son
     srs_trace("son(deamon) process running.");
     
-    return run_master();
+    return run_master(svr);
 }
 
-int run_master()
+int run_master(SrsServer* svr)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
+    if ((ret = svr->initialize_st()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    if ((ret = svr->initialize_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->initialize_signal()) != ERROR_SUCCESS) {
+    if ((ret = svr->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+    if ((ret = svr->listen()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
+    if ((ret = svr->register_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->register_signal()) != ERROR_SUCCESS) {
+    if ((ret = svr->http_handle()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->http_handle()) != ERROR_SUCCESS) {
+    if ((ret = svr->ingest()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->ingest()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
+    if ((ret = svr->cycle()) != ERROR_SUCCESS) {
         return ret;
     }
     

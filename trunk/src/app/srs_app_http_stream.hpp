@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -32,14 +32,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
-#ifdef SRS_AUTO_HTTP_SERVER
+class SrsAacTransmuxer;
+class SrsMp3Transmuxer;
+class SrsFlvTransmuxer;
+class SrsTsTransmuxer;
 
 /**
 * for the srs http stream cache, 
 * for example, the audio stream cache to make android(weixin) happy.
 * we start a thread to shrink the queue.
 */
-class SrsStreamCache : public ISrsEndlessThreadHandler
+class SrsBufferCache : public ISrsEndlessThreadHandler
 {
 private:
     double fast_cache;
@@ -49,8 +52,8 @@ private:
     SrsRequest* req;
     SrsEndlessThread* pthread;
 public:
-    SrsStreamCache(SrsSource* s, SrsRequest* r);
-    virtual ~SrsStreamCache();
+    SrsBufferCache(SrsSource* s, SrsRequest* r);
+    virtual ~SrsBufferCache();
     virtual int update(SrsSource* s, SrsRequest* r);
 public:
     virtual int start();
@@ -63,18 +66,18 @@ public:
 /**
 * the stream encoder in some codec, for example, flv or aac.
 */
-class ISrsStreamEncoder
+class ISrsBufferEncoder
 {
 public:
-    ISrsStreamEncoder();
-    virtual ~ISrsStreamEncoder();
+    ISrsBufferEncoder();
+    virtual ~ISrsBufferEncoder();
 public:
     /**
     * initialize the encoder with file writer(to http response) and stream cache.
     * @param w the writer to write to http response.
     * @param c the stream cache for audio stream fast startup.
     */
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c) = 0;
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c) = 0;
     /**
     * write rtmp video/audio/metadata.
     */
@@ -97,15 +100,15 @@ public:
 /**
 * the flv stream encoder, remux rtmp stream to flv stream.
 */
-class SrsFlvStreamEncoder : public ISrsStreamEncoder
+class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
 protected:
-    SrsFlvEncoder* enc;
+    SrsFlvTransmuxer* enc;
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -135,15 +138,15 @@ public:
 /**
 * the ts stream encoder, remux rtmp stream to ts stream.
 */
-class SrsTsStreamEncoder : public ISrsStreamEncoder
+class SrsTsStreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsTsEncoder* enc;
+    SrsTsTransmuxer* enc;
 public:
     SrsTsStreamEncoder();
     virtual ~SrsTsStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -155,16 +158,16 @@ public:
 /**
 * the aac stream encoder, remux rtmp stream to aac stream.
 */
-class SrsAacStreamEncoder : public ISrsStreamEncoder
+class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsAacEncoder* enc;
-    SrsStreamCache* cache;
+    SrsAacTransmuxer* enc;
+    SrsBufferCache* cache;
 public:
     SrsAacStreamEncoder();
     virtual ~SrsAacStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -176,16 +179,16 @@ public:
 /**
 * the mp3 stream encoder, remux rtmp stream to mp3 stream.
 */
-class SrsMp3StreamEncoder : public ISrsStreamEncoder
+class SrsMp3StreamEncoder : public ISrsBufferEncoder
 {
 private:
-    SrsMp3Encoder* enc;
-    SrsStreamCache* cache;
+    SrsMp3Transmuxer* enc;
+    SrsBufferCache* cache;
 public:
     SrsMp3StreamEncoder();
     virtual ~SrsMp3StreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
@@ -197,13 +200,13 @@ public:
 /**
 * write stream to http response direclty.
 */
-class SrsStreamWriter : public SrsFileWriter
+class SrsBufferWriter : public SrsFileWriter
 {
 private:
     ISrsHttpResponseWriter* writer;
 public:
-    SrsStreamWriter(ISrsHttpResponseWriter* w);
-    virtual ~SrsStreamWriter();
+    SrsBufferWriter(ISrsHttpResponseWriter* w);
+    virtual ~SrsBufferWriter();
 public:
     virtual int open(std::string file);
     virtual void close();
@@ -212,7 +215,7 @@ public:
     virtual int64_t tellg();
 public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**
@@ -224,15 +227,15 @@ class SrsLiveStream : public ISrsHttpHandler
 private:
     SrsRequest* req;
     SrsSource* source;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
 public:
-    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
+    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
     virtual int update(SrsSource* s, SrsRequest* r);
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
-    virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**
@@ -252,14 +255,11 @@ public:
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
-    // whether hstrs(http stream trigger rtmp source)
-    bool hstrs;
     
     SrsLiveStream* stream;
-    SrsStreamCache* cache;
+    SrsBufferCache* cache;
     
-    SrsLiveEntry(std::string m, bool h);
-    void reset_hstrs(bool h);
+    SrsLiveEntry(std::string m);
 
     bool is_flv();
     bool is_ts();
@@ -268,61 +268,10 @@ public:
 };
 
 /**
-* the m3u8 stream handler.
-*/
-class SrsHlsM3u8Stream : public ISrsHttpHandler
-{
-private:
-    std::string m3u8;
-public:
-    SrsHlsM3u8Stream();
-    virtual ~SrsHlsM3u8Stream();
-public:
-    virtual void set_m3u8(std::string v);
-public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-};
-
-/**
-* the ts stream handler.
-*/
-class SrsHlsTsStream : public ISrsHttpHandler
-{
-private:
-    std::string ts;
-public:
-    SrsHlsTsStream();
-    virtual ~SrsHlsTsStream();
-public:
-    virtual void set_ts(std::string v);
-public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-};
-
-/**
-* the srs hls entry.
-*/
-// TODO: FIXME: use hte hls template and entry.
-struct SrsHlsEntry
-{
-    // for template, the mount contains variables.
-    // for concrete stream, the mount is url to access.
-    std::string mount;
-    
-    // the template to create the entry
-    SrsHlsEntry* tmpl;
-
-    // key: the m3u8/ts file path.
-    // value: the http handler.
-    std::map<std::string, ISrsHttpHandler*> streams;
-    
-    SrsHlsEntry();
-};
-
-/**
 * the http stream server instance,
 * serve http stream, for example, flv/ts/mp3/aac live stream.
 */
+// TODO: Support multiple stream.
 class SrsHttpStreamServer : virtual public ISrsReloadHandler
     , virtual public ISrsHttpMatchHijacker
 {
@@ -354,8 +303,6 @@ private:
     virtual int initialize_flv_streaming();
     virtual int initialize_flv_entry(std::string vhost);
 };
-
-#endif
 
 #endif
 

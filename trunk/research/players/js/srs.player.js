@@ -5,6 +5,22 @@
 * @param height a float value specifies the height of player.
 * @param private_object [optional] an object that used as private object, 
 *       for example, the logic chat object which owner this player.
+* Usage:
+        <script type="text/javascript" src="js/swfobject.js"></script>
+        <script type="text/javascript" src="js/srs.player.js"></script>
+        <div id="player"></div>
+        var p = new SrsPlayer("player", 640, 480);
+        p.set_srs_player_url("srs_player.swf?v=1.0.0");
+        p.on_player_ready = function() {
+            p.set_bt(0.8);
+            p.set_mbt(1.2);
+            p.play("rtmp://ossrs.net/live/livestream");
+        };
+        p.on_player_metadata = function(metadata) {
+            console.log(metadata);
+            console.log(p.dump_log());
+        };
+        p.start();
 */
 function SrsPlayer(container, width, height, private_object) {
     if (!SrsPlayer.__id) {
@@ -23,6 +39,7 @@ function SrsPlayer(container, width, height, private_object) {
     this.id = SrsPlayer.__id++;
     this.stream_url = null;
     this.buffer_time = 0.3; // default to 0.3
+    this.max_buffer_time = this.buffer_time * 3; // default to 3 x bufferTime.
     this.volume = 1.0; // default to 100%
     this.callbackObj = null;
     this.srs_player_url = "srs_player/release/srs_player.swf?_version="+srs_get_version_code();
@@ -62,8 +79,12 @@ function SrsPlayer(container, width, height, private_object) {
 * user can set some callback, then start the player.
 * @param url the default url.
 * callbacks:
-*      on_player_ready():int, when srs player ready, user can play.
+*      on_player_ready():int, when srs player ready, user can play().
 *      on_player_metadata(metadata:Object):int, when srs player get metadata.
+* methods:
+*      set_bt(t:Number):void, set the buffer time in seconds.
+*      set_mbt(t:Number):void, set the max buffer time in seconds.
+*      dump_log():String, get all logs of player.
 */
 SrsPlayer.prototype.start = function(url) {
     if (url) {
@@ -78,6 +99,7 @@ SrsPlayer.prototype.start = function(url) {
     flashvars.on_player_timer = "__srs_on_player_timer";
     flashvars.on_player_empty = "__srs_on_player_empty";
     flashvars.on_player_full = "__srs_on_player_full";
+    flashvars.on_player_status = "__srs_on_player_status";
     
     var params = {};
     params.wmode = "opaque";
@@ -119,25 +141,23 @@ SrsPlayer.prototype.play = function(url, volume) {
         this.volume = volume;
     }
     
-    this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time, this.volume);
+    this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time, this.max_buffer_time, this.volume);
 }
+/**
+ * stop play stream.
+ */
 SrsPlayer.prototype.stop = function() {
-    for (var i = 0; i < SrsPlayer.__players.length; i++) {
-        var player = SrsPlayer.__players[i];
-        
-        if (player.id != this.id) {
-            continue;
-        }
-        
-        SrsPlayer.__players.splice(i, 1);
-        break;
-    }
-    
     this.callbackObj.ref.__stop();
 }
+/**
+ * pause the play.
+ */
 SrsPlayer.prototype.pause = function() {
     this.callbackObj.ref.__pause();
 }
+/**
+ * resume the play.
+ */
 SrsPlayer.prototype.resume = function() {
     this.callbackObj.ref.__resume();
 }
@@ -152,6 +172,12 @@ SrsPlayer.prototype.fluency = function() {
  */
 SrsPlayer.prototype.empty_count = function() {
     return this.__fluency.total_empty_count;
+}
+/**
+ * get all log data.
+ */
+SrsPlayer.prototype.dump_log = function() {
+    return this.callbackObj.ref.__dump_log();
 }
 /**
 * to set the DAR, for example, DAR=16:9 where num=16,den=9.
@@ -181,8 +207,33 @@ SrsPlayer.prototype.set_fs = function(refer, percent) {
 * @buffer_time the buffer time in seconds.
 */
 SrsPlayer.prototype.set_bt = function(buffer_time) {
+    if (this.buffer_time == buffer_time) {
+        return;
+    }
+
     this.buffer_time = buffer_time;
     this.callbackObj.ref.__set_bt(buffer_time);
+
+    // reset the max buffer time to 3 x buffer_time.
+    this.set_mbt(buffer_time * 3);
+}
+/**
+ * set the stream max buffer time in seconds.
+ * @param max_buffer_time the max buffer time in seconds.
+ * @remark this is the key feature for realtime communication by flash.
+ */
+SrsPlayer.prototype.set_mbt = function(max_buffer_time) {
+    // we must atleast set the max buffer time to 0.6s.
+    max_buffer_time = Math.max(0.6, max_buffer_time);
+    // max buffer time always greater than buffer time.
+    max_buffer_time = Math.max(this.buffer_time, max_buffer_time);
+
+    if (parseInt(this.max_buffer_time * 10) == parseInt(max_buffer_time * 10)) {
+        return;
+    }
+
+    this.max_buffer_time = max_buffer_time;
+    this.callbackObj.ref.__set_mbt(max_buffer_time);
 }
 /**
  * set the srs_player.swf url
@@ -203,20 +254,57 @@ SrsPlayer.prototype.set_bt = function(buffer_time) {
     query_string = query_array.join("&");
     this.srs_player_url = url + "?" + query_string;
 }
+ /**
+  * the callback when player is ready.
+  */
 SrsPlayer.prototype.on_player_ready = function() {
 }
+/**
+ * the callback when player got metadata.
+ * @param metadata the metadata which player got.
+ */
 SrsPlayer.prototype.on_player_metadata = function(metadata) {
     // ignore.
 }
+/**
+ * the callback when player timer event.
+ * @param time current stream time.
+ * @param buffer_length current buffer length.
+ * @param kbps current video plus audio bitrate in kbps.
+ * @param fps current video fps.
+ * @param rtime current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
     // ignore.
 }
+/**
+ * the callback when player got NetStream.Buffer.Empty
+ * @param time current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_empty = function(time) {
     // ignore.
 }
+/**
+ * the callback when player got NetStream.Buffer.Full
+ * @param time current relative time by flash.util.getTimer().
+ */
 SrsPlayer.prototype.on_player_full = function(time) {
     // ignore.
 }
+/**
+ * the callback when player status change.
+ * @param code the status code, "init", "connected", "play", "closed", "rejected", "failed".
+ *      init => connected/rejected/failed
+ *      connected => play/rejected => closed
+ * @param desc the description for the status.
+ */
+SrsPlayer.prototype.on_player_status = function(code, desc) {
+    // ignore.
+}
+
+/**
+ * helpers.
+ */
 function __srs_find_player(id) {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
@@ -270,4 +358,22 @@ function __srs_on_player_full(id, time) {
     var player = __srs_find_player(id);
     player.__fluency.on_stream_full(time);
     player.on_player_full(time);
+}
+function __srs_on_player_status(id, code, desc) {
+    var player = __srs_find_player(id);
+    player.on_player_status(code, desc);
+
+    if (code != "closed") {
+        return;
+    }
+    for (var i = 0; i < SrsPlayer.__players.length; i++) {
+        var player = SrsPlayer.__players[i];
+
+        if (player.id != this.id) {
+            continue;
+        }
+
+        SrsPlayer.__players.splice(i, 1);
+        break;
+    }
 }

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -71,6 +71,10 @@ public:
     * initialize log utilities.
     */
     virtual int initialize();
+    /**
+     * reopen the log file for log rotate.
+     */
+    virtual void reopen();
 public:
     /**
     * log for verbose, very verbose information.
@@ -124,10 +128,10 @@ public:
     virtual int set_id(int v);
 };
 
-// user must provides a log object
+// @global user must provides a log object
 extern ISrsLog* _srs_log;
 
-// user must implements the LogContext and define a global instance.
+// @global user must implements the LogContext and define a global instance.
 extern ISrsThreadContext* _srs_context;
 
 // donot print method
@@ -137,15 +141,17 @@ extern ISrsThreadContext* _srs_context;
     #define srs_trace(msg, ...)   _srs_log->trace(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_warn(msg, ...)    _srs_log->warn(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_error(msg, ...)   _srs_log->error(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
+#endif
 // use __FUNCTION__ to print c method
-#elif 0
+#if 0
     #define srs_verbose(msg, ...) _srs_log->verbose(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_info(msg, ...)    _srs_log->info(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_trace(msg, ...)   _srs_log->trace(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_warn(msg, ...)    _srs_log->warn(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_error(msg, ...)   _srs_log->error(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+#endif
 // use __PRETTY_FUNCTION__ to print c++ class:method
-#else
+#if 0
     #define srs_verbose(msg, ...) _srs_log->verbose(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_info(msg, ...)    _srs_log->info(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
     #define srs_trace(msg, ...)   _srs_log->trace(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)

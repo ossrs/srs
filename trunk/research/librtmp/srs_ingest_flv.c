@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -20,9 +20,6 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-/**
-gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_flv
-*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,8 +37,8 @@ int connect_oc(srs_rtmp_t ortmp);
 #define RE_PULSE_MS 300
 #define RE_PULSE_JITTER_MS 3000
 int64_t re_create();
-void re_update(int64_t re, int32_t starttime, u_int32_t time);
-void re_cleanup(int64_t re, int32_t starttime, u_int32_t time);
+void re_update(int64_t re, int32_t starttime, uint32_t time);
+void re_cleanup(int64_t re, int32_t starttime, uint32_t time);
 
 int64_t tools_main_entrance_startup_time;
 int main(int argc, char** argv)
@@ -108,7 +105,7 @@ int main(int argc, char** argv)
         return -1;
     }
     
-    srs_human_trace("input:  %s", in_flv_file);
+    srs_human_trace("input: %s", in_flv_file);
     srs_human_trace("output: %s", out_rtmp_url);
 
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
@@ -128,7 +125,7 @@ int main(int argc, char** argv)
     return ret;
 }
 
-int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u_int32_t* ptimestamp)
+int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, uint32_t* ptimestamp)
 {
     int ret = 0;
     
@@ -138,6 +135,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
     char* data = NULL;
     
     srs_human_trace("start ingest flv to RTMP stream");
+    char buffer[1024];
     for (;;) {
         // tag header
         if ((ret = srs_flv_read_tag_header(flv, &type, &size, ptimestamp)) != 0) {
@@ -160,12 +158,13 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             return ret;
         }
         
-        u_int32_t timestamp = *ptimestamp;
+        uint32_t timestamp = *ptimestamp;
         
-        if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+        if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) != 0) {
             srs_human_trace("print packet failed. ret=%d", ret);
             return ret;
         }
+        srs_human_trace("%s", buffer);
         
         if ((ret = srs_rtmp_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
@@ -185,7 +184,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
 int proxy(srs_flv_t flv, srs_rtmp_t ortmp)
 {
     int ret = 0;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     int32_t starttime = -1;
     
     char header[13];
@@ -252,7 +251,7 @@ int64_t re_create()
     
     return re;
 }
-void re_update(int64_t re, int32_t starttime, u_int32_t time)
+void re_update(int64_t re, int32_t starttime, uint32_t time)
 {
     // send by pulse algorithm.
     int64_t now = srs_utils_time_ms();
@@ -261,7 +260,7 @@ void re_update(int64_t re, int32_t starttime, u_int32_t time)
         usleep((useconds_t)(diff * 1000));
     }
 }
-void re_cleanup(int64_t re, int32_t starttime, u_int32_t time)
+void re_cleanup(int64_t re, int32_t starttime, uint32_t time)
 {
     // for the last pulse, always sleep.
     // for the virtual live encoder long time publishing.

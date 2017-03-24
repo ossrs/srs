@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -70,6 +70,11 @@ int MockSrsConfig::parse(string buf)
     MockSrsConfigBuffer buffer(buf);
 
     if ((ret = parse_buffer(&buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = srs_config_transform_vhost(root)) != ERROR_SUCCESS) {
+        srs_error("transform config failed. ret=%d", ret);
         return ret;
     }
 

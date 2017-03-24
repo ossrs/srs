@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,9 +23,61 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_json.hpp>
 
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_kernel_utility.hpp>
+
+/* json encode
+ cout<< SRS_JOBJECT_START
+ << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
+ << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
+ << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
+ << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
+ << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
+ << SRS_JFIELD_STR("dash", "plan")
+ << SRS_JOBJECT_END << SRS_JFIELD_CONT
+ << SRS_JFIELD_STR("author", "srs team")
+ << SRS_JOBJECT_END
+ it's:
+ cont<< "{"
+ << "name:" << "srs" << ","
+ << "version:" << 100 << ","
+ << "features:" << "{"
+ << "rtmp:" << "released" << ","
+ << "hls:" << "released" << ","
+ << "dash:" << "plan"
+ << "}" << ","
+ << "author:" << "srs team"
+ << "}"
+ that is:
+ """
+ {
+ "name": "srs",
+ "version": 100,
+ "features": {
+ "rtmp": "released",
+ "hls": "released",
+ "dash": "plan"
+ },
+ "author": "srs team"
+ }
+ """
+ */
+#define SRS_JOBJECT_START "{"
+#define SRS_JFIELD_NAME(k) "\"" << k << "\":"
+#define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
+#define SRS_JFIELD_STR(k, v) SRS_JFIELD_NAME(k) << "\"" << v << "\""
+#define SRS_JFIELD_ORG(k, v) SRS_JFIELD_NAME(k) << std::dec << v
+#define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
+#define SRS_JFIELD_NULL(k) SRS_JFIELD_NAME(k) << "null"
+#define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
+#define SRS_JFIELD_CONT ","
+#define SRS_JOBJECT_END "}"
+#define SRS_JARRAY_START "["
+#define SRS_JARRAY_END "]"
 
 #ifdef SRS_JSON_USE_NXJSON
 
@@ -267,6 +319,77 @@ SrsJsonArray* SrsJsonAny::to_array()
     return p;
 }
 
+string SrsJsonAny::dumps()
+{
+    switch (marker) {
+        case SRS_JSON_String: {
+            return "\"" + to_str() + "\"";
+        }
+        case SRS_JSON_Boolean: {
+            return to_boolean()? "true":"false";
+        }
+        case SRS_JSON_Integer: {
+            return srs_int2str(to_integer());
+        }
+        case SRS_JSON_Number: {
+            // len(max int64_t) is 20, plus one "+-."
+            char tmp[22];
+            snprintf(tmp, 22, "%.6f", to_number());
+            return tmp;
+        }
+        case SRS_JSON_Null: {
+            return "null";
+        }
+        case SRS_JSON_Object: {
+            SrsJsonObject* obj = to_object();
+            return obj->dumps();
+        }
+        case SRS_JSON_Array: {
+            SrsJsonArray* arr = to_array();
+            return arr->dumps();
+        }
+        default: {
+            break;
+        }
+    }
+    
+    return "null";
+}
+
+SrsAmf0Any* SrsJsonAny::to_amf0()
+{
+    switch (marker) {
+        case SRS_JSON_String: {
+            return SrsAmf0Any::str(to_str().c_str());
+        }
+        case SRS_JSON_Boolean: {
+            return SrsAmf0Any::boolean(to_boolean());
+        }
+        case SRS_JSON_Integer: {
+            return SrsAmf0Any::number(to_integer());
+        }
+        case SRS_JSON_Number: {
+            return SrsAmf0Any::number(to_number());
+        }
+        case SRS_JSON_Null: {
+            return SrsAmf0Any::null();
+        }
+        case SRS_JSON_Object: {
+            // json object must override this method.
+            srs_assert(false);
+        }
+        case SRS_JSON_Array: {
+            // json array must override this method.
+            srs_assert(false);
+        }
+        default: {
+            break;
+        }
+    }
+    
+    return SrsAmf0Any::null();
+}
+
 SrsJsonAny* SrsJsonAny::str(const char* value)
 {
     return new SrsJsonString(value);
@@ -277,7 +400,7 @@ SrsJsonAny* SrsJsonAny::boolean(bool value)
     return new SrsJsonBoolean(value);
 }
 
-SrsJsonAny* SrsJsonAny::ingeter(int64_t value)
+SrsJsonAny* SrsJsonAny::integer(int64_t value)
 {
     return new SrsJsonInteger(value);
 }
@@ -315,7 +438,7 @@ SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
         case NX_JSON_STRING:
             return SrsJsonAny::str(node->text_value);
         case NX_JSON_INTEGER:
-            return SrsJsonAny::ingeter(node->int_value);
+            return SrsJsonAny::integer(node->int_value);
         case NX_JSON_DOUBLE:
             return SrsJsonAny::number(node->dbl_value);
         case NX_JSON_BOOL:
@@ -354,8 +477,10 @@ SrsJsonAny* SrsJsonAny::loads(char* str)
     if (strlen(str) == 0) {
         return NULL;
     }
-    
-    const nx_json* o = nx_json_parse(str, 0);
+
+    // TODO: copy str for nx_json modify it.
+    string s = str;
+    const nx_json* o = nx_json_parse((char*)s.data(), 0);
     
     SrsJsonAny* json = srs_json_parse_tree_nx_json(o);
     
@@ -400,6 +525,41 @@ SrsJsonAny* SrsJsonObject::value_at(int index)
     srs_assert(index < count());
     SrsJsonObjectPropertyType& elem = properties[index];
     return elem.second;
+}
+
+string SrsJsonObject::dumps()
+{
+    stringstream ss;
+    
+    ss << SRS_JOBJECT_START;
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        std::string name = this->key_at(i);
+        SrsJsonAny* any = this->value_at(i);
+        
+        ss << SRS_JFIELD_NAME(name) << any->dumps();
+        if (i < (int)properties.size() - 1) {
+            ss << SRS_JFIELD_CONT;
+        }
+    }
+    
+    ss << SRS_JOBJECT_END;
+    
+    return ss.str();
+}
+
+SrsAmf0Any* SrsJsonObject::to_amf0()
+{
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        std::string name = this->key_at(i);
+        SrsJsonAny* any = this->value_at(i);
+        
+        obj->set(name, any->to_amf0());
+    }
+    
+    return obj;
 }
 
 void SrsJsonObject::set(string key, SrsJsonAny* value)
@@ -472,6 +632,21 @@ SrsJsonAny* SrsJsonObject::ensure_property_integer(string name)
     return prop;
 }
 
+SrsJsonAny* SrsJsonObject::ensure_property_number(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+    
+    if (!prop) {
+        return NULL;
+    }
+    
+    if (!prop->is_number()) {
+        return NULL;
+    }
+    
+    return prop;
+}
+
 SrsJsonAny* SrsJsonObject::ensure_property_boolean(string name)
 {
     SrsJsonAny* prop = get_property(name);
@@ -484,6 +659,36 @@ SrsJsonAny* SrsJsonObject::ensure_property_boolean(string name)
         return NULL;
     }
     
+    return prop;
+}
+
+SrsJsonAny* SrsJsonObject::ensure_property_object(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+
+    if (!prop) {
+        return NULL;
+    }
+
+    if (!prop->is_object()) {
+        return NULL;
+    }
+
+    return prop;
+}
+
+SrsJsonAny* SrsJsonObject::ensure_property_array(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+
+    if (!prop) {
+        return NULL;
+    }
+
+    if (!prop->is_array()) {
+        return NULL;
+    }
+
     return prop;
 }
 
@@ -517,6 +722,45 @@ SrsJsonAny* SrsJsonArray::at(int index)
 void SrsJsonArray::add(SrsJsonAny* value)
 {
     properties.push_back(value);
+}
+
+void SrsJsonArray::append(SrsJsonAny* value)
+{
+    add(value);
+}
+
+string SrsJsonArray::dumps()
+{
+    stringstream ss;
+    
+    ss << SRS_JARRAY_START;
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsJsonAny* any = properties[i];
+        
+        ss << any->dumps();
+        
+        if (i < (int)properties.size() - 1) {
+            ss << SRS_JFIELD_CONT;
+        }
+    }
+    
+    ss << SRS_JARRAY_END;
+    
+    return ss.str();
+}
+
+SrsAmf0Any* SrsJsonArray::to_amf0()
+{
+    SrsAmf0StrictArray* arr = SrsAmf0Any::strict_array();
+    
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsJsonAny* any = properties[i];
+        
+        arr->append(any->to_amf0());
+    }
+    
+    return arr;
 }
 
 #ifdef SRS_JSON_USE_NXJSON

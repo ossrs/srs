@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -36,22 +36,22 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-SrsMp3Encoder::SrsMp3Encoder()
+SrsMp3Transmuxer::SrsMp3Transmuxer()
 {
     writer = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
-SrsMp3Encoder::~SrsMp3Encoder()
+SrsMp3Transmuxer::~SrsMp3Transmuxer()
 {
     srs_freep(tag_stream);
 }
 
-int SrsMp3Encoder::initialize(SrsFileWriter* fw)
+int SrsMp3Transmuxer::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
     
@@ -68,7 +68,7 @@ int SrsMp3Encoder::initialize(SrsFileWriter* fw)
     return ret;
 }
 
-int SrsMp3Encoder::write_header()
+int SrsMp3Transmuxer::write_header()
 {
     char id3[] = {
         (char)0x49, (char)0x44, (char)0x33, // ID3
@@ -83,7 +83,7 @@ int SrsMp3Encoder::write_header()
     return writer->write(id3, sizeof(id3), NULL);
 }
 
-int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsMp3Transmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -91,7 +91,7 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     
     timestamp &= 0x7fffffff;
     
-    SrsStream* stream = tag_stream;
+    SrsBuffer* stream = tag_stream;
     if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -106,13 +106,12 @@ int SrsMp3Encoder::write_audio(int64_t timestamp, char* data, int size)
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();
     
-    // @see: SrsAvcAacCodec::audio_aac_demux
     //int8_t sound_type = sound_format & 0x01;
     //int8_t sound_size = (sound_format >> 1) & 0x01;
     //int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
     
-    if ((SrsCodecAudio)sound_format != SrsCodecAudioMP3) {
+    if ((SrsAudioCodecId)sound_format != SrsAudioCodecIdMP3) {
         ret = ERROR_MP3_DECODE_ERROR;
         srs_error("mp3 required, format=%d. ret=%d", sound_format, ret);
         return ret;

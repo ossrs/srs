@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -42,8 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////////
 // default vhost of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_VHOST "__defaultVhost__"
+#define SRS_CONSTS_RTMP_DEFAULT_APP "__defaultApp__"
 // default port of rtmp
-#define SRS_CONSTS_RTMP_DEFAULT_PORT "1935"
+#define SRS_CONSTS_RTMP_DEFAULT_PORT 1935
 
 // the default chunk size for system.
 #define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
@@ -67,19 +68,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
-// the timeout to send data to client,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
+// Never timeout in ms
+// @remake Rename from SRS_CONSTS_NO_TIMEOUT
+// @see ST_UTIME_NO_TIMEOUT
+#define SRS_CONSTS_NO_TMMS ((int64_t) -1LL)
 
-// the timeout to wait client data,
-// if timeout, close the connection.
-#define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+// the common io timeout, for both recv and send.
+// TODO: FIXME: use ms for timeout.
+#define SRS_CONSTS_RTMP_TMMS (30*1000)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
 // @remark, recomment to 500ms.
-#define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(500*1000LL)
+#define SRS_CONSTS_RTMP_PULSE_TMMS (500)
 
 /**
 * max rtmp header size:
@@ -134,6 +136,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_NULL_FILE "/dev/null"
 #define SRS_CONSTS_LOCALHOST "127.0.0.1"
 
+// signal defines.
+// reload the config file and apply new config.
+#define SRS_SIGNAL_RELOAD SIGHUP
+// reopen the log file.
+#define SRS_SIGNAL_REOPEN_LOG SIGUSR1
+// srs should gracefully quit, do dispose then exit.
+#define SRS_SIGNAL_GRACEFULLY_QUIT SIGTERM
+
+// application level signals.
+// persistence the config in memory to config file.
+// @see https://github.com/ossrs/srs/issues/319#issuecomment-134993922
+// @remark we actually don't handle the signal for it's not a valid os signal.
+#define SRS_SIGNAL_PERSISTENCE_CONFIG 1000
+
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -168,6 +184,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_LOG_HTTP_STREAM_CACHE "HTC"
 // stream caster log id.
 #define SRS_CONSTS_LOG_STREAM_CASTER "SCS"
+// the nginx exec log id.
+#define SRS_CONSTS_LOG_EXEC "EXE"
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -192,17 +210,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_CR '\r' // 0x0D
 // LF             = <US-ASCII LF, linefeed (10)>
 #define SRS_CONSTS_LF '\n' // 0x0A
+// SP             = <US-ASCII SP, space>
+#define SRS_CONSTS_SP ' ' // 0x20
+// SE             = <US-ASCII SE, semicolon>
+#define SRS_CONSTS_SE ';' // 0x3b
+// LB             = <US-ASCII SE, left-brace>
+#define SRS_CONSTS_LB '{' // 0x7b
+// RB             = <US-ASCII SE, right-brace>
+#define SRS_CONSTS_RB '}' // 0x7d
 
 ///////////////////////////////////////////////////////////
 // HTTP consts values
 ///////////////////////////////////////////////////////////
+// the default http port.
+#define SRS_CONSTS_HTTP_DEFAULT_PORT 80
 // linux path seprator
 #define SRS_CONSTS_HTTP_PATH_SEP '/'
 // query string seprator
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // the default recv timeout.
-#define SRS_HTTP_RECV_TIMEOUT_US 60 * 1000 * 1000
+#define SRS_HTTP_RECV_TMMS (60 * 1000)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
@@ -380,6 +408,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTSP_GatewayTimeout_str                      "Gateway Timeout"
 #define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
 #define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
+
+///////////////////////////////////////////////////////////
+// KAFKA consts values
+///////////////////////////////////////////////////////////
+#define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
+
+// the common io timeout, for both recv and send.
+#define SRS_CONSTS_KAFKA_TMMS (30*1000)
 
 #endif
 

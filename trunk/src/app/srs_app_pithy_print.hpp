@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -90,6 +90,7 @@ public:
     static SrsPithyPrint* create_hls();
     static SrsPithyPrint* create_forwarder();
     static SrsPithyPrint* create_encoder();
+    static SrsPithyPrint* create_exec();
     static SrsPithyPrint* create_ingester();
     static SrsPithyPrint* create_edge();
     static SrsPithyPrint* create_caster();

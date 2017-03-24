@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,12 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HTTP_CORE
-#include <http_parser.h>
-#endif
-
-#ifdef SRS_AUTO_HTTP_CORE
-
 #include <map>
 #include <string>
 #include <vector>
@@ -53,17 +47,13 @@ class SrsSource;
 class SrsRequest;
 class SrsConsumer;
 class SrsStSocket;
-class SrsTsEncoder;
-class SrsAacEncoder;
-class SrsMp3Encoder;
-class SrsFlvEncoder;
 class SrsHttpParser;
 class ISrsHttpMessage;
 class SrsHttpHandler;
 class SrsMessageQueue;
 class SrsSharedPtrMessage;
 class SrsRequest;
-class SrsFastBuffer;
+class SrsFastStream;
 class SrsHttpUri;
 class SrsConnection;
 class SrsHttpMessage;
@@ -109,7 +99,7 @@ public:
     virtual int final_request();
     virtual SrsHttpHeader* header();
     virtual int write(char* data, int size);
-    virtual int writev(iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
     virtual int send_header(char* data, int size);
 };
@@ -120,9 +110,9 @@ public:
 class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
 {
 private:
-    SrsStSocket* skt;
+    ISrsProtocolReaderWriter* skt;
     SrsHttpMessage* owner;
-    SrsFastBuffer* buffer;
+    SrsFastStream* buffer;
     bool is_eof;
     // the left bytes in chunk.
     int nb_left_chunk;
@@ -131,13 +121,13 @@ private:
     // already read total bytes.
     int64_t nb_total_read;
 public:
-    SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
+    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io);
     virtual ~SrsHttpResponseReader();
 public:
     /**
      * initialize the response reader with buffer.
      */
-    virtual int initialize(SrsFastBuffer* buffer);
+    virtual int initialize(SrsFastStream* buffer);
     // interface ISrsHttpResponseReader
 public:
     virtual bool eof();
@@ -209,20 +199,20 @@ private:
     // the method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(SrsStSocket* io, SrsConnection* c);
+    SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c);
     virtual ~SrsHttpMessage();
 public:
     /**
      * set the original messages, then update the message.
      */
-    virtual int update(std::string url, http_parser* header,
-        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
+    virtual int update(std::string url, bool allow_jsonp, http_parser* header,
+        SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers
     );
 public:
     virtual SrsConnection* connection();
 public:
-    virtual u_int8_t method();
-    virtual u_int16_t status_code();
+    virtual uint8_t method();
+    virtual uint16_t status_code();
     /**
      * method helpers.
      */
@@ -311,7 +301,9 @@ private:
     http_parser_settings settings;
     http_parser parser;
     // the global parse buffer.
-    SrsFastBuffer* buffer;
+    SrsFastStream* buffer;
+    // whether allow jsonp parse.
+    bool jsonp;
 private:
     // http parse data, reset before parse message.
     bool expect_field_name;
@@ -329,20 +321,22 @@ public:
     /**
      * initialize the http parser with specified type,
      * one parser can only parse request or response messages.
+     * @param allow_jsonp whether allow jsonp parser, which indicates the method in query string.
      */
-    virtual int initialize(enum http_parser_type type);
+    virtual int initialize(enum http_parser_type type, bool allow_jsonp);
     /**
      * always parse a http message,
      * that is, the *ppmsg always NOT-NULL when return success.
      * or error and *ppmsg must be NULL.
      * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
+     * @remark user must free the ppmsg if not NULL.
      */
-    virtual int parse_message(SrsStSocket* skt, SrsConnection* conn, ISrsHttpMessage** ppmsg);
+    virtual int parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
 private:
     /**
      * parse the HTTP message to member field: msg.
      */
-    virtual int parse_message_imp(SrsStSocket* skt);
+    virtual int parse_message_imp(ISrsProtocolReaderWriter* io);
 private:
     static int on_message_begin(http_parser* parser);
     static int on_headers_complete(http_parser* parser);
@@ -354,47 +348,16 @@ private:
 };
 
 /**
- * used to resolve the http uri.
+ * The http connection which request the static or stream content.
  */
-class SrsHttpUri
-{
-private:
-    std::string url;
-    std::string schema;
-    std::string host;
-    int port;
-    std::string path;
-    std::string query;
-public:
-    SrsHttpUri();
-    virtual ~SrsHttpUri();
-public:
-    /**
-     * initialize the http uri.
-     */
-    virtual int initialize(std::string _url);
-public:
-    virtual const char* get_url();
-    virtual const char* get_schema();
-    virtual const char* get_host();
-    virtual int get_port();
-    virtual const char* get_path();
-    virtual const char* get_query();
-private:
-    /**
-     * get the parsed url field.
-     * @return return empty string if not set.
-     */
-    virtual std::string get_uri_field(std::string uri, http_parser_url* hp_u, http_parser_url_fields field);
-};
-
 class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
+    SrsHttpCorsMux* cors;
 public:
-    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
+    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpConn();
 // interface IKbpsDelta
 public:
@@ -411,6 +374,15 @@ protected:
     virtual int on_got_http_message(ISrsHttpMessage* msg) = 0;
 private:
     virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    /**
+     * when the connection disconnect, call this method.
+     * e.g. log msg of connection and report to other system.
+     * @param request: request which is converted by the last http message.
+     */
+    virtual int on_disconnect(SrsRequest* req);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_http_stream_crossdomain();
 };
 
 /**
@@ -419,7 +391,7 @@ private:
 class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
-    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
+    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsResponseOnlyHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);
@@ -447,8 +419,6 @@ public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
 };
-
-#endif
 
 #endif
 

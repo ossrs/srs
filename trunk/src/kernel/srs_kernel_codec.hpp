@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -32,202 +32,243 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-class SrsStream;
+class SrsBuffer;
 
-// AACPacketType IF SoundFormat == 10 UI8
-// The following values are defined:
-//     0 = AAC sequence header
-//     1 = AAC raw
-enum SrsCodecAudioType
-{
-    // set to the max value to reserved, for array map.
-    SrsCodecAudioTypeReserved                        = 2,
-    
-    SrsCodecAudioTypeSequenceHeader                 = 0,
-    SrsCodecAudioTypeRawData                         = 1,
-};
-
-// E.4.3.1 VIDEODATA
-// Frame Type UB [4]
-// Type of video frame. The following values are defined:
-//     1 = key frame (for AVC, a seekable frame)
-//     2 = inter frame (for AVC, a non-seekable frame)
-//     3 = disposable inter frame (H.263 only)
-//     4 = generated key frame (reserved for server use only)
-//     5 = video info/command frame
-enum SrsCodecVideoAVCFrame
+/**
+ * The video codec id.
+ * @doc video_file_format_spec_v10_1.pdf, page78, E.4.3.1 VIDEODATA
+ * CodecID UB [4]
+ * Codec Identifier. The following values are defined for FLV:
+ *      2 = Sorenson H.263
+ *      3 = Screen video
+ *      4 = On2 VP6
+ *      5 = On2 VP6 with alpha channel
+ *      6 = Screen video version 2
+ *      7 = AVC
+ */
+enum SrsVideoCodecId
 {
     // set to the zero to reserved, for array map.
-    SrsCodecVideoAVCFrameReserved                    = 0,
-    SrsCodecVideoAVCFrameReserved1                    = 6,
-    
-    SrsCodecVideoAVCFrameKeyFrame                     = 1,
-    SrsCodecVideoAVCFrameInterFrame                 = 2,
-    SrsCodecVideoAVCFrameDisposableInterFrame         = 3,
-    SrsCodecVideoAVCFrameGeneratedKeyFrame            = 4,
-    SrsCodecVideoAVCFrameVideoInfoFrame                = 5,
-};
-
-// AVCPacketType IF CodecID == 7 UI8
-// The following values are defined:
-//     0 = AVC sequence header
-//     1 = AVC NALU
-//     2 = AVC end of sequence (lower level NALU sequence ender is
-//         not required or supported)
-enum SrsCodecVideoAVCType
-{
-    // set to the max value to reserved, for array map.
-    SrsCodecVideoAVCTypeReserved                    = 3,
-    
-    SrsCodecVideoAVCTypeSequenceHeader                 = 0,
-    SrsCodecVideoAVCTypeNALU                         = 1,
-    SrsCodecVideoAVCTypeSequenceHeaderEOF             = 2,
-};
-
-// E.4.3.1 VIDEODATA
-// CodecID UB [4]
-// Codec Identifier. The following values are defined:
-//     2 = Sorenson H.263
-//     3 = Screen video
-//     4 = On2 VP6
-//     5 = On2 VP6 with alpha channel
-//     6 = Screen video version 2
-//     7 = AVC
-enum SrsCodecVideo
-{
-    // set to the zero to reserved, for array map.
-    SrsCodecVideoReserved                = 0,
-    SrsCodecVideoReserved1                = 1,
-    SrsCodecVideoReserved2                = 9,
+    SrsVideoCodecIdReserved = 0,
+    SrsVideoCodecIdForbidden = 0,
+    SrsVideoCodecIdReserved1 = 1,
+    SrsVideoCodecIdReserved2 = 9,
     
     // for user to disable video, for example, use pure audio hls.
-    SrsCodecVideoDisabled                = 8,
+    SrsVideoCodecIdDisabled = 8,
     
-    SrsCodecVideoSorensonH263             = 2,
-    SrsCodecVideoScreenVideo             = 3,
-    SrsCodecVideoOn2VP6                 = 4,
-    SrsCodecVideoOn2VP6WithAlphaChannel = 5,
-    SrsCodecVideoScreenVideoVersion2     = 6,
-    SrsCodecVideoAVC                     = 7,
+    SrsVideoCodecIdSorensonH263 = 2,
+    SrsVideoCodecIdScreenVideo = 3,
+    SrsVideoCodecIdOn2VP6 = 4,
+    SrsVideoCodecIdOn2VP6WithAlphaChannel = 5,
+    SrsVideoCodecIdScreenVideoVersion2 = 6,
+    SrsVideoCodecIdAVC = 7,
 };
-std::string srs_codec_video2str(SrsCodecVideo codec);
-
-// SoundFormat UB [4] 
-// Format of SoundData. The following values are defined:
-//     0 = Linear PCM, platform endian
-//     1 = ADPCM
-//     2 = MP3
-//     3 = Linear PCM, little endian
-//     4 = Nellymoser 16 kHz mono
-//     5 = Nellymoser 8 kHz mono
-//     6 = Nellymoser
-//     7 = G.711 A-law logarithmic PCM
-//     8 = G.711 mu-law logarithmic PCM
-//     9 = reserved
-//     10 = AAC
-//     11 = Speex
-//     14 = MP3 8 kHz
-//     15 = Device-specific sound
-// Formats 7, 8, 14, and 15 are reserved.
-// AAC is supported in Flash Player 9,0,115,0 and higher.
-// Speex is supported in Flash Player 10 and higher.
-enum SrsCodecAudio
-{
-    // set to the max value to reserved, for array map.
-    SrsCodecAudioReserved1                = 16,
-    
-    // for user to disable audio, for example, use pure video hls.
-    SrsCodecAudioDisabled                   = 17,
-    
-    SrsCodecAudioLinearPCMPlatformEndian             = 0,
-    SrsCodecAudioADPCM                                 = 1,
-    SrsCodecAudioMP3                                 = 2,
-    SrsCodecAudioLinearPCMLittleEndian                 = 3,
-    SrsCodecAudioNellymoser16kHzMono                 = 4,
-    SrsCodecAudioNellymoser8kHzMono                 = 5,
-    SrsCodecAudioNellymoser                         = 6,
-    SrsCodecAudioReservedG711AlawLogarithmicPCM        = 7,
-    SrsCodecAudioReservedG711MuLawLogarithmicPCM    = 8,
-    SrsCodecAudioReserved                             = 9,
-    SrsCodecAudioAAC                                 = 10,
-    SrsCodecAudioSpeex                                 = 11,
-    SrsCodecAudioReservedMP3_8kHz                     = 14,
-    SrsCodecAudioReservedDeviceSpecificSound         = 15,
-};
-std::string srs_codec_audio2str(SrsCodecAudio codec);
+std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 
 /**
-* the FLV/RTMP supported audio sample rate.
-* Sampling rate. The following values are defined:
-* 0 = 5.5 kHz = 5512 Hz
-* 1 = 11 kHz = 11025 Hz
-* 2 = 22 kHz = 22050 Hz
-* 3 = 44 kHz = 44100 Hz
-*/
-enum SrsCodecAudioSampleRate
+ * The video AVC frame trait(characteristic).
+ * @doc video_file_format_spec_v10_1.pdf, page79, E.4.3.2 AVCVIDEOPACKET
+ * AVCPacketType IF CodecID == 7 UI8
+ * The following values are defined:
+ *      0 = AVC sequence header
+ *      1 = AVC NALU
+ *      2 = AVC end of sequence (lower level NALU sequence ender is not required or supported)
+ */
+enum SrsVideoAvcFrameTrait
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleRateReserved                 = 4,
+    SrsVideoAvcFrameTraitReserved = 3,
+    SrsVideoAvcFrameTraitForbidden = 3,
     
-    SrsCodecAudioSampleRate5512                     = 0,
-    SrsCodecAudioSampleRate11025                    = 1,
-    SrsCodecAudioSampleRate22050                    = 2,
-    SrsCodecAudioSampleRate44100                    = 3,
+    SrsVideoAvcFrameTraitSequenceHeader = 0,
+    SrsVideoAvcFrameTraitNALU = 1,
+    SrsVideoAvcFrameTraitSequenceHeaderEOF = 2,
 };
 
 /**
-* E.4.1 FLV Tag, page 75
-*/
-enum SrsCodecFlvTag
+ * The video AVC frame type, such as I/P/B.
+ * @doc video_file_format_spec_v10_1.pdf, page78, E.4.3.1 VIDEODATA
+ * Frame Type UB [4]
+ * Type of video frame. The following values are defined:
+ *      1 = key frame (for AVC, a seekable frame)
+ *      2 = inter frame (for AVC, a non-seekable frame)
+ *      3 = disposable inter frame (H.263 only)
+ *      4 = generated key frame (reserved for server use only)
+ *      5 = video info/command frame
+ */
+enum SrsVideoAvcFrameType
 {
     // set to the zero to reserved, for array map.
-    SrsCodecFlvTagReserved = 0,
-
-    // 8 = audio
-    SrsCodecFlvTagAudio = 8,
-    // 9 = video
-    SrsCodecFlvTagVideo = 9,
-    // 18 = script data
-    SrsCodecFlvTagScript = 18,
+    SrsVideoAvcFrameTypeReserved = 0,
+    SrsVideoAvcFrameTypeForbidden = 0,
+    SrsVideoAvcFrameTypeReserved1 = 6,
+    
+    SrsVideoAvcFrameTypeKeyFrame = 1,
+    SrsVideoAvcFrameTypeInterFrame = 2,
+    SrsVideoAvcFrameTypeDisposableInterFrame = 3,
+    SrsVideoAvcFrameTypeGeneratedKeyFrame = 4,
+    SrsVideoAvcFrameTypeVideoInfoFrame = 5,
 };
 
 /**
-* Annex E. The FLV File Format
-* @see SrsAvcAacCodec for the media stream codec.
-*/
-class SrsFlvCodec
+ * The audio codec id.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ * SoundFormat UB [4]
+ * Format of SoundData. The following values are defined:
+ *     0 = Linear PCM, platform endian
+ *     1 = ADPCM
+ *     2 = MP3
+ *     3 = Linear PCM, little endian
+ *     4 = Nellymoser 16 kHz mono
+ *     5 = Nellymoser 8 kHz mono
+ *     6 = Nellymoser
+ *     7 = G.711 A-law logarithmic PCM
+ *     8 = G.711 mu-law logarithmic PCM
+ *     9 = reserved
+ *     10 = AAC
+ *     11 = Speex
+ *     14 = MP3 8 kHz
+ *     15 = Device-specific sound
+ * Formats 7, 8, 14, and 15 are reserved.
+ * AAC is supported in Flash Player 9,0,115,0 and higher.
+ * Speex is supported in Flash Player 10 and higher.
+ */
+enum SrsAudioCodecId
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioCodecIdReserved1 = 16,
+    SrsAudioCodecIdForbidden = 16,
+    
+    // for user to disable audio, for example, use pure video hls.
+    SrsAudioCodecIdDisabled = 17,
+    
+    SrsAudioCodecIdLinearPCMPlatformEndian = 0,
+    SrsAudioCodecIdADPCM = 1,
+    SrsAudioCodecIdMP3 = 2,
+    SrsAudioCodecIdLinearPCMLittleEndian = 3,
+    SrsAudioCodecIdNellymoser16kHzMono = 4,
+    SrsAudioCodecIdNellymoser8kHzMono = 5,
+    SrsAudioCodecIdNellymoser = 6,
+    SrsAudioCodecIdReservedG711AlawLogarithmicPCM = 7,
+    SrsAudioCodecIdReservedG711MuLawLogarithmicPCM = 8,
+    SrsAudioCodecIdReserved = 9,
+    SrsAudioCodecIdAAC = 10,
+    SrsAudioCodecIdSpeex = 11,
+    SrsAudioCodecIdReservedMP3_8kHz = 14,
+    SrsAudioCodecIdReservedDeviceSpecificSound = 15,
+};
+std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
+
+/**
+ * The audio AAC frame trait(characteristic).
+ * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
+ * AACPacketType IF SoundFormat == 10 UI8
+ * The following values are defined:
+ *      0 = AAC sequence header
+ *      1 = AAC raw
+ */
+enum SrsAudioAacFrameTrait
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioAacFrameTraitReserved = 2,
+    SrsAudioAacFrameTraitForbidden = 2,
+    
+    SrsAudioAacFrameTraitSequenceHeader = 0,
+    SrsAudioAacFrameTraitRawData = 1,
+};
+
+/**
+ * The audio sample rate.
+ * @see srs_flv_srates and srs_aac_srates.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ *      0 = 5.5 kHz = 5512 Hz
+ *      1 = 11 kHz = 11025 Hz
+ *      2 = 22 kHz = 22050 Hz
+ *      3 = 44 kHz = 44100 Hz
+ * However, we can extends this table.
+ */
+enum SrsAudioSampleRate
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioSampleRateReserved = 4,
+    SrsAudioSampleRateForbidden = 4,
+    
+    SrsAudioSampleRate5512 = 0,
+    SrsAudioSampleRate11025 = 1,
+    SrsAudioSampleRate22050 = 2,
+    SrsAudioSampleRate44100 = 3,
+};
+std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
+
+/**
+ * The frame type, for example, audio, video or data.
+ * @doc video_file_format_spec_v10_1.pdf, page 75, E.4.1 FLV Tag
+ */
+enum SrsFrameType
+{
+    // set to the zero to reserved, for array map.
+    SrsFrameTypeReserved = 0,
+    SrsFrameTypeForbidden = 0,
+
+    // 8 = audio
+    SrsFrameTypeAudio = 8,
+    // 9 = video
+    SrsFrameTypeVideo = 9,
+    // 18 = script data
+    SrsFrameTypeScript = 18,
+};
+
+/**
+ * Fast tough the codec of FLV video.
+ * @doc video_file_format_spec_v10_1.pdf, page 78, E.4.3 Video Tags
+ */
+class SrsFlvVideo
 {
 public:
-    SrsFlvCodec();
-    virtual ~SrsFlvCodec();
+    SrsFlvVideo();
+    virtual ~SrsFlvVideo();
 // the following function used to finger out the flv/rtmp packet detail.
 public:
     /**
     * only check the frame_type, not check the codec type.
     */
-    static bool video_is_keyframe(char* data, int size);
+    static bool keyframe(char* data, int size);
     /**
     * check codec h264, keyframe, sequence header
     */
-    static bool video_is_sequence_header(char* data, int size);
-    /**
-    * check codec aac, sequence header
-    */
-    static bool audio_is_sequence_header(char* data, int size);
+    static bool sh(char* data, int size);
     /**
     * check codec h264.
     */
-    static bool video_is_h264(char* data, int size);
-    /**
-    * check codec aac.
-    */
-    static bool audio_is_aac(char* data, int size);
+    static bool h264(char* data, int size);
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
      * @remark all type of audio is possible, no need to check audio.
      */
-    static bool video_is_acceptable(char* data, int size);
+    static bool acceptable(char* data, int size);
+};
+
+/**
+ * Fast tough the codec of FLV video.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ */
+class SrsFlvAudio
+{
+public:
+    SrsFlvAudio();
+    virtual ~SrsFlvAudio();
+// the following function used to finger out the flv/rtmp packet detail.
+public:
+    /**
+     * check codec aac, sequence header
+     */
+    static bool sh(char* data, int size);
+    /**
+     * check codec aac.
+     */
+    static bool aac(char* data, int size);
 };
 
 /**
@@ -236,56 +277,66 @@ public:
 /**
 * the flv sample rate map
 */
-extern int flv_sample_rates[];
+extern int srs_flv_srates[];
 
 /**
 * the aac sample rate map
 */
-extern int aac_sample_rates[];
+extern int srs_aac_srates[];
 
-#define SRS_SRS_MAX_CODEC_SAMPLE 128
-#define SRS_AAC_SAMPLE_RATE_UNSET 15
+// The impossible aac sample rate index.
+#define SrsAacSampleRateUnset 15
 
-/**
-* the FLV/RTMP supported audio sample size.
-* Size of each audio sample. This parameter only pertains to
-* uncompressed formats. Compressed formats always decode
-* to 16 bits internally.
-* 0 = 8-bit samples
-* 1 = 16-bit samples
-*/
-enum SrsCodecAudioSampleSize
-{
-    // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleSizeReserved                 = 2,
-    
-    SrsCodecAudioSampleSize8bit                     = 0,
-    SrsCodecAudioSampleSize16bit                    = 1,
-};
+// The max number of NALUs in a video, or aac frame in audio packet.
+#define SrsMaxNbSamples 256
 
 /**
-* the FLV/RTMP supported audio sound type/channel.
-* Mono or stereo sound
-* 0 = Mono sound
-* 1 = Stereo sound
-*/
-enum SrsCodecAudioSoundType
+ * The audio sample size in bits.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ * Size of each audio sample. This parameter only pertains to
+ * uncompressed formats. Compressed formats always decode
+ * to 16 bits internally.
+ *      0 = 8-bit samples
+ *      1 = 16-bit samples
+ */
+enum SrsAudioSampleBits
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSoundTypeReserved                  = 2, 
+    SrsAudioSampleBitsReserved = 2,
+    SrsAudioSampleBitsForbidden = 2,
     
-    SrsCodecAudioSoundTypeMono                      = 0,
-    SrsCodecAudioSoundTypeStereo                    = 1,
+    SrsAudioSampleBits8bit = 0,
+    SrsAudioSampleBits16bit = 1,
 };
+std::string srs_audio_sample_bits2str(SrsAudioSampleBits v);
+
+/**
+ * The audio channels.
+ * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
+ * Mono or stereo sound
+ *      0 = Mono sound
+ *      1 = Stereo sound
+ */
+enum SrsAudioChannels
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioChannelsReserved = 2,
+    SrsAudioChannelsForbidden = 2,
+    
+    SrsAudioChannelsMono = 0,
+    SrsAudioChannelsStereo = 1,
+};
+std::string srs_audio_channels2str(SrsAudioChannels v);
 
 /**
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
- * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+ * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
  */
 enum SrsAvcNaluType
 {
     // Unspecified
     SrsAvcNaluTypeReserved = 0,
+    SrsAvcNaluTypeForbidden = 0,
     
     // Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
     SrsAvcNaluTypeNonIDR = 1,
@@ -322,109 +373,13 @@ enum SrsAvcNaluType
     // Coded slice extension slice_layer_extension_rbsp( )
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
-std::string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type);
+std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 /**
-* the codec sample unit.
-* for h.264 video packet, a NALU is a sample unit.
-* for aac raw audio packet, a NALU is the entire aac raw data.
-* for sequence header, it's not a sample unit.
-*/
-class SrsCodecSampleUnit
-{
-public:
-    /**
-    * the sample bytes is directly ptr to packet bytes,
-    * user should never use it when packet destroyed.
-    */
-    int size;
-    char* bytes;
-public:
-    SrsCodecSampleUnit();
-    virtual ~SrsCodecSampleUnit();
-};
-
-/**
-* the samples in the flv audio/video packet.
-* the sample used to analysis a video/audio packet,
-* split the h.264 NALUs to buffers, or aac raw data to a buffer,
-* and decode the video/audio specified infos.
-* 
-* the sample unit:
-*       a video packet codec in h.264 contains many NALUs, each is a sample unit.
-*       a audio packet codec in aac is a sample unit.
-* @remark, the video/audio sequence header is not sample unit,
-*       all sequence header stores as extra data, 
-*       @see SrsAvcAacCodec.avc_extra_data and SrsAvcAacCodec.aac_extra_data
-* @remark, user must clear all samples before decode a new video/audio packet.
-*/
-class SrsCodecSample
-{
-public:
-    /**
-    * each audio/video raw data packet will dumps to one or multiple buffers,
-    * the buffers will write to hls and clear to reset.
-    * generally, aac audio packet corresponding to one buffer,
-    * where avc/h264 video packet may contains multiple buffer.
-    */
-    int nb_sample_units;
-    SrsCodecSampleUnit sample_units[SRS_SRS_MAX_CODEC_SAMPLE];
-public:
-    /**
-    * whether the sample is video sample which demux from video packet.
-    */
-    bool is_video;
-    /**
-    * CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
-    * cts = pts - dts, where dts = flvheader->timestamp.
-    */
-    int32_t cts;
-public:
-    // video specified
-    SrsCodecVideoAVCFrame frame_type;
-    SrsCodecVideoAVCType avc_packet_type;
-    // whether sample_units contains IDR frame.
-    bool has_idr;
-    // Whether exists AUD NALU.
-    bool has_aud;
-    // Whether exists SPS/PPS NALU.
-    bool has_sps_pps;
-    // The first nalu type.
-    SrsAvcNaluType first_nalu_type;
-public:
-    // audio specified
-    SrsCodecAudio acodec;
-    // audio aac specified.
-    SrsCodecAudioSampleRate sound_rate;
-    SrsCodecAudioSampleSize sound_size;
-    SrsCodecAudioSoundType sound_type;
-    SrsCodecAudioType aac_packet_type;
-public:
-    SrsCodecSample();
-    virtual ~SrsCodecSample();
-public:
-    /**
-    * clear all samples.
-    * the sample units never copy the bytes, it directly use the ptr,
-    * so when video/audio packet is destroyed, the sample must be clear.
-    * in a word, user must clear sample before demux it.
-    * @remark demux sample use SrsAvcAacCodec.audio_aac_demux or video_avc_demux.
-    */
-    void clear();
-    /**
-    * add the a sample unit, it's a h.264 NALU or aac raw data.
-    * the sample unit directly use the ptr of packet bytes,
-    * so user must never use sample unit when packet is destroyed.
-    * in a word, user must clear sample before demux it.
-    */
-    int add_sample_unit(char* bytes, int size);
-};
-
-/**
-* the avc payload format, must be ibmf or annexb format.
-* we guess by annexb first, then ibmf for the first time,
-* and we always use the guessed format for the next time.
-*/
+ * the avc payload format, must be ibmf or annexb format.
+ * we guess by annexb first, then ibmf for the first time,
+ * and we always use the guessed format for the next time.
+ */
 enum SrsAvcPayloadFormat
 {
     SrsAvcPayloadFormatGuess = 0,
@@ -433,31 +388,32 @@ enum SrsAvcPayloadFormat
 };
 
 /**
-* the aac profile, for ADTS(HLS/TS)
-* @see https://github.com/ossrs/srs/issues/310
-*/
+ * the aac profile, for ADTS(HLS/TS)
+ * @see https://github.com/ossrs/srs/issues/310
+ */
 enum SrsAacProfile
 {
     SrsAacProfileReserved = 3,
     
-    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
+    // @see 7.1 Profiles, ISO_IEC_13818-7-AAC-2004.pdf, page 40
     SrsAacProfileMain = 0,
     SrsAacProfileLC = 1,
     SrsAacProfileSSR = 2,
 };
-std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
+std::string srs_aac_profile2str(SrsAacProfile aac_profile);
 
 /**
-* the aac object type, for RTMP sequence header
-* for AudioSpecificConfig, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33
-* for audioObjectType, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
-*/
+ * the aac object type, for RTMP sequence header
+ * for AudioSpecificConfig, @see ISO_IEC_14496-3-AAC-2001.pdf, page 33
+ * for audioObjectType, @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
+ */
 enum SrsAacObjectType
 {
     SrsAacObjectTypeReserved = 0,
+    SrsAacObjectTypeForbidden = 0,
     
     // Table 1.1 - Audio Object Type definition
-    // @see @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+    // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
     SrsAacObjectTypeAacMain = 1,
     SrsAacObjectTypeAacLC = 2,
     SrsAacObjectTypeAacSSR = 3,
@@ -467,16 +423,16 @@ enum SrsAacObjectType
     // AAC HEv2 = LC+SBR+PS
     SrsAacObjectTypeAacHEV2 = 29,
 };
-std::string srs_codec_aac_object2str(SrsAacObjectType aac_object);
+std::string srs_aac_object2str(SrsAacObjectType aac_object);
 // ts/hls/adts audio header profile to RTMP sequence header object type.
-SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
+SrsAacObjectType srs_aac_ts2rtmp(SrsAacProfile profile);
 // RTMP sequence header object type to ts/hls/adts audio header profile.
-SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
+SrsAacProfile srs_aac_rtmp2ts(SrsAacObjectType object_type);
 
 /**
-* the profile for avc/h.264.
-* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205.
-*/
+ * the profile for avc/h.264.
+ * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205.
+ */
 enum SrsAvcProfile
 {
     SrsAvcProfileReserved = 0,
@@ -497,12 +453,12 @@ enum SrsAvcProfile
     SrsAvcProfileHigh444Predictive = 244,
     SrsAvcProfileHigh444Intra = 2192,
 };
-std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
+std::string srs_avc_profile2str(SrsAvcProfile profile);
 
 /**
-* the level for avc/h.264.
-* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 207.
-*/
+ * the level for avc/h.264.
+ * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
+ */
 enum SrsAvcLevel
 {
     SrsAvcLevelReserved = 0,
@@ -522,150 +478,260 @@ enum SrsAvcLevel
     SrsAvcLevel_5 = 50,
     SrsAvcLevel_51 = 51,
 };
-std::string srs_codec_avc_level2str(SrsAvcLevel level);
-
-#if !defined(SRS_EXPORT_LIBRTMP)
+std::string srs_avc_level2str(SrsAvcLevel level);
 
 /**
-* the h264/avc and aac codec, for media stream.
-*
-* to demux the FLV/RTMP video/audio packet to sample,
-* add each NALUs of h.264 as a sample unit to sample,
-* while the entire aac raw data as a sample unit.
-*
-* for sequence header,
-* demux it and save it in the avc_extra_data and aac_extra_data,
-* 
-* for the codec info, such as audio sample rate,
-* decode from FLV/RTMP header, then use codec info in sequence 
-* header to override it.
-*/
-class SrsAvcAacCodec
+ * A sample is the unit of frame.
+ * It's a NALU for H.264.
+ * It's the whole AAC raw data for AAC.
+ * @remark Neither SPS/PPS or ASC is sample unit, it's codec sequence header.
+ */
+class SrsSample
 {
-private:
-    SrsStream* stream;
+public:
+    // The size of unit.
+    int size;
+    // The ptr of unit, user must manage it.
+    char* bytes;
+public:
+    SrsSample();
+    virtual ~SrsSample();
+};
+
+/**
+ * The codec is the information of encoder,
+ * corresponding to the sequence header of FLV,
+ * parsed to detail info.
+ */
+class SrsCodecConfig
+{
+public:
+    SrsCodecConfig();
+    virtual ~SrsCodecConfig();
+};
+
+/**
+ * The audio codec info.
+ */
+class SrsAudioCodecConfig : public SrsCodecConfig
+{
+// In FLV specification.
+public:
+    // audio specified
+    SrsAudioCodecId id;
+    // audio aac specified.
+    SrsAudioSampleRate sound_rate;
+    SrsAudioSampleBits sound_size;
+    // TODO: FIXME: Rename to sound_channels.
+    SrsAudioChannels sound_type;
+    int audio_data_rate; // in bps
+// In AAC specification.
 public:
     /**
-    * metadata specified
-    */
-    int             duration;
-    int             width;
-    int             height;
-    int             frame_rate;
-    // @see: SrsCodecVideo
-    int             video_codec_id;
-    int             video_data_rate; // in bps
-    // @see: SrsCod ecAudioType
-    int             audio_codec_id;
-    int             audio_data_rate; // in bps
+     * audio specified
+     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
+     * 1.5.1.1 Audio object type definition, page 23,
+     *           in ISO_IEC_14496-3-AAC-2001.pdf.
+     */
+    SrsAacObjectType aac_object;
+    /**
+     * samplingFrequencyIndex
+     */
+    uint8_t aac_sample_rate;
+    /**
+     * channelConfiguration
+     */
+    uint8_t aac_channels;
+// Sequence header payload.
 public:
     /**
-    * video specified
-    */
-    // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    SrsAvcProfile   avc_profile; 
-    // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    SrsAvcLevel     avc_level; 
-    // lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
-    int8_t          NAL_unit_length;
-    u_int16_t       sequenceParameterSetLength;
-    char*           sequenceParameterSetNALUnit;
-    u_int16_t       pictureParameterSetLength;
-    char*           pictureParameterSetNALUnit;
-private:
+     * the aac extra data, the AAC sequence header,
+     * without the flv codec header,
+     * @see: ffmpeg, AVCodecContext::extradata
+     */
+    int aac_extra_size;
+    char* aac_extra_data;
+public:
+    SrsAudioCodecConfig();
+    virtual ~SrsAudioCodecConfig();
+public:
+    virtual bool is_aac_codec_ok();
+};
+
+/**
+ * The video codec info.
+ */
+class SrsVideoCodecConfig : public SrsCodecConfig
+{
+public:
+    SrsVideoCodecId id;
+    int video_data_rate; // in bps
+    double frame_rate;
+    double duration;
+    int width;
+    int height;
+public:
+    /**
+     * the avc extra data, the AVC sequence header,
+     * without the flv codec header,
+     * @see: ffmpeg, AVCodecContext::extradata
+     */
+    int avc_extra_size;
+    char* avc_extra_data;
+public:
+    /**
+     * video specified
+     */
+    // profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
+    SrsAvcProfile avc_profile;
+    // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
+    SrsAvcLevel avc_level;
+    // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
+    int8_t NAL_unit_length;
+    uint16_t sequenceParameterSetLength;
+    char* sequenceParameterSetNALUnit;
+    uint16_t pictureParameterSetLength;
+    char* pictureParameterSetNALUnit;
+public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
 public:
-    /**
-    * audio specified
-    * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
-    * 1.5.1.1 Audio object type definition, page 23,
-    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
-    */
-    SrsAacObjectType    aac_object;
-    /**
-    * samplingFrequencyIndex
-    */
-    u_int8_t        aac_sample_rate;
-    /**
-    * channelConfiguration
-    */
-    u_int8_t        aac_channels;
+    SrsVideoCodecConfig();
+    virtual ~SrsVideoCodecConfig();
 public:
-    /**
-    * the avc extra data, the AVC sequence header,
-    * without the flv codec header,
-    * @see: ffmpeg, AVCodecContext::extradata
-    */
-    int             avc_extra_size;
-    char*           avc_extra_data;
-    /**
-    * the aac extra data, the AAC sequence header,
-    * without the flv codec header,
-    * @see: ffmpeg, AVCodecContext::extradata
-    */
-    int             aac_extra_size;
-    char*           aac_extra_data;
-public:
-    // for sequence header, whether parse the h.264 sps.
-    bool            avc_parse_sps;
-public:
-    SrsAvcAacCodec();
-    virtual ~SrsAvcAacCodec();
-public:
-    // whether avc or aac codec sequence header or extra data is decoded ok.
     virtual bool is_avc_codec_ok();
-    virtual bool is_aac_codec_ok();
-// the following function used for hls to build the sample and codec.
-public:
-    /**
-    * demux the audio packet in aac codec.
-    * the packet mux in FLV/RTMP format defined in flv specification.
-    * demux the audio speicified data(sound_format, sound_size, ...) to sample.
-    * demux the aac specified data(aac_profile, ...) to codec from sequence header.
-    * demux the aac raw to sample units.
-    */
-    virtual int audio_aac_demux(char* data, int size, SrsCodecSample* sample);
-    virtual int audio_mp3_demux(char* data, int size, SrsCodecSample* sample);
-    /**
-    * demux the video packet in h.264 codec.
-    * the packet mux in FLV/RTMP format defined in flv specification.
-    * demux the video specified data(frame_type, codec_id, ...) to sample.
-    * demux the h.264 sepcified data(avc_profile, ...) to codec from sequence header.
-    * demux the h.264 NALUs to sampe units.
-    */
-    virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
-private:
-    virtual int video_nalu_demux(SrsStream* stream, SrsCodecSample* sample);
-public:
-    /**
-    * directly demux the sequence header, without RTMP packet header.
-    */
-    virtual int audio_aac_sequence_header_demux(char* data, int size);
-private:
-    /**
-    * when avc packet type is SrsCodecVideoAVCTypeSequenceHeader,
-    * decode the sps and pps.
-    */
-    virtual int avc_demux_sps_pps(SrsStream* stream);
-    /**
-     * decode the sps rbsp stream.
-     */
-    virtual int avc_demux_sps();
-    virtual int avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
-    /**
-    * demux the avc NALU in "AnnexB" 
-    * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
-    */
-    virtual int avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* sample);
-    /**
-    * demux the avc NALU in "ISO Base Media File Format" 
-    * from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
-    */
-    virtual int avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sample);
 };
 
-#endif
+/**
+ * A frame, consists of a codec and a group of samples.
+ */
+class SrsFrame
+{
+public:
+    // The DTS/PTS in milliseconds, which is TBN=1000.
+    int64_t dts;
+    // PTS = DTS + CTS.
+    int32_t cts;
+public:
+    // The codec info of frame.
+    SrsCodecConfig* codec;
+    // The actual parsed number of samples.
+    int nb_samples;
+    // The sampels cache.
+    SrsSample samples[SrsMaxNbSamples];
+public:
+    SrsFrame();
+    virtual ~SrsFrame();
+public:
+    // Initialize the frame, to parse sampels.
+    virtual int initialize(SrsCodecConfig* c);
+    // Add a sample to frame.
+    virtual int add_sample(char* bytes, int size);
+};
+
+/**
+ * A audio frame, besides a frame, contains the audio frame info, such as frame type.
+ */
+class SrsAudioFrame : public SrsFrame
+{
+public:
+    SrsAudioAacFrameTrait aac_packet_type;
+public:
+    SrsAudioFrame();
+    virtual ~SrsAudioFrame();
+public:
+    virtual SrsAudioCodecConfig* acodec();
+};
+
+/**
+ * A video frame, besides a frame, contains the video frame info, such as frame type.
+ */
+class SrsVideoFrame : public SrsFrame
+{
+public:
+    // video specified
+    SrsVideoAvcFrameType frame_type;
+    SrsVideoAvcFrameTrait avc_packet_type;
+    // whether sample_units contains IDR frame.
+    bool has_idr;
+    // Whether exists AUD NALU.
+    bool has_aud;
+    // Whether exists SPS/PPS NALU.
+    bool has_sps_pps;
+    // The first nalu type.
+    SrsAvcNaluType first_nalu_type;
+public:
+    SrsVideoFrame();
+    virtual ~SrsVideoFrame();
+public:
+    // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
+    virtual int add_sample(char* bytes, int size);
+public:
+    virtual SrsVideoCodecConfig* vcodec();
+};
+
+/**
+ * A codec format, including one or many stream, each stream identified by a frame.
+ * For example, a typical RTMP stream format, consits of a video and audio frame.
+ * Maybe some RTMP stream only has a audio stream, for instance, redio application.
+ */
+class SrsFormat
+{
+public:
+    SrsAudioFrame* audio;
+    SrsAudioCodecConfig* acodec;
+    SrsVideoFrame* video;
+    SrsVideoCodecConfig* vcodec;
+    SrsBuffer* buffer;
+public:
+    // for sequence header, whether parse the h.264 sps.
+    // TODO: FIXME: Refine it.
+    bool            avc_parse_sps;
+public:
+    SrsFormat();
+    virtual ~SrsFormat();
+public:
+    // Initialize the format.
+    virtual int initialize();
+    // When got a parsed audio packet.
+    // @param data The data in FLV format.
+    virtual int on_audio(int64_t timestamp, char* data, int size);
+    // When got a parsed video packet.
+    // @param data The data in FLV format.
+    virtual int on_video(int64_t timestamp, char* data, int size);
+    // When got a audio aac sequence header.
+    virtual int on_aac_sequence_header(char* data, int size);
+public:
+    virtual bool is_aac_sequence_header();
+    virtual bool is_avc_sequence_header();
+private:
+    // Demux the video packet in H.264 codec.
+    // The packet is muxed in FLV format, defined in flv specification.
+    //          Demux the sps/pps from sequence header.
+    //          Demux the samples from NALUs.
+    virtual int video_avc_demux(SrsBuffer* stream, int64_t timestamp);
+private:
+    // Parse the H.264 SPS/PPS.
+    virtual int avc_demux_sps_pps(SrsBuffer* stream);
+    virtual int avc_demux_sps();
+    virtual int avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+private:
+    // Parse the H.264 NALUs.
+    virtual int video_nalu_demux(SrsBuffer* stream);
+    // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+    virtual int avc_demux_annexb_format(SrsBuffer* stream);
+    // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
+    virtual int avc_demux_ibmf_format(SrsBuffer* stream);
+private:
+    // Demux the audio packet in AAC codec.
+    //          Demux the asc from sequence header.
+    //          Demux the sampels from RAW data.
+    virtual int audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual int audio_mp3_demux(SrsBuffer* stream, int64_t timestamp);
+public:
+    // Directly demux the sequence header, without RTMP packet header.
+    virtual int audio_aac_sequence_header_demux(char* data, int size);
+};
 
 #endif
 

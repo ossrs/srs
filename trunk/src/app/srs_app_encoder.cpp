@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -37,14 +37,14 @@ using namespace std;
 #ifdef SRS_AUTO_TRANSCODE
 
 // when error, encoder sleep for a while and retry.
-#define SRS_RTMP_ENCODER_SLEEP_US (int64_t)(3*1000*1000LL)
+#define SRS_RTMP_ENCODER_CIMS (3000)
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US);
+    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_CIMS);
     pprint = SrsPithyPrint::create_encoder();
 }
 
@@ -208,8 +208,7 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     
     // enabled
     if (!_srs_config->get_transcode_enabled(conf)) {
-        srs_trace("ignore the disabled transcode: %s", 
-            conf->arg0().c_str());
+        srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
         return ret;
     }
     
@@ -263,7 +262,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     input = "rtmp://";
     input += SRS_CONSTS_LOCALHOST;
     input += ":";
-    input += req->port;
+    input += srs_int2str(req->port);
     input += "/";
     input += req->app;
     input += "?vhost=";
@@ -282,7 +281,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", req->vhost);
-    output = srs_string_replace(output, "[port]", req->port);
+    output = srs_string_replace(output, "[port]", srs_int2str(req->port));
     output = srs_string_replace(output, "[app]", req->app);
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[engine]", engine->arg0());

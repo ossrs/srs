@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -33,15 +33,18 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_stream.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_stream.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_amf0.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_raw_avc.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_app_pithy_print.hpp>
+#include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_protocol_format.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -80,7 +83,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     pprint->elapse();
 
     if (true) {
-        SrsStream stream;
+        SrsBuffer stream;
 
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
             return ret;
@@ -133,13 +136,13 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 SrsRtspAudioCache::SrsRtspAudioCache()
 {
     dts = 0;
-    audio_samples = NULL;
+    audio = NULL;
     payload = NULL;
 }
 
 SrsRtspAudioCache::~SrsRtspAudioCache()
 {
-    srs_freep(audio_samples);
+    srs_freep(audio);
     srs_freep(payload);
 }
 
@@ -167,7 +170,7 @@ int SrsRtspJitter::correct(int64_t& ts)
         previous_timestamp = ts;
     }
 
-    delta = srs_max(0, ts - previous_timestamp);
+    delta = srs_max(0, (int)(ts - previous_timestamp));
     if (delta > 90000) {
         delta = 0;
     }
@@ -190,14 +193,12 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 
     caster = c;
     stfd = fd;
-    skt = new SrsStSocket(fd);
+    skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
     trd = new SrsOneCycleThread("rtsp", this);
 
     req = NULL;
-    io = NULL;
-    client = NULL;
-    stream_id = 0;
+    sdk = NULL;
     vjitter = new SrsRtspJitter();
     ajitter = new SrsRtspJitter();
 
@@ -209,6 +210,8 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 
 SrsRtspConn::~SrsRtspConn()
 {
+    close();
+    
     srs_close_stfd(stfd);
 
     srs_freep(video_rtp);
@@ -218,8 +221,7 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(skt);
     srs_freep(rtsp);
     
-    srs_freep(client);
-    srs_freep(io);
+    srs_freep(sdk);
     srs_freep(req);
 
     srs_freep(vjitter);
@@ -230,6 +232,11 @@ SrsRtspConn::~SrsRtspConn()
 
 int SrsRtspConn::serve()
 {
+    int ret = ERROR_SUCCESS;
+    if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return trd->start();
 }
 
@@ -254,7 +261,7 @@ int SrsRtspConn::do_cycle()
         srs_info("rtsp: got rtsp request");
 
         if (req->is_options()) {
-            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -270,10 +277,7 @@ int SrsRtspConn::do_cycle()
             if ((pos = rtsp_tcUrl.rfind(".sdp")) != string::npos) {
                 rtsp_tcUrl = rtsp_tcUrl.substr(0, pos);
             }
-            if ((pos = rtsp_tcUrl.rfind("/")) != string::npos) {
-                rtsp_stream = rtsp_tcUrl.substr(pos + 1);
-                rtsp_tcUrl = rtsp_tcUrl.substr(0, pos);
-            }
+            srs_parse_rtmp_url(rtsp_tcUrl, rtsp_tcUrl, rtsp_stream);
 
             srs_assert(req->sdp);
             video_id = ::atoi(req->sdp->video_stream_id.c_str());
@@ -291,7 +295,7 @@ int SrsRtspConn::do_cycle()
                 audio_sample_rate, audio_channel, rtsp_tcUrl.c_str(), rtsp_stream.c_str()
             );
 
-            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -331,7 +335,7 @@ int SrsRtspConn::do_cycle()
                 session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
             }
 
-            SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+            SrsRtspSetupResponse* res = new SrsRtspSetupResponse((int)req->seq);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
             res->local_port_min = lpm;
@@ -344,7 +348,7 @@ int SrsRtspConn::do_cycle()
                 return ret;
             }
         } else if (req->is_record()) {
-            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -437,7 +441,11 @@ int SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
         return ret;
     }
 
-    if ((ret = write_h264_ipb_frame(pkt->payload->bytes(), pkt->payload->length(), dts / 90, pts / 90)) != ERROR_SUCCESS) {
+    char* bytes = pkt->payload->bytes();
+    int length = pkt->payload->length();
+    uint32_t fdts = (uint32_t)(dts / 90);
+    uint32_t fpts = (uint32_t)(pts / 90);
+    if ((ret = write_h264_ipb_frame(bytes, length, fdts, fpts)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -454,10 +462,10 @@ int SrsRtspConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
 
     // cache current audio to kickoff.
     acache->dts = dts;
-    acache->audio_samples = pkt->audio_samples;
+    acache->audio = pkt->audio;
     acache->payload = pkt->payload;
 
-    pkt->audio_samples = NULL;
+    pkt->audio = NULL;
     pkt->payload = NULL;
 
     return ret;
@@ -472,21 +480,21 @@ int SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
         return ret;
     }
 
-    if (dts - acache->dts > 0 && acache->audio_samples->nb_sample_units > 0) {
-        int64_t delta = (dts - acache->dts) / acache->audio_samples->nb_sample_units;
-        for (int i = 0; i < acache->audio_samples->nb_sample_units; i++) {
-            char* frame = acache->audio_samples->sample_units[i].bytes;
-            int nb_frame = acache->audio_samples->sample_units[i].size;
+    if (dts - acache->dts > 0 && acache->audio->nb_samples > 0) {
+        int64_t delta = (dts - acache->dts) / acache->audio->nb_samples;
+        for (int i = 0; i < acache->audio->nb_samples; i++) {
+            char* frame = acache->audio->samples[i].bytes;
+            int nb_frame = acache->audio->samples[i].size;
             int64_t timestamp = (acache->dts + delta * i) / 90;
             acodec->aac_packet_type = 1;
-            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, timestamp)) != ERROR_SUCCESS) {
+            if ((ret = write_audio_raw_frame(frame, nb_frame, acodec, (uint32_t)timestamp)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
     }
 
     acache->dts = 0;
-    srs_freep(acache->audio_samples);
+    srs_freep(acache->audio);
     srs_freep(acache->payload);
 
     return ret;
@@ -500,7 +508,7 @@ int SrsRtspConn::write_sequence_header()
     int64_t dts = vjitter->timestamp() / 90;
 
     // send video sps/pps
-    if ((ret = write_h264_sps_pps(dts, dts)) != ERROR_SUCCESS) {
+    if ((ret = write_h264_sps_pps((uint32_t)dts, (uint32_t)dts)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -508,37 +516,41 @@ int SrsRtspConn::write_sequence_header()
     if (true) {
         std::string sh = aac_specific_config;
 
-        SrsAvcAacCodec dec;
-        if ((ret = dec.audio_aac_sequence_header_demux((char*)sh.c_str(), (int)sh.length())) != ERROR_SUCCESS) {
+        SrsFormat* format = new SrsFormat();
+        SrsAutoFree(SrsFormat, format);
+        
+        if ((ret = format->on_aac_sequence_header((char*)sh.c_str(), (int)sh.length())) != ERROR_SUCCESS) {
             return ret;
         }
+        
+        SrsAudioCodecConfig* dec = format->acodec;
 
-        acodec->sound_format = SrsCodecAudioAAC;
-        acodec->sound_type = (dec.aac_channels == 2)? SrsCodecAudioSoundTypeStereo : SrsCodecAudioSoundTypeMono;
-        acodec->sound_size = SrsCodecAudioSampleSize16bit;
+        acodec->sound_format = SrsAudioCodecIdAAC;
+        acodec->sound_type = (dec->aac_channels == 2)? SrsAudioChannelsStereo : SrsAudioChannelsMono;
+        acodec->sound_size = SrsAudioSampleBits16bit;
         acodec->aac_packet_type = 0;
 
-        static int aac_sample_rates[] = {
+        static int srs_aac_srates[] = {
             96000, 88200, 64000, 48000,
             44100, 32000, 24000, 22050,
             16000, 12000, 11025,  8000,
             7350,     0,     0,    0
         };
-        switch (aac_sample_rates[dec.aac_sample_rate]) {
+        switch (srs_aac_srates[dec->aac_sample_rate]) {
             case 11025:
-                acodec->sound_rate = SrsCodecAudioSampleRate11025;
+                acodec->sound_rate = SrsAudioSampleRate11025;
                 break;
             case 22050:
-                acodec->sound_rate = SrsCodecAudioSampleRate22050;
+                acodec->sound_rate = SrsAudioSampleRate22050;
                 break;
             case 44100:
-                acodec->sound_rate = SrsCodecAudioSampleRate44100;
+                acodec->sound_rate = SrsAudioSampleRate44100;
                 break;
             default:
                 break;
         };
 
-        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, dts)) != ERROR_SUCCESS) {
+        if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (uint32_t)dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -546,7 +558,7 @@ int SrsRtspConn::write_sequence_header()
     return ret;
 }
 
-int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+int SrsRtspConn::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -557,8 +569,8 @@ int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -566,27 +578,27 @@ int SrsRtspConn::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
+    uint32_t timestamp = dts;
+    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts) 
+int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts) 
 {
     int ret = ERROR_SUCCESS;
     
     // 5bits, 7.3.1 NAL unit syntax,
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     
     // for IDR frame, the frame is keyframe.
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+        frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
     std::string ibp;
@@ -594,7 +606,7 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts
         return ret;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -602,11 +614,11 @@ int SrsRtspConn::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
-    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+    uint32_t timestamp = dts;
+    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts)
+int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
 
@@ -616,149 +628,80 @@ int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStr
         return ret;
     }
     
-    return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
+    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
-int SrsRtspConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsSharedPtrMessage* msg = NULL;
 
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
         srs_error("rtsp: create shared ptr msg failed. ret=%d", ret);
         return ret;
     }
     srs_assert(msg);
 
     // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+    if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        close();
         return ret;
     }
     
     return ret;
 }
 
-// TODO: FIXME: merge all client code.
 int SrsRtspConn::connect()
 {
     int ret = ERROR_SUCCESS;
 
-    // when ok, ignore.
-    if (io || client) {
+    // Ignore when connected.
+    if (sdk) {
         return ret;
     }
     
-    // parse uri
+    // generate rtmp url to connect to.
+    std::string url;
     if (!req) {
-        req = new SrsRequest();
-
-        std::string schema, host, vhost, app, port, param;
+        std::string schema, host, vhost, app, param;
+        int port;
         srs_discovery_tc_url(rtsp_tcUrl, schema, host, vhost, app, port, param);
 
         // generate output by template.
         std::string output = output_template;
         output = srs_string_replace(output, "[app]", app);
         output = srs_string_replace(output, "[stream]", rtsp_stream);
-
-        size_t pos = string::npos;
-        string uri = req->tcUrl = output;
-
-        // tcUrl, stream
-        if ((pos = uri.rfind("/")) != string::npos) {
-            req->stream = uri.substr(pos + 1);
-            req->tcUrl = uri = uri.substr(0, pos);
-        }
-    
-        srs_discovery_tc_url(req->tcUrl, 
-            req->schema, req->host, req->vhost, req->app, req->port,
-            req->param);
     }
 
     // connect host.
-    if ((ret = srs_socket_connect(req->host, ::atoi(req->port.c_str()), ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
-        srs_error("rtsp: connect server %s:%s failed. ret=%d", req->host.c_str(), req->port.c_str(), ret);
-        return ret;
-    }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
-
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    int64_t cto = SRS_CONSTS_RTMP_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    // connect to vhost/app
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("rtsp: handshake with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
-        srs_error("rtsp: connect with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("rtsp: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        close();
+        srs_error("rtsp: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("rtsp: publish failed, stream=%s, stream_id=%d. ret=%d", 
-            req->stream.c_str(), stream_id, ret);
+    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        close();
+        srs_error("rtsp: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;
     }
 
     return write_sequence_header();
 }
 
-// TODO: FIXME: refine the connect_app.
-int SrsRtspConn::connect_app(string ep_server, string ep_port)
+void SrsRtspConn::close()
 {
-    int ret = ERROR_SUCCESS;
-    
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
-    // notify server the edge identity,
-    // @see https://github.com/ossrs/srs/issues/147
-    SrsAmf0Object* data = req->args;
-    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
-    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
-    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
-    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
-    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
-    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
-    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    // for edge to directly get the id of client.
-    data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
-    
-    // local ip of edge
-    std::vector<std::string> ips = srs_get_local_ipv4_ips();
-    assert(_srs_config->get_stats_network() < (int)ips.size());
-    std::string local_ip = ips[_srs_config->get_stats_network()];
-    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
-    
-    // generate the tcUrl
-    std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
-    
-    // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/ossrs/srs/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
-    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("rtsp: connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
-            tc_url.c_str(), debug_srs_upnode, ret);
-        return ret;
-    }
-    
-    return ret;
+    srs_freep(sdk);
 }
 
 SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)

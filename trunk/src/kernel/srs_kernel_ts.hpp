@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -37,14 +37,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
-class SrsStream;
-class SrsTsCache;
-class SrsTSMuxer;
+class SrsBuffer;
+class SrsTsMessageCache;
+class SrsTsContextWriter;
 class SrsFileWriter;
 class SrsFileReader;
-class SrsAvcAacCodec;
-class SrsCodecSample;
-class SrsSimpleBuffer;
+class SrsFormat;
+class SrsSimpleStream;
 class SrsTsAdaptationField;
 class SrsTsPayload;
 class SrsTsMessage;
@@ -65,19 +64,19 @@ class SrsTsContext;
 enum SrsTsPid
 {
     // Program Association Table(see Table 2-25).
-    SrsTsPidPAT             = 0x00,
+    SrsTsPidPAT = 0x00,
     // Conditional Access Table (see Table 2-27).
-    SrsTsPidCAT             = 0x01,
+    SrsTsPidCAT = 0x01,
     // Transport Stream Description Table
-    SrsTsPidTSDT            = 0x02,
+    SrsTsPidTSDT = 0x02,
     // Reserved
-    SrsTsPidReservedStart   = 0x03,
-    SrsTsPidReservedEnd     = 0x0f,
+    SrsTsPidReservedStart = 0x03,
+    SrsTsPidReservedEnd = 0x0f,
     // May be assigned as network_PID, Program_map_PID, elementary_PID, or for other purposes
-    SrsTsPidAppStart        = 0x10,
-    SrsTsPidAppEnd          = 0x1ffe,
+    SrsTsPidAppStart = 0x10,
+    SrsTsPidAppEnd = 0x1ffe,
     // null packets (see Table 2-3)
-    SrsTsPidNULL    = 0x01FFF,
+    SrsTsPidNULL = 0x01FFF,
 };
 
 /**
@@ -87,13 +86,13 @@ enum SrsTsPid
 enum SrsTsScrambled
 {
     // Not scrambled
-    SrsTsScrambledDisabled      = 0x00,
+    SrsTsScrambledDisabled = 0x00,
     // User-defined
-    SrsTsScrambledUserDefined1  = 0x01,
+    SrsTsScrambledUserDefined1 = 0x01,
     // User-defined
-    SrsTsScrambledUserDefined2  = 0x02,
+    SrsTsScrambledUserDefined2 = 0x02,
     // User-defined
-    SrsTsScrambledUserDefined3  = 0x03,
+    SrsTsScrambledUserDefined3 = 0x03,
 };
 
 /**
@@ -103,13 +102,13 @@ enum SrsTsScrambled
 enum SrsTsAdaptationFieldType
 {
     // Reserved for future use by ISO/IEC
-    SrsTsAdaptationFieldTypeReserved      = 0x00,
+    SrsTsAdaptationFieldTypeReserved = 0x00,
     // No adaptation_field, payload only
-    SrsTsAdaptationFieldTypePayloadOnly   = 0x01,
+    SrsTsAdaptationFieldTypePayloadOnly = 0x01,
     // Adaptation_field only, no payload
-    SrsTsAdaptationFieldTypeAdaptionOnly  = 0x02,
+    SrsTsAdaptationFieldTypeAdaptionOnly = 0x02,
     // Adaptation_field followed by payload
-    SrsTsAdaptationFieldTypeBoth          = 0x03,
+    SrsTsAdaptationFieldTypeBoth = 0x03,
 };
 
 /**
@@ -133,12 +132,12 @@ enum SrsTsPidApply
 enum SrsTsStream
 {
     // ITU-T | ISO/IEC Reserved
-    SrsTsStreamReserved         = 0x00,
+    SrsTsStreamReserved = 0x00,
     // ISO/IEC 11172 Video
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream
     // ISO/IEC 11172 Audio
     // ISO/IEC 13818-3 Audio
-    SrsTsStreamAudioMp3         = 0x04,
+    SrsTsStreamAudioMp3 = 0x04,
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 private_sections
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 PES packets containing private data
     // ISO/IEC 13522 MHEG
@@ -150,21 +149,21 @@ enum SrsTsStream
     // ISO/IEC 13818-6 type D
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 auxiliary
     // ISO/IEC 13818-7 Audio with ADTS transport syntax
-    SrsTsStreamAudioAAC        = 0x0f,
+    SrsTsStreamAudioAAC = 0x0f,
     // ISO/IEC 14496-2 Visual
-    SrsTsStreamVideoMpeg4      = 0x10,
+    SrsTsStreamVideoMpeg4 = 0x10,
     // ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1
-    SrsTsStreamAudioMpeg4      = 0x11,
+    SrsTsStreamAudioMpeg4 = 0x11,
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC14496_sections.
     // ISO/IEC 13818-6 Synchronized Download Protocol
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved
     // 0x15-0x7F
-    SrsTsStreamVideoH264       = 0x1b,
+    SrsTsStreamVideoH264 = 0x1b,
     // User Private
     // 0x80-0xFF
-    SrsTsStreamAudioAC3        = 0x81,
-    SrsTsStreamAudioDTS        = 0x8a,
+    SrsTsStreamAudioAC3 = 0x81,
+    SrsTsStreamAudioDTS = 0x8a,
 };
 std::string srs_ts_stream2string(SrsTsStream stream);
 
@@ -179,7 +178,7 @@ struct SrsTsChannel
     SrsTsMessage* msg;
     SrsTsContext* context;
     // for encoder.
-    u_int8_t continuity_counter;
+    uint8_t continuity_counter;
 
     SrsTsChannel();
     virtual ~SrsTsChannel();
@@ -192,58 +191,58 @@ struct SrsTsChannel
 enum SrsTsPESStreamId
 {
     // program_stream_map
-    SrsTsPESStreamIdProgramStreamMap            = 0xbc, // 0b10111100
+    SrsTsPESStreamIdProgramStreamMap = 0xbc, // 0b10111100
     // private_stream_1
-    SrsTsPESStreamIdPrivateStream1              = 0xbd, // 0b10111101
+    SrsTsPESStreamIdPrivateStream1 = 0xbd, // 0b10111101
     // padding_stream
-    SrsTsPESStreamIdPaddingStream               = 0xbe, // 0b10111110
+    SrsTsPESStreamIdPaddingStream = 0xbe, // 0b10111110
     // private_stream_2
-    SrsTsPESStreamIdPrivateStream2              = 0xbf, // 0b10111111
+    SrsTsPESStreamIdPrivateStream2 = 0xbf, // 0b10111111
 
     // 110x xxxx
     // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
     // 14496-3 audio stream number x xxxx
     // ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio
     // @remark, use SrsTsPESStreamIdAudioCommon as actually audio, SrsTsPESStreamIdAudio to check whether audio.
-    SrsTsPESStreamIdAudioChecker                = 0x06, // 0b110
-        SrsTsPESStreamIdAudioCommon             = 0xc0,
+    SrsTsPESStreamIdAudioChecker = 0x06, // 0b110
+        SrsTsPESStreamIdAudioCommon = 0xc0,
 
     // 1110 xxxx
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     // @remark, use SrsTsPESStreamIdVideoCommon as actually video, SrsTsPESStreamIdVideo to check whether video.
-    SrsTsPESStreamIdVideoChecker                = 0x0e, // 0b1110
-        SrsTsPESStreamIdVideoCommon             = 0xe0,
+    SrsTsPESStreamIdVideoChecker = 0x0e, // 0b1110
+        SrsTsPESStreamIdVideoCommon = 0xe0,
 
     // ECM_stream
-    SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
+    SrsTsPESStreamIdEcmStream = 0xf0, // 0b11110000
     // EMM_stream
-    SrsTsPESStreamIdEmmStream                   = 0xf1, // 0b11110001
+    SrsTsPESStreamIdEmmStream = 0xf1, // 0b11110001
     // DSMCC_stream
-    SrsTsPESStreamIdDsmccStream                 = 0xf2, // 0b11110010
+    SrsTsPESStreamIdDsmccStream = 0xf2, // 0b11110010
     // 13522_stream
-    SrsTsPESStreamId13522Stream                 = 0xf3, // 0b11110011
+    SrsTsPESStreamId13522Stream = 0xf3, // 0b11110011
     // H_222_1_type_A
-    SrsTsPESStreamIdH2221TypeA                  = 0xf4, // 0b11110100
+    SrsTsPESStreamIdH2221TypeA = 0xf4, // 0b11110100
     // H_222_1_type_B
-    SrsTsPESStreamIdH2221TypeB                  = 0xf5, // 0b11110101
+    SrsTsPESStreamIdH2221TypeB = 0xf5, // 0b11110101
     // H_222_1_type_C
-    SrsTsPESStreamIdH2221TypeC                  = 0xf6, // 0b11110110
+    SrsTsPESStreamIdH2221TypeC = 0xf6, // 0b11110110
     // H_222_1_type_D
-    SrsTsPESStreamIdH2221TypeD                  = 0xf7, // 0b11110111
+    SrsTsPESStreamIdH2221TypeD = 0xf7, // 0b11110111
     // H_222_1_type_E
-    SrsTsPESStreamIdH2221TypeE                  = 0xf8, // 0b11111000
+    SrsTsPESStreamIdH2221TypeE = 0xf8, // 0b11111000
     // ancillary_stream
-    SrsTsPESStreamIdAncillaryStream             = 0xf9, // 0b11111001
+    SrsTsPESStreamIdAncillaryStream = 0xf9, // 0b11111001
     // SL_packetized_stream
-    SrsTsPESStreamIdSlPacketizedStream          = 0xfa, // 0b11111010
+    SrsTsPESStreamIdSlPacketizedStream = 0xfa, // 0b11111010
     // FlexMux_stream
-    SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
+    SrsTsPESStreamIdFlexMuxStream = 0xfb, // 0b11111011
     // reserved data stream
     // 1111 1100 ... 1111 1110
     // program_stream_directory
-    SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
+    SrsTsPESStreamIdProgramStreamDirectory = 0xff, // 0b11111111
 };
 
 /**
@@ -274,11 +273,11 @@ public:
     // @remark use is_audio() and is_video() to check it, and stream_number() to finger it out.
     SrsTsPESStreamId sid;
     // the size of payload, 0 indicates the length() of payload.
-    u_int16_t PES_packet_length;
+    uint16_t PES_packet_length;
     // the chunk id.
-    u_int8_t continuity_counter;
+    uint8_t continuity_counter;
     // the payload bytes.
-    SrsSimpleBuffer* payload;
+    SrsSimpleStream* payload;
 public:
     SrsTsMessage(SrsTsChannel* c = NULL, SrsTsPacket* p = NULL);
     virtual ~SrsTsMessage();
@@ -287,7 +286,7 @@ public:
     /**
     * dumps all bytes in stream to ts message.
     */
-    virtual int dump(SrsStream* stream, int* pnb_bytes);
+    virtual int dump(SrsBuffer* stream, int* pnb_bytes);
     /**
     * whether ts message is completed to reap.
     * @param payload_unit_start_indicator whether new ts message start.
@@ -350,11 +349,12 @@ class SrsTsContext
 private:
     std::map<int, SrsTsChannel*> pids;
     bool pure_audio;
+    int8_t sync_byte;
 // encoder
 private:
     // when any codec changed, write the PAT/PMT.
-    SrsCodecVideo vcodec;
-    SrsCodecAudio acodec;
+    SrsVideoCodecId vcodec;
+    SrsAudioCodecId acodec;
 public:
     SrsTsContext();
     virtual ~SrsTsContext();
@@ -390,7 +390,7 @@ public:
     * @param handler the ts message handler to process the msg.
     * @remark we will consume all bytes in stream.
     */
-    virtual int decode(SrsStream* stream, ISrsTsHandler* handler);
+    virtual int decode(SrsBuffer* stream, ISrsTsHandler* handler);
 // encode methods
 public:
     /**
@@ -399,7 +399,14 @@ public:
     * @param vc the video codec, write the PAT/PMT table when changed.
     * @param ac the audio codec, write the PAT/PMT table when changed.
     */
-    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac);
+    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
+// drm methods
+public:
+    /**
+     * set sync byte of ts segment.
+     * replace the standard ts sync byte to bravo sync byte.
+     */
+    virtual void set_sync_byte(int8_t sb);
 private:
     virtual int encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
     virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
@@ -497,7 +504,7 @@ public:
     * The continuity counter may be discontinuous when the discontinuity_indicator is set to '1' (refer to 2.4.3.4). In the case of
     * a null packet the value of the continuity_counter is undefined.
     */
-    u_int8_t continuity_counter; //4bits
+    uint8_t continuity_counter; //4bits
 private:
     SrsTsAdaptationField* adaptation_field;
     SrsTsPayload* payload;
@@ -507,10 +514,10 @@ public:
     SrsTsPacket(SrsTsContext* c);
     virtual ~SrsTsPacket();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
     virtual void padding(int nb_stuffings);
 public:
     static SrsTsPacket* create_pat(SrsTsContext* context, 
@@ -521,11 +528,11 @@ public:
         int16_t apid, SrsTsStream as
     );
     static SrsTsPacket* create_pes_first(SrsTsContext* context, 
-        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter, bool discontinuity, 
+        int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity, 
         int64_t pcr, int64_t dts, int64_t pts, int size
     );
     static SrsTsPacket* create_pes_continue(SrsTsContext* context, 
-        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter
+        int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter
     );
 };
 
@@ -551,7 +558,7 @@ public:
     * This is the only method of stuffing allowed for Transport Stream packets carrying PES packets. For Transport Stream
     * packets carrying PSI, an alternative stuffing method is described in 2.4.4.
     */
-    u_int8_t adaption_field_length; //8bits
+    uint8_t adaption_field_length; //8bits
     // 1B
     /**
     * This is a 1-bit field which when set to '1' indicates that the discontinuity state is true for the
@@ -734,7 +741,7 @@ public:
     * private_data bytes immediately following the transport private_data_length field. The number of private_data bytes shall
     * not be such that private data extends beyond the adaptation field.
     */
-    u_int8_t transport_private_data_length; //8bits
+    uint8_t transport_private_data_length; //8bits
     char* transport_private_data; //[transport_private_data_length]bytes
     
     // if adaptation_field_extension_flag, 2+x B
@@ -742,7 +749,7 @@ public:
     * The adaptation_field_extension_length is an 8-bit field. It indicates the number of
     * bytes of the extended adaptation field data immediately following this field, including reserved bytes if present.
     */
-    u_int8_t adaptation_field_extension_length; //8bits
+    uint8_t adaptation_field_extension_length; //8bits
     /**
     * This is a 1-bit field which when set to '1' indicates the presence of the ltw_offset
     * field.
@@ -836,10 +843,10 @@ public:
     SrsTsAdaptationField(SrsTsPacket* pkt);
     virtual ~SrsTsAdaptationField();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -849,28 +856,28 @@ public:
 enum SrsTsPsiId
 {
     // program_association_section
-    SrsTsPsiIdPas               = 0x00,
+    SrsTsPsiIdPas = 0x00,
     // conditional_access_section (CA_section)
-    SrsTsPsiIdCas               = 0x01,
+    SrsTsPsiIdCas = 0x01,
     // TS_program_map_section
-    SrsTsPsiIdPms               = 0x02,
+    SrsTsPsiIdPms = 0x02,
     // TS_description_section
-    SrsTsPsiIdDs                = 0x03,
+    SrsTsPsiIdDs = 0x03,
     // ISO_IEC_14496_scene_description_section
-    SrsTsPsiIdSds               = 0x04,
+    SrsTsPsiIdSds = 0x04,
     // ISO_IEC_14496_object_descriptor_section
-    SrsTsPsiIdOds               = 0x05,
+    SrsTsPsiIdOds = 0x05,
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 reserved
-    SrsTsPsiIdIso138181Start    = 0x06,
-    SrsTsPsiIdIso138181End      = 0x37,
+    SrsTsPsiIdIso138181Start = 0x06,
+    SrsTsPsiIdIso138181End = 0x37,
     // Defined in ISO/IEC 13818-6
-    SrsTsPsiIdIso138186Start    = 0x38,
-    SrsTsPsiIdIso138186End      = 0x3F,
+    SrsTsPsiIdIso138186Start = 0x38,
+    SrsTsPsiIdIso138186End = 0x3F,
     // User private
-    SrsTsPsiIdUserStart         = 0x40,
-    SrsTsPsiIdUserEnd           = 0xFE,
+    SrsTsPsiIdUserStart = 0x40,
+    SrsTsPsiIdUserEnd = 0xFE,
     // forbidden
-    SrsTsPsiIdForbidden         = 0xFF,
+    SrsTsPsiIdForbidden = 0xFF,
 };
 
 /**
@@ -884,10 +891,10 @@ public:
     SrsTsPayload(SrsTsPacket* p);
     virtual ~SrsTsPayload();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg) = 0;
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg) = 0;
 public:
     virtual int size() = 0;
-    virtual int encode(SrsStream* stream) = 0;
+    virtual int encode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -912,14 +919,14 @@ public:
     * Program Specific Information as specified in 2.4.4.
     */
     // @see SrsTsPESStreamId, value can be SrsTsPESStreamIdAudioCommon or SrsTsPESStreamIdVideoCommon.
-    u_int8_t stream_id; //8bits
+    uint8_t stream_id; //8bits
     // 2B
     /**
     * A 16-bit field specifying the number of bytes in the PES packet following the last byte of the
     * field. A value of 0 indicates that the PES packet length is neither specified nor bounded and is allowed only in
     * PES packets whose payload consists of bytes from a video elementary stream contained in Transport Stream packets.
     */
-    u_int16_t PES_packet_length; //16bits
+    uint16_t PES_packet_length; //16bits
 
     // 1B
     /**
@@ -1005,7 +1012,7 @@ public:
     * stuffing bytes contained in this PES packet header. The presence of optional fields is indicated in the byte that precedes
     * the PES_header_data_length field.
     */
-    u_int8_t PES_header_data_length; //8bits
+    uint8_t PES_header_data_length; //8bits
 
     // 5B
     /**
@@ -1149,7 +1156,7 @@ public:
     /**
     * This is an 8-bit field which indicates the length, in bytes, of the pack_header_field().
     */
-    u_int8_t pack_field_length; //8bits
+    uint8_t pack_field_length; //8bits
     char* pack_field; //[pack_field_length] bytes
 
     // 2B
@@ -1200,7 +1207,7 @@ public:
     * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
     * the PES extension field up to and including any reserved bytes.
     */
-    u_int8_t PES_extension_field_length; //7bits
+    uint8_t PES_extension_field_length; //7bits
     char* PES_extension_field; //[PES_extension_field_length] bytes
 
     // NB
@@ -1235,13 +1242,13 @@ public:
     SrsTsPayloadPES(SrsTsPacket* p);
     virtual ~SrsTsPayloadPES();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 private:
-    virtual int decode_33bits_dts_pts(SrsStream* stream, int64_t* pv);
-    virtual int encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64_t v);
+    virtual int decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
+    virtual int encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
 };
 
 /**
@@ -1287,7 +1294,7 @@ public:
     * of bytes of the section, starting immediately following the section_length field, and including the CRC. The value in this
     * field shall not exceed 1021 (0x3FD).
     */
-    u_int16_t section_length; //12bits
+    uint16_t section_length; //12bits
 public:
     // the specified psi info, for example, PAT fields.
 public:
@@ -1302,14 +1309,14 @@ public:
     SrsTsPayloadPSI(SrsTsPacket* p);
     virtual ~SrsTsPayloadPSI();
 public:
-    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 protected:
     virtual int psi_size() = 0;
-    virtual int psi_encode(SrsStream* stream) = 0;
-    virtual int psi_decode(SrsStream* stream) = 0;
+    virtual int psi_encode(SrsBuffer* stream) = 0;
+    virtual int psi_decode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -1342,10 +1349,10 @@ public:
     SrsTsPayloadPATProgram(int16_t n = 0, int16_t p = 0);
     virtual ~SrsTsPayloadPATProgram();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -1363,7 +1370,7 @@ public:
     * This is a 16-bit field which serves as a label to identify this Transport Stream from any other
     * multiplex within a network. Its value is defined by the user.
     */
-    u_int16_t transport_stream_id; //16bits
+    uint16_t transport_stream_id; //16bits
     
     // 1B
     /**
@@ -1391,14 +1398,14 @@ public:
     * Program Association Table shall be 0x00. It shall be incremented by 1 with each additional section in the Program
     * Association Table.
     */
-    u_int8_t section_number; //8bits
+    uint8_t section_number; //8bits
     
     // 1B
     /**
     * This 8-bit field specifies the number of the last section (that is, the section with the highest
     * section_number) of the complete Program Association Table.
     */
-    u_int8_t last_section_number; //8bits
+    uint8_t last_section_number; //8bits
     
     // multiple 4B program data.
     std::vector<SrsTsPayloadPATProgram*> programs;
@@ -1406,10 +1413,10 @@ public:
     SrsTsPayloadPAT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPAT();
 protected:
-    virtual int psi_decode(SrsStream* stream);
+    virtual int psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsStream* stream);
+    virtual int psi_encode(SrsBuffer* stream);
 };
 
 /**
@@ -1451,10 +1458,10 @@ public:
     SrsTsPayloadPMTESInfo(SrsTsStream st = SrsTsStreamReserved, int16_t epid = 0);
     virtual ~SrsTsPayloadPMTESInfo();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsStream* stream);
+    virtual int encode(SrsBuffer* stream);
 };
 
 /**
@@ -1480,7 +1487,7 @@ public:
     * can be concatenated together to form a continuous set of streams using a program_number. For examples of applications
     * refer to Annex C.
     */
-    u_int16_t program_number; //16bits
+    uint16_t program_number; //16bits
     
     // 1B
     /**
@@ -1506,13 +1513,13 @@ public:
     /**
     * The value of this 8-bit field shall be 0x00.
     */
-    u_int8_t section_number; //8bits
+    uint8_t section_number; //8bits
     
     // 1B
     /**
     * The value of this 8-bit field shall be 0x00.
     */
-    u_int8_t last_section_number; //8bits
+    uint8_t last_section_number; //8bits
     
     // 2B
     /**
@@ -1533,7 +1540,7 @@ public:
     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
     * number of bytes of the descriptors immediately following the program_info_length field.
     */
-    u_int16_t program_info_length; //12bits
+    uint16_t program_info_length; //12bits
     char* program_info_desc; //[program_info_length]bytes
     
     // array of TSPMTESInfo.
@@ -1542,42 +1549,35 @@ public:
     SrsTsPayloadPMT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPMT();
 protected:
-    virtual int psi_decode(SrsStream* stream);
+    virtual int psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsStream* stream);
+    virtual int psi_encode(SrsBuffer* stream);
 };
 
 /**
-* write data from frame(header info) and buffer(data) to ts file.
-* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
-*/
-class SrsTSMuxer
+ * Write the TS message to TS context.
+ */
+class SrsTsContextWriter
 {
 private:
-    SrsCodecVideo vcodec;
-    SrsCodecAudio acodec;
+    // User must config the codec in right way.
+    // @see https://github.com/ossrs/srs/issues/301
+    SrsVideoCodecId vcodec;
+    SrsAudioCodecId acodec;
 private:
     SrsTsContext* context;
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
-    virtual ~SrsTSMuxer();
+    SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
+    virtual ~SrsTsContextWriter();
 public:
     /**
      * open the writer, donot write the PSI of ts.
      * @param p a string indicates the path of ts file to mux to.
      */
     virtual int open(std::string p);
-    /**
-    * when open ts, we donot write the header(PSI),
-    * for user may need to update the acodec to mp3 or others,
-    * so we use delay write PSI, when write audio or video.
-    * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
-    * @see https://github.com/ossrs/srs/issues/301
-    */
-    virtual int update_acodec(SrsCodecAudio ac);
     /**
     * write an audio frame to ts, 
     */
@@ -1594,59 +1594,52 @@ public:
     /**
      * get the video codec of ts muxer.
      */
-    virtual SrsCodecVideo video_codec();
+    virtual SrsVideoCodecId video_codec();
 };
 
 /**
-* ts stream cache, 
-* use to cache ts stream.
-* 
-* about the flv tbn problem:
-*   flv tbn is 1/1000, ts tbn is 1/90000,
-*   when timestamp convert to flv tbn, it will loose precise,
-*   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
-*   we use a aac jitter to correct the audio pts.
-*/
-class SrsTsCache
+ * TS messages cache, to group frames to TS message,
+ * for example, we may write multiple AAC RAW frames to a TS message.
+ */
+class SrsTsMessageCache
 {
 public:
     // current ts message.
     SrsTsMessage* audio;
     SrsTsMessage* video;
 public:
-    SrsTsCache();
-    virtual ~SrsTsCache();
+    SrsTsMessageCache();
+    virtual ~SrsTsMessageCache();
 public:
     /**
     * write audio to cache
     */
-    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+    virtual int cache_audio(SrsAudioFrame* frame, int64_t dts);
     /**
     * write video to muxer.
     */
-    virtual int cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+    virtual int cache_video(SrsVideoFrame* frame, int64_t dts);
 private:
-    virtual int do_cache_mp3(SrsAvcAacCodec* codec, SrsCodecSample* sample);
-    virtual int do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample);
-    virtual int do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_mp3(SrsAudioFrame* frame);
+    virtual int do_cache_aac(SrsAudioFrame* frame);
+    virtual int do_cache_avc(SrsVideoFrame* frame);
 };
 
 /**
-* encode data to ts file.
-*/
-class SrsTsEncoder
+ * Transmux the RTMP stream to HTTP-TS stream.
+ */
+class SrsTsTransmuxer
 {
 private:
     SrsFileWriter* writer;
 private:
-    SrsAvcAacCodec* codec;
-    SrsCodecSample* sample;
-    SrsTsCache* cache;
-    SrsTSMuxer* muxer;
+    SrsFormat* format;
+    SrsTsMessageCache* tsmc;
+    SrsTsContextWriter* tscw;
     SrsTsContext* context;
 public:
-    SrsTsEncoder();
-    virtual ~SrsTsEncoder();
+    SrsTsTransmuxer();
+    virtual ~SrsTsTransmuxer();
 public:
     /**
      * initialize the underlayer file stream.
