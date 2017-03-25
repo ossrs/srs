@@ -383,8 +383,8 @@ int SrsRtmpConn::do_cycle()
         req->vhost = parsed_vhost->arg0();
     }
     
-    srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
-        req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str());
+    srs_info("discovery app success. schema=%s, vhost=%s, port=%d, app=%s",
+        req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     
     if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
         ret = ERROR_RTMP_REQ_TCURL;
@@ -774,7 +774,7 @@ int SrsRtmpConn::stream_service_cycle()
         }
         default: {
             ret = ERROR_SYSTEM_CLIENT_INVALID;
-            srs_info("invalid client type=%d. ret=%d", type, ret);
+            srs_info("invalid client type=%d. ret=%d", info->type, ret);
             return ret;
         }
     }
