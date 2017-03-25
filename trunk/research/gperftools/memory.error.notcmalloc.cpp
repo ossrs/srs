@@ -1,6 +1,6 @@
 /**
-g++ memory.error.notcmalloc.cpp -g -O0 -o memory.error.notcmalloc
-*/
+ g++ memory.error.notcmalloc.cpp -g -O0 -o memory.error.notcmalloc
+ */
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>

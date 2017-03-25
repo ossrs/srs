@@ -59,7 +59,7 @@ int main(int argc, char** argv)
     
     in_flv_file = argv[1];
     srs_human_trace("input:  %s", in_flv_file);
-
+    
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         srs_human_trace("open flv file failed. ret=%d", ret);
@@ -111,7 +111,7 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
 {
     memset(hbuf, 0, hsize);
     memset(tbuf, 0, tsize);
-
+    
     if (size > 0) {
         digit_to_char(data, size, hbuf, hsize - 1);
     }
@@ -119,7 +119,7 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
     if (size > print_size * 2) {
         digit_to_char(data + size - print_size, size, tbuf, tsize - 1);
     }
-
+    
     return 0;
 }
 
@@ -168,8 +168,7 @@ int parse_flv(srs_flv_t flv)
                 
                 char hbuf[48]; char tbuf[48];
                 parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-                srs_human_raw("offset=%d, first and last 16 bytes:\n"
-                    "[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
+                srs_human_raw("offset=%d, first and last 16 bytes:\n[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
             } else {
                 srs_human_trace("print packet failed. ret=%d", ret);
             }

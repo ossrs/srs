@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_listener.hpp>
 
@@ -72,13 +72,13 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-
+    
     _fd = -1;
     _stfd = NULL;
-
+    
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
-
+    
     pthread = new SrsReusableThread("udp", this);
 }
 
@@ -86,14 +86,14 @@ SrsUdpListener::~SrsUdpListener()
 {
     // close the stfd to trigger thread to interrupted.
     srs_close_stfd(_stfd);
-
+    
     pthread->stop();
     srs_freep(pthread);
     
-    // st does not close it sometimes, 
+    // st does not close it sometimes,
     // close it manually.
     close(_fd);
-
+    
     srs_freepa(buf);
 }
 
@@ -149,19 +149,19 @@ int SrsUdpListener::listen()
         return ret;
     }
     srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
-
+    
     return ret;
 }
 
 int SrsUdpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
-
+    
     // TODO: FIXME: support ipv6, @see man 7 ipv6
     sockaddr_in from;
     int nb_from = sizeof(sockaddr_in);
     int nread = 0;
-
+    
     if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
         srs_warn("ignore recv udp packet failed, nread=%d", nread);
         return ret;
@@ -171,11 +171,11 @@ int SrsUdpListener::cycle()
         srs_warn("handle udp packet failed. ret=%d", ret);
         return ret;
     }
-
+    
     if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
         st_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
     }
-
+    
     return ret;
 }
 
@@ -184,10 +184,10 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-
+    
     _fd = -1;
     _stfd = NULL;
-
+    
     pthread = new SrsReusableThread("tcp", this);
 }
 

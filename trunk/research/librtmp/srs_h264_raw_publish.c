@@ -29,11 +29,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-       
+
 #include "../../objs/include/srs_librtmp.h"
 
 int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fps,
-    char** frame, int* frame_size, int* dts, int* pts)
+                    char** frame, int* frame_size, int* dts, int* pts)
 {
     char* p = *pp;
     
@@ -46,7 +46,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     }
     
     // @see srs_write_h264_raw_frames
-    // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+    // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0,
     // for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
     *frame = p;
     p += *pnb_start_code;
@@ -69,7 +69,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     // while the dts and pts must read from encode lib or device.
     *dts += 1000 / fps;
     *pts = *dts;
-
+    
     return 0;
 }
 
@@ -121,8 +121,8 @@ int main(int argc, char** argv)
     lseek(raw_fd, 0, SEEK_SET);
     ssize_t nb_read = 0;
     if ((nb_read = read(raw_fd, h264_raw, file_size)) != file_size) {
-        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
-            raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
+        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.",
+                        raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
         goto rtmp_destroy;
     }
     

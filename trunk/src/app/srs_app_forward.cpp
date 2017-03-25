@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_forward.hpp>
 
@@ -56,7 +56,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
     
     req = NULL;
     sh_video = sh_audio = NULL;
-
+    
     sdk = NULL;
     pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_CIMS);
     queue = new SrsMessageQueue();
@@ -130,13 +130,13 @@ int SrsForwarder::on_publish()
     
     if (source_ep == dest_ep) {
         ret = ERROR_SYSTEM_FORWARD_LOOP;
-        srs_warn("forward loop detected. src=%s, dest=%s, ret=%d", 
-            source_ep.c_str(), dest_ep.c_str(), ret);
+        srs_warn("forward loop detected. src=%s, dest=%s, ret=%d",
+                 source_ep.c_str(), dest_ep.c_str(), ret);
         return ret;
     }
-    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s", 
-        source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(),
-        req->stream.c_str());
+    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s",
+              source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(),
+              req->stream.c_str());
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
         srs_error("start srs thread failed. ret=%d", ret);
@@ -156,7 +156,7 @@ void SrsForwarder::on_unpublish()
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
     int ret = ERROR_SUCCESS;
-
+    
     SrsSharedPtrMessage* metadata = shared_metadata->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
@@ -199,7 +199,7 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
 int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
-
+    
     SrsSharedPtrMessage* msg = shared_video->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
@@ -271,7 +271,7 @@ int SrsForwarder::forward()
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_forwarder();
     SrsAutoFree(SrsPithyPrint, pprint);
-
+    
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
     
     // update sequence header
@@ -291,7 +291,7 @@ int SrsForwarder::forward()
     
     while (!pthread->interrupted()) {
         pprint->elapse();
-
+        
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
@@ -324,7 +324,7 @@ int SrsForwarder::forward()
             srs_verbose("no packets to forward.");
             continue;
         }
-    
+        
         // sendout messages, all messages are freed by send_and_free_messages().
         if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("forwarder messages to server failed. ret=%d", ret);

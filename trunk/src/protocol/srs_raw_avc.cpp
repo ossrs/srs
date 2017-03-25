@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_raw_avc.hpp>
 
@@ -44,10 +44,10 @@ SrsRawH264Stream::~SrsRawH264Stream()
 int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame)
 {
     int ret = ERROR_SUCCESS;
-
+    
     *pframe = NULL;
     *pnb_frame = 0;
-
+    
     while (!stream->empty()) {
         // each frame must prefixed by annexb format.
         // about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
@@ -71,7 +71,7 @@ int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_fr
         *pframe = stream->data() + start;
         break;
     }
-
+    
     return ret;
 }
 
@@ -79,11 +79,11 @@ bool SrsRawH264Stream::is_sps(char* frame, int nb_frame)
 {
     srs_assert(nb_frame > 0);
     
-    // 5bits, 7.3.1 NAL unit syntax, 
+    // 5bits, 7.3.1 NAL unit syntax,
     // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     uint8_t nal_unit_type = (char)frame[0] & 0x1f;
-
+    
     return nal_unit_type == 7;
 }
 
@@ -91,23 +91,23 @@ bool SrsRawH264Stream::is_pps(char* frame, int nb_frame)
 {
     srs_assert(nb_frame > 0);
     
-    // 5bits, 7.3.1 NAL unit syntax, 
+    // 5bits, 7.3.1 NAL unit syntax,
     // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     uint8_t nal_unit_type = (char)frame[0] & 0x1f;
-
+    
     return nal_unit_type == 8;
 }
 
 int SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // atleast 1bytes for SPS to decode the type, profile, constrain and level.
     if (nb_frame < 4) {
         return ret;
     }
-        
+    
     sps = "";
     if (nb_frame > 0) {
         sps.append(frame, nb_frame);
@@ -117,31 +117,31 @@ int SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
     if (sps.empty()) {
         return ERROR_STREAM_CASTER_AVC_SPS;
     }
-        
+    
     return ret;
 }
 
 int SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
 {
     int ret = ERROR_SUCCESS;
-
+    
     pps = "";
     if (nb_frame > 0) {
         pps.append(frame, nb_frame);
     }
-
+    
     // should never be empty.
     if (pps.empty()) {
         return ERROR_STREAM_CASTER_AVC_PPS;
     }
-
+    
     return ret;
 }
 
 int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, uint32_t pts, string& sh)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // 5bytes sps/pps header:
     //      configurationVersion, AVCProfileIndication, profile_compatibility,
     //      AVCLevelIndication, lengthSizeMinusOne
@@ -153,24 +153,24 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, 
     //      numOfPictureParameterSets, pictureParameterSetLength
     // Nbytes of pps:
     //      pictureParameterSetNALUnit
-    int nb_packet = 5 
-        + 3 + (int)sps.length() 
-        + 3 + (int)pps.length();
+    int nb_packet = 5
+    + 3 + (int)sps.length()
+    + 3 + (int)pps.length();
     char* packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
-
+    
     // use stream to generate the h264 packet.
     SrsBuffer stream;
     if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // decode the SPS: 
+    // decode the SPS:
     // @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     if (true) {
         srs_assert((int)sps.length() >= 4);
         char* frame = (char*)sps.data();
-    
+        
         // @see: Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205
         //      Baseline profile profile_idc is 66(0x42).
         //      Main profile profile_idc is 77(0x4d).
@@ -215,14 +215,14 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, 
         // pictureParameterSetNALUnit
         stream.write_string(pps);
     }
-
+    
     // TODO: FIXME: for more profile.
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 144
-
+    
     sh = "";
     sh.append(packet, nb_packet);
-
+    
     return ret;
 }
 
@@ -243,21 +243,21 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
     uint32_t NAL_unit_length = nb_frame;
     
-    // mux the avc NALU in "ISO Base Media File Format" 
+    // mux the avc NALU in "ISO Base Media File Format"
     // from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     // NALUnitLength
     stream.write_4bytes(NAL_unit_length);
     // NALUnit
     stream.write_bytes(frame, nb_frame);
-
+    
     ibp = "";
     ibp.append(packet, nb_packet);
-
+    
     return ret;
 }
 
@@ -282,9 +282,9 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     
     // AVCPacketType
     *p++ = avc_packet_type;
-
+    
     // CompositionTime
-    // pts = dts + cts, or 
+    // pts = dts + cts, or
     // cts = pts - dts.
     // where cts is the header in rtmp video packet payload header.
     uint32_t cts = pts - dts;
@@ -295,10 +295,10 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     
     // h.264 raw data.
     memcpy(p, video.data(), video.length());
-
+    
     *flv = data;
     *nb_flv = size;
-
+    
     return ret;
 }
 
@@ -358,9 +358,9 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         int8_t protection_absent = pav & 0x01;
         
         /**
-        * ID: MPEG identifier, set to '1' if the audio data in the ADTS stream are MPEG-2 AAC (See ISO/IEC 13818-7)
-        * and set to '0' if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
-        */
+         * ID: MPEG identifier, set to '1' if the audio data in the ADTS stream are MPEG-2 AAC (See ISO/IEC 13818-7)
+         * and set to '0' if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
+         */
         if (id != 0x01) {
             srs_info("adts: id must be 1(aac), actual 0(mp4a). ret=%d", ret);
             
@@ -447,22 +447,22 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         codec.sound_type = srs_max(0, srs_min(1, channel_configuration - 1));
         // TODO: FIXME: finger it out the sound size by adts.
         codec.sound_size = 1; // 0(8bits) or 1(16bits).
-
+        
         // frame data.
         *pframe = stream->data() + stream->pos();
         *pnb_frame = raw_data_size;
         stream->skip(raw_data_size);
-
+        
         break;
     }
-
+    
     return ret;
 }
 
 int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // only support aac profile 1-4.
     if (codec->aac_object == SrsAacObjectTypeReserved) {
         return ERROR_AAC_DATA_INVALID;
@@ -471,22 +471,22 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     SrsAacObjectType audioObjectType = codec->aac_object;
     char channelConfiguration = codec->channel_configuration;
     char samplingFrequencyIndex = codec->sampling_frequency_index;
-
+    
     // override the aac samplerate by user specified.
     // @see https://github.com/ossrs/srs/issues/212#issuecomment-64146899
     switch (codec->sound_rate) {
-        case SrsAudioSampleRate11025: 
+        case SrsAudioSampleRate11025:
             samplingFrequencyIndex = 0x0a; break;
-        case SrsAudioSampleRate22050: 
+        case SrsAudioSampleRate22050:
             samplingFrequencyIndex = 0x07; break;
-        case SrsAudioSampleRate44100: 
+        case SrsAudioSampleRate44100:
             samplingFrequencyIndex = 0x04; break;
         default:
             break;
     }
-
+    
     sh = "";
-
+    
     char ch = 0;
     // @see ISO_IEC_14496-3-AAC-2001.pdf
     // AudioSpecificConfig (), page 33
@@ -494,7 +494,7 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     // audioObjectType; 5 bslbf
     ch = (audioObjectType << 3) & 0xf8;
     // 3bits left.
-        
+    
     // samplingFrequencyIndex; 4 bslbf
     ch |= (samplingFrequencyIndex >> 1) & 0x07;
     sh += ch;
@@ -503,31 +503,31 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
         return ERROR_AAC_DATA_INVALID;
     }
     // 7bits left.
-        
+    
     // channelConfiguration; 4 bslbf
     ch |= (channelConfiguration << 3) & 0x78;
     // 3bits left.
-        
+    
     // GASpecificConfig(), page 451
     // 4.4.1 Decoder configuration (GASpecificConfig)
     // frameLengthFlag; 1 bslbf
     // dependsOnCoreCoder; 1 bslbf
     // extensionFlag; 1 bslbf
     sh += ch;
-
+    
     return ret;
 }
 
 int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv)
 {
     int ret = ERROR_SUCCESS;
-
+    
     char sound_format = codec->sound_format;
     char sound_type = codec->sound_type;
     char sound_size = codec->sound_size;
     char sound_rate = codec->sound_rate;
     char aac_packet_type = codec->aac_packet_type;
-
+    
     // for audio frame, there is 1 or 2 bytes header:
     //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType
     //      1bytes, AACPacketType for SoundFormat == 10, 0 is sequence header.
@@ -550,10 +550,10 @@ int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec
     }
     
     memcpy(p, frame, nb_frame);
-
+    
     *flv = data;
     *nb_flv = size;
-
+    
     return ret;
 }
 

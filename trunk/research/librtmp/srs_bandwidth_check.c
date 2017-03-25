@@ -71,8 +71,8 @@ int do_check(srs_rtmp_t rtmp)
     }
     
     if ((ret = srs_rtmp_bandwidth_check(rtmp,
-        &start_time, &end_time, &play_kbps, &publish_kbps,
-        &play_bytes, &publish_bytes, &play_duration, &publish_duration)) != 0
+        &start_time, &end_time, &play_kbps, &publish_kbps, &play_bytes, &publish_bytes,
+        &play_duration, &publish_duration)) != 0
     ) {
         srs_human_trace("bandwidth check/test failed.");
         return ret;
@@ -120,7 +120,7 @@ int main(int argc, char** argv)
         (char*)sig, NULL, NULL,
         (char*)ip, major, minor, revision, build, pid, cid,
         (int)(end_time - start_time), play_duration, publish_duration,
-        play_kbps, 
+        play_kbps,
         publish_kbps);
     
 rtmp_destroy:

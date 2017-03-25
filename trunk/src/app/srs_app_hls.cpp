@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_hls.hpp>
 
@@ -262,7 +262,7 @@ int SrsHlsMuxer::initialize()
     if ((ret = async->start()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -274,7 +274,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     
     srs_freep(req);
     req = r->copy();
-
+    
     hls_entry_prefix = entry_prefix;
     hls_path = path;
     hls_ts_file = ts_file;
@@ -291,7 +291,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     // generate the m3u8 dir and path.
     m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
     m3u8 = path + "/" + m3u8_url;
-
+    
     // when update config, reset the history target duration.
     max_td = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
     
@@ -317,7 +317,7 @@ int SrsHlsMuxer::segment_open()
     
     // when segment open, the current segment must be NULL.
     srs_assert(!current);
-
+    
     // load the default acodec from config.
     SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
     if (true) {
@@ -335,7 +335,7 @@ int SrsHlsMuxer::segment_open()
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
         }
     }
-
+    
     // load the default vcodec from config.
     SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
     if (true) {
@@ -463,7 +463,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     srs_info("hls: dur=%"PRId64"ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
-        current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
+             current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_fragment + deviation) * 1000;
 }
@@ -499,7 +499,7 @@ bool SrsHlsMuxer::pure_audio()
 int SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
         srs_warn("flush audio ignored, for segment is not open.");
@@ -519,14 +519,14 @@ int SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     
     // write success, clear and free the msg
     srs_freep(cache->audio);
-
+    
     return ret;
 }
 
 int SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
         srs_warn("flush video ignored, for segment is not open.");
@@ -563,7 +563,7 @@ int SrsHlsMuxer::segment_close()
     
     // when close current segment, the current segment must not be NULL.
     srs_assert(current);
-
+    
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
@@ -577,7 +577,7 @@ int SrsHlsMuxer::segment_close()
         {
             return ret;
         }
-
+        
         // use async to call the http hooks, for it will cause thread switch.
         if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != ERROR_SUCCESS) {
             return ret;
@@ -586,7 +586,7 @@ int SrsHlsMuxer::segment_close()
         
         // close the muxer of finished segment.
         srs_freep(current->tscw);
-
+        
         // rename from tmp to real path
         if ((ret = current->rename()) != ERROR_SUCCESS) {
             return ret;
@@ -597,31 +597,31 @@ int SrsHlsMuxer::segment_close()
     } else {
         // reuse current segment index.
         _sequence_no--;
-
+        
         srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%"PRId64"ms", current->sequence_no, current->uri.c_str(), current->duration());
-
+        
         // rename from tmp to real path
         if ((ret = current->unlink_tmpfile()) != ERROR_SUCCESS) {
             return ret;
         }
         srs_freep(current);
     }
-
+    
     // shrink the segments.
     segments->shrink(hls_window * 1000);
-
+    
     // refresh the m3u8, donot contains the removed ts
     ret = refresh_m3u8();
-
+    
     // remove the ts file.
     segments->clear_expired(hls_cleanup);
-
+    
     // check ret of refresh m3u8
     if (ret != ERROR_SUCCESS) {
         srs_error("refresh m3u8 failed. ret=%d", ret);
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -660,7 +660,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     if (segments->empty()) {
         return ret;
     }
-
+    
     SrsFileWriter writer;
     if ((ret = writer.open(m3u8_file)) != ERROR_SUCCESS) {
         srs_error("open m3u8 file %s failed. ret=%d", m3u8_file.c_str(), ret);
@@ -673,8 +673,8 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     // #EXT-X-ALLOW-CACHE:YES\n
     std::stringstream ss;
     ss << "#EXTM3U" << SRS_CONSTS_LF
-        << "#EXT-X-VERSION:3" << SRS_CONSTS_LF
-        << "#EXT-X-ALLOW-CACHE:YES" << SRS_CONSTS_LF;
+    << "#EXT-X-VERSION:3" << SRS_CONSTS_LF
+    << "#EXT-X-ALLOW-CACHE:YES" << SRS_CONSTS_LF;
     srs_verbose("write m3u8 header success.");
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
@@ -687,13 +687,13 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     
     // #EXT-X-TARGETDURATION:4294967295\n
     /**
-    * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
-    * The Media Playlist file MUST contain an EXT-X-TARGETDURATION tag.
-    * Its value MUST be equal to or greater than the EXTINF duration of any
-    * media segment that appears or will appear in the Playlist file,
-    * rounded to the nearest integer. Its value MUST NOT change. A
-    * typical target duration is 10 seconds.
-    */
+     * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
+     * The Media Playlist file MUST contain an EXT-X-TARGETDURATION tag.
+     * Its value MUST be equal to or greater than the EXTINF duration of any
+     * media segment that appears or will appear in the Playlist file,
+     * rounded to the nearest integer. Its value MUST NOT change. A
+     * typical target duration is 10 seconds.
+     */
     // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
     int target_duration = (int)ceil(segments->max_duration() / 1000.0);
     target_duration = srs_max(target_duration, max_td);
@@ -721,7 +721,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         ss << segment->uri << SRS_CONSTS_LF;
         srs_verbose("write m3u8 segment uri success.");
     }
-
+    
     // write m3u8 to writer.
     std::string m3u8 = ss.str();
     if ((ret = writer.write((char*)m3u8.c_str(), (int)m3u8.length(), NULL)) != ERROR_SUCCESS) {
@@ -778,7 +778,7 @@ int SrsHlsController::deviation()
 int SrsHlsController::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     std::string vhost = req->vhost;
     std::string stream = req->stream;
     std::string app = req->app;
@@ -818,8 +818,8 @@ int SrsHlsController::on_publish(SrsRequest* req)
         return ret;
     }
     srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%d",
-        hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, hls_dispose);
+              hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
+              ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, hls_dispose);
     
     return ret;
 }
@@ -844,7 +844,7 @@ int SrsHlsController::on_sequence_header()
 {
     // TODO: support discontinuity for the same stream
     // currently we reap and insert discontinity when encoder republish,
-    // but actually, event when stream is not republish, the 
+    // but actually, event when stream is not republish, the
     // sequence header may change, for example,
     // ffmpeg ingest a external rtmp stream and push to srs,
     // when the sequence header changed, the stream is not republish.
@@ -892,7 +892,7 @@ int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     
     return ret;
 }
-    
+
 int SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
 {
     int ret = ERROR_SUCCESS;
@@ -930,7 +930,7 @@ int SrsHlsController::reap_segment()
     
     // TODO: flush audio before or after segment?
     // TODO: fresh segment begin with audio or video?
-
+    
     // close current ts.
     if ((ret = muxer->segment_close()) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer close segment failed. ret=%d", ret);
@@ -968,10 +968,10 @@ SrsHls::SrsHls()
     enabled = false;
     disposable = false;
     last_update_time = 0;
-
+    
     jitter = new SrsRtmpJitter();
     controller = new SrsHlsController();
-
+    
     pprint = SrsPithyPrint::create_hls();
 }
 
@@ -1026,14 +1026,14 @@ int SrsHls::cycle()
 int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
-
+    
     hub = h;
     req = r;
-
+    
     if ((ret = controller->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -1062,7 +1062,7 @@ int SrsHls::on_publish()
     
     // ok, the hls can be dispose, or need to be dispose.
     disposable = true;
-
+    
     return ret;
 }
 
@@ -1074,7 +1074,7 @@ void SrsHls::on_unpublish()
     if (!enabled) {
         return;
     }
-
+    
     if ((ret = controller->on_unpublish()) != ERROR_SUCCESS) {
         srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
     }
@@ -1092,7 +1092,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time_ms();
-
+    
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
@@ -1136,7 +1136,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time_ms();
-
+    
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
     
@@ -1178,7 +1178,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 void SrsHls::hls_show_mux_log()
 {
     pprint->elapse();
-
+    
     if (!pprint->can_print()) {
         return;
     }
@@ -1187,8 +1187,8 @@ void SrsHls::hls_show_mux_log()
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
     srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", sno=%d, ts=%s, dur=%.2f, dva=%dp",
-        pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
-        controller->duration(), controller->deviation());
+              pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
+              controller->duration(), controller->deviation());
 }
 
 

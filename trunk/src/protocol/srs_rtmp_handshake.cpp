@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_rtmp_handshake.hpp>
 
@@ -137,7 +137,7 @@ namespace _srs_internal
         0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE
     }; // 62
     
-    int do_openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, void* digest, unsigned int* digest_size) 
+    int do_openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, void* digest, unsigned int* digest_size)
     {
         int ret = ERROR_SUCCESS;
         
@@ -145,7 +145,7 @@ namespace _srs_internal
             ret = ERROR_OpenSslSha256Update;
             return ret;
         }
-    
+        
         if (HMAC_Final(ctx, (unsigned char *) digest, digest_size) < 0) {
             ret = ERROR_OpenSslSha256Final;
             return ret;
@@ -154,11 +154,11 @@ namespace _srs_internal
         return ret;
     }
     /**
-    * sha256 digest algorithm.
-    * @param key the sha256 key, NULL to use EVP_Digest, for instance,
-    *       hashlib.sha256(data).digest().
-    */
-    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest) 
+     * sha256 digest algorithm.
+     * @param key the sha256 key, NULL to use EVP_Digest, for instance,
+     *       hashlib.sha256(data).digest().
+     */
+    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest)
     {
         int ret = ERROR_SUCCESS;
         
@@ -180,8 +180,8 @@ namespace _srs_internal
             // use key-data to digest.
             HMAC_CTX *ctx = HMAC_CTX_new();
             if (ctx == NULL) {
-               ret = ERROR_OpenSslCreateHMAC;
-               return ret;
+                ret = ERROR_OpenSslCreateHMAC;
+                return ret;
             }
             // @remark, if no key, use EVP_Digest to digest,
             // for instance, in python, hashlib.sha256(data).digest().
@@ -207,13 +207,13 @@ namespace _srs_internal
         return ret;
     }
     
-    #define RFC2409_PRIME_1024 \
-            "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
-            "29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
-            "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
-            "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
-            "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
-            "FFFFFFFFFFFFFFFF"
+#define RFC2409_PRIME_1024 \
+"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
+"FFFFFFFFFFFFFFFF"
     
     SrsDH::SrsDH()
     {
@@ -326,26 +326,26 @@ namespace _srs_internal
         
         //1. Create the DH
         if ((pdh = DH_new()) == NULL) {
-            ret = ERROR_OpenSslCreateDH; 
+            ret = ERROR_OpenSslCreateDH;
             return ret;
         }
-    
+        
         //2. Create his internal p and g
         BIGNUM *p, *g;
         if ((p = BN_new()) == NULL) {
-            ret = ERROR_OpenSslCreateP; 
+            ret = ERROR_OpenSslCreateP;
             return ret;
         }
         if ((g = BN_new()) == NULL) {
-            ret = ERROR_OpenSslCreateG; 
+            ret = ERROR_OpenSslCreateG;
             BN_free(p);
             return ret;
         }
         DH_set0_pqg(pdh, p, NULL, g);
-
+        
         //3. initialize p and g, @see ./test/ectest.c:260
         if (!BN_hex2bn(&p, RFC2409_PRIME_1024)) {
-            ret = ERROR_OpenSslParseP1024; 
+            ret = ERROR_OpenSslParseP1024;
             return ret;
         }
         // @see ./test/bntest.c:1764
@@ -353,10 +353,10 @@ namespace _srs_internal
             ret = ERROR_OpenSslSetG;
             return ret;
         }
-    
+        
         // 4. Set the key length
         DH_set_length(pdh, bits_count);
-    
+        
         // 5. Generate private and public key
         // @see ./test/dhtest.c:152
         if (!DH_generate_key(pdh)) {
@@ -405,7 +405,7 @@ namespace _srs_internal
         
         // the key must be 764 bytes.
         srs_assert(stream->require(764));
-    
+        
         // read the last offset first, 760-763
         stream->skip(764 - sizeof(int32_t));
         offset = stream->read_4bytes();
@@ -445,7 +445,7 @@ namespace _srs_internal
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;
-    
+        
         return valid_offset % max_offset_size;
     }
     
@@ -480,7 +480,7 @@ namespace _srs_internal
         srs_freepa(random0);
         srs_freepa(random1);
     }
-
+    
     int digest_block::parse(SrsBuffer* stream)
     {
         int ret = ERROR_SUCCESS;
@@ -522,7 +522,7 @@ namespace _srs_internal
         valid_offset += *pp++;
         valid_offset += *pp++;
         valid_offset += *pp++;
-    
+        
         return valid_offset % max_offset_size;
     }
     
@@ -592,7 +592,7 @@ namespace _srs_internal
     int c1s1_strategy::s1_create(c1s1* owner, c1s1* c1)
     {
         int ret = ERROR_SUCCESS;
-
+        
         SrsDH dh;
         
         // ensure generate 128bytes public key.
@@ -607,13 +607,13 @@ namespace _srs_internal
             srs_error("calc s1 key failed. ret=%d", ret);
             return ret;
         }
-
+        
         // although the public key is always 128bytes, but the share key maybe not.
         // we just ignore the actual key size, but if need to use the key, must use the actual size.
         // TODO: FIXME: use the actual key size.
         //srs_assert(pkey_size == 128);
         srs_verbose("calc s1 key success.");
-            
+        
         char* s1_digest = NULL;
         if ((ret = calc_s1_digest(owner, s1_digest))  != ERROR_SUCCESS) {
             srs_error("calc s1 digest failed. ret=%d", ret);
@@ -652,14 +652,14 @@ namespace _srs_internal
     int c1s1_strategy::calc_c1_digest(c1s1* owner, char*& c1_digest)
     {
         int ret = ERROR_SUCCESS;
-
+        
         /**
-        * c1s1 is splited by digest:
-        *     c1s1-part1: n bytes (time, version, key and digest-part1).
-        *     digest-data: 32bytes
-        *     c1s1-part2: (1536-n-32)bytes (digest-part2)
-        * @return a new allocated bytes, user must free it.
-        */
+         * c1s1 is splited by digest:
+         *     c1s1-part1: n bytes (time, version, key and digest-part1).
+         *     digest-data: 32bytes
+         *     c1s1-part2: (1536-n-32)bytes (digest-part2)
+         * @return a new allocated bytes, user must free it.
+         */
         char* c1s1_joined_bytes = new char[1536 -32];
         SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
@@ -680,14 +680,14 @@ namespace _srs_internal
     int c1s1_strategy::calc_s1_digest(c1s1* owner, char*& s1_digest)
     {
         int ret = ERROR_SUCCESS;
-
+        
         /**
-        * c1s1 is splited by digest:
-        *     c1s1-part1: n bytes (time, version, key and digest-part1).
-        *     digest-data: 32bytes
-        *     c1s1-part2: (1536-n-32)bytes (digest-part2)
-        * @return a new allocated bytes, user must free it.
-        */
+         * c1s1 is splited by digest:
+         *     c1s1-part1: n bytes (time, version, key and digest-part1).
+         *     digest-data: 32bytes
+         *     c1s1-part2: (1536-n-32)bytes (digest-part2)
+         * @return a new allocated bytes, user must free it.
+         */
         char* c1s1_joined_bytes = new char[1536 -32];
         SrsAutoFreeA(char, c1s1_joined_bytes);
         if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
@@ -701,7 +701,7 @@ namespace _srs_internal
             return ret;
         }
         srs_verbose("digest calculated for s1");
-
+        
         return ret;
     }
     
@@ -711,7 +711,7 @@ namespace _srs_internal
         
         // 4bytes time
         stream->write_4bytes(owner->time);
-
+        
         // 4bytes version
         stream->write_4bytes(owner->version);
     }
@@ -800,7 +800,7 @@ namespace _srs_internal
         if ((ret = stream.initialize(_c1s1 + 8 + 764, 764)) != ERROR_SUCCESS) {
             return ret;
         }
-
+        
         if ((ret = digest.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 digest failed. ret=%d", ret);
             return ret;
@@ -860,7 +860,7 @@ namespace _srs_internal
         if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
             return ret;
         }
-
+        
         if ((ret = digest.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 digest failed. ret=%d", ret);
             return ret;
@@ -966,7 +966,7 @@ namespace _srs_internal
         } else {
             payload = new c1s1_strategy_schema1();
         }
-
+        
         return payload->parse(_c1s1, size);
     }
     
@@ -983,7 +983,7 @@ namespace _srs_internal
         // client c1 time and version
         time = (int32_t)::time(NULL);
         version = 0x80000702; // client c1 version
-
+        
         // generate signature by schema
         srs_freep(payload);
         if (schema == srs_schema0) {
@@ -1181,7 +1181,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsP
     if ((ret = hs_bytes->read_c0c1(io)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // plain text required.
     if (hs_bytes->c0c1[0] != 0x03) {
         ret = ERROR_RTMP_PLAIN_REQUIRED;
@@ -1274,7 +1274,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* /*hs_bytes*/, 
 int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
-
+    
     ssize_t nsize;
     
     if ((ret = hs_bytes->read_c0c1(io)) != ERROR_SUCCESS) {
@@ -1382,7 +1382,7 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, 
 int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
-
+    
     ssize_t nsize;
     
     // complex handshake
@@ -1399,7 +1399,7 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = c1.dump(hs_bytes->c0c1 + 1, 1536)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // verify c1
     bool is_valid;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
@@ -1439,12 +1439,12 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     c2s2 c2;
     if ((ret = c2.c2_create(&s1)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = c2.dump(hs_bytes->c2, 1536)) != ERROR_SUCCESS) {
         return ret;
     }

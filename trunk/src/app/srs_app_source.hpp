@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_SOURCE_HPP
 #define SRS_APP_SOURCE_HPP
-
-/*
-#include <srs_app_source.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -67,11 +63,11 @@ class SrsHds;
 #endif
 
 /**
-* the time jitter algorithm:
-* 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
-* 2. zero, only ensure sttream start at zero, ignore timestamp jitter.
-* 3. off, disable the time jitter algorithm, like atc.
-*/
+ * the time jitter algorithm:
+ * 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
+ * 2. zero, only ensure sttream start at zero, ignore timestamp jitter.
+ * 3. off, disable the time jitter algorithm, like atc.
+ */
 enum SrsRtmpJitterAlgorithm
 {
     SrsRtmpJitterAlgorithmFULL = 0x01,
@@ -81,9 +77,9 @@ enum SrsRtmpJitterAlgorithm
 int _srs_time_jitter_string2int(std::string time_jitter);
 
 /**
-* time jitter detect and correct,
-* to ensure the rtmp stream is monotonically.
-*/
+ * time jitter detect and correct,
+ * to ensure the rtmp stream is monotonically.
+ */
 class SrsRtmpJitter
 {
 private:
@@ -94,22 +90,22 @@ public:
     virtual ~SrsRtmpJitter();
 public:
     /**
-    * detect the time jitter and correct it.
-    * @param ag the algorithm to use for time jitter.
-    */
+     * detect the time jitter and correct it.
+     * @param ag the algorithm to use for time jitter.
+     */
     virtual int correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
     /**
-    * get current client time, the last packet time.
-    */
+     * get current client time, the last packet time.
+     */
     virtual int get_time();
 };
 
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
 /**
-* to alloc and increase fixed space,
-* fast remove and insert for msgs sender.
-* @see https://github.com/ossrs/srs/issues/251
-*/
+ * to alloc and increase fixed space,
+ * fast remove and insert for msgs sender.
+ * @see https://github.com/ossrs/srs/issues/251
+ */
 class SrsFastVector
 {
 private:
@@ -133,9 +129,9 @@ public:
 #endif
 
 /**
-* the message queue for the consumer(client), forwarder.
-* we limit the size in seconds, drop old messages(the whole gop) if full.
-*/
+ * the message queue for the consumer(client), forwarder.
+ * we limit the size in seconds, drop old messages(the whole gop) if full.
+ */
 class SrsMessageQueue
 {
 private:
@@ -153,24 +149,24 @@ public:
     virtual ~SrsMessageQueue();
 public:
     /**
-    * get the size of queue.
-    */
+     * get the size of queue.
+     */
     virtual int size();
     /**
-    * get the duration of queue.
-    */
+     * get the duration of queue.
+     */
     virtual int duration();
     /**
-    * set the queue size
-    * @param queue_size the queue size in seconds.
-    */
+     * set the queue size
+     * @param queue_size the queue size in seconds.
+     */
     virtual void set_queue_size(double queue_size);
 public:
     /**
-    * enqueue the message, the timestamp always monotonically.
-    * @param msg, the msg to enqueue, user never free it whatever the return code.
-    * @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    */
+     * enqueue the message, the timestamp always monotonically.
+     * @param msg, the msg to enqueue, user never free it whatever the return code.
+     * @param is_overflow, whether overflow and shrinked. NULL to ignore.
+     */
     virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     /**
      * get packets in consumer queue.
@@ -180,15 +176,15 @@ public:
      */
     virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     /**
-    * dumps packets to consumer, use specified args.
-    * @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
-    */
+     * dumps packets to consumer, use specified args.
+     * @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
+     */
     virtual int dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 private:
     /**
-    * remove a gop from the front.
-    * if no iframe found, clear it.
-    */
+     * remove a gop from the front.
+     * if no iframe found, clear it.
+     */
     virtual void shrink();
 public:
     /**
@@ -216,8 +212,8 @@ public:
 };
 
 /**
-* the consumer for SrsSource, that is a play client.
-*/
+ * the consumer for SrsSource, that is a play client.
+ */
 class SrsConsumer : public ISrsWakable
 {
 private:
@@ -242,24 +238,24 @@ public:
     virtual ~SrsConsumer();
 public:
     /**
-    * set the size of queue.
-    */
+     * set the size of queue.
+     */
     virtual void set_queue_size(double queue_size);
     /**
-    * when source id changed, notice client to print.
-    */
+     * when source id changed, notice client to print.
+     */
     virtual void update_source_id();
 public:
     /**
-    * get current client time, the last packet time.
-    */
+     * get current client time, the last packet time.
+     */
     virtual int get_time();
     /**
-    * enqueue an shared ptr message.
-    * @param shared_msg, directly ptr, copy it if need to save it.
-    * @param whether atc, donot use jitter correct if true.
-    * @param ag the algorithm of time jitter.
-    */
+     * enqueue an shared ptr message.
+     * @param shared_msg, directly ptr, copy it if need to save it.
+     * @param whether atc, donot use jitter correct if true.
+     * @param ag the algorithm of time jitter.
+     */
     virtual int enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
     /**
      * get packets in consumer queue.
@@ -270,17 +266,17 @@ public:
     virtual int dump_packets(SrsMessageArray* msgs, int& count);
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     /**
-    * wait for messages incomming, atleast nb_msgs and in duration.
-    * @param nb_msgs the messages count to wait.
-    * @param duration the messgae duration to wait.
-    */
+     * wait for messages incomming, atleast nb_msgs and in duration.
+     * @param nb_msgs the messages count to wait.
+     * @param duration the messgae duration to wait.
+     */
     virtual void wait(int nb_msgs, int duration);
 #endif
     /**
-    * when client send the pause message.
-    */
+     * when client send the pause message.
+     */
     virtual int on_play_client_pause(bool is_pause);
-// ISrsWakable
+    // ISrsWakable
 public:
     /**
      * when the consumer(for player) got msg from recv thread,
@@ -291,39 +287,39 @@ public:
 };
 
 /**
-* cache a gop of video/audio data,
-* delivery at the connect of flash player,
-* to enable it to fast startup.
-*/
+ * cache a gop of video/audio data,
+ * delivery at the connect of flash player,
+ * to enable it to fast startup.
+ */
 class SrsGopCache
 {
 private:
     /**
-    * if disabled the gop cache,
-    * the client will wait for the next keyframe for h264,
-    * and will be black-screen.
-    */
+     * if disabled the gop cache,
+     * the client will wait for the next keyframe for h264,
+     * and will be black-screen.
+     */
     bool enable_gop_cache;
     /**
-    * the video frame count, avoid cache for pure audio stream.
-    */
+     * the video frame count, avoid cache for pure audio stream.
+     */
     int cached_video_count;
     /**
-    * when user disabled video when publishing, and gop cache enalbed,
-    * we will cache the audio/video for we already got video, but we never
-    * know when to clear the gop cache, for there is no video in future,
-    * so we must guess whether user disabled the video.
-    * when we got some audios after laster video, for instance, 600 audio packets,
-    * about 3s(26ms per packet) 115 audio packets, clear gop cache.
-    * 
-    * @remark, it is ok for performance, for when we clear the gop cache,
-    *       gop cache is disabled for pure audio stream.
-    * @see: https://github.com/ossrs/srs/issues/124
-    */
+     * when user disabled video when publishing, and gop cache enalbed,
+     * we will cache the audio/video for we already got video, but we never
+     * know when to clear the gop cache, for there is no video in future,
+     * so we must guess whether user disabled the video.
+     * when we got some audios after laster video, for instance, 600 audio packets,
+     * about 3s(26ms per packet) 115 audio packets, clear gop cache.
+     *
+     * @remark, it is ok for performance, for when we clear the gop cache,
+     *       gop cache is disabled for pure audio stream.
+     * @see: https://github.com/ossrs/srs/issues/124
+     */
     int audio_after_last_video_count;
     /**
-    * cached gop.
-    */
+     * cached gop.
+     */
     std::vector<SrsSharedPtrMessage*> gop_cache;
 public:
     SrsGopCache();
@@ -334,47 +330,47 @@ public:
      */
     virtual void dispose();
     /**
-    * to enable or disable the gop cache.
-    */
+     * to enable or disable the gop cache.
+     */
     virtual void set(bool v);
     virtual bool enabled();
     /**
-    * only for h264 codec
-    * 1. cache the gop when got h264 video packet.
-    * 2. clear gop when got keyframe.
-    * @param shared_msg, directly ptr, copy it if need to save it.
-    */
+     * only for h264 codec
+     * 1. cache the gop when got h264 video packet.
+     * 2. clear gop when got keyframe.
+     * @param shared_msg, directly ptr, copy it if need to save it.
+     */
     virtual int cache(SrsSharedPtrMessage* shared_msg);
     /**
-    * clear the gop cache.
-    */
+     * clear the gop cache.
+     */
     virtual void clear();
     /**
-    * dump the cached gop to consumer.
-    */
+     * dump the cached gop to consumer.
+     */
     virtual int dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
     /**
-    * used for atc to get the time of gop cache,
-    * the atc will adjust the sequence header timestamp to gop cache.
-    */
+     * used for atc to get the time of gop cache,
+     * the atc will adjust the sequence header timestamp to gop cache.
+     */
     virtual bool empty();
     /**
-    * get the start time of gop cache, in ms.
-    * @return 0 if no packets.
-    */
+     * get the start time of gop cache, in ms.
+     * @return 0 if no packets.
+     */
     virtual int64_t start_time();
     /**
-    * whether current stream is pure audio,
-    * when no video in gop cache, the stream is pure audio right now.
-    */
+     * whether current stream is pure audio,
+     * when no video in gop cache, the stream is pure audio right now.
+     */
     virtual bool pure_audio();
 };
 
 /**
-* the handler to handle the event of srs source.
-* for example, the http flv streaming module handle the event and 
-* mount http when rtmp start publishing.
-*/
+ * the handler to handle the event of srs source.
+ * for example, the http flv streaming module handle the event and
+ * mount http when rtmp start publishing.
+ */
 class ISrsSourceHandler
 {
 public:
@@ -382,12 +378,12 @@ public:
     virtual ~ISrsSourceHandler();
 public:
     /**
-    * when stream start publish, mount stream.
-    */
+     * when stream start publish, mount stream.
+     */
     virtual int on_publish(SrsSource* s, SrsRequest* r) = 0;
     /**
-    * when stream stop publish, unmount stream.
-    */
+     * when stream stop publish, unmount stream.
+     */
     virtual void on_unpublish(SrsSource* s, SrsRequest* r) = 0;
 };
 
@@ -467,7 +463,7 @@ public:
     virtual int on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
-// Internal callback.
+    // Internal callback.
 public:
     // for the SrsForwarder to callback to request the sequence headers.
     virtual int on_forwarder_start(SrsForwarder* forwarder);
@@ -527,8 +523,8 @@ public:
 };
 
 /**
-* live streaming source.
-*/
+ * live streaming source.
+ */
 class SrsSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
@@ -536,17 +532,17 @@ private:
     static std::map<std::string, SrsSource*> pool;
 public:
     /**
-    *  create source when fetch from cache failed.
-    * @param r the client request.
-    * @param h the event handler for source.
-    * @param pps the matched source, if success never be NULL.
-    */
+     *  create source when fetch from cache failed.
+     * @param r the client request.
+     * @param h the event handler for source.
+     * @param pps the matched source, if success never be NULL.
+     */
     static int fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
 private:
     /**
-    * get the exists source, NULL when not exists.
-    * update the request and return the exists source.
-    */
+     * get the exists source, NULL when not exists.
+     * update the request and return the exists source.
+     */
     static SrsSource* fetch(SrsRequest* r);
 public:
     /**
@@ -558,9 +554,9 @@ private:
     static int do_cycle_all();
 public:
     /**
-    * when system exit, destroy the sources,
-    * for gmc to analysis mem leaks.
-    */
+     * when system exit, destroy the sources,
+     * for gmc to analysis mem leaks.
+     */
     static void destroy();
 private:
     // source id,
@@ -607,8 +603,8 @@ private:
     SrsMetaCache* meta;
 private:
     /**
-    * can publish, true when is not streaming
-    */
+     * can publish, true when is not streaming
+     */
     bool _can_publish;
     // last die time, when all consumers quit and no publisher,
     // we will remove the source when source die.
@@ -621,23 +617,23 @@ public:
     virtual int cycle();
     // remove source when expired.
     virtual bool expired();
-// initialize, get and setter.
+    // initialize, get and setter.
 public:
     /**
-    * initialize the hls with handlers.
-    */
+     * initialize the hls with handlers.
+     */
     virtual int initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_play(std::string vhost);
-// for the tools callback
+    // for the tools callback
 public:
     // source id changed.
     virtual int on_source_id_changed(int id);
     // get current source id.
     virtual int source_id();
     virtual int pre_source_id();
-// logic data methods
+    // logic data methods
 public:
     virtual bool can_publish(bool is_edge);
     virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
@@ -652,29 +648,26 @@ private:
 public:
     virtual int on_aggregate(SrsCommonMessage* msg);
     /**
-    * publish stream event notify.
-    * @param _req the request from client, the source will deep copy it,
-    *         for when reload the request of client maybe invalid.
-    */
+     * publish stream event notify.
+     * @param _req the request from client, the source will deep copy it,
+     *         for when reload the request of client maybe invalid.
+     */
     virtual int on_publish();
     virtual void on_unpublish();
-// consumer methods
+    // consumer methods
 public:
     /**
-    * create consumer and dumps packets in cache.
-    * @param consumer, output the create consumer.
-    * @param ds, whether dumps the sequence header.
-    * @param dm, whether dumps the metadata.
-    * @param dg, whether dumps the gop cache.
-    */
-    virtual int create_consumer(
-        SrsConnection* conn, SrsConsumer*& consumer,
-        bool ds = true, bool dm = true, bool dg = true
-    );
+     * create consumer and dumps packets in cache.
+     * @param consumer, output the create consumer.
+     * @param ds, whether dumps the sequence header.
+     * @param dm, whether dumps the metadata.
+     * @param dg, whether dumps the gop cache.
+     */
+    virtual int create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
-// internal
+    // internal
 public:
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();

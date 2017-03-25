@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_http_api.hpp>
 
@@ -151,7 +151,7 @@ int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     obj->set("urls", urls);
     
     urls->set("api", SrsJsonAny::str("the api root"));
-        
+    
     return srs_api_response(w, r, obj->dumps());
 }
 
@@ -899,7 +899,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ret);
     }
-
+    
     // for rpc=query, to get the configs of server.
     //      @param scope the scope to query for config, it can be:
     //              global, the configs belongs to the root, donot includes any sub directives.
@@ -1010,7 +1010,7 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
             && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
             && scope != "pithy_print_ms" && scope != "vhost" && scope != "dvr"
-        ) {
+            ) {
             ret = ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED;
             srs_error("raw api query invalid scope=%s. ret=%d", scope.c_str(), ret);
             return srs_api_response_code(w, r, ret);
@@ -1291,7 +1291,7 @@ int SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 }
 
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
-    : SrsConnection(cm, fd, cip)
+: SrsConnection(cm, fd, cip)
 {
     mux = m;
     cors = new SrsHttpCorsMux();
@@ -1360,7 +1360,7 @@ int SrsHttpApi::do_cycle()
         if ((ret = parser->parse_message(skt, this, &req)) != ERROR_SUCCESS) {
             return ret;
         }
-
+        
         // if SUCCESS, always NOT-NULL.
         srs_assert(req);
         
@@ -1372,7 +1372,7 @@ int SrsHttpApi::do_cycle()
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }
-
+        
         // read all rest bytes in request body.
         char buf[SRS_HTTP_READ_CACHE_BYTES];
         ISrsHttpResponseReader* br = req->body_reader();
@@ -1381,18 +1381,18 @@ int SrsHttpApi::do_cycle()
                 return ret;
             }
         }
-
+        
         // donot keep alive, disconnect it.
         // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }
     }
-        
+    
     return ret;
 }
 
-int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) 
+int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1400,8 +1400,8 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     srs_assert(hm);
     
     srs_trace("HTTP API %s %s, content-length=%"PRId64", chunked=%d/%d",
-        r->method_str().c_str(), r->url().c_str(), r->content_length(),
-        hm->is_chunked(), hm->is_infinite_chunked());
+              r->method_str().c_str(), r->url().c_str(), r->content_length(),
+              hm->is_chunked(), hm->is_infinite_chunked());
     
     // use cors server mux to serve http request, which will proxy to mux.
     if ((ret = cors->serve_http(w, r)) != ERROR_SUCCESS) {

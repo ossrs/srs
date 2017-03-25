@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_log.hpp>
 
@@ -92,7 +92,7 @@ SrsFastLog::SrsFastLog()
 {
     _level = SrsLogLevel::Trace;
     log_data = new char[LOG_MAX_SIZE];
-
+    
     fd = -1;
     log_to_file_tank = false;
     utc = false;
@@ -101,12 +101,12 @@ SrsFastLog::SrsFastLog()
 SrsFastLog::~SrsFastLog()
 {
     srs_freepa(log_data);
-
+    
     if (fd > 0) {
         ::close(fd);
         fd = -1;
     }
-
+    
     if (_srs_config) {
         _srs_config->unsubscribe(this);
     }
@@ -118,7 +118,7 @@ int SrsFastLog::initialize()
     
     if (_srs_config) {
         _srs_config->subscribe(this);
-    
+        
         log_to_file_tank = _srs_config->get_log_tank_file();
         _level = srs_get_log_level(_srs_config->get_log_level());
         utc = _srs_config->get_utc_time();
@@ -156,7 +156,7 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-
+    
     write_log(fd, log_data, size, SrsLogLevel::Verbose);
 }
 
@@ -176,7 +176,7 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-
+    
     write_log(fd, log_data, size, SrsLogLevel::Info);
 }
 
@@ -196,7 +196,7 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-
+    
     write_log(fd, log_data, size, SrsLogLevel::Trace);
 }
 
@@ -216,7 +216,7 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-
+    
     write_log(fd, log_data, size, SrsLogLevel::Warn);
 }
 
@@ -236,12 +236,12 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-
+    
     // add strerror() to error msg.
     if (errno != 0) {
         size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
     }
-
+    
     write_log(fd, log_data, size, SrsLogLevel::Error);
 }
 
@@ -259,18 +259,18 @@ int SrsFastLog::on_reload_log_tank()
     if (!_srs_config) {
         return ret;
     }
-
+    
     bool tank = log_to_file_tank;
     log_to_file_tank = _srs_config->get_log_tank_file();
-
+    
     if (tank) {
         return ret;
     }
-
+    
     if (!log_to_file_tank) {
         return ret;
     }
-
+    
     if (fd > 0) {
         ::close(fd);
     }
@@ -299,11 +299,11 @@ int SrsFastLog::on_reload_log_file()
     if (!_srs_config) {
         return ret;
     }
-
+    
     if (!log_to_file_tank) {
         return ret;
     }
-
+    
     if (fd > 0) {
         ::close(fd);
     }
@@ -337,30 +337,30 @@ bool SrsFastLog::generate_header(bool error, const char* tag, int context_id, co
     
     if (error) {
         if (tag) {
-            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d][%d] ", 
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE,
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d][%d] ",
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level_name, tag, getpid(), context_id, errno);
         } else {
-            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d][%d] ", 
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE,
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d][%d] ",
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level_name, getpid(), context_id, errno);
         }
     } else {
         if (tag) {
-            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ", 
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE,
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ",
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level_name, tag, getpid(), context_id);
         } else {
-            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ", 
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE,
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ",
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level_name, getpid(), context_id);
         }
     }
-
+    
     if (log_header_size == -1) {
         return false;
     }
@@ -396,7 +396,7 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
             printf("\033[31m%.*s\033[0m", size, str_log);
         }
         fflush(stdout);
-
+        
         return;
     }
     
@@ -426,10 +426,7 @@ void SrsFastLog::open_log_file()
     fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
     
     if(fd == -1 && errno == ENOENT) {
-        fd = open(filename.c_str(), 
-            O_RDWR | O_CREAT | O_TRUNC, 
-            S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
-        );
+        fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     }
 }
 

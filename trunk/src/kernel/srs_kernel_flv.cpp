@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_kernel_flv.hpp>
 
@@ -284,7 +284,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
     // ensure the basic header is 1bytes.
     if (ptr->header.perfer_cid < 2) {
         srs_info("change the chunk_id=%d to default=%d",
-            ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
+                 ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
         ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
     }
     
@@ -300,7 +300,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
 bool SrsSharedPtrMessage::is_av()
 {
     return ptr->header.message_type == RTMP_MSG_AudioMessage
-        || ptr->header.message_type == RTMP_MSG_VideoMessage;
+    || ptr->header.message_type == RTMP_MSG_VideoMessage;
 }
 
 bool SrsSharedPtrMessage::is_audio()
@@ -316,14 +316,9 @@ bool SrsSharedPtrMessage::is_video()
 int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
 {
     if (c0) {
-        return srs_chunk_header_c0(
-            ptr->header.perfer_cid, timestamp, ptr->header.payload_length,
-            ptr->header.message_type, stream_id,
-            cache, nb_cache);
+        return srs_chunk_header_c0(ptr->header.perfer_cid, timestamp, ptr->header.payload_length, ptr->header.message_type, stream_id, cache, nb_cache);
     } else {
-        return srs_chunk_header_c3(
-            ptr->header.perfer_cid, timestamp,
-            cache, nb_cache);
+        return srs_chunk_header_c3(ptr->header.perfer_cid, timestamp, cache, nb_cache);
     }
 }
 
@@ -718,7 +713,7 @@ int SrsFlvDecoder::initialize(ISrsReader* fr)
 int SrsFlvDecoder::read_header(char header[9])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(header);
     
     // TODO: FIXME: Should use readfully.
@@ -739,11 +734,11 @@ int SrsFlvDecoder::read_header(char header[9])
 int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(ptype);
     srs_assert(pdata_size);
     srs_assert(ptime);
-
+    
     char th[11]; // tag header
     
     // read tag header
@@ -775,14 +770,14 @@ int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* p
     
     // TimestampExtended UI8
     pp[3] = th[7];
-
+    
     return ret;
 }
 
 int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(data);
     
     // TODO: FIXME: Should use readfully.
@@ -794,13 +789,13 @@ int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
     }
     
     return ret;
-
+    
 }
 
 int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(previous_tag_size);
     
     // ignore 4bytes tag size.
@@ -850,7 +845,7 @@ int SrsFlvVodStreamDecoder::initialize(ISrsReader* fr)
 int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(header);
     
     // @remark, always false, for sizeof(char[13]) equals to sizeof(char*)
@@ -869,7 +864,7 @@ int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* psize)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(pstart);
     srs_assert(psize);
     
@@ -964,16 +959,16 @@ int SrsFlvVodStreamDecoder::seek2(int64_t offset)
     if (offset >= reader->filesize()) {
         ret = ERROR_SYSTEM_FILE_EOF;
         srs_warn("flv fast decoder seek overflow file, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            reader->filesize(), offset, ret);
+                 "size=%"PRId64", offset=%"PRId64", ret=%d",
+                 reader->filesize(), offset, ret);
         return ret;
     }
     
     if (reader->seek2(offset) < 0) {
         ret = ERROR_SYSTEM_FILE_SEEK;
         srs_warn("flv fast decoder seek error, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            reader->filesize(), offset, ret);
+                 "size=%"PRId64", offset=%"PRId64", ret=%d", 
+                 reader->filesize(), offset, ret);
         return ret;
     }
     

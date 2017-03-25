@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_http_hooks.hpp>
 
@@ -72,7 +72,7 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -80,14 +80,14 @@ int SrsHttpHooks::on_connect(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_connect uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                  "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                  client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
     srs_trace("http hook on_connect success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return ret;
 }
@@ -108,7 +108,7 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("send_bytes", SrsJsonAny::integer(send_bytes));
     obj->set("recv_bytes", SrsJsonAny::integer(recv_bytes));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -116,14 +116,14 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_close uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                 "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                 client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http hook on_close success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return;
 }
@@ -144,7 +144,7 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -152,14 +152,14 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_publish uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                  "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                  client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
     srs_trace("http hook on_publish success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return ret;
 }
@@ -179,7 +179,7 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -187,14 +187,14 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_unpublish uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                 "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                 client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http hook on_unpublish success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return;
 }
@@ -215,7 +215,7 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -223,14 +223,14 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_play uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                  "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                  client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
     srs_trace("http hook on_play success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return ret;
 }
@@ -250,7 +250,7 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -258,14 +258,14 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_stop uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                 "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                 client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http hook on_stop success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return;
 }
@@ -288,7 +288,7 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -296,14 +296,14 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_dvr uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                  "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                  client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
     srs_trace("http hook on_dvr success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return ret;
 }
@@ -337,7 +337,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     obj->set("m3u8", SrsJsonAny::str(m3u8.c_str()));
     obj->set("m3u8_url", SrsJsonAny::str(m3u8_url.c_str()));
     obj->set("seq_no", SrsJsonAny::integer(sn));
-        
+    
     std::string data = obj->dumps();
     std::string res;
     int status_code;
@@ -345,14 +345,14 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
     SrsHttpClient http;
     if ((ret = do_post(&http, url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_hls uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+                  "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+                  client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
     srs_trace("http hook on_hls success. "
-        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+              "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+              client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
     return ret;
 }
@@ -417,7 +417,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     
     int spenttime = (int)(srs_update_system_time_ms() - starttime);
     srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, ret=%d",
-        client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
+              client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
     
     // ignore any error for on_hls_notify.
     ret = ERROR_SUCCESS;

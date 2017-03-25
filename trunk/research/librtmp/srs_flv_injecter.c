@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     // temp variables.
     int tmp_file_size = 0;
     char* tmp_file;
-
+    
     printf("inject flv file keyframes to metadata.\n");
     printf("srs(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     srs_human_trace("input:  %s", in_flv_file);
     srs_human_trace("output:  %s", out_flv_file);
     srs_human_trace("tmp_file:  %s", tmp_file);
-
+    
     ret = process(in_flv_file, tmp_file, &ic, &oc);
     
     srs_flv_close(ic);
@@ -136,9 +136,9 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
     *poc = oc;
     
     /**
-    * we use two roundtrip to avoid the paddings of metadata,
-    * to support large keyframes videos without padding fields.
-    */
+     * we use two roundtrip to avoid the paddings of metadata,
+     * to support large keyframes videos without padding fields.
+     */
     // build keyframes offset to metadata.
     if ((ret = build_keyframes(ic, &amf0_name, &amf0_data, &filepositions, &metadata_end_offset)) != 0) {
         return ret;
@@ -319,7 +319,7 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
     if (amf0_name != NULL && amf0_data != NULL) {
         amf0_name_size = srs_amf0_size(amf0_name);
         size = amf0_name_size + srs_amf0_size(amf0_data);
-
+        
         // adjust all offset of keyframes.
         new_metadata_end_offset = srs_flv_tellg(oc) + srs_flv_size_tag(size);
         // the adjust is new offset sub the old offset of metadata end.

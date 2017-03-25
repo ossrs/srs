@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_core.hpp>
 
@@ -60,9 +60,9 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 
 /**
-* main entrance.
-*/
-int main(int argc, char** argv) 
+ * main entrance.
+ */
+int main(int argc, char** argv)
 {
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -124,8 +124,8 @@ public:
     /**
      * handle the aac frame, which in ADTS format(starts with FFFx).
      * @param duration the duration in seconds of frames.
-*/
-virtual int on_aac_frame(char* frame, int frame_size, double duration) = 0;
+     */
+    virtual int on_aac_frame(char* frame, int frame_size, double duration) = 0;
 };
 
 // the context to ingest hls stream.
@@ -329,14 +329,14 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
     // skip ID3.
     if (id0 == 0x49 && id1 == 0x44 && id2 == 0x33) {
         /*char id3[] = {
-            (char)0x49, (char)0x44, (char)0x33, // ID3
-            (char)0x03, (char)0x00, // version
-            (char)0x00, // flags
-            (char)0x00, (char)0x00, (char)0x00, (char)0x0a, // size
-            
-            (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameID
-            (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameSize
-            (char)0x00, (char)0x00 // Flags
+         (char)0x49, (char)0x44, (char)0x33, // ID3
+         (char)0x03, (char)0x00, // version
+         (char)0x00, // flags
+         (char)0x00, (char)0x00, (char)0x00, (char)0x0a, // size
+         
+         (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameID
+         (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameSize
+         (char)0x00, (char)0x00 // Flags
          };*/
         // atleast 10 bytes.
         if (!stream->require(10)) {
@@ -745,9 +745,9 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     
     srs_info("<- "SRS_CONSTS_LOG_STREAM_CASTER" mpegts: got %s stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
-              (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
-              msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
-              msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
+             (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
+             msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
+             msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
     
     // When the audio SID is private stream 1, we use common audio.
     // @see https://github.com/ossrs/srs/issues/740

@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     srs_rtmp_t irtmp, ortmp;
     
     printf("Ingest RTMP to server like FFMPEG over srs-librtmp %d.%d.%d\n",
-        srs_version_major(), srs_version_minor(), srs_version_revision());
+           srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
         printf("ingest RTMP and publish to RTMP server\n"
@@ -57,9 +57,9 @@ int main(int argc, char** argv)
             "   in_rtmp_url     input rtmp url, ingest from this url.\n"
             "   out_rtmp_url    output rtmp url, publish to this url.\n"
             "   verbose         output verbose log.\n"
-           "For example:\n"
-           "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n"
-           "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo -v verbose\n",
+            "For example:\n"
+            "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n"
+            "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo -v verbose\n",
             argv[0], argv[0], argv[0]);
         exit(-1);
     }
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     
     irtmp = srs_rtmp_create(in_rtmp_url);
     ortmp = srs_rtmp_create(out_rtmp_url);
-
+    
     ret = proxy(irtmp, ortmp);
     srs_human_trace("proxy completed");
     
@@ -116,7 +116,7 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     char* data;
     uint32_t timestamp;
     uint64_t nb_msgs = 0;
-
+    
     if ((ret = connect_ic(irtmp)) != 0) {
         return ret;
     }
@@ -162,10 +162,10 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         
         if (verbose) {
             srs_human_trace("ortmp sent packet: type=%s, time=%d, size=%d",
-                srs_human_flv_tag_type2string(type), timestamp, size);
+                            srs_human_flv_tag_type2string(type), timestamp, size);
         } else {
             srs_human_verbose("ortmp sent packet: type=%s, time=%d, size=%d",
-                srs_human_flv_tag_type2string(type), timestamp, size);
+                              srs_human_flv_tag_type2string(type), timestamp, size);
         }
     }
     
@@ -210,7 +210,7 @@ int connect_ic(srs_rtmp_t irtmp)
         return ret;
     }
     srs_human_trace("irtmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
-        ip, sig, major, minor, revision, build, pid, cid);
+                    ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_play_stream(irtmp)) != 0) {
         srs_human_trace("irtmp play stream failed. ret=%d", ret);
@@ -263,7 +263,7 @@ int connect_oc(srs_rtmp_t ortmp)
         return ret;
     }
     srs_human_trace("ortmp connect ok, ip=%s, server=%s/%d.%d.%d.%d, pid=%d, cid=%d",
-        ip, sig, major, minor, revision, build, pid, cid);
+                    ip, sig, major, minor, revision, build, pid, cid);
     
     if ((ret = srs_rtmp_publish_stream(ortmp)) != 0) {
         srs_human_trace("ortmp publish stream failed. ret=%d", ret);

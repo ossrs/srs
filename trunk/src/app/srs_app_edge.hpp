@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_EDGE_HPP
 #define SRS_APP_EDGE_HPP
-
-/*
-#include <srs_app_edge.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -52,12 +48,12 @@ class SrsSimpleRtmpClient;
 class SrsPacket;
 
 /**
-* the state of edge, auto machine
-*/
+ * the state of edge, auto machine
+ */
 enum SrsEdgeState
 {
     SrsEdgeStateInit = 0,
-
+    
     // for play edge
     SrsEdgeStatePlay = 100,
     // play stream from origin, ingest stream
@@ -68,8 +64,8 @@ enum SrsEdgeState
 };
 
 /**
-* the state of edge from user, manual machine
-*/
+ * the state of edge from user, manual machine
+ */
 enum SrsEdgeUserState
 {
     SrsEdgeUserStateInit = 0,
@@ -116,8 +112,8 @@ public:
 };
 
 /**
-* edge used to ingest stream from origin.
-*/
+ * edge used to ingest stream from origin.
+ */
 class SrsEdgeIngester : public ISrsReusableThread2Handler
 {
 private:
@@ -146,8 +142,8 @@ private:
 };
 
 /**
-* edge used to forward stream to origin.
-*/
+ * edge used to forward stream to origin.
+ */
 class SrsEdgeForwarder : public ISrsReusableThread2Handler
 {
 private:
@@ -158,15 +154,15 @@ private:
     SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
     /**
-    * we must ensure one thread one fd principle,
-    * that is, a fd must be write/read by the one thread.
-    * the publish service thread will proxy(msg), and the edge forward thread
-    * will cycle(), so we use queue for cycle to send the msg of proxy.
-    */
+     * we must ensure one thread one fd principle,
+     * that is, a fd must be write/read by the one thread.
+     * the publish service thread will proxy(msg), and the edge forward thread
+     * will cycle(), so we use queue for cycle to send the msg of proxy.
+     */
     SrsMessageQueue* queue;
     /**
-    * error code of send, for edge proxy thread to query.
-    */
+     * error code of send, for edge proxy thread to query.
+     */
     int send_error_code;
 public:
     SrsEdgeForwarder();
@@ -185,9 +181,9 @@ public:
 };
 
 /**
-* play edge control service.
-* downloading edge speed-up.
-*/
+ * play edge control service.
+ * downloading edge speed-up.
+ */
 class SrsPlayEdge
 {
 private:
@@ -198,31 +194,31 @@ public:
     virtual ~SrsPlayEdge();
 public:
     /**
-    * always use the req of source,
-    * for we assume all client to edge is invalid,
-    * if auth open, edge must valid it from origin, then service it.
-    */
+     * always use the req of source,
+     * for we assume all client to edge is invalid,
+     * if auth open, edge must valid it from origin, then service it.
+     */
     virtual int initialize(SrsSource* source, SrsRequest* req);
     /**
-    * when client play stream on edge.
-    */
+     * when client play stream on edge.
+     */
     virtual int on_client_play();
     /**
-    * when all client stopped play, disconnect to origin.
-    */
+     * when all client stopped play, disconnect to origin.
+     */
     virtual void on_all_client_stop();
     virtual std::string get_curr_origin();
 public:
     /**
-    * when ingester start to play stream.
-    */
+     * when ingester start to play stream.
+     */
     virtual int on_ingest_play();
 };
 
 /**
-* publish edge control service.
-* uploading edge speed-up.
-*/
+ * publish edge control service.
+ * uploading edge speed-up.
+ */
 class SrsPublishEdge
 {
 private:
@@ -237,16 +233,16 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual bool can_publish();
     /**
-    * when client publish stream on edge.
-    */
+     * when client publish stream on edge.
+     */
     virtual int on_client_publish();
     /**
-    * proxy publish stream to edge
-    */
+     * proxy publish stream to edge
+     */
     virtual int on_proxy_publish(SrsCommonMessage* msg);
     /**
-    * proxy unpublish stream to edge.
-    */
+     * proxy unpublish stream to edge.
+     */
     virtual void on_proxy_unpublish();
 };
 

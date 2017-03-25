@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_http_static.hpp>
 
@@ -52,7 +52,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
-    : SrsHttpFileServer(root_dir)
+: SrsHttpFileServer(root_dir)
 {
 }
 
@@ -73,8 +73,8 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     if (offset > fs.filesize()) {
         ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
-            fullpath.c_str(), fs.filesize(), offset, ret);
+        srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d",
+                 fullpath.c_str(), fs.filesize(), offset, ret);
         return ret;
     }
     
@@ -114,10 +114,10 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // seek to data offset
     int64_t left = fs.filesize() - offset;
-
+    
     // write http header for ts.
     w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
     w->header()->set_content_type("video/x-flv");
@@ -147,7 +147,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
 int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(start >= 0);
     srs_assert(end == -1 || end >= 0);
     
@@ -157,7 +157,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // parse -1 to whole file.
     if (end == -1) {
         end = (int)fs.filesize();
@@ -165,21 +165,21 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     if (end > fs.filesize() || start > end) {
         ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http mp4 streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
-            fullpath.c_str(), fs.filesize(), start, ret);
+        srs_warn("http mp4 streaming %s overflow. size=%"PRId64", offset=%d, ret=%d",
+                 fullpath.c_str(), fs.filesize(), start, ret);
         return ret;
     }
-
+    
     // seek to data offset, [start, end] for range.
     int64_t left = end - start + 1;
-
+    
     // write http header for ts.
     w->header()->set_content_length(left);
     w->header()->set_content_type("video/mp4");
-
+    
     // status code 206 to make dash.as happy.
     w->write_header(SRS_CONSTS_HTTP_PartialContent);
-
+    
     // response the content range header.
     std::stringstream content_range;
     content_range << "bytes " << start << "-" << end << "/" << fs.filesize();

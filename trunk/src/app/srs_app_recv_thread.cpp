@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_recv_thread.hpp>
 
@@ -65,7 +65,7 @@ SrsRecvThread::~SrsRecvThread()
 {
     // stop recv thread.
     stop();
-
+    
     // destroy the thread.
     srs_freep(trd);
 }
@@ -93,37 +93,37 @@ void SrsRecvThread::stop_loop()
 int SrsRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
-
+    
     while (!trd->interrupted()) {
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
             st_usleep(timeout * 1000);
             continue;
         }
-    
+        
         SrsCommonMessage* msg = NULL;
         
         // Process the received message.
         if ((ret = rtmp->recv_message(&msg)) == ERROR_SUCCESS) {
             ret = pumper->consume(msg);
         }
-    
+        
         if (ret != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
                 srs_error("recv thread error. ret=%d", ret);
             }
-    
+            
             // Interrupt the receive thread for any error.
             trd->interrupt();
             
             // Notify the pumper to quit for error.
             pumper->interrupt(ret);
-    
+            
             return ret;
         }
         srs_verbose("thread loop recv message. ret=%d", ret);
     }
-
+    
     return ret;
 }
 
@@ -148,7 +148,7 @@ void SrsRecvThread::on_thread_stop()
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)
-    : trd(this, rtmp_sdk, timeout_ms)
+: trd(this, rtmp_sdk, timeout_ms)
 {
     _consumer = consumer;
     rtmp = rtmp_sdk;
@@ -158,7 +158,7 @@ SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtm
 SrsQueueRecvThread::~SrsQueueRecvThread()
 {
     stop();
-
+    
     // clear all messages.
     std::vector<SrsCommonMessage*>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
@@ -251,17 +251,14 @@ void SrsQueueRecvThread::on_stop()
     rtmp->set_auto_response(true);
 }
 
-SrsPublishRecvThread::SrsPublishRecvThread(
-    SrsRtmpServer* rtmp_sdk, 
-    SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-    SrsRtmpConn* conn, SrsSource* source
-): trd(this, rtmp_sdk, timeout_ms)
+SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req, int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source)
+    : trd(this, rtmp_sdk, timeout_ms)
 {
     rtmp = rtmp_sdk;
-
+    
     _conn = conn;
     _source = source;
-
+    
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
     error = st_cond_new();
@@ -269,8 +266,8 @@ SrsPublishRecvThread::SrsPublishRecvThread(
     
     req = _req;
     mr_fd = mr_sock_fd;
-
-    // the mr settings, 
+    
+    // the mr settings,
     // @see https://github.com/ossrs/srs/issues/241
     mr = _srs_config->get_mr_enabled(req->vhost);
     mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
@@ -377,12 +374,12 @@ void SrsPublishRecvThread::on_start()
 {
     // we donot set the auto response to false,
     // for the main thread never send message.
-
+    
 #ifdef SRS_PERF_MERGED_READ
     if (mr) {
         // set underlayer buffer size
         set_socket_buffer(mr_sleep);
-
+        
         // disable the merge read
         // @see https://github.com/ossrs/srs/issues/241
         rtmp->set_merge_read(true, this);
@@ -398,7 +395,7 @@ void SrsPublishRecvThread::on_stop()
     // when thread stop, signal the conn thread which wait.
     // @see https://github.com/ossrs/srs/issues/244
     st_cond_signal(error);
-
+    
 #ifdef SRS_PERF_MERGED_READ
     if (mr) {
         // disable the merge read
@@ -420,11 +417,11 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
     }
     
     /**
-    * to improve read performance, merge some packets then read,
-    * when it on and read small bytes, we sleep to wait more data.,
-    * that is, we merge some data to read together.
-    * @see https://github.com/ossrs/srs/issues/241
-    */
+     * to improve read performance, merge some packets then read,
+     * when it on and read small bytes, we sleep to wait more data.,
+     * that is, we merge some data to read together.
+     * @see https://github.com/ossrs/srs/issues/241
+     */
     if (nread < SRS_MR_SMALL_BYTES) {
         st_usleep(mr_sleep * 1000);
     }
@@ -438,17 +435,17 @@ int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
     if (req->vhost != vhost) {
         return ret;
     }
-
-    // the mr settings, 
+    
+    // the mr settings,
     // @see https://github.com/ossrs/srs/issues/241
     bool mr_enabled = _srs_config->get_mr_enabled(req->vhost);
     int sleep_ms = _srs_config->get_mr_sleep_ms(req->vhost);
-
+    
     // update buffer when sleep ms changed.
     if (mr_sleep != sleep_ms) {
         set_socket_buffer(sleep_ms);
     }
-
+    
 #ifdef SRS_PERF_MERGED_READ
     // mr enabled=>disabled
     if (mr && !mr_enabled) {
@@ -463,7 +460,7 @@ int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
         rtmp->set_merge_read(true, this);
     }
 #endif
-
+    
     // update to new state
     mr = mr_enabled;
     mr_sleep = sleep_ms;
@@ -505,18 +502,18 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
     int onb_rbuf = 0;
     socklen_t sock_buf_size = sizeof(int);
     getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
-
+    
     // socket recv buffer, system will double it.
     int nb_rbuf = socket_buffer_size / 2;
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
     getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
-
+    
     srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d, realtime=%d",
-        mr_sleep, sleep_ms, socket_buffer_size, onb_rbuf, nb_rbuf, 
-        SRS_MR_SMALL_BYTES, realtime);
-
+              mr_sleep, sleep_ms, socket_buffer_size, onb_rbuf, nb_rbuf, 
+              SRS_MR_SMALL_BYTES, realtime);
+    
     rtmp->set_recv_buffer(nb_rbuf);
 }
 

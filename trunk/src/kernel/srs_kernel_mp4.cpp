@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_kernel_mp4.hpp>
 
@@ -1671,7 +1671,7 @@ int SrsMp4VideoMeidaHeaderBox::decode_header(SrsBuffer* buf)
     if ((ret = SrsMp4FullBox::decode_header(buf)) != ERROR_SUCCESS) {
         return ret;
     }
-                              
+    
     graphicsmode = buf->read_2bytes();
     opcolor[0] = buf->read_2bytes();
     opcolor[1] = buf->read_2bytes();
@@ -3856,10 +3856,10 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsFrameT
 {
     int ret = ERROR_SUCCESS;
     
-     // Samples per chunk.
+    // Samples per chunk.
     stsc->initialize_counter();
     
-     // DTS box.
+    // DTS box.
     if ((ret = stts->initialize_counter()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -4015,8 +4015,7 @@ int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     return ret;
 }
 
-int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht,
-    uint16_t* pft, uint16_t* pct, uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample)
+int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht, uint16_t* pft, uint16_t* pct, uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample)
 {
     int ret = ERROR_SUCCESS;
     
@@ -4197,15 +4196,15 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     ss << "dur=" << mvhd->duration() << "ms";
     // video codec.
     ss << ", vide=" << moov->nb_vide_tracks() << "("
-        << srs_video_codec_id2str(vcodec) << "," << nb_avcc << "BSH"
-        << ")";
+    << srs_video_codec_id2str(vcodec) << "," << nb_avcc << "BSH"
+    << ")";
     // audio codec.
     ss << ", soun=" << moov->nb_soun_tracks() << "("
-        << srs_audio_codec_id2str(acodec) << "," << nb_asc << "BSH"
-        << "," << srs_audio_channels2str(channels)
-        << "," << srs_audio_sample_bits2str(sound_bits)
-        << "," << srs_audio_sample_rate2str(sample_rate)
-        << ")";
+    << srs_audio_codec_id2str(acodec) << "," << nb_asc << "BSH"
+    << "," << srs_audio_channels2str(channels)
+    << "," << srs_audio_sample_bits2str(sound_bits)
+    << "," << srs_audio_sample_rate2str(sample_rate)
+    << ")";
     
     srs_trace("MP4 moov %s", ss.str().c_str());
     
@@ -4397,8 +4396,7 @@ int SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
     return ret;
 }
 
-int SrsMp4Encoder::write_sample(SrsMp4HandlerType ht,
-    uint16_t ft, uint16_t ct, uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample)
+int SrsMp4Encoder::write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct, uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample)
 {
     int ret = ERROR_SUCCESS;
     

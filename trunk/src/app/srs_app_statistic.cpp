@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_statistic.hpp>
 
@@ -308,15 +308,13 @@ SrsStatisticClient* SrsStatistic::find_client(int cid)
     return NULL;
 }
 
-int SrsStatistic::on_video_info(SrsRequest* req, 
-    SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
-    int width, int height
-) {
+int SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level, int width, int height)
+{
     int ret = ERROR_SUCCESS;
     
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
-
+    
     stream->has_video = true;
     stream->vcodec = vcodec;
     stream->avc_profile = avc_profile;
@@ -328,15 +326,13 @@ int SrsStatistic::on_video_info(SrsRequest* req,
     return ret;
 }
 
-int SrsStatistic::on_audio_info(SrsRequest* req,
-    SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type,
-    SrsAacObjectType aac_object
-) {
+int SrsStatistic::on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type, SrsAacObjectType aac_object)
+{
     int ret = ERROR_SUCCESS;
     
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
-
+    
     stream->has_audio = true;
     stream->acodec = acodec;
     stream->asample_rate = asample_rate;
@@ -350,7 +346,7 @@ void SrsStatistic::on_stream_publish(SrsRequest* req, int cid)
 {
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
-
+    
     stream->publish(cid);
 }
 
@@ -383,7 +379,7 @@ int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtm
     
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
-
+    
     // create client if not exists
     SrsStatisticClient* client = NULL;
     if (clients.find(id) == clients.end()) {
@@ -401,7 +397,7 @@ int SrsStatistic::on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtm
     client->type = type;
     stream->nb_clients++;
     vhost->nb_clients++;
-
+    
     return ret;
 }
 
@@ -411,7 +407,7 @@ void SrsStatistic::on_disconnect(int id)
     if ((it = clients.find(id)) == clients.end()) {
         return;
     }
-
+    
     SrsStatisticClient* client = it->second;
     SrsStatisticStream* stream = client->stream;
     SrsStatisticVhost* vhost = stream->vhost;
@@ -474,7 +470,7 @@ int64_t SrsStatistic::server_id()
 int SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
 {
     int ret = ERROR_SUCCESS;
-
+    
     std::map<int64_t, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
@@ -486,7 +482,7 @@ int SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -500,7 +496,7 @@ int SrsStatistic::dumps_streams(SrsJsonArray* arr)
         
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
-
+        
         if ((ret = stream->dumps(obj)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -544,7 +540,7 @@ SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
         vhosts[vhost->id] = vhost;
         return vhost;
     }
-
+    
     vhost = rvhosts[req->vhost];
     
     return vhost;

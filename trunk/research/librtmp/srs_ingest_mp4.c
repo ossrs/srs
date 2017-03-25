@@ -39,13 +39,13 @@ int main(int argc, char** argv)
     
     if (argc <= 2) {
         printf("Ingest mp4 file and publish to RTMP server\n"
-               "Usage: %s <-i in_mp4_file> <-y out_rtmp_url>\n"
-               "   in_mp4_file     input mp4 file, ingest from this file.\n"
-               "   out_rtmp_url    output rtmp url, publish to this url.\n"
-               "@remark Only support non-seek mp4, see https://github.com/ossrs/srs/issues/738#issuecomment-276343669\n"
-               "For example:\n"
-               "   %s -i avatar.mp4 -y rtmp://127.0.0.1/live/livestream\n",
-               argv[0], argv[0]);
+            "Usage: %s <-i in_mp4_file> <-y out_rtmp_url>\n"
+            "   in_mp4_file     input mp4 file, ingest from this file.\n"
+            "   out_rtmp_url    output rtmp url, publish to this url.\n"
+            "@remark Only support non-seek mp4, see https://github.com/ossrs/srs/issues/738#issuecomment-276343669\n"
+            "For example:\n"
+            "   %s -i avatar.mp4 -y rtmp://127.0.0.1/live/livestream\n",
+            argv[0], argv[0]);
         exit(-1);
     }
     

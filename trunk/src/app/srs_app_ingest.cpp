@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_ingest.hpp>
 
@@ -200,14 +200,14 @@ int SrsIngester::cycle()
             srs_error("ingest ffmpeg start failed. ret=%d", ret);
             return ret;
         }
-
+        
         // check ffmpeg status.
         if ((ret = ingester->cycle()) != ERROR_SUCCESS) {
             srs_error("ingest ffmpeg cycle failed. ret=%d", ret);
             return ret;
         }
     }
-
+    
     // pithy print
     show_ingest_log_message();
     
@@ -226,7 +226,7 @@ void SrsIngester::clear_engines()
         SrsIngesterFFMPEG* ingester = *it;
         srs_freep(ingester);
     }
-
+    
     ingesters.clear();
 }
 
@@ -390,7 +390,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         srs_trace("empty intput type, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);
         return ret;
     }
-
+    
     if (srs_config_ingest_is_file(input_type)) {
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
@@ -401,7 +401,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         
         // for file, set re.
         ffmpeg->set_iparams("-re");
-    
+        
         if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -415,14 +415,14 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         
         // for stream, no re.
         ffmpeg->set_iparams("");
-    
+        
         if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
             return ret;
         }
     } else {
         ret = ERROR_ENCODER_INPUT_TYPE;
-        srs_error("invalid ingest=%s type=%s, ret=%d", 
-            ingest->arg0().c_str(), input_type.c_str(), ret);
+        srs_error("invalid ingest=%s type=%s, ret=%d",
+                  ingest->arg0().c_str(), input_type.c_str(), ret);
     }
     
     // set output format to flv for RTMP
@@ -442,8 +442,8 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         }
     }
     
-    srs_trace("parse success, ingest=%s, vhost=%s", 
-        ingest->arg0().c_str(), vhost->arg0().c_str());
+    srs_trace("parse success, ingest=%s, vhost=%s",
+              ingest->arg0().c_str(), vhost->arg0().c_str());
     
     return ret;
 }
@@ -451,7 +451,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
 void SrsIngester::show_ingest_log_message()
 {
     pprint->elapse();
-
+    
     if ((int)ingesters.size() <= 0) {
         return;
     }
@@ -463,7 +463,7 @@ void SrsIngester::show_ingest_log_message()
     // reportable
     if (pprint->can_print()) {
         srs_trace("-> "SRS_CONSTS_LOG_INGESTER" time=%"PRId64", ingesters=%d, #%d(alive=%ds, %s)",
-            pprint->age(), (int)ingesters.size(), index, ingester->alive() / 1000, ingester->uri().c_str());
+                  pprint->age(), (int)ingesters.size(), index, ingester->alive() / 1000, ingester->uri().c_str());
     }
 }
 
@@ -485,13 +485,13 @@ int SrsIngester::on_reload_vhost_removed(string vhost)
         ingester->stop();
         
         srs_trace("reload stop ingester, vhost=%s, id=%s", vhost.c_str(), ingester->uri().c_str());
-            
+        
         srs_freep(ingester);
         
         // remove the item from ingesters.
         it = ingesters.erase(it);
     }
-
+    
     return ret;
 }
 
@@ -527,7 +527,7 @@ int SrsIngester::on_reload_ingest_removed(string vhost, string ingest_id)
         ingester->stop();
         
         srs_trace("reload stop ingester, vhost=%s, id=%s", vhost.c_str(), ingester->uri().c_str());
-            
+        
         srs_freep(ingester);
         
         // remove the item from ingesters.
@@ -549,7 +549,7 @@ int SrsIngester::on_reload_ingest_added(string vhost, string ingest_id)
     }
     
     srs_trace("reload add ingester, "
-        "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
+              "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
     
     return ret;
 }
@@ -557,17 +557,17 @@ int SrsIngester::on_reload_ingest_added(string vhost, string ingest_id)
 int SrsIngester::on_reload_ingest_updated(string vhost, string ingest_id)
 {
     int ret = ERROR_SUCCESS;
-
+    
     if ((ret = on_reload_ingest_removed(vhost, ingest_id)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = on_reload_ingest_added(vhost, ingest_id)) != ERROR_SUCCESS) {
         return ret;
     }
     
     srs_trace("reload updated ingester, "
-        "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
+              "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
     
     return ret;
 }

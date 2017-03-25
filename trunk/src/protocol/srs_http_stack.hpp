@@ -1,32 +1,29 @@
-/*
- The MIT License (MIT)
- 
- Copyright (c) 2013-2017 SRS(ossrs)
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy of
- this software and associated documentation files (the "Software"), to deal in
- the Software without restriction, including without limitation the rights to
- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- the Software, and to permit persons to whom the Software is furnished to do so,
- subject to the following conditions:
- 
- The above copyright notice and this permission notice shall be included in all
- copies or substantial portions of the Software.
- 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef SRS_PROTOCOL_HTTP_HPP
 #define SRS_PROTOCOL_HTTP_HPP
 
-/*
-#include <srs_http_stack.hpp>
-*/
 #include <srs_core.hpp>
 
 // default http listen port.
@@ -232,10 +229,10 @@ public:
      * @param nb_read, the actual read size of bytes. NULL to ignore.
      * @remark when eof(), return error.
      * @remark for some server, the content-length not specified and not chunked,
-     *      which is actually the infinite chunked encoding, which after http header 
+     *      which is actually the infinite chunked encoding, which after http header
      *      is http response data, it's ok for browser. that is,
      *      when user call this read, please ensure there is data to read(by content-length
-     *      or by chunked), because the sdk never know whether there is no data or 
+     *      or by chunked), because the sdk never know whether there is no data or
      *      infinite chunked.
      */
     virtual int read(char* data, int nb_data, int* nb_read) = 0;
@@ -660,37 +657,37 @@ extern "C" {
     
     /* Request Methods */
 #define HTTP_METHOD_MAP(XX)         \
-XX(0,  DELETE,      DELETE)       \
-XX(1,  GET,         GET)          \
-XX(2,  HEAD,        HEAD)         \
-XX(3,  POST,        POST)         \
-XX(4,  PUT,         PUT)          \
-/* pathological */                \
-XX(5,  CONNECT,     CONNECT)      \
-XX(6,  OPTIONS,     OPTIONS)      \
-XX(7,  TRACE,       TRACE)        \
-/* webdav */                      \
-XX(8,  COPY,        COPY)         \
-XX(9,  LOCK,        LOCK)         \
-XX(10, MKCOL,       MKCOL)        \
-XX(11, MOVE,        MOVE)         \
-XX(12, PROPFIND,    PROPFIND)     \
-XX(13, PROPPATCH,   PROPPATCH)    \
-XX(14, SEARCH,      SEARCH)       \
-XX(15, UNLOCK,      UNLOCK)       \
-/* subversion */                  \
-XX(16, REPORT,      REPORT)       \
-XX(17, MKACTIVITY,  MKACTIVITY)   \
-XX(18, CHECKOUT,    CHECKOUT)     \
-XX(19, MERGE,       MERGE)        \
-/* upnp */                        \
-XX(20, MSEARCH,     M-SEARCH)     \
-XX(21, NOTIFY,      NOTIFY)       \
-XX(22, SUBSCRIBE,   SUBSCRIBE)    \
-XX(23, UNSUBSCRIBE, UNSUBSCRIBE)  \
-/* RFC-5789 */                    \
-XX(24, PATCH,       PATCH)        \
-XX(25, PURGE,       PURGE)        \
+    XX(0,  DELETE,      DELETE)       \
+    XX(1,  GET,         GET)          \
+    XX(2,  HEAD,        HEAD)         \
+    XX(3,  POST,        POST)         \
+    XX(4,  PUT,         PUT)          \
+    /* pathological */                \
+    XX(5,  CONNECT,     CONNECT)      \
+    XX(6,  OPTIONS,     OPTIONS)      \
+    XX(7,  TRACE,       TRACE)        \
+    /* webdav */                      \
+    XX(8,  COPY,        COPY)         \
+    XX(9,  LOCK,        LOCK)         \
+    XX(10, MKCOL,       MKCOL)        \
+    XX(11, MOVE,        MOVE)         \
+    XX(12, PROPFIND,    PROPFIND)     \
+    XX(13, PROPPATCH,   PROPPATCH)    \
+    XX(14, SEARCH,      SEARCH)       \
+    XX(15, UNLOCK,      UNLOCK)       \
+    /* subversion */                  \
+    XX(16, REPORT,      REPORT)       \
+    XX(17, MKACTIVITY,  MKACTIVITY)   \
+    XX(18, CHECKOUT,    CHECKOUT)     \
+    XX(19, MERGE,       MERGE)        \
+    /* upnp */                        \
+    XX(20, MSEARCH,     M-SEARCH)     \
+    XX(21, NOTIFY,      NOTIFY)       \
+    XX(22, SUBSCRIBE,   SUBSCRIBE)    \
+    XX(23, UNSUBSCRIBE, UNSUBSCRIBE)  \
+    /* RFC-5789 */                    \
+    XX(24, PATCH,       PATCH)        \
+    XX(25, PURGE,       PURGE)        \
 
     enum http_method
     {
@@ -719,45 +716,45 @@ XX(25, PURGE,       PURGE)        \
      * The provided argument should be a macro that takes 2 arguments.
      */
 #define HTTP_ERRNO_MAP(XX)                                           \
-/* No error */                                                     \
-XX(OK, "success")                                                  \
-\
-/* Callback-related errors */                                      \
-XX(CB_message_begin, "the on_message_begin callback failed")       \
-XX(CB_status_complete, "the on_status_complete callback failed")   \
-XX(CB_url, "the on_url callback failed")                           \
-XX(CB_header_field, "the on_header_field callback failed")         \
-XX(CB_header_value, "the on_header_value callback failed")         \
-XX(CB_headers_complete, "the on_headers_complete callback failed") \
-XX(CB_body, "the on_body callback failed")                         \
-XX(CB_message_complete, "the on_message_complete callback failed") \
-\
-/* Parsing-related errors */                                       \
-XX(INVALID_EOF_STATE, "stream ended at an unexpected time")        \
-XX(HEADER_OVERFLOW,                                                \
-"too many header bytes seen; overflow detected")                \
-XX(CLOSED_CONNECTION,                                              \
-"data received after completed connection: close message")      \
-XX(INVALID_VERSION, "invalid HTTP version")                        \
-XX(INVALID_STATUS, "invalid HTTP status code")                     \
-XX(INVALID_METHOD, "invalid HTTP method")                          \
-XX(INVALID_URL, "invalid URL")                                     \
-XX(INVALID_HOST, "invalid host")                                   \
-XX(INVALID_PORT, "invalid port")                                   \
-XX(INVALID_PATH, "invalid path")                                   \
-XX(INVALID_QUERY_STRING, "invalid query string")                   \
-XX(INVALID_FRAGMENT, "invalid fragment")                           \
-XX(LF_EXPECTED, "LF character expected")                           \
-XX(INVALID_HEADER_TOKEN, "invalid character in header")            \
-XX(INVALID_CONTENT_LENGTH,                                         \
-"invalid character in content-length header")                   \
-XX(INVALID_CHUNK_SIZE,                                             \
-"invalid character in chunk size header")                       \
-XX(INVALID_CONSTANT, "invalid constant string")                    \
-XX(INVALID_INTERNAL_STATE, "encountered unexpected internal state")\
-XX(STRICT, "strict mode assertion failed")                         \
-XX(PAUSED, "parser is paused")                                     \
-XX(UNKNOWN, "an unknown error occurred")
+    /* No error */                                                     \
+    XX(OK, "success")                                                  \
+    \
+    /* Callback-related errors */                                      \
+    XX(CB_message_begin, "the on_message_begin callback failed")       \
+    XX(CB_status_complete, "the on_status_complete callback failed")   \
+    XX(CB_url, "the on_url callback failed")                           \
+    XX(CB_header_field, "the on_header_field callback failed")         \
+    XX(CB_header_value, "the on_header_value callback failed")         \
+    XX(CB_headers_complete, "the on_headers_complete callback failed") \
+    XX(CB_body, "the on_body callback failed")                         \
+    XX(CB_message_complete, "the on_message_complete callback failed") \
+    \
+    /* Parsing-related errors */                                       \
+    XX(INVALID_EOF_STATE, "stream ended at an unexpected time")        \
+    XX(HEADER_OVERFLOW,                                                \
+    "too many header bytes seen; overflow detected")                \
+    XX(CLOSED_CONNECTION,                                              \
+    "data received after completed connection: close message")      \
+    XX(INVALID_VERSION, "invalid HTTP version")                        \
+    XX(INVALID_STATUS, "invalid HTTP status code")                     \
+    XX(INVALID_METHOD, "invalid HTTP method")                          \
+    XX(INVALID_URL, "invalid URL")                                     \
+    XX(INVALID_HOST, "invalid host")                                   \
+    XX(INVALID_PORT, "invalid port")                                   \
+    XX(INVALID_PATH, "invalid path")                                   \
+    XX(INVALID_QUERY_STRING, "invalid query string")                   \
+    XX(INVALID_FRAGMENT, "invalid fragment")                           \
+    XX(LF_EXPECTED, "LF character expected")                           \
+    XX(INVALID_HEADER_TOKEN, "invalid character in header")            \
+    XX(INVALID_CONTENT_LENGTH,                                         \
+    "invalid character in content-length header")                   \
+    XX(INVALID_CHUNK_SIZE,                                             \
+    "invalid character in chunk size header")                       \
+    XX(INVALID_CONSTANT, "invalid constant string")                    \
+    XX(INVALID_INTERNAL_STATE, "encountered unexpected internal state")\
+    XX(STRICT, "strict mode assertion failed")                         \
+    XX(PAUSED, "parser is paused")                                     \
+    XX(UNKNOWN, "an unknown error occurred")
     
     
     /* Define HPE_* values for each errno value above */

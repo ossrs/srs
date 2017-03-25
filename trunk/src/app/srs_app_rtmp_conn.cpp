@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_rtmp_conn.hpp>
 
@@ -298,7 +298,7 @@ SrsClientInfo::~SrsClientInfo()
 }
 
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
-    : SrsConnection(svr, c, cip)
+: SrsConnection(svr, c, cip)
 {
     server = svr;
     
@@ -310,7 +310,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
     wakable = NULL;
-
+    
     mw_sleep = SRS_PERF_MW_SLEEP;
     mw_enabled = false;
     realtime = SRS_PERF_MIN_LATENCY_ENABLED;
@@ -357,7 +357,7 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
 #endif
-
+    
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
@@ -384,13 +384,13 @@ int SrsRtmpConn::do_cycle()
     }
     
     srs_info("discovery app success. schema=%s, vhost=%s, port=%d, app=%s",
-        req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
+             req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     
     if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
         ret = ERROR_RTMP_REQ_TCURL;
         srs_error("discovery tcUrl failed. "
-            "tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, ret=%d",
-            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str(), ret);
+                  "tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, ret=%d",
+                  req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str(), ret);
         return ret;
     }
     
@@ -402,10 +402,10 @@ int SrsRtmpConn::do_cycle()
     srs_verbose("check vhost success.");
     
     srs_trace("connect app, "
-        "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s", 
-        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
-        req->schema.c_str(), req->vhost.c_str(), req->port,
-        req->app.c_str(), (req->args? "(obj)":"null"));
+              "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s",
+              req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
+              req->schema.c_str(), req->vhost.c_str(), req->port,
+              req->app.c_str(), (req->args? "(obj)":"null"));
     
     // show client identity
     if(req->args) {
@@ -428,21 +428,21 @@ int SrsRtmpConn::do_cycle()
             srs_id = (int)prop->to_number();
         }
         
-        srs_info("edge-srs ip=%s, version=%s, pid=%d, id=%d", 
-            srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+        srs_info("edge-srs ip=%s, version=%s, pid=%d, id=%d",
+                 srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         if (srs_pid > 0) {
-            srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d", 
-                srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+            srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d",
+                      srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         }
     }
     
     ret = service_cycle();
-
+    
     int disc_ret = ERROR_SUCCESS;
     if ((disc_ret = on_disconnect()) != ERROR_SUCCESS) {
         srs_warn("connection on disconnect peer failed, but ignore this error. disc_ret=%d, ret=%d", disc_ret, ret);
     }
-
+    
     return ret;
 }
 
@@ -457,8 +457,8 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     }
     
     // if the vhost connected is removed, disconnect the client.
-    srs_trace("vhost %s removed/disabled, close client url=%s", 
-        vhost.c_str(), req->get_stream_url().c_str());
+    srs_trace("vhost %s removed/disabled, close client url=%s",
+              vhost.c_str(), req->get_stream_url().c_str());
     
     // should never close the fd in another thread,
     // one fd should managed by one thread, we should use interrupt instead.
@@ -486,7 +486,7 @@ int SrsRtmpConn::on_reload_vhost_play(string vhost)
             send_min_interval = v;
         }
     }
-
+    
     return ret;
 }
 
@@ -520,7 +520,7 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
         srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
         realtime = realtime_enabled;
     }
-
+    
     return ret;
 }
 
@@ -568,9 +568,9 @@ void SrsRtmpConn::cleanup()
 {
     kbps->cleanup();
 }
-    
+
 int SrsRtmpConn::service_cycle()
-{    
+{
     int ret = ERROR_SUCCESS;
     
     SrsRequest* req = info->req;
@@ -586,13 +586,13 @@ int SrsRtmpConn::service_cycle()
         srs_error("set input window acknowledgement size failed. ret=%d", ret);
         return ret;
     }
-        
+    
     if ((ret = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != ERROR_SUCCESS) {
         srs_error("set peer bandwidth failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("set peer bandwidth success");
-
+    
     // get the ip which client connected.
     std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
     
@@ -630,7 +630,7 @@ int SrsRtmpConn::service_cycle()
         return ret;
     }
     srs_verbose("response connect app success");
-        
+    
     if ((ret = rtmp->on_bw_done()) != ERROR_SUCCESS) {
         srs_error("on_bw_done failed. ret=%d", ret);
         return ret;
@@ -664,7 +664,7 @@ int SrsRtmpConn::service_cycle()
             continue;
         }
         
-        // for "some" system control error, 
+        // for "some" system control error,
         // logical accept and retry stream service.
         if (ret == ERROR_CONTROL_RTMP_CLOSE) {
             // TODO: FIXME: use ping message to anti-death of socket.
@@ -698,8 +698,8 @@ int SrsRtmpConn::stream_service_cycle()
         return ret;
     }
     req->strip();
-    srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f", 
-        srs_client_type_string(info->type).c_str(), req->stream.c_str(), req->duration);
+    srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f",
+              srs_client_type_string(info->type).c_str(), req->stream.c_str(), req->duration);
     
     // security check
     if ((ret = security->check(info->type, ip, req)) != ERROR_SUCCESS) {
@@ -707,7 +707,7 @@ int SrsRtmpConn::stream_service_cycle()
         return ret;
     }
     srs_info("security check ok");
-
+    
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
@@ -725,11 +725,11 @@ int SrsRtmpConn::stream_service_cycle()
         srs_error("stat client failed. ret=%d", ret);
         return ret;
     }
-
+    
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=%d[%d]",
-        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge,
-        source->source_id(), source->source_id());
+              req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge,
+              source->source_id(), source->source_id());
     source->set_cache(enabled_cache);
     
     switch (info->type) {
@@ -778,7 +778,7 @@ int SrsRtmpConn::stream_service_cycle()
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -834,8 +834,8 @@ int SrsRtmpConn::playing(SrsSource* source)
     }
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
-
-    // use isolate thread to recv, 
+    
+    // use isolate thread to recv,
     // @see: https://github.com/ossrs/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
     
@@ -879,7 +879,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // initialize other components
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
     SrsAutoFree(SrsPithyPrint, pprint);
-
+    
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
@@ -897,7 +897,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     set_sock_options();
     
     srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
+              send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
     
     while (!disposed) {
         // collect elapse for pithy print.
@@ -909,7 +909,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
             srs_error("connection expired. ret=%d", ret);
             return ret;
         }
-
+        
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/ossrs/srs/issues/196
         // @see: https://github.com/ossrs/srs/issues/217
@@ -960,28 +960,28 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
-
+        
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
             srs_trace("-> "SRS_CONSTS_LOG_PLAY
-                " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
-                pprint->age(), count,
-                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
-                mw_sleep
-            );
+                      " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
+                      pprint->age(), count,
+                      kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                      kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
+                      mw_sleep
+                      );
         }
         
         // we use wait timeout to get messages,
         // for min latency event no message incoming,
         // so the count maybe zero.
         if (count > 0) {
-            srs_verbose("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms", 
-                mw_sleep, count, 
-                (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
-                (count > 0? msgs.msgs[0]->timestamp : 0), 
-                (count > 0? msgs.msgs[count - 1]->timestamp : 0));
+            srs_verbose("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms",
+                        mw_sleep, count,
+                        (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
+                        (count > 0? msgs.msgs[0]->timestamp : 0),
+                        (count > 0? msgs.msgs[count - 1]->timestamp : 0));
         }
         
         if (count <= 0) {
@@ -996,7 +996,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
         srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
         
-        // only when user specifies the duration, 
+        // only when user specifies the duration,
         // we start to collect the durations for each message.
         if (user_specified_duration_to_stop) {
             for (int i = 0; i < count; i++) {
@@ -1053,20 +1053,20 @@ int SrsRtmpConn::publishing(SrsSource* source)
         }
         srs_verbose("check publish_refer success.");
     }
-
+    
     if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
         srs_error("http hook on_publish failed. ret=%d", ret);
         return ret;
     }
-
+    
     if ((ret = acquire_publish(source)) == ERROR_SUCCESS) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread trd(rtmp, req, st_netfd_fileno(stfd), 0, this, source);
-
+        
         srs_info("start to publish stream %s success", req->stream.c_str());
         ret = do_publishing(source, &trd);
-
+        
         // stop isolate recv thread
         trd.stop();
     }
@@ -1079,9 +1079,9 @@ int SrsRtmpConn::publishing(SrsSource* source)
     if (ret != ERROR_SYSTEM_STREAM_BUSY) {
         release_publish(source);
     }
-
+    
     http_hooks_on_unpublish();
-
+    
     return ret;
 }
 
@@ -1092,7 +1092,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     SrsRequest* req = info->req;
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
-
+    
     // start isolate recv thread.
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("start isolate recv thread failed. ret=%d", ret);
@@ -1117,7 +1117,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
                   mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay, receive_thread_cid);
     }
-
+    
     int64_t nb_msgs = 0;
     while (!disposed) {
         pprint->elapse();
@@ -1128,7 +1128,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             srs_error("connection expired. ret=%d", ret);
             return ret;
         }
-
+        
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
@@ -1137,7 +1137,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         } else {
             trd->wait(publish_normal_timeout);
         }
-
+        
         // check the thread error code.
         if ((ret = trd->error_code()) != ERROR_SUCCESS) {
             if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
@@ -1145,30 +1145,30 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             }
             return ret;
         }
-
+        
         // when not got any messages, timeout.
         if (trd->nb_msgs() <= nb_msgs) {
             ret = ERROR_SOCKET_TIMEOUT;
             srs_warn("publish timeout %dms, nb_msgs=%"PRId64", ret=%d",
-                nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, nb_msgs, ret);
+                     nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, nb_msgs, ret);
             break;
         }
         nb_msgs = trd->nb_msgs();
-
+        
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
             srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d", pprint->age(),
-                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
-                mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout
-            );
+                      " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d", pprint->age(),
+                      kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                      kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
+                      mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout
+                      );
         }
     }
-
+    
     return ret;
 }
 
@@ -1180,8 +1180,8 @@ int SrsRtmpConn::acquire_publish(SrsSource* source)
     
     if (!source->can_publish(info->edge)) {
         ret = ERROR_SYSTEM_STREAM_BUSY;
-        srs_warn("stream %s is already publishing. ret=%d", 
-            req->get_stream_url().c_str(), ret);
+        srs_warn("stream %s is already publishing. ret=%d",
+                 req->get_stream_url().c_str(), ret);
         return ret;
     }
     
@@ -1190,17 +1190,17 @@ int SrsRtmpConn::acquire_publish(SrsSource* source)
         if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
             srs_error("notice edge start publish stream failed. ret=%d", ret);
             return ret;
-        }        
+        }
     } else {
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
             srs_error("notify publish failed. ret=%d", ret);
             return ret;
         }
     }
-
+    
     return ret;
 }
-    
+
 void SrsRtmpConn::release_publish(SrsSource* source)
 {
     // when edge, notice edge to change state.
@@ -1224,7 +1224,7 @@ int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg
             return ret;
         }
         SrsAutoFree(SrsPacket, pkt);
-
+        
         // for flash, any packet is republish.
         if (info->type == SrsRtmpConnFlashPublish) {
             // flash unpublish.
@@ -1232,7 +1232,7 @@ int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg
             srs_trace("flash flash publish finished.");
             return ERROR_CONTROL_REPUBLISH;
         }
-
+        
         // for fmle, drop others except the fmle start packet.
         if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
             SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
@@ -1241,11 +1241,11 @@ int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg
             }
             return ERROR_CONTROL_REPUBLISH;
         }
-
+        
         srs_trace("fmle ignore AMF0/AMF3 command message.");
         return ret;
     }
-
+    
     // video, audio, data message
     if ((ret = process_publish_message(source, msg)) != ERROR_SUCCESS) {
         srs_error("fmle process publish message failed. ret=%d", ret);
@@ -1302,7 +1302,7 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* ms
             return ret;
         }
         SrsAutoFree(SrsPacket, pkt);
-    
+        
         if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
             SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
             if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
@@ -1382,7 +1382,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
             srs_error("rtmp process play client pause failed. ret=%d", ret);
             return ret;
         }
-
+        
         if ((ret = consumer->on_play_client_pause(pause->is_pause)) != ERROR_SUCCESS) {
             srs_error("consumer process play client pause failed. ret=%d", ret);
             return ret;
@@ -1421,14 +1421,14 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 5000;
     int socket_buffer_size = sleep_ms * kbps / 8;
-
+    
     // socket send buffer, system will double it.
     int nb_sbuf = socket_buffer_size / 2;
     
     // override the send buffer by macro.
-    #ifdef SRS_PERF_SO_SNDBUF_SIZE
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
     nb_sbuf = SRS_PERF_SO_SNDBUF_SIZE / 2;
-    #endif
+#endif
     
     // set the socket send buffer when required larger buffer
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, sock_buf_size) < 0) {
@@ -1436,14 +1436,14 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     }
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
     
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d, realtime=%d", 
-        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
-        onb_sbuf, nb_sbuf, realtime);
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d, realtime=%d",
+              mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
+              onb_sbuf, nb_sbuf, realtime);
 #else
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d, realtime=%d", 
-        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf, realtime);
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d, realtime=%d",
+              mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf, realtime);
 #endif
-        
+    
     mw_sleep = sleep_ms;
 }
 
@@ -1456,19 +1456,19 @@ void SrsRtmpConn::set_sock_options()
         tcp_nodelay = nvalue;
 #ifdef SRS_PERF_TCP_NODELAY
         int fd = st_netfd_fileno(stfd);
-
+        
         socklen_t nb_v = sizeof(int);
-
+        
         int ov = 0;
         getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v);
-
+        
         int v = tcp_nodelay;
         // set the socket send buffer when required larger buffer
         if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, nb_v) < 0) {
             srs_warn("set sock TCP_NODELAY=%d failed.", v);
         }
         getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, &nb_v);
-
+        
         srs_trace("set TCP_NODELAY %d=>%d", ov, v);
 #else
         srs_warn("SRS_PERF_TCP_NODELAY is disabled but tcp_nodelay configed.");
@@ -1495,7 +1495,7 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
         string server;
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_parse_hostport(hostport, server, port);
-    
+        
         SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TMMS);
         SrsAutoFree(SrsTcpClient, transport);
         
@@ -1521,7 +1521,7 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     
     SrsRequest* req = info->req;
     srs_assert(client);
-
+    
     client->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     client->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
@@ -1544,7 +1544,7 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
 int SrsRtmpConn::on_disconnect()
 {
     int ret = ERROR_SUCCESS;
-
+    
     http_hooks_on_close();
     
 #ifdef SRS_AUTO_KAFKA
@@ -1553,9 +1553,9 @@ int SrsRtmpConn::on_disconnect()
         return ret;
     }
 #endif
-
+    
     // TODO: implements it.
-
+    
     return ret;
 }
 
@@ -1592,7 +1592,7 @@ int SrsRtmpConn::http_hooks_on_connect()
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -1659,7 +1659,7 @@ int SrsRtmpConn::http_hooks_on_publish()
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -1726,7 +1726,7 @@ int SrsRtmpConn::http_hooks_on_play()
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -1758,7 +1758,7 @@ void SrsRtmpConn::http_hooks_on_stop()
         std::string url = hooks.at(i);
         SrsHttpHooks::on_stop(url, req);
     }
-
+    
     return;
 }
 

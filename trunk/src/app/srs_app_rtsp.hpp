@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_RTSP_HPP
 #define SRS_APP_RTSP_HPP
-
-/*
-#include <srs_app_rtsp.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -59,8 +55,8 @@ class SrsPithyPrint;
 class SrsSimpleRtmpClient;
 
 /**
-* a rtp connection which transport a stream.
-*/
+ * a rtp connection which transport a stream.
+ */
 class SrsRtpConn: public ISrsUdpHandler
 {
 private:
@@ -82,21 +78,21 @@ public:
 };
 
 /**
-* audio is group by frames.
-*/
+ * audio is group by frames.
+ */
 struct SrsRtspAudioCache
 {
     int64_t dts;
     SrsAudioFrame* audio;
     SrsSimpleStream* payload;
-
+    
     SrsRtspAudioCache();
     virtual ~SrsRtspAudioCache();
 };
 
 /**
-* the time jitter correct for rtsp.
-*/
+ * the time jitter correct for rtsp.
+ */
 class SrsRtspJitter
 {
 private:
@@ -112,8 +108,8 @@ public:
 };
 
 /**
-* the rtsp connection serve the fd.
-*/
+ * the rtsp connection serve the fd.
+ */
 class SrsRtspConn : public ISrsOneCycleThreadHandler
 {
 private:
@@ -159,7 +155,7 @@ public:
     virtual int serve();
 private:
     virtual int do_cycle();
-// internal methods
+    // internal methods
 public:
     virtual int on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
 // interface ISrsOneCycleThreadHandler
@@ -184,8 +180,8 @@ private:
 };
 
 /**
-* the caster for rtsp.
-*/
+ * the caster for rtsp.
+ */
 class SrsRtspCaster : public ISrsTcpHandler
 {
 private:
@@ -201,18 +197,18 @@ public:
     virtual ~SrsRtspCaster();
 public:
     /**
-    * alloc a rtp port from local ports pool.
-    * @param pport output the rtp port.
-    */
+     * alloc a rtp port from local ports pool.
+     * @param pport output the rtp port.
+     */
     virtual int alloc_port(int* pport);
     /**
-    * free the alloced rtp port.
-    */
+     * free the alloced rtp port.
+     */
     virtual void free_port(int lpmin, int lpmax);
 // interface ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
-// internal methods.
+    // internal methods.
 public:
     virtual void remove(SrsRtspConn* conn);
 };

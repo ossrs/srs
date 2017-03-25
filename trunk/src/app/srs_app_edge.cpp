@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_edge.hpp>
 
@@ -176,7 +176,7 @@ SrsEdgeIngester::SrsEdgeIngester()
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
-{   
+{
     stop();
     
     srs_freep(upstream);
@@ -198,12 +198,12 @@ int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
 int SrsEdgeIngester::start()
 {
     int ret = ERROR_SUCCESS;
-
+    
     if ((ret = source->on_publish()) != ERROR_SUCCESS) {
         srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
         return ret;
     }
-
+    
     return pthread->start();
 }
 
@@ -307,7 +307,7 @@ int SrsEdgeIngester::ingest()
 int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
-        
+    
     // process audio packet
     if (msg->header.is_audio()) {
         if ((ret = source->on_audio(msg)) != ERROR_SUCCESS) {
@@ -332,7 +332,7 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
         }
         return ret;
     }
-
+    
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
@@ -341,7 +341,7 @@ int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
             return ret;
         }
         SrsAutoFree(SrsPacket, pkt);
-    
+        
         if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
             SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
             if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
@@ -500,13 +500,13 @@ int SrsEdgeForwarder::cycle()
     SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
-
+    
     while (!pthread->interrupted()) {
         if (send_error_code != ERROR_SUCCESS) {
             st_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
             continue;
         }
-
+        
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
@@ -542,7 +542,7 @@ int SrsEdgeForwarder::cycle()
             srs_verbose("edge no packets to push.");
             continue;
         }
-    
+        
         // sendout messages, all messages are freed by send_and_free_messages().
         if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("edge publish push message to server failed. ret=%d", ret);
@@ -568,7 +568,7 @@ int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
         || msg->header.is_set_chunk_size()
         || msg->header.is_window_ackledgement_size()
         || msg->header.is_ackledgement()
-    ) {
+        ) {
         return ret;
     }
     
@@ -618,7 +618,7 @@ int SrsPlayEdge::on_client_play()
         state = SrsEdgeStatePlay;
         return ingester->start();
     }
-
+    
     return ret;
 }
 
@@ -628,7 +628,7 @@ void SrsPlayEdge::on_all_client_stop()
     // and edge is ingesting origin stream, abort it.
     if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
         ingester->stop();
-    
+        
         SrsEdgeState pstate = state;
         state = SrsEdgeStateInit;
         srs_trace("edge change from %d to state %d (init).", pstate, state);
@@ -679,7 +679,7 @@ void SrsPublishEdge::set_queue_size(double queue_size)
 int SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     if ((ret = forwarder->initialize(source, this, req)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -700,7 +700,7 @@ int SrsPublishEdge::on_client_publish()
     if (state != SrsEdgeStateInit) {
         ret = ERROR_RTMP_EDGE_PUBLISH_STATE;
         srs_error("invalid state for client to publish stream on edge. "
-            "state=%d, ret=%d", state, ret);
+                  "state=%d, ret=%d", state, ret);
         return ret;
     }
     

@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_source.hpp>
 
@@ -95,7 +95,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
         if (ag == SrsRtmpJitterAlgorithmOFF) {
             return ret;
         }
-    
+        
         // start at zero, but donot ensure monotonically increasing.
         if (ag == SrsRtmpJitterAlgorithmZERO) {
             // for the first time, last_pkt_correct_time is -1.
@@ -118,18 +118,18 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
     }
     
     /**
-    * we use a very simple time jitter detect/correct algorithm:
-    * 1. delta: ensure the delta is positive and valid,
-    *     we set the delta to DEFAULT_FRAME_TIME_MS,
-    *     if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
-    * 2. last_pkt_time: specifies the original packet time,
-    *     is used to detect next jitter.
-    * 3. last_pkt_correct_time: simply add the positive delta, 
-    *     and enforce the time monotonically.
-    */
+     * we use a very simple time jitter detect/correct algorithm:
+     * 1. delta: ensure the delta is positive and valid,
+     *     we set the delta to DEFAULT_FRAME_TIME_MS,
+     *     if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
+     * 2. last_pkt_time: specifies the original packet time,
+     *     is used to detect next jitter.
+     * 3. last_pkt_correct_time: simply add the positive delta,
+     *     and enforce the time monotonically.
+     */
     int64_t time = msg->timestamp;
     int64_t delta = time - last_pkt_time;
-
+    
     // if jitter detected, reset the delta.
     if (delta < CONST_MAX_JITTER_MS_NEG || delta > CONST_MAX_JITTER_MS) {
         // use default 10ms to notice the problem of stream.
@@ -137,10 +137,10 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
         delta = DEFAULT_FRAME_TIME_MS;
         
         srs_info("jitter detected, last_pts=%"PRId64", pts=%"PRId64", diff=%"PRId64", last_time=%"PRId64", time=%"PRId64", diff=%"PRId64"",
-            last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
+                 last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
     } else {
-        srs_verbose("timestamp no jitter. time=%"PRId64", last_pkt=%"PRId64", correct_to=%"PRId64"", 
-            time, last_pkt_time, last_pkt_correct_time + delta);
+        srs_verbose("timestamp no jitter. time=%"PRId64", last_pkt=%"PRId64", correct_to=%"PRId64"",
+                    time, last_pkt_time, last_pkt_correct_time + delta);
     }
     
     last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
@@ -284,7 +284,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
     }
     
     msgs.push_back(msg);
-
+    
     while (av_end_time - av_start_time > queue_size_ms) {
         // notice the caller queue already overflow and shrinked.
         if (is_overflow) {
@@ -308,7 +308,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     
     srs_assert(max_count > 0);
     count = srs_min(max_count, nb_msgs);
-
+    
     SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < count; i++) {
         pmsgs[i] = omsgs[i];
@@ -339,7 +339,7 @@ int SrsMessageQueue::dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitter
     if (nb_msgs <= 0) {
         return ret;
     }
-
+    
     SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = omsgs[i];
@@ -361,7 +361,7 @@ void SrsMessageQueue::shrink()
     // igone the sequence header
     for (int i = 0; i < (int)msgs.size(); i++) {
         SrsSharedPtrMessage* msg = msgs.at(i);
-
+        
         if (msg->is_video() && SrsFlvVideo::sh(msg->payload, msg->size)) {
             srs_freep(video_sh);
             video_sh = msg;
@@ -372,11 +372,11 @@ void SrsMessageQueue::shrink()
             audio_sh = msg;
             continue;
         }
-
+        
         srs_freep(msg);
     }
-    msgs.clear();  
-
+    msgs.clear();
+    
     // update av_start_time
     av_start_time = av_end_time;
     //push_back secquence header and update timestamp
@@ -390,11 +390,11 @@ void SrsMessageQueue::shrink()
     }
     
     if (_ignore_shrink) {
-        srs_info("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
-            (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
+        srs_info("shrink the cache queue, size=%d, removed=%d, max=%.2f",
+                 (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
     } else {
-        srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
-            (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
+        srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f",
+                  (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
     }
 }
 
@@ -402,7 +402,7 @@ void SrsMessageQueue::clear()
 {
 #ifndef SRS_PERF_QUEUE_FAST_VECTOR
     std::vector<SrsSharedPtrMessage*>::iterator it;
-
+    
     for (it = msgs.begin(); it != msgs.end(); ++it) {
         SrsSharedPtrMessage* msg = *it;
         srs_freep(msg);
@@ -410,7 +410,7 @@ void SrsMessageQueue::clear()
 #else
     msgs.free();
 #endif
-
+    
     msgs.clear();
     
     av_start_time = av_end_time = -1;
@@ -472,7 +472,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
     int ret = ERROR_SUCCESS;
     
     SrsSharedPtrMessage* msg = shared_msg->copy();
-
+    
     if (!atc) {
         if ((ret = jitter->correct(msg, ag)) != ERROR_SUCCESS) {
             srs_freep(msg);
@@ -485,9 +485,9 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
     }
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    srs_verbose("enqueue msg, time=%"PRId64", size=%d, duration=%d, waiting=%d, min_msg=%d", 
-        msg->timestamp, msg->size, queue->duration(), mw_waiting, mw_min_msgs);
-        
+    srs_verbose("enqueue msg, time=%"PRId64", size=%d, duration=%d, waiting=%d, min_msg=%d",
+                msg->timestamp, msg->size, queue->duration(), mw_waiting, mw_min_msgs);
+    
     // fire the mw when msgs is enough.
     if (mw_waiting) {
         int duration_ms = queue->duration();
@@ -537,7 +537,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     if (paused) {
         return ret;
     }
-
+    
     // pump msgs from queue.
     if ((ret = queue->dump_packets(max, msgs->msgs, count)) != ERROR_SUCCESS) {
         return ret;
@@ -553,10 +553,10 @@ void SrsConsumer::wait(int nb_msgs, int duration)
         st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS);
         return;
     }
-
+    
     mw_min_msgs = nb_msgs;
     mw_duration = duration;
-
+    
     int duration_ms = queue->duration();
     bool match_min_msgs = queue->size() > mw_min_msgs;
     
@@ -636,7 +636,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
         srs_verbose("gop cache is disabled.");
         return ret;
     }
-
+    
     // the gop cache know when to gop it.
     SrsSharedPtrMessage* msg = shared_msg;
     
@@ -673,8 +673,8 @@ int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     // clear gop cache when got key frame
     if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
         srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
-            cached_video_count, (int)gop_cache.size());
-            
+                 cached_video_count, (int)gop_cache.size());
+        
         clear();
         
         // curent msg is video frame, so we set to 1.
@@ -695,11 +695,11 @@ void SrsGopCache::clear()
         srs_freep(msg);
     }
     gop_cache.clear();
-
+    
     cached_video_count = 0;
     audio_after_last_video_count = 0;
 }
-    
+
 int SrsGopCache::dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm)
 {
     int ret = ERROR_SUCCESS;
@@ -987,10 +987,10 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         }
         
         srs_trace("%dB audio sh, codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), flv(%dbits, %dchannels, %dHZ)",
-            msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
-            c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
-            flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
-            srs_flv_srates[c->sound_rate]);
+                  msg->size, c->id, srs_aac_object2str(c->aac_object).c_str(), c->aac_channels,
+                  c->audio_data_rate / 1000, srs_aac_srates[c->aac_sample_rate],
+                  flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
+                  srs_flv_srates[c->sound_rate]);
     }
     
     if ((ret = hls->on_audio(msg, format)) != ERROR_SUCCESS) {
@@ -1090,9 +1090,9 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         }
         
         srs_trace("%dB video sh,  codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
-            msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(),
-            srs_avc_level2str(c->avc_level).c_str(), c->width, c->height,
-            c->video_data_rate / 1000, c->frame_rate, c->duration);
+                  msg->size, c->id, srs_avc_profile2str(c->avc_profile).c_str(),
+                  srs_avc_level2str(c->avc_level).c_str(), c->width, c->height,
+                  c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
     
     if ((ret = hls->on_video(msg, format)) != ERROR_SUCCESS) {
@@ -1742,13 +1742,13 @@ int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** 
     
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
-
+    
     source = new SrsSource();
     if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
         srs_freep(source);
         return ret;
     }
-        
+    
     pool[stream_url] = source;
     srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     
@@ -1765,14 +1765,14 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     if (pool.find(stream_url) == pool.end()) {
         return NULL;
     }
-
+    
     source = pool[stream_url];
-
-    // we always update the request of resource, 
+    
+    // we always update the request of resource,
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
     source->req->update_auth(r);
-
+    
     return source;
 }
 
@@ -1877,7 +1877,7 @@ SrsSource::~SrsSource()
 {
     _srs_config->unsubscribe(this);
     
-    // never free the consumers, 
+    // never free the consumers,
     // for all consumers are auto free.
     consumers.clear();
     
@@ -1889,7 +1889,7 @@ SrsSource::~SrsSource()
     srs_freep(publish_edge);
     srs_freep(gop_cache);
     srs_freep(aggregate_stream);
-
+    
     srs_freep(req);
 }
 
@@ -1936,7 +1936,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     
     srs_assert(h);
     srs_assert(!req);
-
+    
     handler = h;
     req = r->copy();
     atc = _srs_config->get_atc(req->vhost);
@@ -1944,7 +1944,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     if ((ret = hub->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = play_edge->initialize(this, req)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -2085,7 +2085,7 @@ bool SrsSource::can_publish(bool is_edge)
     if (is_edge) {
         return publish_edge->can_publish();
     }
-
+    
     return _can_publish;
 }
 
@@ -2216,7 +2216,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if ((ret = hub->on_audio(msg)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
     // TODO: FIXME: to refine the stream info system.
@@ -2352,7 +2352,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     if (is_sequence_header) {
         return ret;
     }
-
+    
     // cache the last gop packets
     if ((ret = gop_cache->cache(msg)) != ERROR_SUCCESS) {
         srs_error("gop cache msg failed. ret=%d", ret);
@@ -2452,7 +2452,7 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
         o.header.timestamp = timestamp;
         o.header.stream_id = stream_id;
         o.header.perfer_cid = msg->header.perfer_cid;
-
+        
         if (data_size > 0) {
             o.size = data_size;
             o.payload = new char[o.size];
@@ -2465,7 +2465,7 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
             return ret;
         }
         stream->read_4bytes();
-
+        
         // process parsed message
         if (o.header.is_audio()) {
             if ((ret = on_audio(&o)) != ERROR_SUCCESS) {
@@ -2507,7 +2507,7 @@ int SrsSource::on_publish()
     if ((ret = hub->on_publish()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // notify the handler.
     srs_assert(handler);
     if ((ret = handler->on_publish(this, req)) != ERROR_SUCCESS) {
@@ -2529,7 +2529,7 @@ void SrsSource::on_unpublish()
     
     // Notify the hub about the unpublish event.
     hub->on_unpublish();
-
+    
     // only clear the gop cache,
     // donot clear the sequence header, for it maybe not changed,
     // when drop dup sequence header, drop the metadata also.
@@ -2540,7 +2540,7 @@ void SrsSource::on_unpublish()
     
     _can_publish = true;
     _source_id = -1;
-
+    
     // notify the handler.
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();
@@ -2592,7 +2592,7 @@ int SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool
     } else {
         srs_trace("create consumer, ignore gop cache, jitter=%d", jitter_algorithm);
     }
-
+    
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {
         // notice edge to start for the first client.

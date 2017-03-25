@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_KERNEL_LOG_HPP
 #define SRS_KERNEL_LOG_HPP
-
-/*
-#include <srs_kernel_log.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -38,14 +34,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_consts.hpp>
 
 /**
-* the log level, for example:
-* if specified Debug level, all level messages will be logged.
-* if specified Warn level, only Warn/Error/Fatal level messages will be logged.
-*/
+ * the log level, for example:
+ * if specified Debug level, all level messages will be logged.
+ * if specified Warn level, only Warn/Error/Fatal level messages will be logged.
+ */
 class SrsLogLevel
 {
 public:
-    // only used for very verbose debug, generally, 
+    // only used for very verbose debug, generally,
     // we compile without this level for high performance.
     static const int Verbose = 0x01;
     static const int Info = 0x02;
@@ -57,10 +53,10 @@ public:
 };
 
 /**
-* the log interface provides method to write log.
-* but we provides some macro, which enable us to disable the log when compile.
-* @see also SmtDebug/SmtTrace/SmtWarn/SmtError which is corresponding to Debug/Trace/Warn/Fatal.
-*/ 
+ * the log interface provides method to write log.
+ * but we provides some macro, which enable us to disable the log when compile.
+ * @see also SmtDebug/SmtTrace/SmtWarn/SmtError which is corresponding to Debug/Trace/Warn/Fatal.
+ */
 class ISrsLog
 {
 public:
@@ -68,8 +64,8 @@ public:
     virtual ~ISrsLog();
 public:
     /**
-    * initialize log utilities.
-    */
+     * initialize log utilities.
+     */
     virtual int initialize();
     /**
      * reopen the log file for log rotate.
@@ -77,25 +73,25 @@ public:
     virtual void reopen();
 public:
     /**
-    * log for verbose, very verbose information.
-    */
+     * log for verbose, very verbose information.
+     */
     virtual void verbose(const char* tag, int context_id, const char* fmt, ...);
     /**
-    * log for debug, detail information.
-    */
+     * log for debug, detail information.
+     */
     virtual void info(const char* tag, int context_id, const char* fmt, ...);
     /**
-    * log for trace, important information.
-    */
+     * log for trace, important information.
+     */
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);
     /**
-    * log for warn, warn is something should take attention, but not a error.
-    */
+     * log for warn, warn is something should take attention, but not a error.
+     */
     virtual void warn(const char* tag, int context_id, const char* fmt, ...);
     /**
-    * log for error, something error occur, do something about the error, ie. close the connection,
-    * but we will donot abort the program.
-    */
+     * log for error, something error occur, do something about the error, ie. close the connection,
+     * but we will donot abort the program.
+     */
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
 };
 

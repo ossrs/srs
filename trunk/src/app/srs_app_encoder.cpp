@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_encoder.hpp>
 
@@ -59,7 +59,7 @@ SrsEncoder::~SrsEncoder()
 int SrsEncoder::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // parse the transcode engines for vhost and app and stream.
     ret = parse_scope_engines(req);
     
@@ -104,14 +104,14 @@ int SrsEncoder::cycle()
             srs_error("transcode ffmpeg start failed. ret=%d", ret);
             return ret;
         }
-
+        
         // check ffmpeg status.
         if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
             srs_error("transcode ffmpeg cycle failed. ret=%d", ret);
             return ret;
         }
     }
-
+    
     // pithy print
     show_encode_log_message();
     
@@ -122,7 +122,7 @@ void SrsEncoder::on_thread_stop()
 {
     // kill ffmpeg when finished and it alive
     std::vector<SrsFFMPEG*>::iterator it;
-
+    
     for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
         SrsFFMPEG* ffmpeg = *it;
         ffmpeg->stop();
@@ -135,7 +135,7 @@ void SrsEncoder::clear_engines()
     
     for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
         SrsFFMPEG* ffmpeg = *it;
-    
+        
         std::string output = ffmpeg->output();
         
         std::vector<std::string>::iterator tu_it;
@@ -146,7 +146,7 @@ void SrsEncoder::clear_engines()
         
         srs_freep(ffmpeg);
     }
-
+    
     ffmpegs.clear();
 }
 
@@ -168,7 +168,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
             if (ret != ERROR_ENCODER_LOOP) {
                 srs_error("parse vhost scope=%s transcode engines failed. "
-                    "ret=%d", scope.c_str(), ret);
+                          "ret=%d", scope.c_str(), ret);
             }
             return ret;
         }
@@ -179,7 +179,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
             if (ret != ERROR_ENCODER_LOOP) {
                 srs_error("parse app scope=%s transcode engines failed. "
-                    "ret=%d", scope.c_str(), ret);
+                          "ret=%d", scope.c_str(), ret);
             }
             return ret;
         }
@@ -191,7 +191,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
             if (ret != ERROR_ENCODER_LOOP) {
                 srs_error("parse stream scope=%s transcode engines failed. "
-                    "ret=%d", scope.c_str(), ret);
+                          "ret=%d", scope.c_str(), ret);
             }
             return ret;
         }
@@ -215,16 +215,16 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     // ffmpeg
     std::string ffmpeg_bin = _srs_config->get_transcode_ffmpeg(conf);
     if (ffmpeg_bin.empty()) {
-        srs_trace("ignore the empty ffmpeg transcode: %s", 
-            conf->arg0().c_str());
+        srs_trace("ignore the empty ffmpeg transcode: %s",
+                  conf->arg0().c_str());
         return ret;
     }
     
     // get all engines.
     std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(conf);
     if (engines.empty()) {
-        srs_trace("ignore the empty transcode engine: %s", 
-            conf->arg0().c_str());
+        srs_trace("ignore the empty transcode engine: %s",
+                  conf->arg0().c_str());
         return ret;
     }
     
@@ -232,8 +232,8 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective* engine = engines[i];
         if (!_srs_config->get_engine_enabled(engine)) {
-            srs_trace("ignore the diabled transcode engine: %s %s", 
-                conf->arg0().c_str(), engine->arg0().c_str());
+            srs_trace("ignore the diabled transcode engine: %s %s",
+                      conf->arg0().c_str(), engine->arg0().c_str());
             continue;
         }
         
@@ -245,7 +245,7 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
             }
             return ret;
         }
-
+        
         ffmpegs.push_back(ffmpeg);
     }
     
@@ -255,7 +255,7 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
 int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
-
+    
     std::string input;
     // input stream, from local.
     // ie. rtmp://localhost:1935/live/livestream
@@ -269,7 +269,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     input += req->vhost;
     input += "/";
     input += req->stream;
-
+    
     // stream name: vhost/app/stream for print
     input_stream_name = req->vhost;
     input_stream_name += "/";
@@ -304,14 +304,14 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
         }
         log_file += ".log";
     }
-
+    
     // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
     it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
     if (it != _transcoded_url.end()) {
         ret = ERROR_ENCODER_LOOP;
         srs_trace("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
-            input.c_str(), output.c_str(), ret);
+                  input.c_str(), output.c_str(), ret);
         return ret;
     }
     _transcoded_url.push_back(output);
@@ -329,12 +329,12 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
 void SrsEncoder::show_encode_log_message()
 {
     pprint->elapse();
-
+    
     // reportable
     if (pprint->can_print()) {
         // TODO: FIXME: show more info.
-        srs_trace("-> "SRS_CONSTS_LOG_ENCODER" time=%"PRId64", encoders=%d, input=%s", 
-            pprint->age(), (int)ffmpegs.size(), input_stream_name.c_str());
+        srs_trace("-> "SRS_CONSTS_LOG_ENCODER" time=%"PRId64", encoders=%d, input=%s",
+                  pprint->age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }
 

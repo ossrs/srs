@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_protocol_utility.hpp>
 
@@ -82,10 +82,10 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
 }
 
 void srs_discovery_tc_url(
-    string tcUrl, 
-    string& schema, string& host, string& vhost, 
-    string& app, int& port, string& param
-) {
+                          string tcUrl,
+                          string& schema, string& host, string& vhost,
+                          string& app, int& port, string& param
+                          ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
     
@@ -100,19 +100,19 @@ void srs_discovery_tc_url(
         url = url.substr(host.length() + 1);
         srs_info("discovery host=%s", host.c_str());
     }
-
+    
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
         srs_info("discovery host=%s, port=%d", host.c_str(), port);
     }
-
+    
     if (url.empty()) {
         app = SRS_CONSTS_RTMP_DEFAULT_APP;
     } else {
         app = url;
     }
-
+    
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
 }
@@ -232,22 +232,22 @@ int srs_do_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, 
         srs_error("rtmp unknown tag type=%#x. ret=%d", type, ret);
         return ret;
     }
-
+    
     *ppmsg = msg;
-
+    
     return ret;
 }
 
 int srs_rtmp_create_msg(char type, uint32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // only when failed, we must free the data.
     if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
         srs_freepa(data);
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -275,7 +275,7 @@ string srs_generate_stream_url(string vhost, string app, string stream)
     url += app;
     url += "/";
     url += stream;
-
+    
     return url;
 }
 

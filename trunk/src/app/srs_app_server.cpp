@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_server.hpp>
 
@@ -92,23 +92,23 @@ using namespace std;
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES
 #define SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES 9
 
-std::string srs_listener_type2string(SrsListenerType type) 
+std::string srs_listener_type2string(SrsListenerType type)
 {
     switch (type) {
-    case SrsListenerRtmpStream:
-        return "RTMP";
-    case SrsListenerHttpApi:
-        return "HTTP-API";
-    case SrsListenerHttpStream:
-        return "HTTP-Server";
-    case SrsListenerMpegTsOverUdp:
-        return "MPEG-TS over UDP";
-    case SrsListenerRtsp:
-        return "RTSP";
-    case SrsListenerFlv:
-        return "HTTP-FLV";
-    default:
-        return "UNKONWN";
+        case SrsListenerRtmpStream:
+            return "RTMP";
+        case SrsListenerHttpApi:
+            return "HTTP-API";
+        case SrsListenerHttpStream:
+            return "HTTP-Server";
+        case SrsListenerMpegTsOverUdp:
+            return "MPEG-TS over UDP";
+        case SrsListenerRtsp:
+            return "RTSP";
+        case SrsListenerFlv:
+            return "HTTP-FLV";
+        default:
+            return "UNKONWN";
     }
 }
 
@@ -144,21 +144,21 @@ int SrsBufferListener::listen(string i, int p)
     
     ip = i;
     port = p;
-
+    
     srs_freep(listener);
     listener = new SrsTcpListener(this, ip, port);
-
+    
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("tcp listen failed. ret=%d", ret);
         return ret;
     }
     
     srs_info("listen thread current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
-
+             "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+             _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
+    
     srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
-
+    
     return ret;
 }
 
@@ -170,7 +170,7 @@ int SrsBufferListener::on_tcp_client(st_netfd_t stfd)
         srs_warn("accept client error. ret=%d", ret);
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -178,7 +178,7 @@ int SrsBufferListener::on_tcp_client(st_netfd_t stfd)
 SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
 {
     listener = NULL;
-
+    
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
     srs_assert(type == SrsListenerRtsp);
@@ -196,25 +196,25 @@ SrsRtspListener::~SrsRtspListener()
 int SrsRtspListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
     srs_assert(type == SrsListenerRtsp);
     
     ip = i;
     port = p;
-
+    
     srs_freep(listener);
     listener = new SrsTcpListener(this, ip, port);
-
+    
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("rtsp caster listen failed. ret=%d", ret);
         return ret;
     }
     srs_info("listen thread listen at port=%d, type=%d, fd=%d started success, ep=%s:%d", port, type, listener->fd(), ip.c_str(), port);
-
+    
     srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
-
+    
     return ret;
 }
 
@@ -226,7 +226,7 @@ int SrsRtspListener::on_tcp_client(st_netfd_t stfd)
         srs_warn("accept client error. ret=%d", ret);
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -305,34 +305,34 @@ SrsUdpStreamListener::~SrsUdpStreamListener()
 int SrsUdpStreamListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
-
+    
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
     srs_assert(type == SrsListenerMpegTsOverUdp);
     
     ip = i;
     port = p;
-
+    
     srs_freep(listener);
     listener = new SrsUdpListener(caster, ip, port);
-
+    
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("udp caster listen failed. ret=%d", ret);
         return ret;
     }
     
     srs_info("listen thread current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
+             "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+             _srs_context->get_id(), p, type, listener->fd(), i.c_str(), p);
     
     // notify the handler the fd changed.
     if ((ret = caster->on_stfd_change(listener->stfd())) != ERROR_SUCCESS) {
         srs_error("notify handler fd changed. ret=%d", ret);
         return ret;
     }
-
+    
     srs_trace("%s listen at udp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
-
+    
     return ret;
 }
 
@@ -430,7 +430,7 @@ int SrsSignalManager::start()
     sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
     
     srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
-        SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
+              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
     
     return pthread->start();
 }
@@ -438,7 +438,7 @@ int SrsSignalManager::start()
 int SrsSignalManager::cycle()
 {
     int ret = ERROR_SUCCESS;
-
+    
     int signo;
     
     /* Read the next signal from the pipe */
@@ -511,7 +511,7 @@ void SrsServer::destroy()
     srs_freep(http_api_mux);
     srs_freep(http_server);
     srs_freep(http_heartbeat);
-
+    
 #ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
 #endif
@@ -546,7 +546,7 @@ void SrsServer::dispose()
     SrsSource::dispose_all();
     
     // @remark don't dispose all connections, for too slow.
-
+    
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
@@ -582,12 +582,12 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     }
     
     http_heartbeat = new SrsHttpHeartbeat();
-
+    
 #ifdef SRS_AUTO_INGEST
     srs_assert(!ingester);
     ingester = new SrsIngester();
 #endif
-
+    
     return ret;
 }
 
@@ -604,7 +604,7 @@ int SrsServer::initialize_st()
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
-    #define __MMAP_MAX_CONNECTIONS 32756
+#define __MMAP_MAX_CONNECTIONS 32756
     if (_srs_config->get_max_connections() > __MMAP_MAX_CONNECTIONS) {
         ret = ERROR_ST_EXCEED_THREADS;
         srs_error("st mmap for stack allocation must <= %d threads, "
@@ -632,7 +632,7 @@ int SrsServer::initialize_st()
         return ret;
     }
     srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
-        _srs_context->get_id(), ::getpid(), ppid, asprocess);
+              _srs_context->get_id(), ::getpid(), ppid, asprocess);
     
     return ret;
 }
@@ -653,7 +653,7 @@ int SrsServer::acquire_pid_file()
     
     std::string pid_file = _srs_config->get_pid_file();
     
-    // -rw-r--r-- 
+    // -rw-r--r--
     // 644
     int mode = S_IRUSR | S_IWUSR |  S_IRGRP | S_IROTH;
     
@@ -667,7 +667,7 @@ int SrsServer::acquire_pid_file()
     
     // require write lock
     struct flock lock;
-
+    
     lock.l_type = F_WRLCK; // F_RDLCK, F_WRLCK, F_UNLCK
     lock.l_start = 0; // type offset, relative to l_whence
     lock.l_whence = SEEK_SET;  // SEEK_SET, SEEK_CUR, SEEK_END
@@ -684,7 +684,7 @@ int SrsServer::acquire_pid_file()
         srs_error("require lock for file %s error! ret=%#x", pid_file.c_str(), ret);
         return ret;
     }
-
+    
     // truncate file
     if (ftruncate(fd, 0) < 0) {
         ret = ERROR_SYSTEM_PID_TRUNCATE_FILE;
@@ -699,7 +699,7 @@ int SrsServer::acquire_pid_file()
         srs_error("write our pid error! pid=%s file=%s ret=%#x", pid.c_str(), pid_file.c_str(), ret);
         return ret;
     }
-
+    
     // auto close when fork child process.
     int val;
     if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
@@ -825,7 +825,7 @@ int SrsServer::http_handle()
         return ret;
     }
     srs_trace("http: api mount /console to %s", dir.c_str());
-
+    
     return ret;
 }
 
@@ -839,16 +839,16 @@ int SrsServer::ingest()
         return ret;
     }
 #endif
-
+    
     return ret;
 }
 
 int SrsServer::cycle()
 {
     int ret = ERROR_SUCCESS;
-
+    
     ret = do_cycle();
-
+    
 #ifdef SRS_AUTO_GPERF_MC
     destroy();
     
@@ -874,7 +874,7 @@ int SrsServer::cycle()
 
 
 void SrsServer::on_signal(int signo)
-{   
+{
     if (signo == SRS_SIGNAL_RELOAD) {
         signal_reload = true;
         return;
@@ -949,7 +949,7 @@ int SrsServer::do_cycle()
             srs_error("cycle handle failed. ret=%d", ret);
             return ret;
         }
-
+        
         // the interval in config.
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
@@ -970,7 +970,7 @@ int SrsServer::do_cycle()
                 srs_trace("cleanup for gracefully terminate.");
                 return ret;
             }
-        
+            
             // for gperf heap checker,
             // @see: research/gperftools/heap-checker/heap_checker.cc
             // if user interrupt the program, exit to check mem leak.
@@ -994,7 +994,7 @@ int SrsServer::do_cycle()
                 }
                 srs_trace("persistence config to file success.");
             }
-        
+            
             // do reload the config.
             if (signal_reload) {
                 signal_reload = false;
@@ -1058,7 +1058,7 @@ int SrsServer::do_cycle()
             srs_info("server main thread loop");
         }
     }
-
+    
     return ret;
 }
 
@@ -1146,15 +1146,15 @@ int SrsServer::listen_stream_caster()
     
     std::vector<SrsConfDirective*>::iterator it;
     std::vector<SrsConfDirective*> stream_casters = _srs_config->get_stream_casters();
-
+    
     for (it = stream_casters.begin(); it != stream_casters.end(); ++it) {
         SrsConfDirective* stream_caster = *it;
         if (!_srs_config->get_stream_caster_enabled(stream_caster)) {
             continue;
         }
-
+        
         SrsListener* listener = NULL;
-
+        
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (srs_stream_caster_is_udp(caster)) {
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
@@ -1168,7 +1168,7 @@ int SrsServer::listen_stream_caster()
             return ret;
         }
         srs_assert(listener != NULL);
-
+        
         listeners.push_back(listener);
         
         int port = _srs_config->get_stream_caster_listen(stream_caster);
@@ -1219,7 +1219,7 @@ void SrsServer::resample_kbps()
     }
     
     // TODO: FXME: support all other connections.
-
+    
     // sample the kbps, get the stat.
     SrsKbps* kbps = stat->kbps_sample();
     
@@ -1265,7 +1265,7 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
         srs_info("ignore empty ip client, fd=%d.", fd);
         return NULL;
     }
-
+    
     // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
     if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
@@ -1361,7 +1361,7 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -1373,7 +1373,7 @@ int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 

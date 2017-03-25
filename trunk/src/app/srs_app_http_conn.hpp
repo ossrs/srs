@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_HTTP_CONN_HPP
 #define SRS_APP_HTTP_CONN_HPP
-
-/*
-#include <srs_app_http_conn.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -128,7 +124,7 @@ public:
      * initialize the response reader with buffer.
      */
     virtual int initialize(SrsFastStream* buffer);
-    // interface ISrsHttpResponseReader
+// interface ISrsHttpResponseReader
 public:
     virtual bool eof();
     virtual int read(char* data, int nb_data, int* nb_read);
@@ -173,7 +169,7 @@ private:
     /**
      * whether the body is infinite chunked.
      */
-     bool infinite_chunked;
+    bool infinite_chunked;
     /**
      * whether the request indicates should keep alive
      * for the http connection.
@@ -205,9 +201,7 @@ public:
     /**
      * set the original messages, then update the message.
      */
-    virtual int update(std::string url, bool allow_jsonp, http_parser* header,
-        SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers
-    );
+    virtual int update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
 public:
     virtual SrsConnection* connection();
 public:
@@ -230,7 +224,7 @@ public:
      * whether body is infinite chunked encoding.
      * @remark set by enter_infinite_chunked.
      */
-     virtual bool is_infinite_chunked();
+    virtual bool is_infinite_chunked();
     /**
      * whether should keep the connection alive.
      */
@@ -411,10 +405,10 @@ public:
     virtual ~SrsHttpServer();
 public:
     virtual int initialize();
-// ISrsHttpServeMux
+    // ISrsHttpServeMux
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-// http flv/ts/mp3/aac stream
+    // http flv/ts/mp3/aac stream
 public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);

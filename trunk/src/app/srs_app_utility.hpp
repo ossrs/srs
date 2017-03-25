@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_UTILITY_HPP
 #define SRS_APP_UTILITY_HPP
-
-/*
-#include <srs_app_utility.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -48,32 +44,32 @@ class SrsJsonObject;
 extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
 
 /**
-* convert level in string to log level in int.
-* @return the log level defined in SrsLogLevel.
-*/
+ * convert level in string to log level in int.
+ * @return the log level defined in SrsLogLevel.
+ */
 extern int srs_get_log_level(std::string level);
 
 /**
-* build the path according to vhost/app/stream, where replace variables:
-*       [vhost], the vhost of stream.
-*       [app], the app of stream.
-*       [stream], the stream name of stream.
-* @return the replaced path.
-*/
+ * build the path according to vhost/app/stream, where replace variables:
+ *       [vhost], the vhost of stream.
+ *       [app], the app of stream.
+ *       [stream], the stream name of stream.
+ * @return the replaced path.
+ */
 extern std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream);
 
 /**
-* build the path according to timestamp, where replace variables:
-*       [2006], replace this const to current year.
-*       [01], replace this const to current month.
-*       [02], replace this const to current date.
-*       [15], replace this const to current hour.
-*       [04], repleace this const to current minute.
-*       [05], repleace this const to current second.
-*       [999], repleace this const to current millisecond.
-*       [timestamp],replace this const to current UNIX timestamp in ms.
-* @return the replaced path.
-*/
+ * build the path according to timestamp, where replace variables:
+ *       [2006], replace this const to current year.
+ *       [01], replace this const to current month.
+ *       [02], replace this const to current date.
+ *       [15], replace this const to current hour.
+ *       [04], repleace this const to current minute.
+ *       [05], repleace this const to current second.
+ *       [999], repleace this const to current millisecond.
+ *       [timestamp],replace this const to current UNIX timestamp in ms.
+ * @return the replaced path.
+ */
 extern std::string srs_path_build_timestamp(std::string template_path);
 
 /**
@@ -118,7 +114,7 @@ public:
     // the percent of usage. 0.153 is 15.3%.
     float percent;
     
-// data of /proc/[pid]/stat
+    // data of /proc/[pid]/stat
 public:
     // pid %d      The process ID.
     int pid;
@@ -186,7 +182,7 @@ public:
     long num_threads;
     // itrealvalue %ld
     //          The time in jiffies before the next SIGALRM is sent to the process due to an  interval  timer.   Since
-    //          kernel 2.6.17, this field is no longer maintained, and is hard coded as 0.    
+    //          kernel 2.6.17, this field is no longer maintained, and is hard coded as 0.
     long itrealvalue;
     // starttime %llu (was %lu before Linux 2.6)
     //          The time in jiffies the process started after system boot.
@@ -265,34 +261,34 @@ public:
 // to stat the cpu time.
 // @see: man 5 proc, /proc/stat
 /**
-* about the cpu time, @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
-* for example, for ossrs.net, a single cpu machine:
-*       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
-*           5275153.01 4699624.99
-*           cpu  43506750 973 8545744 466133337 4149365 190852 804666 0 0
-* where the uptime is 5275153.01s
-* generally, USER_HZ sysconf(_SC_CLK_TCK)=100, which means the unit of /proc/stat is "1/100ths seconds"
-*       that is, USER_HZ=1/100 seconds
-* cpu total = 43506750+973+8545744+466133337+4149365+190852+804666+0+0 (USER_HZ)
-*           = 523331687 (USER_HZ)
-*           = 523331687 * 1/100 (seconds)
-*           = 5233316.87 seconds
-* the cpu total seconds almost the uptime, the delta is more precise.
-* 
-* we run the command about 26minutes:
-*       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
-*           5276739.83 4701090.76
-*           cpu  43514105 973 8548948 466278556 4150480 190899 804937 0 0
-* where the uptime is 5276739.83s
-* cpu total = 43514105+973+8548948+466278556+4150480+190899+804937+0+0 (USER_HZ)
-*           = 523488898 (USER_HZ)
-*           = 523488898 * 1/100 (seconds)
-*           = 5234888.98 seconds
-* where:
-*       uptime delta = 1586.82s
-*       cpu total delta = 1572.11s
-* the deviation is more smaller.
-*/
+ * about the cpu time, @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
+ * for example, for ossrs.net, a single cpu machine:
+ *       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+ *           5275153.01 4699624.99
+ *           cpu  43506750 973 8545744 466133337 4149365 190852 804666 0 0
+ * where the uptime is 5275153.01s
+ * generally, USER_HZ sysconf(_SC_CLK_TCK)=100, which means the unit of /proc/stat is "1/100ths seconds"
+ *       that is, USER_HZ=1/100 seconds
+ * cpu total = 43506750+973+8545744+466133337+4149365+190852+804666+0+0 (USER_HZ)
+ *           = 523331687 (USER_HZ)
+ *           = 523331687 * 1/100 (seconds)
+ *           = 5233316.87 seconds
+ * the cpu total seconds almost the uptime, the delta is more precise.
+ *
+ * we run the command about 26minutes:
+ *       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+ *           5276739.83 4701090.76
+ *           cpu  43514105 973 8548948 466278556 4150480 190899 804937 0 0
+ * where the uptime is 5276739.83s
+ * cpu total = 43514105+973+8548948+466278556+4150480+190899+804937+0+0 (USER_HZ)
+ *           = 523488898 (USER_HZ)
+ *           = 523488898 * 1/100 (seconds)
+ *           = 5234888.98 seconds
+ * where:
+ *       uptime delta = 1586.82s
+ *       cpu total delta = 1572.11s
+ * the deviation is more smaller.
+ */
 class SrsProcSystemStat
 {
 public:
@@ -310,26 +306,26 @@ public:
     //          previous cpu total = this->total() - total_delta
     int64_t total_delta;
     
-// data of /proc/stat
+    // data of /proc/stat
 public:
-    // The amount of time, measured in units  of  USER_HZ  
+    // The amount of time, measured in units  of  USER_HZ
     // (1/100ths  of  a  second  on  most  architectures,  use
     // sysconf(_SC_CLK_TCK)  to  obtain  the  right value)
     //
-    // the system spent in user mode, 
+    // the system spent in user mode,
     unsigned long long user;
-    // user mode with low priority (nice), 
+    // user mode with low priority (nice),
     unsigned long long nice;
-    // system mode, 
+    // system mode,
     unsigned long long sys;
     // and the idle task, respectively.
     unsigned long long idle;
-
+    
     // In  Linux 2.6 this line includes three additional columns:
     //
     // iowait - time waiting for I/O to complete (since 2.5.41);
     unsigned long long iowait;
-    // irq - time servicing interrupts (since 2.6.0-test4); 
+    // irq - time servicing interrupts (since 2.6.0-test4);
     unsigned long long irq;
     // softirq  -  time  servicing  softirqs  (since 2.6.0-test4).
     unsigned long long softirq;
@@ -339,11 +335,11 @@ public:
     // ating systems when running in a virtualized environment
     unsigned long long steal;
     
-    // Since Linux 2.6.24, there is a ninth column, 
+    // Since Linux 2.6.24, there is a ninth column,
     // guest, which is the time spent running a virtual CPU for guest
     // operating systems under the control of the Linux kernel.
     unsigned long long guest;
-
+    
 public:
     SrsProcSystemStat();
     
@@ -399,63 +395,63 @@ public:
     // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
     // @see: cat /proc/diskstats
     //
-    // Number of issued reads. 
+    // Number of issued reads.
     // This is the total number of reads completed successfully.
     // Read I/O operations
     unsigned int rd_ios;
     // Number of reads merged
     // Reads merged
     unsigned int rd_merges;
-    // Number of sectors read. 
+    // Number of sectors read.
     // This is the total number of sectors read successfully.
     // Sectors read
     unsigned long long rd_sectors;
-    // Number of milliseconds spent reading. 
-    // This is the total number of milliseconds spent by all reads 
+    // Number of milliseconds spent reading.
+    // This is the total number of milliseconds spent by all reads
     // (as measured from make_request() to end_that_request_last()).
     // Time in queue + service for read
     unsigned int rd_ticks;
     //
-    // Number of writes completed. 
+    // Number of writes completed.
     // This is the total number of writes completed successfully
     // Write I/O operations
     unsigned int wr_ios;
-    // Number of writes merged Reads and writes which are adjacent 
-    // to each other may be merged for efficiency. Thus two 4K 
-    // reads may become one 8K read before it is ultimately 
-    // handed to the disk, and so it will be counted (and queued) 
+    // Number of writes merged Reads and writes which are adjacent
+    // to each other may be merged for efficiency. Thus two 4K
+    // reads may become one 8K read before it is ultimately
+    // handed to the disk, and so it will be counted (and queued)
     // as only one I/O. This field lets you know how often this was done.
     // Writes merged
     unsigned int wr_merges;
-    // Number of sectors written. 
+    // Number of sectors written.
     // This is the total number of sectors written successfully.
     // Sectors written
     unsigned long long wr_sectors;
-    // Number of milliseconds spent writing . 
-    // This is the total number of milliseconds spent by all writes 
+    // Number of milliseconds spent writing .
+    // This is the total number of milliseconds spent by all writes
     // (as measured from make_request() to end_that_request_last()).
     // Time in queue + service for write
     unsigned int wr_ticks;
     //
-    // Number of I/Os currently in progress. 
-    // The only field that should go to zero. 
-    // Incremented as requests are given to appropriate request_queue_t 
+    // Number of I/Os currently in progress.
+    // The only field that should go to zero.
+    // Incremented as requests are given to appropriate request_queue_t
     // and decremented as they finish.
     unsigned int nb_current;
-    // Number of milliseconds spent doing I/Os. 
+    // Number of milliseconds spent doing I/Os.
     // This field is increased so long as field 9 is nonzero.
     // Time of requests in queue
     unsigned int ticks;
-    // Number of milliseconds spent doing I/Os. 
-    // This field is incremented at each I/O start, I/O completion, 
-    // I/O merge, or read of these stats by the number of I/Os in 
-    // progress (field 9) times the number of milliseconds spent 
-    // doing I/O since the last update of this field. This can 
-    // provide an easy measure of both I/O completion time and 
+    // Number of milliseconds spent doing I/Os.
+    // This field is incremented at each I/O start, I/O completion,
+    // I/O merge, or read of these stats by the number of I/Os in
+    // progress (field 9) times the number of milliseconds spent
+    // doing I/O since the last update of this field. This can
+    // provide an easy measure of both I/O completion time and
     // the backlog that may be accumulating.
     // Average queue length
     unsigned int aveq;
-
+    
 public:
     SrsDiskStat();
 };
@@ -466,7 +462,7 @@ extern SrsDiskStat* srs_get_disk_stat();
 extern void srs_update_disk_stat();
 
 // stat system memory info
-// @see: cat /proc/meminfo 
+// @see: cat /proc/meminfo
 class SrsMemInfo
 {
 public:
@@ -478,7 +474,7 @@ public:
     float percent_ram;
     float percent_swap;
     
-// data of /proc/meminfo
+    // data of /proc/meminfo
 public:
     // MemActive = MemTotal - MemFree
     uint64_t MemActive;
@@ -507,7 +503,7 @@ extern SrsMemInfo* srs_get_meminfo();
 extern void srs_update_meminfo();
 
 // system cpu hardware info.
-// @see: cat /proc/cpuinfo 
+// @see: cat /proc/cpuinfo
 // @remark, we use sysconf(_SC_NPROCESSORS_CONF) to get the cpu count.
 class SrsCpuInfo
 {
@@ -515,7 +511,7 @@ public:
     // whether the data is ok.
     bool ok;
     
-// data of /proc/cpuinfo
+    // data of /proc/cpuinfo
 public:
     // The number of processors configured.
     int nb_processors;
@@ -639,14 +635,14 @@ public:
     int nb_conn_sys_et; // established
     int nb_conn_sys_tw; // time wait
     int nb_conn_sys_udp; // udp
-
+    
     // retrieve from srs interface
     int nb_conn_srs;
     
 public:
     SrsNetworkRtmpServer();
 };
-    
+
 // get network devices info, use cache to avoid performance problem.
 extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
 // the deamon st-thread will update it.

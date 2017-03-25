@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_http_conn.hpp>
 
@@ -83,7 +83,7 @@ int SrsHttpResponseWriter::final_request()
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
     }
-
+    
     // complete the chunked encoding.
     if (content_length == -1) {
         std::stringstream ss;
@@ -266,7 +266,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     
     // status_line
     ss << "HTTP/1.1 " << status << " "
-        << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
+    << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
     
     // detect content type
     if (srs_go_http_body_allowd(status)) {
@@ -1082,7 +1082,7 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
 }
 
 SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
-    : SrsConnection(cm, fd, cip)
+: SrsConnection(cm, fd, cip)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
@@ -1128,11 +1128,11 @@ int SrsHttpConn::do_cycle()
         srs_error("http initialize http parser failed. ret=%d", ret);
         return ret;
     }
-
+    
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
     skt->set_recv_timeout(SRS_HTTP_RECV_TMMS);
-
+    
     SrsRequest* last_req = NULL;
     SrsAutoFree(SrsRequest, last_req);
     
@@ -1141,59 +1141,59 @@ int SrsHttpConn::do_cycle()
     if ((ret = cors->initialize(http_mux, crossdomain_enabled)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // process http messages.
     while (!disposed) {
         ISrsHttpMessage* req = NULL;
-
+        
         // get a http message
         if ((ret = parser->parse_message(skt, this, &req)) != ERROR_SUCCESS) {
             break;
         }
-
+        
         // if SUCCESS, always NOT-NULL.
         srs_assert(req);
-
+        
         // always free it in this scope.
         SrsAutoFree(ISrsHttpMessage, req);
-
+        
         // get the last request, for report the info of request on connection disconnect.
         delete last_req;
         SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(req);
         last_req = hreq->to_request(hreq->host());
-
+        
         // may should discard the body.
         if ((ret = on_got_http_message(req)) != ERROR_SUCCESS) {
             break;
         }
-
+        
         // ok, handle http request.
         SrsHttpResponseWriter writer(skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             break;
         }
-
+        
         // donot keep alive, disconnect it.
         // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
         }
     }
-
+    
     int disc_ret = ERROR_SUCCESS;
     if ((disc_ret = on_disconnect(last_req)) != ERROR_SUCCESS) {
         srs_warn("connection on disconnect peer failed, but ignore this error. disc_ret=%d, ret=%d", disc_ret, ret);
     }
-
+    
     return ret;
 }
 
-int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) 
+int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("HTTP %s %s, content-length=%"PRId64"", 
-        r->method_str().c_str(), r->url().c_str(), r->content_length());
+    srs_trace("HTTP %s %s, content-length=%"PRId64"",
+              r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use cors server mux to serve http request, which will proxy to http_remux.
     if ((ret = cors->serve_http(w, r)) != ERROR_SUCCESS) {
@@ -1227,7 +1227,7 @@ int SrsHttpConn::on_reload_http_stream_crossdomain()
 }
 
 SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
-    : SrsHttpConn(cm, fd, m, cip)
+: SrsHttpConn(cm, fd, m, cip)
 {
 }
 

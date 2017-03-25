@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_utility.hpp>
 
@@ -246,7 +246,7 @@ int srs_kill_forced(int& pid)
         
         return ret;
     }
-
+    
     // then, try kill by SIGKILL.
     if (kill(pid, SIGKILL) < 0) {
         return ERROR_SYSTEM_KILL;
@@ -401,17 +401,17 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
         
         // @see: read_stat_cpu() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L88
         // @remark, ignore the filed 10 cpu_guest_nice
-        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n", 
-            &r.user, 
-            &r.nice, 
-            &r.sys, 
-            &r.idle, 
-            &r.iowait, 
-            &r.irq, 
-            &r.softirq, 
-            &r.steal, 
-            &r.guest);
-
+        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+               &r.user,
+               &r.nice,
+               &r.sys,
+               &r.idle,
+               &r.iowait,
+               &r.irq,
+               &r.softirq,
+               &r.steal,
+               &r.guest);
+        
         break;
     }
     
@@ -420,7 +420,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     // TODO: FIXME: impelments it.
     // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
-
+    
     r.ok = true;
     
     return true;
@@ -436,23 +436,23 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
     }
     
     fscanf(f, "%d %32s %c %d %d %d %d "
-        "%d %u %lu %lu %lu %lu "
-        "%lu %lu %ld %ld %ld %ld "
-        "%ld %ld %llu %lu %ld "
-        "%lu %lu %lu %lu %lu "
-        "%lu %lu %lu %lu %lu "
-        "%lu %lu %lu %d %d "
-        "%u %u %llu "
-        "%lu %ld", 
-        &r.pid, r.comm, &r.state, &r.ppid, &r.pgrp, &r.session, &r.tty_nr,
-        &r.tpgid, &r.flags, &r.minflt, &r.cminflt, &r.majflt, &r.cmajflt,
-        &r.utime, &r.stime, &r.cutime, &r.cstime, &r.priority, &r.nice,
-        &r.num_threads, &r.itrealvalue, &r.starttime, &r.vsize, &r.rss,
-        &r.rsslim, &r.startcode, &r.endcode, &r.startstack, &r.kstkesp,
-        &r.kstkeip, &r.signal, &r.blocked, &r.sigignore, &r.sigcatch,
-        &r.wchan, &r.nswap, &r.cnswap, &r.exit_signal, &r.processor,
-        &r.rt_priority, &r.policy, &r.delayacct_blkio_ticks, 
-        &r.guest_time, &r.cguest_time);
+           "%d %u %lu %lu %lu %lu "
+           "%lu %lu %ld %ld %ld %ld "
+           "%ld %ld %llu %lu %ld "
+           "%lu %lu %lu %lu %lu "
+           "%lu %lu %lu %lu %lu "
+           "%lu %lu %lu %d %d "
+           "%u %u %llu "
+           "%lu %ld",
+           &r.pid, r.comm, &r.state, &r.ppid, &r.pgrp, &r.session, &r.tty_nr,
+           &r.tpgid, &r.flags, &r.minflt, &r.cminflt, &r.majflt, &r.cmajflt,
+           &r.utime, &r.stime, &r.cutime, &r.cstime, &r.priority, &r.nice,
+           &r.num_threads, &r.itrealvalue, &r.starttime, &r.vsize, &r.rss,
+           &r.rsslim, &r.startcode, &r.endcode, &r.startstack, &r.kstkesp,
+           &r.kstkeip, &r.signal, &r.blocked, &r.sigignore, &r.sigcatch,
+           &r.wchan, &r.nswap, &r.cnswap, &r.exit_signal, &r.processor,
+           &r.rt_priority, &r.policy, &r.delayacct_blkio_ticks,
+           &r.guest_time, &r.cguest_time);
     
     fclose(f);
 #else
@@ -620,22 +620,22 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         unsigned int aveq = 0;
         memset(name, 0, sizeof(name));
         
-        sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
-            &major, 
-            &minor, 
-            name, 
-            &rd_ios, 
-            &rd_merges,
-            &rd_sectors, 
-            &rd_ticks, 
-            &wr_ios, 
-            &wr_merges,
-            &wr_sectors, 
-            &wr_ticks, 
-            &nb_current, 
-            &ticks, 
-            &aveq);
-
+        sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u",
+               &major,
+               &minor,
+               name,
+               &rd_ios,
+               &rd_merges,
+               &rd_sectors,
+               &rd_ticks,
+               &wr_ios,
+               &wr_merges,
+               &wr_sectors,
+               &wr_ticks,
+               &nb_current,
+               &ticks,
+               &aveq);
+        
         for (int i = 0; i < (int)conf->args.size(); i++) {
             string name_ok = conf->args.at(i);
             
@@ -712,7 +712,7 @@ void srs_update_disk_stat()
         if (r.cpu.ok && r.cpu.total_delta > 0
             && cpuinfo->ok && cpuinfo->nb_processors > 0
             && o.ticks < r.ticks
-        ) {
+            ) {
             // @see: write_ext_stat() from https://github.com/sysstat/sysstat/blob/master/iostat.c#L979
             // TODO: FIXME: the USER_HZ assert to 100, so the total_delta ticks *10 is ms.
             double delta_ms = r.cpu.total_delta * 10 / cpuinfo->nb_processors;
@@ -862,7 +862,7 @@ void srs_update_platform_info()
         }
         
         fscanf(f, "%lf %lf\n", &r.os_uptime, &r.os_ilde_time);
-    
+        
         fclose(f);
     }
     
@@ -875,11 +875,11 @@ void srs_update_platform_info()
         
         // @see: read_loadavg() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L402
         // @remark, we use our algorithm, not sysstat.
-        fscanf(f, "%lf %lf %lf\n", 
-            &r.load_one_minutes, 
-            &r.load_five_minutes, 
-            &r.load_fifteen_minutes);
-    
+        fscanf(f, "%lf %lf %lf\n",
+               &r.load_one_minutes,
+               &r.load_five_minutes,
+               &r.load_fifteen_minutes);
+        
         fclose(f);
     }
 #else
@@ -977,21 +977,21 @@ void srs_update_network_devices()
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
         fgets(buf, sizeof(buf), f);
-    
+        
         for (int i = 0; i < MAX_NETWORK_DEVICES_COUNT; i++) {
             if (!fgets(buf, sizeof(buf), f)) {
                 break;
             }
             
             SrsNetworkDevices& r = _srs_system_network_devices[i];
-    
+            
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
             // @remark, we use our algorithm, not sysstat.
             char fname[7];
             sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
-                fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
-                &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
-                
+                   fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
+                   &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
+            
             sscanf(fname, "%s", r.name);
             _nb_srs_system_network_devices = i + 1;
             srs_info("scan network device ifname=%s, total=%d", r.name, _nb_srs_system_network_devices);
@@ -999,7 +999,7 @@ void srs_update_network_devices()
             r.sample_time = srs_get_system_time_ms();
             r.ok = true;
         }
-    
+        
         fclose(f);
     }
 #else
@@ -1016,7 +1016,7 @@ static std::map<std::string, bool> _srs_device_ifs;
 bool srs_net_device_is_internet(string ifname)
 {
     srs_info("check ifname=%s", ifname.c_str());
-
+    
     if (_srs_device_ifs.find(ifname) == _srs_device_ifs.end()) {
         return false;
     }
@@ -1079,14 +1079,14 @@ enum {
     SYS_TCP_LAST_ACK,       // 0x09
     SYS_TCP_LISTEN,         // 0x0A
     SYS_TCP_CLOSING,        // 0x0B /* Now a valid state */
-
+    
     SYS_TCP_MAX_STATES      // 0x0C /* Leave at the end! */
 };
 
 void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 {
     SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
-        
+    
     int nb_socks = 0;
     int nb_tcp4_hashed = 0;
     int nb_tcp_orphans = 0;
@@ -1112,17 +1112,17 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
             if (strncmp(buf, "sockets: used ", 14) == 0) {
                 sscanf(buf + 14, "%d\n", &nb_socks);
             } else if (strncmp(buf, "TCP: ", 5) == 0) {
-                sscanf(buf + 5, "%*s %d %*s %d %*s %d %*s %d %*s %d\n", 
-                    &nb_tcp4_hashed, 
-                    &nb_tcp_orphans, 
-                    &nb_tcp_tws, 
-                    &nb_tcp_total, 
-                    &nb_tcp_mem);
+                sscanf(buf + 5, "%*s %d %*s %d %*s %d %*s %d %*s %d\n",
+                       &nb_tcp4_hashed,
+                       &nb_tcp_orphans,
+                       &nb_tcp_tws,
+                       &nb_tcp_total,
+                       &nb_tcp_mem);
             } else if (strncmp(buf, "UDP: ", 5) == 0) {
                 sscanf(buf + 5, "%*s %d\n", &nb_udp4);
             }
         }
-    
+        
         fclose(f);
     }
 #else
@@ -1166,7 +1166,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
                 }
             }
         }
-    
+        
         fclose(f);
     }
 #else
@@ -1229,7 +1229,7 @@ void retrieve_local_ipv4_ips()
         p = p->ifa_next;
         
         // retrieve ipv4 addr
-        // ignore the tun0 network device, 
+        // ignore the tun0 network device,
         // which addr is NULL.
         // @see: https://github.com/ossrs/srs/issues/141
         if (addr && addr->sa_family == AF_INET) {
@@ -1262,7 +1262,7 @@ void retrieve_local_ipv4_ips()
     }
     srs_trace(ss0.str().c_str());
     srs_trace(ss1.str().c_str());
-
+    
     freeifaddrs(ifap);
 }
 
@@ -1271,7 +1271,7 @@ vector<string>& srs_get_local_ipv4_ips()
     if (_srs_system_ipv4_ips.empty()) {
         retrieve_local_ipv4_ips();
     }
-
+    
     return _srs_system_ipv4_ips;
 }
 
@@ -1338,7 +1338,7 @@ string srs_get_public_internet_address()
 string srs_get_local_ip(int fd)
 {
     std::string ip;
-
+    
     // discovery client information
     sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
@@ -1346,19 +1346,19 @@ string srs_get_local_ip(int fd)
         return ip;
     }
     srs_verbose("get local ip success.");
-
+    
     // ip v4 or v6
     char buf[INET6_ADDRSTRLEN];
     memset(buf, 0, sizeof(buf));
-
+    
     if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
         return ip;
     }
-
+    
     ip = buf;
-
+    
     srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-
+    
     return ip;
 }
 
@@ -1373,9 +1373,9 @@ int srs_get_local_port(int fd)
     srs_verbose("get local ip success.");
     
     int port = ntohs(addr.sin_port);
-
+    
     srs_verbose("get local ip of client port=%s, fd=%d", port, fd);
-
+    
     return port;
 }
 
@@ -1390,7 +1390,7 @@ string srs_get_peer_ip(int fd)
         return ip;
     }
     srs_verbose("get peer name success.");
-
+    
     // ip v4 or v6
     char buf[INET6_ADDRSTRLEN];
     memset(buf, 0, sizeof(buf));
@@ -1483,8 +1483,8 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     }
     
     // all data is ok?
-    bool ok = (r->ok && u->ok && s->ok && c->ok 
-        && d->ok && m->ok && p->ok && nrs->ok);
+    bool ok = (r->ok && u->ok && s->ok && c->ok
+               && d->ok && m->ok && p->ok && nrs->ok);
     
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);

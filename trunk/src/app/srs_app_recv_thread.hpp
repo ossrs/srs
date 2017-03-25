@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_RECV_THREAD_HPP
 #define SRS_APP_RECV_THREAD_HPP
-
-/*
-#include <srs_app_recv_thread.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -119,11 +115,11 @@ public:
 };
 
 /**
-* the recv thread used to replace the timeout recv,
-* which hurt performance for the epoll_ctrl is frequently used.
-* @see: SrsRtmpConn::playing
-* @see: https://github.com/ossrs/srs/issues/217
-*/
+ * the recv thread used to replace the timeout recv,
+ * which hurt performance for the epoll_ctrl is frequently used.
+ * @see: SrsRtmpConn::playing
+ * @see: https://github.com/ossrs/srs/issues/217
+ */
 class SrsQueueRecvThread : public ISrsMessagePumper
 {
 private:
@@ -154,12 +150,12 @@ public:
 };
 
 /**
-* the publish recv thread got message and callback the source method to process message.
-* @see: https://github.com/ossrs/srs/issues/237
-*/
+ * the publish recv thread got message and callback the source method to process message.
+ * @see: https://github.com/ossrs/srs/issues/237
+ */
 class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public ISrsReloadHandler
 #ifdef SRS_PERF_MERGED_READ
-    , virtual public IMergeReadHandler
+, virtual public IMergeReadHandler
 #endif
 {
 private:
@@ -188,14 +184,12 @@ private:
     int cid;
     int ncid;
 public:
-    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, 
-        SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-        SrsRtmpConn* conn, SrsSource* source);
+    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req, int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source);
     virtual ~SrsPublishRecvThread();
 public:
     /**
-    * wait for error for some timeout.
-    */
+     * wait for error for some timeout.
+     */
     virtual int wait(uint64_t timeout_ms);
     virtual int64_t nb_msgs();
     virtual int error_code();

@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     
     // warn it .
     // @see: https://github.com/ossrs/srs/issues/126
-    srs_human_trace("\033[33m%s\033[0m", 
+    srs_human_trace("\033[33m%s\033[0m",
         "[warning] it's only a sample to use librtmp. "
         "please never use it to publish and test forward/transcode/edge/HLS whatever. "
         "you should refer to this tool to use the srs-librtmp to publish the real media stream."
@@ -81,8 +81,7 @@ int main(int argc, char** argv)
         if (srs_rtmp_write_packet(rtmp, type, timestamp, data, size) != 0) {
             goto rtmp_destroy;
         }
-        srs_human_trace("sent packet: type=%s, time=%d, size=%d", 
-            srs_human_flv_tag_type2string(type), timestamp, size);
+        srs_human_trace("sent packet: type=%s, time=%d, size=%d", srs_human_flv_tag_type2string(type), timestamp, size);
         
         usleep(40 * 1000);
     }

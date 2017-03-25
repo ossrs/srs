@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_KERNEL_CODEC_HPP
 #define SRS_KERNEL_CODEC_HPP
-
-/*
-#include <srs_kernel_codec.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -210,7 +206,7 @@ enum SrsFrameType
     // set to the zero to reserved, for array map.
     SrsFrameTypeReserved = 0,
     SrsFrameTypeForbidden = 0,
-
+    
     // 8 = audio
     SrsFrameTypeAudio = 8,
     // 9 = video
@@ -228,19 +224,19 @@ class SrsFlvVideo
 public:
     SrsFlvVideo();
     virtual ~SrsFlvVideo();
-// the following function used to finger out the flv/rtmp packet detail.
+    // the following function used to finger out the flv/rtmp packet detail.
 public:
     /**
-    * only check the frame_type, not check the codec type.
-    */
+     * only check the frame_type, not check the codec type.
+     */
     static bool keyframe(char* data, int size);
     /**
-    * check codec h264, keyframe, sequence header
-    */
+     * check codec h264, keyframe, sequence header
+     */
     static bool sh(char* data, int size);
     /**
-    * check codec h264.
-    */
+     * check codec h264.
+     */
     static bool h264(char* data, int size);
     /**
      * check the video RTMP/flv header info,
@@ -259,7 +255,7 @@ class SrsFlvAudio
 public:
     SrsFlvAudio();
     virtual ~SrsFlvAudio();
-// the following function used to finger out the flv/rtmp packet detail.
+    // the following function used to finger out the flv/rtmp packet detail.
 public:
     /**
      * check codec aac, sequence header
@@ -272,16 +268,16 @@ public:
 };
 
 /**
-* the public data, event HLS disable, others can use it.
-*/
+ * the public data, event HLS disable, others can use it.
+ */
 /**
-* the flv sample rate map
-*/
+ * the flv sample rate map
+ */
 extern int srs_flv_srates[];
 
 /**
-* the aac sample rate map
-*/
+ * the aac sample rate map
+ */
 extern int srs_aac_srates[];
 
 // The impossible aac sample rate index.
@@ -515,7 +511,7 @@ public:
  */
 class SrsAudioCodecConfig : public SrsCodecConfig
 {
-// In FLV specification.
+    // In FLV specification.
 public:
     // The audio codec id; for FLV, it's SoundFormat.
     SrsAudioCodecId id;
@@ -527,7 +523,7 @@ public:
     // TODO: FIXME: Rename to sound_channels.
     SrsAudioChannels sound_type;
     int audio_data_rate; // in bps
-// In AAC specification.
+    // In AAC specification.
 public:
     /**
      * audio specified
@@ -544,7 +540,7 @@ public:
      * channelConfiguration
      */
     uint8_t aac_channels;
-// Sequence header payload.
+    // Sequence header payload.
 public:
     /**
      * the aac extra data, the AAC sequence header,

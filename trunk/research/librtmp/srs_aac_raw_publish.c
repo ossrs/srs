@@ -29,11 +29,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-       
+
 #include "../../objs/include/srs_librtmp.h"
 
 // https://github.com/ossrs/srs/issues/212#issuecomment-64145910
-int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_size) 
+int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_size)
 {
     char* p = *pp;
     
@@ -46,10 +46,10 @@ int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_s
     }
     
     // @see srs_audio_write_raw_frame
-    // each frame prefixed aac adts header, '1111 1111 1111'B, that is 0xFFF., 
+    // each frame prefixed aac adts header, '1111 1111 1111'B, that is 0xFFF.,
     // for instance, frame = FF F1 5C 80 13 A0 FC 00 D0 33 83 E8 5B
     *frame = p;
-    // skip some data. 
+    // skip some data.
     // @remark, user donot need to do this.
     p += srs_aac_adts_frame_size(p, size - (p - data));
     
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
     lseek(raw_fd, 0, SEEK_SET);
     ssize_t nb_read = 0;
     if ((nb_read = read(raw_fd, audio_raw, file_size)) != file_size) {
-        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
+        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.",
             raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
         goto rtmp_destroy;
     }
@@ -164,15 +164,12 @@ int main(int argc, char** argv)
         timestamp += time_delta;
         
         int ret = 0;
-        if ((ret = srs_audio_write_raw_frame(rtmp, 
-            sound_format, sound_rate, sound_size, sound_type,
-            data, size, timestamp)) != 0
-        ) {
+        if ((ret = srs_audio_write_raw_frame(rtmp, sound_format, sound_rate, sound_size, sound_type, data, size, timestamp)) != 0) {
             srs_human_trace("send audio raw data failed. ret=%d", ret);
             goto rtmp_destroy;
         }
         
-        srs_human_trace("sent packet: type=%s, time=%d, size=%d, codec=%d, rate=%d, sample=%d, channel=%d", 
+        srs_human_trace("sent packet: type=%s, time=%d, size=%d, codec=%d, rate=%d, sample=%d, channel=%d",
             srs_human_flv_tag_type2string(SRS_RTMP_TYPE_AUDIO), timestamp, size, sound_format, sound_rate, sound_size,
             sound_type);
         

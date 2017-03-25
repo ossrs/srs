@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_dash.hpp>
 
@@ -399,19 +399,19 @@ int SrsMpdWriter::write(SrsFormat* format)
     
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
-        << "<MPD profiles=\"urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple\" " << endl
-        << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
-        << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
-        << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
-        << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
-        << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT" << fragment / 1000 << "S\" >" << endl
-        << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
-        << "    <Period start=\"PT0S\">" << endl;
+    << "<MPD profiles=\"urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple\" " << endl
+    << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
+    << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
+    << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
+    << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
+    << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT" << fragment / 1000 << "S\" >" << endl
+    << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
+    << "    <Period start=\"PT0S\">" << endl;
     if (format->acodec) {
         ss  << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
         ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
-                                << "initialization=\"$RepresentationID$-init.mp4\" "
-                                << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
+        << "initialization=\"$RepresentationID$-init.mp4\" "
+        << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
         ss  << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\" />" << endl;
         ss  << "        </AdaptationSet>" << endl;
     }
@@ -420,14 +420,14 @@ int SrsMpdWriter::write(SrsFormat* format)
         int h = format->vcodec->height;
         ss  << "        <AdaptationSet mimeType=\"video/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
         ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
-                                << "initialization=\"$RepresentationID$-init.mp4\" "
-                                << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
+        << "initialization=\"$RepresentationID$-init.mp4\" "
+        << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
         ss  << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" "
-                                << "width=\"" << w << "\" height=\"" << h << "\"/>" << endl;
+        << "width=\"" << w << "\" height=\"" << h << "\"/>" << endl;
         ss  << "        </AdaptationSet>" << endl;
     }
     ss  << "    </Period>" << endl
-        << "</MPD>" << endl;
+    << "</MPD>" << endl;
     
     SrsFileWriter* fw = new SrsFileWriter();
     SrsAutoFree(SrsFileWriter, fw);
@@ -566,7 +566,7 @@ int SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* fo
     }
     
     bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame
-        && vcurrent->duration() >= fragment;
+    && vcurrent->duration() >= fragment;
     if (reopen) {
         if ((ret = vcurrent->reap()) != ERROR_SUCCESS) {
             return ret;

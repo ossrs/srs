@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_KERNEL_CONSTS_HPP
 #define SRS_KERNEL_CONSTS_HPP
-
-/*
-#include <srs_kernel_consts.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -52,20 +48,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
 
 /**
-* 6. Chunking
-* The chunk size is configurable. It can be set using a control
-* message(Set Chunk Size) as described in section 7.1. The maximum
-* chunk size can be 65536 bytes and minimum 128 bytes. Larger values
-* reduce CPU usage, but also commit to larger writes that can delay
-* other content on lower bandwidth connections. Smaller chunks are not
-* good for high-bit rate streaming. Chunk size is maintained
-* independently for each direction.
-*/
+ * 6. Chunking
+ * The chunk size is configurable. It can be set using a control
+ * message(Set Chunk Size) as described in section 7.1. The maximum
+ * chunk size can be 65536 bytes and minimum 128 bytes. Larger values
+ * reduce CPU usage, but also commit to larger writes that can delay
+ * other content on lower bandwidth connections. Smaller chunks are not
+ * good for high-bit rate streaming. Chunk size is maintained
+ * independently for each direction.
+ */
 #define SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 128
 #define SRS_CONSTS_RTMP_MAX_CHUNK_SIZE 65536
 
- 
-// the following is the timeout for rtmp protocol, 
+
+// the following is the timeout for rtmp protocol,
 // to avoid death connection.
 
 // Never timeout in ms
@@ -84,43 +80,43 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTMP_PULSE_TMMS (500)
 
 /**
-* max rtmp header size:
-*     1bytes basic header,
-*     11bytes message header,
-*     4bytes timestamp header,
-* that is, 1+11+4=16bytes.
-*/
+ * max rtmp header size:
+ *     1bytes basic header,
+ *     11bytes message header,
+ *     4bytes timestamp header,
+ * that is, 1+11+4=16bytes.
+ */
 #define SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE 16
 /**
-* max rtmp header size:
-*     1bytes basic header,
-*     4bytes timestamp header,
-* that is, 1+4=5bytes.
-*/
+ * max rtmp header size:
+ *     1bytes basic header,
+ *     4bytes timestamp header,
+ * that is, 1+4=5bytes.
+ */
 // always use fmt0 as cache.
 #define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
 /**
-* for performance issue, 
-* the iovs cache, @see https://github.com/ossrs/srs/issues/194
-* iovs cache for multiple messages for each connections.
-* suppose the chunk size is 64k, each message send in a chunk which needs only 2 iovec,
-* so the iovs max should be (SRS_PERF_MW_MSGS * 2)
-*
-* @remark, SRS will realloc when the iovs not enough.
-*/
+ * for performance issue,
+ * the iovs cache, @see https://github.com/ossrs/srs/issues/194
+ * iovs cache for multiple messages for each connections.
+ * suppose the chunk size is 64k, each message send in a chunk which needs only 2 iovec,
+ * so the iovs max should be (SRS_PERF_MW_MSGS * 2)
+ *
+ * @remark, SRS will realloc when the iovs not enough.
+ */
 #define SRS_CONSTS_IOVS_MAX (SRS_PERF_MW_MSGS * 2)
 /**
-* for performance issue, 
-* the c0c3 cache, @see https://github.com/ossrs/srs/issues/194
-* c0c3 cache for multiple messages for each connections.
-* each c0 <= 16byes, suppose the chunk size is 64k,
-* each message send in a chunk which needs only a c0 header,
-* so the c0c3 cache should be (SRS_PERF_MW_MSGS * 16)
-*
-* @remark, SRS will try another loop when c0c3 cache dry, for we cannot realloc it.
-*       so we use larger c0c3 cache, that is (SRS_PERF_MW_MSGS * 32)
-*/
+ * for performance issue,
+ * the c0c3 cache, @see https://github.com/ossrs/srs/issues/194
+ * c0c3 cache for multiple messages for each connections.
+ * each c0 <= 16byes, suppose the chunk size is 64k,
+ * each message send in a chunk which needs only a c0 header,
+ * so the c0c3 cache should be (SRS_PERF_MW_MSGS * 16)
+ *
+ * @remark, SRS will try another loop when c0c3 cache dry, for we cannot realloc it.
+ *       so we use larger c0c3 cache, that is (SRS_PERF_MW_MSGS * 32)
+ */
 #define SRS_CONSTS_C0C3_HEADERS_MAX (SRS_PERF_MW_MSGS * 32)
 
 ///////////////////////////////////////////////////////////

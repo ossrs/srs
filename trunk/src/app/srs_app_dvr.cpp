@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_dvr.hpp>
 
@@ -52,14 +52,14 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     fragment = new SrsFragment();
     fs = new SrsFileWriter();
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
-
+    
     _srs_config->subscribe(this);
 }
 
 SrsDvrSegmenter::~SrsDvrSegmenter()
 {
     _srs_config->unsubscribe(this);
-
+    
     srs_freep(fragment);
     srs_freep(jitter);
     srs_freep(fs);
@@ -74,7 +74,7 @@ int SrsDvrSegmenter::initialize(SrsDvrPlan* p, SrsRequest* r)
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost);
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
-
+    
     return ret;
 }
 
@@ -91,7 +91,7 @@ int SrsDvrSegmenter::open()
     if (fs->is_open()) {
         return ret;
     }
-
+    
     string path = generate_path();
     if (srs_path_exists(path)) {
         ret = ERROR_DVR_CANNOT_APPEND;
@@ -104,7 +104,7 @@ int SrsDvrSegmenter::open()
     if ((ret = fragment->create_dir()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // create jitter.
     srs_freep(jitter);
     jitter = new SrsRtmpJitter();
@@ -115,7 +115,7 @@ int SrsDvrSegmenter::open()
         srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
-
+    
     // initialize the encoder.
     if ((ret = open_encoder()) != ERROR_SUCCESS) {
         srs_error("initialize enc by fs for file %s failed. ret=%d", path.c_str(), ret);
@@ -123,7 +123,7 @@ int SrsDvrSegmenter::open()
     }
     
     srs_trace("dvr stream %s to file %s", req->stream.c_str(), path.c_str());
-
+    
     return ret;
 }
 
@@ -184,7 +184,7 @@ int SrsDvrSegmenter::close()
     if (!fs->is_open()) {
         return ret;
     }
-
+    
     // Close the encoder, then close the fs object.
     if ((ret = close_encoder()) != ERROR_SUCCESS) {
         return ret;
@@ -196,14 +196,14 @@ int SrsDvrSegmenter::close()
     if ((ret = fragment->rename()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // TODO: FIXME: the http callback is async, which will trigger thread switch,
     //          so the on_video maybe invoked during the http callback, and error.
     if ((ret = plan->on_reap_segment()) != ERROR_SUCCESS) {
         srs_error("dvr: notify plan to reap segment failed. ret=%d", ret);
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -218,7 +218,7 @@ int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
 
 string SrsDvrSegmenter::generate_path()
 {
-    // the path in config, for example, 
+    // the path in config, for example,
     //      /data/[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv
     std::string path_config = _srs_config->get_dvr_path(req->vhost);
     
@@ -231,7 +231,7 @@ string SrsDvrSegmenter::generate_path()
     std::string flv_path = path_config;
     flv_path = srs_path_build_stream(flv_path, req->vhost, req->app, req->stream);
     flv_path = srs_path_build_timestamp(flv_path);
-
+    
     return flv_path;
 }
 
@@ -336,7 +336,7 @@ int SrsDvrFlvSegmenter::open_encoder()
     if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     // write the flv header to writer.
     if ((ret = enc->write_header()) != ERROR_SUCCESS) {
         srs_error("write flv header failed. ret=%d", ret);
@@ -430,7 +430,7 @@ int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video)
     int size = video->size;
     bool sh = SrsFlvVideo::sh(payload, size);
     bool keyframe = SrsFlvVideo::h264(payload, size)
-        && SrsFlvVideo::keyframe(payload, size) && !sh;
+    && SrsFlvVideo::keyframe(payload, size) && !sh;
     
     if (keyframe) {
         has_keyframe = true;
@@ -630,7 +630,7 @@ int SrsDvrAsyncCallOnDvr::call()
             return ret;
         }
     }
-
+    
     return ret;
 }
 
@@ -644,7 +644,7 @@ string SrsDvrAsyncCallOnDvr::to_string()
 SrsDvrPlan::SrsDvrPlan()
 {
     req = NULL;
-
+    
     dvr_enabled = false;
     segment = NULL;
     async = new SrsAsyncCallWorker();
@@ -663,15 +663,15 @@ int SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
     hub = h;
     req = r;
     segment = s;
-
+    
     if ((ret = segment->initialize(this, r)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = async->start()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -693,7 +693,7 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio)
     if (!dvr_enabled) {
         return ret;
     }
-
+    
     if ((ret = segment->write_audio(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -708,7 +708,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video)
     if (!dvr_enabled) {
         return ret;
     }
-
+    
     if ((ret = segment->write_video(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -719,7 +719,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video)
 int SrsDvrPlan::on_reap_segment()
 {
     int ret = ERROR_SUCCESS;
-
+    
     int cid = _srs_context->get_id();
     
     SrsFragment* fragment = segment->current();
@@ -728,7 +728,7 @@ int SrsDvrPlan::on_reap_segment()
     if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -766,21 +766,21 @@ int SrsDvrSessionPlan::on_publish()
     if (dvr_enabled) {
         return ret;
     }
-
+    
     if (!_srs_config->get_dvr_enabled(req->vhost)) {
         return ret;
     }
-
+    
     if ((ret = segment->close()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = segment->open()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     dvr_enabled = true;
-
+    
     return ret;
 }
 
@@ -835,21 +835,21 @@ int SrsDvrSegmentPlan::on_publish()
     if (dvr_enabled) {
         return ret;
     }
-
+    
     if (!_srs_config->get_dvr_enabled(req->vhost)) {
         return ret;
     }
-
+    
     if ((ret = segment->close()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     if ((ret = segment->open()) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     dvr_enabled = true;
-
+    
     return ret;
 }
 
@@ -860,7 +860,7 @@ void SrsDvrSegmentPlan::on_unpublish()
 int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
-
+    
     if ((ret = update_duration(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -868,14 +868,14 @@ int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio)
     if ((ret = SrsDvrPlan::on_audio(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
 int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
-
+    
     if ((ret = update_duration(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -883,7 +883,7 @@ int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video)
     if ((ret = SrsDvrPlan::on_video(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
     return ret;
 }
 
@@ -909,8 +909,8 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         char* payload = msg->payload;
         int size = msg->size;
         bool is_key_frame = SrsFlvVideo::h264(payload, size)
-            && SrsFlvVideo::keyframe(payload, size)
-            && !SrsFlvVideo::sh(payload, size);
+        && SrsFlvVideo::keyframe(payload, size)
+        && !SrsFlvVideo::sh(payload, size);
         if (!is_key_frame) {
             return ret;
         }
@@ -971,7 +971,7 @@ SrsDvr::~SrsDvr()
 int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
-
+    
     req = r;
     hub = h;
     
@@ -1027,7 +1027,7 @@ int SrsDvr::on_meta_data(SrsSharedPtrMessage* metadata)
     if (!actived) {
         return ret;
     }
-
+    
     if ((ret = plan->on_meta_data(metadata)) != ERROR_SUCCESS) {
         return ret;
     }

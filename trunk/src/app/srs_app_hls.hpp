@@ -1,32 +1,29 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_HLS_HPP
 #define SRS_APP_HLS_HPP
 
-/*
-#include <srs_app_hls.hpp>
-*/
 #include <srs_core.hpp>
 
 #include <string>
@@ -54,11 +51,11 @@ class SrsHlsSegment;
 class SrsTsContext;
 
 /**
-* the wrapper of m3u8 segment from specification:
-*
-* 3.3.2.  EXTINF
-* The EXTINF tag specifies the duration of a media segment.
-*/
+ * the wrapper of m3u8 segment from specification:
+ *
+ * 3.3.2.  EXTINF
+ * The EXTINF tag specifies the duration of a media segment.
+ */
 class SrsHlsSegment : public SrsFragment
 {
 public:
@@ -116,13 +113,13 @@ public:
 };
 
 /**
-* muxer the HLS stream(m3u8 and ts files).
-* generally, the m3u8 muxer only provides methods to open/close segments,
-* to flush video/audio, without any mechenisms.
-* 
-* that is, user must use HlsCache, which will control the methods of muxer,
-* and provides HLS mechenisms.
-*/
+ * muxer the HLS stream(m3u8 and ts files).
+ * generally, the m3u8 muxer only provides methods to open/close segments,
+ * to flush video/audio, without any mechenisms.
+ *
+ * that is, user must use HlsCache, which will control the methods of muxer,
+ * and provides HLS mechenisms.
+ */
 class SrsHlsMuxer
 {
 private:
@@ -176,12 +173,12 @@ public:
     virtual int deviation();
 public:
     /**
-    * initialize the hls muxer.
-    */
+     * initialize the hls muxer.
+     */
     virtual int initialize();
     /**
-    * when publish, update the config for muxer.
-    */
+     * when publish, update the config for muxer.
+     */
     virtual int update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
         double fragment, double window, bool ts_floor, double aof_ratio,
@@ -192,19 +189,19 @@ public:
     virtual int segment_open();
     virtual int on_sequence_header();
     /**
-    * whether segment overflow,
-    * that is whether the current segment duration>=(the segment in config)
-    */
+     * whether segment overflow,
+     * that is whether the current segment duration>=(the segment in config)
+     */
     virtual bool is_segment_overflow();
     /**
      * whether wait keyframe to reap the ts.
      */
     virtual bool wait_keyframe();
     /**
-    * whether segment absolutely overflow, for pure audio to reap segment,
-    * that is whether the current segment duration>=2*(the segment in config)
-    * @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
-    */
+     * whether segment absolutely overflow, for pure audio to reap segment,
+     * that is whether the current segment duration>=2*(the segment in config)
+     * @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
+     */
     virtual bool is_segment_absolutely_overflow();
 public:
     /**
@@ -223,22 +220,22 @@ private:
 };
 
 /**
-* hls stream cache, 
-* use to cache hls stream and flush to hls muxer.
-* 
-* when write stream to ts file:
-* video frame will directly flush to M3u8Muxer,
-* audio frame need to cache, because it's small and flv tbn problem.
-* 
-* whatever, the Hls cache used to cache video/audio,
-* and flush video/audio to m3u8 muxer if needed.
-* 
-* about the flv tbn problem:
-*   flv tbn is 1/1000, ts tbn is 1/90000,
-*   when timestamp convert to flv tbn, it will loose precise,
-*   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
-*   we use a aac jitter to correct the audio pts.
-*/
+ * hls stream cache,
+ * use to cache hls stream and flush to hls muxer.
+ *
+ * when write stream to ts file:
+ * video frame will directly flush to M3u8Muxer,
+ * audio frame need to cache, because it's small and flv tbn problem.
+ *
+ * whatever, the Hls cache used to cache video/audio,
+ * and flush video/audio to m3u8 muxer if needed.
+ *
+ * about the flv tbn problem:
+ *   flv tbn is 1/1000, ts tbn is 1/90000,
+ *   when timestamp convert to flv tbn, it will loose precise,
+ *   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
+ *   we use a aac jitter to correct the audio pts.
+ */
 class SrsHlsController
 {
 private:
@@ -259,39 +256,39 @@ public:
     virtual int deviation();
 public:
     /**
-    * when publish or unpublish stream.
-    */
+     * when publish or unpublish stream.
+     */
     virtual int on_publish(SrsRequest* req);
     virtual int on_unpublish();
     /**
-    * when get sequence header, 
-    * must write a #EXT-X-DISCONTINUITY to m3u8.
-    * @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
-    * @see: 3.4.11.  EXT-X-DISCONTINUITY
-    */
+     * when get sequence header,
+     * must write a #EXT-X-DISCONTINUITY to m3u8.
+     * @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
+     * @see: 3.4.11.  EXT-X-DISCONTINUITY
+     */
     virtual int on_sequence_header();
     /**
-    * write audio to cache, if need to flush, flush to muxer.
-    */
+     * write audio to cache, if need to flush, flush to muxer.
+     */
     virtual int write_audio(SrsAudioFrame* frame, int64_t pts);
     /**
-    * write video to muxer.
-    */
+     * write video to muxer.
+     */
     virtual int write_video(SrsVideoFrame* frame, int64_t dts);
 private:
     /**
-    * reopen the muxer for a new hls segment,
-    * close current segment, open a new segment,
-    * then write the key frame to the new segment.
-    * so, user must reap_segment then flush_video to hls muxer.
-    */
+     * reopen the muxer for a new hls segment,
+     * close current segment, open a new segment,
+     * then write the key frame to the new segment.
+     * so, user must reap_segment then flush_video to hls muxer.
+     */
     virtual int reap_segment();
 };
 
 /**
-* Transmux RTMP stream to HLS(m3u8 and ts).
-* TODO: FIXME: add utest for hls.
-*/
+ * Transmux RTMP stream to HLS(m3u8 and ts).
+ * TODO: FIXME: add utest for hls.
+ */
 class SrsHls
 {
 private:
@@ -313,8 +310,8 @@ public:
     virtual int cycle();
 public:
     /**
-    * initialize the hls by handler and source.
-    */
+     * initialize the hls by handler and source.
+     */
     virtual int initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
@@ -323,14 +320,14 @@ public:
      */
     virtual int on_publish();
     /**
-    * the unpublish event, only close the muxer, donot destroy the 
-    * muxer, for when we continue to publish, the m3u8 will continue.
-    */
+     * the unpublish event, only close the muxer, donot destroy the
+     * muxer, for when we continue to publish, the m3u8 will continue.
+     */
     virtual void on_unpublish();
     /**
-    * mux the audio packets to ts.
-    * @param shared_audio, directly ptr, copy it if need to save it.
-    */
+     * mux the audio packets to ts.
+     * @param shared_audio, directly ptr, copy it if need to save it.
+     */
     virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     /**
      * mux the video packets to ts.

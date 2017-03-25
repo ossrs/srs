@@ -1,32 +1,29 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_DVR_HPP
 #define SRS_APP_DVR_HPP
 
-/*
-#include <srs_app_dvr.hpp>
-*/
 #include <srs_core.hpp>
 
 #include <string>
@@ -166,8 +163,8 @@ protected:
 };
 
 /**
-* the dvr async call.
-*/
+ * the dvr async call.
+ */
 class SrsDvrAsyncCallOnDvr : public ISrsAsyncCallTask
 {
 private:
@@ -184,7 +181,7 @@ public:
 
 /**
  * The DVR plan, when and how to reap segment.
-*/
+ */
 class SrsDvrPlan : public ISrsReloadHandler
 {
 public:
@@ -204,7 +201,7 @@ public:
     virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
     virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     virtual int on_video(SrsSharedPtrMessage* shared_video);
-// Internal interface for segmenter.
+    // Internal interface for segmenter.
 public:
     // When segmenter close a segment.
     virtual int on_reap_segment();
@@ -281,23 +278,23 @@ public:
      */
     virtual int on_publish();
     /**
-    * the unpublish event.,
-    * when encoder stop(unpublish) to publish RTMP stream.
-    */
+     * the unpublish event.,
+     * when encoder stop(unpublish) to publish RTMP stream.
+     */
     virtual void on_unpublish();
     /**
-    * get some information from metadata, it's optinal.
-    */
+     * get some information from metadata, it's optinal.
+     */
     virtual int on_meta_data(SrsSharedPtrMessage* metadata);
     /**
-    * mux the audio packets to dvr.
-    * @param shared_audio, directly ptr, copy it if need to save it.
-    */
+     * mux the audio packets to dvr.
+     * @param shared_audio, directly ptr, copy it if need to save it.
+     */
     virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     /**
-    * mux the video packets to dvr.
-    * @param shared_video, directly ptr, copy it if need to save it.
-    */
+     * mux the video packets to dvr.
+     * @param shared_video, directly ptr, copy it if need to save it.
+     */
     virtual int on_video(SrsSharedPtrMessage* shared_video);
 // interface ISrsReloadHandler
 public:

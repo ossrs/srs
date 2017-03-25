@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_protocol_amf0.hpp>
 
@@ -210,8 +210,8 @@ void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
     } else if (any->is_string()) {
         ss << "String " << any->to_str() << endl;
     } else if (any->is_date()) {
-        ss << "Date " << std::hex << any->to_date() 
-            << "/" << std::hex << any->to_date_time_zone() << endl;
+        ss << "Date " << std::hex << any->to_date()
+        << "/" << std::hex << any->to_date_time_zone() << endl;
     } else if (any->is_null()) {
         ss << "Null" << endl;
     } else if (any->is_ecma_array()) {
@@ -618,7 +618,7 @@ int SrsAmf0ObjectEOF::read(SrsBuffer* stream)
     if (temp != 0x00) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 read object eof value check failed. "
-            "must be 0x00, actual is %#x, ret=%d", temp, ret);
+                  "must be 0x00, actual is %#x, ret=%d", temp, ret);
         return ret;
     }
     
@@ -633,7 +633,7 @@ int SrsAmf0ObjectEOF::read(SrsBuffer* stream)
     if (marker != RTMP_AMF0_ObjectEnd) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check object eof marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_ObjectEnd, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_ObjectEnd, ret);
         return ret;
     }
     srs_verbose("amf0 read object eof marker success");
@@ -719,7 +719,7 @@ int SrsAmf0Object::read(SrsBuffer* stream)
     if (marker != RTMP_AMF0_Object) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check object marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
         return ret;
     }
     srs_verbose("amf0 read object marker success");
@@ -747,7 +747,7 @@ int SrsAmf0Object::read(SrsBuffer* stream)
         SrsAmf0Any* property_value = NULL;
         if ((ret = srs_amf0_read_any(stream, &property_value)) != ERROR_SUCCESS) {
             srs_error("amf0 object read property_value failed. "
-                "name=%s, ret=%d", property_name.c_str(), ret);
+                      "name=%s, ret=%d", property_name.c_str(), ret);
             srs_freep(property_value);
             return ret;
         }
@@ -918,11 +918,11 @@ int SrsAmf0EcmaArray::read(SrsBuffer* stream)
     if (marker != RTMP_AMF0_EcmaArray) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check ecma_array marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_EcmaArray, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_EcmaArray, ret);
         return ret;
     }
     srs_verbose("amf0 read ecma_array marker success");
-
+    
     // count
     if (!stream->require(4)) {
         ret = ERROR_RTMP_AMF0_DECODE;
@@ -935,7 +935,7 @@ int SrsAmf0EcmaArray::read(SrsBuffer* stream)
     
     // value
     this->_count = count;
-
+    
     while (!stream->empty()) {
         // detect whether is eof.
         if (srs_amf0_is_object_eof(stream)) {
@@ -958,7 +958,7 @@ int SrsAmf0EcmaArray::read(SrsBuffer* stream)
         SrsAmf0Any* property_value = NULL;
         if ((ret = srs_amf0_read_any(stream, &property_value)) != ERROR_SUCCESS) {
             srs_error("amf0 ecma_array read property_value failed. "
-                "name=%s, ret=%d", property_name.c_str(), ret);
+                      "name=%s, ret=%d", property_name.c_str(), ret);
             return ret;
         }
         
@@ -981,7 +981,7 @@ int SrsAmf0EcmaArray::write(SrsBuffer* stream)
     
     stream->write_1bytes(RTMP_AMF0_EcmaArray);
     srs_verbose("amf0 write ecma_array marker success");
-
+    
     // count
     if (!stream->require(4)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
@@ -1130,11 +1130,11 @@ int SrsAmf0StrictArray::read(SrsBuffer* stream)
     if (marker != RTMP_AMF0_StrictArray) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check strict_array marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_StrictArray, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_StrictArray, ret);
         return ret;
     }
     srs_verbose("amf0 read strict_array marker success");
-
+    
     // count
     if (!stream->require(4)) {
         ret = ERROR_RTMP_AMF0_DECODE;
@@ -1147,7 +1147,7 @@ int SrsAmf0StrictArray::read(SrsBuffer* stream)
     
     // value
     this->_count = count;
-
+    
     for (int i = 0; i < count && !stream->empty(); i++) {
         // property-value: any
         SrsAmf0Any* elem = NULL;
@@ -1175,7 +1175,7 @@ int SrsAmf0StrictArray::write(SrsBuffer* stream)
     
     stream->write_1bytes(RTMP_AMF0_StrictArray);
     srs_verbose("amf0 write strict_array marker success");
-
+    
     // count
     if (!stream->require(4)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
@@ -1454,14 +1454,14 @@ int SrsAmf0Date::read(SrsBuffer* stream)
     if (marker != RTMP_AMF0_Date) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check date marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Date, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Date, ret);
         return ret;
     }
     srs_verbose("amf0 read date marker success");
-
+    
     // date value
-    // An ActionScript Date is serialized as the number of milliseconds 
-    // elapsed since the epoch of midnight on 1st Jan 1970 in the UTC 
+    // An ActionScript Date is serialized as the number of milliseconds
+    // elapsed since the epoch of midnight on 1st Jan 1970 in the UTC
     // time zone.
     if (!stream->require(8)) {
         ret = ERROR_RTMP_AMF0_DECODE;
@@ -1473,9 +1473,9 @@ int SrsAmf0Date::read(SrsBuffer* stream)
     srs_verbose("amf0 read date success. date=%"PRId64, _date_value);
     
     // time zone
-    // While the design of this type reserves room for time zone offset 
-    // information, it should not be filled in, nor used, as it is unconventional 
-    // to change time zones when serializing dates on a network. It is suggested 
+    // While the design of this type reserves room for time zone offset
+    // information, it should not be filled in, nor used, as it is unconventional
+    // to change time zones when serializing dates on a network. It is suggested
     // that the time zone be queried independently as needed.
     if (!stream->require(2)) {
         ret = ERROR_RTMP_AMF0_DECODE;
@@ -1501,7 +1501,7 @@ int SrsAmf0Date::write(SrsBuffer* stream)
     
     stream->write_1bytes(RTMP_AMF0_Date);
     srs_verbose("amf0 write date marker success");
-
+    
     // date value
     if (!stream->require(8)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
@@ -1511,7 +1511,7 @@ int SrsAmf0Date::write(SrsBuffer* stream)
     
     stream->write_8bytes(_date_value);
     srs_verbose("amf0 write date success. date=%"PRId64, _date_value);
-
+    
     // time zone
     if (!stream->require(2)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
@@ -1642,7 +1642,7 @@ int srs_amf0_read_string(SrsBuffer* stream, string& value)
     if (marker != RTMP_AMF0_String) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check string marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_String, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_String, ret);
         return ret;
     }
     srs_verbose("amf0 read string marker success");
@@ -1682,18 +1682,18 @@ int srs_amf0_read_boolean(SrsBuffer* stream, bool& value)
     if (marker != RTMP_AMF0_Boolean) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check bool marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Boolean, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Boolean, ret);
         return ret;
     }
     srs_verbose("amf0 read bool marker success");
-
+    
     // value
     if (!stream->require(1)) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 read bool value failed. ret=%d", ret);
         return ret;
     }
-
+    
     value = (stream->read_1bytes() != 0);
     
     srs_verbose("amf0 read bool value success. value=%d", value);
@@ -1712,14 +1712,14 @@ int srs_amf0_write_boolean(SrsBuffer* stream, bool value)
     }
     stream->write_1bytes(RTMP_AMF0_Boolean);
     srs_verbose("amf0 write bool marker success");
-
+    
     // value
     if (!stream->require(1)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
         srs_error("amf0 write bool value failed. ret=%d", ret);
         return ret;
     }
-
+    
     if (value) {
         stream->write_1bytes(0x01);
     } else {
@@ -1746,18 +1746,18 @@ int srs_amf0_read_number(SrsBuffer* stream, double& value)
     if (marker != RTMP_AMF0_Number) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check number marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Number, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Number, ret);
         return ret;
     }
     srs_verbose("amf0 read number marker success");
-
+    
     // value
     if (!stream->require(8)) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 read number value failed. ret=%d", ret);
         return ret;
     }
-
+    
     int64_t temp = stream->read_8bytes();
     memcpy(&value, &temp, 8);
     
@@ -1778,14 +1778,14 @@ int srs_amf0_write_number(SrsBuffer* stream, double value)
     
     stream->write_1bytes(RTMP_AMF0_Number);
     srs_verbose("amf0 write number marker success");
-
+    
     // value
     if (!stream->require(8)) {
         ret = ERROR_RTMP_AMF0_ENCODE;
         srs_error("amf0 write number value failed. ret=%d", ret);
         return ret;
     }
-
+    
     int64_t temp = 0x00;
     memcpy(&temp, &value, 8);
     stream->write_8bytes(temp);
@@ -1810,7 +1810,7 @@ int srs_amf0_read_null(SrsBuffer* stream)
     if (marker != RTMP_AMF0_Null) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check null marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Null, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Null, ret);
         return ret;
     }
     srs_verbose("amf0 read null success");
@@ -1849,7 +1849,7 @@ int srs_amf0_read_undefined(SrsBuffer* stream)
     if (marker != RTMP_AMF0_Undefined) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check undefined marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Undefined, ret);
+                  "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Undefined, ret);
         return ret;
     }
     srs_verbose("amf0 read undefined success");
@@ -1908,13 +1908,13 @@ namespace _srs_internal
         // UTF8-1 = %x00-7F
         // TODO: support other utf-8 strings
         /*for (int i = 0; i < len; i++) {
-            char ch = *(str.data() + i);
-            if ((ch & 0x80) != 0) {
-                ret = ERROR_RTMP_AMF0_DECODE;
-                srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
-                ret = ERROR_SUCCESS;
-            }
-        }*/
+         char ch = *(str.data() + i);
+         if ((ch & 0x80) != 0) {
+         ret = ERROR_RTMP_AMF0_DECODE;
+         srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
+         ret = ERROR_SUCCESS;
+         }
+         }*/
         
         value = str;
         srs_verbose("amf0 read string data success. str=%s", str.c_str());
@@ -1952,7 +1952,7 @@ namespace _srs_internal
         return ret;
     }
     
-    bool srs_amf0_is_object_eof(SrsBuffer* stream) 
+    bool srs_amf0_is_object_eof(SrsBuffer* stream)
     {
         // detect the object-eof specially
         if (stream->require(3)) {
@@ -1993,7 +1993,7 @@ namespace _srs_internal
         
         return ret;
     }
-
+    
     int srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value)
     {
         srs_assert(value != NULL);

@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_http_client.hpp>
 
@@ -147,17 +147,17 @@ int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
 int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
-
+    
     int ret = ERROR_SUCCESS;
     
     // always set the content length.
     headers["Content-Length"] = srs_int2str(req.length());
-
+    
     if ((ret = connect()) != ERROR_SUCCESS) {
         srs_warn("http connect server failed. ret=%d", ret);
         return ret;
     }
-
+    
     // send POST request to uri
     // GET %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
@@ -168,7 +168,7 @@ int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
         ss << key << ": " << value << SRS_HTTP_CRLF;
     }
     ss << SRS_HTTP_CRLF << req;
-
+    
     std::string data = ss.str();
     if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // Disconnect the transport when channel error, reconnect for next operation.
@@ -176,21 +176,21 @@ int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
         srs_error("write http get failed. ret=%d", ret);
         return ret;
     }
-
+    
     ISrsHttpMessage* msg = NULL;
     if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
     srs_assert(msg);
-
+    
     if (ppmsg) {
         *ppmsg = msg;
     } else {
         srs_freep(msg);
     }
     srs_info("parse http get response success.");
-
+    
     return ret;
 }
 

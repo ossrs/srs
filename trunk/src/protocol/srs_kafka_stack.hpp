@@ -1,32 +1,29 @@
-/*
- The MIT License (MIT)
- 
- Copyright (c) 2013-2017 SRS(ossrs)
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy of
- this software and associated documentation files (the "Software"), to deal in
- the Software without restriction, including without limitation the rights to
- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- the Software, and to permit persons to whom the Software is furnished to do so,
- subject to the following conditions:
- 
- The above copyright notice and this permission notice shall be included in all
- copies or substantial portions of the Software.
- 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef SRS_PROTOCOL_KAFKA_HPP
 #define SRS_PROTOCOL_KAFKA_HPP
 
-/*
-#include <srs_kafka_stack.hpp>
-*/
 #include <srs_core.hpp>
 
 #include <vector>
@@ -62,7 +59,7 @@ enum SrsKafkaApiKey
 };
 
 /**
- * These types consist of a signed integer giving a length N followed by N bytes of content. 
+ * These types consist of a signed integer giving a length N followed by N bytes of content.
  * A length of -1 indicates null. string uses an int16 for its size, and bytes uses an int32.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ProtocolPrimitiveTypes
  */
@@ -117,11 +114,11 @@ public:
 };
 
 /**
- * This is a notation for handling repeated structures. These will always be encoded as an 
- * int32 size containing the length N followed by N repetitions of the structure which can 
- * itself be made up of other primitive types. In the BNF grammars below we will show an 
+ * This is a notation for handling repeated structures. These will always be encoded as an
+ * int32 size containing the length N followed by N repetitions of the structure which can
+ * itself be made up of other primitive types. In the BNF grammars below we will show an
  * array of a structure foo as [foo].
- * 
+ *
  * Usage:
  *      SrsKafkaArray<SrsKafkaBytes> body;
  *      body.append(new SrsKafkaBytes());
@@ -260,7 +257,7 @@ public:
     {
         return elems.at(index);
     }
-    // interface ISrsCodec
+// interface ISrsCodec
 public:
     virtual int nb_bytes()
     {
@@ -327,15 +324,15 @@ private:
     int32_t _size;
 private:
     /**
-     * This is a numeric id for the API being invoked (i.e. is it 
+     * This is a numeric id for the API being invoked (i.e. is it
      * a metadata request, a produce request, a fetch request, etc).
      * @remark MetadataRequest | ProduceRequest | FetchRequest | OffsetRequest | OffsetCommitRequest | OffsetFetchRequest
      */
     int16_t _api_key;
     /**
-     * This is a numeric version number for this api. We version each API and 
-     * this version number allows the server to properly interpret the request 
-     * as the protocol evolves. Responses will always be in the format corresponding 
+     * This is a numeric version number for this api. We version each API and
+     * this version number allows the server to properly interpret the request
+     * as the protocol evolves. Responses will always be in the format corresponding
      * to the request version. Currently the supported version for all APIs is 0.
      */
     int16_t api_version;
@@ -346,7 +343,7 @@ private:
      */
     int32_t _correlation_id;
     /**
-     * This is a user supplied identifier for the client application. 
+     * This is a user supplied identifier for the client application.
      * The user can use any identifier they like and it will be used
      * when logging errors, monitoring aggregates, etc. For example,
      * one might want to monitor not just the requests per second overall,
@@ -493,7 +490,7 @@ public:
  */
 struct SrsKafkaRawMessage : public ISrsCodec
 {
-// metadata.
+    // metadata.
 public:
     /**
      * This is the offset used in kafka as the log sequence number. When the
@@ -505,15 +502,15 @@ public:
      * the size of this message.
      */
     int32_t message_size;
-// message.
+    // message.
 public:
     /**
-     * The CRC is the CRC32 of the remainder of the message bytes. 
+     * The CRC is the CRC32 of the remainder of the message bytes.
      * This is used to check the integrity of the message on the broker and consumer.
      */
     int32_t crc;
     /**
-     * This is a version id used to allow backwards compatible evolution 
+     * This is a version id used to allow backwards compatible evolution
      * of the message binary format. The current value is 0.
      */
     int8_t magic_byte;
@@ -524,7 +521,7 @@ public:
      */
     int8_t attributes;
     /**
-     * The key is an optional message key that was used for 
+     * The key is an optional message key that was used for
      * partition assignment. The key can be null.
      */
     SrsKafkaBytes* key;
@@ -592,7 +589,7 @@ public:
      */
     virtual void update_header(int s);
     /**
-     * get the correlation id of header for message. 
+     * get the correlation id of header for message.
      */
     virtual int32_t correlation_id();
     /**
@@ -638,7 +635,7 @@ public:
  *      What is the host and port for each of these brokers?
  * This is the only request that can be addressed to any broker in the cluster.
  *
- * Since there may be many topics the client can give an optional list of topic 
+ * Since there may be many topics the client can give an optional list of topic
  * names in order to only return metadata for a subset of topics.
  *
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-MetadataAPI
@@ -713,9 +710,9 @@ public:
 
 /**
  * response for the metadata request from broker.
- * The response contains metadata for each partition, 
- * with partitions grouped together by topic. This 
- * metadata refers to brokers by their broker id. 
+ * The response contains metadata for each partition,
+ * with partitions grouped together by topic. This
+ * metadata refers to brokers by their broker id.
  * The brokers each have a host and port.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-MetadataResponse
  */
@@ -786,25 +783,25 @@ class SrsKafkaProducerRequest : public SrsKafkaRequest
 {
 public:
     /**
-     * This field indicates how many acknowledgements the servers should receive 
-     * before responding to the request. If it is 0 the server will not send any 
-     * response (this is the only case where the server will not reply to a request). 
-     * If it is 1, the server will wait the data is written to the local log 
-     * before sending a response. If it is -1 the server will block until the 
-     * message is committed by all in sync replicas before sending a response. 
-     * For any number > 1 the server will block waiting for this number of 
-     * acknowledgements to occur (but the server will never wait for more 
+     * This field indicates how many acknowledgements the servers should receive
+     * before responding to the request. If it is 0 the server will not send any
+     * response (this is the only case where the server will not reply to a request).
+     * If it is 1, the server will wait the data is written to the local log
+     * before sending a response. If it is -1 the server will block until the
+     * message is committed by all in sync replicas before sending a response.
+     * For any number > 1 the server will block waiting for this number of
+     * acknowledgements to occur (but the server will never wait for more
      * acknowledgements than there are in-sync replicas).
      */
     int16_t required_acks;
     /**
-     * This provides a maximum time in milliseconds the server can await the receipt 
-     * of the number of acknowledgements in RequiredAcks. The timeout is not an exact 
-     * limit on the request time for a few reasons: (1) it does not include network 
-     * latency, (2) the timer begins at the beginning of the processing of this request 
-     * so if many requests are queued due to server overload that wait time will not 
-     * be included, (3) we will not terminate a local write so if the local write 
-     * time exceeds this timeout it will not be respected. To get a hard timeout of 
+     * This provides a maximum time in milliseconds the server can await the receipt
+     * of the number of acknowledgements in RequiredAcks. The timeout is not an exact
+     * limit on the request time for a few reasons: (1) it does not include network
+     * latency, (2) the timer begins at the beginning of the processing of this request
+     * so if many requests are queued due to server overload that wait time will not
+     * be included, (3) we will not terminate a local write so if the local write
+     * time exceeds this timeout it will not be respected. To get a hard timeout of
      * this type the client should use the socket timeout.
      */
     int32_t timeout;
@@ -824,8 +821,8 @@ public:
 
 /**
  * the poll to discovery reponse.
- * @param CorrelationId This is a user-supplied integer. It will be passed back 
- *          in the response by the server, unmodified. It is useful for matching 
+ * @param CorrelationId This is a user-supplied integer. It will be passed back
+ *          in the response by the server, unmodified. It is useful for matching
  *          request and response between the client and server.
  * @see https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
  */

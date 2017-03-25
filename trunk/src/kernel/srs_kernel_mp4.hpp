@@ -1,32 +1,29 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 SRS(ossrs)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_KERNEL_MP4_HPP
 #define SRS_KERNEL_MP4_HPP
 
-/*
-#include <srs_kernel_mp4.hpp>
-*/
 #include <srs_core.hpp>
 
 #include <srs_kernel_buffer.hpp>
@@ -201,7 +198,7 @@ public:
 protected:
     virtual int encode_boxes(SrsBuffer* buf);
     virtual int decode_boxes(SrsBuffer* buf);
-// Sub classes can override these functions for special codec.
+    // Sub classes can override these functions for special codec.
 protected:
     // The size of header, not including the contained boxes.
     virtual int nb_header();
@@ -243,9 +240,9 @@ protected:
 /**
  * 4.3 File Type Box (ftyp)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 17
- * Files written to this version of this specification must contain a file-type box. For compatibility with an earlier 
- * version of this specification, files may be conformant to this specification and not contain a file-type box. Files 
- * with no file-type box should be read as if they contained an FTYP box with Major_brand='mp41', minor_version=0, and 
+ * Files written to this version of this specification must contain a file-type box. For compatibility with an earlier
+ * version of this specification, files may be conformant to this specification and not contain a file-type box. Files
+ * with no file-type box should be read as if they contained an FTYP box with Major_brand='mp41', minor_version=0, and
  * the single compatible brand 'mp41'.
  */
 class SrsMp4FileTypeBox : public SrsMp4Box
@@ -273,9 +270,9 @@ protected:
 /**
  * 8.1.1 Media Data Box (mdat)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 29
- * This box contains the media data. In video tracks, this box would contain video frames. 
- * A presentation may contain zero or more Media Data Boxes. The actual media data follows the type field; 
- * its structure is described by the metadata (see particularly the sample table, subclause 8.5, and the 
+ * This box contains the media data. In video tracks, this box would contain video frames.
+ * A presentation may contain zero or more Media Data Boxes. The actual media data follows the type field;
+ * its structure is described by the metadata (see particularly the sample table, subclause 8.5, and the
  * item location box, subclause 8.11.3).
  */
 class SrsMp4MediaDataBox : public SrsMp4Box
@@ -449,8 +446,8 @@ protected:
 /**
  * 8.3.1 Track Box (trak)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 32
- * This is a container box for a single track of a presentation. A presentation consists of one or more tracks. 
- * Each track is independent of the other tracks in the presentation and carries its own temporal and spatial 
+ * This is a container box for a single track of a presentation. A presentation consists of one or more tracks.
+ * Each track is independent of the other tracks in the presentation and carries its own temporal and spatial
  * information. Each track will contain its associated Media Box.
  */
 class SrsMp4TrackBox : public SrsMp4Box
@@ -568,7 +565,7 @@ protected:
 /**
  * 8.6.5 Edit Box (edts)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 54
- * An Edit Box maps the presentation time-line to the media time-line as it is stored in the file. 
+ * An Edit Box maps the presentation time-line to the media time-line as it is stored in the file.
  * The Edit Box is a container for the edit lists.
  */
 class SrsMp4EditBox : public SrsMp4Box
@@ -606,8 +603,8 @@ public:
 /**
  * 8.6.6 Edit List Box (elst)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 54
- * This box contains an explicit timeline map. Each entry defines part of the track time-line: by mapping part of 
- * the media time-line, or by indicating ‘empty’ time, or by defining a ‘dwell’, where a single time-point in the 
+ * This box contains an explicit timeline map. Each entry defines part of the track time-line: by mapping part of
+ * the media time-line, or by indicating ‘empty’ time, or by defining a ‘dwell’, where a single time-point in the
  * media is held for a period.
  */
 class SrsMp4EditListBox : public SrsMp4FullBox
@@ -761,7 +758,7 @@ public:
 /**
  * 8.4.5.2 Video Media Header Box (vmhd)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 38
- * The video media header contains general presentation information, independent of the coding, for video 
+ * The video media header contains general presentation information, independent of the coding, for video
  * media. Note that the flags field has the value 1.
  */
 class SrsMp4VideoMeidaHeaderBox : public SrsMp4FullBox
@@ -785,7 +782,7 @@ protected:
 /**
  * 8.4.5.3 Sound Media Header Box (smhd)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 39
- * The sound media header contains general presentation information, independent of the coding, for audio 
+ * The sound media header contains general presentation information, independent of the coding, for audio
  * media. This header is used for all tracks containing audio.
  */
 class SrsMp4SoundMeidaHeaderBox : public SrsMp4FullBox
@@ -870,8 +867,8 @@ protected:
 /**
  * 8.7.2 Data Reference Box (dref)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 56
- * The data reference object contains a table of data references (normally URLs) that declare the location(s) of 
- * the media data used within the presentation. The data reference index in the sample description ties entries 
+ * The data reference object contains a table of data references (normally URLs) that declare the location(s) of
+ * the media data used within the presentation. The data reference index in the sample description ties entries
  * in this table to the samples in the track. A track may be split over several sources in this way.
  */
 class SrsMp4DataReferenceBox : public SrsMp4FullBox
@@ -894,8 +891,8 @@ protected:
 /**
  * 8.5.1 Sample Table Box (stbl)
  * ISO_IEC_14496-12-base-format-2012.pdf, page 40
- * The sample table contains all the time and data indexing of the media samples in a track. Using the tables 
- * here, it is possible to locate samples in time, determine their type (e.g. I-frame or not), and determine their 
+ * The sample table contains all the time and data indexing of the media samples in a track. Using the tables
+ * here, it is possible to locate samples in time, determine their type (e.g. I-frame or not), and determine their
  * size, container, and offset into that container.
  */
 class SrsMp4SampleTableBox : public SrsMp4Box
@@ -1220,7 +1217,7 @@ protected:
 /**
  * 8.5.2 Sample Description Box (stsd), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 40
- * The sample description table gives detailed information about the coding type used, and any initialization 
+ * The sample description table gives detailed information about the coding type used, and any initialization
  * information needed for that coding.
  */
 class SrsMp4SampleDescriptionBox : public SrsMp4FullBox
@@ -1263,9 +1260,9 @@ struct SrsMp4SttsEntry
 /**
  * 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 48
- * This box contains a compact version of a table that allows indexing from decoding time to sample number. 
- * Other tables give sample sizes and pointers, from the sample number. Each entry in the table gives the 
- * number of consecutive samples with the same time delta, and the delta of those samples. By adding the 
+ * This box contains a compact version of a table that allows indexing from decoding time to sample number.
+ * Other tables give sample sizes and pointers, from the sample number. Each entry in the table gives the
+ * number of consecutive samples with the same time delta, and the delta of those samples. By adding the
  * deltas a complete time-to-sample map may be built.
  */
 class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
@@ -1308,11 +1305,11 @@ struct SrsMp4CttsEntry
     // Constructor
     SrsMp4CttsEntry();
 };
- 
- /**
+
+/**
  * 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
  * ISO_IEC_14496-12-base-format-2012.pdf, page 49
- * This box provides the offset between decoding time and composition time. In version 0 of this box the 
+ * This box provides the offset between decoding time and composition time. In version 0 of this box the
  * decoding time must be less than the composition time, and the offsets are expressed as unsigned numbers
  * such that CT(n) = DT(n) + CTTS(n) where CTTS(n) is the (uncompressed) table entry for sample n. In version
  * 1 of this box, the composition timeline and the decoding timeline are still derived from each other, but the
@@ -1669,8 +1666,7 @@ public:
      * @remark The decoder will generate the first two audio/video sequence header.
      */
     virtual int read_sample(SrsMp4HandlerType* pht, uint16_t* pft, uint16_t* pct,
-        uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample
-    );
+        uint32_t* pdts, uint32_t* ppts, uint8_t** psample, uint32_t* pnb_sample);
 private:
     virtual int parse_ftyp(SrsMp4FileTypeBox* ftyp);
     virtual int parse_moov(SrsMp4MovieBox* moov);

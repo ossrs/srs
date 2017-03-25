@@ -1,25 +1,25 @@
 /*
-The MIT License (MIT)
-
-Copyright (c) 2013-2017 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ The MIT License (MIT)
+ 
+ Copyright (c) 2013-2017 SRS(ossrs)
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of
+ this software and associated documentation files (the "Software"), to deal in
+ the Software without restriction, including without limitation the rights to
+ use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ the Software, and to permit persons to whom the Software is furnished to do so,
+ subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
     
     srs_human_trace("input: %s", in_flv_file);
     srs_human_trace("output: %s", out_rtmp_url);
-
+    
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         srs_human_trace("open flv file failed. ret=%d", ret);
@@ -115,7 +115,7 @@ int main(int argc, char** argv)
     }
     
     ortmp = srs_rtmp_create(out_rtmp_url);
-
+    
     ret = proxy(flv, ortmp);
     srs_human_trace("ingest flv to RTMP completed");
     
@@ -170,7 +170,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-            
+        
         if (*pstarttime < 0 && srs_utils_flv_tag_is_av(type)) {
             *pstarttime = *ptimestamp;
         }
@@ -267,8 +267,7 @@ void re_cleanup(int64_t re, int32_t starttime, uint32_t time)
     int64_t now = srs_utils_time_ms();
     int64_t diff = time - starttime - (now -re);
     if (diff > 0) {
-        srs_human_trace("re_cleanup, diff=%d, start=%d, last=%d ms", 
-            (int)diff, starttime, time);
+        srs_human_trace("re_cleanup, diff=%d, start=%d, last=%d ms", (int)diff, starttime, time);
         usleep((useconds_t)(diff * 1000));
     }
 }
