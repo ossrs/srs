@@ -99,6 +99,7 @@
 		3C663F181AB0155100286D8B /* srs_play.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0B1AB0155100286D8B /* srs_play.c */; };
 		3C663F191AB0155100286D8B /* srs_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0C1AB0155100286D8B /* srs_publish.c */; };
 		3C663F1A1AB0155100286D8B /* srs_rtmp_dump.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F0D1AB0155100286D8B /* srs_rtmp_dump.c */; };
+		3C6F2D751E8653BF003D0805 /* srs_main_mp4_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C6F2D741E8653BF003D0805 /* srs_main_mp4_parser.cpp */; };
 		3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C82802A1BAFF8CC004A1794 /* srs_kafka_stack.cpp */; };
 		3C8CE01E1C3F482100548CC6 /* srs_app_hourglass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C8CE01D1C3F482100548CC6 /* srs_app_hourglass.cpp */; };
 		3C9F82221E4ECA8200F5B2D2 /* srs_app_dash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */; };
@@ -373,6 +374,8 @@
 		3C663F0D1AB0155100286D8B /* srs_rtmp_dump.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_rtmp_dump.c; path = ../../../research/librtmp/srs_rtmp_dump.c; sourceTree = "<group>"; };
 		3C6673CF1DF7B93200A6DF57 /* readme.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = readme.txt; path = ../../../modules/readme.txt; sourceTree = "<group>"; };
 		3C6673D11DF7B95E00A6DF57 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/hls-ingester/config"; sourceTree = "<group>"; };
+		3C6F2D731E86536B003D0805 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/mp4-parser/config"; sourceTree = "<group>"; };
+		3C6F2D741E8653BF003D0805 /* srs_main_mp4_parser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_main_mp4_parser.cpp; path = ../../../src/main/srs_main_mp4_parser.cpp; sourceTree = "<group>"; };
 		3C8280241BAFF896004A1794 /* compatible.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = compatible.conf; path = ../../../conf/compatible.conf; sourceTree = "<group>"; };
 		3C8280251BAFF896004A1794 /* full.one.vhost.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = full.one.vhost.conf; path = ../../../conf/full.one.vhost.conf; sourceTree = "<group>"; };
 		3C8280261BAFF896004A1794 /* http.flv.live.edge1.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge1.conf; path = ../../../conf/http.flv.live.edge1.conf; sourceTree = "<group>"; };
@@ -508,6 +511,7 @@
 			isa = PBXGroup;
 			children = (
 				3CE6CD301AE4AFB800706E07 /* srs_main_ingest_hls.cpp */,
+				3C6F2D741E8653BF003D0805 /* srs_main_mp4_parser.cpp */,
 				3C1232051AAE812C00CE8F6C /* srs_main_server.cpp */,
 			);
 			name = main;
@@ -850,6 +854,14 @@
 			name = "hls-ingester";
 			sourceTree = "<group>";
 		};
+		3C6F2D721E86535D003D0805 /* mp4-parser */ = {
+			isa = PBXGroup;
+			children = (
+				3C6F2D731E86536B003D0805 /* config */,
+			);
+			name = "mp4-parser";
+			sourceTree = "<group>";
+		};
 		3C7175A61E1DEA0500E8C49F /* st */ = {
 			isa = PBXGroup;
 			children = (
@@ -872,6 +884,7 @@
 			isa = PBXGroup;
 			children = (
 				3C6673D01DF7B95000A6DF57 /* hls-ingester */,
+				3C6F2D721E86535D003D0805 /* mp4-parser */,
 				3C6673CF1DF7B93200A6DF57 /* readme.txt */,
 			);
 			name = modules;
@@ -1042,6 +1055,7 @@
 				3C036B551B2D0AC10078E2E0 /* srs_app_http_static.cpp in Sources */,
 				3C663F1A1AB0155100286D8B /* srs_rtmp_dump.c in Sources */,
 				3CE6CD311AE4AFB800706E07 /* srs_main_ingest_hls.cpp in Sources */,
+				3C6F2D751E8653BF003D0805 /* srs_main_mp4_parser.cpp in Sources */,
 				3C28EDDF1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp in Sources */,
 				3C1232241AAE814D00CE8F6C /* srs_kernel_error.cpp in Sources */,
 				3C036B561B2D0AC10078E2E0 /* srs_app_http_stream.cpp in Sources */,
