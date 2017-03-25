@@ -2810,7 +2810,7 @@ int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     
 int srs_human_print_rtmp_packet(char type, uint32_t timestamp, char* data, int size)
 {
-    return srs_human_print_rtmp_packet(type, timestamp, data, size);
+    return srs_human_print_rtmp_packet3(type, timestamp, data, size, 0, 0);
 }
 
 int srs_human_print_rtmp_packet2(char type, uint32_t timestamp, char* data, int size, uint32_t pre_timestamp)
