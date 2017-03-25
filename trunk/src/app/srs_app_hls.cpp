@@ -462,7 +462,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+    srs_info("hls: dur=%"PRId64"ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
         current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_fragment + deviation) * 1000;
@@ -485,7 +485,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+    srs_info("hls: dur=%"PRId64"ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
              current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
@@ -582,9 +582,7 @@ int SrsHlsMuxer::segment_close()
         if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
-        //current->start_dts is private . log_desc is removed?
-        srs_info("eap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64,
-            current->sequence_no, current->uri.c_str(), current->duration());
+        srs_info("Reap ts segment, sequence_no=%d, uri=%s, duration=%"PRId64"ms", current->sequence_no, current->uri.c_str(), current->duration());
         
         // close the muxer of finished segment.
         srs_freep(current->tscw);
@@ -600,7 +598,7 @@ int SrsHlsMuxer::segment_close()
         // reuse current segment index.
         _sequence_no--;
 
-        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%dms", current->sequence_no, current->uri.c_str(), current->duration());
+        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%"PRId64"ms", current->sequence_no, current->uri.c_str(), current->duration());
 
         // rename from tmp to real path
         if ((ret = current->unlink_tmpfile()) != ERROR_SUCCESS) {
@@ -996,9 +994,6 @@ void SrsHls::dispose()
 int SrsHls::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
-    //source is removed?
-    //srs_info("hls cycle for source %d", source->source_id());
     
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time_ms();

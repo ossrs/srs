@@ -1395,9 +1395,8 @@ int SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
         return ret;
     }
     
-	// format is sound_format?
-    srs_info("audio decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d",
-             acodec->sound_type, acodec->id, acodec->sound_size, acodec->sound_rate, sound_format, size);
+    srs_info("audio decoded, codec=%d, ssize=%d, srate=%d, channels=%d, size=%d",
+             acodec->id, acodec->sound_size, acodec->sound_rate, acodec->sound_type, size);
     
     return ret;
 }

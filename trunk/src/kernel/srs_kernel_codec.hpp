@@ -517,11 +517,13 @@ class SrsAudioCodecConfig : public SrsCodecConfig
 {
 // In FLV specification.
 public:
-    // audio specified
+    // The audio codec id; for FLV, it's SoundFormat.
     SrsAudioCodecId id;
-    // audio aac specified.
+    // The audio sample rate; for FLV, it's SoundRate.
     SrsAudioSampleRate sound_rate;
+    // The audio sample size, such as 16 bits; for FLV, it's SoundSize.
     SrsAudioSampleBits sound_size;
+    // The audio number of channels; for FLV, it's SoundType.
     // TODO: FIXME: Rename to sound_channels.
     SrsAudioChannels sound_type;
     int audio_data_rate; // in bps
