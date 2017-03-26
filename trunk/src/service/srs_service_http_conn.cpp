@@ -23,6 +23,7 @@
 
 #include <srs_service_http_conn.hpp>
 
+#include <stdlib.h>
 #include <sstream>
 using namespace std;
 

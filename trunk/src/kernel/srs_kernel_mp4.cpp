@@ -4095,7 +4095,7 @@ int SrsMp4Decoder::parse_ftyp(SrsMp4FileTypeBox* ftyp)
         SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41,
         SrsMp4BoxBrandISO5
     };
-    for (int i = 0; i < (int)sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
+    for (int i = 0; i < (int)(sizeof(legal_brands)/sizeof(SrsMp4BoxBrand)); i++) {
         if (ftyp->major_brand == legal_brands[i]) {
             legal_brand = true;
             break;
