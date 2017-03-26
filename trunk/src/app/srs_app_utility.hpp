@@ -34,6 +34,7 @@
 #include <sys/resource.h>
 
 #include <srs_app_st.hpp>
+#include <srs_kernel_log.hpp>
 
 class SrsKbps;
 class SrsBuffer;
@@ -47,7 +48,7 @@ extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd
  * convert level in string to log level in int.
  * @return the log level defined in SrsLogLevel.
  */
-extern int srs_get_log_level(std::string level);
+extern SrsLogLevel srs_get_log_level(std::string level);
 
 /**
  * build the path according to vhost/app/stream, where replace variables:

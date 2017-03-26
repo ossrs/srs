@@ -110,20 +110,20 @@ failed:
     return ret;
 }
 
-int srs_get_log_level(string level)
+SrsLogLevel srs_get_log_level(string level)
 {
     if ("verbose" == level) {
-        return SrsLogLevel::Verbose;
+        return SrsLogLevelVerbose;
     } else if ("info" == level) {
-        return SrsLogLevel::Info;
+        return SrsLogLevelInfo;
     } else if ("trace" == level) {
-        return SrsLogLevel::Trace;
+        return SrsLogLevelTrace;
     } else if ("warn" == level) {
-        return SrsLogLevel::Warn;
+        return SrsLogLevelWarn;
     } else if ("error" == level) {
-        return SrsLogLevel::Error;
+        return SrsLogLevelError;
     } else {
-        return SrsLogLevel::Disabled;
+        return SrsLogLevelDisabled;
     }
 }
 

@@ -173,21 +173,32 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
-#App Module
+#Service Module, for both Server and Client Modules.
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    MODULE_ID="SERVICE"
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
+    ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
+    MODULE_FILES=("srs_service_log" "srs_service_st")
+    DEFINES=""
+    SERVICE_INCS="src/service"; MODULE_DIR=${SERVICE_INCS} . auto/modules.sh
+    SERVICE_OBJS="${MODULE_OBJS[@]}"
+fi
+#
+#App Module, for SRS server only.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
     ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
             "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks" 
-            "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_dvr" "srs_app_edge"
+            "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_edge"
             "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
             "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec" "srs_app_kafka"
-            "srs_app_hourglass" "srs_app_dash" "srs_app_fragment")
+            "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr")
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -210,7 +221,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 #Main Module
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=("srs_main_server")
     DEFINES=""
@@ -231,7 +242,7 @@ fi
 # disable all app when export librtmp
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
-    MAIN_ENTRANCES=("srs_main_server" "srs_main_ingest_hls")
+    MAIN_ENTRANCES=("srs_main_server")
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -241,14 +252,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
-    # 
-    # srs_ingest_hls: to ingest hls stream to srs. 
-    BUILD_KEY="srs_ingest_hls" APP_MAIN="srs_main_ingest_hls" APP_NAME="srs_ingest_hls" . auto/apps.sh
     # add each modules for application
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -270,8 +278,8 @@ if [ $SRS_UTEST = YES ]; then
             "srs_utest_reload")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]}"
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
 

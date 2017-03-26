@@ -21,39 +21,48 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_LOG_HPP
-#define SRS_APP_LOG_HPP
+#ifndef SRS_SERVICE_LOG_HPP
+#define SRS_SERVICE_LOG_HPP
 
 #include <srs_core.hpp>
 
-#include <string.h>
-#include <string>
+#include <map>
 
-#include <srs_app_reload.hpp>
-#include <srs_service_log.hpp>
+#include <srs_service_st.hpp>
+#include <srs_kernel_log.hpp>
 
 /**
- * we use memory/disk cache and donot flush when write log.
- * it's ok to use it without config, which will log to console, and default trace level.
- * when you want to use different level, override this classs, set the protected _level.
+ * st thread context, get_id will get the st-thread id,
+ * which identify the client.
  */
-class SrsFastLog : public ISrsLog, public ISrsReloadHandler
+class SrsThreadContext : public ISrsThreadContext
 {
-// for utest to override
-protected:
-    // defined in SrsLogLevel.
-    SrsLogLevel level;
 private:
-    char* log_data;
-    // log to file if specified srs_log_file
-    int fd;
-    // whether log to file tank
-    bool log_to_file_tank;
-    // whether use utc time.
-    bool utc;
+    std::map<st_thread_t, int> cache;
 public:
-    SrsFastLog();
-    virtual ~SrsFastLog();
+    SrsThreadContext();
+    virtual ~SrsThreadContext();
+public:
+    virtual int generate_id();
+    virtual int get_id();
+    virtual int set_id(int v);
+public:
+    virtual void clear_cid();
+};
+
+/**
+ * The basic console log, which write log to console.
+ */
+class SrsConsoleLog : public ISrsLog
+{
+private:
+    SrsLogLevel level;
+    bool utc;
+private:
+    char* buffer;
+public:
+    SrsConsoleLog(SrsLogLevel l, bool u);
+    virtual ~SrsConsoleLog();
 // interface ISrsLog
 public:
     virtual int initialize();
@@ -63,16 +72,14 @@ public:
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);
     virtual void warn(const char* tag, int context_id, const char* fmt, ...);
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
-// interface ISrsReloadHandler.
-public:
-    virtual int on_reload_utc_time();
-    virtual int on_reload_log_tank();
-    virtual int on_reload_log_level();
-    virtual int on_reload_log_file();
-private:
-    virtual void write_log(int& fd, char* str_log, int size, int level);
-    virtual void open_log_file();
 };
 
-#endif
+/**
+ * Generate the log header.
+ * @Param dangerous Whether log is warning or error, log the errno if true.
+ * @Param utc Whether use UTC time format in the log header.
+ * @Param psize Output the actual header size.
+ */
+bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize);
 
+#endif

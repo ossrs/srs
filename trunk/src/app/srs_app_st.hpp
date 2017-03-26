@@ -28,9 +28,7 @@
 
 #include <string>
 
-#include <st.h>
-
-#include <srs_app_st.hpp>
+#include <srs_service_st.hpp>
 #include <srs_protocol_io.hpp>
 
 // the internal classes, user should never use it.

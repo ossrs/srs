@@ -38,18 +38,17 @@
  * if specified Debug level, all level messages will be logged.
  * if specified Warn level, only Warn/Error/Fatal level messages will be logged.
  */
-class SrsLogLevel
+enum SrsLogLevel
 {
-public:
+    SrsLogLevelForbidden = 0x00,
     // only used for very verbose debug, generally,
     // we compile without this level for high performance.
-    static const int Verbose = 0x01;
-    static const int Info = 0x02;
-    static const int Trace = 0x03;
-    static const int Warn = 0x04;
-    static const int Error = 0x05;
-    // specified the disabled level, no log, for utest.
-    static const int Disabled = 0x06;
+    SrsLogLevelVerbose = 0x01,
+    SrsLogLevelInfo = 0x02,
+    SrsLogLevelTrace = 0x04,
+    SrsLogLevelWarn = 0x08,
+    SrsLogLevelError = 0x10,
+    SrsLogLevelDisabled = 0x20,
 };
 
 /**

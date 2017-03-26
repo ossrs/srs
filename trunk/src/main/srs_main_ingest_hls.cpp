@@ -32,7 +32,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
+#include <srs_service_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_stream.hpp>
@@ -54,8 +54,8 @@ using namespace std;
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
 
 // @global log and context.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
+ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
+ISrsThreadContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = NULL;
 

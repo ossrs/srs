@@ -858,17 +858,17 @@ SRS always use the most simple architecture to support complex transaction.
 
 ```
 +------------------------------------------------------+
-|             Main(srs/ingest-hls/librtmp)             |
+|    SRS server    |   Programs in Main or Research    |
 +------------------------------------------------------+
-|          Modules(1)(User defined modularity)         |
+|  App(For SRS)    | Modules(1) |   research/librtmp   |
 +------------------------------------------------------+
-|           App(Server/Client application)             |
+|    Service(C/S apps over ST)  | Libs(Export librtmp) |
 +------------------------------------------------------+
-|         RTMP/HTTP/RTSP/RawStream(Protocol stack)     |
+|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Format)     |
 +------------------------------------------------------+
-|      Kernel(depends on Core, provides error/log)     |
+|      Kernel(File, Codec, Stream, LB services)        |
 +------------------------------------------------------+
-|         Core(depends only on system apis)            |
+|         Core(Macros and very low-level APIs)         |
 +------------------------------------------------------+
 ```
 
