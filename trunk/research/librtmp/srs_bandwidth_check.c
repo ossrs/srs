@@ -112,23 +112,14 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     
-    srs_human_trace("\n%s, %s, %s\n"
-        "%s, %d.%d.%d.%d, srs_pid=%d, srs_id=%d\n"
-        "duration: %dms(%d+%d)\n"
-        "play: %dkbps\n"
-        "publish: %dkbps",
-        (char*)sig, NULL, NULL,
-        (char*)ip, major, minor, revision, build, pid, cid,
-        (int)(end_time - start_time), play_duration, publish_duration,
-        play_kbps,
-        publish_kbps);
+    srs_human_trace("\n%s, %s, %d.%d.%d.%d, srs_pid=%d, srs_id=%d\n"
+        "duration: %dms(%d+%d), play: %dkbps, publish: %dkbps",
+        (char*)sig, (char*)ip, major, minor, revision, build, pid, cid,
+        (int)(end_time - start_time), play_duration, publish_duration, play_kbps, publish_kbps);
     
 rtmp_destroy:
     fprintf(stderr, "{\"code\":%d,"
-        "\"srs_server\":\"%s\", "
-        "\"srs_primary\":\"%s\", "
-        "\"srs_authors\":\"%s\", "
-        "\"srs_server_ip\":\"%s\", "
+        "\"srs_server\":\"%s\", \"srs_primary\":\"\", \"srs_authors\":\"\", \"srs_server_ip\":\"%s\", "
         "\"srs_version\":\"%d.%d.%d.%d\", "
         "\"srs_pid\":%d, "
         "\"srs_id\":%d, "
@@ -139,8 +130,8 @@ rtmp_destroy:
         "\"publish_kbps\":%d"
         "}",
         ret,
-        (char*)sig, NULL, NULL,
-        (char*)ip, major, minor, revision, build, pid, cid,
+        (char*)sig, (char*)ip,
+        major, minor, revision, build, pid, cid,
         (int)(end_time - start_time), play_duration, publish_duration,
         play_kbps, publish_kbps);
     srs_rtmp_destroy(rtmp);

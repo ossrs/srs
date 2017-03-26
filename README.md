@@ -186,6 +186,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-03-26, Fix [#820][bug #820], extract service for modules. 3.0.21
 * v3.0, 2017-03-02, Fix [#786][bug #786], simply don't reuse object. 3.0.20
 * v3.0, 2017-03-01, For [#110][bug #110], refine thread object. 3.0.19
 * v3.0, 2017-02-12, Fix [#301][bug #301], User must config the codec in right way for HLS. 3.0.18
@@ -1388,6 +1389,7 @@ Winlin
 [bug #742]: https://github.com/ossrs/srs/issues/742
 [bug #738]: https://github.com/ossrs/srs/issues/738
 [bug #786]: https://github.com/ossrs/srs/issues/786
+[bug #820]: https://github.com/ossrs/srs/issues/820
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

@@ -220,19 +220,19 @@ MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket" "srs_lib_bandwidth")
 LIBS_INCS="src/libs"; MODULE_DIR=${LIBS_INCS} . auto/modules.sh
 LIBS_OBJS="${MODULE_OBJS[@]}"
 #
-#Main Module, for SRS.
+#Server Module, for SRS only.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    MODULE_ID="MAIN" 
+    MODULE_ID="SERVER"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot})
     MODULE_FILES=("srs_main_server")
-    MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
-    MAIN_OBJS="${MODULE_OBJS[@]}"
+    SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
+    SERVER_OBJS="${MODULE_OBJS[@]}"
 fi
 #
 #Main Module, for app from modules.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    MODULE_ID="MAIN2"
+    MODULE_ID="MAIN"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot})
     MODULE_FILES=()
@@ -243,8 +243,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
         DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
-    MAIN2_INCS="src/main"; MODULE_DIR=${MAIN2_INCS} . auto/modules.sh
-    MAIN2_OBJS="${MODULE_OBJS[@]}"
+    MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
+    MAIN_OBJS="${MODULE_OBJS[@]}"
 fi
 
 #####################################################################################
@@ -263,14 +263,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
     #
     # For modules, without the app module.
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN2_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
