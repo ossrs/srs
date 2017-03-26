@@ -545,6 +545,9 @@ public:
      */
     virtual int check_config();
 protected:
+    virtual int check_normal_config();
+    virtual int check_number_connections();
+protected:
     /**
      * parse config from the buffer.
      * @param buffer, the config buffer, user must delete it.

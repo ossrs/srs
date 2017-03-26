@@ -3540,6 +3540,21 @@ int SrsConfig::check_config()
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = check_normal_config()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = check_number_connections()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsConfig::check_normal_config()
+{
+    int ret = ERROR_SUCCESS;
+    
     srs_trace("srs checking config...");
     
     ////////////////////////////////////////////////////////////////////////
@@ -3656,51 +3671,6 @@ int SrsConfig::check_config()
                 srs_error("directive listen invalid, port=%s, ret=%d", port.c_str(), ret);
                 return ret;
             }
-        }
-    }
-    
-    ////////////////////////////////////////////////////////////////////////
-    // check max connections
-    ////////////////////////////////////////////////////////////////////////
-    if (get_max_connections() <= 0) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive max_connections invalid, max_connections=%d, ret=%d", get_max_connections(), ret);
-        return ret;
-    }
-    
-    // check max connections of system limits
-    if (true) {
-        int nb_consumed_fds = (int)get_listens().size();
-        if (!get_http_api_listen().empty()) {
-            nb_consumed_fds++;
-        }
-        if (!get_http_stream_listen().empty()) {
-            nb_consumed_fds++;
-        }
-        if (get_log_tank_file()) {
-            nb_consumed_fds++;
-        }
-        // 0, 1, 2 for stdin, stdout and stderr.
-        nb_consumed_fds += 3;
-        
-        int nb_connections = get_max_connections();
-        int nb_total = nb_connections + nb_consumed_fds;
-        
-        int max_open_files = (int)sysconf(_SC_OPEN_MAX);
-        int nb_canbe = max_open_files - nb_consumed_fds - 1;
-        
-        // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
-        // refine performance, @see: https://github.com/ossrs/srs/issues/194
-        if (nb_total >= max_open_files) {
-            ret = ERROR_SYSTEM_CONFIG_INVALID;
-            srs_error("invalid max_connections=%d, required=%d, system limit to %d, "
-                      "total=%d(max_connections=%d, nb_consumed_fds=%d), ret=%d. "
-                      "you can change max_connections from %d to %d, or "
-                      "you can login as root and set the limit: ulimit -HSn %d",
-                      nb_connections, nb_total + 100, max_open_files,
-                      nb_total, nb_connections, nb_consumed_fds,
-                      ret, nb_connections, nb_canbe, nb_total + 100);
-            return ret;
         }
     }
     
@@ -4092,6 +4062,58 @@ int SrsConfig::check_config()
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("daemon conflict with asprocess, ret=%d", ret);
         return ret;
+    }
+    
+    return ret;
+}
+
+int SrsConfig::check_number_connections()
+{
+    int ret = ERROR_SUCCESS;
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check max connections
+    ////////////////////////////////////////////////////////////////////////
+    if (get_max_connections() <= 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive max_connections invalid, max_connections=%d, ret=%d", get_max_connections(), ret);
+        return ret;
+    }
+    
+    // check max connections of system limits
+    if (true) {
+        int nb_consumed_fds = (int)get_listens().size();
+        if (!get_http_api_listen().empty()) {
+            nb_consumed_fds++;
+        }
+        if (!get_http_stream_listen().empty()) {
+            nb_consumed_fds++;
+        }
+        if (get_log_tank_file()) {
+            nb_consumed_fds++;
+        }
+        // 0, 1, 2 for stdin, stdout and stderr.
+        nb_consumed_fds += 3;
+        
+        int nb_connections = get_max_connections();
+        int nb_total = nb_connections + nb_consumed_fds;
+        
+        int max_open_files = (int)sysconf(_SC_OPEN_MAX);
+        int nb_canbe = max_open_files - nb_consumed_fds - 1;
+        
+        // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
+        // refine performance, @see: https://github.com/ossrs/srs/issues/194
+        if (nb_total >= max_open_files) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("invalid max_connections=%d, required=%d, system limit to %d, "
+                      "total=%d(max_connections=%d, nb_consumed_fds=%d), ret=%d. "
+                      "you can change max_connections from %d to %d, or "
+                      "you can login as root and set the limit: ulimit -HSn %d",
+                      nb_connections, nb_total + 100, max_open_files,
+                      nb_total, nb_connections, nb_consumed_fds,
+                      ret, nb_connections, nb_canbe, nb_total + 100);
+            return ret;
+        }
     }
     
     return ret;
