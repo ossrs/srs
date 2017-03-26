@@ -177,8 +177,10 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
-    ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
-    MODULE_FILES=("srs_service_log" "srs_service_st")
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR})
+    MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
+        "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
+        "srs_service_conn")
     DEFINES=""
     SERVICE_INCS="src/service"; MODULE_DIR=${SERVICE_INCS} . auto/modules.sh
     SERVICE_OBJS="${MODULE_OBJS[@]}"
@@ -188,7 +190,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibSTRoot} ${LibSSLRoot} ${SRS_OBJS_DIR})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -218,12 +220,22 @@ MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket" "srs_lib_bandwidth")
 LIBS_INCS="src/libs"; MODULE_DIR=${LIBS_INCS} . auto/modules.sh
 LIBS_OBJS="${MODULE_OBJS[@]}"
 #
-#Main Module
+#Main Module, for SRS.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
-    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot})
     MODULE_FILES=("srs_main_server")
+    MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
+    MAIN_OBJS="${MODULE_OBJS[@]}"
+fi
+#
+#Main Module, for app from modules.
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    MODULE_ID="MAIN2"
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot})
+    MODULE_FILES=()
     DEFINES=""
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -231,24 +243,23 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
         DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
-    MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
-    MAIN_OBJS="${MODULE_OBJS[@]}"
+    MAIN2_INCS="src/main"; MODULE_DIR=${MAIN2_INCS} . auto/modules.sh
+    MAIN2_OBJS="${MODULE_OBJS[@]}"
 fi
 
 #####################################################################################
 # Binaries, main entrances, link the module and its depends modules,
 # then link to a binary, for example, objs/srs
 #
-# disable all app when export librtmp
+# Disable SRS application for exporting librtmp.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
     MAIN_ENTRANCES=("srs_main_server")
-    # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
         MAIN_ENTRANCES+=("${SRS_MODULE_MAIN[*]}")
     done
-    # 
+    #
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
@@ -257,12 +268,15 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
-    # add each modules for application
+    #
+    # For modules, without the app module.
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN2_OBJS[@]}"
+    #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
-        # no SRS_MODULE_MAIN 
+        # no SRS_MODULE_MAIN
         if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
-        BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="$SRS_MODULE_MAIN" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
+        BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="${SRS_MODULE_MAIN[0]}" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
     done
 fi
 # srs librtmp

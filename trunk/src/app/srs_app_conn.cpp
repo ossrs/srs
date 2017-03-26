@@ -30,14 +30,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-IConnectionManager::IConnectionManager()
-{
-}
-
-IConnectionManager::~IConnectionManager()
-{
-}
-
 SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
 {
     id = 0;

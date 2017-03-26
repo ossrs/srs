@@ -83,10 +83,12 @@ int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
     return ret;
 }
 
-void SrsAppCasterFlv::remove(SrsConnection* c)
+void SrsAppCasterFlv::remove(ISrsConnection* c)
 {
+    SrsConnection* conn = dynamic_cast<SrsConnection*>(c);
+    
     std::vector<SrsHttpConn*>::iterator it;
-    if ((it = std::find(conns.begin(), conns.end(), c)) != conns.end()) {
+    if ((it = std::find(conns.begin(), conns.end(), conn)) != conns.end()) {
         conns.erase(it);
     }
 }

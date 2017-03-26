@@ -1,4 +1,4 @@
-SRS Module Ruler(SRS模块规则)
+SRS Module Rules(SRS模块规则)
 1. Each module in its seperate home directory(一个模块一个目录).
 2. There is a config file in home(目录下放一个config文件).
 3. All variables in configure are available(所有的configure中的变量模块中可以使用).

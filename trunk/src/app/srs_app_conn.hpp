@@ -32,30 +32,15 @@
 #include <srs_app_thread.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
-
-class SrsConnection;
-
-/**
- * the manager for connection.
- */
-class IConnectionManager
-{
-public:
-    IConnectionManager();
-    virtual ~IConnectionManager();
-public:
-    /**
-     * remove the specified connection.
-     */
-    virtual void remove(SrsConnection* c) = 0;
-};
+#include <srs_service_conn.hpp>
 
 /**
  * the basic connection of SRS,
  * all connections accept from listener must extends from this base class,
  * server will add the connection to manager, and delete it when remove.
  */
-class SrsConnection : virtual public ISrsOneCycleThreadHandler, virtual public IKbpsDelta, virtual public ISrsReloadHandler
+class SrsConnection : virtual public ISrsConnection, virtual public ISrsOneCycleThreadHandler
+    , virtual public IKbpsDelta, virtual public ISrsReloadHandler
 {
 private:
     /**

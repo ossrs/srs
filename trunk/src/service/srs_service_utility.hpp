@@ -21,5 +21,33 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_http_client.hpp>
+#ifndef SRS_SERVICE_UTILITY_HPP
+#define SRS_SERVICE_UTILITY_HPP
+
+#include <srs_core.hpp>
+
+#include <string>
+#include <vector>
+
+#include <srs_service_st.hpp>
+
+// client open socket and connect to server.
+// @param tm The timeout in ms.
+extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
+
+// whether the url is starts with http:// or https://
+extern bool srs_string_is_http(std::string url);
+extern bool srs_string_is_rtmp(std::string url);
+
+// get local ip, fill to @param ips
+extern std::vector<std::string>& srs_get_local_ipv4_ips();
+
+// get local public ip, empty string if no public internet address found.
+extern std::string srs_get_public_internet_address();
+
+// detect whether specified device is internet public address.
+extern bool srs_net_device_is_internet(std::string ifname);
+extern bool srs_net_device_is_internet(in_addr_t addr);
+
+#endif
 

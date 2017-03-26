@@ -77,210 +77,23 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TMMS (3000)
 
-SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm)
+SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm) : SrsBasicRtmpClient(u, ctm, stm)
 {
-    kbps = new SrsKbps();
-    
-    url = u;
-    connect_timeout = ctm;
-    stream_timeout = stm;
-    
-    req = new SrsRequest();
-    srs_parse_rtmp_url(url, req->tcUrl, req->stream);
-    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
-    
-    transport = NULL;
-    client = NULL;
-    
-    stream_id = 0;
 }
 
 SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 {
-    close();
-    srs_freep(kbps);
-}
-
-int SrsSimpleRtmpClient::connect()
-{
-    int ret = ERROR_SUCCESS;
-    
-    close();
-    
-    transport = new SrsTcpClient(req->host, req->port, connect_timeout);
-    client = new SrsRtmpClient(transport);
-    kbps->set_io(transport, transport);
-    
-    if ((ret = transport->connect()) != ERROR_SUCCESS) {
-        close();
-        return ret;
-    }
-    
-    client->set_recv_timeout(stream_timeout);
-    client->set_send_timeout(stream_timeout);
-    
-    // connect to vhost/app
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("sdk: handshake with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = connect_app()) != ERROR_SUCCESS) {
-        srs_error("sdk: connect with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("sdk: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-void SrsSimpleRtmpClient::close()
-{
-    kbps->set_io(NULL, NULL);
-    srs_freep(client);
-    srs_freep(transport);
 }
 
 int SrsSimpleRtmpClient::connect_app()
 {
-    int ret = ERROR_SUCCESS;
-    
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
-    // notify server the edge identity,
-    // @see https://github.com/ossrs/srs/issues/147
-    SrsAmf0Object* data = req->args;
-    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
-    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
-    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
-    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
-    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
-    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
-    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    // for edge to directly get the id of client.
-    data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
-    
-    // local ip of edge
     std::vector<std::string> ips = srs_get_local_ipv4_ips();
     assert(_srs_config->get_stats_network() < (int)ips.size());
     std::string local_ip = ips[_srs_config->get_stats_network()];
-    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
-    // generate the tcUrl
-    std::string param = "";
-    std::string target_vhost = req->vhost;
-    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port, param);
-    
-    // replace the tcUrl in request,
-    // which will replace the tc_url in client.connect_app().
-    req->tcUrl = tc_url;
-    
-    // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/ossrs/srs/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode, NULL)) != ERROR_SUCCESS) {
-        srs_error("sdk: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
-                  tc_url.c_str(), debug_srs_upnode, ret);
-        return ret;
-    }
     
-    return ret;
-}
-
-int SrsSimpleRtmpClient::publish()
-{
-    int ret = ERROR_SUCCESS;
-    
-    // publish.
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("sdk: publish failed, stream=%s, stream_id=%d. ret=%d",
-                  req->stream.c_str(), stream_id, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsSimpleRtmpClient::play()
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d",
-                  req->stream.c_str(), stream_id, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age)
-{
-    kbps->sample();
-    
-    int sr = kbps->get_send_kbps();
-    int sr30s = kbps->get_send_kbps_30s();
-    int sr5m = kbps->get_send_kbps_5m();
-    int rr = kbps->get_recv_kbps();
-    int rr30s = kbps->get_recv_kbps_30s();
-    int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
-}
-
-void SrsSimpleRtmpClient::kbps_sample(const char* label, int64_t age, int msgs)
-{
-    kbps->sample();
-    
-    int sr = kbps->get_send_kbps();
-    int sr30s = kbps->get_send_kbps_30s();
-    int sr5m = kbps->get_send_kbps_5m();
-    int rr = kbps->get_recv_kbps();
-    int rr30s = kbps->get_recv_kbps_30s();
-    int rr5m = kbps->get_recv_kbps_5m();
-    
-    srs_trace("<- %s time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, msgs, sr, sr30s, sr5m, rr, rr30s, rr5m);
-}
-
-int SrsSimpleRtmpClient::sid()
-{
-    return stream_id;
-}
-
-int SrsSimpleRtmpClient::recv_message(SrsCommonMessage** pmsg)
-{
-    return client->recv_message(pmsg);
-}
-
-int SrsSimpleRtmpClient::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
-{
-    return client->decode_message(msg, ppacket);
-}
-
-int SrsSimpleRtmpClient::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
-{
-    return client->send_and_free_messages(msgs, nb_msgs, stream_id);
-}
-
-int SrsSimpleRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg)
-{
-    return client->send_and_free_message(msg, stream_id);
-}
-
-void SrsSimpleRtmpClient::set_recv_timeout(int64_t timeout)
-{
-    transport->set_recv_timeout(timeout);
+    return do_connect_app(local_ip, debug_srs_upnode);
 }
 
 SrsClientInfo::SrsClientInfo()

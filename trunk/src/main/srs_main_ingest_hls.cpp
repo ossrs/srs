@@ -29,26 +29,23 @@
 #include <map>
 using namespace std;
 
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_service_log.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_stack.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_app_http_client.hpp>
-#include <srs_core_autofree.hpp>
-#include <srs_app_st.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_app_st.hpp>
-#include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_raw_avc.hpp>
-#include <srs_app_http_conn.hpp>
-#include <srs_app_rtmp_conn.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_service_http_client.hpp>
+#include <srs_service_log.hpp>
+#include <srs_service_st.hpp>
+#include <srs_service_http_conn.hpp>
+#include <srs_service_rtmp_conn.hpp>
+#include <srs_service_utility.hpp>
 
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -56,8 +53,6 @@ int proxy_hls2rtmp(std::string hls, std::string rtmp);
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsThreadContext* _srs_context = new SrsThreadContext();
-// @global config object for app module.
-SrsConfig* _srs_config = NULL;
 
 /**
  * main entrance.
@@ -628,7 +623,7 @@ private:
     int64_t raw_aac_dts;
 private:
     SrsRequest* req;
-    SrsSimpleRtmpClient* sdk;
+    SrsBasicRtmpClient* sdk;
 private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -1221,7 +1216,7 @@ int SrsIngestSrsOutput::connect()
     // connect host.
     int64_t cto = SRS_CONSTS_RTMP_TMMS;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
-    sdk = new SrsSimpleRtmpClient(url, cto, sto);
+    sdk = new SrsBasicRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         close();

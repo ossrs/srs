@@ -41,7 +41,7 @@ echo -n "${INCS_NAME} = -I${MODULE_DIR} " >> ${FILE}
 for item in ${MODULE_DEPENDS[*]}; do
     DEP_INCS_NAME="${item}_INCS"do
     DEP_INCS_NAME="${item}_MODULE_INCS"
-    echo -n "\$(${DEP_INCS_NAME}) " >> ${FILE}
+    echo -n "\$(${DEP_INCS_NAME})" >> ${FILE}
 done
 #
 # depends library header files
@@ -79,7 +79,8 @@ for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES} \$(${INCS_NAME})\\" >> ${FILE}
+        echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES}\\" >> ${FILE}
+        echo "          \$(${INCS_NAME})\\" >> ${FILE}
         echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done

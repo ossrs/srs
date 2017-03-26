@@ -24,14 +24,11 @@
 #include <srs_core.hpp>
 
 #include <srs_kernel_error.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
+#include <srs_service_log.hpp>
 
 // @global log and context.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
-// @global config object for app module.
-SrsConfig* _srs_config = NULL;
+ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
+ISrsThreadContext* _srs_context = new SrsThreadContext();
 
 /**
  * main entrance.

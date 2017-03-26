@@ -32,6 +32,7 @@
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_service_rtmp_conn.hpp>
 
 class SrsServer;
 class SrsRtmpServer;
@@ -58,53 +59,15 @@ class ISrsKafkaCluster;
 #endif
 
 /**
- * The simple RTMP client, provides friendly APIs.
- * @remark Should never use client when closed.
- * Usage:
- *      SrsSimpleRtmpClient client("rtmp://127.0.0.1:1935/live/livestream", 3000, 9000);
- *      client.connect();
- *      client.play();
- *      client.close();
+ * The simple rtmp client for SRS.
  */
-class SrsSimpleRtmpClient
+class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
-private:
-    std::string url;
-    int64_t connect_timeout;
-    int64_t stream_timeout;
-private:
-    SrsRequest* req;
-    SrsTcpClient* transport;
-    SrsRtmpClient* client;
-    SrsKbps* kbps;
-    int stream_id;
 public:
-    // Constructor.
-    // @param u The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
-    // @param ctm The timeout in ms to connect to server.
-    // @param stm The timeout in ms to delivery A/V stream.
     SrsSimpleRtmpClient(std::string u, int64_t ctm, int64_t stm);
     virtual ~SrsSimpleRtmpClient();
-public:
-    // Connect, handshake and connect app to RTMP server.
-    // @remark We always close the transport.
-    virtual int connect();
-    virtual void close();
-private:
+protected:
     virtual int connect_app();
-public:
-    virtual int publish();
-    virtual int play();
-    virtual void kbps_sample(const char* label, int64_t age);
-    virtual void kbps_sample(const char* label, int64_t age, int msgs);
-    virtual int sid();
-public:
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
-    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
-    virtual int send_and_free_message(SrsSharedPtrMessage* msg);
-public:
-    virtual void set_recv_timeout(int64_t timeout);
 };
 
 /**

@@ -68,7 +68,7 @@ public:
     virtual int on_tcp_client(st_netfd_t stfd);
     // IConnectionManager
 public:
-    virtual void remove(SrsConnection* c);
+    virtual void remove(ISrsConnection* c);
     // ISrsHttpHandler
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

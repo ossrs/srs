@@ -1311,8 +1311,9 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
     return conn;
 }
 
-void SrsServer::remove(SrsConnection* conn)
+void SrsServer::remove(ISrsConnection* c)
 {
+    SrsConnection* conn = dynamic_cast<SrsConnection*>(c);
     std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
     
     // removed by destroy, ignore.

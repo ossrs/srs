@@ -35,14 +35,11 @@
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_service_utility.hpp>
 
 class SrsKbps;
 class SrsBuffer;
 class SrsJsonObject;
-
-// client open socket and connect to server.
-// @param tm The timeout in ms.
-extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
 
 /**
  * convert level in string to log level in int.
@@ -602,9 +599,6 @@ extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
 // the deamon st-thread will update it.
 extern void srs_update_network_devices();
-// detect whether specified device is internet public address.
-extern bool srs_net_device_is_internet(std::string ifname);
-extern bool srs_net_device_is_internet(in_addr_t addr);
 
 // system connections, and srs rtmp network summary
 class SrsNetworkRtmpServer
@@ -649,12 +643,6 @@ extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
 // the deamon st-thread will update it.
 extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
-// get local ip, fill to @param ips
-extern std::vector<std::string>& srs_get_local_ipv4_ips();
-
-// get local public ip, empty string if no public internet address found.
-extern std::string srs_get_public_internet_address();
-
 // get local or peer ip.
 // where local ip is the server ip which client connected.
 extern std::string srs_get_local_ip(int fd);
@@ -662,10 +650,6 @@ extern std::string srs_get_local_ip(int fd);
 extern int srs_get_local_port(int fd);
 // where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
-
-// whether the url is starts with http:// or https://
-extern bool srs_string_is_http(std::string url);
-extern bool srs_string_is_rtmp(std::string url);
 
 // whether string is digit number
 //      is_digit("1234567890")  === true

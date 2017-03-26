@@ -21,5 +21,21 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_http_client.hpp>
+#include <srs_service_conn.hpp>
+
+ISrsConnection::ISrsConnection()
+{
+}
+
+ISrsConnection::~ISrsConnection()
+{
+}
+
+IConnectionManager::IConnectionManager()
+{
+}
+
+IConnectionManager::~IConnectionManager()
+{
+}
 

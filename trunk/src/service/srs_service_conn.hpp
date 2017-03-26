@@ -21,5 +21,35 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_http_client.hpp>
+#ifndef SRS_SERVICE_CONN_HPP
+#define SRS_SERVICE_CONN_HPP
+
+#include <srs_core.hpp>
+
+/**
+ * The connection interface for all HTTP/RTMP/RTSP object.
+ */
+class ISrsConnection
+{
+public:
+    ISrsConnection();
+    virtual ~ISrsConnection();
+};
+
+/**
+ * the manager for connection.
+ */
+class IConnectionManager
+{
+public:
+    IConnectionManager();
+    virtual ~IConnectionManager();
+public:
+    /**
+     * Remove then free the specified connection.
+     */
+    virtual void remove(ISrsConnection* c) = 0;
+};
+
+#endif
 

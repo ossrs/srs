@@ -365,7 +365,7 @@ public:
      * when connection thread cycle terminated, callback this to delete connection.
      * @see SrsConnection.on_thread_stop().
      */
-    virtual void remove(SrsConnection* conn);
+    virtual void remove(ISrsConnection* c);
 // interface ISrsReloadHandler.
 public:
     virtual int on_reload_listen();
