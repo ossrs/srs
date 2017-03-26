@@ -159,7 +159,7 @@ Options:
   --without-arm-ubuntu12    do not cross build srs on ubuntu12 for armhf(v7cpu).
   --without-mips-ubuntu12   do not cross build srs on ubuntu12 for mips.
                           
-  --prefix=<path>           the absolute install path for srs.
+  --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  whether add '-static' to link options.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             used for make in the configure, for example, to make ffmpeg.

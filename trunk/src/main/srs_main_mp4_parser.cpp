@@ -30,9 +30,6 @@
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsThreadContext* _srs_context = new SrsThreadContext();
 
-/**
- * main entrance.
- */
 int main(int argc, char** argv)
 {
     return 0;
