@@ -1,4 +1,5 @@
-#Simple-RTMP-Server
+# Simple-RTMP-Server
+---
 
 [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/2.0release.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/2.0release)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ossrs/srs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
