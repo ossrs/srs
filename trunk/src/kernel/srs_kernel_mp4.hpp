@@ -1704,10 +1704,10 @@ public:
     SrsAudioChannels channels;
 private:
     // For AAC, the asc in esds box.
-    int nb_asc;
+    uint32_t nb_asc;
     uint8_t* pasc;
     // The number of audio samples.
-    int nb_audios;
+    uint32_t nb_audios;
     // The duration of audio stream.
     uint64_t aduration;
 public:
@@ -1716,10 +1716,10 @@ public:
     SrsVideoCodecId vcodec;
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
-    int nb_avcc;
+    uint32_t nb_avcc;
     uint8_t* pavcc;
     // The number of video samples.
-    int nb_videos;
+    uint32_t nb_videos;
     // The duration of video stream.
     uint64_t vduration;
     // The size width/height of video.

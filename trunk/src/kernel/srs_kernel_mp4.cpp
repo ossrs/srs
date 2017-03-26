@@ -67,7 +67,7 @@ int srs_mp4_string_read(SrsBuffer* buf, string& v, int left)
     char* start = buf->data() + buf->pos();
     size_t len = strnlen(start, left);
     
-    if (len == left) {
+    if ((int)len == left) {
         ret = ERROR_MP4_BOX_STRING;
         srs_error("MP4 string corrupt, left=%d. ret=%d", left, ret);
         return ret;
@@ -709,7 +709,7 @@ void SrsMp4MovieBox::set_mvex(SrsMp4MovieExtendsBox* v)
 
 SrsMp4TrackBox* SrsMp4MovieBox::video()
 {
-    for (int i = 0; i < boxes.size(); i++) {
+    for (int i = 0; i < (int)boxes.size(); i++) {
         SrsMp4Box* box = boxes.at(i);
         if (box->type == SrsMp4BoxTypeTRAK) {
             SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
@@ -723,7 +723,7 @@ SrsMp4TrackBox* SrsMp4MovieBox::video()
 
 SrsMp4TrackBox* SrsMp4MovieBox::audio()
 {
-    for (int i = 0; i < boxes.size(); i++) {
+    for (int i = 0; i < (int)boxes.size(); i++) {
         SrsMp4Box* box = boxes.at(i);
         if (box->type == SrsMp4BoxTypeTRAK) {
             SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
@@ -744,7 +744,7 @@ int SrsMp4MovieBox::nb_vide_tracks()
 {
     int nb_tracks = 0;
     
-    for (int i = 0; i < boxes.size(); i++) {
+    for (int i = 0; i < (int)boxes.size(); i++) {
         SrsMp4Box* box = boxes.at(i);
         if (box->type == SrsMp4BoxTypeTRAK) {
             SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
@@ -761,7 +761,7 @@ int SrsMp4MovieBox::nb_soun_tracks()
 {
     int nb_tracks = 0;
     
-    for (int i = 0; i < boxes.size(); i++) {
+    for (int i = 0; i < (int)boxes.size(); i++) {
         SrsMp4Box* box = boxes.at(i);
         if (box->type == SrsMp4BoxTypeTRAK) {
             SrsMp4TrackBox* trak = dynamic_cast<SrsMp4TrackBox*>(box);
@@ -1319,7 +1319,7 @@ int SrsMp4EditListBox::decode_header(SrsBuffer* buf)
     if (entry_count > 0) {
         entries = new SrsMp4ElstEntry[entry_count];
     }
-    for (int i = 0; i < entry_count; i++) {
+    for (int i = 0; i < (int)entry_count; i++) {
         SrsMp4ElstEntry& entry = entries[i];
         
         if (version == 1) {
@@ -1412,7 +1412,7 @@ SrsMp4MediaHeaderBox::~SrsMp4MediaHeaderBox()
 
 char SrsMp4MediaHeaderBox::language0()
 {
-    return (char)((language >> 10) & 0x1f + 0x60);
+    return (char)(((language >> 10) & 0x1f) + 0x60);
 }
 
 void SrsMp4MediaHeaderBox::set_language0(char v)
@@ -1422,7 +1422,7 @@ void SrsMp4MediaHeaderBox::set_language0(char v)
 
 char SrsMp4MediaHeaderBox::language1()
 {
-    return (char)((language >> 5) & 0x1f + 0x60);
+    return (char)(((language >> 5) & 0x1f) + 0x60);
 }
 
 void SrsMp4MediaHeaderBox::set_language1(char v)
@@ -1432,7 +1432,7 @@ void SrsMp4MediaHeaderBox::set_language1(char v)
 
 char SrsMp4MediaHeaderBox::language2()
 {
-    return (char)(language & 0x1f + 0x60);
+    return (char)((language & 0x1f) + 0x60);
 }
 
 void SrsMp4MediaHeaderBox::set_language2(char v)
@@ -3552,7 +3552,6 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
     int32_t maxp = 0;
     int32_t maxn = 0;
     if (true) {
-        uint32_t tbn = 0;
         SrsMp4Sample* pvideo = NULL;
         map<uint64_t, SrsMp4Sample*>::iterator it;
         for (it = tses.begin(); it != tses.end(); ++it) {
@@ -3562,7 +3561,6 @@ int SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
             if (sample->type == SrsFrameTypeVideo) {
                 pvideo = sample;
             } else if (pvideo) {
-                tbn = sample->tbn;
                 int32_t diff = sample->dts_ms() - pvideo->dts_ms();
                 if (diff > 0) {
                     maxp = srs_max(maxp, diff);
@@ -3775,7 +3773,7 @@ int SrsMp4SampleManager::write_track(SrsFrameType track,
         stsz->sample_size = 0;
         stsz->sample_count = (uint32_t)stsz_entries.size();
         stsz->entry_sizes = new uint32_t[stsz->sample_count];
-        for (int i = 0; i < stsz->sample_count; i++) {
+        for (int i = 0; i < (int)stsz->sample_count; i++) {
             stsz->entry_sizes[i] = stsz_entries.at(i);
         }
     }
@@ -3783,7 +3781,7 @@ int SrsMp4SampleManager::write_track(SrsFrameType track,
     if (stco && !stco_entries.empty()) {
         stco->entry_count = (uint32_t)stco_entries.size();
         stco->entries = new uint32_t[stco->entry_count];
-        for (int i = 0; i < stco->entry_count; i++) {
+        for (int i = 0; i < (int)stco->entry_count; i++) {
             stco->entries[i] = stco_entries.at(i);
         }
     }
@@ -3791,7 +3789,7 @@ int SrsMp4SampleManager::write_track(SrsFrameType track,
     if (stss && !stss_entries.empty()) {
         stss->entry_count = (uint32_t)stss_entries.size();
         stss->sample_numbers = new uint32_t[stss->entry_count];
-        for (int i = 0; i < stss->entry_count; i++) {
+        for (int i = 0; i < (int)stss->entry_count; i++) {
             stss->sample_numbers[i] = stss_entries.at(i);
         }
     }
@@ -4097,7 +4095,7 @@ int SrsMp4Decoder::parse_ftyp(SrsMp4FileTypeBox* ftyp)
         SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO2, SrsMp4BoxBrandAVC1, SrsMp4BoxBrandMP41,
         SrsMp4BoxBrandISO5
     };
-    for (int i = 0; i < sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
+    for (int i = 0; i < (int)sizeof(legal_brands)/sizeof(SrsMp4BoxBrand); i++) {
         if (ftyp->major_brand == legal_brands[i]) {
             legal_brand = true;
             break;
@@ -4239,7 +4237,7 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
     SrsMp4Box* box = NULL;
     while (true) {
         uint64_t required = box? box->sz():4;
-        while (stream->length() < required) {
+        while (stream->length() < (int)required) {
             ssize_t nread;
             if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
                 srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);

@@ -26,6 +26,7 @@
 
 #include <srs_core.hpp>
 
+#include <arpa/inet.h>
 #include <string>
 #include <vector>
 
