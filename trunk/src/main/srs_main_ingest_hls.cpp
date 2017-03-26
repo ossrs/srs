@@ -124,7 +124,7 @@ public:
 };
 
 // the context to ingest hls stream.
-class SrsIngestSrsInput
+class SrsIngestHlsInput
 {
 private:
     struct SrsTsPiece {
@@ -155,14 +155,14 @@ private:
     SrsBuffer* stream;
     SrsTsContext* context;
 public:
-    SrsIngestSrsInput(SrsHttpUri* hls) {
+    SrsIngestHlsInput(SrsHttpUri* hls) {
         in_hls = hls;
         next_connect_time = 0;
         
         stream = new SrsBuffer();
         context = new SrsTsContext();
     }
-    virtual ~SrsIngestSrsInput() {
+    virtual ~SrsIngestHlsInput() {
         srs_freep(stream);
         srs_freep(context);
         
@@ -209,7 +209,7 @@ private:
     virtual void remove_dirty();
 };
 
-int SrsIngestSrsInput::connect()
+int SrsIngestHlsInput::connect()
 {
     int ret = ERROR_SUCCESS;
     
@@ -243,7 +243,7 @@ int SrsIngestSrsInput::connect()
     return ret;
 }
 
-int SrsIngestSrsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
+int SrsIngestHlsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
 {
     int ret = ERROR_SUCCESS;
     
@@ -278,7 +278,7 @@ int SrsIngestSrsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
     return ret;
 }
 
-int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
+int SrsIngestHlsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
 {
     int ret = ERROR_SUCCESS;
     
@@ -302,7 +302,7 @@ int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
     return ret;
 }
 
-int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body, double duration)
+int SrsIngestHlsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -359,7 +359,7 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
     return handler->on_aac_frame(frame, frame_size, duration);
 }
 
-int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
+int SrsIngestHlsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -497,7 +497,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     return ret;
 }
 
-SrsIngestSrsInput::SrsTsPiece* SrsIngestSrsInput::find_ts(string url)
+SrsIngestHlsInput::SrsTsPiece* SrsIngestHlsInput::find_ts(string url)
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end(); ++it) {
@@ -509,7 +509,7 @@ SrsIngestSrsInput::SrsTsPiece* SrsIngestSrsInput::find_ts(string url)
     return NULL;
 }
 
-void SrsIngestSrsInput::dirty_all_ts()
+void SrsIngestHlsInput::dirty_all_ts()
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end(); ++it) {
@@ -518,7 +518,7 @@ void SrsIngestSrsInput::dirty_all_ts()
     }
 }
 
-int SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
+int SrsIngestHlsInput::fetch_all_ts(bool fresh_m3u8)
 {
     int ret = ERROR_SUCCESS;
     
@@ -552,7 +552,7 @@ int SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
 }
 
 
-void SrsIngestSrsInput::remove_dirty()
+void SrsIngestHlsInput::remove_dirty()
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end();) {
@@ -568,7 +568,7 @@ void SrsIngestSrsInput::remove_dirty()
     }
 }
 
-int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
+int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
 {
     int ret = ERROR_SUCCESS;
     
@@ -613,7 +613,7 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
 }
 
 // the context to output to rtmp server
-class SrsIngestSrsOutput : virtual public ISrsTsHandler, virtual public ISrsAacHandler
+class SrsIngestHlsOutput : virtual public ISrsTsHandler, virtual public ISrsAacHandler
 {
 private:
     SrsHttpUri* out_rtmp;
@@ -635,8 +635,8 @@ private:
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 public:
-    SrsIngestSrsOutput(SrsHttpUri* rtmp);
-    virtual ~SrsIngestSrsOutput();
+    SrsIngestHlsOutput(SrsHttpUri* rtmp);
+    virtual ~SrsIngestHlsOutput();
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
@@ -667,7 +667,7 @@ private:
     virtual void close();
 };
 
-SrsIngestSrsOutput::SrsIngestSrsOutput(SrsHttpUri* rtmp)
+SrsIngestHlsOutput::SrsIngestHlsOutput(SrsHttpUri* rtmp)
 {
     out_rtmp = rtmp;
     disconnected = false;
@@ -683,7 +683,7 @@ SrsIngestSrsOutput::SrsIngestSrsOutput(SrsHttpUri* rtmp)
     h264_sps_pps_sent = false;
 }
 
-SrsIngestSrsOutput::~SrsIngestSrsOutput()
+SrsIngestHlsOutput::~SrsIngestHlsOutput()
 {
     close();
     
@@ -698,7 +698,7 @@ SrsIngestSrsOutput::~SrsIngestSrsOutput()
     queue.clear();
 }
 
-int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
+int SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -774,7 +774,7 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     return ret;
 }
 
-int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duration)
+int SrsIngestHlsOutput::on_aac_frame(char* frame, int frame_size, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -788,7 +788,7 @@ int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duratio
     return do_on_aac_frame(&stream, duration);
 }
 
-int SrsIngestSrsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
+int SrsIngestHlsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -846,7 +846,7 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
     return ret;
 }
 
-int SrsIngestSrsOutput::parse_message_queue()
+int SrsIngestHlsOutput::parse_message_queue()
 {
     int ret = ERROR_SUCCESS;
     
@@ -911,7 +911,7 @@ int SrsIngestSrsOutput::parse_message_queue()
     return ret;
 }
 
-int SrsIngestSrsOutput::flush_message_queue()
+int SrsIngestHlsOutput::flush_message_queue()
 {
     int ret = ERROR_SUCCESS;
     
@@ -945,7 +945,7 @@ int SrsIngestSrsOutput::flush_message_queue()
     return ret;
 }
 
-int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
+int SrsIngestHlsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1032,7 +1032,7 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
+int SrsIngestHlsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1078,7 +1078,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts)
+int SrsIngestHlsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1100,7 +1100,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType f
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
+int SrsIngestHlsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1160,7 +1160,7 @@ int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
+int SrsIngestHlsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1173,7 +1173,7 @@ int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRa
     return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
-int SrsIngestSrsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
+int SrsIngestHlsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1201,7 +1201,7 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* d
     return ret;
 }
 
-int SrsIngestSrsOutput::connect()
+int SrsIngestHlsOutput::connect()
 {
     int ret = ERROR_SUCCESS;
     
@@ -1234,7 +1234,7 @@ int SrsIngestSrsOutput::connect()
     return ret;
 }
 
-void SrsIngestSrsOutput::close()
+void SrsIngestHlsOutput::close()
 {
     h264_sps_pps_sent = false;
     srs_freep(req);
@@ -1242,17 +1242,17 @@ void SrsIngestSrsOutput::close()
 }
 
 // the context for ingest hls stream.
-class SrsIngestSrsContext
+class SrsIngestHlsContext
 {
 private:
-    SrsIngestSrsInput* ic;
-    SrsIngestSrsOutput* oc;
+    SrsIngestHlsInput* ic;
+    SrsIngestHlsOutput* oc;
 public:
-    SrsIngestSrsContext(SrsHttpUri* hls, SrsHttpUri* rtmp) {
-        ic = new SrsIngestSrsInput(hls);
-        oc = new SrsIngestSrsOutput(rtmp);
+    SrsIngestHlsContext(SrsHttpUri* hls, SrsHttpUri* rtmp) {
+        ic = new SrsIngestHlsInput(hls);
+        oc = new SrsIngestHlsOutput(rtmp);
     }
-    virtual ~SrsIngestSrsContext() {
+    virtual ~SrsIngestHlsContext() {
         srs_freep(ic);
         srs_freep(oc);
     }
@@ -1303,7 +1303,7 @@ int proxy_hls2rtmp(string hls, string rtmp)
         return ret;
     }
     
-    SrsIngestSrsContext context(&hls_uri, &rtmp_uri);
+    SrsIngestHlsContext context(&hls_uri, &rtmp_uri);
     for (;;) {
         if ((ret = context.proxy()) != ERROR_SUCCESS) {
             srs_error("proxy hls to rtmp failed. ret=%d", ret);

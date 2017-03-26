@@ -116,7 +116,7 @@ void SrsConsoleLog::verbose(const char* tag, int context_id, const char* fmt, ..
     size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
     
-    fprintf(stdout, "%s", buffer);
+    fprintf(stdout, "%s\n", buffer);
 }
 
 void SrsConsoleLog::info(const char* tag, int context_id, const char* fmt, ...)
@@ -136,7 +136,7 @@ void SrsConsoleLog::info(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
     
-    fprintf(stdout, "%s", buffer);
+    fprintf(stdout, "%s\n", buffer);
 }
 
 void SrsConsoleLog::trace(const char* tag, int context_id, const char* fmt, ...)
@@ -156,7 +156,7 @@ void SrsConsoleLog::trace(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
     
-    fprintf(stdout, "%s", buffer);
+    fprintf(stdout, "%s\n", buffer);
 }
 
 void SrsConsoleLog::warn(const char* tag, int context_id, const char* fmt, ...)
@@ -176,7 +176,7 @@ void SrsConsoleLog::warn(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, fmt, ap);
     va_end(ap);
     
-    fprintf(stderr, "%s", buffer);
+    fprintf(stderr, "%s\n", buffer);
 }
 
 void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
@@ -201,7 +201,7 @@ void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
         size += snprintf(buffer + size, SRS_BASIC_LOG_SIZE - size, "(%s)", strerror(errno));
     }
     
-    fprintf(stderr, "%s", buffer);
+    fprintf(stderr, "%s\n", buffer);
 }
 
 bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize)
