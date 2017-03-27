@@ -161,7 +161,7 @@ public:
     // an extended type; in this case, the type field is set to ‘uuid’.
     SrsMp4BoxType type;
     // For box 'uuid'.
-    uint8_t* usertype;
+    std::vector<char> usertype;
 protected:
     std::vector<SrsMp4Box*> boxes;
 private:
@@ -254,8 +254,7 @@ public:
     uint32_t minor_version;
 private:
     // a list, to the end of the box, of brands
-    int nb_compatible_brands;
-    SrsMp4BoxBrand* compatible_brands;
+    std::vector<SrsMp4BoxBrand> compatible_brands;
 public:
     SrsMp4FileTypeBox();
     virtual ~SrsMp4FileTypeBox();
@@ -299,8 +298,7 @@ public:
 class SrsMp4FreeSpaceBox : public SrsMp4Box
 {
 private:
-    int nb_data;
-    uint8_t* data;
+    std::vector<char> data;
 public:
     SrsMp4FreeSpaceBox();
     virtual ~SrsMp4FreeSpaceBox();
@@ -611,8 +609,7 @@ class SrsMp4EditListBox : public SrsMp4FullBox
 {
 public:
     // an integer that gives the number of entries in the following table
-    uint32_t entry_count;
-    SrsMp4ElstEntry* entries;
+    std::vector<SrsMp4ElstEntry> entries;
 public:
     SrsMp4EditListBox();
     virtual ~SrsMp4EditListBox();
@@ -997,8 +994,7 @@ protected:
 class SrsMp4AvccBox : public SrsMp4Box
 {
 public:
-    int nb_config;
-    uint8_t* avc_config;
+    std::vector<char> avc_config;
 public:
     SrsMp4AvccBox();
     virtual ~SrsMp4AvccBox();
@@ -1108,8 +1104,7 @@ class SrsMp4DecoderSpecificInfo : public SrsMp4BaseDescriptor
 public:
     // AAC Audio Specific Config.
     // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
-    int nb_asc;
-    uint8_t* asc;
+    std::vector<char> asc;
 public:
     SrsMp4DecoderSpecificInfo();
     virtual ~SrsMp4DecoderSpecificInfo();
@@ -1177,8 +1172,7 @@ public:
     // if (streamDependenceFlag)
     uint16_t dependsOn_ES_ID;
     // if (URL_Flag)
-    uint8_t URLlength;
-    uint8_t* URLstring;
+    std::vector<char> URLstring;
     // if (OCRstreamFlag)
     uint16_t OCR_ES_Id;
     SrsMp4DecoderConfigDescriptor decConfigDescr;
@@ -1269,8 +1263,7 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 {
 public:
     // an integer that gives the number of entries in the following table.
-    uint32_t entry_count;
-    SrsMp4SttsEntry* entries;
+    std::vector<SrsMp4SttsEntry> entries;
 private:
     // The index for counter to calc the dts for samples.
     uint32_t index;
@@ -1320,8 +1313,7 @@ class SrsMp4CompositionTime2SampleBox : public SrsMp4FullBox
 {
 public:
     // an integer that gives the number of entries in the following table.
-    uint32_t entry_count;
-    SrsMp4CttsEntry* entries;
+    std::vector<SrsMp4CttsEntry> entries;
 private:
     // The index for counter to calc the dts for samples.
     uint32_t index;
@@ -1506,8 +1498,7 @@ protected:
 class SrsMp4UserDataBox : public SrsMp4Box
 {
 public:
-    int nb_data;
-    uint8_t* data;
+    std::vector<char> data;
 public:
     SrsMp4UserDataBox();
     virtual ~SrsMp4UserDataBox();
@@ -1616,8 +1607,7 @@ public:
     SrsVideoCodecId vcodec;
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
-    int nb_avcc;
-    uint8_t* pavcc;
+    std::vector<char> pavcc;
     // Whether avcc is written to reader.
     bool avcc_written;
 public:
@@ -1632,8 +1622,7 @@ public:
     SrsAudioChannels channels;
 private:
     // For AAC, the asc in esds box.
-    int nb_asc;
-    uint8_t* pasc;
+    std::vector<char> pasc;
     // Whether asc is written to reader.
     bool asc_written;
 private:
@@ -1704,8 +1693,7 @@ public:
     SrsAudioChannels channels;
 private:
     // For AAC, the asc in esds box.
-    uint32_t nb_asc;
-    uint8_t* pasc;
+    std::vector<char> pasc;
     // The number of audio samples.
     uint32_t nb_audios;
     // The duration of audio stream.
@@ -1716,8 +1704,7 @@ public:
     SrsVideoCodecId vcodec;
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
-    uint32_t nb_avcc;
-    uint8_t* pavcc;
+    std::vector<char> pavcc;
     // The number of video samples.
     uint32_t nb_videos;
     // The duration of video stream.

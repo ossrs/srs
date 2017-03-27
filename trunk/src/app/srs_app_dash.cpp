@@ -137,9 +137,7 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
             SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
             avc1->set_avcC(avcC);
             
-            avcC->nb_config = format->vcodec->avc_extra_size;
-            avcC->avc_config = new uint8_t[format->vcodec->avc_extra_size];
-            memcpy(avcC->avc_config, format->vcodec->avc_extra_data, format->vcodec->avc_extra_size);
+            avcC->avc_config = std::vector<char>(format->vcodec->avc_extra_data, format->vcodec->avc_extra_data + format->vcodec->avc_extra_size);
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -238,9 +236,7 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
             
             SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
             desc.decSpecificInfo = asc;
-            asc->nb_asc = format->acodec->aac_extra_size;
-            asc->asc = new uint8_t[format->acodec->aac_extra_size];
-            memcpy(asc->asc, format->acodec->aac_extra_data, format->acodec->aac_extra_size);
+            asc->asc = std::vector<char>(format->acodec->aac_extra_data, format->acodec->aac_extra_data + format->acodec->aac_extra_size);
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
