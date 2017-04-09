@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-04-09, Fix [#834][bug #834], crash for TS context corrupt. 2.0.235
 * <strong>v2.0, 2017-03-03, [2.0 release0(2.0.234)][r2.0r0] released. 86373 lines.</strong>
 * v2.0, 2017-02-25, for [#730][bug #730], remove the test code. 2.0.234
 * v2.0, 2017-02-09, fix [#503][bug #503] disable utilities when reload a source. 2.0.233
@@ -1279,6 +1280,7 @@ Winlin
 [bug #750]: https://github.com/ossrs/srs/issues/750
 [bug #752]: https://github.com/ossrs/srs/issues/752
 [bug #503]: https://github.com/ossrs/srs/issues/503
+[bug #834]: https://github.com/ossrs/srs/issues/834
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

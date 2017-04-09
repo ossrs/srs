@@ -199,6 +199,7 @@ ISrsTsHandler::~ISrsTsHandler()
 
 SrsTsContext::SrsTsContext()
 {
+    ready = false;
     pure_audio = false;
     vcodec = SrsCodecVideoReserved;
     acodec = SrsCodecAudioReserved1;
@@ -234,6 +235,7 @@ void SrsTsContext::on_pmt_parsed()
 
 void SrsTsContext::reset()
 {
+    ready = false;
     vcodec = SrsCodecVideoReserved;
     acodec = SrsCodecAudioReserved1;
 }
@@ -432,6 +434,9 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
             return ret;
         }
     }
+    
+    // When PAT and PMT are writen, the context is ready now.
+    ready = true;
 
     return ret;
 }
@@ -439,6 +444,13 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
 int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
     int ret = ERROR_SUCCESS;
+    
+    // Sometimes, the context is not ready(PAT/PMT write failed), error in this situation.
+    if (!ready) {
+        ret = ERROR_TS_CONTEXT_NOT_READY;
+        srs_error("TS: context not ready, ret=%d", ret);
+        return ret;
+    }
 
     if (msg->payload->length() == 0) {
         return ret;
