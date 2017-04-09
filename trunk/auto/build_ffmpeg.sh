@@ -42,7 +42,7 @@ else
     echo "build fdk-aac-0.1.3"
     cd $ff_current_dir &&
     rm -rf fdk-aac-0.1.3 && unzip -q ${ff_src_dir}/fdk-aac-0.1.3.zip &&
-    cd fdk-aac-0.1.3 && bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install &&
+    cd fdk-aac-0.1.3 && bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build fdk-aac-0.1.3 failed"; exit 1; fi
 fi
 

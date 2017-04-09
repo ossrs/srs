@@ -521,6 +521,14 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_info("security check ok");
     
+    // Never allow the empty stream name, for HLS may write to a file with empty name.
+    // @see https://github.com/ossrs/srs/issues/834
+    if (req->stream.empty()) {
+        ret = ERROR_RTMP_STREAM_NAME_EMPTY;
+        srs_error("RTMP: Empty stream name not allowed, ret=%d", ret);
+        return ret;
+    }
+
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);

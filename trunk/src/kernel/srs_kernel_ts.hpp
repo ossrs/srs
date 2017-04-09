@@ -342,7 +342,12 @@ public:
  */
 class SrsTsContext
 {
-    // codec
+private:
+    // Whether context is ready, failed if try to write data when not ready.
+    // When PAT and PMT writen, the context is ready.
+    // @see https://github.com/ossrs/srs/issues/834
+    bool ready;
+// codec
 private:
     std::map<int, SrsTsChannel*> pids;
     bool pure_audio;

@@ -158,7 +158,8 @@
 #define ERROR_RTMP_STREAM_NOT_FOUND         2048
 #define ERROR_RTMP_CLIENT_NOT_FOUND         2049
 #define ERROR_OpenSslCreateHMAC             2050
-//
+#define ERROR_RTMP_STREAM_NAME_EMPTY        2051
+//                                           
 // system control message,
 // not an error, but special control logic.
 //
@@ -260,6 +261,7 @@
 #define ERROR_MP4_AVCC_CHANGE               3085
 #define ERROR_MP4_ASC_CHANGE                3086
 #define ERROR_DASH_WRITE_FAILED             3087
+#define ERROR_TS_CONTEXT_NOT_READY          3088
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.
