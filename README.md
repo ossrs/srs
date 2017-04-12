@@ -642,7 +642,7 @@ Please select your language:
 
 ### Compare
 
-Compare SRS with other media server, more compare please read Product([CN](v1_CN_Compare)/[EN](v1_EN_Compare)).
+Compare SRS with other media server, more compare please read Product([CN][v1_CN_Compare]/[EN][v1_EN_Compare]).
 
 #### Stream Delivery
 
@@ -1070,6 +1070,8 @@ Winlin
 [donation2]: http://www.ossrs.net/srs.release/donation/paypal.html
 [donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
+[v1_CN_Compare]: https://github.com/ossrs/srs/wiki/v1_CN_Compare
+[v1_EN_Compare]: https://github.com/ossrs/srs/wiki/v1_EN_Compare
 [v3_CN_Build]: https://github.com/ossrs/srs/wiki/v3_CN_Build
 [v3_EN_Build]: https://github.com/ossrs/srs/wiki/v3_EN_Build
 [v1_CN_Performance]: https://github.com/ossrs/srs/wiki/v1_CN_Performance
