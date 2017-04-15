@@ -90,6 +90,7 @@ int SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std:
                 break;
             case SrsRtmpConnFMLEPublish:
             case SrsRtmpConnFlashPublish:
+            case SrsRtmpConnHaivisionPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }
@@ -135,6 +136,7 @@ int SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::
                 break;
             case SrsRtmpConnFMLEPublish:
             case SrsRtmpConnFlashPublish:
+            case SrsRtmpConnHaivisionPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }

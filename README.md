@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-04-15, Fix [#844][bug #844], support Haivision encoder. 2.0.238
 * v2.0, 2017-04-15, Merge [#846][bug #846], fix fd leak for FLV stream caster. 2.0.237
 * v2.0, 2017-04-15, Merge [#841][bug #841], avoid the duplicated sps/pps in ts. 2.0.236
 * v2.0, 2017-04-09, Fix [#834][bug #834], crash for TS context corrupt. 2.0.235
@@ -1285,6 +1286,7 @@ Winlin
 [bug #834]: https://github.com/ossrs/srs/issues/834
 [bug #841]: https://github.com/ossrs/srs/issues/841
 [bug #846]: https://github.com/ossrs/srs/issues/846
+[bug #844]: https://github.com/ossrs/srs/issues/844
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

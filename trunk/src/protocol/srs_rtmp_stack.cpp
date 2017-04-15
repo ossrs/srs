@@ -1791,6 +1791,7 @@ string srs_client_type_string(SrsRtmpConnType type)
         case SrsRtmpConnPlay: return "Play";
         case SrsRtmpConnFlashPublish: return "flash-publish";
         case SrsRtmpConnFMLEPublish: return "fmle-publish";
+        case SrsRtmpConnHaivisionPublish: return "haivision-publish";
         default: return "Unknown";
     }
 }
@@ -2693,6 +2694,14 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
                 }
                 return ret;
             }
+            
+            // For encoder of Haivision, it always send a _checkbw call message.
+            // @Remark the next message is createStream, so we continue to identify it.
+            // @see https://github.com/ossrs/srs/issues/844
+            if (call->command_name == "_checkbw") {
+                srs_info("Haivision encoder identified.");
+                continue;
+            }
             continue;
         }
         
@@ -2968,6 +2977,60 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     return ret;
 }
 
+int SrsRtmpServer::start_haivision_publish(int stream_id)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // publish
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        SrsPublishPacket* pkt = NULL;
+        if ((ret = expect_message<SrsPublishPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+            srs_error("recv publish message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("recv publish request message success.");
+        
+        SrsAutoFree(SrsCommonMessage, msg);
+        SrsAutoFree(SrsPublishPacket, pkt);
+    }
+    
+    // publish response onFCPublish(NetStream.Publish.Start)
+    if (true) {
+        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+        
+        pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_PUBLISH;
+        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
+        pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
+        
+        if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
+            srs_error("send onFCPublish(NetStream.Publish.Start) message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("send onFCPublish(NetStream.Publish.Start) message success.");
+    }
+    
+    // publish response onStatus(NetStream.Publish.Start)
+    if (true) {
+        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+        
+        pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+        pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
+        pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
+        pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
+        
+        if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
+            srs_error("send onStatus(NetStream.Publish.Start) message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("send onStatus(NetStream.Publish.Start) message success.");
+    }
+    
+    srs_info("Haivision publish success.");
+    
+    return ret;
+}
+
 int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
 {
     int ret = ERROR_SUCCESS;
@@ -3102,6 +3165,10 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
             srs_info("identify client by create stream, play or flash publish.");
             return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
         }
+        if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+            srs_info("identify client by FCPublish, haivision publish.");
+            return identify_haivision_publish_client(dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
+        }
         
         srs_trace("ignore AMF0/AMF3 command message.");
     }
@@ -3124,6 +3191,26 @@ int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmp
             return ret;
         }
         srs_info("send releaseStream response message success.");
+    }
+    
+    return ret;
+}
+
+int SrsRtmpServer::identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, string& stream_name)
+{
+    int ret = ERROR_SUCCESS;
+    
+    type = SrsRtmpConnHaivisionPublish;
+    stream_name = req->stream_name;
+    
+    // FCPublish response
+    if (true) {
+        SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(req->transaction_id);
+        if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+            srs_error("send FCPublish response message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("send FCPublish response message success.");
     }
     
     return ret;

@@ -69,6 +69,7 @@ class SrsCommonMessage;
 class SrsPacket;
 class SrsAmf0Object;
 class IMergeReadHandler;
+class SrsCallPacket;
 
 /****************************************************************************
  *****************************************************************************
@@ -631,6 +632,7 @@ enum SrsRtmpConnType
     SrsRtmpConnPlay,
     SrsRtmpConnFMLEPublish,
     SrsRtmpConnFlashPublish,
+    SrsRtmpConnHaivisionPublish,
 };
 std::string srs_client_type_string(SrsRtmpConnType type);
 bool srs_client_type_is_publish(SrsRtmpConnType type);
@@ -990,6 +992,11 @@ public:
      */
     virtual int start_fmle_publish(int stream_id);
     /**
+     * For encoder of Haivision, response the startup request.
+     * @see https://github.com/ossrs/srs/issues/844
+     */
+    virtual int start_haivision_publish(int stream_id);
+    /**
      * process the FMLE unpublish event.
      * @unpublish_tid the unpublish request transaction id.
      */
@@ -1025,6 +1032,7 @@ public:
 private:
     virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
     virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);
 private:
     virtual int identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name, double& duration);
@@ -1293,7 +1301,7 @@ public:
 };
 
 /**
-* FMLE start publish: ReleaseStream/PublishStream
+* FMLE start publish: ReleaseStream/PublishStream/FCPublish/FCUnpublish
 */
 class SrsFMLEStartPacket : public SrsPacket
 {
