@@ -86,6 +86,11 @@ void SrsAppCasterFlv::remove(SrsConnection* c)
     if ((it = std::find(conns.begin(), conns.end(), c)) != conns.end()) {
         conns.erase(it);
     }
+    
+    // fixbug: SrsHttpConn for CasterFlv is not freed, which could cause memory leak
+    // so, free conn which is not managed by SrsServer->conns;
+    // @see: https://github.com/ossrs/srs/issues/826
+    srs_freep(c);
 }
 
 int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
