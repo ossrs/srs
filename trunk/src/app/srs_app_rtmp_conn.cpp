@@ -583,6 +583,16 @@ int SrsRtmpConn::stream_service_cycle()
             
             return publishing(source);
         }
+        case SrsRtmpConnHaivisionPublish: {
+            srs_verbose("Haivision start to publish stream %s.", req->stream.c_str());
+            
+            if ((ret = rtmp->start_haivision_publish(res->stream_id)) != ERROR_SUCCESS) {
+                srs_error("start to publish stream failed. ret=%d", ret);
+                return ret;
+            }
+            
+            return publishing(source);
+        }
         case SrsRtmpConnFlashPublish: {
             srs_verbose("flash start to publish stream %s.", req->stream.c_str());
             
