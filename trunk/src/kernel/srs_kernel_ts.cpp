@@ -3048,6 +3048,8 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
     SrsVideoCodecConfig* codec = frame->vcodec();
     srs_assert(codec);
     
+    bool is_sps_pps_appended = false;
+    
     // all sample use cont nalu header, except the sps-pps before IDR frame.
     for (int i = 0; i < frame->nb_samples; i++) {
         SrsSample* sample = &frame->samples[i];
@@ -3065,7 +3067,7 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         
         // Insert sps/pps before IDR when there is no sps/pps in samples.
         // The sps/pps is parsed from sequence header(generally the first flv packet).
-        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps) {
+        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps && !is_sps_pps_appended) {
             if (codec->sequenceParameterSetLength > 0) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
                 video->payload->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
@@ -3074,6 +3076,7 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
                 srs_avc_insert_aud(video->payload, aud_inserted);
                 video->payload->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
             }
+            is_sps_pps_appended = true;
         }
         
         // Insert the NALU to video in annexb.
