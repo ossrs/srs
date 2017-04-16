@@ -586,7 +586,7 @@ int SrsRtmpConn::stream_service_cycle()
         case SrsRtmpConnHaivisionPublish: {
             srs_verbose("Haivision start to publish stream %s.", req->stream.c_str());
             
-            if ((ret = rtmp->start_haivision_publish(res->stream_id)) != ERROR_SUCCESS) {
+            if ((ret = rtmp->start_haivision_publish(info->res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("start to publish stream failed. ret=%d", ret);
                 return ret;
             }
