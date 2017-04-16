@@ -3911,11 +3911,109 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsFrameT
     return ret;
 }
 
+SrsMp4BoxReader::SrsMp4BoxReader()
+{
+    rsio = NULL;
+    buf = new char[SRS_MP4_BUF_SIZE];
+}
+
+SrsMp4BoxReader::~SrsMp4BoxReader()
+{
+    srs_freepa(buf);
+}
+
+int SrsMp4BoxReader::initialize(ISrsReadSeeker* rs)
+{
+    rsio = rs;
+    
+    return ERROR_SUCCESS;
+}
+
+int SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsMp4Box* box = NULL;
+    while (true) {
+        // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
+        // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
+        uint64_t required = box? box->sz():4;
+        
+        // For mdat box, we only requires to decode the header.
+        if (box && box->is_mdat()) {
+            required = box->sz_header();
+        }
+        
+        // Fill the stream util we can discovery box.
+        while (stream->length() < (int)required) {
+            ssize_t nread;
+            if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
+                srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
+                return ret;
+            }
+            
+            srs_assert(nread > 0);
+            stream->append(buf, (int)nread);
+        }
+        
+        SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
+        SrsAutoFree(SrsBuffer, buffer);
+        
+        // Discovery the box with basic header.
+        if (!box && (ret = SrsMp4Box::discovery(buffer, &box)) != ERROR_SUCCESS) {
+            if (ret == ERROR_MP4_BOX_REQUIRE_SPACE) {
+                continue;
+            }
+            srs_error("MP4 load box failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // When box is discoveried, check whether we can demux the whole box.
+        // For mdat, only the header is required.
+        required = (box->is_mdat()? box->sz_header():box->sz());
+        if (!buffer->require((int)required)) {
+            continue;
+        }
+        
+        if (ret != ERROR_SUCCESS) {
+            srs_freep(box);
+        } else {
+            *ppbox = box;
+        }
+        
+        break;
+    }
+    
+    return ret;
+}
+
+int SrsMp4BoxReader::skip(SrsMp4Box* box, SrsSimpleStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // For mdat, always skip the content.
+    if (box->is_mdat()) {
+        int offset = (int)(box->sz() - stream->length());
+        if (offset < 0) {
+            stream->erase(stream->length() + offset);
+        } else {
+            stream->erase(stream->length());
+        }
+        if (offset > 0 && (ret = rsio->lseek(offset, SEEK_CUR, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    } else {
+        // Remove the consumed bytes.
+        stream->erase((int)box->sz());
+    }
+    
+    return ret;
+}
+
 SrsMp4Decoder::SrsMp4Decoder()
 {
     rsio = NULL;
     brand = SrsMp4BoxBrandForbidden;
-    buf = new char[SRS_MP4_BUF_SIZE];
     stream = new SrsSimpleStream();
     vcodec = SrsVideoCodecIdForbidden;
     acodec = SrsAudioCodecIdForbidden;
@@ -3924,13 +4022,14 @@ SrsMp4Decoder::SrsMp4Decoder()
     sound_bits = SrsAudioSampleBitsForbidden;
     channels = SrsAudioChannelsForbidden;
     samples = new SrsMp4SampleManager();
+    br = new SrsMp4BoxReader();
     current_index = 0;
     current_offset = 0;
 }
 
 SrsMp4Decoder::~SrsMp4Decoder()
 {
-    srs_freepa(buf);
+    srs_freep(br);
     srs_freep(stream);
     srs_freep(samples);
 }
@@ -3941,6 +4040,10 @@ int SrsMp4Decoder::initialize(ISrsReadSeeker* rs)
     
     srs_assert(rs);
     rsio = rs;
+    
+    if ((ret = br->initialize(rs)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // For mdat before moov, we must reset the offset to the mdat.
     off_t offset = -1;
@@ -3997,7 +4100,7 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht, uint16_t* pft, uint16_t* 
         *pdts = *ppts = 0;
         *pht = SrsMp4HandlerTypeVIDE;
         
-        uint32_t nb_sample = *pnb_sample = pavcc.size();
+        uint32_t nb_sample = *pnb_sample = (uint32_t)pavcc.size();
         uint8_t* sample = *psample = new uint8_t[nb_sample];
         memcpy(sample, &pavcc[0], nb_sample);
         
@@ -4012,7 +4115,7 @@ int SrsMp4Decoder::read_sample(SrsMp4HandlerType* pht, uint16_t* pft, uint16_t* 
         *pdts = *ppts = 0;
         *pht = SrsMp4HandlerTypeSOUN;
         
-        uint32_t nb_sample = *pnb_sample = pasc.size();
+        uint32_t nb_sample = *pnb_sample = (uint32_t)pasc.size();
         uint8_t* sample = *psample = new uint8_t[nb_sample];
         memcpy(sample, &pasc[0], nb_sample);
         
@@ -4165,15 +4268,15 @@ int SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     ss << "dur=" << mvhd->duration() << "ms";
     // video codec.
     ss << ", vide=" << moov->nb_vide_tracks() << "("
-    << srs_video_codec_id2str(vcodec) << "," << pavcc.size() << "BSH"
-    << ")";
+        << srs_video_codec_id2str(vcodec) << "," << pavcc.size() << "BSH"
+        << ")";
     // audio codec.
     ss << ", soun=" << moov->nb_soun_tracks() << "("
-    << srs_audio_codec_id2str(acodec) << "," << pasc.size() << "BSH"
-    << "," << srs_audio_channels2str(channels)
-    << "," << srs_audio_sample_bits2str(sound_bits)
-    << "," << srs_audio_sample_rate2str(sample_rate)
-    << ")";
+        << srs_audio_codec_id2str(acodec) << "," << pasc.size() << "BSH"
+        << "," << srs_audio_channels2str(channels)
+        << "," << srs_audio_sample_bits2str(sound_bits)
+        << "," << srs_audio_sample_rate2str(sample_rate)
+        << ")";
     
     srs_trace("MP4 moov %s", ss.str().c_str());
     
@@ -4205,44 +4308,15 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
 {
     int ret = ERROR_SUCCESS;
     
-    SrsMp4Box* box = NULL;
     while (true) {
-        // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
-        // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
-        uint64_t required = box? box->sz():4;
-        // For mdat box, we only requires to decode the header.
-        if (box && box->is_mdat()) {
-            required = box->sz_header();
-        }
-        while (stream->length() < (int)required) {
-            ssize_t nread;
-            if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
-                srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
-                return ret;
-            }
-            
-            srs_assert(nread > 0);
-            stream->append(buf, (int)nread);
+        SrsMp4Box* box = NULL;
+        
+        if ((ret = br->read(stream, &box)) != ERROR_SUCCESS) {
+            return ret;
         }
         
         SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
         SrsAutoFree(SrsBuffer, buffer);
-        
-        // Discovery the box with basic header.
-        if (!box && (ret = SrsMp4Box::discovery(buffer, &box)) != ERROR_SUCCESS) {
-            if (ret == ERROR_MP4_BOX_REQUIRE_SPACE) {
-                continue;
-            }
-            srs_error("MP4 load box failed. ret=%d", ret);
-            return ret;
-        }
-        
-        // When box is discoveried, check whether we can demux the whole box.
-        // For mdat, only the header is required.
-        required = (box->is_mdat()? box->sz_header():box->sz());
-        if (!buffer->require((int)required)) {
-            continue;
-        }
         
         // Decode the box:
         // 1. Any box, when no box type is required.
@@ -4252,20 +4326,8 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
             ret = box->decode(buffer);
         }
         
-        // For mdat, always skip the content.
-        if (box->is_mdat()) {
-            int offset = (int)(box->sz() - stream->length());
-            if (offset < 0) {
-                stream->erase(stream->length() + offset);
-            } else {
-                stream->erase(stream->length());
-            }
-            if (offset > 0 && (ret = rsio->lseek(offset, SEEK_CUR, NULL)) != ERROR_SUCCESS) {
-                return ret;
-            }
-        } else {
-            // Remove the consumed bytes.
-            stream->erase((int)box->sz());
+        if (ret == ERROR_SUCCESS) {
+            ret = br->skip(box, stream);
         }
         
         if (ret != ERROR_SUCCESS) {

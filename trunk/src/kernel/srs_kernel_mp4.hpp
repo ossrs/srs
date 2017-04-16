@@ -1635,6 +1635,28 @@ private:
 };
 
 /**
+ * The MP4 box reader, to get the RAW boxes without decode.
+ * @remark For mdat box, we only decode the header, then skip the data.
+ */
+class SrsMp4BoxReader
+{
+private:
+    ISrsReadSeeker* rsio;
+    // The temporary buffer to read from buffer.
+    char* buf;
+public:
+    SrsMp4BoxReader();
+    virtual ~SrsMp4BoxReader();
+public:
+    virtual int initialize(ISrsReadSeeker* rs);
+public:
+    // Read a MP4 box to pbox, the stream is fill with the bytes of box to decode.
+    virtual int read(SrsSimpleStream* stream, SrsMp4Box** ppbox);
+    // Skip the box from stream, and skip in file if need.
+    virtual int skip(SrsMp4Box* box, SrsSimpleStream* stream);
+};
+
+/**
  * The MP4 demuxer.
  */
 class SrsMp4Decoder
@@ -1676,11 +1698,11 @@ private:
     // Underlayer reader and seeker.
     // @remark The demuxer must use seeker for general MP4 to seek the moov.
     ISrsReadSeeker* rsio;
+    // The MP4 box reader.
+    SrsMp4BoxReader* br;
     // The stream used to demux the boxes.
     // TODO: FIXME: refine for performance issue.
     SrsSimpleStream* stream;
-    // The temporary buffer to read from buffer.
-    char* buf;
 public:
     SrsMp4Decoder();
     virtual ~SrsMp4Decoder();
