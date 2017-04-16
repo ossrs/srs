@@ -183,6 +183,7 @@ enum SrsAudioAacFrameTrait
  *      2 = 22 kHz = 22050 Hz
  *      3 = 44 kHz = 44100 Hz
  * However, we can extends this table.
+ * @remark Use srs_flv_srates to convert it.
  */
 enum SrsAudioSampleRate
 {

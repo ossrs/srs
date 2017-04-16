@@ -174,7 +174,7 @@ Please select your language:
 - [x] [experiment] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [experiment] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [experiment] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [ ] Enhanced HLS audio-only use aac instead of ts.
+- [x] Enhanced HLS audio-only use ts, see [#547][bug #547].
 - [ ] Enhanced forward with vhost and url variables.
 - [ ] Support source or idle stream cleanup.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
@@ -186,6 +186,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-04-16, Fix [#547][bug #547], support HLS audio in TS. 3.0.22
 * v3.0, 2017-03-26, Fix [#820][bug #820], extract service for modules. 3.0.21
 * v3.0, 2017-03-02, Fix [#786][bug #786], simply don't reuse object. 3.0.20
 * v3.0, 2017-03-01, For [#110][bug #110], refine thread object. 3.0.19
@@ -1400,6 +1401,7 @@ Winlin
 [bug #738]: https://github.com/ossrs/srs/issues/738
 [bug #786]: https://github.com/ossrs/srs/issues/786
 [bug #820]: https://github.com/ossrs/srs/issues/820
+[bug #547]: https://github.com/ossrs/srs/issues/547
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
