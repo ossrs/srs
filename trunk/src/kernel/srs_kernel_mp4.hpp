@@ -110,6 +110,8 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
     SrsMp4BoxTypeMVEX = 0x6d766578, // 'mvex'
     SrsMp4BoxTypeTREX = 0x74726578, // 'trex'
+    
+    SrsMp4BoxTypePASP = 0x70617370, // 'pasp'
 };
 
 /**
@@ -172,7 +174,11 @@ public:
     virtual ~SrsMp4Box();
 public:
     // Get the size of box, whatever small or large size.
+    // @remark For general box(except mdat), we use this sz() to create the buffer to codec it.
     virtual uint64_t sz();
+    // Get the size of header, without contained boxes.
+    // @remark For mdat box, we must codec its header, use this instead of sz().
+    virtual int sz_header();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -198,7 +204,8 @@ public:
 protected:
     virtual int encode_boxes(SrsBuffer* buf);
     virtual int decode_boxes(SrsBuffer* buf);
-    // Sub classes can override these functions for special codec.
+// Sub classes can override these functions for special codec.
+// @remark For mdat box, we use completely different codec.
 protected:
     // The size of header, not including the contained boxes.
     virtual int nb_header();
@@ -208,13 +215,6 @@ protected:
     // It's not necessary to check the buffer, unless the box is not only determined by the verson.
     // Generally, it's not necessary, that is, all boxes is determinated by version.
     virtual int decode_header(SrsBuffer* buf);
-protected:
-    // The actual size of this box, generally it must equal to nb_bytes,
-    // but for some special boxes, for instance mdat, the box encode actual size maybe large than
-    // the nb_bytes to write, because the data is written directly.
-    // That is, the actual size is used to encode the box size in header,
-    // while the nb_bytes is the bytes encoded the box.
-    virtual uint64_t encode_actual_size();
 };
 
 /**
@@ -273,22 +273,69 @@ protected:
  * A presentation may contain zero or more Media Data Boxes. The actual media data follows the type field;
  * its structure is described by the metadata (see particularly the sample table, subclause 8.5, and the
  * item location box, subclause 8.11.3).
+ * 
+ * @remark The mdat box only decode and encode the header,
+ *      so user must read and write the data by yourself.
+ * To encode mdat:
+ *      SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
+ *      mdat->nb_data = 1024000;
+ *
+ *      char* buffer = new char[mdat->sz_header()];
+ *      SrsBuffer* buf = new SrsBuffer(buffer);
+ *      mdat->encode(buf);
+ *      
+ *      file->write(buffer, mdat->sz_header()); // Write the mdat box header.
+ *      file->write(data, size); // Write the mdat box data.
+ * 
+ * To decode mdat:
+ *      SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
+ *      char* buffer = new char[mdat->sz_header()];
+ *      SrsBuffer* buf = ...; // Read mdat->sz_header() data from io.
+ * 
+ *      mdat->decode(buf); // The buf should be empty now.
+ *      file->lseek(mdat->nb_data, SEEK_CUR); // Skip the mdat data in file.
+ * 
+ * To discovery any box from file:
+ *      SrsSimpleStream* stream = new SrsSimpleStream();
+ *      SrsBuffer* buf = new SrsBuffer(stream...); // Create read buffer from stream.
+ *      
+ *      // We don't know what's the next box, so try to read 4bytes and discovery it.
+ *      append(file, stream, 4); // Append 4bytes from file to stream.
+ *
+ *      SrsMp4Box* box = NULL;
+ *      SrsMp4Box::discovery(buf, &box);
+ *
+ *      required = (box->is_mdat()? box->sz_header():box->sz()); // Now we know how many bytes we needed.
+ *      append(file, stream, required);
+ *      box->decode(buf);
+ *
+ *      if (box->is_mdat()) {
+ *          file->lseek(mdat->nb_data, SEEK_CUR); // Skip the mdat data in file.
+ *      }
  */
 class SrsMp4MediaDataBox : public SrsMp4Box
 {
 public:
-    // the contained media data
+    // The contained media data, which we never directly read/write it.
     // TODO: FIXME: Support 64bits size.
     int nb_data;
-    // @remark User must alloc the data and codec it.
-    uint8_t* data;
 public:
     SrsMp4MediaDataBox();
     virtual ~SrsMp4MediaDataBox();
-protected:
-    virtual uint64_t encode_actual_size();
+// Interface ISrsCodec
 public:
+    // The total size of bytes, including the sz_header() and nb_data,
+    // which used to write the smallsize or largesize of mp4.
+    virtual int nb_bytes();
+    // To encode the mdat box, the buf should only contains the sz_header(),
+    // because the mdata only encode the header.
+    virtual int encode(SrsBuffer* buf);
+    // To decode the mdat box, the buf should only contains the sz_header(),
+    // because the mdat only decode the header.
     virtual int decode(SrsBuffer* buf);
+protected:
+    virtual int encode_boxes(SrsBuffer* buf);
+    virtual int decode_boxes(SrsBuffer* buf);
 };
 
 /**

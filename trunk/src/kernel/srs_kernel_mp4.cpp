@@ -103,6 +103,11 @@ uint64_t SrsMp4Box::sz()
     return smallsize == SRS_MP4_USE_LARGE_SIZE? largesize:smallsize;
 }
 
+int SrsMp4Box::sz_header()
+{
+    return nb_header();
+}
+
 int SrsMp4Box::left_space(SrsBuffer* buf)
 {
     return (int)sz() - (buf->pos() - start_pos);
@@ -193,7 +198,6 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
     switch(type) {
         case SrsMp4BoxTypeFTYP: box = new SrsMp4FileTypeBox(); break;
         case SrsMp4BoxTypeMDAT: box = new SrsMp4MediaDataBox(); break;
-        case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: box = new SrsMp4FreeSpaceBox(); break;
         case SrsMp4BoxTypeMOOV: box = new SrsMp4MovieBox(); break;
         case SrsMp4BoxTypeMVHD: box = new SrsMp4MovieHeaderBox(); break;
         case SrsMp4BoxTypeTRAK: box = new SrsMp4TrackBox(); break;
@@ -226,6 +230,9 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeUDTA: box = new SrsMp4UserDataBox(); break;
         case SrsMp4BoxTypeMVEX: box = new SrsMp4MovieExtendsBox(); break;
         case SrsMp4BoxTypeTREX: box = new SrsMp4TrackExtendsBox(); break;
+        // Skip some unknown boxes.
+        case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
+            box = new SrsMp4FreeSpaceBox(); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -259,7 +266,7 @@ int SrsMp4Box::encode(SrsBuffer* buf)
 {
     int ret = ERROR_SUCCESS;
     
-    uint64_t size = encode_actual_size();
+    uint64_t size = nb_bytes();
     if (size > 0xffffffff) {
         largesize = size;
     } else {
@@ -407,7 +414,7 @@ int SrsMp4Box::decode_header(SrsBuffer* buf)
     type = (SrsMp4BoxType)buf->read_4bytes();
     
     if (smallsize == SRS_MP4_EOF_SIZE) {
-        srs_warn("MP4 box EOF.");
+        srs_trace("MP4 box EOF.");
         return ret;
     }
     
@@ -446,11 +453,6 @@ int SrsMp4Box::decode_header(SrsBuffer* buf)
     }
     
     return ret;
-}
-
-uint64_t SrsMp4Box::encode_actual_size()
-{
-    return nb_bytes();
 }
 
 SrsMp4FullBox::SrsMp4FullBox()
@@ -589,18 +591,27 @@ int SrsMp4FileTypeBox::decode_header(SrsBuffer* buf)
 SrsMp4MediaDataBox::SrsMp4MediaDataBox()
 {
     type = SrsMp4BoxTypeMDAT;
-    data = NULL;
     nb_data = 0;
 }
 
 SrsMp4MediaDataBox::~SrsMp4MediaDataBox()
 {
-    srs_freepa(data);
 }
 
-uint64_t SrsMp4MediaDataBox::encode_actual_size()
+int SrsMp4MediaDataBox::nb_bytes()
 {
     return SrsMp4Box::nb_header() + nb_data;
+}
+
+int SrsMp4MediaDataBox::encode(SrsBuffer* buf)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsMp4Box::encode(buf)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 int SrsMp4MediaDataBox::decode(SrsBuffer* buf)
@@ -611,9 +622,21 @@ int SrsMp4MediaDataBox::decode(SrsBuffer* buf)
         return ret;
     }
     
-    nb_data = left_space(buf);
+    nb_data = (int)(sz() - nb_header());
+    
+    // Because the 
     
     return ret;
+}
+
+int SrsMp4MediaDataBox::encode_boxes(SrsBuffer* buf)
+{
+    return ERROR_SUCCESS;
+}
+
+int SrsMp4MediaDataBox::decode_boxes(SrsBuffer* buf)
+{
+    return ERROR_SUCCESS;
 }
 
 SrsMp4FreeSpaceBox::SrsMp4FreeSpaceBox()
@@ -627,7 +650,7 @@ SrsMp4FreeSpaceBox::~SrsMp4FreeSpaceBox()
 
 int SrsMp4FreeSpaceBox::nb_header()
 {
-    return SrsMp4Box::nb_header() + data.size();
+    return SrsMp4Box::nb_header() + (int)data.size();
 }
 
 int SrsMp4FreeSpaceBox::encode_header(SrsBuffer* buf)
@@ -639,7 +662,7 @@ int SrsMp4FreeSpaceBox::encode_header(SrsBuffer* buf)
     }
     
     if (!data.empty()) {
-        buf->write_bytes(&data[0], data.size());
+        buf->write_bytes(&data[0], (int)data.size());
     }
     
     return ret;
@@ -4184,7 +4207,13 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
     
     SrsMp4Box* box = NULL;
     while (true) {
+        // For the first time to read the box, maybe it's a basic box which is only 4bytes header.
+        // When we disconvery the real box, we know the size of the whole box, then read again and decode it.
         uint64_t required = box? box->sz():4;
+        // For mdat box, we only requires to decode the header.
+        if (box && box->is_mdat()) {
+            required = box->sz_header();
+        }
         while (stream->length() < (int)required) {
             ssize_t nread;
             if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
@@ -4208,15 +4237,17 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
             return ret;
         }
         
-        // Util we can demux the whole box.
+        // When box is discoveried, check whether we can demux the whole box.
         // For mdat, only the header is required.
-        if (!box->is_mdat()) {
-            if (!buffer->require((int)box->sz())) {
-                continue;
-            }
+        required = (box->is_mdat()? box->sz_header():box->sz());
+        if (!buffer->require((int)required)) {
+            continue;
         }
         
-        // Decode the matched box or any box is matched.
+        // Decode the box:
+        // 1. Any box, when no box type is required.
+        // 2. Matched box, when box type match the required type.
+        // 3. Mdat box, always decode the mdat because we only decode the header of it.
         if (!required_box_type || box->type == required_box_type || box->is_mdat()) {
             ret = box->decode(buffer);
         }
@@ -4316,7 +4347,7 @@ int SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
             return ret;
         }
         
-        int nb_data = mdat->nb_bytes();
+        int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
         if ((ret = buffer->initialize((char*)data, nb_data)) != ERROR_SUCCESS) {
@@ -4573,13 +4604,13 @@ int SrsMp4Encoder::flush()
             return ret;
         }
         
-        // Write empty mdat box,
-        // its payload will be writen by samples,
+        // Write mdat box with size of data,
+        // its payload already writen by samples,
         // and we will update its header(size) when flush.
         SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
         SrsAutoFree(SrsMp4MediaDataBox, mdat);
         
-        int nb_data = mdat->nb_bytes();
+        int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
         if ((ret = buffer->initialize((char*)data, nb_data)) != ERROR_SUCCESS) {
@@ -4606,7 +4637,7 @@ int SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_s
     int ret = ERROR_SUCCESS;
     
     if (vsh && !pavcc.empty()) {
-        if (nb_sample == pavcc.size() && srs_bytes_equals(sample, &pavcc[0], pavcc.size())) {
+        if (nb_sample == pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
             return ret;
         }
         
@@ -4616,7 +4647,7 @@ int SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_s
     }
     
     if (!vsh && !pasc.empty()) {
-        if (nb_sample == pasc.size() && srs_bytes_equals(sample, &pasc[0], pasc.size())) {
+        if (nb_sample == pasc.size() && srs_bytes_equals(sample, &pasc[0], (int)pasc.size())) {
             return ret;
         }
         
