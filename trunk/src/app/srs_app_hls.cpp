@@ -876,6 +876,7 @@ int SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     }
     
     // for pure audio, aggregate some frame to one.
+    // TODO: FIXME: Check whether it's necessary.
     if (muxer->pure_audio() && tsmc->audio) {
         if (pts - tsmc->audio->start_pts < SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE) {
             return ret;
