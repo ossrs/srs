@@ -215,6 +215,7 @@ Please select your language:
 
 ### V2 changes
 
+* <strong>v2.0, 2017-04-18, [2.0 release1(2.0.239)][r2.0r1] released. 86515 lines.</strong>
 * v2.0, 2017-04-18, Fix [#848][bug #848], crash at HTTP fast buffer grow. 2.0.239
 * v2.0, 2017-04-15, Fix [#844][bug #844], support Haivision encoder. 2.0.238
 * v2.0, 2017-04-15, Merge [#846][bug #846], fix fd leak for FLV stream caster. 2.0.237
@@ -1408,6 +1409,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r1]: https://github.com/ossrs/srs/releases/tag/v2.0-r1
 [r2.0r0]: https://github.com/ossrs/srs/releases/tag/v2.0-r0
 [r2.0b4]: https://github.com/ossrs/srs/releases/tag/v2.0-b4
 [r2.0b3]: https://github.com/ossrs/srs/releases/tag/v2.0-b3
@@ -1452,6 +1454,6 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.234.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.234.zip
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.239.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.239.zip
 
