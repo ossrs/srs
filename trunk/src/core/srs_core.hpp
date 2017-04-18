@@ -133,7 +133,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * @reamrk to patch ST for arm, read https://github.com/ossrs/state-threads/issues/1
  */
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__)
-    #error "only support i386/amd64/x86_64/arm cpu"
+    /* for srslibrtmp, it doesn't depend on st, so no limitation here. 
+     * the below macro is defined in the auto generated srslibrtmp header file, it's not a good solution but a workaround.
+     */
+    #ifndef SRS_LIB_RTMP_HPP
+        #error "only support i386/amd64/x86_64/arm cpu"
+    #endif
 #endif
 
 #endif
