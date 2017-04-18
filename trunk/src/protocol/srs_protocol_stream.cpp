@@ -160,9 +160,10 @@ int SrsFastStream::grow(ISrsReader* reader, int required_size)
             // reset when buffer is empty.
             p = end = buffer;
             srs_verbose("all consumed, reset fast buffer");
-        } else {
+        } else if (nb_exists_bytes < nb_buffer && p > buffer) {
             // move the left bytes to start of buffer.
-            srs_assert(nb_exists_bytes < nb_buffer);
+            // @remark Only move memory when space is enough, or failed at next check.
+            // @see https://github.com/ossrs/srs/issues/848
             buffer = (char*)memmove(buffer, p, nb_exists_bytes);
             p = buffer;
             end = p + nb_exists_bytes;
