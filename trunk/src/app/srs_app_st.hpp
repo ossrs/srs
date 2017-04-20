@@ -32,7 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
-#include <srs_app_st.hpp>
 #include <srs_rtmp_io.hpp>
 
 /**

@@ -146,6 +146,11 @@ int SrsStatisticStream::dumps(stringstream& ss)
         ss  << SRS_JFIELD_NAME("video") << SRS_JOBJECT_START
                 << SRS_JFIELD_STR("codec", srs_codec_video2str(vcodec)) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("profile", srs_codec_avc_profile2str(avc_profile)) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("width", width) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("height", height) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("frame_rate", frame_rate) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("video_codec_id", video_codec_id) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("video_data_rate", video_data_rate) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("level", srs_codec_avc_level2str(avc_level))
                 << SRS_JOBJECT_END
             << SRS_JFIELD_CONT;
@@ -158,6 +163,8 @@ int SrsStatisticStream::dumps(stringstream& ss)
                 << SRS_JFIELD_STR("codec", srs_codec_audio2str(acodec)) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("sample_rate", (int)flv_sample_rates[asample_rate]) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("channel", (int)asound_type + 1) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("audio_codec_id", audio_codec_id) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("audio_data_rate", audio_data_rate) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("profile", srs_codec_aac_object2str(aac_object))
             << SRS_JOBJECT_END;
     }
@@ -326,6 +333,25 @@ int SrsStatistic::on_audio_info(SrsRequest* req,
     
     return ret;
 }
+
+// for issue 561
+int SrsStatistic::on_metadata_info(SrsRequest *req, int width, int height, int frame_rate, int video_codec_id,
+                                   int video_data_rate, int audio_codec_id, int audio_data_rate) {
+    int ret = ERROR_SUCCESS;
+
+    SrsStatisticVhost* vhost = create_vhost(req);
+    SrsStatisticStream* stream = create_stream(vhost, req);
+
+    stream->width = width;
+    stream->height = height;
+    stream->frame_rate = frame_rate;
+    stream->video_codec_id = video_codec_id;
+    stream->video_data_rate = video_data_rate;
+    stream->audio_codec_id = audio_codec_id;
+    stream->audio_data_rate = audio_data_rate;
+
+    return ret;
+};
 
 void SrsStatistic::on_stream_publish(SrsRequest* req, int cid)
 {
