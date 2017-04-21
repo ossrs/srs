@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 class SrsBuffer;
 
@@ -548,8 +549,7 @@ public:
      * without the flv codec header,
      * @see: ffmpeg, AVCodecContext::extradata
      */
-    int aac_extra_size;
-    char* aac_extra_data;
+    std::vector<char> aac_extra_data;
 public:
     SrsAudioCodecConfig();
     virtual ~SrsAudioCodecConfig();
@@ -575,8 +575,7 @@ public:
      * without the flv codec header,
      * @see: ffmpeg, AVCodecContext::extradata
      */
-    int avc_extra_size;
-    char* avc_extra_data;
+    std::vector<char> avc_extra_data;
 public:
     /**
      * video specified
@@ -587,10 +586,8 @@ public:
     SrsAvcLevel avc_level;
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
-    uint16_t sequenceParameterSetLength;
-    char* sequenceParameterSetNALUnit;
-    uint16_t pictureParameterSetLength;
-    char* pictureParameterSetNALUnit;
+    std::vector<char> sequenceParameterSetNALUnit;
+    std::vector<char> pictureParameterSetNALUnit;
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
