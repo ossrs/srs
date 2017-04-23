@@ -115,6 +115,7 @@ SrsStatisticStream::SrsStatisticStream()
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
+    nb_frames = 0;
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -132,6 +133,7 @@ int SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("app", SrsJsonAny::str(app.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srs_get_system_time_ms()));
     obj->set("clients", SrsJsonAny::integer(nb_clients));
+    obj->set("frames", SrsJsonAny::integer(nb_frames));
     obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
     obj->set("recv_bytes", SrsJsonAny::integer(kbps->get_recv_bytes()));
     
@@ -338,6 +340,18 @@ int SrsStatistic::on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudi
     stream->asample_rate = asample_rate;
     stream->asound_type = asound_type;
     stream->aac_object = aac_object;
+    
+    return ret;
+}
+
+int SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsStatisticVhost* vhost = create_vhost(req);
+    SrsStatisticStream* stream = create_stream(vhost, req);
+    
+    stream->nb_frames += nb_frames;
     
     return ret;
 }

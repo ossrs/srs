@@ -215,6 +215,7 @@ Please select your language:
 
 ### V2 changes
 
+* v2.0, 2017-04-23, Fix [#851][bug #851], HTTP API support number of video frames for FPS. 2.0.240
 * <strong>v2.0, 2017-04-18, [2.0 release1(2.0.239)][r2.0r1] released. 86515 lines.</strong>
 * v2.0, 2017-04-18, Fix [#848][bug #848], crash at HTTP fast buffer grow. 2.0.239
 * v2.0, 2017-04-15, Fix [#844][bug #844], support Haivision encoder. 2.0.238
@@ -1397,6 +1398,7 @@ Winlin
 [bug #846]: https://github.com/ossrs/srs/issues/846
 [bug #844]: https://github.com/ossrs/srs/issues/844
 [bug #848]: https://github.com/ossrs/srs/issues/848
+[bug #851]: https://github.com/ossrs/srs/issues/851
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
