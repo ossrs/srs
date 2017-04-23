@@ -257,6 +257,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(
 
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
+    video_frames = 0;
     error = st_cond_new();
     ncid = cid = 0;
     
@@ -296,6 +297,11 @@ int SrsPublishRecvThread::wait(int timeout_ms)
 int64_t SrsPublishRecvThread::nb_msgs()
 {
     return _nb_msgs;
+}
+
+uint64_t SrsPublishRecvThread::nb_video_frames()
+{
+    return video_frames;
 }
 
 int SrsPublishRecvThread::error_code()
@@ -377,6 +383,10 @@ int SrsPublishRecvThread::handle(SrsCommonMessage* msg)
     }
 
     _nb_msgs++;
+    
+    if (msg->header.is_video()) {
+        video_frames++;
+    }
     
     // log to show the time of recv thread.
     srs_verbose("recv thread now=%"PRId64"us, got msg time=%"PRId64"ms, size=%d",

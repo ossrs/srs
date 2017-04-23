@@ -154,6 +154,8 @@ private:
     SrsRequest* req;
     // the msgs already got.
     int64_t _nb_msgs;
+    // The video frames we got.
+    uint64_t video_frames;
     // for mr(merged read),
     // @see https://github.com/ossrs/srs/issues/241
     bool mr;
@@ -186,6 +188,7 @@ public:
     */
     virtual int wait(int timeout_ms);
     virtual int64_t nb_msgs();
+    virtual uint64_t nb_video_frames();
     virtual int error_code();
     virtual void set_cid(int v);
     virtual int get_cid();

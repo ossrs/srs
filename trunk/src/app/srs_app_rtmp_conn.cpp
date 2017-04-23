@@ -906,6 +906,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     }
 
     int64_t nb_msgs = 0;
+    uint64_t nb_frames = 0;
     while (!disposed) {
         pprint->elapse();
         
@@ -941,6 +942,14 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             break;
         }
         nb_msgs = trd->nb_msgs();
+        
+        // Update the stat for video fps.
+        // @remark https://github.com/ossrs/srs/issues/851
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_video_frames(req, (int)(trd->nb_video_frames() - nb_frames))) != ERROR_SUCCESS) {
+            return ret;
+        }
+        nb_frames = trd->nb_video_frames();
 
         // reportable
         if (pprint->can_print()) {

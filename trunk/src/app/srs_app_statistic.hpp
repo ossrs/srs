@@ -70,6 +70,7 @@ public:
     bool active;
     int connection_cid;
     int nb_clients;
+    uint64_t nb_frames;
 public:
     /**
     * stream total kbps.
@@ -172,6 +173,11 @@ public:
         SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
         SrsAacObjectType aac_object
     );
+    /**
+     * When got videos, update the frames.
+     * We only stat the total number of video frames.
+     */
+    virtual int on_video_frames(SrsRequest* req, int nb_frames);
     /**
      * when publish stream.
      * @param req the request object of publish connection.
