@@ -3068,13 +3068,13 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         // Insert sps/pps before IDR when there is no sps/pps in samples.
         // The sps/pps is parsed from sequence header(generally the first flv packet).
         if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps && !is_sps_pps_appended) {
-            if (codec->sequenceParameterSetLength > 0) {
+            if (!codec->sequenceParameterSetNALUnit.empty()) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
+                video->payload->append(&codec->sequenceParameterSetNALUnit[0], codec->sequenceParameterSetNALUnit.size());
             }
-            if (codec->pictureParameterSetLength > 0) {
+            if (!codec->pictureParameterSetNALUnit.empty()) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
+                video->payload->append(&codec->pictureParameterSetNALUnit[0], codec->pictureParameterSetNALUnit.size());
             }
             is_sps_pps_appended = true;
         }

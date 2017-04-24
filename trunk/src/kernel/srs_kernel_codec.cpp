@@ -371,8 +371,6 @@ SrsAudioCodecConfig::SrsAudioCodecConfig()
     aac_object = SrsAacObjectTypeForbidden;
     aac_sample_rate = SrsAacSampleRateUnset; // sample rate ignored
     aac_channels = 0;
-    aac_extra_size = 0;
-    aac_extra_data = NULL;
 }
 
 SrsAudioCodecConfig::~SrsAudioCodecConfig()
@@ -381,7 +379,7 @@ SrsAudioCodecConfig::~SrsAudioCodecConfig()
 
 bool SrsAudioCodecConfig::is_aac_codec_ok()
 {
-    return aac_extra_size > 0 && aac_extra_data;
+    return !aac_extra_data.empty();
 }
 
 SrsVideoCodecConfig::SrsVideoCodecConfig()
@@ -393,30 +391,20 @@ SrsVideoCodecConfig::SrsVideoCodecConfig()
     width = 0;
     height = 0;
     
-    avc_extra_size = 0;
-    avc_extra_data = NULL;
-    
     NAL_unit_length = 0;
     avc_profile = SrsAvcProfileReserved;
     avc_level = SrsAvcLevelReserved;
-    sequenceParameterSetLength = 0;
-    sequenceParameterSetNALUnit = NULL;
-    pictureParameterSetLength = 0;
-    pictureParameterSetNALUnit = NULL;
     
     payload_format = SrsAvcPayloadFormatGuess;
 }
 
 SrsVideoCodecConfig::~SrsVideoCodecConfig()
 {
-    srs_freepa(avc_extra_data);
-    srs_freepa(sequenceParameterSetNALUnit);
-    srs_freepa(pictureParameterSetNALUnit);
 }
 
 bool SrsVideoCodecConfig::is_avc_codec_ok()
 {
-    return avc_extra_size > 0 && avc_extra_data;
+    return !avc_extra_data.empty();
 }
 
 SrsFrame::SrsFrame()
@@ -725,11 +713,10 @@ int SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     
     // AVCDecoderConfigurationRecord
     // 5.2.4.1.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
-    vcodec->avc_extra_size = stream->size() - stream->pos();
-    if (vcodec->avc_extra_size > 0) {
-        srs_freepa(vcodec->avc_extra_data);
-        vcodec->avc_extra_data = new char[vcodec->avc_extra_size];
-        memcpy(vcodec->avc_extra_data, stream->data() + stream->pos(), vcodec->avc_extra_size);
+    int avc_extra_size = stream->size() - stream->pos();
+    if (avc_extra_size > 0) {
+        char *copy_stream_from = stream->data() + stream->pos();
+        vcodec->avc_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + avc_extra_size);
     }
     
     if (!stream->require(6)) {
@@ -781,16 +768,15 @@ int SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
         srs_error("avc decode sequenc header sps size failed. ret=%d", ret);
         return ret;
     }
-    vcodec->sequenceParameterSetLength = stream->read_2bytes();
-    if (!stream->require(vcodec->sequenceParameterSetLength)) {
+    uint16_t sequenceParameterSetLength = stream->read_2bytes();
+    if (!stream->require(sequenceParameterSetLength)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sequenc header sps data failed. ret=%d", ret);
         return ret;
     }
-    if (vcodec->sequenceParameterSetLength > 0) {
-        srs_freepa(vcodec->sequenceParameterSetNALUnit);
-        vcodec->sequenceParameterSetNALUnit = new char[vcodec->sequenceParameterSetLength];
-        stream->read_bytes(vcodec->sequenceParameterSetNALUnit, vcodec->sequenceParameterSetLength);
+    if (sequenceParameterSetLength > 0) {
+        vcodec->sequenceParameterSetNALUnit.resize(sequenceParameterSetLength);
+        stream->read_bytes(&vcodec->sequenceParameterSetNALUnit[0], sequenceParameterSetLength);
     }
     // 1 pps
     if (!stream->require(1)) {
@@ -810,16 +796,15 @@ int SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
         srs_error("avc decode sequenc header pps size failed. ret=%d", ret);
         return ret;
     }
-    vcodec->pictureParameterSetLength = stream->read_2bytes();
-    if (!stream->require(vcodec->pictureParameterSetLength)) {
+    uint16_t pictureParameterSetLength = stream->read_2bytes();
+    if (!stream->require(pictureParameterSetLength)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sequenc header pps data failed. ret=%d", ret);
         return ret;
     }
-    if (vcodec->pictureParameterSetLength > 0) {
-        srs_freepa(vcodec->pictureParameterSetNALUnit);
-        vcodec->pictureParameterSetNALUnit = new char[vcodec->pictureParameterSetLength];
-        stream->read_bytes(vcodec->pictureParameterSetNALUnit, vcodec->pictureParameterSetLength);
+    if (pictureParameterSetLength > 0) {
+        vcodec->pictureParameterSetNALUnit.resize(pictureParameterSetLength);
+        stream->read_bytes(&vcodec->pictureParameterSetNALUnit[0], pictureParameterSetLength);
     }
     
     return avc_demux_sps();
@@ -829,12 +814,12 @@ int SrsFormat::avc_demux_sps()
 {
     int ret = ERROR_SUCCESS;
     
-    if (!vcodec->sequenceParameterSetLength) {
+    if (vcodec->sequenceParameterSetNALUnit.empty()) {
         return ret;
     }
     
     SrsBuffer stream;
-    if ((ret = stream.initialize(vcodec->sequenceParameterSetNALUnit, vcodec->sequenceParameterSetLength)) != ERROR_SUCCESS) {
+    if ((ret = stream.initialize(&vcodec->sequenceParameterSetNALUnit[0], vcodec->sequenceParameterSetNALUnit.size())) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -876,8 +861,7 @@ int SrsFormat::avc_demux_sps()
     
     // decode the rbsp from sps.
     // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
-    int8_t* rbsp = new int8_t[vcodec->sequenceParameterSetLength];
-    SrsAutoFreeA(int8_t, rbsp);
+    std::vector<int8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
     
     int nb_rbsp = 0;
     while (!stream.empty()) {
@@ -898,7 +882,7 @@ int SrsFormat::avc_demux_sps()
         nb_rbsp++;
     }
     
-    return avc_demux_sps_rbsp((char*)rbsp, nb_rbsp);
+    return avc_demux_sps_rbsp((char*)&rbsp[0], nb_rbsp);
 }
 
 
@@ -1299,13 +1283,12 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
-        acodec->aac_extra_size = stream->size() - stream->pos();
-        if (acodec->aac_extra_size > 0) {
-            srs_freepa(acodec->aac_extra_data);
-            acodec->aac_extra_data = new char[acodec->aac_extra_size];
-            memcpy(acodec->aac_extra_data, stream->data() + stream->pos(), acodec->aac_extra_size);
+        int aac_extra_size = stream->size() - stream->pos();
+        if (aac_extra_size > 0) {
+            char *copy_stream_from = stream->data() + stream->pos();
+            acodec->aac_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + aac_extra_size);
             
-            if ((ret = audio_aac_sequence_header_demux(acodec->aac_extra_data, acodec->aac_extra_size)) != ERROR_SUCCESS) {
+            if ((ret = audio_aac_sequence_header_demux(&acodec->aac_extra_data[0], aac_extra_size)) != ERROR_SUCCESS) {
                 return ret;
             }
         }

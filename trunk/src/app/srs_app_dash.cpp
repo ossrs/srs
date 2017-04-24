@@ -137,7 +137,7 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
             SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
             avc1->set_avcC(avcC);
             
-            avcC->avc_config = std::vector<char>(format->vcodec->avc_extra_data, format->vcodec->avc_extra_data + format->vcodec->avc_extra_size);
+            avcC->avc_config = format->vcodec->avc_extra_data;
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -236,7 +236,7 @@ int SrsInitMp4::write(SrsFormat* format, bool video, int tid)
             
             SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
             desc.decSpecificInfo = asc;
-            asc->asc = std::vector<char>(format->acodec->aac_extra_data, format->acodec->aac_extra_data + format->acodec->aac_extra_size);
+            asc->asc = format->acodec->aac_extra_data;
             
             SrsMp4DecodingTime2SampleBox* stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -610,8 +610,8 @@ int SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* for
 {
     int ret = ERROR_SUCCESS;
     
-    if (msg->size <= 0 || (msg->is_video() && !format->vcodec->avc_extra_size)
-        || (msg->is_audio() && !format->acodec->aac_extra_size)) {
+    if (msg->size <= 0 || (msg->is_video() && format->vcodec->is_avc_codec_ok())
+        || (msg->is_audio() && format->acodec->is_aac_codec_ok())) {
         srs_warn("DASH: Ignore empty sequence header.");
         return ret;
     }
