@@ -390,7 +390,7 @@ private:
 
 class SrsHttpConn : public SrsConnection
 {
-private:
+protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
 public:
@@ -421,6 +421,13 @@ class SrsResponseOnlyHttpConn : public SrsHttpConn
 public:
     SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m);
     virtual ~SrsResponseOnlyHttpConn();
+public:
+    // Directly read a HTTP request message.
+    // It's exported for HTTP stream, such as HTTP FLV, only need to write to client when
+    // serving it, but we need to start a thread to read message to detect whether FD is closed.
+    // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
+    // @remark Should only used in HTTP-FLV streaming connection.
+    virtual int pop_message(ISrsHttpMessage** preq);
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);
 };

@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-04-30, Fix [#636][bug #636], FD leak for requesting empty HTTP stream. 2.0.241
 * v2.0, 2017-04-23, Fix [#851][bug #851], HTTP API support number of video frames for FPS. 2.0.240
 * <strong>v2.0, 2017-04-18, [2.0 release1(2.0.239)][r2.0r1] released. 86515 lines.</strong>
 * v2.0, 2017-04-18, Fix [#848][bug #848], crash at HTTP fast buffer grow. 2.0.239
@@ -1293,6 +1294,7 @@ Winlin
 [bug #844]: https://github.com/ossrs/srs/issues/844
 [bug #848]: https://github.com/ossrs/srs/issues/848
 [bug #851]: https://github.com/ossrs/srs/issues/851
+[bug #636]: https://github.com/ossrs/srs/issues/636
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
