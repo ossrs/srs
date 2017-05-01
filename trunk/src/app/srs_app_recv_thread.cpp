@@ -31,6 +31,8 @@
 #include <srs_core_performance.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
+#include <srs_app_http_conn.hpp>
+#include <srs_core_autofree.hpp>
 
 using namespace std;
 
@@ -525,5 +527,44 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
               SRS_MR_SMALL_BYTES, realtime);
     
     rtmp->set_recv_buffer(nb_rbuf);
+}
+
+SrsHttpRecvThread::SrsHttpRecvThread(SrsResponseOnlyHttpConn* c)
+{
+    conn = c;
+    error = ERROR_SUCCESS;
+    trd = new SrsOneCycleThread("http-receive", this);
+}
+
+SrsHttpRecvThread::~SrsHttpRecvThread()
+{
+    srs_freep(trd);
+}
+
+int SrsHttpRecvThread::start()
+{
+    return trd->start();
+}
+
+int SrsHttpRecvThread::error_code()
+{
+    return error;
+}
+
+int SrsHttpRecvThread::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (true) {
+        ISrsHttpMessage* req = NULL;
+        SrsAutoFree(ISrsHttpMessage, req);
+        
+        if ((ret = conn->pop_message(&req)) != ERROR_SUCCESS) {
+            error = ret;
+            break;
+        }
+    }
+    
+    return ret;
 }
 

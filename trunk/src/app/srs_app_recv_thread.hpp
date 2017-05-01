@@ -39,6 +39,8 @@ class SrsRtmpConn;
 class SrsSource;
 class SrsRequest;
 class SrsConsumer;
+class SrsHttpConn;
+class SrsResponseOnlyHttpConn;
 
 /**
  * The message consumer which consume a message.
@@ -219,6 +221,30 @@ public:
     virtual int on_reload_vhost_realtime(std::string vhost);
 private:
     virtual void set_socket_buffer(int sleep_ms);
+};
+
+/**
+ * The HTTP receive thread, try to read messages util EOF.
+ * For example, the HTTP FLV serving thread will use the receive thread to break
+ * when client closed the request, to avoid FD leak.
+ * @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
+ */
+class SrsHttpRecvThread : public ISrsOneCycleThreadHandler
+{
+private:
+    SrsResponseOnlyHttpConn* conn;
+    SrsOneCycleThread* trd;
+    int error;
+public:
+    SrsHttpRecvThread(SrsResponseOnlyHttpConn* c);
+    virtual ~SrsHttpRecvThread();
+public:
+    virtual int start();
+public:
+    virtual int error_code();
+// interface ISrsOneCycleThreadHandler
+public:
+    virtual int cycle();
 };
 
 #endif

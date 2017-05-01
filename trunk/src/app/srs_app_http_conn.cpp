@@ -212,6 +212,19 @@ SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 {
 }
 
+int SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsStSocket skt(stfd);
+    
+    if ((ret = parser->parse_message(&skt, this, preq)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
     int ret = ERROR_SUCCESS;

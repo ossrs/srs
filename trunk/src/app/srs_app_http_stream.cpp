@@ -53,6 +53,7 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_recv_thread.hpp>
 
 SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
 {
@@ -538,10 +539,28 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
 #endif
     
+    // Use receive thread to accept the close event to avoid FD leak.
+    // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
+    
+    SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
+    SrsAutoFree(SrsHttpRecvThread, trd);
+    
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
+        srs_error("http: start notify thread failed, ret=%d", ret);
+        return ret;
+    }
+
     // TODO: free and erase the disabled entry after all related connections is closed.
     while (entry->enabled) {
         pprint->elapse();
         
+        // Whether client closed the FD.
+        if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+            return ret;
+        }
+
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
