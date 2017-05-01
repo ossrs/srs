@@ -57,6 +57,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_st.hpp>
 
 SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
 : SrsConnection(cm, fd, cip)
@@ -216,7 +217,11 @@ int SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsStSocket skt(stfd);
+    SrsStSocket skt;
+    
+    if ((ret = skt.initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     if ((ret = parser->parse_message(&skt, this, preq)) != ERROR_SUCCESS) {
         return ret;
