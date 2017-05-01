@@ -1161,6 +1161,13 @@ void SrsHls::dispose()
         on_unpublish();
     }
     
+    // Ignore when hls_dispose disabled.
+    // @see https://github.com/ossrs/srs/issues/865
+    int hls_dispose = _srs_config->get_hls_dispose(_req->vhost);
+    if (!hls_dispose) {
+        return;
+    }
+    
     muxer->dispose();
 }
 
