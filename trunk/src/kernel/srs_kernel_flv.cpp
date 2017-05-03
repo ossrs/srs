@@ -959,7 +959,7 @@ int SrsFlvVodStreamDecoder::seek2(int64_t offset)
     if (offset >= reader->filesize()) {
         ret = ERROR_SYSTEM_FILE_EOF;
         srs_warn("flv fast decoder seek overflow file, "
-                 "size=%"PRId64", offset=%"PRId64", ret=%d",
+                 "size=%" PRId64 ", offset=%" PRId64 ", ret=%d",
                  reader->filesize(), offset, ret);
         return ret;
     }
@@ -967,7 +967,7 @@ int SrsFlvVodStreamDecoder::seek2(int64_t offset)
     if (reader->seek2(offset) < 0) {
         ret = ERROR_SYSTEM_FILE_SEEK;
         srs_warn("flv fast decoder seek error, "
-                 "size=%"PRId64", offset=%"PRId64", ret=%d", 
+                 "size=%" PRId64 ", offset=%" PRId64 ", ret=%d", 
                  reader->filesize(), offset, ret);
         return ret;
     }

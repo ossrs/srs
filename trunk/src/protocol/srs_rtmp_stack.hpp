@@ -423,7 +423,7 @@ public:
             
             T* pkt = dynamic_cast<T*>(packet);
             if (!pkt) {
-                srs_info("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).",
+                srs_info("drop message(type=%d, size=%d, time=%" PRId64 ", sid=%d).",
                          msg->header.message_type, msg->header.payload_length,
                          msg->header.timestamp, msg->header.stream_id);
                 srs_freep(msg);

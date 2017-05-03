@@ -242,7 +242,7 @@ int SrsForwarder::cycle()
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_warn("forward failed, url=%s, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
+        srs_warn("forward failed, url=%s, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     

@@ -209,7 +209,7 @@ void SrsHttpClient::kbps_sample(const char* label, int64_t age)
     int rr30s = kbps->get_recv_kbps_30s();
     int rr5m = kbps->get_recv_kbps_5m();
     
-    srs_trace("<- %s time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
+    srs_trace("<- %s time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d", label, age, sr, sr30s, sr5m, rr, rr30s, rr5m);
 }
 
 void SrsHttpClient::disconnect()
@@ -230,7 +230,7 @@ int SrsHttpClient::connect()
     transport = new SrsTcpClient(host, port, timeout);
     if ((ret = transport->connect()) != ERROR_SUCCESS) {
         disconnect();
-        srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d", host.c_str(), port, timeout, ret);
+        srs_warn("http client failed, server=%s, port=%d, timeout=%" PRId64 ", ret=%d", host.c_str(), port, timeout, ret);
         return ret;
     }
     srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);

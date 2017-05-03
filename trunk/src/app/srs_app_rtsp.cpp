@@ -102,7 +102,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
             cache->copy(&pkt);
             cache->payload->append(pkt.payload->bytes(), pkt.payload->length());
             if (!cache->completed && pprint->can_print()) {
-                srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" rtsp: rtp chunked %dB, age=%d, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB",
+                srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " rtsp: rtp chunked %dB, age=%d, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB",
                           nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc,
                           cache->payload->length()
                           );
@@ -116,7 +116,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     }
     
     if (pprint->can_print()) {
-        srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" rtsp: rtp #%d %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB, chunked=%d",
+        srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " rtsp: rtp #%d %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB, chunked=%d",
                   stream_id, nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc,
                   cache->payload->length(), cache->chunked
                   );
@@ -685,7 +685,7 @@ int SrsRtspConn::connect()
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         close();
-        srs_error("rtsp: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
+        srs_error("rtsp: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     

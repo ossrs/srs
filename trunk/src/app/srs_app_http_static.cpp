@@ -73,7 +73,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     if (offset > fs.filesize()) {
         ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d",
+        srs_warn("http flv streaming %s overflow. size=%" PRId64 ", offset=%d, ret=%d",
                  fullpath.c_str(), fs.filesize(), offset, ret);
         return ret;
     }
@@ -165,7 +165,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     if (end > fs.filesize() || start > end) {
         ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http mp4 streaming %s overflow. size=%"PRId64", offset=%d, ret=%d",
+        srs_warn("http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d, ret=%d",
                  fullpath.c_str(), fs.filesize(), start, ret);
         return ret;
     }

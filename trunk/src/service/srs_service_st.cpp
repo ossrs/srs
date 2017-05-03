@@ -299,7 +299,7 @@ int SrsTcpClient::connect()
     
     srs_assert(stfd == NULL);
     if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_error("connect tcp://%s:%d failed, to=%"PRId64"ms. ret=%d", host.c_str(), port, timeout, ret);
+        srs_error("connect tcp://%s:%d failed, to=%" PRId64 "ms. ret=%d", host.c_str(), port, timeout, ret);
         return ret;
     }
     

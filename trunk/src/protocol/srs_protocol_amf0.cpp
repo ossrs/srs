@@ -1470,7 +1470,7 @@ int SrsAmf0Date::read(SrsBuffer* stream)
     }
     
     _date_value = stream->read_8bytes();
-    srs_verbose("amf0 read date success. date=%"PRId64, _date_value);
+    srs_verbose("amf0 read date success. date=%" PRId64, _date_value);
     
     // time zone
     // While the design of this type reserves room for time zone offset
@@ -1510,7 +1510,7 @@ int SrsAmf0Date::write(SrsBuffer* stream)
     }
     
     stream->write_8bytes(_date_value);
-    srs_verbose("amf0 write date success. date=%"PRId64, _date_value);
+    srs_verbose("amf0 write date success. date=%" PRId64, _date_value);
     
     // time zone
     if (!stream->require(2)) {

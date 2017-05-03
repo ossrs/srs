@@ -127,7 +127,7 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_error("edge pull %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
+        srs_error("edge pull %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
@@ -469,7 +469,7 @@ int SrsEdgeForwarder::start()
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_warn("edge push %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
+        srs_warn("edge push %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     

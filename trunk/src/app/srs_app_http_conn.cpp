@@ -170,7 +170,7 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("HTTP %s %s, content-length=%"PRId64"",
+    srs_trace("HTTP %s %s, content-length=%" PRId64 "",
               r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use cors server mux to serve http request, which will proxy to http_remux.

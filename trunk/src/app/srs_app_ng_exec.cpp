@@ -188,7 +188,7 @@ void SrsNgExec::show_exec_log_message()
     // reportable
     if (pprint->can_print()) {
         // TODO: FIXME: show more info.
-        srs_trace("-> "SRS_CONSTS_LOG_EXEC" time=%"PRId64", publish=%d, input=%s",
+        srs_trace("-> " SRS_CONSTS_LOG_EXEC " time=%" PRId64 ", publish=%d, input=%s",
                   pprint->age(), (int)exec_publishs.size(), input_stream_name.c_str());
     }
 }
