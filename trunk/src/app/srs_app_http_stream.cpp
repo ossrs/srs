@@ -152,7 +152,7 @@ int SrsBufferCache::cycle()
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
             // directly use sleep, donot use consumer wait.
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+            st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS);
             
             // ignore when nothing got.
             continue;
