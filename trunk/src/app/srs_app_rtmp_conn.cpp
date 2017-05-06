@@ -766,7 +766,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // for send wait time debug
-        srs_verbose("send thread now=%"PRId64"us, wait %dms", srs_update_system_time_ms(), mw_sleep);
+        srs_verbose("send thread now=%" PRId64 "us, wait %dms", srs_update_system_time_ms(), mw_sleep);
         
         // wait for message to incoming.
         // @see https://github.com/ossrs/srs/issues/251
@@ -780,7 +780,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
         
         // for send wait time debug
-        srs_verbose("send thread now=%"PRId64"us wakeup", srs_update_system_time_ms());
+        srs_verbose("send thread now=%" PRId64 "us wakeup", srs_update_system_time_ms());
 #endif
         
         // get messages from consumer.
@@ -795,8 +795,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
-            srs_trace("-> "SRS_CONSTS_LOG_PLAY
-                      " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
+            srs_trace("-> " SRS_CONSTS_LOG_PLAY
+                      " time=%" PRId64 ", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
                       pprint->age(), count,
                       kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                       kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
@@ -808,7 +808,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         // for min latency event no message incoming,
         // so the count maybe zero.
         if (count > 0) {
-            srs_verbose("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms",
+            srs_verbose("mw wait %dms and got %d msgs %d(%" PRId64 "-%" PRId64 ")ms",
                         mw_sleep, count,
                         (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
                         (count > 0? msgs.msgs[0]->timestamp : 0),
@@ -981,7 +981,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         // when not got any messages, timeout.
         if (trd->nb_msgs() <= nb_msgs) {
             ret = ERROR_SOCKET_TIMEOUT;
-            srs_warn("publish timeout %dms, nb_msgs=%"PRId64", ret=%d",
+            srs_warn("publish timeout %dms, nb_msgs=%" PRId64 ", ret=%d",
                      nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, nb_msgs, ret);
             break;
         }
@@ -1000,8 +1000,8 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
             kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
-            srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                      " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d", pprint->age(),
+            srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH
+                      " time=%" PRId64 ", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d", pprint->age(),
                       kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                       kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
                       mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout

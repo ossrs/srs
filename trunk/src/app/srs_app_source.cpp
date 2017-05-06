@@ -136,10 +136,10 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
         // @see https://github.com/ossrs/srs/issues/425
         delta = DEFAULT_FRAME_TIME_MS;
         
-        srs_info("jitter detected, last_pts=%"PRId64", pts=%"PRId64", diff=%"PRId64", last_time=%"PRId64", time=%"PRId64", diff=%"PRId64"",
+        srs_info("jitter detected, last_pts=%" PRId64 ", pts=%" PRId64 ", diff=%" PRId64 ", last_time=%" PRId64 ", time=%" PRId64 ", diff=%" PRId64 "",
                  last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
     } else {
-        srs_verbose("timestamp no jitter. time=%"PRId64", last_pkt=%"PRId64", correct_to=%"PRId64"",
+        srs_verbose("timestamp no jitter. time=%" PRId64 ", last_pkt=%" PRId64 ", correct_to=%" PRId64 "",
                     time, last_pkt_time, last_pkt_correct_time + delta);
     }
     
@@ -485,7 +485,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
     }
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    srs_verbose("enqueue msg, time=%"PRId64", size=%d, duration=%d, waiting=%d, min_msg=%d",
+    srs_verbose("enqueue msg, time=%" PRId64 ", size=%d, duration=%d, waiting=%d, min_msg=%d",
                 msg->timestamp, msg->size, queue->duration(), mw_waiting, mw_min_msgs);
     
     // fire the mw when msgs is enough.
@@ -2156,7 +2156,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         srs_error("initialize the audio failed. ret=%d", ret);
         return ret;
     }
-    srs_info("Audio dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    srs_info("Audio dts=%" PRId64 ", size=%d", msg.timestamp, msg.size);
     
     // directly process the audio message.
     if (!mix_correct) {
@@ -2187,7 +2187,7 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_info("Audio dts=%"PRId64", size=%d", msg->timestamp, msg->size);
+    srs_info("Audio dts=%" PRId64 ", size=%d", msg->timestamp, msg->size);
     bool is_aac_sequence_header = SrsFlvAudio::sh(msg->payload, msg->size);
     bool is_sequence_header = is_aac_sequence_header;
     
@@ -2281,7 +2281,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
         srs_error("initialize the video failed. ret=%d", ret);
         return ret;
     }
-    srs_info("Video dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    srs_info("Video dts=%" PRId64 ", size=%d", msg.timestamp, msg.size);
     
     // directly process the audio message.
     if (!mix_correct) {
@@ -2312,7 +2312,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_info("Video dts=%"PRId64", size=%d", msg->timestamp, msg->size);
+    srs_info("Video dts=%" PRId64 ", size=%d", msg->timestamp, msg->size);
     
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
     

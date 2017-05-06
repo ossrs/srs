@@ -739,7 +739,7 @@ int SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     
-    srs_info("<- "SRS_CONSTS_LOG_STREAM_CASTER" mpegts: got %s stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
+    srs_info("<- " SRS_CONSTS_LOG_STREAM_CASTER " mpegts: got %s stream=%s, dts=%" PRId64 ", pts=%" PRId64 ", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
              (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
              msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
              msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
@@ -778,7 +778,7 @@ int SrsIngestHlsOutput::on_aac_frame(char* frame, int frame_size, double duratio
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("handle aac frames, size=%dB, duration=%.2f, dts=%"PRId64, frame_size, duration, raw_aac_dts);
+    srs_trace("handle aac frames, size=%dB, duration=%.2f, dts=%" PRId64, frame_size, duration, raw_aac_dts);
     
     SrsBuffer stream;
     if ((ret = stream.initialize(frame, frame_size)) != ERROR_SUCCESS) {
@@ -1220,7 +1220,7 @@ int SrsIngestHlsOutput::connect()
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         close();
-        srs_error("mpegts: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", url.c_str(), cto, sto, ret);
+        srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     

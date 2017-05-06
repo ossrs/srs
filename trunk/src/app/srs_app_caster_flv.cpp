@@ -195,7 +195,7 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_error("flv: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);
+        srs_error("flv: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }
     

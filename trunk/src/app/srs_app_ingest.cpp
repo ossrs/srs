@@ -462,7 +462,7 @@ void SrsIngester::show_ingest_log_message()
     
     // reportable
     if (pprint->can_print()) {
-        srs_trace("-> "SRS_CONSTS_LOG_INGESTER" time=%"PRId64", ingesters=%d, #%d(alive=%ds, %s)",
+        srs_trace("-> " SRS_CONSTS_LOG_INGESTER " time=%" PRId64 ", ingesters=%d, #%d(alive=%ds, %s)",
                   pprint->age(), (int)ingesters.size(), index, ingester->alive() / 1000, ingester->uri().c_str());
     }
 }

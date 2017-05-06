@@ -81,7 +81,7 @@ int SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
         msg->timestamp += 1;
         
         if (i >= 5) {
-            srs_warn("mpegts: free the msg for dts exists, dts=%"PRId64, msg->timestamp);
+            srs_warn("mpegts: free the msg for dts exists, dts=%" PRId64, msg->timestamp);
             srs_freep(msg);
             return ret;
         }
@@ -293,7 +293,7 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     
     if (pprint->can_print()) {
-        srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" mpegts: got %s age=%d stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
+        srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " mpegts: got %s age=%d stream=%s, dts=%" PRId64 ", pts=%" PRId64 ", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
                   (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", pprint->age(), srs_ts_stream2string(msg->channel->stream).c_str(),
                   msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
                   msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
@@ -593,7 +593,7 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* dat
         }
         
         if (pprint->can_print()) {
-            srs_trace("mpegts: send msg %s age=%d, dts=%"PRId64", size=%d",
+            srs_trace("mpegts: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio()? "A":msg->is_video()? "V":"N", pprint->age(), msg->timestamp, msg->size);
         }
         
@@ -622,7 +622,7 @@ int SrsMpegtsOverUdp::connect()
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
         close();
-        srs_error("mpegts: connect %s failed, cto=%"PRId64", sto=%"PRId64". ret=%d", output.c_str(), cto, sto, ret);
+        srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }
     

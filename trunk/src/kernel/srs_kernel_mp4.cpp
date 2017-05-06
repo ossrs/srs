@@ -190,7 +190,7 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
     // Only support 31bits size.
     if (largesize > 0x7fffffff) {
         ret = ERROR_MP4_BOX_OVERFLOW;
-        srs_error("MP4 discovery overflow 31bits, size=%"PRId64". ret=%d", largesize, ret);
+        srs_error("MP4 discovery overflow 31bits, size=%" PRId64 ". ret=%d", largesize, ret);
         return ret;
     }
     
@@ -370,7 +370,7 @@ int SrsMp4Box::encode_header(SrsBuffer* buf)
     // Only support 31bits size.
     if (sz() > 0x7fffffff) {
         ret = ERROR_MP4_BOX_OVERFLOW;
-        srs_error("MP4 box size overflow 31bits, size=%"PRId64". ret=%d", sz(), ret);
+        srs_error("MP4 box size overflow 31bits, size=%" PRId64 ". ret=%d", sz(), ret);
         return ret;
     }
     
@@ -430,7 +430,7 @@ int SrsMp4Box::decode_header(SrsBuffer* buf)
     // Only support 31bits size.
     if (sz() > 0x7fffffff) {
         ret = ERROR_MP4_BOX_OVERFLOW;
-        srs_error("MP4 box size overflow 31bits, size=%"PRId64". ret=%d", sz(), ret);
+        srs_error("MP4 box size overflow 31bits, size=%" PRId64 ". ret=%d", sz(), ret);
         return ret;
     }
     

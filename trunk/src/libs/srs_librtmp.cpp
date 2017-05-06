@@ -2649,20 +2649,20 @@ extern "C"{
         
         uint32_t pts;
         if ((ret = srs_utils_parse_timestamp(timestamp, type, data, size, &pts)) != ERROR_SUCCESS) {
-            snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError, (%s), ret=%d",
+            snprintf(buffer, nb_buffer, "Rtmp packet id=%" PRId64 "/%.1f/%.1f, type=%s, dts=%d, ndiff=%d, diff=%d, size=%d, DecodeError, (%s), ret=%d",
                 nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes, ret);
             return ret;
         }
         
         if (type == SRS_RTMP_TYPE_VIDEO) {
-            snprintf(buffer, nb_buffer, "Video packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s), (%s)",
+            snprintf(buffer, nb_buffer, "Video packet id=%" PRId64 "/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s), (%s)",
                 nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
                 srs_human_flv_video_codec_id2string(srs_utils_flv_video_codec_id(data, size)),
                 srs_human_flv_video_avc_packet_type2string(srs_utils_flv_video_avc_packet_type(data, size)),
                 srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size)),
                 sbytes);
         } else if (type == SRS_RTMP_TYPE_AUDIO) {
-            snprintf(buffer, nb_buffer, "Audio packet id=%"PRId64"/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
+            snprintf(buffer, nb_buffer, "Audio packet id=%" PRId64 "/%.1f/%.1f, type=%s, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, %s(%s,%s,%s,%s), (%s)",
                 nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, pts, ndiff, diff, size,
                 srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
                 srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
@@ -2671,7 +2671,7 @@ extern "C"{
                 srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size)),
                 sbytes);
         } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-            int nb = snprintf(buffer, nb_buffer, "Data packet id=%"PRId64"/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+            int nb = snprintf(buffer, nb_buffer, "Data packet id=%" PRId64 "/%.1f/%.1f, type=%s, time=%d, ndiff=%d, diff=%d, size=%d, (%s)",
                 nb_packets, pi, gfps, srs_human_flv_tag_type2string(type), timestamp, ndiff, diff, size, sbytes);
             int nparsed = 0;
             while (nparsed < size) {
@@ -2689,7 +2689,7 @@ extern "C"{
             }
             buffer[nb] = 0;
         } else {
-            snprintf(buffer, nb_buffer, "Rtmp packet id=%"PRId64"/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, (%s)",
+            snprintf(buffer, nb_buffer, "Rtmp packet id=%" PRId64 "/%.1f/%.1f, type=%#x, dts=%d, pts=%d, ndiff=%d, diff=%d, size=%d, (%s)",
                 nb_packets, pi, gfps, type, timestamp, pts, ndiff, diff, size, sbytes);
         }
         

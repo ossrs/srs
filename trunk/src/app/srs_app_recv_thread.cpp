@@ -354,7 +354,7 @@ int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     }
     
     // log to show the time of recv thread.
-    srs_verbose("recv thread now=%"PRId64"us, got msg time=%"PRId64"ms, size=%d",
+    srs_verbose("recv thread now=%" PRId64 "us, got msg time=%" PRId64 "ms, size=%d",
                 srs_update_system_time_ms(), msg->header.timestamp, msg->size);
     
     // the rtmp connection will handle this message

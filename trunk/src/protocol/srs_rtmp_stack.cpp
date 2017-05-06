@@ -385,7 +385,7 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
         }
         
         if (msg->size <= 0 || msg->header.payload_length <= 0) {
-            srs_trace("ignore empty message(type=%d, size=%d, time=%"PRId64", sid=%d).",
+            srs_trace("ignore empty message(type=%d, size=%d, time=%" PRId64 ", sid=%d).",
                       msg->header.message_type, msg->header.payload_length,
                       msg->header.timestamp, msg->header.stream_id);
             srs_freep(msg);
@@ -398,7 +398,7 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
             return ret;
         }
         
-        srs_verbose("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64,
+        srs_verbose("got a msg, cid=%d, type=%d, size=%d, time=%" PRId64,
                     msg->header.perfer_cid, msg->header.message_type, msg->header.payload_length,
                     msg->header.timestamp);
         *pmsg = msg;
@@ -953,7 +953,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
         srs_verbose("cs-cache hit, cid=%d", cid);
         // already init, use it direclty
         chunk = cs_cache[cid];
-        srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+        srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
                     chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
                     chunk->header.timestamp, chunk->header.stream_id);
     } else {
@@ -966,7 +966,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
             srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
         } else {
             chunk = chunk_streams[cid];
-            srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+            srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
                         chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
                         chunk->header.timestamp, chunk->header.stream_id);
         }
@@ -980,7 +980,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
         return ret;
     }
     srs_verbose("read message header success. "
-                "fmt=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+                "fmt=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
                 fmt, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type,
                 chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
     
@@ -995,14 +995,14 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
     
     // not got an entire RTMP message, try next chunk.
     if (!msg) {
-        srs_verbose("get partial message success. size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+        srs_verbose("get partial message success. size=%d, message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
                     (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
                     chunk->header.timestamp, chunk->header.stream_id);
         return ret;
     }
     
     *pmsg = msg;
-    srs_info("get entire message success. size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+    srs_info("get entire message success. size=%d, message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
              (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
              chunk->header.timestamp, chunk->header.stream_id);
     
@@ -1285,16 +1285,16 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
                 pp[1] = *p++;
                 pp[2] = *p++;
                 pp[3] = *p++;
-                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d, sid=%d",
+                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%" PRId64 ", payload=%d, type=%d, sid=%d",
                             fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length,
                             chunk->header.message_type, chunk->header.stream_id);
             } else {
-                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d",
+                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%" PRId64 ", payload=%d, type=%d",
                             fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length,
                             chunk->header.message_type);
             }
         } else {
-            srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64"",
+            srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%" PRId64 "",
                         fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp);
         }
     } else {
@@ -1365,7 +1365,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         } else {
             chunk->header.timestamp = timestamp;
         }
-        srs_verbose("header read ext_time completed. time=%"PRId64"", chunk->header.timestamp);
+        srs_verbose("header read ext_time completed. time=%" PRId64 "", chunk->header.timestamp);
     }
     
     // the extended-timestamp must be unsigned-int,
@@ -1410,7 +1410,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsCommonMessage** 
     // empty message
     if (chunk->header.payload_length <= 0) {
         srs_trace("get an empty RTMP "
-                  "message(type=%d, size=%d, time=%"PRId64", sid=%d)", chunk->header.message_type,
+                  "message(type=%d, size=%d, time=%" PRId64 ", sid=%d)", chunk->header.message_type,
                   chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
         
         *pmsg = chunk->msg;
@@ -1447,13 +1447,13 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsCommonMessage** 
     if (chunk->header.payload_length == chunk->msg->size) {
         *pmsg = chunk->msg;
         chunk->msg = NULL;
-        srs_verbose("get entire RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+        srs_verbose("get entire RTMP message(type=%d, size=%d, time=%" PRId64 ", sid=%d)",
                     chunk->header.message_type, chunk->header.payload_length,
                     chunk->header.timestamp, chunk->header.stream_id);
         return ret;
     }
     
-    srs_verbose("get partial RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d), partial size=%d",
+    srs_verbose("get partial RTMP message(type=%d, size=%d, time=%" PRId64 ", sid=%d), partial size=%d",
                 chunk->header.message_type, chunk->header.payload_length,
                 chunk->header.timestamp, chunk->header.stream_id,
                 chunk->msg->size);
@@ -2580,7 +2580,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
     
-    pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
+    pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/" RTMP_SIG_FMS_VER));
     pkt->props->set("capabilities", SrsAmf0Any::number(127));
     pkt->props->set("mode", SrsAmf0Any::number(1));
     

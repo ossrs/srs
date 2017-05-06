@@ -143,13 +143,13 @@ int64_t srs_update_system_time_ms()
     int64_t diff = now_us - _srs_system_time_us_cache;
     diff = srs_max(0, diff);
     if (diff < 0 || diff > 1000 * SYS_TIME_RESOLUTION_US) {
-        srs_warn("clock jump, history=%"PRId64"us, now=%"PRId64"us, diff=%"PRId64"us", _srs_system_time_us_cache, now_us, diff);
+        srs_warn("clock jump, history=%" PRId64 "us, now=%" PRId64 "us, diff=%" PRId64 "us", _srs_system_time_us_cache, now_us, diff);
         // @see: https://github.com/ossrs/srs/issues/109
         _srs_system_time_startup_time += diff;
     }
     
     _srs_system_time_us_cache = now_us;
-    srs_info("clock updated, startup=%"PRId64"us, now=%"PRId64"us", _srs_system_time_startup_time, _srs_system_time_us_cache);
+    srs_info("clock updated, startup=%" PRId64 "us, now=%" PRId64 "us", _srs_system_time_startup_time, _srs_system_time_us_cache);
     
     return _srs_system_time_us_cache / 1000;
 }
@@ -206,7 +206,7 @@ string srs_int2str(int64_t value)
 {
     // len(max int64_t) is 20, plus one "+-."
     char tmp[22];
-    snprintf(tmp, 22, "%"PRId64, value);
+    snprintf(tmp, 22, "%" PRId64, value);
     return tmp;
 }
 

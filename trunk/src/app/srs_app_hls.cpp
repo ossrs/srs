@@ -369,7 +369,7 @@ int SrsHlsMuxer::segment_open()
         
         // jump when deviation more than 10p
         if (accept_floor_ts - current_floor_ts > SRS_JUMP_WHEN_PIECE_DEVIATION) {
-            srs_warn("hls: jmp for ts deviation, current=%"PRId64", accept=%"PRId64, current_floor_ts, accept_floor_ts);
+            srs_warn("hls: jmp for ts deviation, current=%" PRId64 ", accept=%" PRId64, current_floor_ts, accept_floor_ts);
             accept_floor_ts = current_floor_ts - 1;
         }
         
@@ -378,7 +378,7 @@ int SrsHlsMuxer::segment_open()
         
         // dup/jmp detect for ts in floor mode.
         if (previous_floor_ts && previous_floor_ts != current_floor_ts - 1) {
-            srs_warn("hls: dup/jmp ts, previous=%"PRId64", current=%"PRId64", accept=%"PRId64", deviation=%d",
+            srs_warn("hls: dup/jmp ts, previous=%" PRId64 ", current=%" PRId64 ", accept=%" PRId64 ", deviation=%d",
                      previous_floor_ts, current_floor_ts, accept_floor_ts, deviation_ts);
         }
         previous_floor_ts = current_floor_ts;
@@ -462,7 +462,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%"PRId64"ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+    srs_info("hls: dur=%" PRId64 "ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
              current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_fragment + deviation) * 1000;
@@ -485,7 +485,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%"PRId64"ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+    srs_info("hls: dur=%" PRId64 "ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
              current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
@@ -582,7 +582,7 @@ int SrsHlsMuxer::segment_close()
         if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
-        srs_info("Reap ts segment, sequence_no=%d, uri=%s, duration=%"PRId64"ms", current->sequence_no, current->uri.c_str(), current->duration());
+        srs_info("Reap ts segment, sequence_no=%d, uri=%s, duration=%" PRId64 "ms", current->sequence_no, current->uri.c_str(), current->duration());
         
         // close the muxer of finished segment.
         srs_freep(current->tscw);
@@ -598,7 +598,7 @@ int SrsHlsMuxer::segment_close()
         // reuse current segment index.
         _sequence_no--;
         
-        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%"PRId64"ms", current->sequence_no, current->uri.c_str(), current->duration());
+        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%" PRId64 "ms", current->sequence_no, current->uri.c_str(), current->duration());
         
         // rename from tmp to real path
         if ((ret = current->unlink_tmpfile()) != ERROR_SUCCESS) {
@@ -1211,7 +1211,7 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", sno=%d, ts=%s, dur=%.2f, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%" PRId64 ", sno=%d, ts=%s, dur=%.2f, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
               controller->duration(), controller->deviation());
 }

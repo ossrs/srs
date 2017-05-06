@@ -1399,7 +1399,7 @@ int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hm);
     
-    srs_trace("HTTP API %s %s, content-length=%"PRId64", chunked=%d/%d",
+    srs_trace("HTTP API %s %s, content-length=%" PRId64 ", chunked=%d/%d",
               r->method_str().c_str(), r->url().c_str(), r->content_length(),
               hm->is_chunked(), hm->is_infinite_chunked());
     
