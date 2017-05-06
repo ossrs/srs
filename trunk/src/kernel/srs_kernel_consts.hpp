@@ -77,7 +77,7 @@
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
 // @remark, recomment to 500ms.
-#define SRS_CONSTS_RTMP_PULSE_TMMS (int64_t)(500*1000LL)
+#define SRS_CONSTS_RTMP_PULSE_TMMS (500)
 
 /**
  * max rtmp header size:
