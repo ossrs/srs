@@ -731,13 +731,7 @@ public:
     int8_t splice_countdown; //8bits
     
     // if transport_private_data_flag, 1+p[0] B
-    /**
-     * The transport_private_data_length is an 8-bit field specifying the number of
-     * private_data bytes immediately following the transport private_data_length field. The number of private_data bytes shall
-     * not be such that private data extends beyond the adaptation field.
-     */
-    uint8_t transport_private_data_length; //8bits
-    char* transport_private_data; //[transport_private_data_length]bytes
+    std::vector<char> transport_private_data; //[transport_private_data_length]bytes
     
     // if adaptation_field_extension_flag, 2+x B
     /**
@@ -1145,14 +1139,10 @@ public:
      * This is a 16-byte field which contains private data. This data, combined with the fields before and
      * after, shall not emulate the packet_start_code_prefix (0x000001).
      */
-    char* PES_private_data; //128bits
+    std::vector<char> PES_private_data; //128bits
     
     // (1+x)B
-    /**
-     * This is an 8-bit field which indicates the length, in bytes, of the pack_header_field().
-     */
-    uint8_t pack_field_length; //8bits
-    char* pack_field; //[pack_field_length] bytes
+    std::vector<char> pack_field; //[pack_field_length] bytes
     
     // 2B
     // 1bit const '1'
@@ -1198,12 +1188,7 @@ public:
     
     // (1+x)B
     // 1bit const '1'
-    /**
-     * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
-     * the PES extension field up to and including any reserved bytes.
-     */
-    uint8_t PES_extension_field_length; //7bits
-    char* PES_extension_field; //[PES_extension_field_length] bytes
+    std::vector<char> PES_extension_field; //[PES_extension_field_length] bytes
     
     // NB
     /**
@@ -1535,8 +1520,7 @@ public:
      * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
      * number of bytes of the descriptors immediately following the program_info_length field.
      */
-    uint16_t program_info_length; //12bits
-    char* program_info_desc; //[program_info_length]bytes
+    std::vector<char> program_info_desc; //[program_info_length]bytes
     
     // array of TSPMTESInfo.
     std::vector<SrsTsPayloadPMTESInfo*> infos;
