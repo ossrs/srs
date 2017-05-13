@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     
     // directly failed when compile limited.
 #if defined(SRS_AUTO_GPERF_MP) || defined(SRS_AUTO_GPERF_MP) \
-|| defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
+    || defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
     srs_error("donot support gmc/gmp/gcp/gprof");
     exit(-1);
 #endif

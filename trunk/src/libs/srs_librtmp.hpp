@@ -203,9 +203,9 @@ extern "C"{
     
     /**
      * Retrieve server ip from RTMP handler.
-     * @Param ip A NULL terminated string specifies the server ip.
-     * @Param pid An int specifies the PID of server. -1 is no PID information.
-     * @Param cid An int specifies the CID of connection. -1 is no CID information.
+     * @param ip A NULL terminated string specifies the server ip.
+     * @param pid An int specifies the PID of server. -1 is no PID information.
+     * @param cid An int specifies the CID of connection. -1 is no CID information.
      * @remark For SRS, ip/pid/cid is the UUID of a client. For other server, these values maybe unknown.
      * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
      * @return 0, success; otherswise, failed.
@@ -214,7 +214,7 @@ extern "C"{
     
     /**
      * Retrieve server signature from RTMP handler.
-     * @Param sig A NULL terminated string specifies the server signature.
+     * @param sig A NULL terminated string specifies the server signature.
      * @remark When connected to server by srs_rtmp_connect_app, the information is ready to be retrieved.
      * @return 0, success; otherswise, failed.
      */
@@ -299,7 +299,7 @@ extern "C"{
      * @return 0, success; otherswise, failed.
      */
     extern int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, uint32_t* timestamp, char** data, int* size);
-    // @Param data User should never free it anymore.
+    // @param data User should never free it anymore.
     extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, uint32_t timestamp, char* data, int size);
     
     /**

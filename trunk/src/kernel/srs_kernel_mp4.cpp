@@ -4326,6 +4326,9 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
             ret = box->decode(buffer);
         }
         
+        // Skip the box from stream, move stream to next box.
+        // For mdat box, skip the content in stream or underylayer reader.
+        // For other boxes, skip it from stream because we already decoded it or ignore it.
         if (ret == ERROR_SUCCESS) {
             ret = br->skip(box, stream);
         }

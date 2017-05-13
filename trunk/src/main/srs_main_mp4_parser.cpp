@@ -26,12 +26,37 @@
 #include <srs_kernel_error.hpp>
 #include <srs_service_log.hpp>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+using namespace std;
+
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsThreadContext* _srs_context = new SrsThreadContext();
 
+void help(char** argv)
+{
+    printf("Usage: %s <mp4_file>\n"
+           "        mp4_file The MP4 file path to parse.\n"
+           "For example:\n"
+           "        %s doc/source.200kbps.768x320.mp4\n",
+           argv[0], argv[0]);
+    
+    exit(0);
+}
+
 int main(int argc, char** argv)
 {
+    printf("SRS MP4 parser/%d.%d.%d, show the mp4 boxes structure.\n",
+           VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
+    
+    if (argc < 2) {
+        help(argv);
+    }
+    string mp4_file = argv[1];
+    srs_trace("Parse MP4 file %s", mp4_file.c_str());
+    
     return 0;
 }
 

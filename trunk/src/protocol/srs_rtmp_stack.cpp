@@ -2767,7 +2767,7 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             }
             
             // For encoder of Haivision, it always send a _checkbw call message.
-            // @Remark the next message is createStream, so we continue to identify it.
+            // @remark the next message is createStream, so we continue to identify it.
             // @see https://github.com/ossrs/srs/issues/844
             if (call->command_name == "_checkbw") {
                 srs_info("Haivision encoder identified.");

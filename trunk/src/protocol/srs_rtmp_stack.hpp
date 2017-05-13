@@ -726,8 +726,8 @@ public:
      * @param app, The app to connect at, for example, live.
      * @param tcUrl, The tcUrl to connect at, for example, rtmp://ossrs.net/live.
      * @param req, the optional req object, use the swfUrl/pageUrl if specified. NULL to ignore.
-     * @Param dsu, Whether debug SRS upnode. For edge, set to true to send its info to upnode.
-     * @Param si, The server information, retrieve from response of connect app request. NULL to ignore.
+     * @param dsu, Whether debug SRS upnode. For edge, set to true to send its info to upnode.
+     * @param si, The server information, retrieve from response of connect app request. NULL to ignore.
      */
     virtual int connect_app(std::string app, std::string tcUrl, SrsRequest* r, bool dsu, SrsServerInfo* si);
     /**

@@ -76,9 +76,10 @@ public:
 
 /**
  * Generate the log header.
- * @Param dangerous Whether log is warning or error, log the errno if true.
- * @Param utc Whether use UTC time format in the log header.
- * @Param psize Output the actual header size.
+ * @param dangerous Whether log is warning or error, log the errno if true.
+ * @param utc Whether use UTC time format in the log header.
+ * @param psize Output the actual header size.
+ * @remark It's a internal API.
  */
 bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize);
 
