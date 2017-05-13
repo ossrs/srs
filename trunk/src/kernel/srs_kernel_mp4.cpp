@@ -3948,7 +3948,9 @@ int SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
         while (stream->length() < (int)required) {
             ssize_t nread;
             if ((ret = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != ERROR_SUCCESS) {
-                srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
+                if (ret != ERROR_SYSTEM_FILE_EOF) {
+                    srs_error("MP4 load failed, nread=%d, required=%d. ret=%d", nread, required, ret);
+                }
                 return ret;
             }
             

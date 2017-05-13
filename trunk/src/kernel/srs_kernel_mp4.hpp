@@ -1715,7 +1715,7 @@ public:
     /**
      * Read a sample from mp4.
      * @param pht The sample hanler type, audio/soun or video/vide.
-     * @param pft, The frame type. For video, it's SrsVideoAvcFrameType.
+     * @param pft, The frame type. For video, it's SrsVideoAvcFrameType. For audio, ignored.
      * @param pct, The codec type. For video, it's SrsVideoAvcFrameTrait. For audio, it's SrsAudioAacFrameTrait.
      * @param pdts The output dts in milliseconds.
      * @param ppts The output pts in milliseconds.
