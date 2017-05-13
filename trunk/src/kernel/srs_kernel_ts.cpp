@@ -804,7 +804,6 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
     pmt->current_next_indicator = 1;
     pmt->section_number = 0;
     pmt->last_section_number = 0;
-    pmt->program_info_length = 0;
     
     // must got one valid codec.
     srs_assert(vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
@@ -918,8 +917,6 @@ SrsTsAdaptationField::SrsTsAdaptationField(SrsTsPacket* pkt)
     original_program_clock_reference_base = 0;
     original_program_clock_reference_extension = 0;
     splice_countdown = 0;
-    transport_private_data_length = 0;
-    transport_private_data = NULL;
     adaptation_field_extension_length = 0;
     ltw_flag = 0;
     piecewise_rate_flag = 0;
@@ -944,7 +941,6 @@ SrsTsAdaptationField::SrsTsAdaptationField(SrsTsPacket* pkt)
 
 SrsTsAdaptationField::~SrsTsAdaptationField()
 {
-    srs_freepa(transport_private_data);
 }
 
 int SrsTsAdaptationField::decode(SrsBuffer* stream)
@@ -1061,7 +1057,12 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
             srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
             return ret;
         }
-        transport_private_data_length = (uint8_t)stream->read_1bytes();
+        /**
+         * The transport_private_data_length is an 8-bit field specifying the number of
+         * private_data bytes immediately following the transport private_data_length field. The number of private_data bytes shall
+         * not be such that private data extends beyond the adaptation field.
+         */
+        uint8_t transport_private_data_length = (uint8_t)stream->read_1bytes();
         
         if (transport_private_data_length> 0) {
             if (!stream->require(transport_private_data_length)) {
@@ -1069,9 +1070,8 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
                 srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
                 return ret;
             }
-            srs_freepa(transport_private_data);
-            transport_private_data = new char[transport_private_data_length];
-            stream->read_bytes(transport_private_data, transport_private_data_length);
+            transport_private_data.resize(transport_private_data_length);
+            stream->read_bytes(&transport_private_data[0], transport_private_data_length);
         }
     }
     
@@ -1157,7 +1157,7 @@ int SrsTsAdaptationField::size()
     sz += PCR_flag? 6 : 0;
     sz += OPCR_flag? 6 : 0;
     sz += splicing_point_flag? 1 : 0;
-    sz += transport_private_data_flag? 1 + transport_private_data_length : 0;
+    sz += transport_private_data_flag ? 1 + transport_private_data.size() : 0;
     sz += adaptation_field_extension_flag? 2 + adaptation_field_extension_length : 0;
     sz += nb_af_ext_reserved;
     sz += nb_af_reserved;
@@ -1259,15 +1259,15 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
             srs_error("ts: mux af transport_private_data_flag failed. ret=%d", ret);
             return ret;
         }
-        stream->write_1bytes(transport_private_data_length);
+        stream->write_1bytes(transport_private_data.size());
         
-        if (transport_private_data_length> 0) {
-            if (!stream->require(transport_private_data_length)) {
+        if (!transport_private_data.empty()) {
+            if (!stream->require(transport_private_data.size())) {
                 ret = ERROR_STREAM_CASTER_TS_AF;
                 srs_error("ts: mux af transport_private_data_flag failed. ret=%d", ret);
                 return ret;
             }
-            stream->write_bytes(transport_private_data, transport_private_data_length);
+            stream->write_bytes(&transport_private_data[0], transport_private_data.size());
         }
     }
     
@@ -1342,9 +1342,6 @@ SrsTsPayload::~SrsTsPayload()
 
 SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
 {
-    PES_private_data = NULL;
-    pack_field = NULL;
-    PES_extension_field = NULL;
     nb_stuffings = 0;
     nb_bytes = 0;
     nb_paddings = 0;
@@ -1354,9 +1351,6 @@ SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
 
 SrsTsPayloadPES::~SrsTsPayloadPES()
 {
-    srs_freepa(PES_private_data);
-    srs_freepa(pack_field);
-    srs_freepa(PES_extension_field);
 }
 
 int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
@@ -1633,14 +1627,14 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                 
                 // 16B
                 if (PES_private_data_flag) {
-                    srs_freepa(PES_private_data);
-                    PES_private_data = new char[16];
-                    stream->read_bytes(PES_private_data, 16);
+                    PES_private_data.resize(16);
+                    stream->read_bytes(&PES_private_data[0], 16);
                 }
                 
                 // (1+x)B
                 if (pack_header_field_flag) {
-                    pack_field_length = stream->read_1bytes();
+                    // This is an 8-bit field which indicates the length, in bytes, of the pack_header_field()
+                    uint8_t pack_field_length = stream->read_1bytes();
                     if (pack_field_length > 0) {
                         // the adjust required bytes.
                         nb_required = nb_required - 16 - 1 + pack_field_length;
@@ -1649,9 +1643,8 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext pack failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freepa(pack_field);
-                        pack_field = new char[pack_field_length];
-                        stream->read_bytes(pack_field, pack_field_length);
+                        pack_field.resize(pack_field_length);
+                        stream->read_bytes(&pack_field[0], pack_field_length);
                     }
                 }
                 
@@ -1678,7 +1671,11 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                 
                 // (1+x)B
                 if (PES_extension_flag_2) {
-                    PES_extension_field_length = stream->read_1bytes();
+                    /**
+                     * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
+                     * the PES extension field up to and including any reserved bytes.
+                     */
+                    uint8_t PES_extension_field_length = stream->read_1bytes();
                     PES_extension_field_length &= 0x07;
                     
                     if (PES_extension_field_length > 0) {
@@ -1687,9 +1684,8 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                             srs_error("ts: demux PSE ext field failed. ret=%d", ret);
                             return ret;
                         }
-                        srs_freepa(PES_extension_field);
-                        PES_extension_field = new char[PES_extension_field_length];
-                        stream->read_bytes(PES_extension_field, PES_extension_field_length);
+                        PES_extension_field.resize(PES_extension_field_length);
+                        stream->read_bytes(&PES_extension_field[0], PES_extension_field_length);
                     }
                 }
             }
@@ -1804,10 +1800,10 @@ int SrsTsPayloadPES::size()
         
         if (PES_extension_flag) {
             sz += PES_private_data_flag? 16:0;
-            sz += pack_header_field_flag? 1 + pack_field_length:0; // 1+x bytes.
+            sz += pack_header_field_flag ? 1 + pack_field.size() : 0; // 1+x bytes.
             sz += program_packet_sequence_counter_flag? 2:0;
             sz += P_STD_buffer_flag? 2:0;
-            sz += PES_extension_flag_2? 1 + PES_extension_field_length:0; // 1+x bytes.
+            sz += PES_extension_flag_2 ? 1 + PES_extension_field.size() : 0; // 1+x bytes.
         }
         PES_header_data_length = sz - PES_header_data_length;
         
@@ -1969,10 +1965,10 @@ int SrsTsPayloadPES::encode(SrsBuffer* stream)
         
         nb_required = 0;
         nb_required += PES_private_data_flag? 16:0;
-        nb_required += pack_header_field_flag? 1+pack_field_length:0; // 1+x bytes.
+        nb_required += pack_header_field_flag ? 1 + pack_field.size() : 0; // 1+x bytes.
         nb_required += program_packet_sequence_counter_flag? 2:0;
         nb_required += P_STD_buffer_flag? 2:0;
-        nb_required += PES_extension_flag_2? 1+PES_extension_field_length:0; // 1+x bytes.
+        nb_required += PES_extension_flag_2 ? 1 + PES_extension_field.size() : 0; // 1+x bytes.
         if (!stream->require(nb_required)) {
             ret = ERROR_STREAM_CASTER_TS_PSE;
             srs_error("ts: mux PSE ext payload failed. ret=%d", ret);
@@ -2531,14 +2527,10 @@ SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
     const1_value0 = 3;
     const1_value1 = 7;
     const1_value2 = 0x0f;
-    program_info_length = 0;
-    program_info_desc = NULL;
 }
 
 SrsTsPayloadPMT::~SrsTsPayloadPMT()
 {
-    srs_freepa(program_info_desc);
-    
     std::vector<SrsTsPayloadPMTESInfo*>::iterator it;
     for (it = infos.begin(); it != infos.end(); ++it) {
         SrsTsPayloadPMTESInfo* info = *it;
@@ -2582,7 +2574,11 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
     // 2B
     int16_t pilv = stream->read_2bytes();
     const1_value2 = (pilv >> 12) & 0x0F;
-    program_info_length = pilv & 0xFFF;
+    /**
+     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
+     * number of bytes of the descriptors immediately following the program_info_length field.
+     */
+    uint16_t program_info_length = pilv & 0xFFF;
     
     if (program_info_length > 0) {
         if (!stream->require(program_info_length)) {
@@ -2591,9 +2587,8 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
             return ret;
         }
         
-        srs_freepa(program_info_desc);
-        program_info_desc = new char[program_info_length];
-        stream->read_bytes(program_info_desc, program_info_length);
+        program_info_desc.resize(program_info_length);
+        stream->read_bytes(&program_info_desc[0], program_info_length);
     }
     
     // [section_length] - 4(CRC) - 9B - [program_info_length]
@@ -2633,7 +2628,7 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
 int SrsTsPayloadPMT::psi_size()
 {
     int sz = 9;
-    sz += program_info_length;
+    sz += program_info_desc.size();
     for (int i = 0; i < (int)infos.size(); i ++) {
         SrsTsPayloadPMTESInfo* info = infos.at(i);
         sz += info->size();
@@ -2673,18 +2668,18 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     stream->write_2bytes(ppv);
     
     // 2B
-    int16_t pilv = program_info_length & 0xFFF;
+    int16_t pilv = program_info_desc.size() & 0xFFF;
     pilv |= (const1_value2 << 12) & 0xF000;
     stream->write_2bytes(pilv);
     
-    if (program_info_length > 0) {
-        if (!stream->require(program_info_length)) {
+    if (!program_info_desc.empty()) {
+        if (!stream->require(program_info_desc.size())) {
             ret = ERROR_STREAM_CASTER_TS_PMT;
             srs_error("ts: mux PMT program info failed. ret=%d", ret);
             return ret;
         }
         
-        stream->write_bytes(program_info_desc, program_info_length);
+        stream->write_bytes(&program_info_desc[0], program_info_desc.size());
     }
     
     for (int i = 0; i < (int)infos.size(); i ++) {
