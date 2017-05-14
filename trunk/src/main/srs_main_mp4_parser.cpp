@@ -58,27 +58,37 @@ int parse(std::string mp4_file)
     }
     srs_trace("MP4 box reader open success");
     
-    SrsSimpleStream stream;
+    SrsSimpleStream* stream = new SrsSimpleStream();
+    SrsAutoFree(SrsSimpleStream, stream);
+    
     while (true) {
         SrsMp4Box* box = NULL;
         SrsAutoFree(SrsMp4Box, box);
         
-        if ((ret = br.read(&stream, &box)) != ERROR_SUCCESS) {
+        if ((ret = br.read(stream, &box)) != ERROR_SUCCESS) {
             if (ret != ERROR_SYSTEM_FILE_EOF) {
                 srs_error("Read MP4 box failed, ret=%d", ret);
+            } else {
+                fprintf(stderr, "\n");
             }
             return ret;
         }
         
-        if ((ret = br.skip(box, &stream)) != ERROR_SUCCESS) {
+        SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
+        SrsAutoFree(SrsBuffer, buffer);
+        
+        if ((ret = box->decode(buffer)) != ERROR_SUCCESS) {
+            srs_error("Decode the box failed, ret=%d", ret);
+            return ret;
+        }
+        
+        if ((ret = br.skip(box, stream)) != ERROR_SUCCESS) {
             srs_error("Skip MP4 box failed, ret=%d", ret);
             return ret;
         }
         
         stringstream ss;
-        ss << "type=" << char(box->type>>24) << char(box->type>>16) << char(box->type>>8) << char(box->type)
-            << ", size=" << box->sz();
-        srs_trace("MP4 box %s", ss.str().c_str());
+        fprintf(stderr, "%s", box->dumps(ss, 1).str().c_str());
     }
     
     return ret;

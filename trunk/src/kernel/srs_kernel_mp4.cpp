@@ -33,12 +33,56 @@
 
 #include <string.h>
 #include <sstream>
+#include <iomanip>
 using namespace std;
 
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
 
 #define SRS_MP4_BUF_SIZE 4096
+
+stringstream& srs_padding(stringstream& ss, int level, int tab = 4)
+{
+    for (int i = 0; i < level; i++) {
+        for (int j = 0; j < tab; j++) {
+            ss << " ";
+        }
+    }
+    return ss;
+}
+
+stringstream& srs_print_mp4_type(stringstream& ss, uint32_t v)
+{
+    ss << char(v>>24) << char(v>>16) << char(v>>8) << char(v);
+    return ss;
+}
+
+template<typename T>
+stringstream& srs_print_types(stringstream& ss, std::vector<T>& arr)
+{
+    for (size_t i = 0; i < arr.size(); i++) {
+        srs_print_mp4_type(ss, (uint32_t)arr[i]);
+        if (i < arr.size() - 1) {
+            ss << ",";
+        }
+    }
+    return ss;
+}
+
+stringstream& srs_print_bytes(stringstream& ss, const char* p, int size, int max = -1)
+{
+    if (max == -1) {
+        max = size;
+    }
+    
+    for (int i = 0; i < max; i++) {
+        ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)p[i] << std::dec;
+        if (i < max -1) {
+            ss << ", ";
+        }
+    }
+    return ss;
+}
 
 int srs_mp4_string_length(const string& v)
 {
@@ -158,6 +202,30 @@ int SrsMp4Box::remove(SrsMp4BoxType bt)
     }
     
     return nb_removed;
+}
+
+stringstream& SrsMp4Box::dumps(stringstream& ss, int level)
+{
+    srs_padding(ss, level);
+    srs_print_mp4_type(ss, (uint32_t)type);
+    
+    ss << ", " << sz();
+    if (smallsize == SRS_MP4_USE_LARGE_SIZE) {
+        ss << "(large)";
+    }
+    ss << "B";
+    
+    dumps_detail(ss, level);
+    
+    ss << endl;
+    
+    vector<SrsMp4Box*>::iterator it;
+    for (it = boxes.begin(); it != boxes.end(); ++it) {
+        SrsMp4Box* box = *it;
+        box->dumps(ss, level + 1);
+    }
+    
+    return ss;
 }
 
 int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
@@ -455,6 +523,11 @@ int SrsMp4Box::decode_header(SrsBuffer* buf)
     return ret;
 }
 
+stringstream& SrsMp4Box::dumps_detail(stringstream& ss, int level)
+{
+    return ss;
+}
+
 SrsMp4FullBox::SrsMp4FullBox()
 {
     version = 0;
@@ -520,6 +593,15 @@ int SrsMp4FullBox::decode_header(SrsBuffer* buf)
     return ret;
 }
 
+stringstream& SrsMp4FullBox::dumps_detail(stringstream& ss, int level)
+{
+    if (version != 0 || flags != 0) {
+        ss << ", V" << uint32_t(version)
+            << "(0x" << std::setw(2) << std::setfill('0') << std::hex << flags << std::dec << ")";
+    }
+    return ss;
+}
+
 SrsMp4FileTypeBox::SrsMp4FileTypeBox()
 {
     type = SrsMp4BoxTypeFTYP;
@@ -542,7 +624,7 @@ void SrsMp4FileTypeBox::set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand 
 
 int SrsMp4FileTypeBox::nb_header()
 {
-    return SrsMp4Box::nb_header() + 8 + compatible_brands.size() * 4;
+    return (int)(SrsMp4Box::nb_header() + 8 + compatible_brands.size() * 4);
 }
 
 int SrsMp4FileTypeBox::encode_header(SrsBuffer* buf)
@@ -586,6 +668,21 @@ int SrsMp4FileTypeBox::decode_header(SrsBuffer* buf)
     }
     
     return ret;
+}
+
+stringstream& SrsMp4FileTypeBox::dumps_detail(stringstream& ss, int level)
+{
+    ss << ", brands:";
+    srs_print_mp4_type(ss, (uint32_t)major_brand);
+    
+    ss << "," << minor_version;
+    
+    if (!compatible_brands.empty()) {
+        ss << "(";
+        srs_print_types(ss, compatible_brands);
+        ss << ")";
+    }
+    return ss;
 }
 
 SrsMp4MediaDataBox::SrsMp4MediaDataBox()
@@ -683,6 +780,18 @@ int SrsMp4FreeSpaceBox::decode_header(SrsBuffer* buf)
     }
     
     return ret;
+}
+
+stringstream& SrsMp4FreeSpaceBox::dumps_detail(stringstream& ss, int level)
+{
+    ss << ", free " << data.size() << "B";
+    
+    if (!data.empty()) {
+        ss << endl;
+        srs_padding(ss, level + 1);
+        srs_print_bytes(ss, &data[0], (int)data.size());
+    }
+    return ss;
 }
 
 SrsMp4MovieBox::SrsMp4MovieBox()
@@ -907,6 +1016,12 @@ int SrsMp4MovieHeaderBox::decode_header(SrsBuffer* buf)
     next_track_ID = buf->read_4bytes();
     
     return ret;
+}
+
+stringstream& SrsMp4MovieHeaderBox::dumps_detail(stringstream& ss, int level)
+{
+    ss << ", TBN=" << timescale << ", duratoin=" << std::setprecision(2) << duration() << "ms";
+    return ss;
 }
 
 SrsMp4MovieExtendsBox::SrsMp4MovieExtendsBox()

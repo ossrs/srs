@@ -30,6 +30,7 @@
 #include <srs_kernel_codec.hpp>
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 
@@ -191,6 +192,8 @@ public:
     // Remove the contained box of specified type.
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
+    // Dumps the box and all contained boxes.
+    virtual std::stringstream& dumps(std::stringstream& ss, int level);
     /**
      * Discovery the box from buffer.
      * @param ppbox Output the discoveried box, which user must free it.
@@ -215,6 +218,8 @@ protected:
     // It's not necessary to check the buffer, unless the box is not only determined by the verson.
     // Generally, it's not necessary, that is, all boxes is determinated by version.
     virtual int decode_header(SrsBuffer* buf);
+    // Dumps the detail of box.
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
 };
 
 /**
@@ -235,6 +240,7 @@ protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
 };
 
 /**
@@ -264,6 +270,7 @@ protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
 };
 
 /**
@@ -353,6 +360,7 @@ protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
 };
 
 /**
@@ -437,6 +445,7 @@ protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
 };
 
 // The type of track, maybe combine of types.
