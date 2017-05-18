@@ -381,7 +381,6 @@
 		3C6F2D731E86536B003D0805 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/mp4-parser/config"; sourceTree = "<group>"; };
 		3C6F2D741E8653BF003D0805 /* srs_main_mp4_parser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_main_mp4_parser.cpp; path = ../../../src/main/srs_main_mp4_parser.cpp; sourceTree = "<group>"; };
 		3C8280241BAFF896004A1794 /* compatible.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = compatible.conf; path = ../../../conf/compatible.conf; sourceTree = "<group>"; };
-		3C8280251BAFF896004A1794 /* full.one.vhost.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = full.one.vhost.conf; path = ../../../conf/full.one.vhost.conf; sourceTree = "<group>"; };
 		3C8280261BAFF896004A1794 /* http.flv.live.edge1.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge1.conf; path = ../../../conf/http.flv.live.edge1.conf; sourceTree = "<group>"; };
 		3C8280271BAFF896004A1794 /* http.flv.live.edge2.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.edge2.conf; path = ../../../conf/http.flv.live.edge2.conf; sourceTree = "<group>"; };
 		3C8280281BAFF896004A1794 /* push.flv.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.flv.conf; path = ../../../conf/push.flv.conf; sourceTree = "<group>"; };
@@ -789,7 +788,6 @@
 				3C1EE6BA1AB1080900576EE9 /* forward.master.conf */,
 				3C1EE6BB1AB1080900576EE9 /* forward.slave.conf */,
 				3C1EE6BC1AB1080900576EE9 /* full.conf */,
-				3C8280251BAFF896004A1794 /* full.one.vhost.conf */,
 				3C1EE6BD1AB1080900576EE9 /* hds.conf */,
 				3C1EE6BE1AB1080900576EE9 /* hls.conf */,
 				3C1EE6BF1AB1080900576EE9 /* http.aac.live.conf */,
