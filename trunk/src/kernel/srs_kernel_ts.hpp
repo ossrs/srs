@@ -1428,12 +1428,7 @@ public:
      * reverved value, must be '1'
      */
     int8_t const1_value1; //4bits
-    /**
-     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
-     * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
-     */
-    int16_t ES_info_length; //12bits
-    char* ES_info; //[ES_info_length] bytes.
+    std::vector<char> ES_info; //[ES_info_length] bytes.
 public:
     SrsTsPayloadPMTESInfo(SrsTsStream st = SrsTsStreamReserved, int16_t epid = 0);
     virtual ~SrsTsPayloadPMTESInfo();
