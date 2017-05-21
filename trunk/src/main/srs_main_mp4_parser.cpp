@@ -61,6 +61,7 @@ int parse(std::string mp4_file)
     SrsSimpleStream* stream = new SrsSimpleStream();
     SrsAutoFree(SrsSimpleStream, stream);
     
+    fprintf(stderr, "\n");
     while (true) {
         SrsMp4Box* box = NULL;
         SrsAutoFree(SrsMp4Box, box);
