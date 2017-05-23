@@ -90,10 +90,10 @@ public:
 /**
  * the recv thread, use message handler to handle each received message.
  */
-class SrsRecvThread : public ISrsReusableThread2Handler
+class SrsRecvThread : public ISrsReusableThreadHandler
 {
 protected:
-    SrsReusableThread2* trd;
+    SrsReusableThread* trd;
     ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
     // The recv timeout in ms.

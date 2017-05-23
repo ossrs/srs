@@ -60,7 +60,7 @@ SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm)
     rtmp = r;
     pumper = p;
     timeout = tm;
-    trd = new SrsReusableThread2("recv", this);
+    trd = new SrsReusableThread("recv", this);
 }
 
 SrsRecvThread::~SrsRecvThread()

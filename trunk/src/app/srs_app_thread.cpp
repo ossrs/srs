@@ -247,91 +247,12 @@ void SrsReusableThread::on_thread_stop()
     handler->on_thread_stop();
 }
 
-ISrsReusableThread2Handler::ISrsReusableThread2Handler()
-{
-}
-
-ISrsReusableThread2Handler::~ISrsReusableThread2Handler()
-{
-}
-
-void ISrsReusableThread2Handler::on_thread_start()
-{
-}
-
-int ISrsReusableThread2Handler::on_before_cycle()
-{
-    return ERROR_SUCCESS;
-}
-
-int ISrsReusableThread2Handler::on_end_cycle()
-{
-    return ERROR_SUCCESS;
-}
-
-void ISrsReusableThread2Handler::on_thread_stop()
-{
-}
-
-SrsReusableThread2::SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t cims)
-{
-    handler = h;
-    pthread = new internal::SrsThread(n, this, cims, true);
-}
-
-SrsReusableThread2::~SrsReusableThread2()
-{
-    pthread->stop();
-    srs_freep(pthread);
-}
-
-int SrsReusableThread2::start()
-{
-    return pthread->start();
-}
-
-void SrsReusableThread2::stop()
-{
-    pthread->stop();
-}
-
-int SrsReusableThread2::cid()
-{
-    return pthread->cid();
-}
-
-void SrsReusableThread2::interrupt()
+void SrsReusableThread::interrupt()
 {
     pthread->stop_loop();
 }
 
-bool SrsReusableThread2::interrupted()
+bool SrsReusableThread::interrupted()
 {
-    return !pthread->can_loop();
+    return !can_loop();
 }
-
-int SrsReusableThread2::cycle()
-{
-    return handler->cycle();
-}
-
-void SrsReusableThread2::on_thread_start()
-{
-    handler->on_thread_start();
-}
-
-int SrsReusableThread2::on_before_cycle()
-{
-    return handler->on_before_cycle();
-}
-
-int SrsReusableThread2::on_end_cycle()
-{
-    return handler->on_end_cycle();
-}
-
-void SrsReusableThread2::on_thread_stop()
-{
-    handler->on_thread_stop();
-}
-
