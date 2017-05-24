@@ -12,6 +12,9 @@ Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
+Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
+which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+
 ## Content
 
 * [About](#about)
@@ -1453,6 +1456,9 @@ Winlin
 [contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
+
+[LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
+[LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
 
 [srs_CN]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [srs_EN]: https://github.com/ossrs/srs/wiki/v3_EN_Home
