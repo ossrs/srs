@@ -2440,13 +2440,10 @@ SrsTsPayloadPMTESInfo::SrsTsPayloadPMTESInfo(SrsTsStream st, int16_t epid)
     
     const1_value0 = 7;
     const1_value1 = 0x0f;
-    ES_info_length = 0;
-    ES_info = NULL;
 }
 
 SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
 {
-    srs_freepa(ES_info);
 }
 
 int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
@@ -2468,7 +2465,11 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
     
     int16_t eilv = stream->read_2bytes();
     const1_value1 = (epv >> 12) & 0x0f;
-    ES_info_length = eilv & 0x0FFF;
+    /**
+     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
+     * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
+     */
+    int16_t ES_info_length = eilv & 0x0FFF;
     
     if (ES_info_length > 0) {
         if (!stream->require(ES_info_length)) {
@@ -2476,9 +2477,8 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
             srs_error("ts: demux PMT es info data failed. ret=%d", ret);
             return ret;
         }
-        srs_freepa(ES_info);
-        ES_info = new char[ES_info_length];
-        stream->read_bytes(ES_info, ES_info_length);
+        ES_info.resize(ES_info_length);
+        stream->read_bytes(&ES_info[0], ES_info_length);
     }
     
     return ret;
@@ -2486,7 +2486,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
 
 int SrsTsPayloadPMTESInfo::size()
 {
-    return 5 + ES_info_length;
+    return 5 + ES_info.size();
 }
 
 int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
@@ -2506,17 +2506,17 @@ int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
     epv |= (const1_value0 << 13) & 0xE000;
     stream->write_2bytes(epv);
     
-    int16_t eilv = ES_info_length & 0x0FFF;
+    int16_t eilv = ES_info.size() & 0x0FFF;
     eilv |= (const1_value1 << 12) & 0xF000;
     stream->write_2bytes(eilv);
     
-    if (ES_info_length > 0) {
-        if (!stream->require(ES_info_length)) {
+    if (!ES_info.empty()) {
+        if (!stream->require(ES_info.size())) {
             ret = ERROR_STREAM_CASTER_TS_PMT;
             srs_error("ts: mux PMT es info data failed. ret=%d", ret);
             return ret;
         }
-        stream->write_bytes(ES_info, ES_info_length);
+        stream->write_bytes(&ES_info[0], ES_info.size());
     }
     
     return ret;
