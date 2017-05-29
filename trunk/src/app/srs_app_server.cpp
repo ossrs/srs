@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_app_kafka.hpp>
+#include <srs_app_thread.hpp>
 
 // system interval in ms,
 // all resolution times should be times togother,
@@ -483,6 +484,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = NULL;
+    conn_manager = new SrsCoroutineManager();
     
     handler = NULL;
     ppid = ::getppid();
@@ -524,6 +526,7 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
+    srs_freep(conn_manager);
 }
 
 void SrsServer::dispose()
@@ -739,6 +742,10 @@ int SrsServer::listen()
     }
     
     if ((ret = listen_stream_caster()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = conn_manager->start()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1334,7 +1341,7 @@ void SrsServer::remove(ISrsConnection* c)
     
     // all connections are created by server,
     // so we free it here.
-    srs_freep(conn);
+    conn_manager->remove(c);
 }
 
 int SrsServer::on_reload_listen()

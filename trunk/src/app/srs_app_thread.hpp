@@ -26,7 +26,37 @@
 
 #include <srs_core.hpp>
 
+#include <vector>
+
 #include <srs_app_st.hpp>
+#include <srs_service_conn.hpp>
+
+/**
+ * The coroutine manager use a thread to delete a connection, which will stop the service
+ * thread, for example, when the RTMP connection thread cycle terminated, it will notify
+ * the manager(the server) to remove the connection from list of server and push it to
+ * the manager thread to delete it, finally the thread of connection will stop.
+ */
+class SrsCoroutineManager : virtual public ISrsCoroutineHandler, virtual public IConnectionManager
+{
+private:
+    SrsCoroutine* trd;
+    std::vector<ISrsConnection*> conns;
+    st_cond_t cond;
+public:
+    SrsCoroutineManager();
+    virtual ~SrsCoroutineManager();
+public:
+    int start();
+// ISrsCoroutineHandler
+public:
+    virtual int cycle();
+// IConnectionManager
+public:
+    virtual void remove(ISrsConnection* c);
+private:
+    void clear();
+};
 
 /**
  * the one cycle thread is a thread do the cycle only one time,

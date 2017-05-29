@@ -51,10 +51,13 @@ SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
     output = _srs_config->get_stream_caster_output(c);
+    manager = new SrsCoroutineManager();
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()
 {
+    srs_freep(http_mux);
+    srs_freep(manager);
 }
 
 int SrsAppCasterFlv::initialize()
@@ -62,6 +65,10 @@ int SrsAppCasterFlv::initialize()
     int ret = ERROR_SUCCESS;
     
     if ((ret = http_mux->handle("/", this)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = manager->start()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -95,7 +102,7 @@ void SrsAppCasterFlv::remove(ISrsConnection* c)
     // fixbug: SrsHttpConn for CasterFlv is not freed, which could cause memory leak
     // so, free conn which is not managed by SrsServer->conns;
     // @see: https://github.com/ossrs/srs/issues/826
-    srs_freep(c);
+    manager->remove(c);
 }
 
 int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)

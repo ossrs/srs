@@ -54,6 +54,7 @@ class SrsAppCasterFlv;
 #ifdef SRS_AUTO_KAFKA
 class SrsKafkaProducer;
 #endif
+class SrsCoroutineManager;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -233,8 +234,8 @@ public:
  * start connection service thread, destroy client.
  */
 class SrsServer : virtual public ISrsReloadHandler
-, virtual public ISrsSourceHandler
-, virtual public IConnectionManager
+    , virtual public ISrsSourceHandler
+    , virtual public IConnectionManager
 {
 private:
     // TODO: FIXME: rename to http_api
@@ -244,6 +245,7 @@ private:
 #ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
 #endif
+    SrsCoroutineManager* conn_manager;
 private:
     /**
      * the pid file fd, lock the file write when server is running.

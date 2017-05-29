@@ -26,6 +26,58 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+#include <vector>
+using namespace std;
+
+SrsCoroutineManager::SrsCoroutineManager()
+{
+    cond = st_cond_new();
+    trd = new SrsCoroutine("manager", this);
+}
+
+SrsCoroutineManager::~SrsCoroutineManager()
+{
+    srs_freep(trd);
+    st_cond_destroy(cond);
+    
+    clear();
+}
+
+int SrsCoroutineManager::start()
+{
+    return trd->start();
+}
+
+int SrsCoroutineManager::cycle()
+{
+    while (!trd->pull()) {
+        st_cond_wait(cond);
+        clear();
+    }
+    
+    return ERROR_SUCCESS;
+}
+
+void SrsCoroutineManager::remove(ISrsConnection* c)
+{
+    conns.push_back(c);
+    st_cond_signal(cond);
+}
+
+void SrsCoroutineManager::clear()
+{
+    // To prevent thread switch when delete connection,
+    // we copy all connections then free one by one.
+    vector<ISrsConnection*> copy = conns;
+    conns.clear();
+    
+    vector<ISrsConnection*>::iterator it;
+    for (it = copy.begin(); it != copy.end(); ++it) {
+        ISrsConnection* conn = *it;
+        srs_freep(conn);
+    }
+}
+
 ISrsOneCycleThreadHandler::ISrsOneCycleThreadHandler()
 {
 }
