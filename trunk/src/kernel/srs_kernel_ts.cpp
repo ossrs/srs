@@ -1670,7 +1670,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
                 // (1+x)B
                 if (PES_extension_flag_2) {
                     PES_extension_field_length = stream->read_1bytes();
-                    PES_extension_field_length &= 0x07;
+                    PES_extension_field_length &= 0x7F;
 
                     if (PES_extension_field_length > 0) {
                         if (!stream->require(PES_extension_field_length)) {
@@ -2462,7 +2462,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsStream* stream)
     elementary_PID = epv & 0x1FFF;
     
     int16_t eilv = stream->read_2bytes();
-    const1_value1 = (epv >> 12) & 0x0f;
+    const1_value1 = (eilv >> 12) & 0x0f;
     ES_info_length = eilv & 0x0FFF;
 
     if (ES_info_length > 0) {
