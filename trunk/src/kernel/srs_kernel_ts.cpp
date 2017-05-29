@@ -1676,7 +1676,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                      * the PES extension field up to and including any reserved bytes.
                      */
                     uint8_t PES_extension_field_length = stream->read_1bytes();
-                    PES_extension_field_length &= 0x07;
+                    PES_extension_field_length &= 0x7F;
                     
                     if (PES_extension_field_length > 0) {
                         if (!stream->require(PES_extension_field_length)) {
@@ -2464,7 +2464,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
     elementary_PID = epv & 0x1FFF;
     
     int16_t eilv = stream->read_2bytes();
-    const1_value1 = (epv >> 12) & 0x0f;
+    const1_value1 = (eilv >> 12) & 0x0f;
     /**
      * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
      * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
@@ -2486,7 +2486,7 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
 
 int SrsTsPayloadPMTESInfo::size()
 {
-    return 5 + ES_info.size();
+    return 5 + (int)ES_info.size();
 }
 
 int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
