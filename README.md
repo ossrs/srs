@@ -337,6 +337,7 @@ Remark:
 
 ## History
 
+* v2.0, 2017-05-29, Merge [#899][bug #899] to fix [#893][bug #893], ts PES ext length. 2.0.243
 * v2.0, 2017-05-01, Fix [#865][bug #865], shouldn't remove ts/m3u8 when hls_dispose disabled. 2.0.242
 * v2.0, 2017-04-30, Fix [#636][bug #636], FD leak for requesting empty HTTP stream. 2.0.241
 * v2.0, 2017-04-23, Fix [#851][bug #851], HTTP API support number of video frames for FPS. 2.0.240
@@ -1297,6 +1298,8 @@ Winlin
 [bug #851]: https://github.com/ossrs/srs/issues/851
 [bug #636]: https://github.com/ossrs/srs/issues/636
 [bug #865]: https://github.com/ossrs/srs/issues/865
+[bug #893]: https://github.com/ossrs/srs/issues/893
+[bug #899]: https://github.com/ossrs/srs/issues/899
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
