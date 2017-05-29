@@ -96,6 +96,29 @@ int SrsRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // the multiple messages writev improve performance large,
+    // but the timeout recv will cause 33% sys call performance,
+    // to use isolate thread to recv, can improve about 33% performance.
+    // @see https://github.com/ossrs/srs/issues/194
+    // @see: https://github.com/ossrs/srs/issues/217
+    rtmp->set_recv_timeout(SRS_CONSTS_NO_TMMS);
+    
+    pumper->on_start();
+    
+    ret = do_cycle();
+    
+    // reset the timeout to pulse mode.
+    rtmp->set_recv_timeout(timeout * 1000);
+    
+    pumper->on_stop();
+    
+    return ret;
+}
+
+int SrsRecvThread::do_cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
     while (!trd->interrupted()) {
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
@@ -127,26 +150,6 @@ int SrsRecvThread::cycle()
     }
     
     return ret;
-}
-
-void SrsRecvThread::on_thread_start()
-{
-    // the multiple messages writev improve performance large,
-    // but the timeout recv will cause 33% sys call performance,
-    // to use isolate thread to recv, can improve about 33% performance.
-    // @see https://github.com/ossrs/srs/issues/194
-    // @see: https://github.com/ossrs/srs/issues/217
-    rtmp->set_recv_timeout(SRS_CONSTS_NO_TMMS);
-    
-    pumper->on_start();
-}
-
-void SrsRecvThread::on_thread_stop()
-{
-    // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(timeout * 1000);
-    
-    pumper->on_stop();
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)

@@ -93,6 +93,21 @@ void SrsEncoder::on_unpublish()
 
 int SrsEncoder::cycle()
 {
+    int ret = do_cycle();
+    
+    // kill ffmpeg when finished and it alive
+    std::vector<SrsFFMPEG*>::iterator it;
+    
+    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+        SrsFFMPEG* ffmpeg = *it;
+        ffmpeg->stop();
+    }
+    
+    return ret;
+}
+
+int SrsEncoder::do_cycle()
+{
     int ret = ERROR_SUCCESS;
     
     std::vector<SrsFFMPEG*>::iterator it;
@@ -116,17 +131,6 @@ int SrsEncoder::cycle()
     show_encode_log_message();
     
     return ret;
-}
-
-void SrsEncoder::on_thread_stop()
-{
-    // kill ffmpeg when finished and it alive
-    std::vector<SrsFFMPEG*>::iterator it;
-    
-    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-        SrsFFMPEG* ffmpeg = *it;
-        ffmpeg->stop();
-    }
 }
 
 void SrsEncoder::clear_engines()

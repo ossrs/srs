@@ -123,12 +123,6 @@ public:
      * thread will invoke the on_thread_stop() when it terminated.
      */
     virtual int cycle();
-    /**
-     * when the thread cycle finished, thread will invoke the on_thread_stop(),
-     * which will remove self from server, server will remove the connection from manager
-     * then delete the connection.
-     */
-    virtual void on_thread_stop();
 public:
     /**
      * get the srs id which identify the client.

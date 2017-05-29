@@ -417,11 +417,6 @@ int SrsRtspConn::cycle()
         srs_warn("client disconnect peer. ret=%d", ret);
     }
     
-    return ERROR_SUCCESS;
-}
-
-void SrsRtspConn::on_thread_stop()
-{
     if (video_rtp) {
         caster->free_port(video_rtp->port(), video_rtp->port() + 1);
     }
@@ -431,6 +426,8 @@ void SrsRtspConn::on_thread_stop()
     }
     
     caster->remove(this);
+    
+    return ERROR_SUCCESS;
 }
 
 int SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)

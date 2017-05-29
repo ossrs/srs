@@ -214,10 +214,6 @@ int SrsIngester::cycle()
     return ret;
 }
 
-void SrsIngester::on_thread_stop()
-{
-}
-
 void SrsIngester::clear_engines()
 {
     std::vector<SrsIngesterFFMPEG*>::iterator it;

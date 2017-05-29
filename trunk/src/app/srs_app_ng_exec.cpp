@@ -80,6 +80,19 @@ void SrsNgExec::on_unpublish()
 
 int SrsNgExec::cycle()
 {
+    int ret = do_cycle();
+    
+    std::vector<SrsProcess*>::iterator it;
+    for (it = exec_publishs.begin(); it != exec_publishs.end(); ++it) {
+        SrsProcess* ep = *it;
+        ep->stop();
+    }
+    
+    return ret;
+}
+
+int SrsNgExec::do_cycle()
+{
     int ret = ERROR_SUCCESS;
     
     // ignore when no exec.
@@ -108,15 +121,6 @@ int SrsNgExec::cycle()
     show_exec_log_message();
     
     return ret;
-}
-
-void SrsNgExec::on_thread_stop()
-{
-    std::vector<SrsProcess*>::iterator it;
-    for (it = exec_publishs.begin(); it != exec_publishs.end(); ++it) {
-        SrsProcess* ep = *it;
-        ep->stop();
-    }
 }
 
 int SrsNgExec::parse_exec_publish(SrsRequest* req)

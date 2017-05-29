@@ -112,8 +112,8 @@ public:
 // interface ISrsReusableThread2Handler
 public:
     virtual int cycle();
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+private:
+    virtual int do_cycle();
 };
 
 /**

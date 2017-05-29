@@ -59,7 +59,8 @@ public:
 // interface ISrsReusableThreadHandler.
 public:
     virtual int cycle();
-    virtual void on_thread_stop();
+private:
+    virtual int do_cycle();
 private:
     virtual void clear_engines();
     virtual SrsFFMPEG* at(int index);

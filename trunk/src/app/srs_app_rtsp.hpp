@@ -161,7 +161,6 @@ public:
 // interface ISrsOneCycleThreadHandler
 public:
     virtual int cycle();
-    virtual void on_thread_stop();
 private:
     virtual int on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
     virtual int on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);

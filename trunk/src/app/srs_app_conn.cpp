@@ -130,13 +130,10 @@ int SrsConnection::cycle()
         srs_warn("client disconnect peer. oret=%d, ret=%d", oret, ret);
     }
     
-    return ERROR_SUCCESS;
-}
-
-void SrsConnection::on_thread_stop()
-{
-    // TODO: FIXME: never remove itself, use isolate thread to do cleanup.
+    // Notify manager to remove it.
     manager->remove(this);
+    
+    return ERROR_SUCCESS;
 }
 
 int SrsConnection::srs_id()

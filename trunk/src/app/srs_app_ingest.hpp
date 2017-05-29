@@ -95,7 +95,6 @@ private:
 // interface ISrsReusableThreadHandler.
 public:
     virtual int cycle();
-    virtual void on_thread_stop();
 private:
     virtual void clear_engines();
     virtual int parse();
