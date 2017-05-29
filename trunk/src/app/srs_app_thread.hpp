@@ -29,63 +29,6 @@
 #include <srs_app_st.hpp>
 
 /**
- * the endless thread is a loop thread never quit.
- *      user can create thread always running util server terminate.
- *      the step to create a thread never stop:
- *      1. create SrsEndlessThread field.
- *      for example:
- *          class SrsBufferCache : public ISrsEndlessThreadHandler {
- *               public: SrsBufferCache() { pthread = new SrsEndlessThread("http-stream", this); }
- *               public: virtual int cycle() {
- *                   // do some work never end.
- *               }
- *          }
- * @remark user must use block method in cycle method, for example, sleep or socket io.
- */
-class ISrsEndlessThreadHandler
-{
-public:
-    ISrsEndlessThreadHandler();
-    virtual ~ISrsEndlessThreadHandler();
-public:
-    /**
-     * the cycle method for the common thread.
-     * @remark user must use block method in cycle method, for example, sleep or socket io.
-     */
-    virtual int cycle() = 0;
-public:
-    /**
-     * other callback for handler.
-     * @remark all callback is optional, handler can ignore it.
-     */
-    virtual void on_thread_start();
-    virtual int on_before_cycle();
-    virtual int on_end_cycle();
-    virtual void on_thread_stop();
-};
-class SrsEndlessThread : public internal::ISrsThreadHandler
-{
-private:
-    internal::SrsThread* pthread;
-    ISrsEndlessThreadHandler* handler;
-public:
-    SrsEndlessThread(const char* n, ISrsEndlessThreadHandler* h);
-    virtual ~SrsEndlessThread();
-public:
-    /**
-     * for the endless thread, never quit.
-     */
-    virtual int start();
-// interface internal::ISrsThreadHandler
-public:
-    virtual int cycle();
-    virtual void on_thread_start();
-    virtual int on_before_cycle();
-    virtual int on_end_cycle();
-    virtual void on_thread_stop();
-};
-
-/**
  * the one cycle thread is a thread do the cycle only one time,
  * that is, the thread will quit when return from the cycle.
  *       user can create thread which stop itself,

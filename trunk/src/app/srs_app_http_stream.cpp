@@ -60,7 +60,7 @@ SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
     req = r->copy();
     source = s;
     queue = new SrsMessageQueue(true);
-    pthread = new SrsEndlessThread("http-stream", this);
+    trd = new SrsCoroutine("http-stream", this);
     
     // TODO: FIXME: support reload.
     fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
@@ -68,7 +68,7 @@ SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
 
 SrsBufferCache::~SrsBufferCache()
 {
-    srs_freep(pthread);
+    srs_freep(trd);
     
     srs_freep(queue);
     srs_freep(req);
@@ -87,7 +87,7 @@ int SrsBufferCache::update(SrsSource* s, SrsRequest* r)
 
 int SrsBufferCache::start()
 {
-    return pthread->start();
+    return trd->start();
 }
 
 int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
@@ -138,7 +138,7 @@ int SrsBufferCache::cycle()
     // TODO: FIXME: support reload.
     queue->set_queue_size(fast_cache);
     
-    while (true) {
+    while (!trd->pull()) {
         pprint->elapse();
         
         // get messages from consumer.

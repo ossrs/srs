@@ -87,7 +87,7 @@ void SrsCoroutine::stop()
     
     void* res = NULL;
     int ret = st_thread_join(trd, &res);
-    srs_trace("Thread.stop: Terminated, ret=%d, err=%d", ret, err);
+    srs_info("Thread.stop: Terminated, ret=%d, err=%d", ret, err);
     srs_assert(!ret);
     
     // Always override the error by the worker.
@@ -107,7 +107,7 @@ void SrsCoroutine::interrupt()
     }
     interrupted = true;
     
-    srs_trace("Thread.interrupt: Interrupt thread, err=%d", err);
+    srs_info("Thread.interrupt: Interrupt thread, err=%d", err);
     err = (err == ERROR_SUCCESS? ERROR_THREAD_INTERRUPED:err);
     st_thread_interrupt(trd);
 }
@@ -127,10 +127,10 @@ int SrsCoroutine::cycle()
     if (!context && _srs_context) {
         context = _srs_context->generate_id();
     }
-    srs_trace("Thread.cycle: Start with cid=%d, err=%d", context, err);
+    srs_info("Thread.cycle: Start with cid=%d, err=%d", context, err);
     
     int ret = handler->cycle();
-    srs_trace("Thread.cycle: Finished with ret=%d, err=%d", ret, err);
+    srs_info("Thread.cycle: Finished with ret=%d, err=%d", ret, err);
     return ret;
 }
 

@@ -355,13 +355,13 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
-SrsSignalManager::SrsSignalManager(SrsServer* server)
+SrsSignalManager::SrsSignalManager(SrsServer* s)
 {
     SrsSignalManager::instance = this;
     
-    _server = server;
+    server = s;
     sig_pipe[0] = sig_pipe[1] = -1;
-    pthread = new SrsEndlessThread("signal", this);
+    trd = new SrsCoroutine("signal", this);
     signal_read_stfd = NULL;
 }
 
@@ -376,7 +376,7 @@ SrsSignalManager::~SrsSignalManager()
         ::close(sig_pipe[1]);
     }
     
-    srs_freep(pthread);
+    srs_freep(trd);
 }
 
 int SrsSignalManager::initialize()
@@ -432,20 +432,22 @@ int SrsSignalManager::start()
     srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
               SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
     
-    return pthread->start();
+    return trd->start();
 }
 
 int SrsSignalManager::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    int signo;
-    
-    /* Read the next signal from the pipe */
-    st_read(signal_read_stfd, &signo, sizeof(int), ST_UTIME_NO_TIMEOUT);
-    
-    /* Process signal synchronously */
-    _server->on_signal(signo);
+    while (!trd->pull()) {
+        int signo;
+        
+        /* Read the next signal from the pipe */
+        st_read(signal_read_stfd, &signo, sizeof(int), ST_UTIME_NO_TIMEOUT);
+        
+        /* Process signal synchronously */
+        server->on_signal(signo);
+    }
     
     return ret;
 }
