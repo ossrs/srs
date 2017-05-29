@@ -29,32 +29,26 @@
 #include <string>
 #include <vector>
 
-// whether use nxjson
-// @see: https://bitbucket.org/yarosla/nxjson
-#undef SRS_JSON_USE_NXJSON
-#define SRS_JSON_USE_NXJSON
-
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 // json decode
 // 1. SrsJsonAny: read any from str:char*
-//        SrsJsonAny* pany = NULL;
-//        if ((ret = srs_json_read_any(str, &pany)) != ERROR_SUCCESS) {
-//            return ret;
+//        SrsJsonAny* any = NULL;
+//        if ((any = SrsJsonAny::loads(str)) == NULL) {
+//            return -1;
 //         }
 //        srs_assert(pany); // if success, always valid object.
 // 2. SrsJsonAny: convert to specifid type, for instance, string
-//        SrsJsonAny* pany = ...
-//        if (pany->is_string()) {
-//            string v = pany->to_str();
+//        SrsJsonAny* any = ...
+//        if (any->is_string()) {
+//            string v = any->to_str();
 //        }
 //
 // for detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-// @see: https://bitbucket.org/yarosla/nxjson
 // @see: https://github.com/udp/json-parser
 
 class SrsAmf0Any;
@@ -115,6 +109,7 @@ public:
     virtual SrsAmf0Any* to_amf0();
 public:
     static SrsJsonAny* str(const char* value = NULL);
+    static SrsJsonAny* str(const char* value, int length);
     static SrsJsonAny* boolean(bool value = false);
     static SrsJsonAny* integer(int64_t value = 0);
     static SrsJsonAny* number(double value = 0.0);
@@ -123,10 +118,10 @@ public:
     static SrsJsonArray* array();
 public:
     /**
-     * read json tree from str:char*
+     * read json tree from string.
      * @return json object. NULL if error.
      */
-    static SrsJsonAny* loads(char* str);
+    static SrsJsonAny* loads(const std::string& str);
 };
 
 class SrsJsonObject : public SrsJsonAny

@@ -117,7 +117,7 @@ class RESTClients(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_connect":
@@ -128,7 +128,7 @@ class RESTClients(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
@@ -204,7 +204,7 @@ class RESTStreams(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_publish":
@@ -215,7 +215,7 @@ class RESTStreams(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
@@ -284,7 +284,7 @@ class RESTDvrs(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_dvr":
@@ -293,7 +293,7 @@ class RESTDvrs(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
@@ -405,7 +405,7 @@ class RESTHls(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_hls":
@@ -414,7 +414,7 @@ class RESTHls(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
@@ -481,7 +481,7 @@ class RESTSessions(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_play":
@@ -492,7 +492,7 @@ class RESTSessions(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
@@ -803,7 +803,7 @@ class RESTSnapshots(object):
         except Exception, ex:
             code = Error.system_parse_json
             trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
+            return json.dumps({"code": int(code), "data": None})
 
         action = json_req["action"]
         if action == "on_publish":
@@ -814,7 +814,7 @@ class RESTSnapshots(object):
             trace("invalid request action: %s"%(json_req["action"]))
             code = Error.request_invalid_action
 
-        return str(code)
+        return json.dumps({"code": int(code), "data": None})
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()

@@ -466,7 +466,7 @@ int SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, i
     }
     
     // parse string res to json.
-    SrsJsonAny* info = SrsJsonAny::loads((char*)res.c_str());
+    SrsJsonAny* info = SrsJsonAny::loads(res);
     if (!info) {
         ret = ERROR_HTTP_DATA_INVALID;
         srs_error("invalid response %s. ret=%d", res.c_str(), ret);

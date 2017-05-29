@@ -189,6 +189,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-05-30, Fix [#904][bug #904], replace NXJSON(LGPL) with json-parser(BSD). 3.0.23
 * v3.0, 2017-04-16, Fix [#547][bug #547], support HLS audio in TS. 3.0.22
 * v3.0, 2017-03-26, Fix [#820][bug #820], extract service for modules. 3.0.21
 * v3.0, 2017-03-02, Fix [#786][bug #786], simply don't reuse object. 3.0.20
@@ -1417,6 +1418,7 @@ Winlin
 [bug #786]: https://github.com/ossrs/srs/issues/786
 [bug #820]: https://github.com/ossrs/srs/issues/820
 [bug #547]: https://github.com/ossrs/srs/issues/547
+[bug #904]: https://github.com/ossrs/srs/issues/904
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
