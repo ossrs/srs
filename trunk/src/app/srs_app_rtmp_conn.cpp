@@ -450,7 +450,7 @@ int SrsRtmpConn::service_cycle()
     }
     srs_verbose("on_bw_done success");
     
-    while (!disposed) {
+    while (!trd->pull()) {
         ret = stream_service_cycle();
         
         // stream service must terminated with error, never success.
@@ -692,7 +692,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd)
+int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* rtrd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -730,12 +730,12 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
               send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
     
-    while (!disposed) {
+    while (true) {
         // collect elapse for pithy print.
         pprint->elapse();
         
         // when source is set to expired, disconnect it.
-        if (expired) {
+        if (trd->pull()) {
             ret = ERROR_USER_DISCONNECT;
             srs_error("connection expired. ret=%d", ret);
             return ret;
@@ -744,8 +744,8 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/ossrs/srs/issues/196
         // @see: https://github.com/ossrs/srs/issues/217
-        while (!trd->empty()) {
-            SrsCommonMessage* msg = trd->pump();
+        while (!rtrd->empty()) {
+            SrsCommonMessage* msg = rtrd->pump();
             srs_verbose("pump client message to process.");
             
             if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
@@ -757,7 +757,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
         
         // quit when recv thread error.
-        if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+        if ((ret = rtrd->error_code()) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
                 srs_error("recv thread failed. ret=%d", ret);
             }
@@ -893,13 +893,13 @@ int SrsRtmpConn::publishing(SrsSource* source)
     if ((ret = acquire_publish(source)) == ERROR_SUCCESS) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
-        SrsPublishRecvThread trd(rtmp, req, st_netfd_fileno(stfd), 0, this, source);
+        SrsPublishRecvThread rtrd(rtmp, req, st_netfd_fileno(stfd), 0, this, source);
         
         srs_info("start to publish stream %s success", req->stream.c_str());
-        ret = do_publishing(source, &trd);
+        ret = do_publishing(source, &rtrd);
         
         // stop isolate recv thread
-        trd.stop();
+        rtrd.stop();
     }
     
     // whatever the acquire publish, always release publish.
@@ -916,7 +916,7 @@ int SrsRtmpConn::publishing(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
+int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* rtrd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -925,15 +925,15 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // start isolate recv thread.
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
+    if ((ret = rtrd->start()) != ERROR_SUCCESS) {
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
     }
     
     // change the isolate recv thread context id,
     // merge its log to current thread.
-    int receive_thread_cid = trd->get_cid();
-    trd->set_cid(_srs_context->get_id());
+    int receive_thread_cid = rtrd->get_cid();
+    rtrd->set_cid(_srs_context->get_id());
     
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
@@ -951,11 +951,11 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
-    while (!disposed) {
+    while (true) {
         pprint->elapse();
         
         // when source is set to expired, disconnect it.
-        if (expired) {
+        if (trd->pull()) {
             ret = ERROR_USER_DISCONNECT;
             srs_error("connection expired. ret=%d", ret);
             return ret;
@@ -965,13 +965,13 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             // @see https://github.com/ossrs/srs/issues/441
-            trd->wait(publish_1stpkt_timeout);
+            rtrd->wait(publish_1stpkt_timeout);
         } else {
-            trd->wait(publish_normal_timeout);
+            rtrd->wait(publish_normal_timeout);
         }
         
         // check the thread error code.
-        if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+        if ((ret = rtrd->error_code()) != ERROR_SUCCESS) {
             if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
                 srs_error("recv thread failed. ret=%d", ret);
             }
@@ -979,21 +979,21 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         }
         
         // when not got any messages, timeout.
-        if (trd->nb_msgs() <= nb_msgs) {
+        if (rtrd->nb_msgs() <= nb_msgs) {
             ret = ERROR_SOCKET_TIMEOUT;
             srs_warn("publish timeout %dms, nb_msgs=%" PRId64 ", ret=%d",
                      nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, nb_msgs, ret);
             break;
         }
-        nb_msgs = trd->nb_msgs();
+        nb_msgs = rtrd->nb_msgs();
         
         // Update the stat for video fps.
         // @remark https://github.com/ossrs/srs/issues/851
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_frames(req, (int)(trd->nb_video_frames() - nb_frames))) != ERROR_SUCCESS) {
+        if ((ret = stat->on_video_frames(req, (int)(rtrd->nb_video_frames() - nb_frames))) != ERROR_SUCCESS) {
             return ret;
         }
-        nb_frames = trd->nb_video_frames();
+        nb_frames = rtrd->nb_video_frames();
 
         // reportable
         if (pprint->can_print()) {

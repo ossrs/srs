@@ -110,7 +110,7 @@ public:
 /**
  * the rtsp connection serve the fd.
  */
-class SrsRtspConn : public ISrsOneCycleThreadHandler
+class SrsRtspConn : public ISrsCoroutineHandler
 {
 private:
     std::string output_template;
@@ -133,7 +133,7 @@ private:
     SrsStSocket* skt;
     SrsRtspStack* rtsp;
     SrsRtspCaster* caster;
-    SrsOneCycleThread* trd;
+    SrsCoroutine* trd;
 private:
     SrsRequest* req;
     SrsSimpleRtmpClient* sdk;

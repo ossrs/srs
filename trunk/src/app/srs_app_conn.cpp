@@ -32,23 +32,16 @@ using namespace std;
 
 SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
 {
-    id = 0;
     manager = cm;
     stfd = c;
     ip = cip;
-    disposed = false;
-    expired = false;
     create_time = srs_get_system_time_ms();
     
     skt = new SrsStSocket();
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
     
-    // the client thread should reap itself,
-    // so we never use joinable.
-    // TODO: FIXME: maybe other thread need to stop it.
-    // @see: https://github.com/ossrs/srs/issues/78
-    pthread = new SrsOneCycleThread("conn", this);
+    trd = new SrsCoroutine("conn", this);
 }
 
 SrsConnection::~SrsConnection()
@@ -57,7 +50,9 @@ SrsConnection::~SrsConnection()
     
     srs_freep(kbps);
     srs_freep(skt);
-    srs_freep(pthread);
+    srs_freep(trd);
+    
+    srs_close_stfd(stfd);
 }
 
 void SrsConnection::resample()
@@ -82,17 +77,7 @@ void SrsConnection::cleanup()
 
 void SrsConnection::dispose()
 {
-    if (disposed) {
-        return;
-    }
-    
-    disposed = true;
-    
-    /**
-     * when delete the connection, stop the connection,
-     * close the underlayer socket, delete the thread.
-     */
-    srs_close_stfd(stfd);
+    trd->interrupt();
 }
 
 int SrsConnection::start()
@@ -103,15 +88,12 @@ int SrsConnection::start()
         return ret;
     }
     
-    return pthread->start();
+    return trd->start();
 }
 
 int SrsConnection::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
-    _srs_context->generate_id();
-    id = _srs_context->get_id();
     
     int oret = ret = do_cycle();
     
@@ -138,12 +120,12 @@ int SrsConnection::cycle()
 
 int SrsConnection::srs_id()
 {
-    return id;
+    return trd->cid();
 }
 
 void SrsConnection::expire()
 {
-    expired = true;
+    trd->interrupt();
 }
 
 

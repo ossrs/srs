@@ -121,7 +121,7 @@ int SrsHttpConn::do_cycle()
     }
     
     // process http messages.
-    while (!disposed) {
+    while (!trd->pull()) {
         ISrsHttpMessage* req = NULL;
         
         // get a http message

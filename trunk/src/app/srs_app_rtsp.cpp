@@ -195,7 +195,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
     stfd = fd;
     skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
-    trd = new SrsOneCycleThread("rtsp", this);
+    trd = new SrsCoroutine("rtsp", this);
     
     req = NULL;
     sdk = NULL;
@@ -249,7 +249,7 @@ int SrsRtspConn::do_cycle()
     srs_trace("rtsp: serve %s", ip.c_str());
     
     // consume all rtsp messages.
-    for (;;) {
+    while (!trd->pull()) {
         SrsRtspRequest* req = NULL;
         if ((ret = rtsp->recv_message(&req)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {

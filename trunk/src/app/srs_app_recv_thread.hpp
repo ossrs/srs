@@ -229,11 +229,11 @@ private:
  * when client closed the request, to avoid FD leak.
  * @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
  */
-class SrsHttpRecvThread : public ISrsOneCycleThreadHandler
+class SrsHttpRecvThread : public ISrsCoroutineHandler
 {
 private:
     SrsResponseOnlyHttpConn* conn;
-    SrsOneCycleThread* trd;
+    SrsCoroutine* trd;
     int error;
 public:
     SrsHttpRecvThread(SrsResponseOnlyHttpConn* c);
