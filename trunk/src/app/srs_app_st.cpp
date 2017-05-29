@@ -124,8 +124,12 @@ int SrsCoroutine::cid()
 
 int SrsCoroutine::cycle()
 {
-    if (!context && _srs_context) {
-        context = _srs_context->generate_id();
+    if (_srs_context) {
+        if (context) {
+            _srs_context->set_id(context);
+        } else {
+            context = _srs_context->generate_id();
+        }
     }
     srs_info("Thread.cycle: Start with cid=%d, err=%d", context, err);
     

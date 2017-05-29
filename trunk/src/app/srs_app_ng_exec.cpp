@@ -36,12 +36,9 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_protocol_utility.hpp>
 
-// when error, ng-exec sleep for a while and retry.
-#define SRS_RTMP_EXEC_CIMS (3000)
-
 SrsNgExec::SrsNgExec()
 {
-    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_EXEC_CIMS);
+    trd = NULL;
     pprint = SrsPithyPrint::create_exec();
 }
 
@@ -49,7 +46,7 @@ SrsNgExec::~SrsNgExec()
 {
     on_unpublish();
     
-    srs_freep(pthread);
+    srs_freep(trd);
     srs_freep(pprint);
 }
 
@@ -63,24 +60,34 @@ int SrsNgExec::on_publish(SrsRequest* req)
     }
     
     // start thread to run all processes.
-    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+    srs_freep(trd);
+    trd = new SrsCoroutine("encoder", this, _srs_context->get_id());
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("exec thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }
 
 void SrsNgExec::on_unpublish()
 {
-    pthread->stop();
+    trd->stop();
     clear_exec_publish();
 }
 
+// when error, ng-exec sleep for a while and retry.
+#define SRS_RTMP_EXEC_CIMS (3000)
 int SrsNgExec::cycle()
 {
-    int ret = do_cycle();
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("EXEC: Ignore error, ret=%d", ret);
+        }
+        st_usleep(SRS_RTMP_EXEC_CIMS * 1000);
+    }
     
     std::vector<SrsProcess*>::iterator it;
     for (it = exec_publishs.begin(); it != exec_publishs.end(); ++it) {

@@ -56,6 +56,8 @@ int srs_socket_connect(string server, int port, int64_t tm, st_netfd_t* pstfd)
         return ret;
     }
     
+    srs_fd_close_exec(sock);
+    
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){

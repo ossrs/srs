@@ -158,13 +158,13 @@ extern void srs_dispose_kafka();
 /**
  * the kafka producer used to save log to kafka cluster.
  */
-class SrsKafkaProducer : virtual public ISrsReusableThreadHandler, virtual public ISrsKafkaCluster
+class SrsKafkaProducer : virtual public ISrsCoroutineHandler, virtual public ISrsKafkaCluster
 {
 private:
     // TODO: FIXME: support reload.
     bool enabled;
     st_mutex_t lock;
-    SrsReusableThread* pthread;
+    SrsCoroutine* trd;
 private:
     bool metadata_ok;
     st_cond_t metadata_expired;

@@ -36,15 +36,12 @@ using namespace std;
 
 #ifdef SRS_AUTO_TRANSCODE
 
-// when error, encoder sleep for a while and retry.
-#define SRS_RTMP_ENCODER_CIMS (3000)
-
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_CIMS);
+    trd = NULL;
     pprint = SrsPithyPrint::create_encoder();
 }
 
@@ -52,7 +49,7 @@ SrsEncoder::~SrsEncoder()
 {
     on_unpublish();
     
-    srs_freep(pthread);
+    srs_freep(trd);
     srs_freep(pprint);
 }
 
@@ -76,24 +73,35 @@ int SrsEncoder::on_publish(SrsRequest* req)
     }
     
     // start thread to run all encoding engines.
-    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+    srs_freep(trd);
+    trd = new SrsCoroutine("encoder", this, _srs_context->get_id());
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("encoder thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }
 
 void SrsEncoder::on_unpublish()
 {
-    pthread->stop();
+    trd->stop();
     clear_engines();
 }
 
+// when error, encoder sleep for a while and retry.
+#define SRS_RTMP_ENCODER_CIMS (3000)
+
 int SrsEncoder::cycle()
 {
-    int ret = do_cycle();
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("Encoder: Ignore error, ret=%d", ret);
+        }
+        st_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+    }
     
     // kill ffmpeg when finished and it alive
     std::vector<SrsFFMPEG*>::iterator it;

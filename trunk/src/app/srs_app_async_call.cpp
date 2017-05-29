@@ -28,9 +28,6 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-// the sleep interval in ms for http async callback.
-#define SRS_AUTO_ASYNC_CALLBACL_CIMS 30
-
 ISrsAsyncCallTask::ISrsAsyncCallTask()
 {
 }
@@ -41,13 +38,13 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
-    pthread = new SrsReusableThread("async", this, SRS_AUTO_ASYNC_CALLBACL_CIMS);
+    trd = NULL;
     wait = st_cond_new();
 }
 
 SrsAsyncCallWorker::~SrsAsyncCallWorker()
 {
-    srs_freep(pthread);
+    srs_freep(trd);
     
     std::vector<ISrsAsyncCallTask*>::iterator it;
     for (it = tasks.begin(); it != tasks.end(); ++it) {
@@ -76,29 +73,31 @@ int SrsAsyncCallWorker::count()
 
 int SrsAsyncCallWorker::start()
 {
-    return pthread->start();
+    srs_freep(trd);
+    trd = new SrsCoroutine("async", this, _srs_context->get_id());
+    return trd->start();
 }
 
 void SrsAsyncCallWorker::stop()
 {
     st_cond_signal(wait);
-    pthread->stop();
+    trd->stop();
 }
 
 int SrsAsyncCallWorker::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    while (pthread->can_loop()) {
+    while (!trd->pull()) {
         if (tasks.empty()) {
             st_cond_wait(wait);
         }
         
-        std::vector<ISrsAsyncCallTask*> copies = tasks;
+        std::vector<ISrsAsyncCallTask*> copy = tasks;
         tasks.clear();
         
         std::vector<ISrsAsyncCallTask*>::iterator it;
-        for (it = copies.begin(); it != copies.end(); ++it) {
+        for (it = copy.begin(); it != copy.end(); ++it) {
             ISrsAsyncCallTask* task = *it;
             if ((ret = task->call()) != ERROR_SUCCESS) {
                 srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);

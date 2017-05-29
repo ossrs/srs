@@ -38,6 +38,12 @@ extern int srs_st_init();
 // @remark when close, user must ensure io completed.
 extern void srs_close_stfd(st_netfd_t& stfd);
 
+// Set the FD_CLOEXEC of FD.
+extern void srs_fd_close_exec(int fd);
+
+// Set the SO_REUSEADDR of socket.
+extern void srs_socket_reuse_addr(int fd);
+
 /**
  * the socket provides TCP socket over st,
  * that is, the sync socket mechanism.

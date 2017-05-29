@@ -78,12 +78,12 @@ public:
 /**
  * bind udp port, start thread to recv packet and handler it.
  */
-class SrsUdpListener : public ISrsReusableThreadHandler
+class SrsUdpListener : public ISrsCoroutineHandler
 {
 private:
     int _fd;
     st_netfd_t _stfd;
-    SrsReusableThread* pthread;
+    SrsCoroutine* trd;
 private:
     char* buf;
     int nb_buf;
@@ -107,12 +107,12 @@ public:
 /**
  * bind and listen tcp port, use handler to process the client.
  */
-class SrsTcpListener : public ISrsReusableThreadHandler
+class SrsTcpListener : public ISrsCoroutineHandler
 {
 private:
     int _fd;
     st_netfd_t _stfd;
-    SrsReusableThread* pthread;
+    SrsCoroutine* trd;
 private:
     ISrsTcpHandler* handler;
     std::string ip;

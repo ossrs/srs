@@ -37,10 +37,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
-// when error, ingester sleep for a while and retry.
-// ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_AUTO_INGESTER_CIMS (3000)
-
 SrsIngesterFFMPEG::SrsIngesterFFMPEG()
 {
     ffmpeg = NULL;
@@ -109,7 +105,7 @@ SrsIngester::SrsIngester()
     
     expired = false;
     
-    pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_CIMS);
+    trd = NULL;
     pprint = SrsPithyPrint::create_ingester();
 }
 
@@ -117,7 +113,7 @@ SrsIngester::~SrsIngester()
 {
     _srs_config->unsubscribe(this);
     
-    srs_freep(pthread);
+    srs_freep(trd);
     clear_engines();
 }
 
@@ -144,18 +140,19 @@ int SrsIngester::start()
     // for the reload may add more ingesters.
     
     // start thread to run all encoding engines.
-    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+    srs_freep(trd);
+    trd = new SrsCoroutine("ingest", this, _srs_context->get_id());
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("ingest thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }
 
 void SrsIngester::stop()
 {
-    pthread->stop();
+    trd->stop();
     clear_engines();
 }
 
@@ -172,7 +169,25 @@ void SrsIngester::fast_stop()
     }
 }
 
+// when error, ingester sleep for a while and retry.
+// ingest never sleep a long time, for we must start the stream ASAP.
+#define SRS_AUTO_INGESTER_CIMS (3000)
+
 int SrsIngester::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("Ingester: Ignore error, ret=%d", ret);
+        }
+        st_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
+    }
+    
+    return ret;
+}
+
+int SrsIngester::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     

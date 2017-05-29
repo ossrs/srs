@@ -23,6 +23,8 @@
 
 #include <srs_service_st.hpp>
 
+#include <fcntl.h>
+#include <sys/socket.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -86,6 +88,19 @@ void srs_close_stfd(st_netfd_t& stfd)
         srs_assert(err != -1);
         stfd = NULL;
     }
+}
+
+void srs_fd_close_exec(int fd)
+{
+    int flags = fcntl(fd, F_GETFD);
+    flags |= FD_CLOEXEC;
+    fcntl(fd, F_SETFD, flags);
+}
+
+void srs_socket_reuse_addr(int fd)
+{
+    int v = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int));
 }
 
 SrsStSocket::SrsStSocket()

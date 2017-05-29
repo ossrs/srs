@@ -42,13 +42,13 @@ class SrsFFMPEG;
  * the encoder for a stream,
  * may use multiple ffmpegs to transcode the specified stream.
  */
-class SrsEncoder : public ISrsReusableThreadHandler
+class SrsEncoder : public ISrsCoroutineHandler
 {
 private:
     std::string input_stream_name;
     std::vector<SrsFFMPEG*> ffmpegs;
 private:
-    SrsReusableThread* pthread;
+    SrsCoroutine* trd;
     SrsPithyPrint* pprint;
 public:
     SrsEncoder();

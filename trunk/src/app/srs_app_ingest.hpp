@@ -71,12 +71,12 @@ public:
  * encode with FFMPEG(optional),
  * push to SRS(or any RTMP server) over RTMP.
  */
-class SrsIngester : public ISrsReusableThreadHandler, public ISrsReloadHandler
+class SrsIngester : public ISrsCoroutineHandler, public ISrsReloadHandler
 {
 private:
     std::vector<SrsIngesterFFMPEG*> ingesters;
 private:
-    SrsReusableThread* pthread;
+    SrsCoroutine* trd;
     SrsPithyPrint* pprint;
     // whether the ingesters are expired,
     // for example, the listen port changed,
@@ -95,6 +95,8 @@ private:
 // interface ISrsReusableThreadHandler.
 public:
     virtual int cycle();
+private:
+    virtual int do_cycle();
 private:
     virtual void clear_engines();
     virtual int parse();

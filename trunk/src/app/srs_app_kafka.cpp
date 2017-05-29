@@ -40,7 +40,6 @@ using namespace std;
 
 #ifdef SRS_AUTO_KAFKA
 
-#define SRS_KAKFA_CIMS 3000
 #define SRS_KAFKA_PRODUCER_TIMEOUT 30000
 #define SRS_KAFKA_PRODUCER_AGGREGATE_SIZE 1
 
@@ -366,7 +365,7 @@ SrsKafkaProducer::SrsKafkaProducer()
     metadata_expired = st_cond_new();
     
     lock = st_mutex_new();
-    pthread = new SrsReusableThread("kafka", this, SRS_KAKFA_CIMS);
+    trd = NULL;
     worker = new SrsAsyncCallWorker();
     cache = new SrsKafkaCache();
     
@@ -380,7 +379,7 @@ SrsKafkaProducer::~SrsKafkaProducer()
     srs_freep(lb);
     
     srs_freep(worker);
-    srs_freep(pthread);
+    srs_freep(trd);
     srs_freep(cache);
     
     st_mutex_destroy(lock);
@@ -410,7 +409,9 @@ int SrsKafkaProducer::start()
         return ret;
     }
     
-    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+    srs_freep(trd);
+    trd = new SrsCoroutine("kafka", this, _srs_context->get_id());
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("start kafka thread failed. ret=%d", ret);
     }
     
@@ -425,7 +426,7 @@ void SrsKafkaProducer::stop()
         return;
     }
     
-    pthread->stop();
+    trd->stop();
     worker->stop();
 }
 
@@ -491,12 +492,16 @@ int SrsKafkaProducer::on_close(int key)
     return worker->execute(new SrsKafkaMessage(this, key, obj));
 }
 
+#define SRS_KAKFA_CIMS 3000
 int SrsKafkaProducer::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = do_cycle()) != ERROR_SUCCESS) {
-        srs_warn("ignore kafka error. ret=%d", ret);
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("ignore kafka error. ret=%d", ret);
+        }
+        st_usleep(SRS_KAKFA_CIMS * 1000);
     }
     
     return ret;
