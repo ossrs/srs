@@ -501,7 +501,10 @@ int SrsKafkaProducer::cycle()
         if ((ret = do_cycle()) != ERROR_SUCCESS) {
             srs_warn("ignore kafka error. ret=%d", ret);
         }
-        st_usleep(SRS_KAKFA_CIMS * 1000);
+        
+        if (!trd->pull()) {
+            st_usleep(SRS_KAKFA_CIMS * 1000);
+        }
     }
     
     return ret;

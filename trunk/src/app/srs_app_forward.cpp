@@ -47,9 +47,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_rtmp_conn.hpp>
 
-// when error, forwarder sleep for a while and retry.
-#define SRS_FORWARDER_CIMS (3000)
-
 SrsForwarder::SrsForwarder(SrsOriginHub* h)
 {
     hub = h;
@@ -58,7 +55,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
     sh_video = sh_audio = NULL;
     
     sdk = NULL;
-    pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_CIMS);
+    trd = NULL;
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
 }
@@ -66,7 +63,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
 SrsForwarder::~SrsForwarder()
 {
     srs_freep(sdk);
-    srs_freep(pthread);
+    srs_freep(trd);
     srs_freep(queue);
     srs_freep(jitter);
     
@@ -138,18 +135,19 @@ int SrsForwarder::on_publish()
               source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(),
               req->stream.c_str());
     
-    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+    srs_freep(trd);
+    trd = new SrsCoroutine("forward", this);
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("start srs thread failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("forward thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }
 
 void SrsForwarder::on_unpublish()
 {
-    pthread->stop();
+    trd->stop();
     sdk->close();
 }
 
@@ -220,7 +218,27 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
     return ret;
 }
 
+// when error, forwarder sleep for a while and retry.
+#define SRS_FORWARDER_CIMS (3000)
+
 int SrsForwarder::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("Forwarder: Ignore error, ret=%d", ret);
+        }
+        
+        if (!trd->pull()) {
+            st_usleep(SRS_FORWARDER_CIMS * 1000);
+        }
+    }
+    
+    return ret;
+}
+
+int SrsForwarder::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -289,7 +307,7 @@ int SrsForwarder::forward()
         }
     }
     
-    while (!pthread->interrupted()) {
+    while (!trd->pull()) {
         pprint->elapse();
         
         // read from client.

@@ -100,7 +100,10 @@ int SrsEncoder::cycle()
         if ((ret = do_cycle()) != ERROR_SUCCESS) {
             srs_warn("Encoder: Ignore error, ret=%d", ret);
         }
-        st_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+        
+        if (!trd->pull()) {
+            st_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+        }
     }
     
     // kill ffmpeg when finished and it alive

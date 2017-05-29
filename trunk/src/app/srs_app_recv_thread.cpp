@@ -60,15 +60,11 @@ SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm)
     rtmp = r;
     pumper = p;
     timeout = tm;
-    trd = new SrsReusableThread2("recv", this);
+    trd = NULL;
 }
 
 SrsRecvThread::~SrsRecvThread()
 {
-    // stop recv thread.
-    stop();
-    
-    // destroy the thread.
     srs_freep(trd);
 }
 
@@ -79,6 +75,8 @@ int SrsRecvThread::cid()
 
 int SrsRecvThread::start()
 {
+    srs_freep(trd);
+    trd = new SrsCoroutine("recv", this);
     return trd->start();
 }
 
@@ -119,7 +117,7 @@ int SrsRecvThread::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    while (!trd->interrupted()) {
+    while (!trd->pull()) {
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
             st_usleep(timeout * 1000);

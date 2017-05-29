@@ -47,14 +47,8 @@ using namespace std;
 #include <srs_kernel_balance.hpp>
 #include <srs_app_rtmp_conn.hpp>
 
-// when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_INGESTER_CIMS (3*1000)
-
 // when edge timeout, retry next.
 #define SRS_EDGE_INGESTER_TMMS (5*1000)
-
-// when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_FORWARDER_CIMS (3*1000)
 
 // when edge error, wait for quit
 #define SRS_EDGE_FORWARDER_TMMS (150)
@@ -172,7 +166,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     
     upstream = new SrsEdgeRtmpUpstream(redirect);
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_CIMS);
+    trd = NULL;
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -181,7 +175,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
     
     srs_freep(upstream);
     srs_freep(lb);
-    srs_freep(pthread);
+    srs_freep(trd);
 }
 
 int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
@@ -204,12 +198,14 @@ int SrsEdgeIngester::start()
         return ret;
     }
     
-    return pthread->start();
+    srs_freep(trd);
+    trd = new SrsCoroutine("edge-igs", this);
+    return trd->start();
 }
 
 void SrsEdgeIngester::stop()
 {
-    pthread->stop();
+    trd->stop();
     upstream->close();
     
     // notice to unpublish.
@@ -223,11 +219,30 @@ string SrsEdgeIngester::get_curr_origin()
     return lb->selected();
 }
 
+// when error, edge ingester sleep for a while and retry.
+#define SRS_EDGE_INGESTER_CIMS (3*1000)
+
 int SrsEdgeIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    for (;;) {
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("EdgeIngester: Ignore error, ret=%d", ret);
+        }
+        
+        if (!trd->pull()) {
+            st_usleep(SRS_EDGE_INGESTER_CIMS * 1000);
+        }
+    }
+    return ret;
+}
+
+int SrsEdgeIngester::do_cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
         srs_freep(upstream);
         upstream = new SrsEdgeRtmpUpstream(redirect);
         
@@ -275,7 +290,7 @@ int SrsEdgeIngester::ingest()
     // set to larger timeout to read av data from origin.
     upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS);
     
-    while (!pthread->interrupted()) {
+    while (!trd->pull()) {
         pprint->elapse();
         
         // pithy print
@@ -408,7 +423,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_CIMS);
+    trd = NULL;
     queue = new SrsMessageQueue();
 }
 
@@ -417,7 +432,7 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
     stop();
     
     srs_freep(lb);
-    srs_freep(pthread);
+    srs_freep(trd);
     srs_freep(queue);
 }
 
@@ -478,19 +493,39 @@ int SrsEdgeForwarder::start()
         return ret;
     }
     
-    return pthread->start();
+    trd = new SrsCoroutine("edge-fwr", this);
+    return trd->start();
 }
 
 void SrsEdgeForwarder::stop()
 {
-    pthread->stop();
+    trd->stop();
     queue->clear();
     srs_freep(sdk);
 }
 
-#define SYS_MAX_EDGE_SEND_MSGS 128
+// when error, edge ingester sleep for a while and retry.
+#define SRS_EDGE_FORWARDER_CIMS (3*1000)
 
 int SrsEdgeForwarder::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (!trd->pull()) {
+        if ((ret = do_cycle()) != ERROR_SUCCESS) {
+            srs_warn("EdgeForwarder: Ignore error, ret=%d", ret);
+        }
+        
+        if (!trd->pull()) {
+            st_usleep(SRS_EDGE_FORWARDER_CIMS * 1000);
+        }
+    }
+    return ret;
+}
+
+#define SYS_MAX_EDGE_SEND_MSGS 128
+
+int SrsEdgeForwarder::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -501,7 +536,7 @@ int SrsEdgeForwarder::cycle()
     
     SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
     
-    while (!pthread->interrupted()) {
+    while (!trd->pull()) {
         if (send_error_code != ERROR_SUCCESS) {
             st_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
             continue;

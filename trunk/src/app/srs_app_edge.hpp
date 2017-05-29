@@ -114,13 +114,13 @@ public:
 /**
  * edge used to ingest stream from origin.
  */
-class SrsEdgeIngester : public ISrsReusableThread2Handler
+class SrsEdgeIngester : public ISrsCoroutineHandler
 {
 private:
     SrsSource* source;
     SrsPlayEdge* edge;
     SrsRequest* req;
-    SrsReusableThread2* pthread;
+    SrsCoroutine* trd;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
     // for RTMP 302 redirect.
@@ -137,6 +137,8 @@ public:
 public:
     virtual int cycle();
 private:
+    virtual int do_cycle();
+private:
     virtual int ingest();
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
@@ -144,13 +146,13 @@ private:
 /**
  * edge used to forward stream to origin.
  */
-class SrsEdgeForwarder : public ISrsReusableThread2Handler
+class SrsEdgeForwarder : public ISrsCoroutineHandler
 {
 private:
     SrsSource* source;
     SrsPublishEdge* edge;
     SrsRequest* req;
-    SrsReusableThread2* pthread;
+    SrsCoroutine* trd;
     SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
     /**
@@ -176,6 +178,8 @@ public:
 // interface ISrsReusableThread2Handler
 public:
     virtual int cycle();
+private:
+    virtual int do_cycle();
 public:
     virtual int proxy(SrsCommonMessage* msg);
 };
