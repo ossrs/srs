@@ -47,14 +47,14 @@ class SrsSimpleRtmpClient;
  * forward the stream to other servers.
  */
 // TODO: FIXME: refine the error log, comments it.
-class SrsForwarder : public ISrsReusableThread2Handler
+class SrsForwarder : public ISrsReusableThreadHandler
 {
 private:
     // the ep to forward, server[:port].
     std::string ep_forward;
     SrsRequest* req;
 private:
-    SrsReusableThread2* pthread;
+    SrsReusableThread* pthread;
 private:
     SrsOriginHub* hub;
     SrsSimpleRtmpClient* sdk;

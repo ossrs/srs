@@ -114,13 +114,13 @@ public:
 /**
  * edge used to ingest stream from origin.
  */
-class SrsEdgeIngester : public ISrsReusableThread2Handler
+class SrsEdgeIngester : public ISrsReusableThreadHandler
 {
 private:
     SrsSource* source;
     SrsPlayEdge* edge;
     SrsRequest* req;
-    SrsReusableThread2* pthread;
+    SrsReusableThread* pthread;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
     // for RTMP 302 redirect.
@@ -144,13 +144,13 @@ private:
 /**
  * edge used to forward stream to origin.
  */
-class SrsEdgeForwarder : public ISrsReusableThread2Handler
+class SrsEdgeForwarder : public ISrsReusableThreadHandler
 {
 private:
     SrsSource* source;
     SrsPublishEdge* edge;
     SrsRequest* req;
-    SrsReusableThread2* pthread;
+    SrsReusableThread* pthread;
     SrsSimpleRtmpClient* sdk;
     SrsLbRoundRobin* lb;
     /**

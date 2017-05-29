@@ -172,7 +172,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     
     upstream = new SrsEdgeRtmpUpstream(redirect);
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_CIMS);
+    pthread = new SrsReusableThread("edge-igs", this, SRS_EDGE_INGESTER_CIMS);
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -408,7 +408,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
-    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_CIMS);
+    pthread = new SrsReusableThread("edge-fwr", this, SRS_EDGE_FORWARDER_CIMS);
     queue = new SrsMessageQueue();
 }
 
