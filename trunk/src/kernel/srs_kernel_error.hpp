@@ -103,6 +103,9 @@
 #define ERROR_SYSTEM_DNS_RESOLVE            1066
 #define ERROR_SYSTEM_FRAGMENT_UNLINK        1067
 #define ERROR_SYSTEM_FRAGMENT_RENAME        1068
+#define ERROR_THREAD_DISPOSED               1069
+#define ERROR_THREAD_INTERRUPED             1070
+#define ERROR_THREAD_TERMINATED             1071
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

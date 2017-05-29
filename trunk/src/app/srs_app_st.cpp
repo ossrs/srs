@@ -31,6 +31,116 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_log.hpp>
 
+ISrsCoroutineHandler::ISrsCoroutineHandler()
+{
+}
+
+ISrsCoroutineHandler::~ISrsCoroutineHandler()
+{
+}
+
+SrsCoroutine::SrsCoroutine(const string& n, ISrsCoroutineHandler* h, int cid)
+{
+    name = n;
+    handler = h;
+    context = cid;
+    trd = NULL;
+    err = ERROR_SUCCESS;
+    started = interrupted = disposed = false;
+}
+
+SrsCoroutine::~SrsCoroutine()
+{
+    stop();
+}
+
+int SrsCoroutine::start()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (started || disposed) {
+        ret = ERROR_THREAD_DISPOSED;
+        err = (err == ERROR_SUCCESS? ret:err);
+        srs_error("Thread.start: Failed, started=%d, disposed=%d, ret=%d", started, disposed, ret);
+        return ret;
+    }
+    
+    if((trd = st_thread_create(pfn, this, 1, 0)) == NULL){
+        ret = ERROR_ST_CREATE_CYCLE_THREAD;
+        srs_error("Thread.start: Create thread failed. ret=%d", ret);
+        return ret;
+    }
+    
+    started = true;
+
+    return ret;
+}
+
+void SrsCoroutine::stop()
+{
+    if (!started || disposed) {
+        return;
+    }
+    disposed = true;
+    
+    interrupt();
+    
+    void* res = NULL;
+    int ret = st_thread_join(trd, &res);
+    srs_trace("Thread.stop: Terminated, ret=%d, err=%d", ret, err);
+    srs_assert(!ret);
+    
+    // Always override the error by the worker.
+    if (!res) {
+        err = (int)(uint64_t)res;
+    } else {
+        err = ERROR_THREAD_TERMINATED;
+    }
+    
+    return;
+}
+
+void SrsCoroutine::interrupt()
+{
+    if (!started || interrupted) {
+        return;
+    }
+    interrupted = true;
+    
+    srs_trace("Thread.interrupt: Interrupt thread, err=%d", err);
+    err = (err == ERROR_SUCCESS? ERROR_THREAD_INTERRUPED:err);
+    st_thread_interrupt(trd);
+}
+
+int SrsCoroutine::pull()
+{
+    return err;
+}
+
+int SrsCoroutine::cid()
+{
+    return context;
+}
+
+int SrsCoroutine::cycle()
+{
+    if (!context && _srs_context) {
+        context = _srs_context->generate_id();
+    }
+    srs_trace("Thread.cycle: Start with cid=%d, err=%d", context, err);
+    
+    int ret = handler->cycle();
+    srs_trace("Thread.cycle: Finished with ret=%d, err=%d", ret, err);
+    return ret;
+}
+
+void* SrsCoroutine::pfn(void* arg)
+{
+    SrsCoroutine* p = (SrsCoroutine*)arg;
+    void*res = (void*)(uint64_t)p->cycle();
+    return res;
+}
+
 namespace internal
 {
     ISrsThreadHandler::ISrsThreadHandler()
