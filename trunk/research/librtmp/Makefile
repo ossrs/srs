@@ -57,11 +57,11 @@ SRS_RESEARCH_DEPS = Makefile
 
 # for x86/x64 platform
 ifeq ($(GCC), gcc)
-    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++
+    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++ -lm
 endif
 # for arm.
 ifeq ($(GCC), arm-linux-gnueabi-gcc)
-    EXTRA_CXX_FLAG = -g -O0 -ldl -static -lstdc++
+    EXTRA_CXX_FLAG = -g -O0 -ldl -static -lstdc++ -lm
 endif
 # for mips, add -lgcc_eh, or stl compile failed.
 ifeq ($(GCC), mipsel-openwrt-linux-gcc)
