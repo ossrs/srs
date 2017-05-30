@@ -70,9 +70,9 @@ endif
 # for ssl or nossl
 ifeq ($(HANDSHAKE), SSL)
     SRS_LIBSSL_L = $(SRS_OBJS)/openssl/lib/libssl.a $(SRS_OBJS)/openssl/lib/libcrypto.a
-endif
-ifneq ($(shell test -f $(SRS_OBJS)/openssl/lib/libssl.a && echo yes), yes)
-    SRS_LIBSSL_L = -lssl -lcrypto
+    ifneq ($(shell test -f $(SRS_OBJS)/openssl/lib/libssl.a && echo yes), yes)
+        SRS_LIBSSL_L = -lssl -lcrypto
+    endif
 endif
 
 ssl:
