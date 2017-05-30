@@ -40,7 +40,7 @@ using namespace std;
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsThreadContext* _srs_context = new SrsThreadContext();
 
-int parse(std::string mp4_file)
+int parse(std::string mp4_file, bool verbose)
 {
     int ret = ERROR_SUCCESS;
     
@@ -88,8 +88,12 @@ int parse(std::string mp4_file)
             return ret;
         }
         
+        SrsMp4DumpContext ctx;
+        ctx.level = 1;
+        ctx.summary = !verbose;
+        
         stringstream ss;
-        fprintf(stderr, "%s", box->dumps(ss, 1).str().c_str());
+        fprintf(stderr, "%s", box->dumps(ss, ctx).str().c_str());
     }
     
     return ret;
@@ -103,18 +107,24 @@ int main(int argc, char** argv)
            VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
     
     if (argc < 2) {
-        printf("Usage: %s <mp4_file>\n"
+        printf("Usage: %s <mp4_file> [verbose]\n"
                "        mp4_file The MP4 file path to parse.\n"
+               "        verbose Whether print verbose of box.\n"
                "For example:\n"
-               "        %s doc/source.200kbps.768x320.mp4\n",
-               argv[0], argv[0]);
+               "        %s doc/source.200kbps.768x320.mp4\n"
+               "        %s doc/source.200kbps.768x320.mp4 verbose\n",
+               argv[0], argv[0], argv[0]);
         
         exit(-1);
     }
     string mp4_file = argv[1];
-    srs_trace("Parse MP4 file %s", mp4_file.c_str());
+    bool verbose = false;
+    if (argc > 2) {
+        verbose = true;
+    }
+    srs_trace("Parse MP4 file %s, verbose=%s", mp4_file.c_str(), verbose);
     
-    ret = parse(mp4_file);
+    ret = parse(mp4_file, verbose);
     
     if (ret == ERROR_SYSTEM_FILE_EOF) {
         srs_trace("Parse complete");

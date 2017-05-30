@@ -144,6 +144,17 @@ enum SrsMp4BoxBrand
 };
 
 /**
+ * The context to dump.
+ */
+struct SrsMp4DumpContext
+{
+    int level;
+    bool summary;
+    
+    SrsMp4DumpContext indent();
+};
+
+/**
  * 4.2 Object Structure
  * ISO_IEC_14496-12-base-format-2012.pdf, page 16
  */
@@ -193,7 +204,7 @@ public:
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
     // Dumps the box and all contained boxes.
-    virtual std::stringstream& dumps(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     /**
      * Discovery the box from buffer.
      * @param ppbox Output the discoveried box, which user must free it.
@@ -223,7 +234,7 @@ protected:
 // @remark internal for template methods.
 public:
     // Dumps the detail of box.
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -245,7 +256,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -276,7 +287,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -367,7 +378,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -453,7 +464,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // The type of track, maybe combine of types.
@@ -623,7 +634,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -663,8 +674,8 @@ public:
 public:
     SrsMp4ElstEntry();
 public:
-    virtual std::stringstream& dumps(std::stringstream& ss, int level);
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -687,7 +698,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -767,7 +778,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -799,7 +810,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -918,7 +929,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -937,7 +948,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -963,7 +974,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1026,7 +1037,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1069,7 +1080,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1088,7 +1099,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1118,7 +1129,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // Table 1 — List of Class Tags for Descriptors
@@ -1166,7 +1177,7 @@ protected:
     virtual int encode_payload(SrsBuffer* buf) = 0;
     virtual int decode_payload(SrsBuffer* buf) = 0;
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // Table 5 — objectTypeIndication Values
@@ -1204,7 +1215,7 @@ protected:
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1232,7 +1243,7 @@ protected:
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1280,7 +1291,7 @@ protected:
     virtual int encode_payload(SrsBuffer* buf);
     virtual int decode_payload(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1304,7 +1315,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1335,7 +1346,7 @@ protected:
     virtual int decode_header(SrsBuffer* buf);
     virtual bool boxes_in_header();
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1352,7 +1363,7 @@ struct SrsMp4SttsEntry
     // Constructor
     SrsMp4SttsEntry();
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1385,7 +1396,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1404,7 +1415,7 @@ struct SrsMp4CttsEntry
     // Constructor
     SrsMp4CttsEntry();
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1439,7 +1450,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1467,7 +1478,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1490,7 +1501,7 @@ struct SrsMp4StscEntry
     // Constructor
     SrsMp4StscEntry();
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1523,7 +1534,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1549,7 +1560,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1575,7 +1586,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1608,7 +1619,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -1629,7 +1640,7 @@ protected:
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
 public:
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, int level);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
