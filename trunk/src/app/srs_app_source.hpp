@@ -228,7 +228,7 @@ private:
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // the cond wait for mw.
     // @see https://github.com/ossrs/srs/issues/251
-    st_cond_t mw_wait;
+    srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
     int mw_duration;

@@ -88,7 +88,7 @@ int SrsNgExec::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_RTMP_EXEC_CIMS * 1000);
+            srs_usleep(SRS_RTMP_EXEC_CIMS * 1000);
         }
     }
     

@@ -28,7 +28,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
-
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -110,7 +110,7 @@ SrsClientInfo::~SrsClientInfo()
     srs_freep(res);
 }
 
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c, string cip)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip)
 : SrsConnection(svr, c, cip)
 {
     server = svr;
@@ -161,7 +161,7 @@ int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), st_netfd_fileno(stfd));
+    srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
     
     // notify kafka cluster.
 #ifdef SRS_AUTO_KAFKA
@@ -407,7 +407,7 @@ int SrsRtmpConn::service_cycle()
     srs_verbose("set peer bandwidth success");
     
     // get the ip which client connected.
-    std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
+    std::string local_ip = srs_get_local_ip(srs_netfd_fileno(stfd));
     
     // do bandwidth test if connect to the vhost which is for bandwidth check.
     if (_srs_config->get_bw_check_enabled(req->vhost)) {
@@ -818,7 +818,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         if (count <= 0) {
 #ifndef SRS_PERF_QUEUE_COND_WAIT
             srs_info("mw sleep %dms for no msg", mw_sleep);
-            st_usleep(mw_sleep * 1000);
+            srs_usleep(mw_sleep * 1000);
 #else
             srs_verbose("mw wait %dms and got nothing.", mw_sleep);
 #endif
@@ -864,7 +864,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         
         // apply the minimal interval for delivery stream in ms.
         if (send_min_interval > 0) {
-            st_usleep((int64_t)(send_min_interval * 1000));
+            srs_usleep((int64_t)(send_min_interval * 1000));
         }
     }
     
@@ -893,7 +893,7 @@ int SrsRtmpConn::publishing(SrsSource* source)
     if ((ret = acquire_publish(source)) == ERROR_SUCCESS) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
-        SrsPublishRecvThread rtrd(rtmp, req, st_netfd_fileno(stfd), 0, this, source);
+        SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source);
         
         srs_info("start to publish stream %s success", req->stream.c_str());
         ret = do_publishing(source, &rtrd);
@@ -1243,7 +1243,7 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     }
     
     // get the sock buffer size.
-    int fd = st_netfd_fileno(stfd);
+    int fd = srs_netfd_fileno(stfd);
     int onb_sbuf = 0;
     socklen_t sock_buf_size = sizeof(int);
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
@@ -1295,7 +1295,7 @@ void SrsRtmpConn::set_sock_options()
     if (nvalue != tcp_nodelay) {
         tcp_nodelay = nvalue;
 #ifdef SRS_PERF_TCP_NODELAY
-        int fd = st_netfd_fileno(stfd);
+        int fd = srs_netfd_fileno(stfd);
         
         socklen_t nb_v = sizeof(int);
         

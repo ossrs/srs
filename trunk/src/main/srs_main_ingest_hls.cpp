@@ -216,7 +216,7 @@ int SrsIngestHlsInput::connect()
     int64_t now = srs_update_system_time_ms();
     if (now < next_connect_time) {
         srs_trace("input hls wait for %dms", next_connect_time - now);
-        st_usleep((next_connect_time - now) * 1000);
+        srs_usleep((next_connect_time - now) * 1000);
     }
     
     // set all ts to dirty.

@@ -186,6 +186,7 @@ Please select your language:
 - [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
 
 ### Change Logs
+<a name="history"></a>
 
 ### V3 changes
 

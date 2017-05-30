@@ -179,7 +179,7 @@ int srs_kill_forced(int& pid)
         
         // 0 is not quit yet.
         if (qpid == 0) {
-            st_usleep(10 * 1000);
+            srs_usleep(10 * 1000);
             continue;
         }
         
@@ -204,7 +204,7 @@ int srs_kill_forced(int& pid)
     // @remark when we use SIGKILL to kill process, it must be killed,
     //      so we always wait it to quit by infinite loop.
     while (waitpid(pid, &status, 0) < 0) {
-        st_usleep(10 * 1000);
+        srs_usleep(10 * 1000);
         continue;
     }
     

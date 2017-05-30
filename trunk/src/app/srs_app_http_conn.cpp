@@ -59,7 +59,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip)
 : SrsConnection(cm, fd, cip)
 {
     parser = new SrsHttpParser();
@@ -204,7 +204,7 @@ int SrsHttpConn::on_reload_http_stream_crossdomain()
     return ret;
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, string cip)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip)
 : SrsHttpConn(cm, fd, m, cip)
 {
 }

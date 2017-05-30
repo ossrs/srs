@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <sys/time.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -45,18 +46,18 @@ int SrsThreadContext::generate_id()
     static int id = 100;
     
     int gid = id++;
-    cache[st_thread_self()] = gid;
+    cache[srs_thread_self()] = gid;
     return gid;
 }
 
 int SrsThreadContext::get_id()
 {
-    return cache[st_thread_self()];
+    return cache[srs_thread_self()];
 }
 
 int SrsThreadContext::set_id(int v)
 {
-    st_thread_t self = st_thread_self();
+    srs_thread_t self = srs_thread_self();
     
     int ov = 0;
     if (cache.find(self) != cache.end()) {
@@ -70,8 +71,8 @@ int SrsThreadContext::set_id(int v)
 
 void SrsThreadContext::clear_cid()
 {
-    st_thread_t self = st_thread_self();
-    std::map<st_thread_t, int>::iterator it = cache.find(self);
+    srs_thread_t self = srs_thread_self();
+    std::map<srs_thread_t, int>::iterator it = cache.find(self);
     if (it != cache.end()) {
         cache.erase(it);
     }

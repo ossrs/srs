@@ -34,6 +34,7 @@
 #include <srs_app_http_conn.hpp>
 #include <srs_core_autofree.hpp>
 
+#include <sys/socket.h>
 using namespace std;
 
 // the max small bytes to group
@@ -120,7 +121,7 @@ int SrsRecvThread::do_cycle()
     while (!trd->pull()) {
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
-            st_usleep(timeout * 1000);
+            srs_usleep(timeout * 1000);
             continue;
         }
         
@@ -265,7 +266,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
     video_frames = 0;
-    error = st_cond_new();
+    error = srs_cond_new();
     ncid = cid = 0;
     
     req = _req;
@@ -286,7 +287,7 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     _srs_config->unsubscribe(this);
     
     trd.stop();
-    st_cond_destroy(error);
+    srs_cond_destroy(error);
 }
 
 int SrsPublishRecvThread::wait(uint64_t timeout_ms)
@@ -296,7 +297,7 @@ int SrsPublishRecvThread::wait(uint64_t timeout_ms)
     }
     
     // ignore any return of cond wait.
-    st_cond_timedwait(error, timeout_ms * 1000);
+    srs_cond_timedwait(error, timeout_ms * 1000);
     
     return ERROR_SUCCESS;
 }
@@ -380,7 +381,7 @@ void SrsPublishRecvThread::interrupt(int ret)
     
     // when recv thread error, signal the conn thread to process it.
     // @see https://github.com/ossrs/srs/issues/244
-    st_cond_signal(error);
+    srs_cond_signal(error);
 }
 
 void SrsPublishRecvThread::on_start()
@@ -407,7 +408,7 @@ void SrsPublishRecvThread::on_stop()
     
     // when thread stop, signal the conn thread which wait.
     // @see https://github.com/ossrs/srs/issues/244
-    st_cond_signal(error);
+    srs_cond_signal(error);
     
 #ifdef SRS_PERF_MERGED_READ
     if (mr) {
@@ -436,7 +437,7 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
      * @see https://github.com/ossrs/srs/issues/241
      */
     if (nread < SRS_MR_SMALL_BYTES) {
-        st_usleep(mr_sleep * 1000);
+        srs_usleep(mr_sleep * 1000);
     }
 }
 #endif

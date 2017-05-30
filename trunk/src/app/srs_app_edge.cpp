@@ -232,7 +232,7 @@ int SrsEdgeIngester::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_EDGE_INGESTER_CIMS * 1000);
+            srs_usleep(SRS_EDGE_INGESTER_CIMS * 1000);
         }
     }
     return ret;
@@ -517,7 +517,7 @@ int SrsEdgeForwarder::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_EDGE_FORWARDER_CIMS * 1000);
+            srs_usleep(SRS_EDGE_FORWARDER_CIMS * 1000);
         }
     }
     return ret;
@@ -538,7 +538,7 @@ int SrsEdgeForwarder::do_cycle()
     
     while (!trd->pull()) {
         if (send_error_code != ERROR_SUCCESS) {
-            st_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
+            srs_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
             continue;
         }
         

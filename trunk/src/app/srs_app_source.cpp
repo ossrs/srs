@@ -434,7 +434,7 @@ SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
     should_update_source_id = false;
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    mw_wait = st_cond_new();
+    mw_wait = srs_cond_new();
     mw_min_msgs = 0;
     mw_duration = 0;
     mw_waiting = false;
@@ -448,7 +448,7 @@ SrsConsumer::~SrsConsumer()
     srs_freep(queue);
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    st_cond_destroy(mw_wait);
+    srs_cond_destroy(mw_wait);
 #endif
 }
 
@@ -497,14 +497,14 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitte
         // when encoder republish or overflow.
         // @see https://github.com/ossrs/srs/pull/749
         if (atc && duration_ms < 0) {
-            st_cond_signal(mw_wait);
+            srs_cond_signal(mw_wait);
             mw_waiting = false;
             return ret;
         }
         
         // when duration ok, signal to flush.
         if (match_min_msgs && duration_ms > mw_duration) {
-            st_cond_signal(mw_wait);
+            srs_cond_signal(mw_wait);
             mw_waiting = false;
             return ret;
         }
@@ -550,7 +550,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 void SrsConsumer::wait(int nb_msgs, int duration)
 {
     if (paused) {
-        st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+        srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
         return;
     }
     
@@ -569,7 +569,7 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     mw_waiting = true;
     
     // use cond block wait for high performance mode.
-    st_cond_wait(mw_wait);
+    srs_cond_wait(mw_wait);
 }
 #endif
 
@@ -587,7 +587,7 @@ void SrsConsumer::wakeup()
 {
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (mw_waiting) {
-        st_cond_signal(mw_wait);
+        srs_cond_signal(mw_wait);
         mw_waiting = false;
     }
 #endif

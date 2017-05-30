@@ -31,14 +31,14 @@ using namespace std;
 
 SrsCoroutineManager::SrsCoroutineManager()
 {
-    cond = st_cond_new();
+    cond = srs_cond_new();
     trd = new SrsCoroutine("manager", this);
 }
 
 SrsCoroutineManager::~SrsCoroutineManager()
 {
     srs_freep(trd);
-    st_cond_destroy(cond);
+    srs_cond_destroy(cond);
     
     clear();
 }
@@ -51,7 +51,7 @@ int SrsCoroutineManager::start()
 int SrsCoroutineManager::cycle()
 {
     while (!trd->pull()) {
-        st_cond_wait(cond);
+        srs_cond_wait(cond);
         clear();
     }
     
@@ -61,7 +61,7 @@ int SrsCoroutineManager::cycle()
 void SrsCoroutineManager::remove(ISrsConnection* c)
 {
     conns.push_back(c);
-    st_cond_signal(cond);
+    srs_cond_signal(cond);
 }
 
 void SrsCoroutineManager::clear()

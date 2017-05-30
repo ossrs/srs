@@ -183,7 +183,7 @@ int SrsIngester::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
+            srs_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
         }
     }
     

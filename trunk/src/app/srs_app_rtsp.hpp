@@ -129,7 +129,7 @@ private:
     int audio_channel;
     SrsRtpConn* audio_rtp;
 private:
-    st_netfd_t stfd;
+    srs_netfd_t stfd;
     SrsStSocket* skt;
     SrsRtspStack* rtsp;
     SrsRtspCaster* caster;
@@ -149,7 +149,7 @@ private:
     std::string aac_specific_config;
     SrsRtspAudioCache* acache;
 public:
-    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o);
+    SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o);
     virtual ~SrsRtspConn();
 public:
     virtual int serve();
@@ -206,7 +206,7 @@ public:
     virtual void free_port(int lpmin, int lpmax);
 // interface ISrsTcpHandler
 public:
-    virtual int on_tcp_client(st_netfd_t stfd);
+    virtual int on_tcp_client(srs_netfd_t stfd);
     // internal methods.
 public:
     virtual void remove(SrsRtspConn* conn);

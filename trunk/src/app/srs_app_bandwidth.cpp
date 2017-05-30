@@ -245,7 +245,7 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
         return ret;
     }
     
-    st_usleep(_SRS_BANDWIDTH_FINAL_WAIT_MS * 1000);
+    srs_usleep(_SRS_BANDWIDTH_FINAL_WAIT_MS * 1000);
     srs_info("BW check finished.");
     
     return ret;
@@ -291,7 +291,7 @@ int SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     srs_update_system_time_ms();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
-        st_usleep(sample->interval_ms);
+        srs_usleep(sample->interval_ms);
         
         // TODO: FIXME: use shared ptr message.
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_playing();
@@ -499,7 +499,7 @@ void SrsKbpsLimit::recv_limit()
     while (_kbps->get_recv_kbps() > _limit_kbps) {
         _kbps->sample();
         
-        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
     }
 }
 
@@ -510,7 +510,7 @@ void SrsKbpsLimit::send_limit()
     while (_kbps->get_send_kbps() > _limit_kbps) {
         _kbps->sample();
         
-        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
     }
 }
 

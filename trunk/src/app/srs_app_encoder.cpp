@@ -102,7 +102,7 @@ int SrsEncoder::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+            srs_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
         }
     }
     

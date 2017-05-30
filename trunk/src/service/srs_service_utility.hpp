@@ -32,10 +32,6 @@
 
 #include <srs_service_st.hpp>
 
-// client open socket and connect to server.
-// @param tm The timeout in ms.
-extern int srs_socket_connect(std::string server, int port, int64_t tm, st_netfd_t* pstfd);
-
 // whether the url is starts with http:// or https://
 extern bool srs_string_is_http(std::string url);
 extern bool srs_string_is_rtmp(std::string url);

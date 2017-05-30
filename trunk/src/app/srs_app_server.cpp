@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <unistd.h>
 #include <algorithm>
 using namespace std;
 
@@ -163,7 +163,7 @@ int SrsBufferListener::listen(string i, int p)
     return ret;
 }
 
-int SrsBufferListener::on_tcp_client(st_netfd_t stfd)
+int SrsBufferListener::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -219,7 +219,7 @@ int SrsRtspListener::listen(string i, int p)
     return ret;
 }
 
-int SrsRtspListener::on_tcp_client(st_netfd_t stfd)
+int SrsRtspListener::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -279,7 +279,7 @@ int SrsHttpFlvListener::listen(string i, int p)
     return ret;
 }
 
-int SrsHttpFlvListener::on_tcp_client(st_netfd_t stfd)
+int SrsHttpFlvListener::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -391,7 +391,7 @@ int SrsSignalManager::initialize()
         return ret;
     }
     
-    if ((signal_read_stfd = st_netfd_open(sig_pipe[0])) == NULL) {
+    if ((signal_read_stfd = srs_netfd_open(sig_pipe[0])) == NULL) {
         ret = ERROR_SYSTEM_CREATE_PIPE;
         srs_error("create signal manage st pipe failed. ret=%d", ret);
         return ret;
@@ -444,7 +444,7 @@ int SrsSignalManager::cycle()
         int signo;
         
         /* Read the next signal from the pipe */
-        st_read(signal_read_stfd, &signo, sizeof(int), ST_UTIME_NO_TIMEOUT);
+        srs_read(signal_read_stfd, &signo, sizeof(int), SRS_UTIME_NO_TIMEOUT);
         
         /* Process signal synchronously */
         server->on_signal(signo);
@@ -863,7 +863,7 @@ int SrsServer::cycle()
     
     // remark, for gmc, never invoke the exit().
     srs_warn("sleep a long time for system st-threads to cleanup.");
-    st_usleep(3 * 1000 * 1000);
+    srs_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
 #else
     // normally quit with neccessary cleanup by dispose().
@@ -966,7 +966,7 @@ int SrsServer::do_cycle()
         int dynamic_max = srs_max(max, heartbeat_max_resolution);
         
         for (int i = 0; i < dynamic_max; i++) {
-            st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+            srs_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
             
             // asprocess check.
             if (asprocess && ::getppid() != ppid) {
@@ -1235,7 +1235,7 @@ void SrsServer::resample_kbps()
     srs_update_rtmp_server((int)conns.size(), kbps);
 }
 
-int SrsServer::accept_client(SrsListenerType type, st_netfd_t stfd)
+int SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1260,11 +1260,11 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t stfd)
     return ret;
 }
 
-SrsConnection* SrsServer::fd2conn(SrsListenerType type, st_netfd_t stfd)
+SrsConnection* SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    int fd = st_netfd_fileno(stfd);
+    int fd = srs_netfd_fileno(stfd);
     string ip = srs_get_peer_ip(fd);
     
     // for some keep alive application, for example, the keepalived,

@@ -231,7 +231,7 @@ int SrsForwarder::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_FORWARDER_CIMS * 1000);
+            srs_usleep(SRS_FORWARDER_CIMS * 1000);
         }
     }
     

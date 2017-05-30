@@ -163,11 +163,11 @@ class SrsKafkaProducer : virtual public ISrsCoroutineHandler, virtual public ISr
 private:
     // TODO: FIXME: support reload.
     bool enabled;
-    st_mutex_t lock;
+    srs_mutex_t lock;
     SrsCoroutine* trd;
 private:
     bool metadata_ok;
-    st_cond_t metadata_expired;
+    srs_cond_t metadata_expired;
 public:
     std::vector<SrsKafkaPartition*> partitions;
     SrsKafkaCache* cache;

@@ -183,7 +183,7 @@ int SrsRtspJitter::correct(int64_t& ts)
     return ret;
 }
 
-SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
+SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o)
 {
     output_template = o;
     
@@ -245,7 +245,7 @@ int SrsRtspConn::do_cycle()
     int ret = ERROR_SUCCESS;
     
     // retrieve ip of client.
-    std::string ip = srs_get_peer_ip(st_netfd_fileno(stfd));
+    std::string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
     srs_trace("rtsp: serve %s", ip.c_str());
     
     // consume all rtsp messages.
@@ -746,7 +746,7 @@ void SrsRtspCaster::free_port(int lpmin, int lpmax)
     srs_trace("rtsp: free rtp port=%d-%d", lpmin, lpmax);
 }
 
-int SrsRtspCaster::on_tcp_client(st_netfd_t stfd)
+int SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     

@@ -23,6 +23,7 @@
 
 #include <srs_service_st.hpp>
 
+#include <st.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 using namespace std;
@@ -30,6 +31,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -80,11 +82,11 @@ int srs_st_init()
     return ret;
 }
 
-void srs_close_stfd(st_netfd_t& stfd)
+void srs_close_stfd(srs_netfd_t& stfd)
 {
     if (stfd) {
         // we must ensure the close is ok.
-        int err = st_netfd_close(stfd);
+        int err = st_netfd_close((st_netfd_t)stfd);
         srs_assert(err != -1);
         stfd = NULL;
     }
@@ -103,6 +105,150 @@ void srs_socket_reuse_addr(int fd)
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int));
 }
 
+srs_thread_t srs_thread_self()
+{
+    return (srs_thread_t)st_thread_self();
+}
+
+int srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
+    if (tm != SRS_CONSTS_NO_TMMS) {
+        timeout = (st_utime_t)(tm * 1000);
+    }
+    
+    *pstfd = NULL;
+    srs_netfd_t stfd = NULL;
+    sockaddr_in addr;
+    
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock == -1){
+        ret = ERROR_SOCKET_CREATE;
+        srs_error("create socket error. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_fd_close_exec(sock);
+    
+    srs_assert(!stfd);
+    stfd = st_netfd_open_socket(sock);
+    if(stfd == NULL){
+        ret = ERROR_ST_OPEN_SOCKET;
+        srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // connect to server.
+    std::string ip = srs_dns_resolve(server);
+    if (ip.empty()) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
+        goto failed;
+    }
+    
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    
+    if (st_connect((st_netfd_t)stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), timeout) == -1){
+        ret = ERROR_ST_CONNECT;
+        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        goto failed;
+    }
+    srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    
+    *pstfd = stfd;
+    return ret;
+    
+failed:
+    if (stfd) {
+        srs_close_stfd(stfd);
+    }
+    return ret;
+}
+
+srs_cond_t srs_cond_new()
+{
+    return (srs_cond_t)st_cond_new();
+}
+
+int srs_cond_destroy(srs_cond_t cond)
+{
+    return st_cond_destroy((st_cond_t)cond);
+}
+
+int srs_cond_wait(srs_cond_t cond)
+{
+    return st_cond_wait((st_cond_t)cond);
+}
+
+int srs_cond_timedwait(srs_cond_t cond, srs_utime_t timeout)
+{
+    return st_cond_timedwait((st_cond_t)cond, (st_utime_t)timeout);
+}
+
+int srs_cond_signal(srs_cond_t cond)
+{
+    return st_cond_signal((st_cond_t)cond);
+}
+
+srs_mutex_t srs_mutex_new()
+{
+    return (srs_mutex_t)st_mutex_new();
+}
+
+int srs_mutex_destroy(srs_mutex_t mutex)
+{
+    return st_mutex_destroy((st_mutex_t)mutex);
+}
+
+int srs_mutex_lock(srs_mutex_t mutex)
+{
+    return st_mutex_lock((st_mutex_t)mutex);
+}
+
+int srs_mutex_unlock(srs_mutex_t mutex)
+{
+    return st_mutex_unlock((st_mutex_t)mutex);
+}
+
+int srs_netfd_fileno(srs_netfd_t stfd)
+{
+    return st_netfd_fileno((st_netfd_t)stfd);
+}
+
+int srs_usleep(srs_utime_t usecs)
+{
+    return st_usleep((st_utime_t)usecs);
+}
+
+srs_netfd_t srs_netfd_open_socket(int osfd)
+{
+    return (srs_netfd_t)st_netfd_open_socket(osfd);
+}
+
+srs_netfd_t srs_netfd_open(int osfd)
+{
+    return (srs_netfd_t)st_netfd_open(osfd);
+}
+
+int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, int *fromlen, srs_utime_t timeout)
+{
+    return st_recvfrom((st_netfd_t)stfd, buf, len, from, fromlen, (st_utime_t)timeout);
+}
+
+srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)
+{
+    return (srs_netfd_t)st_accept((st_netfd_t)stfd, addr, addrlen, (st_utime_t)timeout);
+}
+
+ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
+{
+    return st_read((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
+}
+
 SrsStSocket::SrsStSocket()
 {
     stfd = NULL;
@@ -114,7 +260,7 @@ SrsStSocket::~SrsStSocket()
 {
 }
 
-int SrsStSocket::initialize(st_netfd_t fd)
+int SrsStSocket::initialize(srs_netfd_t fd)
 {
     stfd = fd;
     return ERROR_SUCCESS;
@@ -161,9 +307,9 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     
     ssize_t nb_read;
     if (rtm == SRS_CONSTS_NO_TMMS) {
-        nb_read = st_read(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+        nb_read = st_read((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read(stfd, buf, size, rtm * 1000);
+        nb_read = st_read((st_netfd_t)stfd, buf, size, rtm * 1000);
     }
     
     if (nread) {
@@ -197,9 +343,9 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     
     ssize_t nb_read;
     if (rtm == SRS_CONSTS_NO_TMMS) {
-        nb_read = st_read_fully(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read_fully(stfd, buf, size, rtm * 1000);
+        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, rtm * 1000);
     }
     
     if (nread) {
@@ -233,9 +379,9 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     
     ssize_t nb_write;
     if (stm == SRS_CONSTS_NO_TMMS) {
-        nb_write = st_write(stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+        nb_write = st_write((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_write(stfd, buf, size, stm * 1000);
+        nb_write = st_write((st_netfd_t)stfd, buf, size, stm * 1000);
     }
     
     if (nwrite) {
@@ -264,9 +410,9 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     
     ssize_t nb_write;
     if (stm == SRS_CONSTS_NO_TMMS) {
-        nb_write = st_writev(stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
+        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_writev(stfd, iov, iov_size, stm * 1000);
+        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, stm * 1000);
     }
     
     if (nwrite) {

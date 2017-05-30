@@ -75,11 +75,11 @@ int SrsAppCasterFlv::initialize()
     return ret;
 }
 
-int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
+int SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    string ip = srs_get_peer_ip(st_netfd_fileno(stfd));
+    string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
     SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
@@ -131,7 +131,7 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     return conn->proxy(w, r, o);
 }
 
-SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, string cip)
+SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
 : SrsHttpConn(cm, fd, m, cip)
 {
     sdk = NULL;

@@ -42,7 +42,7 @@ class SrsCoroutineManager : virtual public ISrsCoroutineHandler, virtual public 
 private:
     SrsCoroutine* trd;
     std::vector<ISrsConnection*> conns;
-    st_cond_t cond;
+    srs_cond_t cond;
 public:
     SrsCoroutineManager();
     virtual ~SrsCoroutineManager();

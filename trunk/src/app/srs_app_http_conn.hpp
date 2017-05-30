@@ -65,7 +65,7 @@ protected:
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
 public:
-    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
+    SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpConn();
 // interface IKbpsDelta
 public:
@@ -99,7 +99,7 @@ public:
 class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
-    SrsResponseOnlyHttpConn(IConnectionManager* cm, st_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
+    SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsResponseOnlyHttpConn();
 public:
     // Directly read a HTTP request message.

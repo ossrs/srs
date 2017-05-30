@@ -55,7 +55,7 @@ protected:
     /**
      * the underlayer st fd handler.
      */
-    st_netfd_t stfd;
+    srs_netfd_t stfd;
     /**
      * the ip of client.
      */
@@ -77,7 +77,7 @@ protected:
      */
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, st_netfd_t c, std::string cip);
+    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip);
     virtual ~SrsConnection();
 // interface IKbpsDelta
 public:

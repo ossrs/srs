@@ -35,6 +35,7 @@
 #include <srs_app_hls.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_service_st.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -107,7 +108,7 @@ public:
     virtual int listen(std::string ip, int port);
     // ISrsTcpHandler
 public:
-    virtual int on_tcp_client(st_netfd_t stfd);
+    virtual int on_tcp_client(srs_netfd_t stfd);
 };
 
 #ifdef SRS_AUTO_STREAM_CASTER
@@ -126,7 +127,7 @@ public:
     virtual int listen(std::string i, int p);
     // ISrsTcpHandler
 public:
-    virtual int on_tcp_client(st_netfd_t stfd);
+    virtual int on_tcp_client(srs_netfd_t stfd);
 };
 
 /**
@@ -144,7 +145,7 @@ public:
     virtual int listen(std::string i, int p);
     // ISrsTcpHandler
 public:
-    virtual int on_tcp_client(st_netfd_t stfd);
+    virtual int on_tcp_client(srs_netfd_t stfd);
 };
 #endif
 
@@ -185,7 +186,7 @@ private:
     /* Per-process pipe which is used as a signal queue. */
     /* Up to PIPE_BUF/sizeof(int) signals can be queued up. */
     int sig_pipe[2];
-    st_netfd_t signal_read_stfd;
+    srs_netfd_t signal_read_stfd;
 private:
     SrsServer* server;
     SrsCoroutine* trd;
@@ -357,9 +358,9 @@ public:
      *       for instance RTMP connection to serve client.
      * @param stfd, the client fd in st boxed, the underlayer fd.
      */
-    virtual int accept_client(SrsListenerType type, st_netfd_t stfd);
+    virtual int accept_client(SrsListenerType type, srs_netfd_t stfd);
 private:
-    virtual SrsConnection* fd2conn(SrsListenerType type, st_netfd_t stfd);
+    virtual SrsConnection* fd2conn(SrsListenerType type, srs_netfd_t stfd);
     // IConnectionManager
 public:
     /**

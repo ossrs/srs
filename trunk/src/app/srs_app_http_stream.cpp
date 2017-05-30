@@ -116,7 +116,7 @@ int SrsBufferCache::cycle()
     
     // TODO: FIXME: support reload.
     if (fast_cache <= 0) {
-        st_sleep(SRS_STREAM_CACHE_CYCLE_SECONDS);
+        srs_usleep(SRS_STREAM_CACHE_CYCLE_SECONDS * 1000 * 1000);
         return ret;
     }
     
@@ -152,7 +152,7 @@ int SrsBufferCache::cycle()
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
             // directly use sleep, donot use consumer wait.
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
             
             // ignore when nothing got.
             continue;
@@ -572,7 +572,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
             // directly use sleep, donot use consumer wait.
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
             
             // ignore when nothing got.
             continue;

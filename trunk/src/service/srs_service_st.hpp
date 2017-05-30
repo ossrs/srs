@@ -27,22 +27,62 @@
 #include <srs_core.hpp>
 
 #include <string>
-#include <st.h>
 
 #include <srs_protocol_io.hpp>
+
+// Wrap for coroutine.
+typedef void* srs_netfd_t;
+typedef void* srs_thread_t;
+typedef void* srs_cond_t;
+typedef void* srs_mutex_t;
+typedef uint64_t srs_utime_t;
+
+#define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
 
 // initialize st, requires epoll.
 extern int srs_st_init();
 
 // close the netfd, and close the underlayer fd.
 // @remark when close, user must ensure io completed.
-extern void srs_close_stfd(st_netfd_t& stfd);
+extern void srs_close_stfd(srs_netfd_t& stfd);
 
 // Set the FD_CLOEXEC of FD.
 extern void srs_fd_close_exec(int fd);
 
 // Set the SO_REUSEADDR of socket.
 extern void srs_socket_reuse_addr(int fd);
+
+// Get current coroutine/thread.
+extern srs_thread_t srs_thread_self();
+
+// client open socket and connect to server.
+// @param tm The timeout in ms.
+extern int srs_socket_connect(std::string server, int port, int64_t tm, srs_netfd_t* pstfd);
+
+// Wrap for coroutine.
+extern srs_cond_t srs_cond_new();
+extern int srs_cond_destroy(srs_cond_t cond);
+extern int srs_cond_wait(srs_cond_t cond);
+extern int srs_cond_timedwait(srs_cond_t cond, srs_utime_t timeout);
+extern int srs_cond_signal(srs_cond_t cond);
+
+extern srs_mutex_t srs_mutex_new();
+extern int srs_mutex_destroy(srs_mutex_t mutex);
+extern int srs_mutex_lock(srs_mutex_t mutex);
+extern int srs_mutex_unlock(srs_mutex_t mutex);
+
+extern int srs_netfd_fileno(srs_netfd_t stfd);
+
+extern int srs_usleep(srs_utime_t usecs);
+
+extern srs_netfd_t srs_netfd_open_socket(int osfd);
+extern srs_netfd_t srs_netfd_open(int osfd);
+
+extern int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, int *fromlen, srs_utime_t timeout);
+
+extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout);
+
+extern ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout);
 
 /**
  * the socket provides TCP socket over st,
@@ -59,13 +99,13 @@ private:
     int64_t rbytes;
     int64_t sbytes;
     // The underlayer st fd.
-    st_netfd_t stfd;
+    srs_netfd_t stfd;
 public:
     SrsStSocket();
     virtual ~SrsStSocket();
 public:
     // Initialize the socket with stfd, user must manage it.
-    virtual int initialize(st_netfd_t fd);
+    virtual int initialize(srs_netfd_t fd);
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);
@@ -100,7 +140,7 @@ public:
 class SrsTcpClient : public ISrsProtocolReaderWriter
 {
 private:
-    st_netfd_t stfd;
+    srs_netfd_t stfd;
     SrsStSocket* io;
 private:
     std::string host;

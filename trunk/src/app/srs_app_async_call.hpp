@@ -69,7 +69,7 @@ private:
     SrsCoroutine* trd;
 protected:
     std::vector<ISrsAsyncCallTask*> tasks;
-    st_cond_t wait;
+    srs_cond_t wait;
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();

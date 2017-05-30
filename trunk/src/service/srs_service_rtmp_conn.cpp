@@ -23,6 +23,7 @@
 
 #include <srs_service_rtmp_conn.hpp>
 
+#include <unistd.h>
 using namespace std;
 
 #include <srs_protocol_kbps.hpp>

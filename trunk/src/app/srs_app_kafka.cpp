@@ -362,9 +362,9 @@ void srs_dispose_kafka()
 SrsKafkaProducer::SrsKafkaProducer()
 {
     metadata_ok = false;
-    metadata_expired = st_cond_new();
+    metadata_expired = srs_cond_new();
     
-    lock = st_mutex_new();
+    lock = srs_mutex_new();
     trd = NULL;
     worker = new SrsAsyncCallWorker();
     cache = new SrsKafkaCache();
@@ -382,8 +382,8 @@ SrsKafkaProducer::~SrsKafkaProducer()
     srs_freep(trd);
     srs_freep(cache);
     
-    st_mutex_destroy(lock);
-    st_cond_destroy(metadata_expired);
+    srs_mutex_destroy(lock);
+    srs_cond_destroy(metadata_expired);
 }
 
 int SrsKafkaProducer::initialize()
@@ -448,14 +448,14 @@ int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
     }
     
     // sync with backgound metadata worker.
-    st_mutex_lock(lock);
+    srs_mutex_lock(lock);
     
     // flush message when metadata is ok.
     if (metadata_ok) {
         ret = flush();
     }
     
-    st_mutex_unlock(lock);
+    srs_mutex_unlock(lock);
     
     return ret;
 }
@@ -503,7 +503,7 @@ int SrsKafkaProducer::cycle()
         }
         
         if (!trd->pull()) {
-            st_usleep(SRS_KAKFA_CIMS * 1000);
+            srs_usleep(SRS_KAKFA_CIMS * 1000);
         }
     }
     
@@ -515,18 +515,18 @@ int SrsKafkaProducer::on_before_cycle()
     // wait for the metadata expired.
     // when metadata is ok, wait for it expired.
     if (metadata_ok) {
-        st_cond_wait(metadata_expired);
+        srs_cond_wait(metadata_expired);
     }
     
     // request to lock to acquire the socket.
-    st_mutex_lock(lock);
+    srs_mutex_lock(lock);
     
     return ERROR_SUCCESS;
 }
 
 int SrsKafkaProducer::on_end_cycle()
 {
-    st_mutex_unlock(lock);
+    srs_mutex_unlock(lock);
     
     return ERROR_SUCCESS;
 }
@@ -644,7 +644,7 @@ void SrsKafkaProducer::refresh_metadata()
     clear_metadata();
     
     metadata_ok = false;
-    st_cond_signal(metadata_expired);
+    srs_cond_signal(metadata_expired);
     srs_trace("kafka async refresh metadata in background");
 }
 

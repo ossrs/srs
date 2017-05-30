@@ -38,7 +38,7 @@
 class SrsThreadContext : public ISrsThreadContext
 {
 private:
-    std::map<st_thread_t, int> cache;
+    std::map<srs_thread_t, int> cache;
 public:
     SrsThreadContext();
     virtual ~SrsThreadContext();

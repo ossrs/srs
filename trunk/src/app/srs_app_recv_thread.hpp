@@ -183,7 +183,7 @@ private:
     SrsSource* _source;
     // the error timeout cond
     // @see https://github.com/ossrs/srs/issues/244
-    st_cond_t error;
+    srs_cond_t error;
     // merged context id.
     int cid;
     int ncid;

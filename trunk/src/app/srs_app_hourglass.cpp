@@ -80,7 +80,7 @@ int SrsHourGlass::cycle()
     }
     
     total_elapse += resolution;
-    st_usleep(resolution * 1000);
+    srs_usleep(resolution * 1000);
     
     return ret;
 }

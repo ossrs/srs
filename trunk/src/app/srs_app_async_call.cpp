@@ -39,7 +39,7 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
     trd = NULL;
-    wait = st_cond_new();
+    wait = srs_cond_new();
 }
 
 SrsAsyncCallWorker::~SrsAsyncCallWorker()
@@ -53,7 +53,7 @@ SrsAsyncCallWorker::~SrsAsyncCallWorker()
     }
     tasks.clear();
     
-    st_cond_destroy(wait);
+    srs_cond_destroy(wait);
 }
 
 int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
@@ -61,7 +61,7 @@ int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
     int ret = ERROR_SUCCESS;
     
     tasks.push_back(t);
-    st_cond_signal(wait);
+    srs_cond_signal(wait);
     
     return ret;
 }
@@ -80,7 +80,7 @@ int SrsAsyncCallWorker::start()
 
 void SrsAsyncCallWorker::stop()
 {
-    st_cond_signal(wait);
+    srs_cond_signal(wait);
     trd->stop();
 }
 
@@ -90,7 +90,7 @@ int SrsAsyncCallWorker::cycle()
     
     while (!trd->pull()) {
         if (tasks.empty()) {
-            st_cond_wait(wait);
+            srs_cond_wait(wait);
         }
         
         std::vector<ISrsAsyncCallTask*> copy = tasks;

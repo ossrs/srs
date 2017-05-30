@@ -37,6 +37,7 @@ using namespace std;
 #include <gperftools/profiler.h>
 #endif
 
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>

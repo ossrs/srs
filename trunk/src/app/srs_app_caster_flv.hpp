@@ -66,7 +66,7 @@ public:
     virtual int initialize();
 // ISrsTcpHandler
 public:
-    virtual int on_tcp_client(st_netfd_t stfd);
+    virtual int on_tcp_client(srs_netfd_t stfd);
 // IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);
@@ -85,7 +85,7 @@ private:
     SrsPithyPrint* pprint;
     SrsSimpleRtmpClient* sdk;
 public:
-    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m, std::string cip);
+    SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsDynamicHttpConn();
 public:
     virtual int on_got_http_message(ISrsHttpMessage* msg);

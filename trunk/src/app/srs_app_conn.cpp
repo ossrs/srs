@@ -30,7 +30,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c, string cip)
+SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip)
 {
     manager = cm;
     stfd = c;

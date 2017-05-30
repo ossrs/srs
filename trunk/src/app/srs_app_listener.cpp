@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -54,7 +55,7 @@ ISrsUdpHandler::~ISrsUdpHandler()
 {
 }
 
-int ISrsUdpHandler::on_stfd_change(st_netfd_t /*fd*/)
+int ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
 {
     return ERROR_SUCCESS;
 }
@@ -101,7 +102,7 @@ int SrsUdpListener::fd()
     return _fd;
 }
 
-st_netfd_t SrsUdpListener::stfd()
+srs_netfd_t SrsUdpListener::stfd()
 {
     return _stfd;
 }
@@ -131,7 +132,7 @@ int SrsUdpListener::listen()
     }
     srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
-    if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
+    if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -159,7 +160,7 @@ int SrsUdpListener::cycle()
         int nb_from = sizeof(sockaddr_in);
         int nread = 0;
         
-        if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
+        if ((nread = srs_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
             srs_warn("ignore recv udp packet failed, nread=%d", nread);
             return ret;
         }
@@ -170,7 +171,7 @@ int SrsUdpListener::cycle()
         }
         
         if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
-            st_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
+            srs_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
         }
     }
     
@@ -233,7 +234,7 @@ int SrsTcpListener::listen()
     }
     srs_verbose("listen socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
-    if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
+    if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -256,8 +257,8 @@ int SrsTcpListener::cycle()
     int ret = ERROR_SUCCESS;
     
     while (!trd->pull()) {
-        st_netfd_t stfd = st_accept(_stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
-        int fd = st_netfd_fileno(stfd);
+        srs_netfd_t stfd = srs_accept(_stfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+        int fd = srs_netfd_fileno(stfd);
         
         srs_fd_close_exec(fd);
         
