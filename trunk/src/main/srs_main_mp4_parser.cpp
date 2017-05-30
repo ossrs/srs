@@ -122,7 +122,7 @@ int main(int argc, char** argv)
     if (argc > 2) {
         verbose = true;
     }
-    srs_trace("Parse MP4 file %s, verbose=%s", mp4_file.c_str(), verbose);
+    srs_trace("Parse MP4 file %s, verbose=%d", mp4_file.c_str(), verbose);
     
     ret = parse(mp4_file, verbose);
     
