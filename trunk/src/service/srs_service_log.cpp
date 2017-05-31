@@ -225,39 +225,39 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
         }
     }
     
-    int nb_header = -1;
+    int written = -1;
     if (dangerous) {
         if (tag) {
-            nb_header = snprintf(buffer, size,
+            written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, tag, getpid(), cid, errno);
         } else {
-            nb_header = snprintf(buffer, size,
+            written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid, errno);
         }
     } else {
         if (tag) {
-            nb_header = snprintf(buffer, size,
+            written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, tag, getpid(), cid);
         } else {
-            nb_header = snprintf(buffer, size,
+            written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid);
         }
     }
     
-    if (nb_header == -1) {
+    if (written == -1) {
         return false;
     }
     
     // write the header size.
-    *psize = srs_min(size - 1, nb_header);
+    *psize = written;
     
     return true;
 }
