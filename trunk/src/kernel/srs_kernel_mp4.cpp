@@ -150,12 +150,18 @@ void srs_pfn_types(T& elem, stringstream& ss, SrsMp4DumpContext dc)
 }
 
 template<typename T>
+void srs_pfn_hex(T& elem, stringstream& ss, SrsMp4DumpContext dc)
+{
+    ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)elem << std::dec;
+}
+
+template<typename T>
 void srs_pfn_elems(T& elem, stringstream& ss, SrsMp4DumpContext dc)
 {
     ss << elem;
 }
 
-stringstream& srs_print_bytes(stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = 16, int max = -1)
+stringstream& srs_print_bytes(stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = SrsSummaryCount, int max = -1)
 {
     if (max == -1) {
         max = size;
@@ -405,7 +411,7 @@ int SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeTREX: box = new SrsMp4TrackExtendsBox(); break;
         // Skip some unknown boxes.
         case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
-            box = new SrsMp4FreeSpaceBox(); break;
+            box = new SrsMp4FreeSpaceBox(type); break;
         default:
             ret = ERROR_MP4_BOX_ILLEGAL_TYPE;
             srs_error("MP4 illegal box type=%d. ret=%d", type, ret);
@@ -705,10 +711,17 @@ int SrsMp4FullBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4FullBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
+    ss << ", FB(4B";
+    
     if (version != 0 || flags != 0) {
-        ss << ", V" << uint32_t(version)
-            << "(0x" << std::setw(2) << std::setfill('0') << std::hex << flags << std::dec << ")";
+        ss << ",V" << uint32_t(version)
+            << ",0x" << std::setw(2) << std::setfill('0') << std::hex << flags << std::dec;
     }
+    
+    ss << ")";
+    
     return ss;
 }
 
@@ -782,6 +795,8 @@ int SrsMp4FileTypeBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4FileTypeBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
     ss << ", brands:";
     srs_print_mp4_type(ss, (uint32_t)major_brand);
     
@@ -846,9 +861,18 @@ int SrsMp4MediaDataBox::decode_boxes(SrsBuffer* buf)
     return ERROR_SUCCESS;
 }
 
-SrsMp4FreeSpaceBox::SrsMp4FreeSpaceBox()
+stringstream& SrsMp4MediaDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
-    type = SrsMp4BoxTypeFREE; // 'free' or 'skip'
+    SrsMp4Box::dumps_detail(ss, dc);
+    
+    ss << ", total " << nb_data << " bytes";
+    
+    return ss;
+}
+
+SrsMp4FreeSpaceBox::SrsMp4FreeSpaceBox(SrsMp4BoxType v)
+{
+    type = v; // 'free' or 'skip'
 }
 
 SrsMp4FreeSpaceBox::~SrsMp4FreeSpaceBox()
@@ -894,12 +918,14 @@ int SrsMp4FreeSpaceBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4FreeSpaceBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
     ss << ", free " << data.size() << "B";
     
     if (!data.empty()) {
         ss << endl;
         srs_padding(ss, dc.indent());
-        srs_print_bytes(ss, &data[0], (int)data.size(), dc.indent());
+        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_pfn_hex, srs_delimiter_inlinespace);
     }
     return ss;
 }
@@ -1130,6 +1156,8 @@ int SrsMp4MovieHeaderBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4MovieHeaderBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << std::setprecision(2) << duration() << "ms, TBN=" << timescale << ", nTID=" << next_track_ID;
     return ss;
 }
@@ -1203,6 +1231,16 @@ int SrsMp4TrackExtendsBox::decode_header(SrsBuffer* buf)
     default_sample_flags = buf->read_4bytes();
     
     return ret;
+}
+
+stringstream& SrsMp4TrackExtendsBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
+{
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
+    ss << ", track=#" << track_ID << ", default-sample("
+        << "index:" << default_sample_description_index << ", size:" << default_sample_size
+        << ", duration:" << default_sample_duration << ", flags:" << default_sample_flags << ")";
+    return ss;
 }
 
 SrsMp4TrackBox::SrsMp4TrackBox()
@@ -1478,6 +1516,8 @@ int SrsMp4TrackHeaderBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4TrackHeaderBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", track #" << track_ID << ", " << duration << "TBN";
     
     if (volume) {
@@ -1598,6 +1638,8 @@ int SrsMp4EditListBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4EditListBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entries.size() << " childs";
     
     if (!entries.empty()) {
@@ -1781,6 +1823,8 @@ int SrsMp4MediaHeaderBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4MediaHeaderBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", TBN=" << timescale << ", " << duration << "TBN";
     if (language) {
         ss << ", LANG=" << language0() << language1() << language2();
@@ -1855,6 +1899,8 @@ int SrsMp4HandlerReferenceBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4HandlerReferenceBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", ";
     srs_print_mp4_type(ss, (uint32_t)handler_type);
     ss << ", " <<  name;
@@ -2275,6 +2321,8 @@ int SrsMp4DataReferenceBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DataReferenceBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
@@ -2438,6 +2486,8 @@ int SrsMp4SampleEntry::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4SampleEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
     ss << ", refs#" << data_reference_index;
     return ss;
 }
@@ -2585,6 +2635,8 @@ int SrsMp4AvccBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4AvccBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
     ss << ", AVC Config: " << (int)avc_config.size() << "B" << endl;
     srs_padding(ss, dc.indent());
     srs_print_bytes(ss, (const char*)&avc_config[0], (int)avc_config.size(), dc.indent());
@@ -3157,6 +3209,8 @@ int SrsMp4EsdsBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4EsdsBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     return es->dumps_detail(ss, dc);
 }
 
@@ -3288,6 +3342,8 @@ bool SrsMp4SampleDescriptionBox::boxes_in_header()
 
 stringstream& SrsMp4SampleDescriptionBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
@@ -3402,6 +3458,8 @@ int SrsMp4DecodingTime2SampleBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DecodingTime2SampleBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entries.size() << " childs (+)";
     if (!entries.empty()) {
         ss << endl;
@@ -3525,6 +3583,8 @@ int SrsMp4CompositionTime2SampleBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4CompositionTime2SampleBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entries.size() << " childs (+)";
     if (!entries.empty()) {
         ss << endl;
@@ -3600,6 +3660,8 @@ int SrsMp4SyncSampleBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4SyncSampleBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", count=" << entry_count;
     if (entry_count > 0) {
         ss << endl;
@@ -3703,6 +3765,8 @@ int SrsMp4Sample2ChunkBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4Sample2ChunkBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
@@ -3767,6 +3831,8 @@ int SrsMp4ChunkOffsetBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4ChunkOffsetBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
@@ -3831,6 +3897,8 @@ int SrsMp4ChunkLargeOffsetBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4ChunkLargeOffsetBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
@@ -3919,6 +3987,8 @@ int SrsMp4SampleSizeBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4SampleSizeBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4FullBox::dumps_detail(ss, dc);
+    
     ss << ", size=" << sample_size << ", " << sample_count << " childs (+)";
     if (!sample_size  && sample_count> 0) {
         ss << endl;
@@ -3976,6 +4046,15 @@ int SrsMp4UserDataBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4UserDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
+    SrsMp4Box::dumps_detail(ss, dc);
+    
+    ss << ", total " << data.size() << "B";
+    
+    if (!data.empty()) {
+        ss << endl;
+        srs_padding(ss, dc.indent());
+        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_pfn_hex, srs_delimiter_inlinespace);
+    }
     return ss;
 }
 

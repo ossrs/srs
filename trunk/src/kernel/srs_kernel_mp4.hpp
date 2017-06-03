@@ -360,6 +360,8 @@ public:
 protected:
     virtual int encode_boxes(SrsBuffer* buf);
     virtual int decode_boxes(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
@@ -371,7 +373,7 @@ class SrsMp4FreeSpaceBox : public SrsMp4Box
 private:
     std::vector<char> data;
 public:
-    SrsMp4FreeSpaceBox();
+    SrsMp4FreeSpaceBox(SrsMp4BoxType v);
     virtual ~SrsMp4FreeSpaceBox();
 protected:
     virtual int nb_header();
@@ -514,6 +516,8 @@ protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
     virtual int decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 /**
