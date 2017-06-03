@@ -111,8 +111,14 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
     SrsMp4BoxTypeMVEX = 0x6d766578, // 'mvex'
     SrsMp4BoxTypeTREX = 0x74726578, // 'trex'
-    
     SrsMp4BoxTypePASP = 0x70617370, // 'pasp'
+    SrsMp4BoxTypeSTYP = 0x73747970, // 'styp'
+    SrsMp4BoxTypeMOOF = 0x6d6f6f66, // 'moof'
+    SrsMp4BoxTypeMFHD = 0x6d666864, // 'mfhd'
+    SrsMp4BoxTypeTRAF = 0x74726166, // 'traf'
+    SrsMp4BoxTypeTFHD = 0x74666864, // 'tfhd'
+    SrsMp4BoxTypeTFDT = 0x74666474, // 'tfdt'
+    SrsMp4BoxTypeTRUN = 0x7472756e, // 'trun'
 };
 
 /**
@@ -282,6 +288,245 @@ public:
     virtual ~SrsMp4FileTypeBox();
 public:
     virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1, SrsMp4BoxBrand b2, SrsMp4BoxBrand b3);
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+/**
+ * 8.16.2 Segment Type Box (styp)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 105
+ * If segments are stored in separate files (e.g. on a standard HTTP server) it is recommended that these 
+ * 'segment files' contain a segment-type box, which must be first if present, to enable identification of those files, 
+ * and declaration of the specifications with which they are compliant.
+ */
+class SrsMp4SegmentTypeBox : public SrsMp4FileTypeBox
+{
+public:
+    SrsMp4SegmentTypeBox();
+    virtual ~SrsMp4SegmentTypeBox();
+};
+
+/**
+ * 8.8.4 Movie Fragment Box (moof)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 66
+ * The movie fragments extend the presentation in time. They provide the information that would previously have
+ * been in the Movie Box. The actual samples are in Media Data Boxes, as usual, if they are in the same file.
+ * The data reference index is in the sample description, so it is possible to build incremental presentations
+ * where the media data is in files other than the file containing the Movie Box.
+ */
+class SrsMp4MovieFragmentBox : public SrsMp4Box
+{
+public:
+    SrsMp4MovieFragmentBox();
+    virtual ~SrsMp4MovieFragmentBox();
+};
+
+/**
+ * 8.8.5 Movie Fragment Header Box (mfhd)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 67
+ * The movie fragment header contains a sequence number, as a safety check. The sequence number usually
+ * starts at 1 and must increase for each movie fragment in the file, in the order in which they occur. This allows
+ * readers to verify integrity of the sequence; it is an error to construct a file where the fragments are out of
+ * sequence.
+ */
+class SrsMp4MovieFragmentHeaderBox : public SrsMp4FullBox
+{
+public:
+    // the ordinal number of this fragment, in increasing order
+    uint32_t sequence_number;
+public:
+    SrsMp4MovieFragmentHeaderBox();
+    virtual ~SrsMp4MovieFragmentHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+/**
+ * 8.8.6 Track Fragment Box (traf)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 67
+ * Within the movie fragment there is a set of track fragments, zero or more per track. The track fragments in
+ * turn contain zero or more track runs, each of which document a contiguous run of samples for that track.
+ * Within these structures, many fields are optional and can be defaulted.
+ */
+class SrsMp4TrackFragmentBox : public SrsMp4Box
+{
+public:
+    SrsMp4TrackFragmentBox();
+    virtual ~SrsMp4TrackFragmentBox();
+};
+
+/**
+ * The tf_flags of tfhd.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 68
+ */
+enum SrsMp4TfhdFlags
+{
+    /**
+     * indicates the presence of the base-data-offset field. This provides 
+     * an explicit anchor for the data offsets in each track run (see below). If not provided, the base-data-
+     * offset for the first track in the movie fragment is the position of the first byte of the enclosing Movie
+     * Fragment Box, and for second and subsequent track fragments, the default is the end of the data
+     * defined by the preceding fragment. Fragments 'inheriting' their offset in this way must all use
+     * the same data-reference (i.e., the data for these tracks must be in the same file).
+     */
+    SrsMp4TfhdFlagsBaseDataOffset = 0x000001,
+    /**
+     * indicates the presence of this field, which over-rides, in this
+     * fragment, the default set up in the Track Extends Box.
+     */
+    SrsMp4TfhdFlagsSampleDescriptionIndex = 0x000002,
+    SrsMp4TfhdFlagsDefaultSampleDuration = 0x000008,
+    SrsMp4TfhdFlagsDefautlSampleSize = 0x000010,
+    SrsMp4TfhdFlagsDefaultSampleFlags = 0x000020,
+    /**
+     * this indicates that the duration provided in either default-sample-duration,
+     * or by the default-duration in the Track Extends Box, is empty, i.e. that there are no samples for this
+     * time interval. It is an error to make a presentation that has both edit lists in the Movie Box, and empty-
+     * duration fragments.
+     */
+    SrsMp4TfhdFlagsDurationIsEmpty = 0x010000,
+    /**
+     * if base-data-offset-present is zero, this indicates that the base-data-
+     * offset for this track fragment is the position of the first byte of the enclosing Movie Fragment Box.
+     * Support for the default-base-is-moof flag is required under the ‘iso5’ brand, and it shall not be used in
+     * brands or compatible brands earlier than iso5.
+     */
+    SrsMp4TfhdFlagsDefaultBaseIsMoof = 0x020000,
+};
+
+/**
+ * 8.8.7 Track Fragment Header Box (tfhd)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 68
+ * Each movie fragment can add zero or more fragments to each track; and a track fragment can add zero or
+ * more contiguous runs of samples. The track fragment header sets up information and defaults used for those
+ * runs of samples.
+ */
+class SrsMp4TrackFragmentHeaderBox : public SrsMp4FullBox
+{
+public:
+    uint32_t track_id;
+    // all the following are optional fields
+public:
+    // the base offset to use when calculating data offsets
+    uint64_t base_data_offset;
+    uint32_t sample_description_index;
+    uint32_t default_sample_duration;
+    uint32_t default_sample_size;
+    uint32_t default_sample_flags;
+public:
+    SrsMp4TrackFragmentHeaderBox();
+    virtual ~SrsMp4TrackFragmentHeaderBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+/**
+ * 8.8.12 Track fragment decode time (tfdt)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 72
+ * The Track Fragment Base Media Decode Time Box provides the absolute decode time, measured on
+ * the media timeline, of the first sample in decode order in the track fragment. This can be useful, for example,
+ * when performing random access in a file; it is not necessary to sum the sample durations of all preceding
+ * samples in previous fragments to find this value (where the sample durations are the deltas in the Decoding
+ * Time to Sample Box and the sample_durations in the preceding track runs).
+ */
+class SrsMp4TrackFragmentDecodeTimeBox : public SrsMp4FullBox
+{
+public:
+    uint64_t base_media_decode_time;
+public:
+    SrsMp4TrackFragmentDecodeTimeBox();
+    virtual ~SrsMp4TrackFragmentDecodeTimeBox();
+protected:
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+/**
+ * The tr_flags for trun
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 69
+ */
+enum SrsMp4TrunFlags
+{
+    // data-offset-present.
+    SrsMp4TrunFlagsDataOffset = 0x000001,
+    // this over-rides the default flags for the first sample only. This
+    // makes it possible to record a group of frames where the first is a key and the rest are difference
+    // frames, without supplying explicit flags for every sample. If this flag and field are used, sample-flags
+    // shall not be present.
+    SrsMp4TrunFlagsFirstSample = 0x000004,
+    // indicates that each sample has its own duration, otherwise the default is used.
+    SrsMp4TrunFlagsSampleDuration = 0x000100,
+    // each sample has its own size, otherwise the default is used.
+    SrsMp4TrunFlagsSampleSize = 0x000200,
+    // each sample has its own flags, otherwise the default is used.
+    SrsMp4TrunFlagsSampleFlag = 0x000400,
+    // each sample has a composition time offset (e.g. as used for I/P/B video in MPEG).
+    SrsMp4TrunFlagsSampleCtsOffset = 0x000800,
+};
+
+/**
+ * Entry for trun.
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 69
+ */
+struct SrsMp4TrunEntry
+{
+    uint8_t version;
+    uint32_t flags;
+    
+    uint32_t sample_duration;
+    uint32_t sample_size;
+    uint32_t sample_flags;
+    // if version == 0, unsigned int(32); otherwise, signed int(32).
+    int64_t sample_composition_time_offset;
+    
+    SrsMp4TrunEntry(uint8_t v, uint32_t f);
+    virtual ~SrsMp4TrunEntry();
+    
+    virtual int nb_header();
+    virtual int encode_header(SrsBuffer* buf);
+    virtual int decode_header(SrsBuffer* buf);
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+/**
+ * 8.8.8 Track Fragment Run Box (trun)
+ * ISO_IEC_14496-12-base-format-2012.pdf, page 69
+ * Within the Track Fragment Box, there are zero or more Track Run Boxes. If the duration-is-empty flag is set in
+ * the tf_flags, there are no track runs. A track run documents a contiguous set of samples for a track.
+ */
+class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
+{
+public:
+    // the number of samples being added in this run; also the number of rows in the following
+    // table (the rows can be empty)
+    uint32_t sample_count;
+// the following are optional fields
+public:
+    // added to the implicit or explicit data_offset established in the track fragment header.
+    int32_t data_offset;
+    // provides a set of flags for the first sample only of this run.
+    uint32_t first_sample_flags;
+// all fields in the following array are optional
+public:
+    std::vector<SrsMp4TrunEntry*> entries;
+public:
+    SrsMp4TrackFragmentRunBox();
+    virtual ~SrsMp4TrackFragmentRunBox();
 protected:
     virtual int nb_header();
     virtual int encode_header(SrsBuffer* buf);
