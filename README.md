@@ -170,19 +170,19 @@ Please select your language:
 - [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] Support http api/stream CORS for js.
 - [x] Support valgrind and latest ARM by patch ST.
-- [x] [experiment] Support big-data with Kafka, please read [#467][bug #467].
-- [x] [experiment] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
-- [x] [experiment] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
-- [x] [experiment] Support push RTSP to SRS, please read [bug #133][bug #133].
-- [x] [experiment] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
-- [x] [experiment] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
-- [x] [experiment] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [x] [Experimental] Support big-data with Kafka, please read [#467][bug #467].
+- [x] [Experimental] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
+- [x] [Experimental] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
+- [x] [Experimental] Support push RTSP to SRS, please read [bug #133][bug #133].
+- [x] [Experimental] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
+- [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
+- [x] [Experimental] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
 - [x] Enhanced HLS audio-only use ts, see [#547][bug #547].
+- [x] [Experimental] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
 - [ ] Enhanced forward with vhost and url variables.
 - [ ] Support source or idle stream cleanup.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [ ] Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
-- [ ] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
 - [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
 
 ### Change Logs
@@ -190,6 +190,7 @@ Please select your language:
 
 ### V3 changes
 
+* v3.0, 2017-06-04, Fix [#299][bug #299], support experimental MPEG-DASH. 3.0.25
 * v3.0, 2017-05-30, Fix [#821][bug #821], support MP4 file parser. 3.0.24
 * v3.0, 2017-05-30, Fix [#904][bug #904], replace NXJSON(LGPL) with json-parser(BSD). 3.0.23
 * v3.0, 2017-04-16, Fix [#547][bug #547], support HLS audio in TS. 3.0.22
