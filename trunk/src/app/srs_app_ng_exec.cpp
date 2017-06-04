@@ -38,7 +38,7 @@ using namespace std;
 
 SrsNgExec::SrsNgExec()
 {
-    trd = NULL;
+    trd = new SrsCoroutine("encoder", this, _srs_context->get_id());
     pprint = SrsPithyPrint::create_exec();
 }
 

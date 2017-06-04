@@ -166,7 +166,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     
     upstream = new SrsEdgeRtmpUpstream(redirect);
     lb = new SrsLbRoundRobin();
-    trd = NULL;
+    trd = new SrsCoroutine("edge-igs", this);
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -423,7 +423,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
-    trd = NULL;
+    trd = new SrsCoroutine("edge-fwr", this);
     queue = new SrsMessageQueue();
 }
 
@@ -493,6 +493,7 @@ int SrsEdgeForwarder::start()
         return ret;
     }
     
+    srs_freep(trd);
     trd = new SrsCoroutine("edge-fwr", this);
     return trd->start();
 }

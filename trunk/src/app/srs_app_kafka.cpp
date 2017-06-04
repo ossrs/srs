@@ -365,7 +365,7 @@ SrsKafkaProducer::SrsKafkaProducer()
     metadata_expired = srs_cond_new();
     
     lock = srs_mutex_new();
-    trd = NULL;
+    trd = new SrsCoroutine("kafka", this, _srs_context->get_id());
     worker = new SrsAsyncCallWorker();
     cache = new SrsKafkaCache();
     

@@ -41,7 +41,7 @@ static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    trd = NULL;
+    trd = new SrsCoroutine("encoder", this, _srs_context->get_id());
     pprint = SrsPithyPrint::create_encoder();
 }
 
