@@ -61,7 +61,7 @@ SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm)
     rtmp = r;
     pumper = p;
     timeout = tm;
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
 }
 
 SrsRecvThread::~SrsRecvThread()
@@ -77,7 +77,7 @@ int SrsRecvThread::cid()
 int SrsRecvThread::start()
 {
     srs_freep(trd);
-    trd = new SrsCoroutine("recv", this);
+    trd = new SrsSTCoroutine("recv", this);
     return trd->start();
 }
 
@@ -535,7 +535,7 @@ SrsHttpRecvThread::SrsHttpRecvThread(SrsResponseOnlyHttpConn* c)
 {
     conn = c;
     error = ERROR_SUCCESS;
-    trd = new SrsCoroutine("http-receive", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("http-receive", this, _srs_context->get_id());
 }
 
 SrsHttpRecvThread::~SrsHttpRecvThread()

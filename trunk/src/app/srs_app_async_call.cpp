@@ -38,7 +38,7 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
     wait = srs_cond_new();
 }
 
@@ -74,7 +74,7 @@ int SrsAsyncCallWorker::count()
 int SrsAsyncCallWorker::start()
 {
     srs_freep(trd);
-    trd = new SrsCoroutine("async", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("async", this, _srs_context->get_id());
     return trd->start();
 }
 

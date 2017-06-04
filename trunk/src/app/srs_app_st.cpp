@@ -40,7 +40,46 @@ ISrsCoroutineHandler::~ISrsCoroutineHandler()
 {
 }
 
-SrsCoroutine::SrsCoroutine(const string& n, ISrsCoroutineHandler* h, int cid)
+SrsCoroutine::SrsCoroutine()
+{
+}
+
+SrsCoroutine::~SrsCoroutine()
+{
+}
+
+SrsDummyCoroutine::SrsDummyCoroutine()
+{
+}
+
+SrsDummyCoroutine::~SrsDummyCoroutine()
+{
+}
+
+int SrsDummyCoroutine::start()
+{
+    return ERROR_THREAD_DUMMY;
+}
+
+void SrsDummyCoroutine::stop()
+{
+}
+
+void SrsDummyCoroutine::interrupt()
+{
+}
+
+int SrsDummyCoroutine::pull()
+{
+    return ERROR_THREAD_DUMMY;
+}
+
+int SrsDummyCoroutine::cid()
+{
+    return 0;
+}
+
+SrsSTCoroutine::SrsSTCoroutine(const string& n, ISrsCoroutineHandler* h, int cid)
 {
     name = n;
     handler = h;
@@ -50,12 +89,12 @@ SrsCoroutine::SrsCoroutine(const string& n, ISrsCoroutineHandler* h, int cid)
     started = interrupted = disposed = false;
 }
 
-SrsCoroutine::~SrsCoroutine()
+SrsSTCoroutine::~SrsSTCoroutine()
 {
     stop();
 }
 
-int SrsCoroutine::start()
+int SrsSTCoroutine::start()
 {
     int ret = ERROR_SUCCESS;
     
@@ -77,7 +116,7 @@ int SrsCoroutine::start()
     return ret;
 }
 
-void SrsCoroutine::stop()
+void SrsSTCoroutine::stop()
 {
     if (!started || disposed) {
         return;
@@ -101,7 +140,7 @@ void SrsCoroutine::stop()
     return;
 }
 
-void SrsCoroutine::interrupt()
+void SrsSTCoroutine::interrupt()
 {
     if (!started || interrupted) {
         return;
@@ -113,17 +152,17 @@ void SrsCoroutine::interrupt()
     st_thread_interrupt((st_thread_t)trd);
 }
 
-int SrsCoroutine::pull()
+int SrsSTCoroutine::pull()
 {
     return err;
 }
 
-int SrsCoroutine::cid()
+int SrsSTCoroutine::cid()
 {
     return context;
 }
 
-int SrsCoroutine::cycle()
+int SrsSTCoroutine::cycle()
 {
     if (_srs_context) {
         if (context) {
@@ -139,9 +178,9 @@ int SrsCoroutine::cycle()
     return ret;
 }
 
-void* SrsCoroutine::pfn(void* arg)
+void* SrsSTCoroutine::pfn(void* arg)
 {
-    SrsCoroutine* p = (SrsCoroutine*)arg;
+    SrsSTCoroutine* p = (SrsSTCoroutine*)arg;
     void*res = (void*)(uint64_t)p->cycle();
     return res;
 }

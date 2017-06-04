@@ -362,7 +362,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* s)
     
     server = s;
     sig_pipe[0] = sig_pipe[1] = -1;
-    trd = new SrsCoroutine("signal", this);
+    trd = new SrsSTCoroutine("signal", this);
     signal_read_stfd = NULL;
 }
 

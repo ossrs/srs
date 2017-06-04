@@ -195,7 +195,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o)
     stfd = fd;
     skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
-    trd = new SrsCoroutine("rtsp", this);
+    trd = new SrsSTCoroutine("rtsp", this);
     
     req = NULL;
     sdk = NULL;

@@ -106,6 +106,7 @@
 #define ERROR_THREAD_DISPOSED               1069
 #define ERROR_THREAD_INTERRUPED             1070
 #define ERROR_THREAD_TERMINATED             1071
+#define ERROR_THREAD_DUMMY                  1072
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

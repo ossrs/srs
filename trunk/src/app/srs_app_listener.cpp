@@ -80,7 +80,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
 }
 
 SrsUdpListener::~SrsUdpListener()
@@ -140,7 +140,7 @@ int SrsUdpListener::listen()
     srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     srs_freep(trd);
-    trd = new SrsCoroutine("udp", this);
+    trd = new SrsSTCoroutine("udp", this);
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -187,7 +187,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     _fd = -1;
     _stfd = NULL;
     
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
 }
 
 SrsTcpListener::~SrsTcpListener()
@@ -242,7 +242,7 @@ int SrsTcpListener::listen()
     srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     srs_freep(trd);
-    trd = new SrsCoroutine("tcp", this);
+    trd = new SrsSTCoroutine("tcp", this);
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;

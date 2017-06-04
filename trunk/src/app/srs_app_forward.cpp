@@ -55,7 +55,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
     sh_video = sh_audio = NULL;
     
     sdk = NULL;
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
 }
@@ -136,7 +136,7 @@ int SrsForwarder::on_publish()
               req->stream.c_str());
     
     srs_freep(trd);
-    trd = new SrsCoroutine("forward", this);
+    trd = new SrsSTCoroutine("forward", this);
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("start srs thread failed. ret=%d", ret);
         return ret;

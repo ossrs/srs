@@ -68,6 +68,39 @@ public:
 };
 
 /**
+ * The corotine object.
+ */
+class SrsCoroutine
+{
+public:
+    SrsCoroutine();
+    virtual ~SrsCoroutine();
+public:
+    virtual int start() = 0;
+    virtual void stop() = 0;
+    virtual void interrupt() = 0;
+    virtual int pull() = 0;
+    virtual int cid() = 0;
+};
+
+/**
+ * An empty coroutine, user can default to this object before create any real coroutine.
+ * @see https://github.com/ossrs/srs/pull/908
+ */
+class SrsDummyCoroutine : public SrsCoroutine
+{
+public:
+    SrsDummyCoroutine();
+    virtual ~SrsDummyCoroutine();
+public:
+    virtual int start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual int pull();
+    virtual int cid();
+};
+
+/**
  * A ST-coroutine is a lightweight thread, just like the goroutine.
  * But the goroutine maybe run on different thread, while ST-coroutine only
  * run in single thread, because it use setjmp and longjmp, so it may cause
@@ -81,7 +114,7 @@ public:
  * @remark We always create joinable thread, so we must join it or memory leak,
  *      Please read https://github.com/ossrs/srs/issues/78
  */
-class SrsCoroutine
+class SrsSTCoroutine : public SrsCoroutine
 {
 private:
     std::string name;
@@ -97,8 +130,8 @@ private:
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.
-    SrsCoroutine(const std::string& n, ISrsCoroutineHandler* h, int cid = 0);
-    virtual ~SrsCoroutine();
+    SrsSTCoroutine(const std::string& n, ISrsCoroutineHandler* h, int cid = 0);
+    virtual ~SrsSTCoroutine();
 public:
     /**
      * Start the thread.

@@ -32,7 +32,7 @@ using namespace std;
 SrsCoroutineManager::SrsCoroutineManager()
 {
     cond = srs_cond_new();
-    trd = new SrsCoroutine("manager", this);
+    trd = new SrsSTCoroutine("manager", this);
 }
 
 SrsCoroutineManager::~SrsCoroutineManager()

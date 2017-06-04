@@ -38,7 +38,7 @@ using namespace std;
 
 SrsNgExec::SrsNgExec()
 {
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
     pprint = SrsPithyPrint::create_exec();
 }
 
@@ -61,7 +61,7 @@ int SrsNgExec::on_publish(SrsRequest* req)
     
     // start thread to run all processes.
     srs_freep(trd);
-    trd = new SrsCoroutine("encoder", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;

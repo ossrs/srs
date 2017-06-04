@@ -365,7 +365,7 @@ SrsKafkaProducer::SrsKafkaProducer()
     metadata_expired = srs_cond_new();
     
     lock = srs_mutex_new();
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
     worker = new SrsAsyncCallWorker();
     cache = new SrsKafkaCache();
     
@@ -410,7 +410,7 @@ int SrsKafkaProducer::start()
     }
     
     srs_freep(trd);
-    trd = new SrsCoroutine("kafka", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("kafka", this, _srs_context->get_id());
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("start kafka thread failed. ret=%d", ret);
     }

@@ -60,7 +60,7 @@ SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
     req = r->copy();
     source = s;
     queue = new SrsMessageQueue(true);
-    trd = new SrsCoroutine("http-stream", this);
+    trd = new SrsSTCoroutine("http-stream", this);
     
     // TODO: FIXME: support reload.
     fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);

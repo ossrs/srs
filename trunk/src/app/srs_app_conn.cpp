@@ -41,7 +41,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip)
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
     
-    trd = new SrsCoroutine("conn", this);
+    trd = new SrsSTCoroutine("conn", this);
 }
 
 SrsConnection::~SrsConnection()

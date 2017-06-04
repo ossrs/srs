@@ -105,7 +105,7 @@ SrsIngester::SrsIngester()
     
     expired = false;
     
-    trd = NULL;
+    trd = new SrsDummyCoroutine();
     pprint = SrsPithyPrint::create_ingester();
 }
 
@@ -141,7 +141,7 @@ int SrsIngester::start()
     
     // start thread to run all encoding engines.
     srs_freep(trd);
-    trd = new SrsCoroutine("ingest", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("ingest", this, _srs_context->get_id());
     if ((ret = trd->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
