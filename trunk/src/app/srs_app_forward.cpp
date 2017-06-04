@@ -55,7 +55,7 @@ SrsForwarder::SrsForwarder(SrsOriginHub* h)
     sh_video = sh_audio = NULL;
     
     sdk = NULL;
-    trd = NULL;
+    trd = new SrsCoroutine("forward", this);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
 }

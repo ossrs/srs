@@ -105,7 +105,7 @@ SrsIngester::SrsIngester()
     
     expired = false;
     
-    trd = NULL;
+    trd = new SrsCoroutine("ingest", this, _srs_context->get_id());
     pprint = SrsPithyPrint::create_ingester();
 }
 

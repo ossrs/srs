@@ -38,7 +38,7 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
-    trd = NULL;
+    trd = new SrsCoroutine("async", this, _srs_context->get_id());
     wait = srs_cond_new();
 }
 
