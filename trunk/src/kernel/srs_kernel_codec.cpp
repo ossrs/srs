@@ -511,6 +511,8 @@ SrsFormat::SrsFormat()
     video = NULL;
     buffer = new SrsBuffer();
     avc_parse_sps = true;
+    raw = NULL;
+    nb_raw = 0;
 }
 
 SrsFormat::~SrsFormat()
@@ -689,6 +691,10 @@ int SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     video->cts = composition_time;
     video->avc_packet_type = (SrsVideoAvcFrameTrait)avc_packet_type;
     
+    // Update the RAW AVC data.
+    raw = stream->data() + stream->pos();
+    nb_raw = stream->size() - stream->pos();
+    
     if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         if ((ret = avc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
             return ret;
@@ -819,7 +825,9 @@ int SrsFormat::avc_demux_sps()
     }
     
     SrsBuffer stream;
-    if ((ret = stream.initialize(&vcodec->sequenceParameterSetNALUnit[0], vcodec->sequenceParameterSetNALUnit.size())) != ERROR_SUCCESS) {
+    char* sps = &vcodec->sequenceParameterSetNALUnit[0];
+    int nbsps = (int)vcodec->sequenceParameterSetNALUnit.size();
+    if ((ret = stream.initialize(sps, nbsps)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1280,6 +1288,10 @@ int SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
     audio->aac_packet_type = (SrsAudioAacFrameTrait)aac_packet_type;
     
+    // Update the RAW AAC data.
+    raw = stream->data() + stream->pos();
+    nb_raw = stream->size() - stream->pos();
+    
     if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
         // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
@@ -1362,6 +1374,10 @@ int SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     
     // we always decode aac then mp3.
     srs_assert(acodec->id == SrsAudioCodecIdMP3);
+    
+    // Update the RAW MP3 data.
+    raw = stream->data() + stream->pos();
+    nb_raw = stream->size() - stream->pos();
     
     stream->skip(1);
     if (stream->empty()) {

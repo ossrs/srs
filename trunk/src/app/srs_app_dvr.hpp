@@ -43,6 +43,7 @@ class SrsJsonObject;
 class SrsThread;
 class SrsMp4Encoder;
 class SrsFragment;
+class SrsFormat;
 
 #include <srs_app_source.hpp>
 #include <srs_app_reload.hpp>
@@ -82,10 +83,10 @@ public:
     virtual int write_metadata(SrsSharedPtrMessage* metadata);
     // Write audio packet.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual int write_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     // Write video packet.
     // @param shared_video, directly ptr, copy it if need to save it.
-    virtual int write_video(SrsSharedPtrMessage* shared_video);
+    virtual int write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
     // Refresh the metadata. For example, there is duration in flv metadata,
     // when DVR in append mode, the duration must be update every some seconds.
     // @remark Maybe ignored by concreate segmenter.
@@ -96,8 +97,8 @@ public:
 protected:
     virtual int open_encoder() = 0;
     virtual int encode_metadata(SrsSharedPtrMessage* metadata) = 0;
-    virtual int encode_audio(SrsSharedPtrMessage* audio) = 0;
-    virtual int encode_video(SrsSharedPtrMessage* video) = 0;
+    virtual int encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format) = 0;
+    virtual int encode_video(SrsSharedPtrMessage* video, SrsFormat* format) = 0;
     virtual int close_encoder() = 0;
 private:
     // Generate the flv segment path.
@@ -134,8 +135,8 @@ public:
 protected:
     virtual int open_encoder();
     virtual int encode_metadata(SrsSharedPtrMessage* metadata);
-    virtual int encode_audio(SrsSharedPtrMessage* audio);
-    virtual int encode_video(SrsSharedPtrMessage* video);
+    virtual int encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format);
+    virtual int encode_video(SrsSharedPtrMessage* video, SrsFormat* format);
     virtual int close_encoder();
 };
 
@@ -147,8 +148,6 @@ class SrsDvrMp4Segmenter : public SrsDvrSegmenter
 private:
     // The MP4 encoder, for MP4 target.
     SrsMp4Encoder* enc;
-    // The buffer to demux the packet to mp4 sample.
-    SrsBuffer* buffer;
 public:
     SrsDvrMp4Segmenter();
     virtual ~SrsDvrMp4Segmenter();
@@ -157,8 +156,8 @@ public:
 protected:
     virtual int open_encoder();
     virtual int encode_metadata(SrsSharedPtrMessage* metadata);
-    virtual int encode_audio(SrsSharedPtrMessage* audio);
-    virtual int encode_video(SrsSharedPtrMessage* video);
+    virtual int encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format);
+    virtual int encode_video(SrsSharedPtrMessage* video, SrsFormat* format);
     virtual int close_encoder();
 };
 
@@ -199,8 +198,8 @@ public:
     virtual int on_publish() = 0;
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
-    virtual int on_video(SrsSharedPtrMessage* shared_video);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
     // Internal interface for segmenter.
 public:
     // When segmenter close a segment.
@@ -238,8 +237,8 @@ public:
     virtual int initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
     virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
-    virtual int on_video(SrsSharedPtrMessage* shared_video);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 // interface ISrsReloadHandler
@@ -290,12 +289,12 @@ public:
      * mux the audio packets to dvr.
      * @param shared_audio, directly ptr, copy it if need to save it.
      */
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* foramt);
     /**
      * mux the video packets to dvr.
      * @param shared_video, directly ptr, copy it if need to save it.
      */
-    virtual int on_video(SrsSharedPtrMessage* shared_video);
+    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_dvr_apply(std::string vhost);

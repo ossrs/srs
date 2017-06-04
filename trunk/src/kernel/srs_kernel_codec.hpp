@@ -235,6 +235,7 @@ public:
     /**
      * check codec h264, keyframe, sequence header
      */
+    // TODO: FIXME: Remove it, use SrsFormat instead.
     static bool sh(char* data, int size);
     /**
      * check codec h264.
@@ -678,6 +679,10 @@ public:
     SrsAudioCodecConfig* acodec;
     SrsVideoFrame* video;
     SrsVideoCodecConfig* vcodec;
+public:
+    char* raw;
+    int nb_raw;
+private:
     SrsBuffer* buffer;
 public:
     // for sequence header, whether parse the h.264 sps.

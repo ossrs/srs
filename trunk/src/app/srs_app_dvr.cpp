@@ -132,7 +132,7 @@ int SrsDvrSegmenter::write_metadata(SrsSharedPtrMessage* metadata)
     return encode_metadata(metadata);
 }
 
-int SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio)
+int SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -147,14 +147,14 @@ int SrsDvrSegmenter::write_audio(SrsSharedPtrMessage* shared_audio)
         return ret;
     }
     
-    if ((ret = encode_audio(audio)) != ERROR_SUCCESS) {
+    if ((ret = encode_audio(audio, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video)
+int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -165,7 +165,7 @@ int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video)
         return ret;
     }
     
-    if ((ret = encode_video(video)) != ERROR_SUCCESS) {
+    if ((ret = encode_video(video, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -409,7 +409,7 @@ int SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
     return ret;
 }
 
-int SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio)
+int SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -422,15 +422,14 @@ int SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video)
+int SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
     char* payload = video->payload;
     int size = video->size;
-    bool sh = SrsFlvVideo::sh(payload, size);
-    bool keyframe = SrsFlvVideo::h264(payload, size)
-    && SrsFlvVideo::keyframe(payload, size) && !sh;
+    bool sh = (format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader);
+    bool keyframe = (!sh && format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame);
     
     if (keyframe) {
         has_keyframe = true;
@@ -460,13 +459,11 @@ int SrsDvrFlvSegmenter::close_encoder()
 SrsDvrMp4Segmenter::SrsDvrMp4Segmenter()
 {
     enc = new SrsMp4Encoder();
-    buffer = new SrsBuffer();
 }
 
 SrsDvrMp4Segmenter::~SrsDvrMp4Segmenter()
 {
     srs_freep(enc);
-    srs_freep(buffer);
 }
 
 int SrsDvrMp4Segmenter::refresh_metadata()
@@ -493,37 +490,14 @@ int SrsDvrMp4Segmenter::encode_metadata(SrsSharedPtrMessage* /*metadata*/)
     return ERROR_SUCCESS;
 }
 
-int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio)
+int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
+    SrsAudioCodecId sound_format = format->acodec->id;
+    SrsAudioSampleRate sound_rate = format->acodec->sound_rate;
+    SrsAudioSampleBits sound_size = format->acodec->sound_size;
+    SrsAudioChannels channels = format->acodec->sound_type;
     
-    if ((ret = buffer->initialize(audio->payload, audio->size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
-    if (!buffer->require(1)) {
-        ret = ERROR_FLV_REQUIRE_SPACE;
-        srs_error("DVR require flva 1 byte space. ret=%d", ret);
-        return ret;
-    }
-    uint8_t v = buffer->read_1bytes();
-    SrsAudioCodecId sound_format = (SrsAudioCodecId)((v >> 4) & 0x0f);
-    SrsAudioSampleRate sound_rate = (SrsAudioSampleRate)((v >> 2) & 0x03);
-    SrsAudioSampleBits sound_size = (SrsAudioSampleBits)((v >> 1) & 0x01);
-    SrsAudioChannels channels = (SrsAudioChannels)(v&0x01);
-    
-    uint16_t ct = 0x00;
-    if (sound_format == SrsAudioCodecIdAAC) {
-        if (!buffer->require(1)) {
-            ret = ERROR_FLV_REQUIRE_SPACE;
-            srs_error("DVR require flva 1 byte space, format=%d. ret=%d", sound_format, ret);
-            return ret;
-        }
-        v = buffer->read_1bytes();
-        ct = (v == 0? SrsAudioAacFrameTraitSequenceHeader:SrsAudioAacFrameTraitRawData);
-    }
-    
+    SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
     if (ct == SrsAudioAacFrameTraitSequenceHeader) {
         enc->acodec = sound_format;
         enc->sample_rate = sound_rate;
@@ -531,38 +505,20 @@ int SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio)
         enc->channels = channels;
     }
     
-    uint8_t* sample = (uint8_t*)(buffer->data() + buffer->pos());
-    uint32_t nb_sample = (uint32_t)(buffer->size() - buffer->pos());
+    uint8_t* sample = (uint8_t*)format->raw;
+    uint32_t nb_sample = (uint32_t)format->nb_raw;
     
     uint32_t dts = (uint32_t)audio->timestamp;
     return enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample);
 }
 
-int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video)
+int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
+    SrsVideoAvcFrameType frame_type = format->video->frame_type;
+    SrsVideoCodecId codec_id = format->vcodec->id;
     
-    if ((ret = buffer->initialize(video->payload, video->size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
-    if (!buffer->require(1)) {
-        ret = ERROR_FLV_REQUIRE_SPACE;
-        srs_error("DVR require flvv 1 byte space. ret=%d", ret);
-        return ret;
-    }
-    uint8_t v = buffer->read_1bytes();
-    SrsVideoAvcFrameType frame_type = (SrsVideoAvcFrameType)((v>>4)&0x0f);
-    SrsVideoCodecId codec_id = (SrsVideoCodecId)(v&0x0f);
-    
-    if (!buffer->require(4)) {
-        ret = ERROR_FLV_REQUIRE_SPACE;
-        srs_error("DVR require flvv 4 bytes space, codec=%d. ret=%d", codec_id, ret);
-        return ret;
-    }
-    SrsVideoAvcFrameTrait ct = (SrsVideoAvcFrameTrait)buffer->read_1bytes();
-    uint32_t cts = (uint32_t)buffer->read_3bytes();
+    SrsVideoAvcFrameTrait ct = format->video->avc_packet_type;
+    uint32_t cts = (uint32_t)format->video->cts;
     
     if (ct == SrsVideoAvcFrameTraitSequenceHeader) {
         enc->vcodec = codec_id;
@@ -571,8 +527,8 @@ int SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video)
     uint32_t dts = (uint32_t)video->timestamp;
     uint32_t pts = dts + cts;
     
-    uint8_t* sample = (uint8_t*)(buffer->data() + buffer->pos());
-    uint32_t nb_sample = (uint32_t)(buffer->size() - buffer->pos());
+    uint8_t* sample = (uint8_t*)format->raw;
+    uint32_t nb_sample = (uint32_t)format->nb_raw;
     return enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample);
 }
 
@@ -686,7 +642,7 @@ int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
     return segment->write_metadata(shared_metadata);
 }
 
-int SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -694,14 +650,14 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio)
         return ret;
     }
     
-    if ((ret = segment->write_audio(shared_audio)) != ERROR_SUCCESS) {
+    if ((ret = segment->write_audio(shared_audio, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video)
+int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -709,7 +665,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video)
         return ret;
     }
     
-    if ((ret = segment->write_video(shared_video)) != ERROR_SUCCESS) {
+    if ((ret = segment->write_video(shared_video, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -857,7 +813,7 @@ void SrsDvrSegmentPlan::on_unpublish()
 {
 }
 
-int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -865,14 +821,14 @@ int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio)
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_audio(shared_audio)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_audio(shared_audio, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video)
+int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
     
@@ -880,7 +836,7 @@ int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video)
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_video(shared_video)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_video(shared_video, format)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1035,24 +991,24 @@ int SrsDvr::on_meta_data(SrsSharedPtrMessage* metadata)
     return ret;
 }
 
-int SrsDvr::on_audio(SrsSharedPtrMessage* shared_audio)
+int SrsDvr::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
 {
     // the dvr for this stream is not actived.
     if (!actived) {
         return ERROR_SUCCESS;
     }
     
-    return plan->on_audio(shared_audio);
+    return plan->on_audio(shared_audio, format);
 }
 
-int SrsDvr::on_video(SrsSharedPtrMessage* shared_video)
+int SrsDvr::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     // the dvr for this stream is not actived.
     if (!actived) {
         return ERROR_SUCCESS;
     }
     
-    return plan->on_video(shared_video);
+    return plan->on_video(shared_video, format);
 }
 
 int SrsDvr::on_reload_vhost_dvr_apply(string vhost)

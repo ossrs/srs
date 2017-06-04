@@ -1024,7 +1024,7 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         ret = ERROR_SUCCESS;
     }
     
-    if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_audio(msg, format)) != ERROR_SUCCESS) {
         srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1126,7 +1126,7 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
         ret = ERROR_SUCCESS;
     }
     
-    if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_video(msg, format)) != ERROR_SUCCESS) {
         srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1278,13 +1278,28 @@ int SrsOriginHub::on_dvr_request_sh()
         return ret;
     }
     
-    if (cache_sh_video && (ret = dvr->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-        srs_error("dvr process video sequence header message failed. ret=%d", ret);
-        return ret;
+    if (cache_sh_video) {
+        // TODO: Use cached format for sh.
+        if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = dvr->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
+            srs_error("dvr process video sequence header message failed. ret=%d", ret);
+            return ret;
+        }
     }
-    if (cache_sh_audio && (ret = dvr->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-        srs_error("dvr process audio sequence header message failed. ret=%d", ret);
-        return ret;
+    
+    if (cache_sh_audio) {
+        // TODO: Use cached format for sh.
+        if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = dvr->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
+            srs_error("dvr process audio sequence header message failed. ret=%d", ret);
+            return ret;
+        }
     }
     
     return ret;

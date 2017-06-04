@@ -6013,7 +6013,7 @@ bool SrsConfig::get_dash_enabled(string vhost)
 
 int SrsConfig::get_dash_fragment(string vhost)
 {
-    static int DEFAULT = 10 * 1000;
+    static int DEFAULT = 3 * 1000;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {

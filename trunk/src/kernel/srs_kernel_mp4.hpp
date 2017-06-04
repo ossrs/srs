@@ -34,6 +34,7 @@
 #include <vector>
 #include <map>
 
+class ISrsWriter;
 class ISrsWriteSeeker;
 class ISrsReadSeeker;
 class SrsMp4TrackBox;
@@ -64,6 +65,11 @@ class SrsMp4DataReferenceBox;
 class SrsMp4SoundMeidaHeaderBox;
 class SrsMp4MovieExtendsBox;
 class SrsMp4TrackExtendsBox;
+class SrsMp4MovieFragmentHeaderBox;
+class SrsMp4TrackFragmentBox;
+class SrsMp4TrackFragmentHeaderBox;
+class SrsMp4TrackFragmentDecodeTimeBox;
+class SrsMp4TrackFragmentRunBox;
 
 /**
  * 4.2 Object Structure
@@ -147,6 +153,7 @@ enum SrsMp4BoxBrand
     SrsMp4BoxBrandISO5 = 0x69736f35, // 'iso5'
     SrsMp4BoxBrandMP42 = 0x6d703432, // 'mp42'
     SrsMp4BoxBrandDASH = 0x64617368, // 'dash'
+    SrsMp4BoxBrandMSDH = 0x6d736468, // 'msdh'
 };
 
 /**
@@ -287,6 +294,7 @@ public:
     SrsMp4FileTypeBox();
     virtual ~SrsMp4FileTypeBox();
 public:
+    virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1);
     virtual void set_compatible_brands(SrsMp4BoxBrand b0, SrsMp4BoxBrand b1, SrsMp4BoxBrand b2, SrsMp4BoxBrand b3);
 protected:
     virtual int nb_header();
@@ -323,6 +331,13 @@ class SrsMp4MovieFragmentBox : public SrsMp4Box
 public:
     SrsMp4MovieFragmentBox();
     virtual ~SrsMp4MovieFragmentBox();
+public:
+    // Get the header of moof.
+    virtual SrsMp4MovieFragmentHeaderBox* mfhd();
+    virtual void set_mfhd(SrsMp4MovieFragmentHeaderBox* v);
+    // Get the traf.
+    virtual SrsMp4TrackFragmentBox* traf();
+    virtual void set_traf(SrsMp4TrackFragmentBox* v);
 };
 
 /**
@@ -361,6 +376,16 @@ class SrsMp4TrackFragmentBox : public SrsMp4Box
 public:
     SrsMp4TrackFragmentBox();
     virtual ~SrsMp4TrackFragmentBox();
+public:
+    // Get the tfhd.
+    virtual SrsMp4TrackFragmentHeaderBox* tfhd();
+    virtual void set_tfhd(SrsMp4TrackFragmentHeaderBox* v);
+    // Get the tfdt.
+    virtual SrsMp4TrackFragmentDecodeTimeBox* tfdt();
+    virtual void set_tfdt(SrsMp4TrackFragmentDecodeTimeBox* tfdt);
+    // Get the trun.
+    virtual SrsMp4TrackFragmentRunBox* trun();
+    virtual void set_trun(SrsMp4TrackFragmentRunBox* v);
 };
 
 /**
@@ -413,7 +438,7 @@ class SrsMp4TrackFragmentHeaderBox : public SrsMp4FullBox
 {
 public:
     uint32_t track_id;
-    // all the following are optional fields
+// all the following are optional fields
 public:
     // the base offset to use when calculating data offsets
     uint64_t base_data_offset;
@@ -485,8 +510,7 @@ enum SrsMp4TrunFlags
  */
 struct SrsMp4TrunEntry
 {
-    uint8_t version;
-    uint32_t flags;
+    SrsMp4FullBox* owner;
     
     uint32_t sample_duration;
     uint32_t sample_size;
@@ -494,7 +518,7 @@ struct SrsMp4TrunEntry
     // if version == 0, unsigned int(32); otherwise, signed int(32).
     int64_t sample_composition_time_offset;
     
-    SrsMp4TrunEntry(uint8_t v, uint32_t f);
+    SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
     virtual int nb_header();
@@ -1941,7 +1965,7 @@ public:
  */
 class SrsMp4SampleManager
 {
-private:
+public:
     std::vector<SrsMp4Sample*> samples;
 public:
     SrsMp4SampleManager();
@@ -1956,6 +1980,9 @@ public:
     virtual void append(SrsMp4Sample* sample);
     // Write the samples info to moov.
     virtual int write(SrsMp4MovieBox* moov);
+    // Write the samples info to moof.
+    // @param The dts is the dts of last segment.
+    virtual int write(SrsMp4MovieFragmentBox* moof, uint64_t& dts);
 private:
     virtual int write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
@@ -2122,10 +2149,10 @@ public:
     SrsMp4Encoder();
     virtual ~SrsMp4Encoder();
 public:
-    // Initialize the encoder with a writer w.
-    // @param w The underlayer io writer, user must manage it.
+    // Initialize the encoder with a writer and seeker ws.
+    // @param ws The underlayer io writer and seeker, user must manage it.
     virtual int initialize(ISrsWriteSeeker* ws);
-    // Write a sampel to mp4.
+    // Write a sample to mp4.
     // @param ht, The sample handler type, audio/soun or video/vide.
     // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
     // @param ct, The codec type. For video, it's SrsVideoAvcFrameTrait. For audio, it's SrsAudioAacFrameTrait.
@@ -2140,6 +2167,62 @@ public:
 private:
     virtual int copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_sample);
     virtual int do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
+};
+
+/**
+ * A fMP4 encoder, to write the init.mp4 with sequence header.
+ */
+class SrsMp4M2tsInitEncoder
+{
+private:
+    ISrsWriter* writer;
+public:
+    SrsMp4M2tsInitEncoder();
+    virtual ~SrsMp4M2tsInitEncoder();
+public:
+    // Initialize the encoder with a writer w.
+    virtual int initialize(ISrsWriter* w);
+    // Write the sequence header.
+    virtual int write(SrsFormat* format, bool video, int tid);
+};
+
+/**
+ * A fMP4 encoder, to cache segments then flush to disk, because the fMP4 should write
+ * trun box before mdat.
+ */
+class SrsMp4M2tsSegmentEncoder
+{
+private:
+    ISrsWriter* writer;
+    SrsBuffer* buffer;
+    uint32_t sequence_number;
+    uint64_t decode_basetime;
+    uint32_t track_id;
+private:
+    uint32_t nb_audios;
+    uint32_t nb_videos;
+    uint64_t mdat_bytes;
+    SrsMp4SampleManager* samples;
+private:
+    uint64_t data_offset;
+public:
+    SrsMp4M2tsSegmentEncoder();
+    virtual ~SrsMp4M2tsSegmentEncoder();
+public:
+    // Initialize the encoder with a writer w.
+    virtual int initialize(ISrsWriter* w, uint32_t sequence, uint64_t basetime, uint32_t tid);
+    // Cache a sample.
+    // @param ht, The sample handler type, audio/soun or video/vide.
+    // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
+    // @param dts The output dts in milliseconds.
+    // @param pts The output pts in milliseconds.
+    // @param sample The output payload, user must free it.
+    // @param nb_sample The output size of payload.
+    // @remark All samples are RAW AAC/AVC data, because sequence header is writen to init.mp4.
+    virtual int write_sample(SrsMp4HandlerType ht, uint16_t ft,
+        uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
+    // Flush the encoder, to write the moof and mdat.
+    virtual int flush(uint64_t& dts);
 };
 
 #endif
