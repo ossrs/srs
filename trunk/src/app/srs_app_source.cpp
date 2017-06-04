@@ -1279,24 +1279,14 @@ int SrsOriginHub::on_dvr_request_sh()
     }
     
     if (cache_sh_video) {
-        // TODO: Use cached format for sh.
-        if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        if ((ret = dvr->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
+        if ((ret = dvr->on_video(cache_sh_video, source->meta->vsh_format())) != ERROR_SUCCESS) {
             srs_error("dvr process video sequence header message failed. ret=%d", ret);
             return ret;
         }
     }
     
     if (cache_sh_audio) {
-        // TODO: Use cached format for sh.
-        if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        if ((ret = dvr->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
+        if ((ret = dvr->on_audio(cache_sh_audio, source->meta->ash_format())) != ERROR_SUCCESS) {
             srs_error("dvr process audio sequence header message failed. ret=%d", ret);
             return ret;
         }
@@ -1601,6 +1591,8 @@ void SrsOriginHub::destroy_forwarders()
 SrsMetaCache::SrsMetaCache()
 {
     meta = video = audio = NULL;
+    vformat = new SrsRtmpFormat();
+    aformat = new SrsRtmpFormat();
 }
 
 SrsMetaCache::~SrsMetaCache()
@@ -1625,9 +1617,19 @@ SrsSharedPtrMessage* SrsMetaCache::vsh()
     return video;
 }
 
+SrsFormat* SrsMetaCache::vsh_format()
+{
+    return vformat;
+}
+
 SrsSharedPtrMessage* SrsMetaCache::ash()
 {
     return audio;
+}
+
+SrsFormat* SrsMetaCache::ash_format()
+{
+    return aformat;
 }
 
 int SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
@@ -1728,16 +1730,18 @@ int SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* met
     return ret;
 }
 
-void SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
+int SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
 {
     srs_freep(audio);
     audio = msg->copy();
+    return aformat->on_audio(msg);
 }
 
-void SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
+int SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
 {
     srs_freep(video);
     video = msg->copy();
+    return vformat->on_video(msg);
 }
 
 std::map<std::string, SrsSource*> SrsSource::pool;
@@ -2236,7 +2240,9 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     // for example, the mp3 is used for hls to write the "right" audio codec.
     // TODO: FIXME: to refine the stream info system.
     if (is_aac_sequence_header || !meta->ash()) {
-        meta->update_ash(msg);
+        if ((ret = meta->update_ash(msg)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     // when sequence header, donot push to gop cache and adjust the timestamp.
@@ -2342,8 +2348,8 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
-    if (is_sequence_header) {
-        meta->update_vsh(msg);
+    if (is_sequence_header && (ret = meta->update_vsh(msg)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     // Copy to hub to all utilities.

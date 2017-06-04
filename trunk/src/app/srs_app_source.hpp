@@ -34,6 +34,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
 
+class SrsFormat;
 class SrsRtmpFormat;
 class SrsConsumer;
 class SrsPlayEdge;
@@ -496,6 +497,9 @@ private:
     SrsSharedPtrMessage* video;
     // The cached audio sequence header, for example, asc for aac.
     SrsSharedPtrMessage* audio;
+    // The format for sequence header.
+    SrsRtmpFormat* vformat;
+    SrsRtmpFormat* aformat;
 public:
     SrsMetaCache();
     virtual ~SrsMetaCache();
@@ -507,8 +511,10 @@ public:
     virtual SrsSharedPtrMessage* data();
     // Get the cached vsh(video sequence header).
     virtual SrsSharedPtrMessage* vsh();
+    virtual SrsFormat* vsh_format();
     // Get the cached ash(audio sequence header).
     virtual SrsSharedPtrMessage* ash();
+    virtual SrsFormat* ash_format();
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
@@ -517,9 +523,9 @@ public:
     // Update the cached metadata by packet.
     virtual int update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
     // Update the cached audio sequence header.
-    virtual void update_ash(SrsSharedPtrMessage* msg);
+    virtual int update_ash(SrsSharedPtrMessage* msg);
     // Update the cached video sequence header.
-    virtual void update_vsh(SrsSharedPtrMessage* msg);
+    virtual int update_vsh(SrsSharedPtrMessage* msg);
 };
 
 /**
