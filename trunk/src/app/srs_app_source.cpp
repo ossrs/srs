@@ -1225,6 +1225,10 @@ int SrsSource::on_reload_vhost_forward(string vhost)
         return ret;
     }
 
+    if (_can_publish) {
+        return ret;
+    }
+
     // forwarders
     destroy_forwarders();
     
@@ -1251,6 +1255,10 @@ int SrsSource::on_reload_vhost_hls(string vhost)
         return ret;
     }
     
+    if (_can_publish) {
+        return ret;
+    }
+
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
     
@@ -1274,6 +1282,10 @@ int SrsSource::on_reload_vhost_hds(string vhost)
     int ret = ERROR_SUCCESS;
 
     if (_req->vhost != vhost) {
+        return ret;
+    }
+
+    if (_can_publish) {
         return ret;
     }
 
@@ -1303,6 +1315,10 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
         return ret;
     }
     
+    if (_can_publish) {
+        return ret;
+    }
+
 #ifdef SRS_AUTO_DVR
     // cleanup dvr
     dvr->on_unpublish();
@@ -1337,6 +1353,10 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
         return ret;
     }
     
+    if (_can_publish) {
+        return ret;
+    }
+
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
     
