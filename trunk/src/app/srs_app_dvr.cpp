@@ -860,6 +860,18 @@ int SrsDvrSegmentPlan::on_publish()
 
 void SrsDvrSegmentPlan::on_unpublish()
 {
+    // support multiple publish.  added by bk start
+    if (!dvr_enabled) {
+        return;
+    }
+    
+    // ignore error.              added by bk end
+    int ret = segment->close();
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("ignore flv close error. ret=%d", ret);
+    }
+    
+    dvr_enabled = false;
 }
 
 int SrsDvrSegmentPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
