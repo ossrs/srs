@@ -115,4 +115,8 @@
     #error "only support i386/amd64/x86_64/arm cpu"
 #endif
 
+// Error predefined for all modules.
+class SrsError;
+typedef SrsError* srs_error_t;
+
 #endif

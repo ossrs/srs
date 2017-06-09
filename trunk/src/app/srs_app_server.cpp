@@ -557,9 +557,10 @@ void SrsServer::dispose()
 #endif
 }
 
-int SrsServer::initialize(ISrsServerCycle* cycle_handler)
+srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ensure the time is ok.
     srs_update_system_time_ms();
@@ -575,15 +576,15 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     
     handler = cycle_handler;
     if(handler && (ret = handler->initialize()) != ERROR_SUCCESS){
-        return ret;
+        return srs_error_new(ret, "handler initialize");
     }
     
     if ((ret = http_api_mux->initialize()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http api initialize");
     }
     
     if ((ret = http_server->initialize()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http server initialize");
     }
     
     http_heartbeat = new SrsHttpHeartbeat();
@@ -593,7 +594,7 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     ingester = new SrsIngester();
 #endif
     
-    return ret;
+    return err;
 }
 
 int SrsServer::initialize_st()

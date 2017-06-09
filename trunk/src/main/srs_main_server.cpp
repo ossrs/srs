@@ -50,7 +50,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 
 // pre-declare
-int run(SrsServer* svr);
+srs_error_t run(SrsServer* svr);
 int run_master(SrsServer* svr);
 void show_macro_features();
 string srs_getenv(const char* name);
@@ -182,16 +182,14 @@ int main(int argc, char** argv)
     SrsServer* svr = new SrsServer();
     SrsAutoFree(SrsServer, svr);
     
-    /**
-     * we do nothing in the constructor of server,
-     * and use initialize to create members, set hooks for instance the reload handler,
-     * all initialize will done in this stage.
-     */
-    if ((ret = svr->initialize(NULL)) != ERROR_SUCCESS) {
-        return ret;
+    srs_error_t err = run(svr);
+    if (err != srs_success) {
+        srs_error("Failed, %s", srs_error_desc(err).c_str());
     }
     
-    return run(svr);
+    ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 /**
@@ -363,11 +361,26 @@ string srs_getenv(const char* name)
     return "";
 }
 
-int run(SrsServer* svr)
+srs_error_t run(SrsServer* svr)
 {
+    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
+    
+    /**
+     * we do nothing in the constructor of server,
+     * and use initialize to create members, set hooks for instance the reload handler,
+     * all initialize will done in this stage.
+     */
+    if ((err = svr->initialize(NULL)) != srs_success) {
+        return srs_error_wrap(err, "server initialize");
+    }
+    
     // if not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
-        return run_master(svr);
+        if ((ret = run_master(svr)) != ERROR_SUCCESS) {
+            return srs_error_new(ret, "run master");
+        }
+        return srs_success;
     }
     
     srs_trace("start deamon mode...");
@@ -375,16 +388,13 @@ int run(SrsServer* svr)
     int pid = fork();
     
     if(pid < 0) {
-        srs_error("create process error. ret=-1"); //ret=0
-        return -1;
+        return srs_error_new(-1, "fork father process");
     }
     
     // grandpa
     if(pid > 0) {
         int status = 0;
-        if(waitpid(pid, &status, 0) == -1) {
-            srs_error("wait child process error! ret=-1"); //ret=0
-        }
+        waitpid(pid, &status, 0);
         srs_trace("grandpa process exit.");
         exit(0);
     }
@@ -393,19 +403,22 @@ int run(SrsServer* svr)
     pid = fork();
     
     if(pid < 0) {
-        srs_error("create process error. ret=0");
-        return -1;
+        return srs_error_new(-1, "fork child process");
     }
     
     if(pid > 0) {
-        srs_trace("father process exit. ret=0");
+        srs_trace("father process exit");
         exit(0);
     }
     
     // son
     srs_trace("son(deamon) process running.");
     
-    return run_master(svr);
+    if ((ret = run_master(svr)) != ERROR_SUCCESS) {
+        return srs_error_new(ret, "daemon run master");
+    }
+    
+    return srs_success;
 }
 
 int run_master(SrsServer* svr)

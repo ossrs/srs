@@ -23,6 +23,12 @@
 
 #include <srs_kernel_error.hpp>
 
+#include <srs_kernel_log.hpp>
+
+#include <errno.h>
+#include <sstream>
+using namespace std;
+
 bool srs_is_system_control_error(int error_code)
 {
     return error_code == ERROR_CONTROL_RTMP_CLOSE
@@ -36,5 +42,107 @@ bool srs_is_client_gracefully_close(int error_code)
         || error_code == ERROR_SOCKET_READ_FULLY
         || error_code == ERROR_SOCKET_WRITE
         || error_code == ERROR_SOCKET_TIMEOUT;
+}
+
+SrsError::SrsError()
+{
+    code = ERROR_SUCCESS;
+    wrapped = NULL;
+    cid = rerrno = line = 0;
+}
+
+SrsError::~SrsError()
+{
+}
+
+std::string SrsError::description() {
+    if (desc.empty()) {
+        stringstream ss;
+        ss << "code=" << code;
+        
+        SrsError* next = this;
+        while (next) {
+            ss << " : " << next->msg;
+            next = next->wrapped;
+        }
+        ss << endl;
+        
+        next = this;
+        while (next) {
+            ss << "thread #" << next->cid << ": "
+            << next->func << "() [" << next->file << ":" << next->line << "]"
+            << "[errno=" << next->rerrno << "]"
+            << endl;
+            next = next->wrapped;
+        }
+        
+        desc = ss.str();
+    }
+    
+    return desc;
+}
+
+SrsError* SrsError::create(const char* func, const char* file, int line, int code, const char* fmt, ...) {
+    int rerrno = (int)errno;
+
+    va_list ap;
+    va_start(ap, fmt);
+    static char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    va_end(ap);
+    
+    SrsError* err = new SrsError();
+    
+    err->func = func;
+    err->file = file;
+    err->line = line;
+    err->code = code;
+    err->rerrno = rerrno;
+    err->msg = buffer;
+    err->wrapped = NULL;
+    if (_srs_context) {
+        err->cid = _srs_context->get_id();
+    }
+    
+    return err;
+}
+
+SrsError* SrsError::wrap(const char* func, const char* file, int line, SrsError* v, const char* fmt, ...) {
+    int rerrno = (int)errno;
+    
+    va_list ap;
+    va_start(ap, fmt);
+    static char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    va_end(ap);
+    
+    SrsError* err = new SrsError();
+    
+    err->func = func;
+    err->file = file;
+    err->line = line;
+    err->code = v->code;
+    err->rerrno = rerrno;
+    err->msg = buffer;
+    err->wrapped = v;
+    if (_srs_context) {
+        err->cid = _srs_context->get_id();
+    }
+    
+    return err;
+}
+
+SrsError* SrsError::success() {
+    return NULL;
+}
+
+string SrsError::description(SrsError* err)
+{
+    return err? err->description() : "Success";
+}
+
+int SrsError::error_code(SrsError* err)
+{
+    return err? err->code : ERROR_SUCCESS;
 }
 

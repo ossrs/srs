@@ -301,7 +301,7 @@ public:
      * initialize server with callback handler.
      * @remark user must free the cycle handler.
      */
-    virtual int initialize(ISrsServerCycle* cycle_handler);
+    virtual srs_error_t initialize(ISrsServerCycle* cycle_handler);
     virtual int initialize_st();
     virtual int initialize_signal();
     virtual int acquire_pid_file();

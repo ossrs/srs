@@ -26,6 +26,8 @@
 
 #include <srs_core.hpp>
 
+#include <string>
+
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #define ERROR_SUCCESS                       0
@@ -330,19 +332,42 @@
 extern bool srs_is_system_control_error(int error_code);
 extern bool srs_is_client_gracefully_close(int error_code);
 
-/**
- @remark: use column copy to generate the new error codes.
- 01234567890
- 01234567891
- 01234567892
- 01234567893
- 01234567894
- 01234567895
- 01234567896
- 01234567897
- 01234567898
- 01234567899
- */
+// Use complex errors, @read https://github.com/ossrs/srs/issues/913
+class SrsError
+{
+private:
+    int code;
+    SrsError* wrapped;
+    std::string msg;
+    
+    std::string func;
+    std::string file;
+    int line;
+    
+    int cid;
+    int rerrno;
+    
+    std::string desc;
+private:
+    SrsError();
+public:
+    virtual ~SrsError();
+private:
+    virtual std::string description();
+public:
+    static SrsError* create(const char* func, const char* file, int line, int code, const char* fmt, ...);
+    static SrsError* wrap(const char* func, const char* file, int line, SrsError* err, const char* fmt, ...);
+    static SrsError* success();
+    static std::string description(SrsError* err);
+    static int error_code(SrsError* err);
+};
+
+// Error helpers, should use these functions to new or wrap an error.
+#define srs_success SrsError::success()
+#define srs_error_new(ret, fmt, ...) SrsError::create(__FUNCTION__, __FILE__, __LINE__, ret, fmt, ##__VA_ARGS__)
+#define srs_error_wrap(err, fmt, ...) SrsError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
+#define srs_error_desc(err) SrsError::description(err)
+#define srs_error_code(err) SrsError::error_code(err)
 
 #endif
 
