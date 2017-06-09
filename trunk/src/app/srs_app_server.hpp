@@ -219,7 +219,7 @@ public:
     /**
      * initialize the cycle handler.
      */
-    virtual int initialize() = 0;
+    virtual srs_error_t initialize() = 0;
     /**
      * do on_cycle while server doing cycle.
      */

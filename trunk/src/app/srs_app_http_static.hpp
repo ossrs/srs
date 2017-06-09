@@ -58,7 +58,7 @@ public:
     SrsHttpStaticServer(SrsServer* svr);
     virtual ~SrsHttpStaticServer();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
 private:
     virtual int mount_vhost(std::string vhost, std::string& pmount);
 // interface ISrsReloadHandler.

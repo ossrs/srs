@@ -704,16 +704,17 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
     }
 }
 
-int SrsHttpStreamServer::initialize()
+srs_error_t SrsHttpStreamServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // remux rtmp to flv live streaming
     if ((ret = initialize_flv_streaming()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http flv stream");
     }
     
-    return ret;
+    return err;
 }
 
 // TODO: FIXME: rename for HTTP FLV mount.

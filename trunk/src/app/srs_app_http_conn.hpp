@@ -125,7 +125,7 @@ public:
     SrsHttpServer(SrsServer* svr);
     virtual ~SrsHttpServer();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
     // ISrsHttpServeMux
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

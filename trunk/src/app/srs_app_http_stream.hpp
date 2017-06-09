@@ -283,7 +283,7 @@ public:
     SrsHttpStreamServer(SrsServer* svr);
     virtual ~SrsHttpStreamServer();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
     // http flv/ts/mp3/aac stream
 public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);

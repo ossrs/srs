@@ -533,11 +533,13 @@ SrsHttpServeMux::~SrsHttpServeMux()
     hijackers.clear();
 }
 
-int SrsHttpServeMux::initialize()
+srs_error_t SrsHttpServeMux::initialize()
 {
-    int ret = ERROR_SUCCESS;
-    // TODO: FIXME: implements it.
-    return ret;
+    srs_error_t err = srs_success;
+    
+    // TODO: FIXME: Implements it.
+    
+    return err;
 }
 
 void SrsHttpServeMux::hijack(ISrsHttpMatchHijacker* h)

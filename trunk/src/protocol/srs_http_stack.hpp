@@ -417,7 +417,7 @@ public:
     /**
      * initialize the http serve mux.
      */
-    virtual int initialize();
+    virtual srs_error_t initialize();
     /**
      * hijack the http match.
      */

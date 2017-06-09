@@ -353,6 +353,10 @@ int srs_initialize_kafka()
 void srs_dispose_kafka()
 {
     SrsKafkaProducer* kafka = dynamic_cast<SrsKafkaProducer*>(_srs_kafka);
+    if (!kafka) {
+        return;
+    }
+    
     kafka->stop();
     
     srs_freep(kafka);

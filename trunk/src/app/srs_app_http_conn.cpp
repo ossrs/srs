@@ -265,24 +265,25 @@ SrsHttpServer::~SrsHttpServer()
     srs_freep(http_static);
 }
 
-int SrsHttpServer::initialize()
+srs_error_t SrsHttpServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
     if ((ret = http_static->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "handle versin");
     }
     
-    if ((ret = http_stream->initialize()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = http_stream->initialize()) != srs_success) {
+        return srs_error_wrap(err, "http stream");
     }
     
-    if ((ret = http_static->initialize()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = http_static->initialize()) != srs_success) {
+        return srs_error_wrap(err, "http static");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsHttpServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
