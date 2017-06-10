@@ -317,7 +317,8 @@ string srs_string_remove(string str, string remove_chars)
 
 bool srs_string_ends_with(string str, string flag)
 {
-    return str.rfind(flag) == str.length() - flag.length();
+    ssize_t pos = str.rfind(flag);
+    return (pos != string::npos) && (pos == str.length() - flag.length());
 }
 
 bool srs_string_ends_with(string str, string flag0, string flag1)
