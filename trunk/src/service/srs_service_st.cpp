@@ -49,37 +49,29 @@ bool srs_st_epoll_is_supported(void)
 }
 #endif
 
-int srs_st_init()
+srs_error_t srs_st_init()
 {
-    int ret = ERROR_SUCCESS;
-    
 #ifdef __linux__
     // check epoll, some old linux donot support epoll.
     // @see https://github.com/ossrs/srs/issues/162
     if (!srs_st_epoll_is_supported()) {
-        ret = ERROR_ST_SET_EPOLL;
-        srs_error("epoll required on Linux. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_ST_SET_EPOLL, "linux epoll disabled");
     }
 #endif
     
     // Select the best event system available on the OS. In Linux this is
     // epoll(). On BSD it will be kqueue.
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
-        ret = ERROR_ST_SET_EPOLL;
-        srs_error("st_set_eventsys use %s failed. ret=%d", st_get_eventsys_name(), ret);
-        return ret;
+        return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
-    srs_info("st_set_eventsys to %s", st_get_eventsys_name());
     
-    if(st_init() != 0){
-        ret = ERROR_ST_INITIALIZE;
-        srs_error("st_init failed. ret=%d", ret);
-        return ret;
+    int r0 = 0;
+    if((r0 = st_init()) != 0){
+        return srs_error_new(ERROR_ST_INITIALIZE, "st initialize failed, r0=%d", r0);
     }
     srs_trace("st_init success, use %s", st_get_eventsys_name());
     
-    return ret;
+    return srs_success;
 }
 
 void srs_close_stfd(srs_netfd_t& stfd)

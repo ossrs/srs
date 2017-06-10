@@ -426,7 +426,7 @@ public:
 public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
-    virtual int handle(std::string pattern, ISrsHttpHandler* handler);
+    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
     // whether the http muxer can serve the specified message,
     // if not, user can try next muxer.
     virtual bool can_serve(ISrsHttpMessage* r);

@@ -63,8 +63,13 @@ SrsAppCasterFlv::~SrsAppCasterFlv()
 int SrsAppCasterFlv::initialize()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = http_mux->handle("/", this)) != ERROR_SUCCESS) {
+    if ((err = http_mux->handle("/", this)) != srs_success) {
+        // TODO: FIXME: Use error.
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         return ret;
     }
     

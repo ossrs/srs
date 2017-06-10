@@ -721,6 +721,7 @@ srs_error_t SrsHttpStreamServer::initialize()
 int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // the id to identify stream.
     std::string sid = r->get_stream_url();
@@ -767,7 +768,11 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
         // @see https://github.com/ossrs/srs/issues/404
-        if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
+        if ((err = mux.handle(mount, entry->stream)) != srs_success) {
+            // TODO: FIXME: Use error.
+            ret = srs_error_code(err);
+            srs_freep(err);
+            
             srs_error("http: mount flv stream for vhost=%s failed. ret=%d", sid.c_str(), ret);
             return ret;
         }

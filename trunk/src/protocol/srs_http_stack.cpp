@@ -560,24 +560,18 @@ void SrsHttpServeMux::unhijack(ISrsHttpMatchHijacker* h)
     hijackers.erase(it);
 }
 
-int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
+srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
 {
-    int ret = ERROR_SUCCESS;
-    
     srs_assert(handler);
     
     if (pattern.empty()) {
-        ret = ERROR_HTTP_PATTERN_EMPTY;
-        srs_error("http: empty pattern. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "empty pattern");
     }
     
     if (entries.find(pattern) != entries.end()) {
         SrsHttpMuxEntry* exists = entries[pattern];
         if (exists->explicit_match) {
-            ret = ERROR_HTTP_PATTERN_DUPLICATED;
-            srs_error("http: multiple registrations for %s. ret=%d", pattern.c_str(), ret);
-            return ret;
+            return srs_error_new(ERROR_HTTP_PATTERN_DUPLICATED, "pattern=%s exists", pattern.c_str());
         }
     }
     
@@ -632,7 +626,7 @@ int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
         }
     }
     
-    return ret;
+    return srs_success;
 }
 
 bool SrsHttpServeMux::can_serve(ISrsHttpMessage* r)

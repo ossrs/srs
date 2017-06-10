@@ -363,7 +363,6 @@ string srs_getenv(const char* name)
 
 srs_error_t run(SrsServer* svr)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     /**
@@ -418,44 +417,43 @@ srs_error_t run(SrsServer* svr)
         return srs_error_wrap(err, "daemon run master");
     }
     
-    return srs_success;
+    return err;
 }
 
 srs_error_t run_master(SrsServer* svr)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((err = svr->initialize_st()) != srs_success) {
         return srs_error_wrap(err, "initialize st");
     }
     
-    if ((ret = svr->initialize_signal()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "initialize signal");
+    if ((err = svr->initialize_signal()) != srs_success) {
+        return srs_error_wrap(err, "initialize signal");
     }
     
-    if ((ret = svr->acquire_pid_file()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "acquire pid file");
+    if ((err = svr->acquire_pid_file()) != srs_success) {
+        return srs_error_wrap(err, "acquire pid file");
     }
     
-    if ((ret = svr->listen()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "listen");
+    if ((err = svr->listen()) != ERROR_SUCCESS) {
+        return srs_error_wrap(err, "listen");
     }
     
-    if ((ret = svr->register_signal()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "register signal");
+    if ((err = svr->register_signal()) != srs_success) {
+        return srs_error_wrap(err, "register signal");
     }
     
-    if ((ret = svr->http_handle()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http handle");
+    if ((err = svr->http_handle()) != srs_success) {
+        return srs_error_wrap(err, "http handle");
     }
     
-    if ((ret = svr->ingest()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ingest");
+    if ((err = svr->ingest()) != srs_success) {
+        return srs_error_wrap(err, "ingest");
     }
     
-    if ((ret = svr->cycle()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "main cycle");
+    if ((err = svr->cycle()) != srs_success) {
+        return srs_error_wrap(err, "main cycle");
     }
     
     return err;

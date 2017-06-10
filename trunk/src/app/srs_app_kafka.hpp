@@ -152,7 +152,7 @@ public:
 // @global kafka event producer.
 extern ISrsKafkaCluster* _srs_kafka;
 // kafka initialize and disposer for global object.
-extern int srs_initialize_kafka();
+extern srs_error_t srs_initialize_kafka();
 extern void srs_dispose_kafka();
 
 /**
@@ -178,7 +178,7 @@ public:
     SrsKafkaProducer();
     virtual ~SrsKafkaProducer();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
     virtual int start();
     virtual void stop();
 // internal: for worker to call task to send object.

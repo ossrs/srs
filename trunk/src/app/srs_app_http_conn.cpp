@@ -267,12 +267,11 @@ SrsHttpServer::~SrsHttpServer()
 
 srs_error_t SrsHttpServer::initialize()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
-    if ((ret = http_static->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "handle versin");
+    if ((err = http_static->mux.handle("/api/v1/versions", new SrsGoApiVersion())) != srs_success) {
+        return srs_error_wrap(err, "handle versin");
     }
     
     if ((err = http_stream->initialize()) != srs_success) {

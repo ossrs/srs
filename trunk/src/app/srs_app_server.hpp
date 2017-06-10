@@ -194,7 +194,7 @@ public:
     SrsSignalManager(SrsServer* s);
     virtual ~SrsSignalManager();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
     virtual int start();
 // interface ISrsEndlessThreadHandler.
 public:
@@ -303,13 +303,13 @@ public:
      */
     virtual srs_error_t initialize(ISrsServerCycle* cycle_handler);
     virtual srs_error_t initialize_st();
-    virtual int initialize_signal();
-    virtual int acquire_pid_file();
-    virtual int listen();
-    virtual int register_signal();
-    virtual int http_handle();
-    virtual int ingest();
-    virtual int cycle();
+    virtual srs_error_t initialize_signal();
+    virtual srs_error_t acquire_pid_file();
+    virtual srs_error_t listen();
+    virtual srs_error_t register_signal();
+    virtual srs_error_t http_handle();
+    virtual srs_error_t ingest();
+    virtual srs_error_t cycle();
     // server utilities.
 public:
     /**
@@ -333,14 +333,14 @@ private:
      * update the global static data, for instance, the current time,
      * the cpu/mem/network statistic.
      */
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
     /**
      * listen at specified protocol.
      */
-    virtual int listen_rtmp();
-    virtual int listen_http_api();
-    virtual int listen_http_stream();
-    virtual int listen_stream_caster();
+    virtual srs_error_t listen_rtmp();
+    virtual srs_error_t listen_http_api();
+    virtual srs_error_t listen_http_stream();
+    virtual srs_error_t listen_stream_caster();
     /**
      * close the listeners for specified type,
      * remove the listen object from manager.

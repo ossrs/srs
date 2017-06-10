@@ -330,24 +330,23 @@ ISrsKafkaCluster::~ISrsKafkaCluster()
 // @global kafka event producer, user must use srs_initialize_kafka to initialize it.
 ISrsKafkaCluster* _srs_kafka = NULL;
 
-int srs_initialize_kafka()
+srs_error_t srs_initialize_kafka()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsKafkaProducer* kafka = new SrsKafkaProducer();
     _srs_kafka = kafka;
     
-    if ((ret = kafka->initialize()) != ERROR_SUCCESS) {
-        srs_error("initialize the kafka producer failed. ret=%d", ret);
-        return ret;
+    if ((err = kafka->initialize()) != srs_success) {
+        return srs_error_wrap(err, "initialize kafka producer");
     }
     
     if ((ret = kafka->start()) != ERROR_SUCCESS) {
-        srs_error("start kafka failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "start kafka producer");
     }
     
-    return ret;
+    return err;
 }
 
 void srs_dispose_kafka()
@@ -390,14 +389,11 @@ SrsKafkaProducer::~SrsKafkaProducer()
     srs_cond_destroy(metadata_expired);
 }
 
-int SrsKafkaProducer::initialize()
+srs_error_t SrsKafkaProducer::initialize()
 {
-    int ret = ERROR_SUCCESS;
-    
     enabled = _srs_config->get_kafka_enabled();
     srs_info("initialize kafka ok, enabled=%d.", enabled);
-    
-    return ret;
+    return srs_success;
 }
 
 int SrsKafkaProducer::start()

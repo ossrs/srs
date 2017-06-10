@@ -40,7 +40,7 @@ typedef uint64_t srs_utime_t;
 #define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
 
 // initialize st, requires epoll.
-extern int srs_st_init();
+extern srs_error_t srs_st_init();
 
 // close the netfd, and close the underlayer fd.
 // @remark when close, user must ensure io completed.

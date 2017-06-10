@@ -48,7 +48,7 @@ using namespace std;
 #include <srs_service_utility.hpp>
 
 // pre-declare
-int proxy_hls2rtmp(std::string hls, std::string rtmp);
+srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
@@ -110,7 +110,11 @@ int main(int argc, char** argv)
     srs_trace("input:  %s", in_hls_url.c_str());
     srs_trace("output: %s", out_rtmp_url.c_str());
     
-    return proxy_hls2rtmp(in_hls_url, out_rtmp_url);
+    srs_error_t err = proxy_hls2rtmp(in_hls_url, out_rtmp_url);
+    
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 class ISrsAacHandler
@@ -1283,34 +1287,31 @@ public:
     }
 };
 
-int proxy_hls2rtmp(string hls, string rtmp)
+srs_error_t proxy_hls2rtmp(string hls, string rtmp)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // init st.
-    if ((ret = srs_st_init()) != ERROR_SUCCESS) {
-        srs_error("init st failed. ret=%d", ret);
-        return ret;
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "initialize st");
     }
     
     SrsHttpUri hls_uri, rtmp_uri;
     if ((ret = hls_uri.initialize(hls)) != ERROR_SUCCESS) {
-        srs_error("hls uri invalid. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "hls parse uri=%s", hls.c_str());
     }
     if ((ret = rtmp_uri.initialize(rtmp)) != ERROR_SUCCESS) {
-        srs_error("rtmp uri invalid. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "rtmp parse uri=%s", rtmp.c_str());
     }
     
     SrsIngestHlsContext context(&hls_uri, &rtmp_uri);
     for (;;) {
         if ((ret = context.proxy()) != ERROR_SUCCESS) {
-            srs_error("proxy hls to rtmp failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "proxy hls to rtmp");
         }
     }
     
-    return ret;
+    return err;
 }
 
