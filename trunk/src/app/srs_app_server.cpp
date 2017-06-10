@@ -483,7 +483,7 @@ SrsServer::SrsServer()
     signal_gracefully_quit = false;
     pid_fd = -1;
     
-    signal_manager = NULL;
+    signal_manager = new SrsSignalManager(this);
     conn_manager = new SrsCoroutineManager();
     
     handler = NULL;
@@ -494,10 +494,10 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
-    http_heartbeat = NULL;
+    http_heartbeat = new SrsHttpHeartbeat();
     
 #ifdef SRS_AUTO_INGEST
-    ingester = NULL;
+    ingester = new SrsIngester();
 #endif
 }
 
@@ -570,9 +570,6 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
     
-    srs_assert(!signal_manager);
-    signal_manager = new SrsSignalManager(this);
-    
     handler = cycle_handler;
     if(handler && (err = handler->initialize()) != srs_success){
         return srs_error_wrap(err, "handler initialize");
@@ -585,13 +582,6 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
     if ((err = http_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "http server initialize");
     }
-    
-    http_heartbeat = new SrsHttpHeartbeat();
-    
-#ifdef SRS_AUTO_INGEST
-    srs_assert(!ingester);
-    ingester = new SrsIngester();
-#endif
     
     return err;
 }

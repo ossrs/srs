@@ -179,6 +179,7 @@ Please select your language:
 - [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [Experimental] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
 - [x] [Experimental] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
+- [ ] Enhanced error code with description and stack, read [#913][bug #913].
 - [ ] Enhanced forward with vhost and url variables.
 - [ ] Support source or idle stream cleanup.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
@@ -1426,6 +1427,7 @@ Winlin
 [bug #547]: https://github.com/ossrs/srs/issues/547
 [bug #904]: https://github.com/ossrs/srs/issues/904
 [bug #821]: https://github.com/ossrs/srs/issues/821
+[bug #913]: https://github.com/ossrs/srs/issues/913
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
