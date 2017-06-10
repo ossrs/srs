@@ -42,7 +42,7 @@ which are distributed using their own licenses, please read [License Mixing][Lic
 ## About
 
 SRS(Simple RTMP Server) is created in 2013.10.
-SRS supports many protocols includes RTMP, HLS, HTTP-FLV and HDS.
+SRS supports many protocols includes RTMP, HLS, HTTP-FLV, HDS and MPEG-DASH.
 SRS can run on both LINUX and OSX, and X86, X64, ARM and MIPS cpu.
 Vhost is used as service unit for live cluster, which delivery stream by origin and edge.
 The stream on origin can be transcoded, DVR to VOD file, ingest from external sources, or forwarded to other servers.
@@ -57,13 +57,13 @@ Why SRS?
 1. <strong>Variety inputs:</strong> RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
 1. <strong>Popular internet delivery:</strong> RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
-flv/ts/mp3/aac streaming for user prefered.
+flv/ts/mp3/aac streaming for user prefered, and MPEG-DASH.
 1. <strong>Enhanced DVR:</strong> Segment/session/append plan, customer path and HTTP callback, to FLV/MP4 file.
 1. <strong>Multiple features:</strong> Transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http raw api, refer, log, bandwith test and srs-librtmp.
 1. <strong>Best maintainess:</strong> Simple arch over state-threads(coroutine), single thread, single process 
 and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
-follows RTMP/HLS/RTSP spec.
+follows RTMP/HLS/DASH/RTSP spec.
 1. <strong>Easy to use:</strong> Both English and Chinese wiki, typically config files in trunk/conf, traceable 
 and session based log, linux service script and install script.
 1. <strong>MIT license:</strong> Open source with product management and evolution.
@@ -170,6 +170,7 @@ Please select your language:
 - [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] Support http api/stream CORS for js.
 - [x] Support valgrind and latest ARM by patch ST.
+- [x] Enhanced HLS audio-only use ts, see [#547][bug #547].
 - [x] [Experimental] Support big-data with Kafka, please read [#467][bug #467].
 - [x] [Experimental] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
 - [x] [Experimental] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
@@ -177,7 +178,6 @@ Please select your language:
 - [x] [Experimental] Support push POST FLV over HTTP, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [Experimental] Support [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [x] Enhanced HLS audio-only use ts, see [#547][bug #547].
 - [x] [Experimental] Support MPEG-DASH, the future streaming protocol, read [#299][bug #299].
 - [ ] Enhanced forward with vhost and url variables.
 - [ ] Support source or idle stream cleanup.
@@ -667,9 +667,10 @@ Compare SRS with other media server, more compare please read Product([CN][v1_CN
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
 |   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
-|   HDS         | Experiment|   X       |   X       |   Stable  |   Stable  |
 |   HTTP FLV    |   Stable  |   X       |   X       |   X       |   X       |
 |   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
+|   HDS         | Experiment|   X       |   X       |   Stable  |   Stable  |
+|   MPEG-DASH   | Experiment|   X       |   X       |   X       |   X       |
 |   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
 
 #### Cluster
@@ -862,8 +863,8 @@ SRS always use the most simple architecture to support complex transaction.
 |                    Application                       |
 |            Origin/Edge/HTTP-FLV/StreamCaster         |
 +---------------+---------------+-----------+----------+
-|   RAW API/    |     EXEC/     |    DVR/   | FLV/TS/  |
-|   API/hook    |   Transcoder  |  HLS/HDS  | AMF0/JSON|
+|   RAW API/    |     EXEC/     |  DVR/HLS  | FLV/TS/  |
+|   API/hook    |   Transcoder  |  HDS/DASH | AMF0/JSON|
 +---------------+---------------+-----------+ RTMP/RTSP|
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
 +---------------+---------------+-----------+----------+
@@ -904,6 +905,7 @@ Remark:
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
 +----------------------+-------------------------+----------------+
+|                      |   +-> DASH -------------+-> DASH player  |
 |    Encoder(1)        |   +-> RTMP/HDS  --------+-> Flash player |
 |  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3U8 player  |
 |  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
