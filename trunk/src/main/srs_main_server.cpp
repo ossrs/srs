@@ -51,7 +51,7 @@ using namespace std;
 
 // pre-declare
 srs_error_t run(SrsServer* svr);
-int run_master(SrsServer* svr);
+srs_error_t run_master(SrsServer* svr);
 void show_macro_features();
 string srs_getenv(const char* name);
 
@@ -342,7 +342,7 @@ void show_macro_features()
     
 #if VERSION_MAJOR > VERSION_STABLE
 #warning "Current branch is unstable."
-    srs_warn("Develop is unstable, please use branch: git checkout %s", VERSION_STABLE_BRANCH);
+    srs_warn("Develop is unstable, please use branch: git checkout -b %s origin/%s", VERSION_STABLE_BRANCH, VERSION_STABLE_BRANCH);
 #endif
     
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
@@ -377,8 +377,8 @@ srs_error_t run(SrsServer* svr)
     
     // if not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
-        if ((ret = run_master(svr)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "run master");
+        if ((err = run_master(svr)) != srs_success) {
+            return srs_error_wrap(err, "run master");
         }
         return srs_success;
     }
@@ -414,49 +414,50 @@ srs_error_t run(SrsServer* svr)
     // son
     srs_trace("son(deamon) process running.");
     
-    if ((ret = run_master(svr)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "daemon run master");
+    if ((err = run_master(svr)) != srs_success) {
+        return srs_error_wrap(err, "daemon run master");
     }
     
     return srs_success;
 }
 
-int run_master(SrsServer* svr)
+srs_error_t run_master(SrsServer* svr)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = svr->initialize_st()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = svr->initialize_st()) != srs_success) {
+        return srs_error_wrap(err, "initialize st");
     }
     
     if ((ret = svr->initialize_signal()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "initialize signal");
     }
     
     if ((ret = svr->acquire_pid_file()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "acquire pid file");
     }
     
     if ((ret = svr->listen()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "listen");
     }
     
     if ((ret = svr->register_signal()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "register signal");
     }
     
     if ((ret = svr->http_handle()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http handle");
     }
     
     if ((ret = svr->ingest()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ingest");
     }
     
     if ((ret = svr->cycle()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "main cycle");
     }
     
-    return 0;
+    return err;
 }
 

@@ -302,7 +302,7 @@ public:
      * @remark user must free the cycle handler.
      */
     virtual srs_error_t initialize(ISrsServerCycle* cycle_handler);
-    virtual int initialize_st();
+    virtual srs_error_t initialize_st();
     virtual int initialize_signal();
     virtual int acquire_pid_file();
     virtual int listen();

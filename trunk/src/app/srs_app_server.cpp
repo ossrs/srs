@@ -586,14 +586,14 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
     return err;
 }
 
-int SrsServer::initialize_st()
+srs_error_t SrsServer::initialize_st()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // init st
     if ((ret = srs_st_init()) != ERROR_SUCCESS) {
-        srs_error("init st failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "initialize st failed");
     }
     
     // @remark, st alloc segment use mmap, which only support 32757 threads,
@@ -601,11 +601,11 @@ int SrsServer::initialize_st()
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
 #define __MMAP_MAX_CONNECTIONS 32756
     if (_srs_config->get_max_connections() > __MMAP_MAX_CONNECTIONS) {
-        ret = ERROR_ST_EXCEED_THREADS;
         srs_error("st mmap for stack allocation must <= %d threads, "
                   "@see Makefile of st for MALLOC_STACK, please build st manually by "
-                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", __MMAP_MAX_CONNECTIONS, ret);
-        return ret;
+                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\"", __MMAP_MAX_CONNECTIONS);
+        return srs_error_new(ERROR_ST_EXCEED_THREADS, "%d exceed max %d threads",
+            _srs_config->get_max_connections(), __MMAP_MAX_CONNECTIONS);
     }
     
     // set current log id.
@@ -614,22 +614,20 @@ int SrsServer::initialize_st()
     // initialize the conponents that depends on st.
 #ifdef SRS_AUTO_KAFKA
     if ((ret = srs_initialize_kafka()) != ERROR_SUCCESS) {
-        srs_error("initialize kafka failed, ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "initialize kafka");
     }
 #endif
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
     if (asprocess && ppid == 1) {
-        ret = ERROR_SYSTEM_ASSERT_FAILED;
-        srs_error("for asprocess, ppid should never be init(1), ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid);
     }
-    srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
-              _srs_context->get_id(), ::getpid(), ppid, asprocess);
     
-    return ret;
+    srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
+        _srs_context->get_id(), ::getpid(), ppid, asprocess);
+    
+    return err;
 }
 
 int SrsServer::initialize_signal()
