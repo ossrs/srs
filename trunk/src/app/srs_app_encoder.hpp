@@ -58,9 +58,9 @@ public:
     virtual void on_unpublish();
 // interface ISrsReusableThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 private:
     virtual void clear_engines();
     virtual SrsFFMPEG* at(int index);

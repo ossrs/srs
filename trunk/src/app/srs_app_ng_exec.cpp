@@ -53,6 +53,7 @@ SrsNgExec::~SrsNgExec()
 int SrsNgExec::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when publish, parse the exec_publish.
     if ((ret = parse_exec_publish(req)) != ERROR_SUCCESS) {
@@ -62,7 +63,11 @@ int SrsNgExec::on_publish(SrsRequest* req)
     // start thread to run all processes.
     srs_freep(trd);
     trd = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
@@ -78,18 +83,22 @@ void SrsNgExec::on_unpublish()
 
 // when error, ng-exec sleep for a while and retry.
 #define SRS_RTMP_EXEC_CIMS (3000)
-int SrsNgExec::cycle()
+srs_error_t SrsNgExec::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
-        if ((ret = do_cycle()) != ERROR_SUCCESS) {
-            srs_warn("EXEC: Ignore error, ret=%d", ret);
+    while (true) {
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("EXEC: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         
-        if (!trd->pull()) {
-            srs_usleep(SRS_RTMP_EXEC_CIMS * 1000);
+        if ((err = trd->pull()) != srs_success) {
+            err = srs_error_wrap(err, "ng exec cycle");
+            break;
         }
+    
+        srs_usleep(SRS_RTMP_EXEC_CIMS * 1000);
     }
     
     std::vector<SrsProcess*>::iterator it;
@@ -98,16 +107,17 @@ int SrsNgExec::cycle()
         ep->stop();
     }
     
-    return ret;
+    return err;
 }
 
-int SrsNgExec::do_cycle()
+srs_error_t SrsNgExec::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when no exec.
     if (exec_publishs.empty()) {
-        return ret;
+        return err;
     }
     
     std::vector<SrsProcess*>::iterator it;
@@ -116,21 +126,19 @@ int SrsNgExec::do_cycle()
         
         // start all processes.
         if ((ret = process->start()) != ERROR_SUCCESS) {
-            srs_error("exec publish start failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "process start");
         }
         
         // check process status.
         if ((ret = process->cycle()) != ERROR_SUCCESS) {
-            srs_error("exec publish cycle failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "process cycle");
         }
     }
     
     // pithy print
     show_exec_log_message();
     
-    return ret;
+    return err;
 }
 
 int SrsNgExec::parse_exec_publish(SrsRequest* req)

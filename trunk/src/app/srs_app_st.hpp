@@ -38,7 +38,7 @@
  * Thread do a job then terminated normally, it's a SrsOneCycleThread:
  *      class SrsOneCycleThread : public ISrsCoroutineHandler {
  *          public: SrsCoroutine trd;
- *          public: virtual int cycle() {
+ *          public: virtual srs_error_t cycle() {
  *              // Do something, then return this cycle and thread terminated normally.
  *          }
  *      };
@@ -46,7 +46,7 @@
  * Thread has its inside loop, such as the RTMP receive thread:
  *      class SrsReceiveThread : public ISrsCoroutineHandler {
  *          public: SrsCoroutine trd;
- *          public: virtual int cycle() {
+ *          public: virtual srs_error_t cycle() {
  *              while (!trd.pull()) { // Check whether thread interrupted.
  *                  // Do something, such as st_read() packets, it'll be wakeup
  *                  // when user stop or interrupt the thread.
@@ -64,7 +64,7 @@ public:
      * Do the work. The ST-coroutine will terminated normally if it returned.
      * @remark If the cycle has its own loop, it must check the thread pull.
      */
-    virtual int cycle() = 0;
+    virtual srs_error_t cycle() = 0;
 };
 
 /**
@@ -76,10 +76,10 @@ public:
     SrsCoroutine();
     virtual ~SrsCoroutine();
 public:
-    virtual int start() = 0;
+    virtual srs_error_t start() = 0;
     virtual void stop() = 0;
     virtual void interrupt() = 0;
-    virtual int pull() = 0;
+    virtual srs_error_t pull() = 0;
     virtual int cid() = 0;
 };
 
@@ -93,10 +93,10 @@ public:
     SrsDummyCoroutine();
     virtual ~SrsDummyCoroutine();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
     virtual void interrupt();
-    virtual int pull();
+    virtual srs_error_t pull();
     virtual int cid();
 };
 
@@ -122,7 +122,7 @@ private:
 private:
     srs_thread_t trd;
     int context;
-    int err;
+    srs_error_t trd_err;
 private:
     bool started;
     bool interrupted;
@@ -137,7 +137,7 @@ public:
      * Start the thread.
      * @remark Should never start it when stopped or terminated.
      */
-    virtual int start();
+    virtual srs_error_t start();
     /**
      * Interrupt the thread then wait to terminated.
      * @remark If user want to notify thread to quit async, for example if there are
@@ -158,13 +158,13 @@ public:
      * @remark Return ERROR_THREAD_TERMINATED when thread terminated normally without error.
      * @remark Return ERROR_THREAD_INTERRUPED when thread is interrupted.
      */
-    virtual int pull();
+    virtual srs_error_t pull();
     /**
      * Get the context id of thread.
      */
     virtual int cid();
 private:
-    virtual int cycle();
+    virtual srs_error_t cycle();
     static void* pfn(void* arg);
 };
 

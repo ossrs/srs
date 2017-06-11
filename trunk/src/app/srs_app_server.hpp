@@ -195,10 +195,10 @@ public:
     virtual ~SrsSignalManager();
 public:
     virtual srs_error_t initialize();
-    virtual int start();
+    virtual srs_error_t start();
 // interface ISrsEndlessThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
     // global singleton instance
     static SrsSignalManager* instance;

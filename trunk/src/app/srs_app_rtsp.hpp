@@ -152,15 +152,15 @@ public:
     SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o);
     virtual ~SrsRtspConn();
 public:
-    virtual int serve();
+    virtual srs_error_t serve();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
     // internal methods
 public:
     virtual int on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
 // interface ISrsOneCycleThreadHandler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
     virtual int on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
     virtual int on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);

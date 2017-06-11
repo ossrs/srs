@@ -77,11 +77,11 @@ public:
     virtual int execute(ISrsAsyncCallTask* t);
     virtual int count();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 // interface ISrsReusableThreadHandler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 #endif

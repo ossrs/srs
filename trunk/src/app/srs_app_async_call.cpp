@@ -71,11 +71,18 @@ int SrsAsyncCallWorker::count()
     return (int)tasks.size();
 }
 
-int SrsAsyncCallWorker::start()
+srs_error_t SrsAsyncCallWorker::start()
 {
+    srs_error_t err = srs_success;
+    
     srs_freep(trd);
     trd = new SrsSTCoroutine("async", this, _srs_context->get_id());
-    return trd->start();
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+    
+    return err;
 }
 
 void SrsAsyncCallWorker::stop()
@@ -84,11 +91,15 @@ void SrsAsyncCallWorker::stop()
     trd->stop();
 }
 
-int SrsAsyncCallWorker::cycle()
+srs_error_t SrsAsyncCallWorker::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "async call worker");
+        }
+        
         if (tasks.empty()) {
             srs_cond_wait(wait);
         }
@@ -99,6 +110,8 @@ int SrsAsyncCallWorker::cycle()
         std::vector<ISrsAsyncCallTask*>::iterator it;
         for (it = copy.begin(); it != copy.end(); ++it) {
             ISrsAsyncCallTask* task = *it;
+            
+            int ret = ERROR_SUCCESS;
             if ((ret = task->call()) != ERROR_SUCCESS) {
                 srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);
             }
@@ -106,7 +119,7 @@ int SrsAsyncCallWorker::cycle()
         }
     }
     
-    return ret;
+    return err;
 }
 
 

@@ -47,10 +47,10 @@ public:
     SrsCoroutineManager();
     virtual ~SrsCoroutineManager();
 public:
-    int start();
+    srs_error_t start();
 // ISrsCoroutineHandler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 // IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);

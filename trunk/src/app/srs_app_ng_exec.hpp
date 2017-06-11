@@ -55,9 +55,9 @@ public:
     virtual void on_unpublish();
 // interface ISrsReusableThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 private:
     virtual int parse_exec_publish(SrsRequest* req);
     virtual void clear_exec_publish();

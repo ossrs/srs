@@ -394,8 +394,10 @@ srs_error_t SrsSignalManager::initialize()
     return srs_success;
 }
 
-int SrsSignalManager::start()
+srs_error_t SrsSignalManager::start()
 {
+    srs_error_t err = srs_success;
+    
     /**
      * Note that if multiple processes are used (see below),
      * the signal pipe should be initialized after the fork(2) call
@@ -427,14 +429,22 @@ int SrsSignalManager::start()
     srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
               SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
     
-    return trd->start();
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "signal manager");
+    }
+    
+    return err;
 }
 
-int SrsSignalManager::cycle()
+srs_error_t SrsSignalManager::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "signal manager");
+        }
+        
         int signo;
         
         /* Read the next signal from the pipe */
@@ -444,7 +454,7 @@ int SrsSignalManager::cycle()
         server->on_signal(signo);
     }
     
-    return ret;
+    return err;
 }
 
 void SrsSignalManager::sig_catcher(int signo)
@@ -692,7 +702,6 @@ srs_error_t SrsServer::acquire_pid_file()
 
 srs_error_t SrsServer::listen()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((err = listen_rtmp()) != srs_success) {
@@ -711,8 +720,8 @@ srs_error_t SrsServer::listen()
         return srs_error_wrap(err, "stream caster listen");
     }
     
-    if ((ret = conn_manager->start()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "connection manager");
+    if ((err = conn_manager->start()) != srs_success) {
+        return srs_error_wrap(err, "connection manager");
     }
     
     return err;
@@ -720,12 +729,13 @@ srs_error_t SrsServer::listen()
 
 srs_error_t SrsServer::register_signal()
 {
-    // start signal process thread.
-    int ret = signal_manager->start();
-    if (ret != ERROR_SUCCESS) {
-        return srs_error_new(ret, "signal manager start");
+    srs_error_t err = srs_success;
+    
+    if ((err = signal_manager->start()) != srs_success) {
+        return srs_error_wrap(err, "signal manager start");
     }
-    return srs_success;
+    
+    return err;
 }
 
 srs_error_t SrsServer::http_handle()
@@ -808,15 +818,15 @@ srs_error_t SrsServer::http_handle()
 
 srs_error_t SrsServer::ingest()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
 #ifdef SRS_AUTO_INGEST
-    if ((ret = ingester->start()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ingest start");
+    if ((err = ingester->start()) != srs_success) {
+        return srs_error_wrap(err, "ingest start");
     }
 #endif
     
-    return srs_success;
+    return err;
 }
 
 srs_error_t SrsServer::cycle()
@@ -1191,6 +1201,7 @@ void SrsServer::resample_kbps()
 int SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConnection* conn = fd2conn(type, stfd);
     if (conn == NULL) {
@@ -1205,7 +1216,11 @@ int SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     
     // cycle will start process thread and when finished remove the client.
     // @remark never use the conn, for it maybe destroyed.
-    if ((ret = conn->start()) != ERROR_SUCCESS) {
+    if ((err = conn->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         return ret;
     }
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);

@@ -656,6 +656,7 @@ int SrsRtmpConn::check_vhost(bool try_default_vhost)
 int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // create consumer of souce.
     SrsConsumer* consumer = NULL;
@@ -671,7 +672,11 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
     
     // start isolate recv thread.
-    if ((ret = trd.start()) != ERROR_SUCCESS) {
+    if ((err = trd.start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
     }
@@ -919,13 +924,18 @@ int SrsRtmpConn::publishing(SrsSource* source)
 int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* rtrd)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // start isolate recv thread.
-    if ((ret = rtrd->start()) != ERROR_SUCCESS) {
+    if ((err = rtrd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
     }

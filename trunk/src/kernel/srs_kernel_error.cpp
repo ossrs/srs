@@ -41,8 +41,7 @@ bool srs_is_client_gracefully_close(int error_code)
 {
     return error_code == ERROR_SOCKET_READ
         || error_code == ERROR_SOCKET_READ_FULLY
-        || error_code == ERROR_SOCKET_WRITE
-        || error_code == ERROR_SOCKET_TIMEOUT;
+        || error_code == ERROR_SOCKET_WRITE;
 }
 
 SrsError::SrsError()
@@ -135,6 +134,27 @@ SrsError* SrsError::wrap(const char* func, const char* file, int line, SrsError*
 
 SrsError* SrsError::success() {
     return NULL;
+}
+
+SrsError* SrsError::copy(SrsError* from)
+{
+    if (from == srs_success) {
+        return srs_success;
+    }
+    
+    SrsError* err = new SrsError();
+    
+    err->code = from->code;
+    err->wrapped = srs_error_copy(from->wrapped);
+    err->msg = from->msg;
+    err->func = from->func;
+    err->file = from->file;
+    err->line = from->line;
+    err->cid = from->cid;
+    err->rerrno = from->rerrno;
+    err->desc = from->desc;
+    
+    return err;
 }
 
 string SrsError::description(SrsError* err)

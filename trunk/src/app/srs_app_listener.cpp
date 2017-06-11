@@ -42,7 +42,7 @@ using namespace std;
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
 // sleep in ms for udp recv packet.
-#define SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS 0
+#define SrsUdpPacketRecvCycleMS 0
 
 // nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512
@@ -110,6 +110,7 @@ srs_netfd_t SrsUdpListener::stfd()
 int SrsUdpListener::listen()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
@@ -141,7 +142,11 @@ int SrsUdpListener::listen()
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this);
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
@@ -150,9 +155,10 @@ int SrsUdpListener::listen()
     return ret;
 }
 
-int SrsUdpListener::cycle()
+srs_error_t SrsUdpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     while (!trd->pull()) {
         // TODO: FIXME: support ipv6, @see man 7 ipv6
@@ -161,21 +167,19 @@ int SrsUdpListener::cycle()
         int nread = 0;
         
         if ((nread = srs_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
-            srs_warn("ignore recv udp packet failed, nread=%d", nread);
-            return ret;
+            return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
         }
         
         if ((ret = handler->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
-            srs_warn("handle udp packet failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "handle packet %d bytes", nread);
         }
         
-        if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
-            srs_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
+        if (SrsUdpPacketRecvCycleMS > 0) {
+            srs_usleep(SrsUdpPacketRecvCycleMS * 1000);
         }
     }
     
-    return ret;
+    return err;
 }
 
 SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
@@ -205,6 +209,7 @@ int SrsTcpListener::fd()
 int SrsTcpListener::listen()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
@@ -243,7 +248,11 @@ int SrsTcpListener::listen()
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("tcp", this);
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
@@ -252,9 +261,10 @@ int SrsTcpListener::listen()
     return ret;
 }
 
-int SrsTcpListener::cycle()
+srs_error_t SrsTcpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     while (!trd->pull()) {
         srs_netfd_t stfd = srs_accept(_stfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
@@ -263,20 +273,15 @@ int SrsTcpListener::cycle()
         srs_fd_close_exec(fd);
         
         if(stfd == NULL){
-            // ignore error.
-            if (errno != EINTR) {
-                srs_error("ignore accept thread stoppped for accept client error");
-            }
-            return ret;
+            return err;
         }
         srs_verbose("get a client. fd=%d", fd);
         
         if ((ret = handler->on_tcp_client(stfd)) != ERROR_SUCCESS) {
-            srs_warn("accept client error. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "handle fd=%d", fd);
         }
     }
     
-    return ret;
+    return err;
 }
 

@@ -43,19 +43,31 @@ SrsCoroutineManager::~SrsCoroutineManager()
     clear();
 }
 
-int SrsCoroutineManager::start()
+srs_error_t SrsCoroutineManager::start()
 {
-    return trd->start();
+    srs_error_t err = srs_success;
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine manager");
+    }
+    
+    return err;
 }
 
-int SrsCoroutineManager::cycle()
+srs_error_t SrsCoroutineManager::cycle()
 {
-    while (!trd->pull()) {
+    srs_error_t err = srs_success;
+    
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "coroutine mansger");
+        }
+        
         srs_cond_wait(cond);
         clear();
     }
     
-    return ERROR_SUCCESS;
+    return err;
 }
 
 void SrsCoroutineManager::remove(ISrsConnection* c)

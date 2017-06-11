@@ -101,7 +101,7 @@ public:
     virtual int listen();
 // interface ISrsReusableThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 /**
@@ -126,7 +126,7 @@ public:
     virtual int listen();
 // interface ISrsReusableThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 #endif

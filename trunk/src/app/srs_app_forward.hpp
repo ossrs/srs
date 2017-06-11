@@ -92,9 +92,9 @@ public:
     virtual int on_video(SrsSharedPtrMessage* shared_video);
 // interface ISrsReusableThread2Handler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 private:
     virtual int forward();
 };

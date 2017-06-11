@@ -56,9 +56,9 @@ SrsDummyCoroutine::~SrsDummyCoroutine()
 {
 }
 
-int SrsDummyCoroutine::start()
+srs_error_t SrsDummyCoroutine::start()
 {
-    return ERROR_THREAD_DUMMY;
+    return srs_error_new(ERROR_THREAD_DUMMY, "dummy coroutine");
 }
 
 void SrsDummyCoroutine::stop()
@@ -69,9 +69,9 @@ void SrsDummyCoroutine::interrupt()
 {
 }
 
-int SrsDummyCoroutine::pull()
+srs_error_t SrsDummyCoroutine::pull()
 {
-    return ERROR_THREAD_DUMMY;
+    return srs_error_new(ERROR_THREAD_DUMMY, "dummy pull");
 }
 
 int SrsDummyCoroutine::cid()
@@ -85,35 +85,44 @@ SrsSTCoroutine::SrsSTCoroutine(const string& n, ISrsCoroutineHandler* h, int cid
     handler = h;
     context = cid;
     trd = NULL;
-    err = ERROR_SUCCESS;
+    trd_err = srs_success;
     started = interrupted = disposed = false;
 }
 
 SrsSTCoroutine::~SrsSTCoroutine()
 {
     stop();
+    
+    srs_freep(trd_err);
 }
 
-int SrsSTCoroutine::start()
+srs_error_t SrsSTCoroutine::start()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (started || disposed) {
-        ret = ERROR_THREAD_DISPOSED;
-        err = (err == ERROR_SUCCESS? ret:err);
-        srs_error("Thread.start: Failed, started=%d, disposed=%d, ret=%d", started, disposed, ret);
-        return ret;
+        err = srs_error_new(ERROR_THREAD_DISPOSED,
+            "failed for disposed=%d, started=%d", disposed, started);
+        
+        if (trd_err == srs_success) {
+            trd_err = srs_error_copy(err);
+        }
+        
+        return err;
     }
     
     if((trd = (srs_thread_t)st_thread_create(pfn, this, 1, 0)) == NULL){
-        ret = ERROR_ST_CREATE_CYCLE_THREAD;
-        srs_error("Thread.start: Create thread failed. ret=%d", ret);
-        return ret;
+        err = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create failed");
+        
+        srs_freep(trd_err);
+        trd_err = srs_error_copy(err);
+        
+        return err;
     }
     
     started = true;
 
-    return ret;
+    return err;
 }
 
 void SrsSTCoroutine::stop()
@@ -126,15 +135,19 @@ void SrsSTCoroutine::stop()
     interrupt();
     
     void* res = NULL;
-    int ret = st_thread_join((st_thread_t)trd, &res);
-    srs_info("Thread.stop: Terminated, ret=%d, err=%d", ret, err);
-    srs_assert(!ret);
+    int r0 = st_thread_join((st_thread_t)trd, &res);
+    srs_assert(!r0);
     
-    // Always override the error by the worker.
-    if (!res) {
-        err = (int)(uint64_t)res;
-    } else {
-        err = ERROR_THREAD_TERMINATED;
+    // Always override the error by the error from worker.
+    if ((srs_error_t)res != srs_success) {
+        srs_freep(trd_err);
+        trd_err = (srs_error_t)res;
+        return;
+    }
+    
+    // If there's no error occur from worker, try to set to interrupted error.
+    if (trd_err == srs_success) {
+        trd_err = srs_error_new(ERROR_THREAD_TERMINATED, "terminated");
     }
     
     return;
@@ -147,14 +160,16 @@ void SrsSTCoroutine::interrupt()
     }
     interrupted = true;
     
-    srs_info("Thread.interrupt: Interrupt thread, err=%d", err);
-    err = (err == ERROR_SUCCESS? ERROR_THREAD_INTERRUPED:err);
+    if (trd_err == srs_success) {
+        trd_err = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+    }
+    
     st_thread_interrupt((st_thread_t)trd);
 }
 
-int SrsSTCoroutine::pull()
+srs_error_t SrsSTCoroutine::pull()
 {
-    return err;
+    return srs_error_copy(trd_err);
 }
 
 int SrsSTCoroutine::cid()
@@ -162,7 +177,7 @@ int SrsSTCoroutine::cid()
     return context;
 }
 
-int SrsSTCoroutine::cycle()
+srs_error_t SrsSTCoroutine::cycle()
 {
     if (_srs_context) {
         if (context) {
@@ -171,17 +186,19 @@ int SrsSTCoroutine::cycle()
             context = _srs_context->generate_id();
         }
     }
-    srs_info("Thread.cycle: Start with cid=%d, err=%d", context, err);
     
-    int ret = handler->cycle();
-    srs_info("Thread.cycle: Finished with ret=%d, err=%d", ret, err);
-    return ret;
+    srs_error_t err = handler->cycle();
+    if (err != srs_success) {
+        return srs_error_wrap(err, "coroutine cycle");
+    }
+    
+    return err;
 }
 
 void* SrsSTCoroutine::pfn(void* arg)
 {
     SrsSTCoroutine* p = (SrsSTCoroutine*)arg;
-    void*res = (void*)(uint64_t)p->cycle();
+    void* res = (void*)p->cycle();
     return res;
 }
 

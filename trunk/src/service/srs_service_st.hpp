@@ -85,6 +85,27 @@ extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addr
 extern ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout);
 
 /**
+ * The mutex locker.
+ */
+#define SrsLocker(instance) \
+    impl__SrsLocker _srs_auto_free_##instance(&instance)
+
+class impl__SrsLocker
+{
+private:
+    srs_mutex_t* lock;
+public:
+    impl__SrsLocker(srs_mutex_t* l) : lock(l) {
+        int r0 = srs_mutex_lock(lock);
+        srs_assert(!r0);
+    }
+    virtual ~impl__SrsLocker() {
+        int r0 = srs_mutex_unlock(lock);
+        srs_assert(!r0);
+    }
+};
+
+/**
  * the socket provides TCP socket over st,
  * that is, the sync socket mechanism.
  */

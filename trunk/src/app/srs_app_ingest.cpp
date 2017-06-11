@@ -126,14 +126,14 @@ void SrsIngester::dispose()
     stop();
 }
 
-int SrsIngester::start()
+srs_error_t SrsIngester::start()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = parse()) != ERROR_SUCCESS) {
         clear_engines();
-        ret = ERROR_SUCCESS;
-        return ret;
+        return srs_error_new(ret, "parse");
     }
     
     // even no ingesters, we must also start it,
@@ -142,12 +142,12 @@ int SrsIngester::start()
     // start thread to run all encoding engines.
     srs_freep(trd);
     trd = new SrsSTCoroutine("ingest", this, _srs_context->get_id());
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
-        srs_error("st_thread_create failed. ret=%d", ret);
-        return ret;
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "start coroutine");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsIngester::stop()
@@ -173,26 +173,30 @@ void SrsIngester::fast_stop()
 // ingest never sleep a long time, for we must start the stream ASAP.
 #define SRS_AUTO_INGESTER_CIMS (3000)
 
-int SrsIngester::cycle()
+srs_error_t SrsIngester::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
-        if ((ret = do_cycle()) != ERROR_SUCCESS) {
-            srs_warn("Ingester: Ignore error, ret=%d", ret);
+    while (true) {
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("Ingester: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         
-        if (!trd->pull()) {
-            srs_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "ingester");
         }
+    
+        srs_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::do_cycle()
+srs_error_t SrsIngester::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when expired, restart all ingesters.
     if (expired) {
@@ -204,7 +208,7 @@ int SrsIngester::do_cycle()
         
         // re-prase the ingesters.
         if ((ret = parse()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "parse");
         }
     }
     
@@ -215,21 +219,19 @@ int SrsIngester::do_cycle()
         
         // start all ffmpegs.
         if ((ret = ingester->start()) != ERROR_SUCCESS) {
-            srs_error("ingest ffmpeg start failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ingester start");
         }
         
         // check ffmpeg status.
         if ((ret = ingester->cycle()) != ERROR_SUCCESS) {
-            srs_error("ingest ffmpeg cycle failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ingester cycle");
         }
     }
     
     // pithy print
     show_ingest_log_message();
     
-    return ret;
+    return err;
 }
 
 void SrsIngester::clear_engines()

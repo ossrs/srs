@@ -130,14 +130,14 @@ public:
     virtual ~SrsEdgeIngester();
 public:
     virtual srs_error_t initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
     virtual std::string get_curr_origin();
 // interface ISrsReusableThread2Handler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 private:
     virtual int ingest();
     virtual int process_publish_message(SrsCommonMessage* msg);
@@ -173,13 +173,13 @@ public:
     virtual void set_queue_size(double queue_size);
 public:
     virtual srs_error_t initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 // interface ISrsReusableThread2Handler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 public:
     virtual int proxy(SrsCommonMessage* msg);
 };

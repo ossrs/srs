@@ -74,11 +74,18 @@ int SrsRecvThread::cid()
     return trd->cid();
 }
 
-int SrsRecvThread::start()
+srs_error_t SrsRecvThread::start()
 {
+    srs_error_t err = srs_success;
+    
     srs_freep(trd);
     trd = new SrsSTCoroutine("recv", this);
-    return trd->start();
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "recv thread");
+    }
+    
+    return err;
 }
 
 void SrsRecvThread::stop()
@@ -91,9 +98,9 @@ void SrsRecvThread::stop_loop()
     trd->interrupt();
 }
 
-int SrsRecvThread::cycle()
+srs_error_t SrsRecvThread::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // the multiple messages writev improve performance large,
     // but the timeout recv will cause 33% sys call performance,
@@ -104,21 +111,28 @@ int SrsRecvThread::cycle()
     
     pumper->on_start();
     
-    ret = do_cycle();
+    if ((err = do_cycle()) != srs_success) {
+        err = srs_error_wrap(err, "recv thread");
+    }
     
     // reset the timeout to pulse mode.
     rtmp->set_recv_timeout(timeout * 1000);
     
     pumper->on_stop();
     
-    return ret;
+    return err;
 }
 
-int SrsRecvThread::do_cycle()
+srs_error_t SrsRecvThread::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "recv thread");
+        }
+        
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
             srs_usleep(timeout * 1000);
@@ -143,12 +157,12 @@ int SrsRecvThread::do_cycle()
             // Notify the pumper to quit for error.
             pumper->interrupt(ret);
             
-            return ret;
+            return srs_error_new(ret, "recv thread");
         }
         srs_verbose("thread loop recv message. ret=%d", ret);
     }
     
-    return ret;
+    return err;
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)
@@ -172,9 +186,15 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
     queue.clear();
 }
 
-int SrsQueueRecvThread::start()
+srs_error_t SrsQueueRecvThread::start()
 {
-    return trd.start();
+    srs_error_t err = srs_success;
+    
+    if ((err = trd.start()) != srs_success) {
+        return srs_error_wrap(err, "queue recv thread");
+    }
+    
+    return err;
 }
 
 void SrsQueueRecvThread::stop()
@@ -327,11 +347,17 @@ int SrsPublishRecvThread::get_cid()
     return ncid;
 }
 
-int SrsPublishRecvThread::start()
+srs_error_t SrsPublishRecvThread::start()
 {
-    int ret = trd.start();
+    srs_error_t err = srs_success;
+    
+    if ((err = trd.start()) != srs_success) {
+        err = srs_error_wrap(err, "publish recv thread");
+    }
+    
     ncid = cid = trd.cid();
-    return ret;
+
+    return err;
 }
 
 void SrsPublishRecvThread::stop()
@@ -543,9 +569,15 @@ SrsHttpRecvThread::~SrsHttpRecvThread()
     srs_freep(trd);
 }
 
-int SrsHttpRecvThread::start()
+srs_error_t SrsHttpRecvThread::start()
 {
-    return trd->start();
+    srs_error_t err = srs_success;
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "http recv thread");
+    }
+    
+    return err;
 }
 
 int SrsHttpRecvThread::error_code()
@@ -553,20 +585,26 @@ int SrsHttpRecvThread::error_code()
     return error;
 }
 
-int SrsHttpRecvThread::cycle()
+srs_error_t SrsHttpRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "http recv thread");
+        }
+        
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
         
         if ((ret = conn->pop_message(&req)) != ERROR_SUCCESS) {
+            err = srs_error_new(ret, "pop message");
             error = ret;
             break;
         }
     }
     
-    return ret;
+    return err;
 }
 

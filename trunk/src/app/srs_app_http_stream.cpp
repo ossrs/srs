@@ -85,9 +85,15 @@ int SrsBufferCache::update(SrsSource* s, SrsRequest* r)
     return ret;
 }
 
-int SrsBufferCache::start()
+srs_error_t SrsBufferCache::start()
 {
-    return trd->start();
+    srs_error_t err = srs_success;
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "corotine");
+    }
+    
+    return err;
 }
 
 int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
@@ -110,22 +116,22 @@ int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jit
     return ret;
 }
 
-int SrsBufferCache::cycle()
+srs_error_t SrsBufferCache::cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // TODO: FIXME: support reload.
     if (fast_cache <= 0) {
         srs_usleep(SRS_STREAM_CACHE_CYCLE_SECONDS * 1000 * 1000);
-        return ret;
+        return err;
     }
     
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
     if ((ret = source->create_consumer(NULL, consumer, false, false, true)) != ERROR_SUCCESS) {
-        srs_error("http: create consumer failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "create consumer");
     }
     SrsAutoFree(SrsConsumer, consumer);
     
@@ -138,15 +144,18 @@ int SrsBufferCache::cycle()
     // TODO: FIXME: support reload.
     queue->set_queue_size(fast_cache);
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "buffer cache");
+        }
+        
         pprint->elapse();
         
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
         if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
-            srs_error("http: get messages from consumer failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "consumer dump packets");
         }
         
         if (count <= 0) {
@@ -170,7 +179,7 @@ int SrsBufferCache::cycle()
         }
     }
     
-    return ret;
+    return err;
 }
 
 ISrsBufferEncoder::ISrsBufferEncoder()
@@ -472,6 +481,7 @@ int SrsLiveStream::update(SrsSource* s, SrsRequest* r)
 int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ISrsBufferEncoder* enc = NULL;
     
@@ -547,7 +557,11 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("http: start notify thread failed, ret=%d", ret);
         return ret;
     }
@@ -778,7 +792,11 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         }
         
         // start http stream cache thread
-        if ((ret = entry->cache->start()) != ERROR_SUCCESS) {
+        if ((err = entry->cache->start()) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
+
             srs_error("http: start stream cache failed. ret=%d", ret);
             return ret;
         }

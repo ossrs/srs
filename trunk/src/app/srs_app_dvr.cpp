@@ -612,7 +612,6 @@ SrsDvrPlan::~SrsDvrPlan()
 
 srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     hub = h;
@@ -623,8 +622,8 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
         return srs_error_wrap(err, "segmenter");
     }
     
-    if ((ret = async->start()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "async");
+    if ((err = async->start()) != srs_success) {
+        return srs_error_wrap(err, "async");
     }
     
     return err;

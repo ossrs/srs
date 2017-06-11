@@ -88,15 +88,15 @@ public:
 public:
     virtual void dispose();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 private:
     virtual void fast_stop();
 // interface ISrsReusableThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 private:
     virtual void clear_engines();
     virtual int parse();

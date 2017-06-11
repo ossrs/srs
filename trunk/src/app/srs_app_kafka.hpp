@@ -179,7 +179,7 @@ public:
     virtual ~SrsKafkaProducer();
 public:
     virtual srs_error_t initialize();
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 // internal: for worker to call task to send object.
 public:
@@ -196,12 +196,10 @@ public:
     virtual int on_close(int key);
 // interface ISrsReusableThreadHandler
 public:
-    virtual int cycle();
-    virtual int on_before_cycle();
-    virtual int on_end_cycle();
+    virtual srs_error_t cycle();
 private:
     virtual void clear_metadata();
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
     virtual int request_metadata();
     // set the metadata to invalid and refresh it.
     virtual void refresh_metadata();

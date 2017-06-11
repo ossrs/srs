@@ -56,6 +56,7 @@ SrsEncoder::~SrsEncoder()
 int SrsEncoder::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // parse the transcode engines for vhost and app and stream.
     ret = parse_scope_engines(req);
@@ -75,8 +76,11 @@ int SrsEncoder::on_publish(SrsRequest* req)
     // start thread to run all encoding engines.
     srs_freep(trd);
     trd = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
-        srs_error("st_thread_create failed. ret=%d", ret);
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         return ret;
     }
     
@@ -92,18 +96,21 @@ void SrsEncoder::on_unpublish()
 // when error, encoder sleep for a while and retry.
 #define SRS_RTMP_ENCODER_CIMS (3000)
 
-int SrsEncoder::cycle()
+srs_error_t SrsEncoder::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
-        if ((ret = do_cycle()) != ERROR_SUCCESS) {
-            srs_warn("Encoder: Ignore error, ret=%d", ret);
+    while (true) {
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         
-        if (!trd->pull()) {
-            srs_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "encoder");
         }
+    
+        srs_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
     }
     
     // kill ffmpeg when finished and it alive
@@ -114,12 +121,13 @@ int SrsEncoder::cycle()
         ffmpeg->stop();
     }
     
-    return ret;
+    return err;
 }
 
-int SrsEncoder::do_cycle()
+srs_error_t SrsEncoder::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::vector<SrsFFMPEG*>::iterator it;
     for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
@@ -127,21 +135,19 @@ int SrsEncoder::do_cycle()
         
         // start all ffmpegs.
         if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
-            srs_error("transcode ffmpeg start failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ffmpeg start");
         }
         
         // check ffmpeg status.
         if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
-            srs_error("transcode ffmpeg cycle failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ffmpeg cycle");
         }
     }
     
     // pithy print
     show_encode_log_message();
     
-    return ret;
+    return err;
 }
 
 void SrsEncoder::clear_engines()

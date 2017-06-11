@@ -93,6 +93,7 @@ void SrsForwarder::set_queue_size(double queue_size)
 int SrsForwarder::on_publish()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // discovery the server port and tcUrl from req and ep_forward.
     std::string server;
@@ -137,8 +138,11 @@ int SrsForwarder::on_publish()
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("forward", this);
-    if ((ret = trd->start()) != ERROR_SUCCESS) {
-        srs_error("start srs thread failed. ret=%d", ret);
+    if ((err = trd->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         return ret;
     }
     
@@ -221,26 +225,30 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_CIMS (3000)
 
-int SrsForwarder::cycle()
+srs_error_t SrsForwarder::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
-        if ((ret = do_cycle()) != ERROR_SUCCESS) {
-            srs_warn("Forwarder: Ignore error, ret=%d", ret);
+    while (true) {
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("Forwarder: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         
-        if (!trd->pull()) {
-            srs_usleep(SRS_FORWARDER_CIMS * 1000);
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "forwarder");
         }
+    
+        srs_usleep(SRS_FORWARDER_CIMS * 1000);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsForwarder::do_cycle()
+srs_error_t SrsForwarder::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::string url;
     if (true) {
@@ -260,24 +268,22 @@ int SrsForwarder::do_cycle()
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_warn("forward failed, url=%s, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
-        return ret;
+        return srs_error_new(ret, "sdk connect url=%s, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
     if ((ret = sdk->publish()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "sdk publish");
     }
     
     if ((ret = hub->on_forwarder_start(this)) != ERROR_SUCCESS) {
-        srs_error("callback the source to feed the sequence header failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "notify hub start");
     }
     
     if ((ret = forward()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "forward");
     }
     
-    return ret;
+    return err;
 }
 
 #define SYS_MAX_FORWARD_SEND_MSGS 128

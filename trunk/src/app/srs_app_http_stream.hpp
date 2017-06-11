@@ -52,11 +52,11 @@ public:
     virtual ~SrsBufferCache();
     virtual int update(SrsSource* s, SrsRequest* r);
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 // interface ISrsEndlessThreadHandler.
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 /**

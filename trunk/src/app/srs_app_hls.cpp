@@ -257,13 +257,13 @@ int SrsHlsMuxer::deviation()
 
 srs_error_t SrsHlsMuxer::initialize()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = async->start()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "async start");
+    if ((err = async->start()) != srs_success) {
+        return srs_error_wrap(err, "async start");
     }
     
-    return srs_success;
+    return err;
 }
 
 int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,

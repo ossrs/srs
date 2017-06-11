@@ -330,6 +330,7 @@
 /**
  * whether the error code is an system control error.
  */
+// TODO: FIXME: Remove it from underlayer for confused with error and logger.
 extern bool srs_is_system_control_error(int error_code);
 extern bool srs_is_client_gracefully_close(int error_code);
 
@@ -359,6 +360,7 @@ public:
     static SrsError* create(const char* func, const char* file, int line, int code, const char* fmt, ...);
     static SrsError* wrap(const char* func, const char* file, int line, SrsError* err, const char* fmt, ...);
     static SrsError* success();
+    static SrsError* copy(SrsError* from);
     static std::string description(SrsError* err);
     static int error_code(SrsError* err);
 };
@@ -367,6 +369,7 @@ public:
 #define srs_success SrsError::success()
 #define srs_error_new(ret, fmt, ...) SrsError::create(__FUNCTION__, __FILE__, __LINE__, ret, fmt, ##__VA_ARGS__)
 #define srs_error_wrap(err, fmt, ...) SrsError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
+#define srs_error_copy(err) SrsError::copy(err)
 #define srs_error_desc(err) SrsError::description(err)
 #define srs_error_code(err) SrsError::error_code(err)
 

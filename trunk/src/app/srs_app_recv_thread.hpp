@@ -106,14 +106,14 @@ public:
 public:
     virtual int cid();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
     virtual void stop_loop();
 // interface ISrsReusableThread2Handler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 private:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 };
 
 /**
@@ -135,7 +135,7 @@ public:
     SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 public:
     virtual bool empty();
@@ -201,7 +201,7 @@ public:
     virtual void set_cid(int v);
     virtual int get_cid();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 // interface ISrsMessagePumper
 public:
@@ -239,12 +239,12 @@ public:
     SrsHttpRecvThread(SrsResponseOnlyHttpConn* c);
     virtual ~SrsHttpRecvThread();
 public:
-    virtual int start();
+    virtual srs_error_t start();
 public:
     virtual int error_code();
 // interface ISrsOneCycleThreadHandler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 #endif

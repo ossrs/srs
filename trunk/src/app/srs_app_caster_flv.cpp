@@ -73,7 +73,11 @@ int SrsAppCasterFlv::initialize()
         return ret;
     }
     
-    if ((ret = manager->start()) != ERROR_SUCCESS) {
+    if ((err = manager->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         return ret;
     }
     
@@ -83,12 +87,17 @@ int SrsAppCasterFlv::initialize()
 int SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
     SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
-    if ((ret = conn->start()) != ERROR_SUCCESS) {
+    if ((err = conn->start()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         return ret;
     }
     

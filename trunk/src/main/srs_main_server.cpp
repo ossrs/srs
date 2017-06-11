@@ -69,7 +69,7 @@ extern const char* _srs_version;
  */
 srs_error_t do_main(int argc, char** argv)
 {
-    srs_error_t err= srs_success;
+    srs_error_t err = srs_success;
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -445,7 +445,7 @@ srs_error_t run_master(SrsServer* svr)
         return srs_error_wrap(err, "acquire pid file");
     }
     
-    if ((err = svr->listen()) != ERROR_SUCCESS) {
+    if ((err = svr->listen()) != srs_success) {
         return srs_error_wrap(err, "listen");
     }
     

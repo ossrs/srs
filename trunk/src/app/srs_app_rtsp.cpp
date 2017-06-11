@@ -230,19 +230,26 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(acache);
 }
 
-int SrsRtspConn::serve()
+srs_error_t SrsRtspConn::serve()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
+    
     if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "socket initialize");
     }
     
-    return trd->start();
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "rtsp connection");
+    }
+    
+    return err;
 }
 
-int SrsRtspConn::do_cycle()
+srs_error_t SrsRtspConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // retrieve ip of client.
     std::string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
@@ -252,10 +259,7 @@ int SrsRtspConn::do_cycle()
     while (!trd->pull()) {
         SrsRtspRequest* req = NULL;
         if ((ret = rtsp->recv_message(&req)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("rtsp: recv request failed. ret=%d", ret);
-            }
-            return ret;
+            return srs_error_new(ret, "recv message");
         }
         SrsAutoFree(SrsRtspRequest, req);
         srs_info("rtsp: got rtsp request");
@@ -264,10 +268,7 @@ int SrsRtspConn::do_cycle()
             SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: send OPTIONS response failed. ret=%d", ret);
-                }
-                return ret;
+                return  srs_error_new(ret, "response option");
             }
         } else if (req->is_announce()) {
             if (rtsp_tcUrl.empty()) {
@@ -298,17 +299,13 @@ int SrsRtspConn::do_cycle()
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: send ANNOUNCE response failed. ret=%d", ret);
-                }
-                return ret;
+                return srs_error_new(ret, "response announce");
             }
         } else if (req->is_setup()) {
             srs_assert(req->transport);
             int lpm = 0;
             if ((ret = caster->alloc_port(&lpm)) != ERROR_SUCCESS) {
-                srs_error("rtsp: alloc port failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ret, "alloc port");
             }
             
             SrsRtpConn* rtp = NULL;
@@ -320,15 +317,13 @@ int SrsRtspConn::do_cycle()
                 rtp = audio_rtp = new SrsRtpConn(this, lpm, audio_id);
             }
             if ((ret = rtp->listen()) != ERROR_SUCCESS) {
-                srs_error("rtsp: rtp listen at port=%d failed. ret=%d", lpm, ret);
-                return ret;
+                return srs_error_new(ret, "rtp listen");
             }
             srs_trace("rtsp: #%d %s over %s/%s/%s %s client-port=%d-%d, server-port=%d-%d",
-                      req->stream_id, (req->stream_id == video_id)? "Video":"Audio",
-                      req->transport->transport.c_str(), req->transport->profile.c_str(), req->transport->lower_transport.c_str(),
-                      req->transport->cast_type.c_str(), req->transport->client_port_min, req->transport->client_port_max,
-                      lpm, lpm + 1
-                      );
+                req->stream_id, (req->stream_id == video_id)? "Video":"Audio",
+                req->transport->transport.c_str(), req->transport->profile.c_str(), req->transport->lower_transport.c_str(),
+                req->transport->cast_type.c_str(), req->transport->client_port_min, req->transport->client_port_max,
+                lpm, lpm + 1);
             
             // create session.
             if (session.empty()) {
@@ -342,24 +337,18 @@ int SrsRtspConn::do_cycle()
             res->local_port_max = lpm + 1;
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: send SETUP response failed. ret=%d", ret);
-                }
-                return ret;
+                return srs_error_new(ret, "response setup");
             }
         } else if (req->is_record()) {
             SrsRtspResponse* res = new SrsRtspResponse((int)req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: send SETUP response failed. ret=%d", ret);
-                }
-                return ret;
+                return srs_error_new(ret, "response record");
             }
         }
     }
     
-    return ret;
+    return err;
 }
 
 int SrsRtspConn::on_rtp_packet(SrsRtpPacket* pkt, int stream_id)
@@ -397,24 +386,19 @@ int SrsRtspConn::on_rtp_packet(SrsRtpPacket* pkt, int stream_id)
     return ret;
 }
 
-int SrsRtspConn::cycle()
+srs_error_t SrsRtspConn::cycle()
 {
     // serve the rtsp client.
-    int ret = do_cycle();
+    srs_error_t err = do_cycle();
     
-    // if socket io error, set to closed.
-    if (srs_is_client_gracefully_close(ret)) {
-        ret = ERROR_SOCKET_CLOSED;
-    }
+    caster->remove(this);
     
-    // success.
-    if (ret == ERROR_SUCCESS) {
+    if (err == srs_success) {
         srs_trace("client finished.");
-    }
-    
-    // client close peer.
-    if (ret == ERROR_SOCKET_CLOSED) {
-        srs_warn("client disconnect peer. ret=%d", ret);
+    } else if (srs_is_client_gracefully_close(srs_error_code(err))) {
+        srs_warn("client disconnect peer. code=%d", srs_error_code(err));
+        srs_freep(err);
+        err = srs_success;
     }
     
     if (video_rtp) {
@@ -425,9 +409,7 @@ int SrsRtspConn::cycle()
         caster->free_port(audio_rtp->port(), audio_rtp->port() + 1);
     }
     
-    caster->remove(this);
-    
-    return ERROR_SUCCESS;
+    return err;
 }
 
 int SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
@@ -749,10 +731,15 @@ void SrsRtspCaster::free_port(int lpmin, int lpmax)
 int SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRtspConn* conn = new SrsRtspConn(this, stfd, output);
     
-    if ((ret = conn->serve()) != ERROR_SUCCESS) {
+    if ((err = conn->serve()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+
         srs_error("rtsp: serve client failed. ret=%d", ret);
         srs_freep(conn);
         return ret;
