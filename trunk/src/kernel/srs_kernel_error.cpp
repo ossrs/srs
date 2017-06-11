@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <sstream>
+#include <stdarg.h>
 using namespace std;
 
 bool srs_is_system_control_error(int error_code)
