@@ -920,8 +920,8 @@ srs_error_t SrsServer::do_cycle()
     // the deamon thread, update the time cache
     // TODO: FIXME: use SrsHourGlass.
     while (true) {
-        if (handler && (ret = handler->on_cycle()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "handle callback");
+        if (handler && (err = handler->on_cycle()) != srs_success) {
+            return srs_error_wrap(err, "handle callback");
         }
         
         // the interval in config.
@@ -979,8 +979,8 @@ srs_error_t SrsServer::do_cycle()
             }
             
             // notice the stream sources to cycle.
-            if ((ret = SrsSource::cycle_all()) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "source cycle");
+            if ((err = SrsSource::cycle_all()) != srs_success) {
+                return srs_error_wrap(err, "source cycle");
             }
             
             // update the cache time

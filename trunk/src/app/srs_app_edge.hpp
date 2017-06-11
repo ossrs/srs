@@ -129,7 +129,7 @@ public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual int initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
     virtual std::string get_curr_origin();
@@ -172,7 +172,7 @@ public:
 public:
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual int start();
     virtual void stop();
 // interface ISrsReusableThread2Handler
@@ -202,7 +202,7 @@ public:
      * for we assume all client to edge is invalid,
      * if auth open, edge must valid it from origin, then service it.
      */
-    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsSource* source, SrsRequest* req);
     /**
      * when client play stream on edge.
      */
@@ -234,7 +234,7 @@ public:
 public:
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsSource* source, SrsRequest* req);
     virtual bool can_publish();
     /**
      * when client publish stream on edge.

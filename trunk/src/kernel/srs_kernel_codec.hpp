@@ -693,7 +693,7 @@ public:
     virtual ~SrsFormat();
 public:
     // Initialize the format.
-    virtual int initialize();
+    virtual srs_error_t initialize();
     // When got a parsed audio packet.
     // @param data The data in FLV format.
     virtual int on_audio(int64_t timestamp, char* data, int size);

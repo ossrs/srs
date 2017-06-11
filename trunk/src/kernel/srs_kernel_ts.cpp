@@ -3102,8 +3102,13 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
 int SrsTsTransmuxer::initialize(SrsFileWriter* fw)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = format->initialize()) != ERROR_SUCCESS) {
+    if ((err = format->initialize()) != srs_success) {
+        // TODO: FIXME: Use error.
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         return ret;
     }
     

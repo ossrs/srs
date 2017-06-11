@@ -524,9 +524,9 @@ SrsFormat::~SrsFormat()
     srs_freep(buffer);
 }
 
-int SrsFormat::initialize()
+srs_error_t SrsFormat::initialize()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 int SrsFormat::on_audio(int64_t timestamp, char* data, int size)

@@ -223,7 +223,7 @@ public:
     /**
      * do on_cycle while server doing cycle.
      */
-    virtual int on_cycle() = 0;
+    virtual srs_error_t on_cycle() = 0;
     /**
      * callback the handler when got client.
      */

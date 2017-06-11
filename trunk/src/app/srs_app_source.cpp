@@ -885,30 +885,30 @@ SrsOriginHub::~SrsOriginHub()
 #endif
 }
 
-int SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
+srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     req = r;
     source = s;
     
-    if ((ret = format->initialize()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = format->initialize()) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
     }
     
-    if ((ret = hls->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = hls->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "hls initialize");
     }
     
-    if ((ret = dash->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = dash->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "dash initialize");
     }
     
-    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = dvr->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "dvr initialize");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsOriginHub::dispose()
@@ -918,17 +918,17 @@ void SrsOriginHub::dispose()
     // TODO: Support dispose DASH.
 }
 
-int SrsOriginHub::cycle()
+srs_error_t SrsOriginHub::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = hls->cycle()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = hls->cycle()) != srs_success) {
+        return srs_error_wrap(err, "hls cycle");
     }
     
     // TODO: Support cycle DASH.
     
-    return ret;
+    return err;
 }
 
 int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
@@ -1452,6 +1452,7 @@ int SrsOriginHub::on_reload_vhost_hds(string vhost)
 int SrsOriginHub::on_reload_vhost_dvr(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
         return ret;
@@ -1468,7 +1469,11 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     }
     
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(this, req)) != ERROR_SUCCESS) {
+    if ((err = dvr->initialize(this, req)) != srs_success) {
+        // TODO: FIXME: Use error.
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         return ret;
     }
     
@@ -1749,6 +1754,7 @@ std::map<std::string, SrsSource*> SrsSource::pool;
 int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSource* source = NULL;
     if ((source = fetch(r)) != NULL) {
@@ -1763,7 +1769,11 @@ int SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** 
     srs_assert (pool.find(stream_url) == pool.end());
     
     source = new SrsSource();
-    if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
+    if ((err = source->initialize(r, h)) != srs_success) {
+        // TODO: FIXME: Use error.
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         srs_freep(source);
         return ret;
     }
@@ -1805,28 +1815,26 @@ void SrsSource::dispose_all()
     return;
 }
 
-int SrsSource::cycle_all()
+srs_error_t SrsSource::cycle_all()
 {
-    int ret = ERROR_SUCCESS;
-    
     int cid = _srs_context->get_id();
-    ret = do_cycle_all();
+    srs_error_t err = do_cycle_all();
     _srs_context->set_id(cid);
     
-    return ret;
+    return err;
 }
 
-int SrsSource::do_cycle_all()
+srs_error_t SrsSource::do_cycle_all()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::map<std::string, SrsSource*>::iterator it;
     for (it = pool.begin(); it != pool.end();) {
         SrsSource* source = it->second;
         
         // Do cycle source to cleanup components, such as hls dispose.
-        if ((ret = source->cycle()) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = source->cycle()) != srs_success) {
+            return srs_error_wrap(err, "source=%d/%d cycle", source->source_id(), source->pre_source_id());
         }
         
         // TODO: FIXME: support source cleanup.
@@ -1854,7 +1862,7 @@ int SrsSource::do_cycle_all()
 #endif
     }
     
-    return ret;
+    return err;
 }
 
 void SrsSource::destroy()
@@ -1919,9 +1927,14 @@ void SrsSource::dispose()
     gop_cache->dispose();
 }
 
-int SrsSource::cycle()
+srs_error_t SrsSource::cycle()
 {
-    return hub->cycle();
+    srs_error_t err = hub->cycle();
+    if (err != srs_success) {
+        return srs_error_wrap(err, "hub cycle");
+    }
+    
+    return srs_success;
 }
 
 bool SrsSource::expired()
@@ -1949,9 +1962,9 @@ bool SrsSource::expired()
     return false;
 }
 
-int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
+srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_assert(h);
     srs_assert(!req);
@@ -1960,15 +1973,15 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     req = r->copy();
     atc = _srs_config->get_atc(req->vhost);
     
-    if ((ret = hub->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = hub->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "hub");
     }
     
-    if ((ret = play_edge->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = play_edge->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "edge(play)");
     }
-    if ((ret = publish_edge->initialize(this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = publish_edge->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "edge(publish)");
     }
     
     double queue_size = _srs_config->get_queue_length(req->vhost);
@@ -1977,7 +1990,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
     mix_correct = _srs_config->get_mix_correct(req->vhost);
     
-    return ret;
+    return err;
 }
 
 int SrsSource::on_reload_vhost_play(string vhost)

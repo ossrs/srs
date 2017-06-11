@@ -445,13 +445,13 @@ public:
 public:
     // Initialize the hub with source and request.
     // @param r The request object, managed by source.
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsSource* s, SrsRequest* r);
     // Dispose the hub, release utilities resource,
     // for example, delete all HLS pieces.
     virtual void dispose();
     // Cycle the hub, process some regular events,
     // for example, dispose hls in cycle.
-    virtual int cycle();
+    virtual srs_error_t cycle();
 public:
     // When got a parsed metadata.
     virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
@@ -555,9 +555,9 @@ public:
      * dispose and cycle all sources.
      */
     static void dispose_all();
-    static int cycle_all();
+    static srs_error_t cycle_all();
 private:
-    static int do_cycle_all();
+    static srs_error_t do_cycle_all();
 public:
     /**
      * when system exit, destroy the sources,
@@ -620,7 +620,7 @@ public:
     virtual ~SrsSource();
 public:
     virtual void dispose();
-    virtual int cycle();
+    virtual srs_error_t cycle();
     // remove source when expired.
     virtual bool expired();
     // initialize, get and setter.
@@ -628,7 +628,7 @@ public:
     /**
      * initialize the hls with handlers.
      */
-    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h);
+    virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_play(std::string vhost);

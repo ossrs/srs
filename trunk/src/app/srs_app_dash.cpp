@@ -172,10 +172,8 @@ SrsMpdWriter::~SrsMpdWriter()
 {
 }
 
-int SrsMpdWriter::initialize(SrsRequest* r)
+srs_error_t SrsMpdWriter::initialize(SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
-    
     req = r;
     fragment = _srs_config->get_dash_fragment(r->vhost);
     update_period = _srs_config->get_dash_update_period(r->vhost);
@@ -187,8 +185,7 @@ int SrsMpdWriter::initialize(SrsRequest* r)
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
     
     srs_trace("DASH: Config fragment=%d, period=%d", fragment, update_period);
-    
-    return ret;
+    return srs_success;
 }
 
 int SrsMpdWriter::write(SrsFormat* format)
@@ -309,16 +306,17 @@ SrsDashController::~SrsDashController()
     srs_freep(afragments);
 }
 
-int SrsDashController::initialize(SrsRequest* r)
+srs_error_t SrsDashController::initialize(SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     req = r;
     fragment = _srs_config->get_dash_fragment(r->vhost);
     home = _srs_config->get_dash_path(r->vhost);
     
-    if ((ret = mpd->initialize(r)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = mpd->initialize(r)) != srs_success) {
+        return srs_error_wrap(err, "mpd");
     }
     
     string home, path;
@@ -326,18 +324,16 @@ int SrsDashController::initialize(SrsRequest* r)
     srs_freep(vcurrent);
     vcurrent = new SrsFragmentedMp4();
     if ((ret = vcurrent->initialize(req, true, mpd, video_tack_id)) != ERROR_SUCCESS) {
-        srs_error("DASH: Initialize the video fragment failed, ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "video fragment");
     }
     
     srs_freep(acurrent);
     acurrent = new SrsFragmentedMp4();
     if ((ret = acurrent->initialize(req, false, mpd, audio_track_id)) != ERROR_SUCCESS) {
-        srs_error("DASH: Initialize the audio fragment failed, ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "audio fragment");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
@@ -484,19 +480,18 @@ SrsDash::~SrsDash()
     srs_freep(controller);
 }
 
-int SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
+srs_error_t SrsDash::initialize(SrsOriginHub* h, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     hub = h;
     req = r;
     
-    if ((ret = controller->initialize(req)) != ERROR_SUCCESS) {
-        srs_error("DASH: Initialize controller failed. ret=%d", ret);
-        return ret;
+    if ((err = controller->initialize(req)) != srs_success) {
+        return srs_error_wrap(err, "controller");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsDash::on_publish()

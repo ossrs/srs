@@ -72,7 +72,7 @@ public:
     virtual ~SrsDvrSegmenter();
 public:
     // Initialize the segment.
-    virtual int initialize(SrsDvrPlan* p, SrsRequest* r);
+    virtual srs_error_t initialize(SrsDvrPlan* p, SrsRequest* r);
     // Get the current framgnet.
     virtual SrsFragment* current();
     // Open new segment file.
@@ -194,7 +194,7 @@ public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
 public:
-    virtual int initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
     virtual int on_publish() = 0;
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
@@ -205,7 +205,7 @@ public:
     // When segmenter close a segment.
     virtual int on_reap_segment();
 public:
-    static int create_plan(std::string vhost, SrsDvrPlan** pplan);
+    static srs_error_t create_plan(std::string vhost, SrsDvrPlan** pplan);
 };
 
 /**
@@ -234,7 +234,7 @@ public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
 public:
-    virtual int initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
     virtual int on_publish();
     virtual void on_unpublish();
     virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
@@ -269,7 +269,7 @@ public:
      * when system initialize(encoder publish at first time, or reload),
      * initialize the dvr will reinitialize the plan, the whole dvr framework.
      */
-    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
+    virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event,
      * when encoder start to publish RTMP stream.

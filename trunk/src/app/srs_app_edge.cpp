@@ -178,15 +178,13 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd);
 }
 
-int SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
-    
     source = s;
     edge = e;
     req = r;
     
-    return ret;
+    return srs_success;
 }
 
 int SrsEdgeIngester::start()
@@ -441,15 +439,13 @@ void SrsEdgeForwarder::set_queue_size(double queue_size)
     return queue->set_queue_size(queue_size);
 }
 
-int SrsEdgeForwarder::initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeForwarder::initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
-    
     source = s;
     edge = e;
     req = r;
     
-    return ret;
+    return srs_success;
 }
 
 int SrsEdgeForwarder::start()
@@ -634,15 +630,15 @@ SrsPlayEdge::~SrsPlayEdge()
     srs_freep(ingester);
 }
 
-int SrsPlayEdge::initialize(SrsSource* source, SrsRequest* req)
+srs_error_t SrsPlayEdge::initialize(SrsSource* source, SrsRequest* req)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = ingester->initialize(source, this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = ingester->initialize(source, this, req)) != srs_success) {
+        return srs_error_wrap(err, "ingester(pull)");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsPlayEdge::on_client_play()
@@ -712,15 +708,15 @@ void SrsPublishEdge::set_queue_size(double queue_size)
     return forwarder->set_queue_size(queue_size);
 }
 
-int SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
+srs_error_t SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = forwarder->initialize(source, this, req)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = forwarder->initialize(source, this, req)) != srs_success) {
+        return srs_error_wrap(err, "forwarder(push)");
     }
     
-    return ret;
+    return err;
 }
 
 bool SrsPublishEdge::can_publish()

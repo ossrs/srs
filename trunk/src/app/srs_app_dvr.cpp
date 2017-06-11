@@ -65,17 +65,15 @@ SrsDvrSegmenter::~SrsDvrSegmenter()
     srs_freep(fs);
 }
 
-int SrsDvrSegmenter::initialize(SrsDvrPlan* p, SrsRequest* r)
+srs_error_t SrsDvrSegmenter::initialize(SrsDvrPlan* p, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
-    
     req = r;
     plan = p;
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost);
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
-    return ret;
+    return srs_success;
 }
 
 SrsFragment* SrsDvrSegmenter::current()
@@ -612,23 +610,24 @@ SrsDvrPlan::~SrsDvrPlan()
     srs_freep(async);
 }
 
-int SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
+srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     hub = h;
     req = r;
     segment = s;
     
-    if ((ret = segment->initialize(this, r)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = segment->initialize(this, r)) != srs_success) {
+        return srs_error_wrap(err, "segmenter");
     }
     
     if ((ret = async->start()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "async");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
@@ -688,22 +687,19 @@ int SrsDvrPlan::on_reap_segment()
     return ret;
 }
 
-int SrsDvrPlan::create_plan(string vhost, SrsDvrPlan** pplan)
+srs_error_t SrsDvrPlan::create_plan(string vhost, SrsDvrPlan** pplan)
 {
-    int ret = ERROR_SUCCESS;
-    
     std::string plan = _srs_config->get_dvr_plan(vhost);
     if (srs_config_dvr_is_plan_segment(plan)) {
         *pplan = new SrsDvrSegmentPlan();
     } else if (srs_config_dvr_is_plan_session(plan)) {
         *pplan = new SrsDvrSessionPlan();
     } else {
-        ret = ERROR_DVR_ILLEGAL_PLAN;
-        srs_error("DVR illegal plan=%s, vhost=%s. ret=%d", plan.c_str(), vhost.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_DVR_ILLEGAL_PLAN, "illegal plan=%s, vhost=%s",
+            plan.c_str(), vhost.c_str());
     }
     
-    return ret;
+    return srs_success;
 }
 
 SrsDvrSessionPlan::SrsDvrSessionPlan()
@@ -766,12 +762,12 @@ SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
 {
 }
 
-int SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
+srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsDvrPlan::initialize(h, s, r)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = SrsDvrPlan::initialize(h, s, r)) != srs_success) {
+        return srs_error_wrap(err, "segment plan");
     }
     
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
@@ -780,7 +776,7 @@ int SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReques
     // to ms
     cduration *= 1000;
     
-    return ret;
+    return srs_success;
 }
 
 int SrsDvrSegmentPlan::on_publish()
@@ -924,9 +920,9 @@ SrsDvr::~SrsDvr()
     srs_freep(plan);
 }
 
-int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
+srs_error_t SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     req = r;
     hub = h;
@@ -935,8 +931,8 @@ int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
     actived = srs_config_apply_filter(conf, r);
     
     srs_freep(plan);
-    if ((ret = SrsDvrPlan::create_plan(r->vhost, &plan)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = SrsDvrPlan::create_plan(r->vhost, &plan)) != srs_success) {
+        return srs_error_wrap(err, "create plan");
     }
     
     std::string path = _srs_config->get_dvr_path(r->vhost);
@@ -947,11 +943,11 @@ int SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
         segmenter = new SrsDvrFlvSegmenter();
     }
     
-    if ((ret = plan->initialize(hub, segmenter, r)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = plan->initialize(hub, segmenter, r)) != srs_success) {
+        return srs_error_wrap(err, "plan initialize");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsDvr::on_publish()

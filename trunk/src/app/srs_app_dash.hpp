@@ -102,7 +102,7 @@ public:
     SrsMpdWriter();
     virtual ~SrsMpdWriter();
 public:
-    virtual int initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest* r);
     // Write MPD according to parsed format of stream.
     virtual int write(SrsFormat* format);
 public:
@@ -137,7 +137,7 @@ public:
     SrsDashController();
     virtual ~SrsDashController();
 public:
-    virtual int initialize(SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest* r);
     virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
@@ -161,7 +161,7 @@ public:
     virtual ~SrsDash();
 public:
     // Initalize the encoder.
-    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
+    virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
     // When stream start publishing.
     virtual int on_publish();
     // When got an shared audio message.

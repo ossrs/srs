@@ -255,15 +255,15 @@ int SrsHlsMuxer::deviation()
     return deviation_ts;
 }
 
-int SrsHlsMuxer::initialize()
+srs_error_t SrsHlsMuxer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
     if ((ret = async->start()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "async start");
     }
     
-    return ret;
+    return srs_success;
 }
 
 int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
@@ -745,9 +745,13 @@ SrsHlsController::~SrsHlsController()
     srs_freep(tsmc);
 }
 
-int SrsHlsController::initialize()
+srs_error_t SrsHlsController::initialize()
 {
-    return muxer->initialize();
+    srs_error_t err = muxer->initialize();
+    if (err != srs_success) {
+        return srs_error_wrap(err, "hls muxer initialize");
+    }
+    return srs_success;
 }
 
 void SrsHlsController::dispose()
@@ -1002,50 +1006,50 @@ void SrsHls::dispose()
     controller->dispose();
 }
 
-int SrsHls::cycle()
+srs_error_t SrsHls::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (last_update_time <= 0) {
         last_update_time = srs_get_system_time_ms();
     }
     
     if (!req) {
-        return ret;
+        return err;
     }
     
     int hls_dispose = _srs_config->get_hls_dispose(req->vhost) * 1000;
     if (hls_dispose <= 0) {
-        return ret;
+        return err;
     }
     if (srs_get_system_time_ms() - last_update_time <= hls_dispose) {
-        return ret;
+        return err;
     }
     last_update_time = srs_get_system_time_ms();
     
     if (!disposable) {
-        return ret;
+        return err;
     }
     disposable = false;
     
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req->get_stream_url().c_str(), hls_dispose);
     dispose();
     
-    return ret;
+    return err;
 }
 
-int SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
+srs_error_t SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     hub = h;
     req = r;
     
-    if ((ret = controller->initialize()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = controller->initialize()) != srs_success) {
+        return srs_error_wrap(err, "controller initialize");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsHls::on_publish()

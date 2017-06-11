@@ -175,7 +175,7 @@ public:
     /**
      * initialize the hls muxer.
      */
-    virtual int initialize();
+    virtual srs_error_t initialize();
     /**
      * when publish, update the config for muxer.
      */
@@ -248,7 +248,7 @@ public:
     SrsHlsController();
     virtual ~SrsHlsController();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
     virtual void dispose();
     virtual int sequence_no();
     virtual std::string ts_url();
@@ -313,12 +313,12 @@ public:
     virtual ~SrsHls();
 public:
     virtual void dispose();
-    virtual int cycle();
+    virtual srs_error_t cycle();
 public:
     /**
      * initialize the hls by handler and source.
      */
-    virtual int initialize(SrsOriginHub* h, SrsRequest* r);
+    virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.
