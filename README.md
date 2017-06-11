@@ -171,6 +171,7 @@ Please select your language:
 - [x] Support http api/stream CORS for js.
 - [x] Support valgrind and latest ARM by patch ST.
 - [x] Enhanced HLS audio-only use ts, see [#547][bug #547].
+- [x] Enhanced json, replace NXJSON(LGPL) with json-parser(BSD), read [#904][bug #904].
 - [x] [Experimental] Support big-data with Kafka, please read [#467][bug #467].
 - [x] [Experimental] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
 - [x] [Experimental] Support push MPEG-TS over UDP to SRS, please read [bug #250][bug #250].
