@@ -283,16 +283,21 @@ MockSrsReloadConfig::~MockSrsReloadConfig()
 {
 }
 
-int MockSrsReloadConfig::do_reload(string buf)
+srs_error_t MockSrsReloadConfig::do_reload(string buf)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     MockSrsReloadConfig conf;
-    if ((ret = conf.parse(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = conf.parse(buf)) != srs_success) {
+        return srs_error_wrap(err, "parse");
+    }
+
+    if ((ret = MockSrsConfig::reload_conf(&conf)) != ERROR_SUCCESS) {
+        return srs_error_new(ret, "reload conf");
     }
     
-    return MockSrsConfig::reload_conf(&conf);
+    return err;
 }
 
 #ifdef ENABLE_UTEST_RELOAD

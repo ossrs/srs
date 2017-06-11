@@ -50,9 +50,9 @@ MockSrsConfigBuffer::~MockSrsConfigBuffer()
 {
 }
 
-int MockSrsConfigBuffer::fullfill(const char* /*filename*/)
+srs_error_t MockSrsConfigBuffer::fullfill(const char* /*filename*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 MockSrsConfig::MockSrsConfig()
@@ -63,22 +63,25 @@ MockSrsConfig::~MockSrsConfig()
 {
 }
 
-int MockSrsConfig::parse(string buf)
+srs_error_t MockSrsConfig::parse(string buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
 
     MockSrsConfigBuffer buffer(buf);
 
-    if ((ret = parse_buffer(&buffer)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = parse_buffer(&buffer)) != srs_success) {
+        return srs_error_wrap(err, "parse buffer");
     }
     
-    if ((ret = srs_config_transform_vhost(root)) != ERROR_SUCCESS) {
-        srs_error("transform config failed. ret=%d", ret);
-        return ret;
+    if ((err = srs_config_transform_vhost(root)) != srs_success) {
+        return srs_error_wrap(err, "transform config");
     }
 
-    return check_normal_config();
+    if ((err = check_normal_config()) != srs_success) {
+        return srs_error_wrap(err, "check normal config");
+    }
+    
+    return err;
 }
 
 #ifdef ENABLE_UTEST_CONFIG

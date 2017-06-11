@@ -91,9 +91,9 @@ SrsConsoleLog::~SrsConsoleLog()
     srs_freepa(buffer);
 }
 
-int SrsConsoleLog::initialize()
+srs_error_t SrsConsoleLog::initialize()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 void SrsConsoleLog::reopen()

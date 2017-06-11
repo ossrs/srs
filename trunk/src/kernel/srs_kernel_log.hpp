@@ -65,7 +65,7 @@ public:
     /**
      * initialize log utilities.
      */
-    virtual int initialize();
+    virtual srs_error_t initialize();
     /**
      * reopen the log file for log rotate.
      */

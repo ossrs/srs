@@ -67,9 +67,9 @@ extern const char* _srs_version;
 /**
  * main entrance.
  */
-int main(int argc, char** argv)
+srs_error_t do_main(int argc, char** argv)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err= srs_success;
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -98,23 +98,23 @@ int main(int argc, char** argv)
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
-    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _srs_config->parse_options(argc, argv)) != srs_success) {
+        return srs_error_wrap(err, "config parse options");
     }
     
     // change the work dir and set cwd.
+    int r0 = 0;
     string cwd = _srs_config->get_work_dir();
-    if (!cwd.empty() && cwd != "./" && (ret = chdir(cwd.c_str())) != ERROR_SUCCESS) {
-        srs_error("change cwd to %s failed. ret=%d", cwd.c_str(), ret);
-        return ret;
+    if (!cwd.empty() && cwd != "./" && (r0 = chdir(cwd.c_str())) == -1) {
+        return srs_error_new(-1, "chdir to %s, r0=%d", cwd.c_str(), r0);
     }
-    if ((ret = _srs_config->initialize_cwd()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _srs_config->initialize_cwd()) != srs_success) {
+        return srs_error_wrap(err, "config cwd");
     }
     
     // config parsed, initialize log.
-    if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _srs_log->initialize()) != srs_success) {
+        return srs_error_wrap(err, "log initialize");
     }
     
     // config already applied to log.
@@ -172,8 +172,8 @@ int main(int argc, char** argv)
     }
     
     // we check the config when the log initialized.
-    if ((ret = _srs_config->check_config()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _srs_config->check_config()) != srs_success) {
+        return srs_error_wrap(err, "check config");
     }
     
     // features
@@ -182,12 +182,21 @@ int main(int argc, char** argv)
     SrsServer* svr = new SrsServer();
     SrsAutoFree(SrsServer, svr);
     
-    srs_error_t err = run(svr);
+    if ((err = run(svr)) != srs_success) {
+        return srs_error_wrap(err, "run");
+    }
+    
+    return err;
+}
+
+int main(int argc, char** argv) {
+    srs_error_t err = do_main(argc, argv);
+    
     if (err != srs_success) {
         srs_error("Failed, %s", srs_error_desc(err).c_str());
     }
     
-    ret = srs_error_code(err);
+    int ret = srs_error_code(err);
     srs_freep(err);
     return ret;
 }

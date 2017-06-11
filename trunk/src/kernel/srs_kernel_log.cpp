@@ -33,9 +33,9 @@ ISrsLog::~ISrsLog()
 {
 }
 
-int ISrsLog::initialize()
+srs_error_t ISrsLog::initialize()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 void ISrsLog::reopen()

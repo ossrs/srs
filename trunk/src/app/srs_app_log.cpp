@@ -68,10 +68,8 @@ SrsFastLog::~SrsFastLog()
     }
 }
 
-int SrsFastLog::initialize()
+srs_error_t SrsFastLog::initialize()
 {
-    int ret = ERROR_SUCCESS;
-    
     if (_srs_config) {
         _srs_config->subscribe(this);
         
@@ -80,7 +78,7 @@ int SrsFastLog::initialize()
         utc = _srs_config->get_utc_time();
     }
     
-    return ret;
+    return srs_success;
 }
 
 void SrsFastLog::reopen()

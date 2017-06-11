@@ -99,7 +99,7 @@ public:
     MockSrsReloadConfig();
     virtual ~MockSrsReloadConfig();
 public:
-    virtual int do_reload(std::string buf);
+    virtual srs_error_t do_reload(std::string buf);
 };
 
 #endif
