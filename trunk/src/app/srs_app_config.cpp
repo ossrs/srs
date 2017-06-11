@@ -793,9 +793,10 @@ int SrsConfDirective::parse(SrsConfigBuffer* buffer)
     return parse_conf(buffer, parse_file);
 }
 
-int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
+srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     static char SPACE = SRS_CONSTS_SP;
     static char SEMICOLON = SRS_CONSTS_SE;
@@ -809,33 +810,33 @@ int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
         // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
             if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write indent");
             }
         }
         
         // directive name.
         if ((ret = writer->write((char*)name.c_str(), (int)name.length(), NULL)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "write name");
         }
         if (!args.empty() && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "write name space");
         }
         
         // directive args.
         for (int i = 0; i < (int)args.size(); i++) {
             std::string& arg = args.at(i);
             if ((ret = writer->write((char*)arg.c_str(), (int)arg.length(), NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write arg");
             }
             if (i < (int)args.size() - 1 && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write arg space");
             }
         }
         
         // native directive, without sub directives.
         if (directives.empty()) {
             if ((ret = writer->write((char*)&SEMICOLON, 1, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write arg semicolon");
             }
         }
     }
@@ -844,22 +845,22 @@ int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     if (level > 0) {
         if (!directives.empty()) {
             if ((ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write sub-dir space");
             }
             if ((ret = writer->write((char*)&LB, 1, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write sub-dir left-brace");
             }
         }
         
         if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "write sub-dir linefeed");
         }
     }
     
     for (int i = 0; i < (int)directives.size(); i++) {
         SrsConfDirective* dir = directives.at(i);
-        if ((ret = dir->persistence(writer, level + 1)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = dir->persistence(writer, level + 1)) != srs_success) {
+            return srs_error_wrap(err, "sub-dir %s", dir->name.c_str());
         }
     }
     
@@ -867,21 +868,21 @@ int SrsConfDirective::persistence(SrsFileWriter* writer, int level)
         // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
             if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
-                return ret;
+                return srs_error_new(ret, "write sub-dir indent");
             }
         }
         
         if ((ret = writer->write((char*)&RB, 1, NULL)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "write sub-dir right-brace");
         }
         
         if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "write sub-dir linefeed");
         }
     }
     
     
-    return ret;
+    return err;
 }
 
 SrsJsonArray* SrsConfDirective::dumps_args()
@@ -1187,32 +1188,32 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
     subscribes.erase(it);
 }
 
-int SrsConfig::reload()
+srs_error_t SrsConfig::reload()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfig conf;
     
     if ((ret = conf.parse_file(config_file.c_str())) != ERROR_SUCCESS) {
-        srs_error("ignore config reloader parse file failed. ret=%d", ret);
-        ret = ERROR_SUCCESS;
-        return ret;
+        return srs_error_new(ret, "parse file");
     }
     srs_info("config reloader parse file success.");
     
     // transform config to compatible with previous style of config.
     if ((ret = srs_config_transform_vhost(conf.root)) != ERROR_SUCCESS) {
-        srs_error("transform config failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "transform config");
     }
     
     if ((ret = conf.check_config()) != ERROR_SUCCESS) {
-        srs_error("ignore config reloader check config failed. ret=%d", ret);
-        ret = ERROR_SUCCESS;
-        return ret;
+        return srs_error_new(ret, "check config");
     }
     
-    return reload_conf(&conf);
+    if ((ret = reload_conf(&conf)) != ERROR_SUCCESS) {
+        return srs_error_new(ret, "reload config");
+    }
+    
+    return err;
 }
 
 int SrsConfig::reload_vhost(SrsConfDirective* old_root)
@@ -2022,9 +2023,10 @@ int SrsConfig::initialize_cwd()
     return ret;
 }
 
-int SrsConfig::persistence()
+srs_error_t SrsConfig::persistence()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // write to a tmp file, then mv to the config.
     std::string path = config_file + ".tmp";
@@ -2032,37 +2034,35 @@ int SrsConfig::persistence()
     // open the tmp file for persistence
     SrsFileWriter fw;
     if ((ret = fw.open(path)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "open file");
     }
     
     // do persistence to writer.
-    if ((ret = do_persistence(&fw)) != ERROR_SUCCESS) {
+    if ((err = do_persistence(&fw)) != srs_success) {
         ::unlink(path.c_str());
-        return ret;
+        return srs_error_wrap(err, "persistence");
     }
     
     // rename the config file.
     if (::rename(path.c_str(), config_file.c_str()) < 0) {
         ::unlink(path.c_str());
-        
-        ret = ERROR_SYSTEM_CONFIG_PERSISTENCE;
-        srs_error("rename config from %s to %s failed. ret=%d", path.c_str(), config_file.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_CONFIG_PERSISTENCE, "rename %s=>%s",
+            path.c_str(), config_file.c_str());
     }
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::do_persistence(SrsFileWriter* fw)
+srs_error_t SrsConfig::do_persistence(SrsFileWriter* fw)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // persistence root directive to writer.
-    if ((ret = root->persistence(fw, 0)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = root->persistence(fw, 0)) != srs_success) {
+        return srs_error_wrap(err, "root persistence");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsConfig::minimal_to_json(SrsJsonObject* obj)

@@ -898,7 +898,6 @@ void SrsServer::on_signal(int signo)
 
 srs_error_t SrsServer::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // find the max loop
@@ -961,8 +960,8 @@ srs_error_t SrsServer::do_cycle()
                 signal_persistence_config = false;
                 srs_info("get signal to persistence config to file.");
                 
-                if ((ret = _srs_config->persistence()) != ERROR_SUCCESS) {
-                    return srs_error_new(ret, "config persistence to file");
+                if ((err = _srs_config->persistence()) != srs_success) {
+                    return srs_error_wrap(err, "config persistence to file");
                 }
                 srs_trace("persistence config to file success.");
             }
@@ -972,8 +971,8 @@ srs_error_t SrsServer::do_cycle()
                 signal_reload = false;
                 srs_info("get signal to reload the config.");
                 
-                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
-                    return srs_error_new(ret, "config reload");
+                if ((err = _srs_config->reload()) != srs_success) {
+                    return srs_error_wrap(err, "config reload");
                 }
                 srs_trace("reload config success.");
             }

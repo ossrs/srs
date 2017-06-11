@@ -244,7 +244,7 @@ public:
      * persistence the directive to writer.
      * @param level, the root is level0, all its directives are level1, and so on.
      */
-    virtual int persistence(SrsFileWriter* writer, int level);
+    virtual srs_error_t persistence(SrsFileWriter* writer, int level);
     /**
      * dumps the args[0-N] to array(string).
      */
@@ -377,7 +377,7 @@ public:
      * reload the config file.
      * @remark, user can test the config before reload it.
      */
-    virtual int reload();
+    virtual srs_error_t reload();
 private:
     /**
      * reload the vhost section of config.
@@ -421,9 +421,9 @@ public:
     /**
      * persistence current config to file.
      */
-    virtual int persistence();
+    virtual srs_error_t persistence();
 private:
-    virtual int do_persistence(SrsFileWriter* fw);
+    virtual srs_error_t do_persistence(SrsFileWriter* fw);
 public:
     /**
      * dumps the global sections to json.
