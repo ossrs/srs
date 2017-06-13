@@ -920,7 +920,7 @@ int srs_do_create_dir_recursively(string dir)
         // no sign extension
         const uint8_t *in = (const uint8_t*)in_str;
         unsigned bits = 0xff;
-        unsigned v;
+        unsigned v = 0;
         
         while (end - dst > 3) {
             BASE64_DEC_STEP(0);

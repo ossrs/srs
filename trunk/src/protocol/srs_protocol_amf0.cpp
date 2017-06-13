@@ -203,6 +203,8 @@ void srs_fill_level_spaces(stringstream& ss, int level)
 }
 void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
 {
+    std::ios_base::fmtflags oflags = ss.flags();
+    
     if (any->is_boolean()) {
         ss << "Boolean " << (any->to_boolean()? "true":"false") << endl;
     } else if (any->is_number()) {
@@ -253,6 +255,8 @@ void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
     } else {
         ss << "Unknown" << endl;
     }
+    
+    ss.flags(oflags);
 }
 
 char* SrsAmf0Any::human_print(char** pdata, int* psize)

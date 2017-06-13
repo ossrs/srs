@@ -126,7 +126,7 @@ struct Context
     // The RTMP handler level buffer, can used to format packet.
     char buffer[1024];
     
-    Context() {
+    Context() : port(0) {
         rtmp = NULL;
         skt = NULL;
         req = NULL;
@@ -664,8 +664,7 @@ extern "C"{
 #ifndef SRS_AUTO_SSL
         // complex handshake requires ssl
         return ERROR_RTMP_HS_SSL_REQUIRE;
-#endif
-        
+#else
         int ret = ERROR_SUCCESS;
         
         srs_assert(rtmp != NULL);
@@ -682,6 +681,7 @@ extern "C"{
         }
         
         return ret;
+#endif
     }
     
     int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
@@ -1579,12 +1579,12 @@ extern "C"{
         }
         
         if (ht == SrsMp4HandlerTypeSOUN) {
-            s->codec = dec->acodec;
+            s->codec = (uint16_t)dec->acodec;
             s->sample_rate = dec->sample_rate;
             s->channels = dec->channels;
             s->sound_bits = dec->sound_bits;
         } else {
-            s->codec = dec->vcodec;
+            s->codec = (uint16_t)dec->vcodec;
         }
         s->handler_type = (uint32_t)ht;
         
@@ -1599,13 +1599,13 @@ extern "C"{
     int32_t srs_mp4_sizeof(srs_mp4_t mp4, srs_mp4_sample_t* s)
     {
         if (s->handler_type == SrsMp4HandlerTypeSOUN) {
-            if (s->codec == SrsAudioCodecIdAAC) {
+            if (s->codec == (uint16_t)SrsAudioCodecIdAAC) {
                 return s->nb_sample + 2;
             }
             return s->nb_sample + 1;
         }
         
-        if (s->codec == SrsVideoCodecIdAVC) {
+        if (s->codec == (uint16_t)SrsVideoCodecIdAVC) {
             return s->nb_sample + 5;
         }
         return s->nb_sample + 1;
@@ -1624,7 +1624,7 @@ extern "C"{
             // E.4.2.1 AUDIODATA, flv_v10_1.pdf, page 3
             p.write_1bytes(uint8_t(s->codec << 4) | uint8_t(s->sample_rate << 2) | uint8_t(s->sound_bits << 1) | s->channels);
             if (s->codec == SrsAudioCodecIdAAC) {
-                p.write_1bytes(uint8_t(s->frame_trait == SrsAudioAacFrameTraitSequenceHeader? 0:1));
+                p.write_1bytes(uint8_t(s->frame_trait == (uint16_t)SrsAudioAacFrameTraitSequenceHeader? 0:1));
             }
             
             p.write_bytes((char*)s->sample, s->nb_sample);
@@ -1632,11 +1632,11 @@ extern "C"{
         }
         
         // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
-        p.write_1bytes(uint8_t(s->frame_type<<4) | s->codec);
+        p.write_1bytes(uint8_t(s->frame_type<<4) | uint8_t(s->codec));
         if (s->codec == SrsVideoCodecIdAVC) {
             *type = SRS_RTMP_TYPE_VIDEO;
             
-            p.write_1bytes(uint8_t(s->frame_trait == SrsVideoAvcFrameTraitSequenceHeader? 0:1));
+            p.write_1bytes(uint8_t(s->frame_trait == (uint16_t)SrsVideoAvcFrameTraitSequenceHeader? 0:1));
             // cts = pts - dts, where dts = flvheader->timestamp.
             uint32_t cts = s->pts - s->dts;
             p.write_3bytes(cts);
@@ -1824,7 +1824,8 @@ extern "C"{
     void srs_flv_lseek(srs_flv_t flv, int64_t offset)
     {
         FlvContext* context = (FlvContext*)flv;
-        context->reader.seek2(offset);
+        int64_t r0 = context->reader.seek2(offset);
+        srs_assert(r0 != -1);
     }
     
     srs_bool srs_flv_is_eof(int error_code)
@@ -2297,9 +2298,6 @@ extern "C"{
         
         uint8_t sound_rate = data[0];
         sound_rate = (sound_rate >> 2) & 0x03;
-        if (sound_rate > 3) {
-            return -1;
-        }
         
         return sound_rate;
     }
@@ -2312,9 +2310,6 @@ extern "C"{
         
         uint8_t sound_size = data[0];
         sound_size = (sound_size >> 1) & 0x01;
-        if (sound_size > 1) {
-            return -1;
-        }
         
         return sound_size;
     }
@@ -2327,9 +2322,6 @@ extern "C"{
         
         uint8_t sound_type = data[0];
         sound_type = sound_type & 0x01;
-        if (sound_type > 1) {
-            return -1;
-        }
         
         return sound_type;
     }
@@ -2618,7 +2610,7 @@ extern "C"{
         
         // packets interval in milliseconds.
         double pi = 0;
-        if (pre_now > starttime) {
+        if (pre_now > starttime && nb_packets > 0) {
             pi = (pre_now - starttime) / (double)nb_packets;
         }
         

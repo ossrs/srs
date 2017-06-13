@@ -321,6 +321,9 @@ struct SrsSharedMessageHeader
      * for example, dispatch to all connections.
      */
     int perfer_cid;
+    
+    SrsSharedMessageHeader();
+    virtual ~SrsSharedMessageHeader();
 };
 
 /**

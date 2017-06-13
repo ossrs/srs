@@ -1595,7 +1595,7 @@ int SrsMp4MovieBox::decode_header(SrsBuffer* buf)
     return SrsMp4Box::decode_header(buf);
 }
 
-SrsMp4MovieHeaderBox::SrsMp4MovieHeaderBox()
+SrsMp4MovieHeaderBox::SrsMp4MovieHeaderBox() : creation_time(0), modification_time(0), timescale(0), duration_in_tbn(0)
 {
     type = SrsMp4BoxTypeMVHD;
     
@@ -1956,7 +1956,7 @@ SrsMp4AudioSampleEntry* SrsMp4TrackBox::mp4a()
     return box? box->mp4a():NULL;
 }
 
-SrsMp4TrackHeaderBox::SrsMp4TrackHeaderBox()
+SrsMp4TrackHeaderBox::SrsMp4TrackHeaderBox() : creation_time(0), modification_time(0), track_ID(0)
 {
     type = SrsMp4BoxTypeTKHD;
     
@@ -2090,7 +2090,7 @@ SrsMp4EditBox::~SrsMp4EditBox()
 {
 }
 
-SrsMp4ElstEntry::SrsMp4ElstEntry()
+SrsMp4ElstEntry::SrsMp4ElstEntry() : segment_duration(0), media_time(0), media_rate_integer(0)
 {
     media_rate_fraction = 0;
 }
@@ -2263,7 +2263,7 @@ void SrsMp4MediaBox::set_minf(SrsMp4MediaInformationBox* v)
     boxes.push_back(v);
 }
 
-SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox()
+SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox() : duration(0)
 {
     type = SrsMp4BoxTypeMDHD;
     language = 0;
@@ -2388,6 +2388,8 @@ SrsMp4HandlerReferenceBox::SrsMp4HandlerReferenceBox()
     
     pre_defined = 0;
     memset(reserved, 0, 12);
+    
+    handler_type = SrsMp4HandlerTypeForbidden;
 }
 
 SrsMp4HandlerReferenceBox::~SrsMp4HandlerReferenceBox()
@@ -2990,7 +2992,7 @@ int SrsMp4SampleTableBox::decode_header(SrsBuffer* buf)
     return SrsMp4Box::decode_header(buf);
 }
 
-SrsMp4SampleEntry::SrsMp4SampleEntry()
+SrsMp4SampleEntry::SrsMp4SampleEntry() : data_reference_index(0)
 {
     memset(reserved, 0, 6);
 }
@@ -3042,7 +3044,7 @@ stringstream& SrsMp4SampleEntry::dumps_detail(stringstream& ss, SrsMp4DumpContex
     return ss;
 }
 
-SrsMp4VisualSampleEntry::SrsMp4VisualSampleEntry()
+SrsMp4VisualSampleEntry::SrsMp4VisualSampleEntry() : width(0), height(0)
 {
     type = SrsMp4BoxTypeAVC1;
     
@@ -3193,7 +3195,7 @@ stringstream& SrsMp4AvccBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc
     return ss;
 }
 
-SrsMp4AudioSampleEntry::SrsMp4AudioSampleEntry()
+SrsMp4AudioSampleEntry::SrsMp4AudioSampleEntry() : samplerate(0)
 {
     type = SrsMp4BoxTypeMP4A;
     
@@ -3448,7 +3450,7 @@ stringstream& SrsMp4DecoderSpecificInfo::dumps_detail(stringstream& ss, SrsMp4Du
     return srs_print_bytes(ss, (const char*)&asc[0], (int)asc.size(), dc.indent());
 }
 
-SrsMp4DecoderConfigDescriptor::SrsMp4DecoderConfigDescriptor()
+SrsMp4DecoderConfigDescriptor::SrsMp4DecoderConfigDescriptor() : upStream(0), bufferSizeDB(0), maxBitrate(0), avgBitrate(0)
 {
     tag = SrsMp4ESTagESDecoderConfigDescrTag;
     objectTypeIndication = SrsMp4ObjectTypeForbidden;
@@ -3568,10 +3570,10 @@ int SrsMp4SLConfigDescriptor::decode_payload(SrsBuffer* buf)
     return ret;
 }
 
-SrsMp4ES_Descriptor::SrsMp4ES_Descriptor()
+SrsMp4ES_Descriptor::SrsMp4ES_Descriptor() : ES_ID(0), dependsOn_ES_ID(0), OCR_ES_Id(0)
 {
     tag = SrsMp4ESTagESDescrTag;
-    streamDependenceFlag = URL_Flag = OCRstreamFlag = 0;
+    streamPriority = streamDependenceFlag = URL_Flag = OCRstreamFlag = 0;
 }
 
 SrsMp4ES_Descriptor::~SrsMp4ES_Descriptor()
@@ -5040,12 +5042,14 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsFrameT
             
             uint32_t sample_size = 0;
             if ((ret = stsz->get_sample_size(sample->index, &sample_size)) != ERROR_SUCCESS) {
+                srs_freep(sample);
                 return ret;
             }
             sample_relative_offset += sample_size;
             
             SrsMp4SttsEntry* stts_entry = NULL;
             if ((ret = stts->on_sample(sample->index, &stts_entry)) != ERROR_SUCCESS) {
+                srs_freep(sample);
                 return ret;
             }
             if (previous) {
@@ -5054,6 +5058,7 @@ int SrsMp4SampleManager::load_trak(map<uint64_t, SrsMp4Sample*>& tses, SrsFrameT
             
             SrsMp4CttsEntry* ctts_entry = NULL;
             if (ctts && (ret = ctts->on_sample(sample->index, &ctts_entry)) != ERROR_SUCCESS) {
+                srs_freep(sample);
                 return ret;
             }
             if (ctts_entry) {
@@ -5618,8 +5623,8 @@ int SrsMp4Encoder::write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct, 
     SrsMp4Sample* ps = new SrsMp4Sample();
     
     // For SPS/PPS or ASC, copy it to moov.
-    bool vsh = (ht == SrsMp4HandlerTypeVIDE) && (ct == SrsVideoAvcFrameTraitSequenceHeader);
-    bool ash = (ht == SrsMp4HandlerTypeSOUN) && (ct == SrsAudioAacFrameTraitSequenceHeader);
+    bool vsh = (ht == SrsMp4HandlerTypeVIDE) && (ct == (uint16_t)SrsVideoAvcFrameTraitSequenceHeader);
+    bool ash = (ht == SrsMp4HandlerTypeSOUN) && (ct == (uint16_t)SrsAudioAacFrameTraitSequenceHeader);
     if (vsh || ash) {
         ret = copy_sequence_header(vsh, sample, nb_sample);
         srs_freep(ps);

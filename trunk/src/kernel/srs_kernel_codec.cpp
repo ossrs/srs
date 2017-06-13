@@ -568,14 +568,14 @@ int SrsFormat::on_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     
+    // Parse by specified codec.
     buffer->skip(-1 * buffer->pos());
+    
     if (codec == SrsAudioCodecIdMP3) {
         return audio_mp3_demux(buffer, timestamp);
-    } else if (codec == SrsAudioCodecIdAAC) {
-        return audio_aac_demux(buffer, timestamp);
-    } else {
-        return ret;
     }
+    
+    return audio_aac_demux(buffer, timestamp);
 }
 
 int SrsFormat::on_video(int64_t timestamp, char* data, int size)

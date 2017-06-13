@@ -119,7 +119,8 @@ bool SrsFileWriter::is_open()
 
 void SrsFileWriter::seek2(int64_t offset)
 {
-    ::lseek(fd, (off_t)offset, SEEK_SET);
+    off_t r0 = ::lseek(fd, (off_t)offset, SEEK_SET);
+    srs_assert(r0 != -1);
 }
 
 int64_t SrsFileWriter::tellg()
@@ -241,7 +242,8 @@ int64_t SrsFileReader::tellg()
 
 void SrsFileReader::skip(int64_t size)
 {
-    ::lseek(fd, (off_t)size, SEEK_CUR);
+    off_t r0 = ::lseek(fd, (off_t)size, SEEK_CUR);
+    srs_assert(r0 != -1);
 }
 
 int64_t SrsFileReader::seek2(int64_t offset)
@@ -253,7 +255,10 @@ int64_t SrsFileReader::filesize()
 {
     int64_t cur = tellg();
     int64_t size = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, (off_t)cur, SEEK_SET);
+    
+    off_t r0 = ::lseek(fd, (off_t)cur, SEEK_SET);
+    srs_assert(r0 != -1);
+    
     return size;
 }
 

@@ -192,6 +192,14 @@ int SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int size)
     return ret;
 }
 
+SrsSharedMessageHeader::SrsSharedMessageHeader() : payload_length(0), message_type(0), perfer_cid(0)
+{
+}
+
+SrsSharedMessageHeader::~SrsSharedMessageHeader()
+{
+}
+
 SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;
@@ -207,7 +215,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_freepa(payload);
 }
 
-SrsSharedPtrMessage::SrsSharedPtrMessage()
+SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
 }

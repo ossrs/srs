@@ -32,6 +32,11 @@
  * thread-safe: no
  */
 
+// @see http://blog.csdn.net/win_lin/article/details/7912693
+#ifndef __STDC_FORMAT_MACROS
+    #define __STDC_FORMAT_MACROS
+#endif
+
 /*************************************************************
  **************************************************************
  * Windows SRS-LIBRTMP pre-declare
