@@ -6,7 +6,7 @@
 
 SRS/3.0, [OuXuli][release3]<br/>
 SRS是大娱乐直播领域广泛应用的野鸡服务器，志存高远不限于色情行业。<br/>
-SRS is an industrial-strength live streaming cluster, with the simplest code and the best conceptual integrity.
+SRS's an industrial-strength live streaming cluster, with the simplest implementation and the best conceptual integrity.
 
 Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
