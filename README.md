@@ -6,14 +6,13 @@
 
 SRS/3.0, [OuXuli][release3]<br/>
 SRS是大娱乐直播领域广泛应用的野鸡服务器，志存高远不限于色情行业。<br/>
-SRS is an industrial-strength live cluster, with simple code and best conceptual integrity.
+SRS is an industrial-strength live streaming cluster, with the simplest code and the best conceptual integrity.
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 For the wiki for SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
-Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
-which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+> Remark: SRS3 isn't released and it's really unstable, please use stable branches such as [SRS2](https://github.com/ossrs/srs/tree/2.0release) or [SRS1](https://github.com/ossrs/srs/tree/1.0release) instead.
 
 ## Content
 
@@ -41,13 +40,13 @@ which are distributed using their own licenses, please read [License Mixing][Lic
 
 ## About
 
-SRS(Simple RTMP Server) is created in 2013.10.
-SRS supports many protocols includes RTMP, HLS, HTTP-FLV, HDS and MPEG-DASH.
-SRS can run on both LINUX and OSX, and X86, X64, ARM and MIPS cpu.
-Vhost is used as service unit for live cluster, which delivery stream by origin and edge.
-The stream on origin can be transcoded, DVR to VOD file, ingest from external sources, or forwarded to other servers.
-HTTP API and callback is powerful mechenism for integraty.
-The wikis are writen by both English and Chinese.
+SRS(Simple RTMP Server) is created in 2013.10 by winlin.
+SRS supports the major internet live steraming protocols including RTMP, HLS, HTTP-FLV, HDS and MPEG-DASH.
+User can run SRS on LINUX and OSX, with CPUs such as X86, X64, ARM and MIPS.
+The cluster feature consists of origin and edge server, which uses vhost as the service unit seperating config for customers.
+There're lots of useful features in origin server, including transcoding, DVR, ingesting and forwarding.
+The ST coroutine, HTTP API and tracable log cost SRS effective for maintainability.
+All wikis are writen in English and Chinese.
 
 Why SRS?
 
@@ -67,6 +66,9 @@ follows RTMP/HLS/DASH/RTSP spec.
 1. <strong>Easy to use:</strong> Both English and Chinese wiki, typically config files in trunk/conf, traceable 
 and session based log, linux service script and install script.
 1. <strong>MIT license:</strong> Open source with product management and evolution.
+
+> Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
+which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
 
 Enjoy it!
 
