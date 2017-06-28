@@ -97,7 +97,7 @@ cd srs/trunk
 * Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
 * Usage: How to show the demo of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream to SRS? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
-* Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
+* Usage: Solution using SRS?([CN][v1_CN_Sample])
 * Usage: Why SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
 
 ### SRS 1.0 wiki
