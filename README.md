@@ -58,22 +58,22 @@ Enjoy it!
 
 <strong>Step 1:</strong> Get SRS.
 
-> Note: Repository too large? Please clone from [mirrors](#mirrors) instead.
-
 ```
 git clone https://github.com/ossrs/srs &&
 cd srs/trunk
 ```
 
+> Note: Repository too large? Please clone from [mirrors](#mirrors) instead.
+
 <strong>Step 2:</strong> Build SRS.
-
-> Remark: Recommend Centos6 64bits, others read Build([CN][v3_CN_Build],[EN][v3_EN_Build]).
-
-> Note: For multiple cores such as 4CPUs, please use `./configure --jobs=4 && make --jobs=4` to speeed up.
 
 ```
 ./configure && make
 ```
+
+> Remark: Recommend Centos6 64bits, others read Build([CN][v3_CN_Build],[EN][v3_EN_Build]).
+
+> Note: For multiple cores such as 4CPUs, please use `./configure --jobs=4 && make --jobs=4` to speeed up.
 
 <strong>Step 3:</strong> Run SRS 
 
@@ -81,7 +81,8 @@ cd srs/trunk
 ./objs/srs -c conf/srs.conf
 ```
 
-<strong>For other typical use scenarios, please read bellow wikis:</strong>
+<strong>From here, </strong> strongly recommend to try all typical use scenarios, please read bellow wikis:
+
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
 * Usage: How to delivery HTTP FLV Live Streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
