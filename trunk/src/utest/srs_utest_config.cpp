@@ -764,32 +764,32 @@ VOID TEST(ConfigMainTest, CheckConf_chunk_size)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 0;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size 0;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 1;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size 1;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 127;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size 127;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size -1;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size -1;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size -4096;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size -4096;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 65537;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size 65537;"));
     }
 }
 
@@ -1715,27 +1715,27 @@ VOID TEST(ConfigMainTest, CheckConf_chunk_size2)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 127;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size 127;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 0;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size 0;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size -1;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size -1;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size -128;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size -128;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 65537;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size 65537;}"));
     }
 }
 
