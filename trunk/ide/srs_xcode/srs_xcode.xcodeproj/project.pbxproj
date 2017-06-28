@@ -445,6 +445,7 @@
 		3CECAF961EDC100F00C50501 /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../../objs/state-threads-1.9.1/sched.c"; sourceTree = "<group>"; };
 		3CECAF971EDC100F00C50501 /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../../objs/state-threads-1.9.1/stk.c"; sourceTree = "<group>"; };
 		3CECAF981EDC100F00C50501 /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../../objs/state-threads-1.9.1/sync.c"; sourceTree = "<group>"; };
+		3CFBDA271F0338A40054D63E /* circle.yml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = circle.yml; path = ../../../circle.yml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -819,6 +820,7 @@
 		3C1EE6D21AB1366500576EE9 /* doc */ = {
 			isa = PBXGroup;
 			children = (
+				3CFBDA271F0338A40054D63E /* circle.yml */,
 				3C1EE6D31AB1367D00576EE9 /* AUTHORS.txt */,
 				3C1EE6D51AB1367D00576EE9 /* LICENSE */,
 				3C1EE6D61AB1367D00576EE9 /* README.md */,

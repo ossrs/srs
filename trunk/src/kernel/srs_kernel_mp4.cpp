@@ -1956,7 +1956,7 @@ SrsMp4AudioSampleEntry* SrsMp4TrackBox::mp4a()
     return box? box->mp4a():NULL;
 }
 
-SrsMp4TrackHeaderBox::SrsMp4TrackHeaderBox() : creation_time(0), modification_time(0), track_ID(0)
+SrsMp4TrackHeaderBox::SrsMp4TrackHeaderBox() : creation_time(0), modification_time(0), track_ID(0), duration(0)
 {
     type = SrsMp4BoxTypeTKHD;
     
@@ -2263,7 +2263,7 @@ void SrsMp4MediaBox::set_minf(SrsMp4MediaInformationBox* v)
     boxes.push_back(v);
 }
 
-SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox() : duration(0)
+SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox() : creation_time(0), modification_time(0), duration(0)
 {
     type = SrsMp4BoxTypeMDHD;
     language = 0;
@@ -5477,7 +5477,7 @@ int SrsMp4Decoder::load_next_box(SrsMp4Box** ppbox, uint32_t required_box_type)
             return ret;
         }
         
-        if (!required_box_type || box->type == required_box_type) {
+        if (!required_box_type || (uint32_t)box->type == required_box_type) {
             *ppbox = box;
             break;
         }
@@ -5505,7 +5505,7 @@ int SrsMp4Decoder::do_load_next_box(SrsMp4Box** ppbox, uint32_t required_box_typ
         // 1. Any box, when no box type is required.
         // 2. Matched box, when box type match the required type.
         // 3. Mdat box, always decode the mdat because we only decode the header of it.
-        if (!required_box_type || box->type == required_box_type || box->is_mdat()) {
+        if (!required_box_type || (uint32_t)box->type == required_box_type || box->is_mdat()) {
             ret = box->decode(buffer);
         }
         
@@ -5885,7 +5885,7 @@ int SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_s
     int ret = ERROR_SUCCESS;
     
     if (vsh && !pavcc.empty()) {
-        if (nb_sample == pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
+        if (nb_sample == (uint32_t)pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
             return ret;
         }
         
@@ -5895,7 +5895,7 @@ int SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_s
     }
     
     if (!vsh && !pasc.empty()) {
-        if (nb_sample == pasc.size() && srs_bytes_equals(sample, &pasc[0], (int)pasc.size())) {
+        if (nb_sample == (uint32_t)pasc.size() && srs_bytes_equals(sample, &pasc[0], (int)pasc.size())) {
             return ret;
         }
         

@@ -13,10 +13,10 @@ general:
 
 dependencies:
     override:
-        - sudo apt-get install -y valgrind
+        - echo "ok"
 
 test:
     override:
-        - (cd trunk && ./configure --without-ssl && make)
+        - (cd trunk && ./configure --without-ssl --without-valgrind && make)
         - (cd trunk && ./objs/srs_utest)
 

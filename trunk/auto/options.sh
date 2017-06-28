@@ -73,7 +73,7 @@ SRS_EXPORT_LIBRTMP_PROJECT=NO
 # export the srs-librtmp to a single .h and .c, NO to disable it.
 SRS_EXPORT_LIBRTMP_SINGLE=NO
 # valgrind
-SRS_VALGRIND=YES
+SRS_VALGRIND=NO
 #
 ################################################################
 # presets
