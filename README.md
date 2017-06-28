@@ -71,7 +71,7 @@ cd srs/trunk
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, for others OS please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend Centos6 64bits, for other OS please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: For multiple cores such as 4CPUs, please use `./configure --jobs=4 && make --jobs=4` to speeed up.
 
