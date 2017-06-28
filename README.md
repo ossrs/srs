@@ -48,25 +48,6 @@ There're lots of useful features in origin server, including transcoding, DVR, i
 The ST coroutine, HTTP API and tracable log cost SRS effective for maintainability.
 All wikis are writen in English and Chinese.
 
-Why SRS?
-
-1. <strong>Completely rewriten HLS:</strong> Following m3u8/ts spec, and HLS support h.264+aac/mp3.
-1. <strong>High efficient RTMP:</strong> Deliverying support 7k+ concurrency, vhost based, both origin and edge.
-1. <strong>Embeded HTTP server:</strong> For HLS, api and HTTP flv/ts/mp3/aac streaming.
-1. <strong>Variety inputs:</strong> RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
-RTSP/MPEGTS-over-UDP.
-1. <strong>Popular internet delivery:</strong> RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
-flv/ts/mp3/aac streaming for user prefered, and MPEG-DASH.
-1. <strong>Enhanced DVR:</strong> Segment/session/append plan, customer path and HTTP callback, to FLV/MP4 file.
-1. <strong>Multiple features:</strong> Transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
-http raw api, refer, log, bandwith test and srs-librtmp.
-1. <strong>Best maintainess:</strong> Simple arch over state-threads(coroutine), single thread, single process 
-and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
-follows RTMP/HLS/DASH/RTSP spec.
-1. <strong>Easy to use:</strong> Both English and Chinese wiki, typically config files in trunk/conf, traceable 
-and session based log, linux service script and install script.
-1. <strong>MIT license:</strong> Open source with product management and evolution.
-
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
 which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
 
@@ -79,7 +60,8 @@ The `usage`, `wiki`, `changes`, `features`, `compare`, `release` and `performanc
 ### Usage
 
 <strong>Step 1:</strong> Get SRS.
-<strong>Download slow? Please use [mirrors](#mirrors) for SRS.</strong>
+
+> Note: Repository too large? Please clone from [mirrors](#mirrors) instead.
 
 ```
 git clone https://github.com/ossrs/srs &&
@@ -87,19 +69,22 @@ cd srs/trunk
 ```
 
 <strong>Step 2:</strong> Build SRS.
-<strong>Requires Centos6 32/64bits, others see Build([CN][v3_CN_Build],[EN][v3_EN_Build]).</strong>
+
+> Remark: Recommend Centos6 64bits, others read Build([CN][v3_CN_Build],[EN][v3_EN_Build]).
+
+> Note: For multiple cores such as 4CPUs, please use `./configure --jobs=4 && make --jobs=4` to speeed up.
 
 ```
 ./configure && make
 ```
 
-<strong>Step 3:</strong> Start SRS 
+<strong>Step 3:</strong> Run SRS 
 
 ```
 ./objs/srs -c conf/srs.conf
 ```
 
-<strong>See also:</strong>
+<strong>For other typical use scenarios, please read bellow wikis:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
 * Usage: How to delivery HTTP FLV Live Streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
