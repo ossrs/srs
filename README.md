@@ -17,7 +17,6 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 ## Content
 
 * [About](#about)
-* [Product](#product)
 * [Usage](#usage)
 * [Wiki for v3.0](#srs-30-wiki)
 * [Wiki for v2.0](#srs-20-wiki)
@@ -53,9 +52,7 @@ which are distributed using their own licenses, please read [License Mixing][Lic
 
 Enjoy it!
 
-## Product
-
-The `usage`, `wiki`, `changes`, `features`, `compare`, `release` and `performance` of SRS.
+<a name="product"></a>
 
 ### Usage
 
