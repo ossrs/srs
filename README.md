@@ -171,8 +171,8 @@ Please select your language:
 - [ ] Support H.265, push RTMP with H.265, delivery in HLS, read [#465][bug #465].
 - [ ] Support HLS+, please read [#466][bug #466] and [#468][bug #468].
 
-### Change Logs
 <a name="history"></a>
+<a name="change-logs"></a>
 
 ### V3 changes
 
