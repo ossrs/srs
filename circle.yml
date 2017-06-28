@@ -13,7 +13,7 @@ general:
 
 dependencies:
     override:
-        - sudo apt-get install -y valgrind
+        - echo "ok"
 
 test:
     override:
