@@ -120,7 +120,7 @@ Please select by your language:
 
 ### Features
 
-- [x] Using coroutine by ST, it's simple and stupid enough.
+- [x] Using coroutine by ST, it's really simple and stupid enough.
 - [x] Support cluster which consists of origin ([CN][v1_CN_DeliveryRTMP],[EN][v1_EN_DeliveryRTMP]) and edge([CN][v3_CN_Edge], [EN][v3_EN_Edge]) server and uses RTMP as default transport protocol.
 - [x] Origin server supports remuxing RTMP to HTTP-FLV([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv]) and HLS([CN][v3_CN_DeliveryHLS], [EN][v3_EN_DeliveryHLS]).
 - [x] Edge server supports remuxing RTMP to HTTP-FLV([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv]). As for HLS([CN][v3_CN_DeliveryHLS], [EN][v3_EN_DeliveryHLS]) edge server, recomment to use HTTP edge server, such as [NGINX](http://nginx.org/).
