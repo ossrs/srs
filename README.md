@@ -183,7 +183,7 @@ Please select by your language:
 * v3.0, 2017-03-26, Fix [#820][bug #820], extract service for modules. 3.0.21
 * v3.0, 2017-03-02, Fix [#786][bug #786], simply don't reuse object. 3.0.20
 * v3.0, 2017-03-01, For [#110][bug #110], refine thread object. 3.0.19
-* v3.0, 2017-02-12, Fix [#301][bug #301], User must config the codec in right way for HLS. 3.0.18
+* v3.0, 2017-02-12, Fix [#301][bug #301], user must config the codec in right way for HLS. 3.0.18
 * v3.0, 2017-02-07, fix [#738][bug #738] support DVR general mp4. 3.0.17
 * v3.0, 2017-01-19, for [#742][bug #742] refine source, meta and origin hub. 3.0.16
 * v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
@@ -646,7 +646,7 @@ Please select by your language:
 
 ### Compare
 
-Compare SRS with other media server, more compare please read Product([CN][v1_CN_Compare]/[EN][v1_EN_Compare]).
+Comparing with other media servers, SRS looks better and stronger from most points of view, please read Product([CN][v1_CN_Compare]/[EN][v1_EN_Compare]).
 
 #### Stream Delivery
 
@@ -729,24 +729,24 @@ Compare SRS with other media server, more compare please read Product([CN][v1_CN
 
 Remark:
 
-1. Concurrency: The concurrency of single process.
-1. MultipleProcess: SRS is single process, while [go-oryx][oryx] is a MultipleProcess SRS.
-1. HLS aonly: The HLS audio only streaming delivery.
-1. BW check: The bandwidth check.
-1. Security: To allow or deny stream publish or play.
-1. Reload: Nginx supports reload, but not nginx-rtmp.
+1. Concurrency: We only benchmark the concurrency of single process.
+1. MultipleProcess: SRS support multiple processes by [go-oryx][oryx].
+1. HLS aonly: HLS supports delivering in audio only without video stream.
+1. BW check: The bandwidth check feature is used to detect the bandwidth between server and client.
+1. Security: The security includes access control, token authentication and referer check.
+1. Reload: SRS and Nginx support reload, but nginx-rtmp doesn't.
 
 ### Performance
 
-Performance benchmark history, on virtual box.
+The performance benchmark data and corelative commits are listed here.
 
-* See also: [Performance for x86/x64 Test Guide][v1_CN_Performance]
-* See also: [Performance for RaspberryPi][v1_CN_RaspberryPi]
-* About multiple-process performance, read [go-oryx][oryx].
+* See also: [Performance for x86/x64 Test Guide][v1_CN_Performance].
+* See also: [Performance for RaspberryPi][v1_CN_RaspberryPi].
+* For multiple processes performance, read [go-oryx][oryx].
 
 #### Play RTMP benchmark
 
-The play RTMP benchmark by [SB][srs-bench]:
+The data for playing RTMP was benchmarked by [SB][srs-bench]:
 
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
@@ -766,7 +766,7 @@ The play RTMP benchmark by [SB][srs-bench]:
 
 #### Publish RTMP benchmark
 
-The publish RTMP benchmark by [SB][srs-bench]:
+The data for publishing RTMP was benchmarked by [SB][srs-bench]:
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
@@ -782,7 +782,7 @@ The publish RTMP benchmark by [SB][srs-bench]:
 
 #### Play HTTP FLV benchmark
 
-The play HTTP FLV benchmark by [SB][srs-bench]:
+The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
@@ -804,13 +804,13 @@ The latency between encoder and player with realtime config([CN][v3_CN_LowLatenc
 |   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
 |   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
 
-We use FMLE as encoder for benchmark. The latency of server is 0.1s+, 
-and the bottleneck is the encoder. For more information, read 
+We used FMLE as encoder for benchmark. The latency of server was 0.1s+, 
+and the bottleneck was the encoder. For more information, read 
 [bug #257][bug #257-c0].
 
 #### HLS overhead
 
-About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS to FLV by ffmpeg.
+About the overhead of HLS overhead, we compared FFMPEG and SRS.
 
 | Bitrate   |   Duration    |   FLV(KB)     |   HLS(KB)     |   Overhead    |
 | -------   |   --------    |   -------     |   --------    |   ---------   |
@@ -834,7 +834,7 @@ About the HLS overhead of SRS, we compare the overhead to FLV by remux the HLS t
 
 The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
 
-The overhead is larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
+The overhead should be larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
 
 ## Architecture
 
