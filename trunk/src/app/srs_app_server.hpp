@@ -106,7 +106,7 @@ public:
     virtual ~SrsBufferListener();
 public:
     virtual int listen(std::string ip, int port);
-    // ISrsTcpHandler
+// ISrsTcpHandler
 public:
     virtual int on_tcp_client(srs_netfd_t stfd);
 };
@@ -125,7 +125,7 @@ public:
     virtual ~SrsRtspListener();
 public:
     virtual int listen(std::string i, int p);
-    // ISrsTcpHandler
+// ISrsTcpHandler
 public:
     virtual int on_tcp_client(srs_netfd_t stfd);
 };
@@ -143,7 +143,7 @@ public:
     virtual ~SrsHttpFlvListener();
 public:
     virtual int listen(std::string i, int p);
-    // ISrsTcpHandler
+// ISrsTcpHandler
 public:
     virtual int on_tcp_client(srs_netfd_t stfd);
 };
@@ -227,7 +227,7 @@ public:
     /**
      * callback the handler when got client.
      */
-    virtual int on_accept_client(int conf_conns, int curr_conns) = 0;
+    virtual srs_error_t on_accept_client(int max, int cur) = 0;
 };
 
 /**
@@ -298,10 +298,10 @@ private:
     // server startup workflow, @see run_master()
 public:
     /**
-     * initialize server with callback handler.
-     * @remark user must free the cycle handler.
+     * initialize server with callback handler ch.
+     * @remark user must free the handler.
      */
-    virtual srs_error_t initialize(ISrsServerCycle* cycle_handler);
+    virtual srs_error_t initialize(ISrsServerCycle* ch);
     virtual srs_error_t initialize_st();
     virtual srs_error_t initialize_signal();
     virtual srs_error_t acquire_pid_file();
@@ -360,7 +360,7 @@ public:
      */
     virtual int accept_client(SrsListenerType type, srs_netfd_t stfd);
 private:
-    virtual SrsConnection* fd2conn(SrsListenerType type, srs_netfd_t stfd);
+    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
     // IConnectionManager
 public:
     /**

@@ -561,7 +561,7 @@ void SrsServer::dispose()
 #endif
 }
 
-srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
+srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
 {
     srs_error_t err = srs_success;
     
@@ -574,7 +574,7 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* cycle_handler)
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
     
-    handler = cycle_handler;
+    handler = ch;
     if(handler && (err = handler->initialize()) != srs_success){
         return srs_error_wrap(err, "handler initialize");
     }
@@ -1203,8 +1203,14 @@ int SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    SrsConnection* conn = fd2conn(type, stfd);
-    if (conn == NULL) {
+    SrsConnection* conn = NULL;
+    
+    if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
+        srs_error("accept client failed, err=%s", srs_error_desc(err).c_str());
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         srs_close_stfd(stfd);
         return ERROR_SUCCESS;
     }
@@ -1228,9 +1234,9 @@ int SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     return ret;
 }
 
-SrsConnection* SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd)
+srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     int fd = srs_netfd_fileno(stfd);
     string ip = srs_get_peer_ip(fd);
@@ -1239,19 +1245,18 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd)
     // will send some tcp packet which we cann't got the ip,
     // we just ignore it.
     if (ip.empty()) {
-        srs_info("ignore empty ip client, fd=%d.", fd);
-        return NULL;
+        return srs_error_new(ERROR_SOCKET_GET_PEER_IP, "ignore empty ip, fd=%d", fd);
     }
     
     // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
-    if (handler && (ret = handler->on_accept_client(max_connections, (int)conns.size()) != ERROR_SUCCESS)) {
-        srs_error("handle accept client failed, drop client: clients=%d, max=%d, fd=%d. ret=%d", (int)conns.size(), max_connections, fd, ret);
-        return NULL;
+    if (handler && (err = handler->on_accept_client(max_connections, (int)conns.size())) != srs_success) {
+        return srs_error_wrap(err, "drop client fd=%d, max=%d, cur=%d for err: %s",
+            fd, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
     }
     if ((int)conns.size() >= max_connections) {
-        srs_error("exceed the max connections, drop client: clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
-        return NULL;
+        return srs_error_new(ERROR_EXCEED_CONNECTIONS, "drop fd=%d, max=%d, cur=%d for exceed connection limits",
+            fd, max_connections, (int)conns.size());
     }
     
     // avoid fd leak when fork.
@@ -1259,33 +1264,27 @@ SrsConnection* SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd)
     if (true) {
         int val;
         if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-            ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
-            srs_error("fnctl F_GETFD error! fd=%d. ret=%#x", fd, ret);
-            return NULL;
+            return srs_error_new(ERROR_SYSTEM_PID_GET_FILE_INFO, "fnctl F_GETFD error! fd=%d", fd);
         }
         val |= FD_CLOEXEC;
         if (fcntl(fd, F_SETFD, val) < 0) {
-            ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
-            srs_error("fcntl F_SETFD error! fd=%d ret=%#x", fd, ret);
-            return NULL;
+            return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "fcntl F_SETFD error! fd=%d", fd);
         }
     }
     
-    SrsConnection* conn = NULL;
-    
     if (type == SrsListenerRtmpStream) {
-        conn = new SrsRtmpConn(this, stfd, ip);
+        *pconn = new SrsRtmpConn(this, stfd, ip);
     } else if (type == SrsListenerHttpApi) {
-        conn = new SrsHttpApi(this, stfd, http_api_mux, ip);
+        *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip);
     } else if (type == SrsListenerHttpStream) {
-        conn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
+        *pconn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s", fd, ip.c_str());
         srs_close_stfd(stfd);
-        return NULL;
+        return err;
     }
     
-    return conn;
+    return err;
 }
 
 void SrsServer::remove(ISrsConnection* c)

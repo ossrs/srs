@@ -110,6 +110,7 @@
 #define ERROR_THREAD_TERMINATED             1071
 #define ERROR_THREAD_DUMMY                  1072
 #define ERROR_ASPROCESS_PPID                1073
+#define ERROR_EXCEED_CONNECTIONS            1074
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
