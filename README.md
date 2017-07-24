@@ -81,7 +81,7 @@ cd srs/trunk
 ./objs/srs -c conf/srs.conf
 ```
 
-<strong>From here, </strong> strongly recommend to try all typical use scenarios, please read bellow wikis:
+<strong>From here, </strong> strongly recommend to try other main scenarios:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
@@ -89,32 +89,32 @@ cd srs/trunk
 * Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * Usage: How to delivery HLS for other codec?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
-* Usage: How to transode RTMP stream by SRS?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
-* Usage: How to forward stream to other server?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
-* Usage: How to deploy low lantency application?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
-* Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
-* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
-* Usage: How to show the demo of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
-* Usage: How to publish h.264 raw stream to SRS? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
-* Usage: Solution using SRS?([CN][v1_CN_Sample])
-* Usage: Why SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
+* Usage: How to transode RTMP stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
+* Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
+* Usage: How to deploy in low lantency mode?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
+* Usage: How to deploy on ARM or MIPS?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
+* Usage: How to ingest file/stream/device to RTMP?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
+* Usage: How to delivery HLS by embeded HTTP server?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
+* Usage: How to run the demostration of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
+* Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
+* Usage: Who are using SRS?([CN][v1_CN_Sample])
+* Usage: Why choose SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
 
 ### SRS 1.0 wiki
 
-Please select by your language:
+Please select according to languages:
 * [SRS 1.0 English][v1-wiki-en]
 * [SRS 1.0 Chinese][v1-wiki-cn]
 
 ### SRS 2.0 wiki
 
-Please select by your language:
+Please select according to languages:
 * [SRS 2.0 English][v2-wiki-en]
 * [SRS 2.0 Chinese][v2-wiki-cn]
 
 ### SRS 3.0 wiki
 
-Please select by your language:
+Please select according to languages:
 * [SRS 3.0 English][v3_EN_Home]
 * [SRS 3.0 Chinese][v3_CN_Home]
 
@@ -646,7 +646,7 @@ Please select by your language:
 
 ### Compare
 
-Comparing with other media servers, SRS looks better and stronger from most points of view, please read Product([CN][v1_CN_Compare]/[EN][v1_EN_Compare]).
+Comparing with other media servers, SRS is much better and stronger, for details please read Product([CN][v1_CN_Compare]/[EN][v1_EN_Compare]).
 
 #### Stream Delivery
 
@@ -730,11 +730,11 @@ Comparing with other media servers, SRS looks better and stronger from most poin
 Remark:
 
 1. Concurrency: We only benchmark the concurrency of single process.
-1. MultipleProcess: SRS support multiple processes by [go-oryx][oryx].
-1. HLS aonly: HLS supports delivering in audio only without video stream.
+1. MultipleProcess: SRS supports multiple processes by [go-oryx][oryx].
+1. HLS aonly: HLS supports audio only mode without video stream.
 1. BW check: The bandwidth check feature is used to detect the bandwidth between server and client.
 1. Security: The security includes access control, token authentication and referer check.
-1. Reload: SRS and Nginx support reload, but nginx-rtmp doesn't.
+1. Reload: SRS and Nginx supports reload, but nginx-rtmp doesn't.
 
 ### Performance
 
@@ -838,7 +838,8 @@ The overhead should be larger than this benchmark(48kbps audio is best overhead)
 
 ## Architecture
 
-SRS always use the most simple architecture to support complex transaction.
+SRS always use the simplest architecture to solve complex domain problems.
+
 * System arch: the system structure and arch.
 * Modularity arch: the main modularity of SRS.
 * Stream arch: the stream dispatch arch of SRS.
@@ -881,7 +882,7 @@ SRS always use the most simple architecture to support complex transaction.
 
 Remark:
 
-1. Modules: SRS support embeded modularity, read [modules][modules].
+1. Modules: SRS supports code-level modularity, read [modules][modules].
 
 ### Stream Architecture
 
@@ -919,43 +920,37 @@ Remark:
 
 Remark:
 
-1. Encoder: Encoder must push RTMP stream to SRS server.
-1. MediaSource: Any media source, which can be ingest by ffmpeg.
-1. Ingester: SRS fork a ffmpeg(or application) to ingest something to rtmp to SRS. Read [Ingest][v1_CN_Ingest].
-1. Streamer: SRS listen to remux some protocol to rtmp to SRS. Read [Streamer][v2_CN_Streamer].
-1. EXEC: SRS exec external application when got event, read [ng-exec][v3_CN_NgExec].
+1. Encoder: Encoder pushs RTMP stream to SRS.
+1. MediaSource: Supports any media source, ingesting by ffmpeg.
+1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v1_CN_Ingest].
+1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v2_CN_Streamer].
+1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v3_CN_NgExec].
 
 ## Tips
 
-Other tips...
+Other tips is comming...
 
 ### AUTHORS
 
 There are two types of people that have contributed to the SRS project:
-* AUTHORS: Contribute important features. Names of all 
-PRIMARY response in NetConnection.connect and metadata. 
-* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer 
-newbie questions, and generally make SRS that much better.
 
-About all PRIMARY, AUTHORS and CONTRIBUTORS, read [AUTHORS.txt][authors].
+* AUTHORS: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata. 
+* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
+
+About all AUTHORS and CONTRIBUTORS, read [AUTHORS.txt][authors].
 
 A big THANK YOU goes to:
+
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
 * Michael Talyanksy for introducing us to use st.
 * Roman Arutyunyan for creating [nginx-rtmp][nginx-rtmp] for SRS to refer to. 
 * Joyent for creating [http-parser][http-parser] for http-api for SRS.
 * Igor Sysoev for creating [nginx][nginx] for SRS to refer to.
-* [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use to transcode.
+* [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use as transcoder.
 * Guido van Rossum for creating Python for api-server for SRS.
 
 ### Mirrors
-
-Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
-
-```
-git clone https://github.com/ossrs/srs.git
-```
 
 CSDN: [https://code.csdn.net/winlinvip/srs-csdn][csdn], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
@@ -969,6 +964,14 @@ OSChina: [http://git.oschina.net/winlinvip/srs.oschina][oschina], the GIT usage(
 git clone https://git.oschina.net/winlinvip/srs.oschina.git
 ```
 
+> Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
+
+Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
+
+```
+git clone https://github.com/ossrs/srs.git
+```
+
 Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
@@ -978,6 +981,7 @@ git clone https://gitlab.com/winlinvip/srs-gitlab.git
 ### System Requirements
 
 Supported operating systems and hardware:
+
 * All Linux , both 32 and 64 bits
 * Apple OSX(Darwin), both 32 and 64bits.
 * All hardware with x86/x86_64/arm/mips cpu.
