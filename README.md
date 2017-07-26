@@ -984,7 +984,7 @@ Supported operating systems and hardware:
 
 * All Linux , both 32 and 64 bits
 * Apple OSX(Darwin), both 32 and 64bits.
-* All hardware with x86/x86_64/arm/mips cpu.
+* All hardwares with x86/x86_64/arm/mips cpu.
 
 Beijing, 2013.10<br/>
 Winlin
