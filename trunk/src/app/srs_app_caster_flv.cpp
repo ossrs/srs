@@ -60,33 +60,23 @@ SrsAppCasterFlv::~SrsAppCasterFlv()
     srs_freep(manager);
 }
 
-int SrsAppCasterFlv::initialize()
+srs_error_t SrsAppCasterFlv::initialize()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((err = http_mux->handle("/", this)) != srs_success) {
-        // TODO: FIXME: Use error.
-        ret = srs_error_code(err);
-        srs_freep(err);
-        
-        return ret;
+        return srs_error_wrap(err, "handle root");
     }
     
     if ((err = manager->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        return ret;
+        return srs_error_wrap(err, "start manager");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
+srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
@@ -94,14 +84,10 @@ int SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
     conns.push_back(conn);
     
     if ((err = conn->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        return ret;
+        return srs_error_wrap(err, "start tcp listener");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsAppCasterFlv::remove(ISrsConnection* c)

@@ -116,7 +116,7 @@
 #endif
 
 // Error predefined for all modules.
-class SrsError;
-typedef SrsError* srs_error_t;
+class SrsCplxError;
+typedef SrsCplxError* srs_error_t;
 
 #endif

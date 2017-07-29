@@ -313,7 +313,15 @@ int SrsForwarder::forward()
         }
     }
     
-    while (!trd->pull()) {
+    while (true) {
+        srs_error_t err = srs_success;
+        if ((err = trd->pull()) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
+            return ret;
+        }
+        
         pprint->elapse();
         
         // read from client.

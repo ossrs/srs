@@ -302,7 +302,15 @@ int SrsEdgeIngester::ingest()
     // set to larger timeout to read av data from origin.
     upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS);
     
-    while (!trd->pull()) {
+    while (true) {
+        srs_error_t err = srs_success;
+        if ((err = trd->pull()) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
+            return ret;
+        }
+        
         pprint->elapse();
         
         // pithy print
@@ -555,7 +563,11 @@ srs_error_t SrsEdgeForwarder::do_cycle()
     
     SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "edge forward pull");
+        }
+        
         if (send_error_code != ERROR_SUCCESS) {
             srs_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
             continue;

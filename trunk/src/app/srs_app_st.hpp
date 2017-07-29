@@ -45,9 +45,13 @@
  *
  * Thread has its inside loop, such as the RTMP receive thread:
  *      class SrsReceiveThread : public ISrsCoroutineHandler {
- *          public: SrsCoroutine trd;
+ *          public: SrsCoroutine* trd;
  *          public: virtual srs_error_t cycle() {
- *              while (!trd.pull()) { // Check whether thread interrupted.
+ *              while (true) {
+ *                  // Check whether thread interrupted.
+ *                  if ((err = trd->pull()) != srs_success) {
+ *                      return err;
+ *                  }
  *                  // Do something, such as st_read() packets, it'll be wakeup
  *                  // when user stop or interrupt the thread.
  *              }
@@ -79,6 +83,8 @@ public:
     virtual srs_error_t start() = 0;
     virtual void stop() = 0;
     virtual void interrupt() = 0;
+    // @return a copy of error, which should be freed by user.
+    //      NULL if not terminated and user should pull again.
     virtual srs_error_t pull() = 0;
     virtual int cid() = 0;
 };

@@ -121,7 +121,15 @@ int SrsHttpConn::do_cycle()
     }
     
     // process http messages.
-    while (!trd->pull()) {
+    while (true) {
+        srs_error_t err = srs_success;
+        if ((err = trd->pull()) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
+            return ret;
+        }
+        
         ISrsHttpMessage* req = NULL;
         
         // get a http message

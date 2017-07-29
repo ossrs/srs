@@ -157,7 +157,7 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     srs_freep(pprint);
 }
 
-int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+srs_error_t SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 {
     std::string peer_ip = inet_ntoa(from->sin_addr);
     int peer_port = ntohs(from->sin_port);
@@ -168,7 +168,11 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     srs_info("udp: got %s:%d packet %d/%d bytes",
              peer_ip.c_str(), peer_port, nb_buf, buffer->length());
     
-    return on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
+    int ret = on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "process udp");
+    }
+    return srs_success;
 }
 
 int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)

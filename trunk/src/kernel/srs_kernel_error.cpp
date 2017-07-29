@@ -44,23 +44,23 @@ bool srs_is_client_gracefully_close(int error_code)
         || error_code == ERROR_SOCKET_WRITE;
 }
 
-SrsError::SrsError()
+SrsCplxError::SrsCplxError()
 {
     code = ERROR_SUCCESS;
     wrapped = NULL;
     cid = rerrno = line = 0;
 }
 
-SrsError::~SrsError()
+SrsCplxError::~SrsCplxError()
 {
 }
 
-std::string SrsError::description() {
+std::string SrsCplxError::description() {
     if (desc.empty()) {
         stringstream ss;
         ss << "code=" << code;
         
-        SrsError* next = this;
+        SrsCplxError* next = this;
         while (next) {
             ss << " : " << next->msg;
             next = next->wrapped;
@@ -82,7 +82,7 @@ std::string SrsError::description() {
     return desc;
 }
 
-SrsError* SrsError::create(const char* func, const char* file, int line, int code, const char* fmt, ...) {
+SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line, int code, const char* fmt, ...) {
     int rerrno = (int)errno;
 
     va_list ap;
@@ -91,7 +91,7 @@ SrsError* SrsError::create(const char* func, const char* file, int line, int cod
     vsnprintf(buffer, sizeof(buffer), fmt, ap);
     va_end(ap);
     
-    SrsError* err = new SrsError();
+    SrsCplxError* err = new SrsCplxError();
     
     err->func = func;
     err->file = file;
@@ -107,7 +107,7 @@ SrsError* SrsError::create(const char* func, const char* file, int line, int cod
     return err;
 }
 
-SrsError* SrsError::wrap(const char* func, const char* file, int line, SrsError* v, const char* fmt, ...) {
+SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, SrsCplxError* v, const char* fmt, ...) {
     int rerrno = (int)errno;
     
     va_list ap;
@@ -116,7 +116,7 @@ SrsError* SrsError::wrap(const char* func, const char* file, int line, SrsError*
     vsnprintf(buffer, sizeof(buffer), fmt, ap);
     va_end(ap);
     
-    SrsError* err = new SrsError();
+    SrsCplxError* err = new SrsCplxError();
     
     err->func = func;
     err->file = file;
@@ -132,17 +132,17 @@ SrsError* SrsError::wrap(const char* func, const char* file, int line, SrsError*
     return err;
 }
 
-SrsError* SrsError::success() {
+SrsCplxError* SrsCplxError::success() {
     return NULL;
 }
 
-SrsError* SrsError::copy(SrsError* from)
+SrsCplxError* SrsCplxError::copy(SrsCplxError* from)
 {
     if (from == srs_success) {
         return srs_success;
     }
     
-    SrsError* err = new SrsError();
+    SrsCplxError* err = new SrsCplxError();
     
     err->code = from->code;
     err->wrapped = srs_error_copy(from->wrapped);
@@ -157,12 +157,12 @@ SrsError* SrsError::copy(SrsError* from)
     return err;
 }
 
-string SrsError::description(SrsError* err)
+string SrsCplxError::description(SrsCplxError* err)
 {
     return err? err->description() : "Success";
 }
 
-int SrsError::error_code(SrsError* err)
+int SrsCplxError::error_code(SrsCplxError* err)
 {
     return err? err->code : ERROR_SUCCESS;
 }

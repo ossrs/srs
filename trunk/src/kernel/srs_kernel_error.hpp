@@ -336,11 +336,11 @@ extern bool srs_is_system_control_error(int error_code);
 extern bool srs_is_client_gracefully_close(int error_code);
 
 // Use complex errors, @read https://github.com/ossrs/srs/issues/913
-class SrsError
+class SrsCplxError
 {
 private:
     int code;
-    SrsError* wrapped;
+    SrsCplxError* wrapped;
     std::string msg;
     
     std::string func;
@@ -352,27 +352,27 @@ private:
     
     std::string desc;
 private:
-    SrsError();
+    SrsCplxError();
 public:
-    virtual ~SrsError();
+    virtual ~SrsCplxError();
 private:
     virtual std::string description();
 public:
-    static SrsError* create(const char* func, const char* file, int line, int code, const char* fmt, ...);
-    static SrsError* wrap(const char* func, const char* file, int line, SrsError* err, const char* fmt, ...);
-    static SrsError* success();
-    static SrsError* copy(SrsError* from);
-    static std::string description(SrsError* err);
-    static int error_code(SrsError* err);
+    static SrsCplxError* create(const char* func, const char* file, int line, int code, const char* fmt, ...);
+    static SrsCplxError* wrap(const char* func, const char* file, int line, SrsCplxError* err, const char* fmt, ...);
+    static SrsCplxError* success();
+    static SrsCplxError* copy(SrsCplxError* from);
+    static std::string description(SrsCplxError* err);
+    static int error_code(SrsCplxError* err);
 };
 
 // Error helpers, should use these functions to new or wrap an error.
-#define srs_success SrsError::success()
-#define srs_error_new(ret, fmt, ...) SrsError::create(__FUNCTION__, __FILE__, __LINE__, ret, fmt, ##__VA_ARGS__)
-#define srs_error_wrap(err, fmt, ...) SrsError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
-#define srs_error_copy(err) SrsError::copy(err)
-#define srs_error_desc(err) SrsError::description(err)
-#define srs_error_code(err) SrsError::error_code(err)
+#define srs_success SrsCplxError::success()
+#define srs_error_new(ret, fmt, ...) SrsCplxError::create(__FUNCTION__, __FILE__, __LINE__, ret, fmt, ##__VA_ARGS__)
+#define srs_error_wrap(err, fmt, ...) SrsCplxError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
+#define srs_error_copy(err) SrsCplxError::copy(err)
+#define srs_error_desc(err) SrsCplxError::description(err)
+#define srs_error_code(err) SrsCplxError::error_code(err)
 
 #endif
 

@@ -55,9 +55,9 @@ ISrsUdpHandler::~ISrsUdpHandler()
 {
 }
 
-int ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
+srs_error_t ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 ISrsTcpHandler::ISrsTcpHandler()
@@ -107,17 +107,13 @@ srs_netfd_t SrsUdpListener::stfd()
     return _stfd;
 }
 
-int SrsUdpListener::listen()
+srs_error_t SrsUdpListener::listen()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create linux socket error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
-    srs_verbose("create linux socket success. ip=%s, port=%d, fd=%d", ip.c_str(), port, _fd);
     
     srs_fd_close_exec(_fd);
     srs_socket_reuse_addr(_fd);
@@ -127,40 +123,31 @@ int SrsUdpListener::listen()
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
-        ret = ERROR_SOCKET_BIND;
-        srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_BIND, "bind socket");
     }
-    srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open socket");
     }
-    srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this);
     if ((err = trd->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_wrap(err, "start thread");
     }
-    srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsUdpListener::cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "udp listener");
+        }
+        
         // TODO: FIXME: support ipv6, @see man 7 ipv6
         sockaddr_in from;
         int nb_from = sizeof(sockaddr_in);
@@ -170,8 +157,8 @@ srs_error_t SrsUdpListener::cycle()
             return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
         }
         
-        if ((ret = handler->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "handle packet %d bytes", nread);
+        if ((err = handler->on_udp_packet(&from, buf, nread)) != srs_success) {
+            return srs_error_wrap(err, "handle packet %d bytes", nread);
         }
         
         if (SrsUdpPacketRecvCycleMS > 0) {
@@ -206,17 +193,13 @@ int SrsTcpListener::fd()
     return _fd;
 }
 
-int SrsTcpListener::listen()
+srs_error_t SrsTcpListener::listen()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create linux socket error. port=%d, ret=%d", port, ret);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
-    srs_verbose("create linux socket success. port=%d, fd=%d", port, _fd);
     
     srs_fd_close_exec(_fd);
     srs_socket_reuse_addr(_fd);
@@ -226,59 +209,45 @@ int SrsTcpListener::listen()
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
-        ret = ERROR_SOCKET_BIND;
-        srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_BIND, "bind socket");
     }
-    srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if (::listen(_fd, SERVER_LISTEN_BACKLOG) == -1) {
-        ret = ERROR_SOCKET_LISTEN;
-        srs_error("listen socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_LISTEN, "listen socket");
     }
-    srs_verbose("listen socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open socket");
     }
-    srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("tcp", this);
     if ((err = trd->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
+        return srs_error_wrap(err, "start coroutine");
     }
-    srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsTcpListener::cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    while (!trd->pull()) {
-        srs_netfd_t stfd = srs_accept(_stfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
-        int fd = srs_netfd_fileno(stfd);
-        
-        srs_fd_close_exec(fd);
-        
-        if(stfd == NULL){
-            return err;
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "tcp listener");
         }
-        srs_verbose("get a client. fd=%d", fd);
         
-        if ((ret = handler->on_tcp_client(stfd)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "handle fd=%d", fd);
+        srs_netfd_t cstfd = srs_accept(_stfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+        if(cstfd == NULL){
+            return srs_error_new(ERROR_SOCKET_CREATE, "accept failed");
+        }
+        
+        int cfd = srs_netfd_fileno(cstfd);
+        srs_fd_close_exec(cfd);
+        
+        if ((err = handler->on_tcp_client(cstfd)) != srs_success) {
+            return srs_error_wrap(err, "handle fd=%d", cfd);
         }
     }
     

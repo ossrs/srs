@@ -63,10 +63,10 @@ public:
     SrsAppCasterFlv(SrsConfDirective* c);
     virtual ~SrsAppCasterFlv();
 public:
-    virtual int initialize();
+    virtual srs_error_t initialize();
 // ISrsTcpHandler
 public:
-    virtual int on_tcp_client(srs_netfd_t stfd);
+    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 // IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);

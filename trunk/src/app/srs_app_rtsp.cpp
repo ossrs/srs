@@ -71,14 +71,15 @@ int SrsRtpConn::port()
     return _port;
 }
 
-int SrsRtpConn::listen()
+srs_error_t SrsRtpConn::listen()
 {
     return listener->listen();
 }
 
-int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+srs_error_t SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     pprint->elapse();
     
@@ -86,13 +87,12 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
         SrsBuffer stream;
         
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "stream");
         }
         
         SrsRtpPacket pkt;
         if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
-            srs_error("rtsp: decode rtp packet failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "decode");
         }
         
         if (pkt.chunked) {
@@ -106,7 +106,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
                           nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc,
                           cache->payload->length()
                           );
-                return ret;
+                return err;
             }
         } else {
             srs_freep(cache);
@@ -126,11 +126,10 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     SrsAutoFree(SrsRtpPacket, cache);
     
     if ((ret = rtsp->on_rtp_packet(cache, stream_id)) != ERROR_SUCCESS) {
-        srs_error("rtsp: process rtp packet failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "process rtp packet");
     }
     
-    return ret;
+    return err;
 }
 
 SrsRtspAudioCache::SrsRtspAudioCache()
@@ -256,7 +255,11 @@ srs_error_t SrsRtspConn::do_cycle()
     srs_trace("rtsp: serve %s", ip.c_str());
     
     // consume all rtsp messages.
-    while (!trd->pull()) {
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "rtsp cycle");
+        }
+        
         SrsRtspRequest* req = NULL;
         if ((ret = rtsp->recv_message(&req)) != ERROR_SUCCESS) {
             return srs_error_new(ret, "recv message");
@@ -316,8 +319,8 @@ srs_error_t SrsRtspConn::do_cycle()
                 srs_freep(audio_rtp);
                 rtp = audio_rtp = new SrsRtpConn(this, lpm, audio_id);
             }
-            if ((ret = rtp->listen()) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtp listen");
+            if ((err = rtp->listen()) != srs_success) {
+                return srs_error_wrap(err, "rtp listen");
             }
             srs_trace("rtsp: #%d %s over %s/%s/%s %s client-port=%d-%d, server-port=%d-%d",
                 req->stream_id, (req->stream_id == video_id)? "Video":"Audio",
@@ -728,27 +731,20 @@ void SrsRtspCaster::free_port(int lpmin, int lpmax)
     srs_trace("rtsp: free rtp port=%d-%d", lpmin, lpmax);
 }
 
-int SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)
+srs_error_t SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRtspConn* conn = new SrsRtspConn(this, stfd, output);
     
     if ((err = conn->serve()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        srs_error("rtsp: serve client failed. ret=%d", ret);
         srs_freep(conn);
-        return ret;
+        return srs_error_wrap(err, "serve conn");
     }
     
     clients.push_back(conn);
-    srs_info("rtsp: start thread to serve client.");
     
-    return ret;
+    return err;
 }
 
 void SrsRtspCaster::remove(SrsRtspConn* conn)

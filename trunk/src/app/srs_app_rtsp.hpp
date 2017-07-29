@@ -71,10 +71,10 @@ public:
     virtual ~SrsRtpConn();
 public:
     virtual int port();
-    virtual int listen();
+    virtual srs_error_t listen();
 // interface ISrsUdpHandler
 public:
-    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
 };
 
 /**
@@ -206,7 +206,7 @@ public:
     virtual void free_port(int lpmin, int lpmax);
 // interface ISrsTcpHandler
 public:
-    virtual int on_tcp_client(srs_netfd_t stfd);
+    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
     // internal methods.
 public:
     virtual void remove(SrsRtspConn* conn);
