@@ -1195,7 +1195,6 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 
 srs_error_t SrsConfig::reload()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsConfig conf;
@@ -1214,8 +1213,8 @@ srs_error_t SrsConfig::reload()
         return srs_error_wrap(err, "check config");
     }
     
-    if ((ret = reload_conf(&conf)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "reload config");
+    if ((err = reload_conf(&conf)) != srs_success) {
+        return srs_error_wrap(err, "reload config");
     }
     
     return err;
@@ -1485,9 +1484,10 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
     return ret;
 }
 
-int SrsConfig::reload_conf(SrsConfig* conf)
+srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* old_root = root;
     SrsAutoFree(SrsConfDirective, old_root);
@@ -1509,67 +1509,67 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
         if ((ret = do_reload_listen()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "listen");
         }
     }
     
     // merge config: pid
     if (!srs_directive_equals(root->get("pid"), old_root->get("pid"))) {
         if ((ret = do_reload_pid()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "pid");;
         }
     }
     
     // merge config: srs_log_tank
     if (!srs_directive_equals(root->get("srs_log_tank"), old_root->get("srs_log_tank"))) {
         if ((ret = do_reload_srs_log_tank()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "log tank");;
         }
     }
     
     // merge config: srs_log_level
     if (!srs_directive_equals(root->get("srs_log_level"), old_root->get("srs_log_level"))) {
         if ((ret = do_reload_srs_log_level()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "log level");;
         }
     }
     
     // merge config: srs_log_file
     if (!srs_directive_equals(root->get("srs_log_file"), old_root->get("srs_log_file"))) {
         if ((ret = do_reload_srs_log_file()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "log file");;
         }
     }
     
     // merge config: max_connections
     if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
         if ((ret = do_reload_max_connections()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "max connections");;
         }
     }
     
     // merge config: utc_time
     if (!srs_directive_equals(root->get("utc_time"), old_root->get("utc_time"))) {
-        if ((ret = do_reload_utc_time()) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = do_reload_utc_time()) != srs_success) {
+            return srs_error_wrap(err, "utc time");;
         }
     }
     
     // merge config: pithy_print_ms
     if (!srs_directive_equals(root->get("pithy_print_ms"), old_root->get("pithy_print_ms"))) {
         if ((ret = do_reload_pithy_print_ms()) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "pithy print ms");;
         }
     }
     
     // merge config: http_api
     if ((ret = reload_http_api(old_root)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http api");;
     }
     
     // merge config: http_stream
     if ((ret = reload_http_stream(old_root)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http steram");;
     }
     
     // TODO: FIXME: support reload stream_caster.
@@ -1577,10 +1577,10 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     
     // merge config: vhost
     if ((ret = reload_vhost(old_root)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "vhost");;
     }
     
-    return ret;
+    return err;
 }
 
 int SrsConfig::reload_http_api(SrsConfDirective* old_root)
@@ -3015,28 +3015,28 @@ int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
     return ret;
 }
 
-int SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
+srs_error_t SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     applied = false;
     
     SrsConfDirective* conf = root->get_or_create("utc_time");
     
     if (conf->arg0() == utc_time) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(utc_time);
     
-    if ((ret = do_reload_utc_time()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = do_reload_utc_time()) != srs_success) {
+        return srs_error_wrap(err, "reload");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
 int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
@@ -3307,21 +3307,20 @@ int SrsConfig::do_reload_max_connections()
     return ret;
 }
 
-int SrsConfig::do_reload_utc_time()
+srs_error_t SrsConfig::do_reload_utc_time()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     vector<ISrsReloadHandler*>::iterator it;
     for (it = subscribes.begin(); it != subscribes.end(); ++it) {
         ISrsReloadHandler* subscribe = *it;
-        if ((ret = subscribe->on_reload_utc_time()) != ERROR_SUCCESS) {
-            srs_error("notify subscribes utc_time failed. ret=%d", ret);
-            return ret;
+        if ((err = subscribe->on_reload_utc_time()) != srs_success) {
+            return srs_error_wrap(err, "utc_time");
         }
     }
     srs_trace("reload utc_time success.");
     
-    return ret;
+    return err;
 }
 
 int SrsConfig::do_reload_pithy_print_ms()

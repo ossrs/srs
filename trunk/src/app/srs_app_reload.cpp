@@ -40,9 +40,9 @@ int ISrsReloadHandler::on_reload_listen()
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_utc_time()
+srs_error_t ISrsReloadHandler::on_reload_utc_time()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 int ISrsReloadHandler::on_reload_max_conns()

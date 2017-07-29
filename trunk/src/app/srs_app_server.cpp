@@ -150,7 +150,7 @@ srs_error_t SrsBufferListener::listen(string i, int p)
     listener = new SrsTcpListener(this, ip, port);
     
     if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "buffer tcp listen %s:%d", ip.c_str(), port);
+        return srs_error_wrap(err, "buffered tcp listen");
     }
     
     string v = srs_listener_type2string(type);
@@ -1227,7 +1227,8 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
             fd, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
     }
     if ((int)conns.size() >= max_connections) {
-        return srs_error_new(ERROR_EXCEED_CONNECTIONS, "drop fd=%d, max=%d, cur=%d for exceed connection limits",
+        return srs_error_new(ERROR_EXCEED_CONNECTIONS,
+            "drop fd=%d, max=%d, cur=%d for exceed connection limits",
             fd, max_connections, (int)conns.size());
     }
     
@@ -1278,8 +1279,7 @@ void SrsServer::remove(ISrsConnection* c)
     stat->kbps_add_delta(conn);
     stat->on_disconnect(conn->srs_id());
     
-    // all connections are created by server,
-    // so we free it here.
+    // use manager to free it async.
     conn_manager->remove(c);
 }
 

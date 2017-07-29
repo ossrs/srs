@@ -388,7 +388,7 @@ protected:
      * reload from the config.
      * @remark, use protected for the utest to override with mock.
      */
-    virtual int reload_conf(SrsConfig* conf);
+    virtual srs_error_t reload_conf(SrsConfig* conf);
 private:
     /**
      * reload the http_api section of config.
@@ -476,7 +476,7 @@ public:
     /**
      * raw set the global whether use utc time.
      */
-    virtual int raw_set_utc_time(std::string utc_time, bool& applied);
+    virtual srs_error_t raw_set_utc_time(std::string utc_time, bool& applied);
     /**
      * raw set the global pithy print interval in ms.
      */
@@ -516,7 +516,7 @@ private:
     virtual int do_reload_srs_log_level();
     virtual int do_reload_srs_log_file();
     virtual int do_reload_max_connections();
-    virtual int do_reload_utc_time();
+    virtual srs_error_t do_reload_utc_time();
     virtual int do_reload_pithy_print_ms();
     virtual int do_reload_vhost_added(std::string vhost);
     virtual int do_reload_vhost_removed(std::string vhost);

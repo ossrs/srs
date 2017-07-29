@@ -85,6 +85,16 @@ int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, int 
     return srs_api_response_jsonp(w, callback, obj->dumps());
 }
 
+int srs_api_response_jsonp_code(ISrsHttpResponseWriter* w, string callback, srs_error_t err)
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(srs_error_code(err)));
+    
+    return srs_api_response_jsonp(w, callback, obj->dumps());
+}
+
 int srs_api_response_json(ISrsHttpResponseWriter* w, string data)
 {
     SrsHttpHeader* h = w->header();
@@ -101,6 +111,16 @@ int srs_api_response_json_code(ISrsHttpResponseWriter* w, int code)
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("code", SrsJsonAny::integer(code));
+    
+    return srs_api_response_json(w, obj->dumps());
+}
+
+int srs_api_response_json_code(ISrsHttpResponseWriter* w, srs_error_t err)
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(srs_error_code(err)));
     
     return srs_api_response_json(w, obj->dumps());
 }
@@ -127,6 +147,26 @@ int srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int cod
     // jsonp, get function name from query("callback")
     string callback = r->query_get("callback");
     return srs_api_response_jsonp_code(w, callback, code);
+}
+
+int srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, srs_error_t err)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // no jsonp, directly response.
+    if (!r->is_jsonp()) {
+        ret = srs_api_response_json_code(w, err);
+    } else {
+        // jsonp, get function name from query("callback")
+        string callback = r->query_get("callback");
+        ret = srs_api_response_jsonp_code(w, callback, err);
+    }
+    
+    if (err != srs_success) {
+        srs_warn("error %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+    return ret;
 }
 
 SrsGoApiRoot::SrsGoApiRoot()
@@ -852,6 +892,7 @@ SrsGoApiRaw::~SrsGoApiRaw()
 int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::string rpc = r->query_get("rpc");
     
@@ -1126,9 +1167,8 @@ int SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
                 return srs_api_response_code(w, r, ret);
             }
             
-            if ((ret = _srs_config->raw_set_utc_time(srs_config_bool2switch(value), applied)) != ERROR_SUCCESS) {
-                srs_error("raw api update utc_time=%s failed. ret=%d", value.c_str(), ret);
-                return srs_api_response_code(w, r, ret);
+            if ((err = _srs_config->raw_set_utc_time(srs_config_bool2switch(value), applied)) != srs_success) {
+                return srs_api_response_code(w, r, srs_error_wrap(err, "raw api update utc_time=%s", value.c_str()));
             }
         } else if (scope == "pithy_print_ms") {
             int ppmv = ::atoi(value.c_str());

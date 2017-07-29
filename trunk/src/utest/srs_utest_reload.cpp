@@ -285,7 +285,6 @@ MockSrsReloadConfig::~MockSrsReloadConfig()
 
 srs_error_t MockSrsReloadConfig::do_reload(string buf)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     MockSrsReloadConfig conf;
@@ -293,8 +292,8 @@ srs_error_t MockSrsReloadConfig::do_reload(string buf)
         return srs_error_wrap(err, "parse");
     }
 
-    if ((ret = MockSrsConfig::reload_conf(&conf)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "reload conf");
+    if ((err = MockSrsConfig::reload_conf(&conf)) != srs_success) {
+        return srs_error_wrap(err, "reload conf");
     }
     
     return err;

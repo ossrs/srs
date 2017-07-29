@@ -65,7 +65,7 @@ public:
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_utc_time();
+    virtual srs_error_t on_reload_utc_time();
     virtual int on_reload_log_tank();
     virtual int on_reload_log_level();
     virtual int on_reload_log_file();
