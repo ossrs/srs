@@ -234,14 +234,13 @@ class SrsHttpRecvThread : public ISrsCoroutineHandler
 private:
     SrsResponseOnlyHttpConn* conn;
     SrsCoroutine* trd;
-    int error;
 public:
     SrsHttpRecvThread(SrsResponseOnlyHttpConn* c);
     virtual ~SrsHttpRecvThread();
 public:
     virtual srs_error_t start();
 public:
-    virtual int error_code();
+    virtual srs_error_t pull();
 // interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();

@@ -85,9 +85,9 @@ int ISrsReloadHandler::on_reload_http_api_disabled()
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_http_api_crossdomain()
+srs_error_t ISrsReloadHandler::on_reload_http_api_crossdomain()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 int ISrsReloadHandler::on_reload_http_api_raw_api()
@@ -110,9 +110,9 @@ int ISrsReloadHandler::on_reload_http_stream_updated()
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_http_stream_crossdomain()
+srs_error_t ISrsReloadHandler::on_reload_http_stream_crossdomain()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 int ISrsReloadHandler::on_reload_vhost_http_updated()

@@ -77,8 +77,8 @@ class ISrsHttpResponseWriter;
 
 // Error replies to the request with the specified error message and HTTP code.
 // The error message should be plain text.
-extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code);
-extern int srs_go_http_error(ISrsHttpResponseWriter* w, int code, std::string error);
+extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code);
+extern srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code, std::string error);
 
 // get the status text of code.
 extern std::string srs_generate_http_status_text(int status);
@@ -255,7 +255,7 @@ public:
     virtual ~ISrsHttpHandler();
 public:
     virtual bool is_not_found();
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
 };
 
 // Redirect to a fixed URL
@@ -268,7 +268,7 @@ public:
     SrsHttpRedirectHandler(std::string u, int c);
     virtual ~SrsHttpRedirectHandler();
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // NotFound replies to the request with an HTTP 404 not found error.
@@ -279,7 +279,7 @@ public:
     virtual ~SrsHttpNotFoundHandler();
 public:
     virtual bool is_not_found();
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // FileServer returns a handler that serves HTTP requests
@@ -298,31 +298,31 @@ public:
     SrsHttpFileServer(std::string root_dir);
     virtual ~SrsHttpFileServer();
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     /**
      * serve the file by specified path
      */
-    virtual int serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
-    virtual int serve_flv_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
-    virtual int serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_flv_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     /**
      * when access flv file with x.flv?start=xxx
      */
-    virtual int serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
+    virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
     /**
      * when access mp4 file with x.mp4?range=start-end
      * @param start the start offset in bytes.
      * @param end the end offset in bytes. -1 to end of file.
      * @remark response data in [start, end].
      */
-    virtual int serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
 protected:
     /**
      * copy the fs to response writer in size bytes.
      */
-    virtual int copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int size);
+    virtual srs_error_t copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int size);
 };
 
 // the mux entry for server mux.
@@ -353,7 +353,7 @@ public:
      * @param request the http request message to match the handler.
      * @param ph the already matched handler, hijack can rewrite it.
      */
-    virtual int hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph) = 0;
+    virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph) = 0;
 };
 
 /**
@@ -365,7 +365,7 @@ public:
     ISrsHttpServeMux();
     virtual ~ISrsHttpServeMux();
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) = 0;
 };
 
 // ServeMux is an HTTP request multiplexer.
@@ -427,15 +427,13 @@ public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
     virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
-    // whether the http muxer can serve the specified message,
-    // if not, user can try next muxer.
-    virtual bool can_serve(ISrsHttpMessage* r);
 // interface ISrsHttpServeMux
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+public:
+    virtual srs_error_t find_handler(ISrsHttpMessage* r, ISrsHttpHandler** ph);
 private:
-    virtual int find_handler(ISrsHttpMessage* r, ISrsHttpHandler** ph);
-    virtual int match(ISrsHttpMessage* r, ISrsHttpHandler** ph);
+    virtual srs_error_t match(ISrsHttpMessage* r, ISrsHttpHandler** ph);
     virtual bool path_match(std::string pattern, std::string path);
 };
 
@@ -453,10 +451,10 @@ public:
     SrsHttpCorsMux();
     virtual ~SrsHttpCorsMux();
 public:
-    virtual int initialize(ISrsHttpServeMux* worker, bool cros_enabled);
+    virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool cros_enabled);
 // interface ISrsHttpServeMux
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // for http header.

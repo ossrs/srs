@@ -121,7 +121,7 @@ protected:
     /**
      * for concrete connection to do the cycle.
      */
-    virtual int do_cycle() = 0;
+    virtual srs_error_t do_cycle() = 0;
 };
 
 #endif

@@ -132,7 +132,7 @@ public:
 public:
     virtual void dispose();
 protected:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_removed(std::string vhost);
@@ -171,7 +171,7 @@ private:
      * when the connection disconnect, call this method.
      * e.g. log msg of connection and report to other system.
      */
-    virtual int on_disconnect();
+    virtual srs_error_t on_disconnect();
 private:
     virtual int http_hooks_on_connect();
     virtual void http_hooks_on_close();

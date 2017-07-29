@@ -60,29 +60,28 @@ SrsVodStream::~SrsVodStream()
 {
 }
 
-int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
+srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsFileReader fs;
     
     // open flv file
     if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "open file");
     }
     
     if (offset > fs.filesize()) {
-        ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http flv streaming %s overflow. size=%" PRId64 ", offset=%d, ret=%d",
-                 fullpath.c_str(), fs.filesize(), offset, ret);
-        return ret;
+        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%d",
+            fullpath.c_str(), fs.filesize(), offset);
     }
     
     SrsFlvVodStreamDecoder ffd;
     
     // open fast decoder
     if ((ret = ffd.initialize(&fs)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "init ffd");
     }
     
     // save header, send later.
@@ -90,7 +89,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     // send flv header
     if ((ret = ffd.read_header_ext(flv_header)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ffd read header");
     }
     
     // save sequence header, send later
@@ -101,18 +100,16 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
         // send sequence header
         int64_t start = 0;
         if ((ret = ffd.read_sequence_header_summary(&start, &sh_size)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "ffd read sps");
         }
         if (sh_size <= 0) {
-            ret = ERROR_HTTP_REMUX_SEQUENCE_HEADER;
-            srs_warn("http flv streaming no sequence header. size=%d, ret=%d", sh_size, ret);
-            return ret;
+            return srs_error_new(ERROR_HTTP_REMUX_SEQUENCE_HEADER, "no sequence, size=%d", sh_size);
         }
     }
     sh_data = new char[sh_size];
     SrsAutoFreeA(char, sh_data);
     if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "fs read");
     }
     
     // seek to data offset
@@ -124,29 +121,29 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     // write flv header and sequence header.
     if ((ret = w->write(flv_header, sizeof(flv_header))) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "write flv header");
     }
     if (sh_size > 0 && (ret = w->write(sh_data, sh_size)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "write sequence");
     }
     
     // write body.
     if ((ret = ffd.seek2(offset)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ffd seek");
     }
     
     // send data
-    if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
-        srs_warn("read flv=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
-        return ret;
+    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+        return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), left);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
+srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_assert(start >= 0);
     srs_assert(end == -1 || end >= 0);
@@ -155,7 +152,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     
     // open flv file
     if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "fs open");
     }
     
     // parse -1 to whole file.
@@ -164,10 +161,8 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     }
     
     if (end > fs.filesize() || start > end) {
-        ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
-        srs_warn("http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d, ret=%d",
-                 fullpath.c_str(), fs.filesize(), start, ret);
-        return ret;
+        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
+            fullpath.c_str(), fs.filesize(), start);
     }
     
     // seek to data offset, [start, end] for range.
@@ -189,12 +184,11 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     fs.seek2(start);
     
     // send data
-    if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
-        srs_warn("read mp4=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
-        return ret;
+    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+        return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), left);
     }
     
-    return ret;
+    return err;
 }
 
 SrsHttpStaticServer::SrsHttpStaticServer(SrsServer* svr)

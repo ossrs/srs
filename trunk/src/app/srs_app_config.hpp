@@ -393,12 +393,12 @@ private:
     /**
      * reload the http_api section of config.
      */
-    virtual int reload_http_api(SrsConfDirective* old_root);
+    virtual srs_error_t reload_http_api(SrsConfDirective* old_root);
     /**
      * reload the http_stream section of config.
      */
     // TODO: FIXME: rename to http_server.
-    virtual int reload_http_stream(SrsConfDirective* old_root);
+    virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
     /**
      * reload the transcode section of vhost of config.
      */

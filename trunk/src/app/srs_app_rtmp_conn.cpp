@@ -157,17 +157,17 @@ void SrsRtmpConn::dispose()
 }
 
 // TODO: return detail message when error for client.
-int SrsRtmpConn::do_cycle()
+srs_error_t SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
     
     // notify kafka cluster.
 #ifdef SRS_AUTO_KAFKA
     if ((ret = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
-        srs_error("kafka handler on_client failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "kafka on client");
     }
 #endif
     
@@ -175,17 +175,13 @@ int SrsRtmpConn::do_cycle()
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
     if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
-        srs_error("rtmp handshake failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "rtmp handshake");
     }
-    srs_verbose("rtmp handshake success");
     
     SrsRequest* req = info->req;
     if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
-        srs_error("rtmp connect vhost/app failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "rtmp connect tcUrl");
     }
-    srs_verbose("rtmp connect app success");
     
     // set client ip to request.
     req->ip = ip;
@@ -197,28 +193,22 @@ int SrsRtmpConn::do_cycle()
     }
     
     srs_info("discovery app success. schema=%s, vhost=%s, port=%d, app=%s",
-             req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
+        req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     
     if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
-        ret = ERROR_RTMP_REQ_TCURL;
-        srs_error("discovery tcUrl failed. "
-                  "tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, ret=%d",
-                  req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
+            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     }
     
     // check vhost, allow default vhost.
     if ((ret = check_vhost(true)) != ERROR_SUCCESS) {
-        srs_error("check vhost failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "check vhost");
     }
-    srs_verbose("check vhost success.");
     
-    srs_trace("connect app, "
-              "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s",
-              req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
-              req->schema.c_str(), req->vhost.c_str(), req->port,
-              req->app.c_str(), (req->args? "(obj)":"null"));
+    srs_trace("connect app, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s",
+        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
+        req->schema.c_str(), req->vhost.c_str(), req->port,
+        req->app.c_str(), (req->args? "(obj)":"null"));
     
     // show client identity
     if(req->args) {
@@ -242,21 +232,24 @@ int SrsRtmpConn::do_cycle()
         }
         
         srs_info("edge-srs ip=%s, version=%s, pid=%d, id=%d",
-                 srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+            srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         if (srs_pid > 0) {
             srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d",
-                      srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+                srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         }
     }
     
-    ret = service_cycle();
-    
-    int disc_ret = ERROR_SUCCESS;
-    if ((disc_ret = on_disconnect()) != ERROR_SUCCESS) {
-        srs_warn("connection on disconnect peer failed, but ignore this error. disc_ret=%d, ret=%d", disc_ret, ret);
+    if ((ret = service_cycle()) != ERROR_SUCCESS) {
+        err = srs_error_new(ret, "service cycle");
     }
     
-    return ret;
+    srs_error_t r0 = srs_success;
+    if ((r0 = on_disconnect()) != srs_success) {
+        err = srs_error_wrap(err, "on disconnect %s", srs_error_desc(r0).c_str());
+        srs_freep(r0);
+    }
+    
+    return err;
 }
 
 int SrsRtmpConn::on_reload_vhost_removed(string vhost)
@@ -1399,22 +1392,22 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     return ret;
 }
 
-int SrsRtmpConn::on_disconnect()
+srs_error_t SrsRtmpConn::on_disconnect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     http_hooks_on_close();
     
 #ifdef SRS_AUTO_KAFKA
     if ((ret = _srs_kafka->on_close(srs_id())) != ERROR_SUCCESS) {
-        srs_error("notify kafka failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "kafka on close");
     }
 #endif
     
-    // TODO: implements it.
+    // TODO: FIXME: Implements it.
     
-    return ret;
+    return err;
 }
 
 int SrsRtmpConn::http_hooks_on_connect()

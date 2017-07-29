@@ -105,7 +105,7 @@ void SrsAppCasterFlv::remove(ISrsConnection* c)
     manager->remove(c);
 }
 
-int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsHttpMessage* msg = dynamic_cast<SrsHttpMessage*>(r);
     SrsDynamicHttpConn* conn = dynamic_cast<SrsDynamicHttpConn*>(msg->connection());
@@ -128,7 +128,12 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         o = o.substr(0, o.length() - 4);
     }
     
-    return conn->proxy(w, r, o);
+    int ret = conn->proxy(w, r, o);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "proxy");
+    }
+    
+    return srs_success;
 }
 
 SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
@@ -144,10 +149,9 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
     srs_freep(pprint);
 }
 
-int SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
+srs_error_t SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return srs_success;
 }
 
 int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o)

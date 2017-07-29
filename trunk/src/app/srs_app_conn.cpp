@@ -98,25 +98,26 @@ srs_error_t SrsConnection::start()
 
 srs_error_t SrsConnection::cycle()
 {
-    int ret = do_cycle();
+    srs_error_t err = do_cycle();
     
     // Notify manager to remove it.
     manager->remove(this);
     
     // success.
-    if (ret == ERROR_SUCCESS) {
+    if (err == srs_success) {
         srs_trace("client finished.");
-        return srs_success;
+        return err;
     }
     
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
-    if (srs_is_client_gracefully_close(ret)) {
-        srs_warn("client disconnect peer. ret=%d", ret);
+    if (srs_is_client_gracefully_close(srs_error_code(err))) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        srs_freep(err);
         return srs_success;
     }
     
-    return srs_error_new(ret, "cycle");
+    return srs_error_wrap(err, "cycle");
 }
 
 int SrsConnection::srs_id()

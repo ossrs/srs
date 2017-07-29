@@ -167,6 +167,7 @@
 #define ERROR_RTMP_CLIENT_NOT_FOUND         2049
 #define ERROR_OpenSslCreateHMAC             2050
 #define ERROR_RTMP_STREAM_NAME_EMPTY        2051
+#define ERROR_HTTP_HIJACK                   2052
 //                                           
 // system control message,
 // not an error, but special control logic.

@@ -560,7 +560,6 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
 SrsHttpRecvThread::SrsHttpRecvThread(SrsResponseOnlyHttpConn* c)
 {
     conn = c;
-    error = ERROR_SUCCESS;
     trd = new SrsSTCoroutine("http-receive", this, _srs_context->get_id());
 }
 
@@ -580,28 +579,21 @@ srs_error_t SrsHttpRecvThread::start()
     return err;
 }
 
-int SrsHttpRecvThread::error_code()
+srs_error_t SrsHttpRecvThread::pull()
 {
-    return error;
+    return trd->pull();
 }
 
 srs_error_t SrsHttpRecvThread::cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    while (true) {
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "http recv thread");
-        }
-        
+    while ((err = trd->pull()) == srs_success) {
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
         
-        if ((ret = conn->pop_message(&req)) != ERROR_SUCCESS) {
-            err = srs_error_new(ret, "pop message");
-            error = ret;
-            break;
+        if ((err = conn->pop_message(&req)) != srs_success) {
+            return srs_error_wrap(err, "pop message");
         }
     }
     

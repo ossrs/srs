@@ -121,7 +121,9 @@ SrsCplxError* SrsCplxError::wrap(const char* func, const char* file, int line, S
     err->func = func;
     err->file = file;
     err->line = line;
-    err->code = v->code;
+    if (v) {
+        err->code = v->code;
+    }
     err->rerrno = rerrno;
     err->msg = buffer;
     err->wrapped = v;

@@ -74,23 +74,23 @@ public:
     virtual int64_t get_recv_bytes_delta();
     virtual void cleanup();
 protected:
-    virtual int do_cycle();
+    virtual srs_error_t do_cycle();
 protected:
     // when got http message,
     // for the static service or api, discard any body.
     // for the stream caster, for instance, http flv streaming, may discard the flv header or not.
-    virtual int on_got_http_message(ISrsHttpMessage* msg) = 0;
+    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg) = 0;
 private:
-    virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     /**
      * when the connection disconnect, call this method.
      * e.g. log msg of connection and report to other system.
      * @param request: request which is converted by the last http message.
      */
-    virtual int on_disconnect(SrsRequest* req);
+    virtual srs_error_t on_disconnect(SrsRequest* req);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_http_stream_crossdomain();
+    virtual srs_error_t on_reload_http_stream_crossdomain();
 };
 
 /**
@@ -107,9 +107,9 @@ public:
     // serving it, but we need to start a thread to read message to detect whether FD is closed.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
-    virtual int pop_message(ISrsHttpMessage** preq);
+    virtual srs_error_t pop_message(ISrsHttpMessage** preq);
 public:
-    virtual int on_got_http_message(ISrsHttpMessage* msg);
+    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
 };
 
 /**
@@ -128,7 +128,7 @@ public:
     virtual srs_error_t initialize();
     // ISrsHttpServeMux
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     // http flv/ts/mp3/aac stream
 public:
     virtual int http_mount(SrsSource* s, SrsRequest* r);

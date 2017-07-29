@@ -72,7 +72,7 @@ public:
     virtual void remove(ISrsConnection* c);
 // ISrsHttpHandler
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 /**
@@ -88,7 +88,7 @@ public:
     SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsDynamicHttpConn();
 public:
-    virtual int on_got_http_message(ISrsHttpMessage* msg);
+    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
 public:
     virtual int proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
