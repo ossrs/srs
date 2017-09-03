@@ -21,8 +21,8 @@
                     <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
                     <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
                     <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
-                    <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
-                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
+                    <!--<li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>-->
+                    <!--<li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>-->
                     <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
                 </ul>
             </div>
@@ -46,6 +46,9 @@
             发布地址:
             <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
             <button class="btn btn-primary" id="btn_publish">发布视频</button>
+            <label class="checkbox">
+                <input type="checkbox" id="cb_preview">预览
+            </label>
         </div>
     </div>
     <div class="control-group">
@@ -445,6 +448,10 @@
 
         info("开始推流到服务器");
         srs_publisher.publish(url, vcodec, acodec);
+
+        if (!$("#cb_preview").is(":checked")) {
+            return;
+        }
 
         if (realtime_player) {
             // directly play the url for the realtime player.

@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_kernel_flv.hpp>
 
@@ -34,7 +34,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
@@ -128,7 +128,7 @@ void SrsMessageHeader::initialize_amf0_script(int size, int stream)
     perfer_cid = RTMP_CID_OverConnection2;
 }
 
-void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
+void SrsMessageHeader::initialize_audio(int size, uint32_t time, int stream)
 {
     message_type = RTMP_MSG_AudioMessage;
     payload_length = (int32_t)size;
@@ -140,7 +140,7 @@ void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
     perfer_cid = RTMP_CID_Audio;
 }
 
-void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
+void SrsMessageHeader::initialize_video(int size, uint32_t time, int stream)
 {
     message_type = RTMP_MSG_VideoMessage;
     payload_length = (int32_t)size;
@@ -178,6 +178,28 @@ void SrsCommonMessage::create_payload(int size)
 #endif
 }
 
+int SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // drop previous payload.
+    srs_freepa(payload);
+    
+    this->header = *pheader;
+    this->payload = body;
+    this->size = size;
+    
+    return ret;
+}
+
+SrsSharedMessageHeader::SrsSharedMessageHeader() : payload_length(0), message_type(0), perfer_cid(0)
+{
+}
+
+SrsSharedMessageHeader::~SrsSharedMessageHeader()
+{
+}
+
 SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;
@@ -193,7 +215,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_freepa(payload);
 }
 
-SrsSharedPtrMessage::SrsSharedPtrMessage()
+SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
 }
@@ -270,7 +292,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
     // ensure the basic header is 1bytes.
     if (ptr->header.perfer_cid < 2) {
         srs_info("change the chunk_id=%d to default=%d",
-            ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
+                 ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
         ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
     }
     
@@ -286,7 +308,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
 bool SrsSharedPtrMessage::is_av()
 {
     return ptr->header.message_type == RTMP_MSG_AudioMessage
-        || ptr->header.message_type == RTMP_MSG_VideoMessage;
+    || ptr->header.message_type == RTMP_MSG_VideoMessage;
 }
 
 bool SrsSharedPtrMessage::is_audio()
@@ -302,14 +324,9 @@ bool SrsSharedPtrMessage::is_video()
 int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
 {
     if (c0) {
-        return srs_chunk_header_c0(
-            ptr->header.perfer_cid, timestamp, ptr->header.payload_length,
-            ptr->header.message_type, stream_id,
-            cache, nb_cache);
+        return srs_chunk_header_c0(ptr->header.perfer_cid, timestamp, ptr->header.payload_length, ptr->header.message_type, stream_id, cache, nb_cache);
     } else {
-        return srs_chunk_header_c3(
-            ptr->header.perfer_cid, timestamp,
-            cache, nb_cache);
+        return srs_chunk_header_c3(ptr->header.perfer_cid, timestamp, cache, nb_cache);
     }
 }
 
@@ -330,10 +347,10 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     return copy;
 }
 
-SrsFlvEncoder::SrsFlvEncoder()
+SrsFlvTransmuxer::SrsFlvTransmuxer()
 {
-    reader = NULL;
-    tag_stream = new SrsStream();
+    writer = NULL;
+    tag_stream = new SrsBuffer();
     
 #ifdef SRS_PERF_FAST_FLV_ENCODER
     nb_tag_headers = 0;
@@ -345,7 +362,7 @@ SrsFlvEncoder::SrsFlvEncoder()
 #endif
 }
 
-SrsFlvEncoder::~SrsFlvEncoder()
+SrsFlvTransmuxer::~SrsFlvTransmuxer()
 {
     srs_freep(tag_stream);
     
@@ -356,24 +373,14 @@ SrsFlvEncoder::~SrsFlvEncoder()
 #endif
 }
 
-int SrsFlvEncoder::initialize(SrsFileWriter* fr)
+int SrsFlvTransmuxer::initialize(ISrsWriter* fw)
 {
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(fr);
-    
-    if (!fr->is_open()) {
-        ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for encoder. ret=%d", ret);
-        return ret;
-    }
-    
-    reader = fr;
-    
-    return ret;
+    srs_assert(fw);
+    writer = fw;
+    return ERROR_SUCCESS;
 }
 
-int SrsFlvEncoder::write_header()
+int SrsFlvTransmuxer::write_header()
 {
     int ret = ERROR_SUCCESS;
     
@@ -397,26 +404,26 @@ int SrsFlvEncoder::write_header()
     return ret;
 }
 
-int SrsFlvEncoder::write_header(char flv_header[9])
+int SrsFlvTransmuxer::write_header(char flv_header[9])
 {
     int ret = ERROR_SUCCESS;
     
     // write data.
-    if ((ret = reader->write(flv_header, 9, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->write(flv_header, 9, NULL)) != ERROR_SUCCESS) {
         srs_error("write flv header failed. ret=%d", ret);
         return ret;
     }
     
     // previous tag size.
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
-    if ((ret = reader->write(pts, 4, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->write(pts, 4, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsFlvEncoder::write_metadata(char type, char* data, int size)
+int SrsFlvTransmuxer::write_metadata(char type, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -436,7 +443,7 @@ int SrsFlvEncoder::write_metadata(char type, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
+int SrsFlvTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -456,7 +463,7 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
+int SrsFlvTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -474,14 +481,14 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::size_tag(int data_size)
+int SrsFlvTransmuxer::size_tag(int data_size)
 {
     srs_assert(data_size >= 0);
     return SRS_FLV_TAG_HEADER_SIZE + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
 }
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
+int SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -528,7 +535,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
                 return ret;
             }
         } else {
-            if ((ret = write_metadata_to_cache(SrsCodecFlvTagScript, msg->payload, msg->size, cache)) != ERROR_SUCCESS) {
+            if ((ret = write_metadata_to_cache(SrsFrameTypeScript, msg->payload, msg->size, cache)) != ERROR_SUCCESS) {
                 return ret;
             }
         }
@@ -552,7 +559,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
         iovs += 3;
     }
     
-    if ((ret = reader->writev(iovss, nb_iovss, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->writev(iovss, nb_iovss, NULL)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("write flv tags failed. ret=%d", ret);
         }
@@ -563,7 +570,7 @@ int SrsFlvEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 }
 #endif
 
-int SrsFlvEncoder::write_metadata_to_cache(char type, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_metadata_to_cache(char type, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -591,7 +598,7 @@ int SrsFlvEncoder::write_metadata_to_cache(char type, char* data, int size, char
     return ret;
 }
 
-int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -601,7 +608,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     
     // 11bytes tag header
     /*char tag_header[] = {
-     (char)SrsCodecFlvTagAudio, // TagType UB [5], 8 = audio
+     (char)SrsFrameTypeAudio, // TagType UB [5], 8 = audio
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
      (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
      (char)0x00, // TimestampExtended UI8
@@ -612,7 +619,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     if ((ret = tag_stream->initialize(cache, 11)) != ERROR_SUCCESS) {
         return ret;
     }
-    tag_stream->write_1bytes(SrsCodecFlvTagAudio);
+    tag_stream->write_1bytes(SrsFrameTypeAudio);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
@@ -622,7 +629,7 @@ int SrsFlvEncoder::write_audio_to_cache(int64_t timestamp, char* data, int size,
     return ret;
 }
 
-int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size, char* cache)
+int SrsFlvTransmuxer::write_video_to_cache(int64_t timestamp, char* data, int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -632,7 +639,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     
     // 11bytes tag header
     /*char tag_header[] = {
-     (char)SrsCodecFlvTagVideo, // TagType UB [5], 9 = video
+     (char)SrsFrameTypeVideo, // TagType UB [5], 9 = video
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
      (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
      (char)0x00, // TimestampExtended UI8
@@ -643,7 +650,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     if ((ret = tag_stream->initialize(cache, 11)) != ERROR_SUCCESS) {
         return ret;
     }
-    tag_stream->write_1bytes(SrsCodecFlvTagVideo);
+    tag_stream->write_1bytes(SrsFrameTypeVideo);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
@@ -653,7 +660,7 @@ int SrsFlvEncoder::write_video_to_cache(int64_t timestamp, char* data, int size,
     return ret;
 }
 
-int SrsFlvEncoder::write_pts_to_cache(int size, char* cache)
+int SrsFlvTransmuxer::write_pts_to_cache(int size, char* cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -665,7 +672,7 @@ int SrsFlvEncoder::write_pts_to_cache(int size, char* cache)
     return ret;
 }
 
-int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_size)
+int SrsFlvTransmuxer::write_tag(char* header, int header_size, char* tag, int tag_size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -683,7 +690,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     iovs[2].iov_base = pre_size;
     iovs[2].iov_len = SRS_FLV_PREVIOUS_TAG_SIZE;
     
-    if ((ret = reader->writev(iovs, 3, NULL)) != ERROR_SUCCESS) {
+    if ((ret = writer->writev(iovs, 3, NULL)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("write flv tag failed. ret=%d", ret);
         }
@@ -696,7 +703,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
 SrsFlvDecoder::SrsFlvDecoder()
 {
     reader = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
 SrsFlvDecoder::~SrsFlvDecoder()
@@ -704,29 +711,20 @@ SrsFlvDecoder::~SrsFlvDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvDecoder::initialize(SrsFileReader* fr)
+int SrsFlvDecoder::initialize(ISrsReader* fr)
 {
-    int ret = ERROR_SUCCESS;
-    
     srs_assert(fr);
-    
-    if (!fr->is_open()) {
-        ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for decoder. ret=%d", ret);
-        return ret;
-    }
-    
     reader = fr;
-    
-    return ret;
+    return ERROR_SUCCESS;
 }
 
 int SrsFlvDecoder::read_header(char header[9])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(header);
     
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(header, 9, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -741,17 +739,18 @@ int SrsFlvDecoder::read_header(char header[9])
     return ret;
 }
 
-int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime)
+int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(ptype);
     srs_assert(pdata_size);
     srs_assert(ptime);
-
+    
     char th[11]; // tag header
     
     // read tag header
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(th, 11, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv tag header failed. ret=%d", ret);
@@ -779,16 +778,17 @@ int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* 
     
     // TimestampExtended UI8
     pp[3] = th[7];
-
+    
     return ret;
 }
 
 int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(data);
     
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(data, size, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv tag header failed. ret=%d", ret);
@@ -797,16 +797,17 @@ int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
     }
     
     return ret;
-
+    
 }
 
 int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(previous_tag_size);
     
     // ignore 4bytes tag size.
+    // TODO: FIXME: Should use readfully.
     if ((ret = reader->read(previous_tag_size, 4, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv previous tag size failed. ret=%d", ret);
@@ -820,7 +821,7 @@ int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 SrsFlvVodStreamDecoder::SrsFlvVodStreamDecoder()
 {
     reader = NULL;
-    tag_stream = new SrsStream();
+    tag_stream = new SrsBuffer();
 }
 
 SrsFlvVodStreamDecoder::~SrsFlvVodStreamDecoder()
@@ -828,19 +829,23 @@ SrsFlvVodStreamDecoder::~SrsFlvVodStreamDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvVodStreamDecoder::initialize(SrsFileReader* fr)
+int SrsFlvVodStreamDecoder::initialize(ISrsReader* fr)
 {
     int ret = ERROR_SUCCESS;
     
     srs_assert(fr);
+    reader = dynamic_cast<SrsFileReader*>(fr);
+    if (!reader) {
+        ret = ERROR_EXPECT_FILE_IO;
+        srs_error("stream is not file io. ret=%d", ret);
+        return ret;
+    }
     
-    if (!fr->is_open()) {
+    if (!reader->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for decoder. ret=%d", ret);
         return ret;
     }
-    
-    reader = fr;
     
     return ret;
 }
@@ -848,7 +853,7 @@ int SrsFlvVodStreamDecoder::initialize(SrsFileReader* fr)
 int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(header);
     
     // @remark, always false, for sizeof(char[13]) equals to sizeof(char*)
@@ -867,7 +872,7 @@ int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* psize)
 {
     int ret = ERROR_SUCCESS;
-
+    
     srs_assert(pstart);
     srs_assert(psize);
     
@@ -947,7 +952,7 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
     
     // seek to the sequence header start offset.
     if (av_sequence_offset_start > 0) {
-        reader->lseek(av_sequence_offset_start);
+        reader->seek2(av_sequence_offset_start);
         *pstart = av_sequence_offset_start;
         *psize = (int)(av_sequence_offset_end - av_sequence_offset_start);
     }
@@ -955,23 +960,23 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
     return ret;
 }
 
-int SrsFlvVodStreamDecoder::lseek(int64_t offset)
+int SrsFlvVodStreamDecoder::seek2(int64_t offset)
 {
     int ret = ERROR_SUCCESS;
     
     if (offset >= reader->filesize()) {
         ret = ERROR_SYSTEM_FILE_EOF;
         srs_warn("flv fast decoder seek overflow file, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            reader->filesize(), offset, ret);
+                 "size=%" PRId64 ", offset=%" PRId64 ", ret=%d",
+                 reader->filesize(), offset, ret);
         return ret;
     }
     
-    if (reader->lseek(offset) < 0) {
+    if (reader->seek2(offset) < 0) {
         ret = ERROR_SYSTEM_FILE_SEEK;
         srs_warn("flv fast decoder seek error, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            reader->filesize(), offset, ret);
+                 "size=%" PRId64 ", offset=%" PRId64 ", ret=%d", 
+                 reader->filesize(), offset, ret);
         return ret;
     }
     

@@ -1,28 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 /**
-gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h264_raw_publish
-*/
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,11 +29,11 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-       
+
 #include "../../objs/include/srs_librtmp.h"
 
 int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fps,
-    char** frame, int* frame_size, int* dts, int* pts)
+                    char** frame, int* frame_size, int* dts, int* pts)
 {
     char* p = *pp;
     
@@ -49,7 +46,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     }
     
     // @see srs_write_h264_raw_frames
-    // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+    // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0,
     // for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
     *frame = p;
     p += *pnb_start_code;
@@ -72,7 +69,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     // while the dts and pts must read from encode lib or device.
     *dts += 1000 / fps;
     *pts = *dts;
-
+    
     return 0;
 }
 
@@ -124,8 +121,8 @@ int main(int argc, char** argv)
     lseek(raw_fd, 0, SEEK_SET);
     ssize_t nb_read = 0;
     if ((nb_read = read(raw_fd, h264_raw, file_size)) != file_size) {
-        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
-            raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
+        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.",
+                        raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
         goto rtmp_destroy;
     }
     
@@ -181,9 +178,9 @@ int main(int argc, char** argv)
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
-        // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 9: AUD, 6: SEI
-        u_int8_t nut = (char)data[nb_start_code] & 0x1f;
+        uint8_t nut = (char)data[nb_start_code] & 0x1f;
         srs_human_trace("sent packet: type=%s, time=%d, size=%d, fps=%.2f, b[%d]=%#x(%s)",
             srs_human_flv_tag_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, nb_start_code, (char)data[nb_start_code],
             (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":(nut == 9? "AUD":(nut == 6? "SEI":"Unknown")))))));

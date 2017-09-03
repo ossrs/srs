@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,15 +30,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_log.hpp>
 
 // kernel module.
-ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevel::Disabled);
+ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
-MockEmptyLog::MockEmptyLog(int level)
+MockEmptyLog::MockEmptyLog(SrsLogLevel l)
 {
-    _level = level;
+    level = l;
 }
 
 MockEmptyLog::~MockEmptyLog()

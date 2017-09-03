@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -84,7 +84,7 @@ void srs_bytes_print(char* pa, int size);
 class MockEmptyLog : public SrsFastLog
 {
 public:
-    MockEmptyLog(int level);
+    MockEmptyLog(SrsLogLevel l);
     virtual ~MockEmptyLog();
 };
 

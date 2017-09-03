@@ -32,13 +32,15 @@ package
         private var js_on_player_metadata:String = null;
         private var js_on_player_timer:String = null;
         private var js_on_player_empty:String = null;
-		private var js_on_player_full:String = null;
-		
-        // play param url.
-        private var user_url:String = null;
+        private var js_on_player_full:String = null;
+		private var js_on_player_status:String = null;
+
         // play param, user set width and height
         private var user_w:int = 0;
         private var user_h:int = 0;
+        private var user_buffer_time:Number = 0;
+        private var user_max_buffer_time:Number = 0;
+        private var user_volume:Number = 0;
         // user set dar den:num
         private var user_dar_den:int = 0;
         private var user_dar_num:int = 0;
@@ -47,8 +49,6 @@ package
         private var user_fs_percent:int = 0;
         
         // media specified.
-        private var media_conn:NetConnection = null;
-        private var media_stream:NetStream = null;
         private var media_video:Video = null;
         private var media_metadata:Object = {};
         private var media_timer:Timer = new Timer(300);
@@ -57,6 +57,11 @@ package
         // flash donot allow js to set to fullscreen,
         // only allow user click to enter fullscreen.
         private var control_fs_mask:Sprite = new Sprite();
+
+        // the common player to play stream.
+        private var player:Player = null;
+        // the flashvars config.
+        private var config:Object = null;
         
         public function srs_player()
         {
@@ -93,13 +98,15 @@ package
             if (!flashvars.hasOwnProperty("id")) {
                 throw new Error("must specifies the id");
             }
-            
+
+            this.config = flashvars;
             this.js_id = flashvars.id;
             this.js_on_player_ready = flashvars.on_player_ready;
             this.js_on_player_metadata = flashvars.on_player_metadata;
             this.js_on_player_timer = flashvars.on_player_timer;
-			this.js_on_player_empty = flashvars.on_player_empty;
-			this.js_on_player_full = flashvars.on_player_full;
+            this.js_on_player_empty = flashvars.on_player_empty;
+            this.js_on_player_full = flashvars.on_player_full;
+			this.js_on_player_status = flashvars.on_player_status;
             
             this.media_timer.addEventListener(TimerEvent.TIMER, this.system_on_timer);
             this.media_timer.start();
@@ -121,10 +128,12 @@ package
             flash.external.ExternalInterface.addCallback("__play", this.js_call_play);
             flash.external.ExternalInterface.addCallback("__stop", this.js_call_stop);
             flash.external.ExternalInterface.addCallback("__pause", this.js_call_pause);
-			flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
+            flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
             flash.external.ExternalInterface.addCallback("__set_dar", this.js_call_set_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
+            flash.external.ExternalInterface.addCallback("__set_mbt", this.js_call_set_mbt);
+            flash.external.ExternalInterface.addCallback("__dump_log", this.js_call_dump_log);
             
             flash.external.ExternalInterface.call(this.js_on_player_ready, this.js_id);
         }
@@ -133,47 +142,60 @@ package
         * system callack event, timer to do some regular tasks.
         */
         private function system_on_timer(evt:TimerEvent):void {
-			var ms:NetStream = this.media_stream;
-			
-            if (!ms) {
-                log("stream is null, ignore timer event.");
+            if (!player) {
                 return;
             }
-			
-			var rtime:Number = flash.utils.getTimer();
-			var bitrate:Number = Number((ms.info.videoBytesPerSecond + ms.info.audioBytesPerSecond) * 8 / 1000);
+
+            var ms:NetStream = player.stream();
+            
+            if (!ms) {
+                //log("stream is null, ignore timer event.");
+                return;
+            }
+            
+            var rtime:Number = flash.utils.getTimer();
+            var bitrate:Number = Number((ms.info.videoBytesPerSecond + ms.info.audioBytesPerSecond) * 8 / 1000);
             log("on timer, time=" + ms.time.toFixed(2) + "s, buffer=" + ms.bufferLength.toFixed(2) + "s" 
-				+ ", bitrate=" + bitrate.toFixed(1) + "kbps"
-				+ ", fps=" + ms.currentFPS.toFixed(1)
-				+ ", rtime=" + rtime.toFixed(0)
-			);
+                + ", bitrate=" + bitrate.toFixed(1) + "kbps"
+                + ", fps=" + ms.currentFPS.toFixed(1)
+                + ", rtime=" + rtime.toFixed(0)
+            );
             flash.external.ExternalInterface.call(
                 this.js_on_player_timer, this.js_id, ms.time, ms.bufferLength,
-				bitrate, ms.currentFPS, rtime
-			);
+                bitrate, ms.currentFPS, rtime
+            );
         }
-		
-		/**
-		 * system callback event, when stream is empty.
-		 */
-		private function system_on_buffer_empty():void {
-			var time:Number = flash.utils.getTimer();
-			log("stream is empty at " + time + "ms");
-			flash.external.ExternalInterface.call(this.js_on_player_empty, this.js_id, time);
-		}
-		private function system_on_buffer_full():void {
-			var time:Number = flash.utils.getTimer();
-			log("stream is full at " + time + "ms");
-			flash.external.ExternalInterface.call(this.js_on_player_full, this.js_id, time);
-		}
+        
+        /**
+         * system callback event, when stream is empty.
+         */
+        private function system_on_buffer_empty():void {
+            var time:Number = flash.utils.getTimer();
+            log("stream is empty at " + time + "ms");
+            flash.external.ExternalInterface.call(this.js_on_player_empty, this.js_id, time);
+        }
+        private function system_on_buffer_full():void {
+            var time:Number = flash.utils.getTimer();
+            log("stream is full at " + time + "ms");
+            flash.external.ExternalInterface.call(this.js_on_player_full, this.js_id, time);
+        }
         
         /**
          * system callack event, when got metadata from stream.
          * or got video dimension change event(the DAR notification), to update the metadata manually.
          */
         private function system_on_metadata(metadata:Object):void {
-            this.media_metadata = metadata;
-            
+            if (!media_metadata) {
+                media_metadata = {};
+            }
+            for (var k:String in metadata) {
+                media_metadata[k] = metadata[k];
+            }
+
+            // update the debug info.
+            on_debug_info(media_metadata);
+            update_context_items();
+
             // for js.
             var obj:Object = __get_video_size_object();
             
@@ -189,6 +211,21 @@ package
             if (srs_authors != null) {
                 obj.contributor = srs_authors;
             }
+            if (srs_id != null) {
+                obj.cid = srs_id;
+            }
+            if (srs_pid != null) {
+                obj.pid = srs_pid;
+            }
+            if (srs_server_ip != null) {
+                obj.ip = srs_server_ip;
+            }
+            
+            var s:String = "";
+            for (var key:String in obj) {
+                s += key + "=" + obj[key] + " ";
+            }
+            log("metadata is " + s);
             
             var code:int = flash.external.ExternalInterface.call(js_on_player_metadata, js_id, obj);
             if (code != 0) {
@@ -228,8 +265,9 @@ package
          * function for js to call: to pause the stream. ignore if not play.
          */
         private function js_call_pause():void {
-            if (this.media_stream) {
-                this.media_stream.pause();
+            if (player && player.stream()) {
+                player.stream().pause();
+                log("user pause play");
             }
         }
         
@@ -237,9 +275,17 @@ package
          * function for js to call: to resume the stream. ignore if not play.
          */
         private function js_call_resume():void {
-            if (this.media_stream) {
-                this.media_stream.resume();
+            if (player && player.stream()) {
+                player.stream().resume();
+                log("user resume play");
             }
+        }
+
+        /**
+         * dumps all log data.
+         */
+        private function js_call_dump_log():String {
+            return Utility.logData;
         }
         
         /**
@@ -256,6 +302,7 @@ package
             user_dar_den = den;
             
             flash.utils.setTimeout(__execute_user_set_dar, 0);
+            log("user set dar to " + num + "/" + den);
         }
         
         /**
@@ -269,6 +316,7 @@ package
         private function js_call_set_fs_size(refer:String, percent:int):void {
             user_fs_refer = refer;
             user_fs_percent = percent;
+            log("user set refer to " + refer + ", percent to" + percent);
         }
         
         /**
@@ -276,8 +324,21 @@ package
          * @buffer_time the buffer time in seconds.
          */
         private function js_call_set_bt(buffer_time:Number):void {
-            if (this.media_stream) {
-                this.media_stream.bufferTime = buffer_time;
+            if (player && player.stream()) {
+                player.stream().bufferTime = buffer_time;
+                log("user set bufferTime to " + buffer_time.toFixed(2) + "s");
+            }
+        }
+        
+        /**
+         * set the max stream buffer time in seconds.
+         * @max_buffer_time the max buffer time in seconds.
+         * @remark this is the key feature for realtime communication by flash.
+         */
+        private function js_call_set_mbt(max_buffer_time:Number):void {
+            if (player && player.stream()) {
+                player.stream().bufferTimeMax = max_buffer_time;
+                log("user set bufferTimeMax to " + max_buffer_time.toFixed(2) + "s");
             }
         }
         
@@ -289,15 +350,12 @@ package
                 this.removeChild(this.media_video);
                 this.media_video = null;
             }
-            if (this.media_stream) {
-                this.media_stream.close();
-                this.media_stream = null;
+
+            if (player) {
+                player.close();
+                player = null;
             }
-            if (this.media_conn) {
-                this.media_conn.close();
-                this.media_conn = null;
-            }
-			log("player stopped");
+            log("player stopped");
         }
         
         // srs infos
@@ -332,100 +390,120 @@ package
         }
         
         /**
+         * server can set the debug info in _result of RTMP connect, or metadata.
+         */
+        private function on_debug_info(data:*):void {
+            if (data.hasOwnProperty("srs_server")) {
+                srs_server = data.srs_server;
+            }
+            if (data.hasOwnProperty("srs_primary")) {
+                srs_primary = data.srs_primary;
+            }
+            if (data.hasOwnProperty("srs_authors")) {
+                srs_authors = data.srs_authors;
+            }
+            if (data.hasOwnProperty("srs_id")) {
+                srs_id = data.srs_id;
+            }
+            if (data.hasOwnProperty("srs_pid")) {
+                srs_pid = data.srs_pid;
+            }
+            if (data.hasOwnProperty("srs_server_ip")) {
+                srs_server_ip = data.srs_server_ip;
+            }
+        }
+        
+        /**
          * function for js to call: to play the stream. stop then play.
          * @param url, the rtmp/http url to play.
          * @param _width, the player width.
          * @param _height, the player height.
          * @param buffer_time, the buffer time in seconds. recommend to >=0.5
+         * @param max_buffer_time, the max buffer time in seconds. recommend to 3 x buffer_time.
          * @param volume, the volume, 0 is mute, 1 is 100%, 2 is 200%.
          */
-        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, volume:Number):void {
-            this.user_url = url;
+        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, max_buffer_time:Number, volume:Number):void {
             this.user_w = _width;
             this.user_h = _height;
-            log("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h);
+            this.user_buffer_time = buffer_time;
+            this.user_max_buffer_time = max_buffer_time;
+            this.user_volume = volume;
+            log("start to play url: " + url + ", w=" + this.user_w + ", h=" + this.user_h
+                + ", buffer=" + buffer_time.toFixed(2) + "s, max_buffer=" + max_buffer_time.toFixed(2) + "s, volume=" + volume.toFixed(2)
+            );
             
             js_call_stop();
-            
-            this.media_conn = new NetConnection();
-            this.media_conn.client = {};
-            this.media_conn.client.onBWDone = function():void {};
-            this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                trace ("NetConnection: code=" + evt.info.code);
-                
-                if (evt.info.hasOwnProperty("data") && evt.info.data) {
-                    if (evt.info.data.hasOwnProperty("srs_server")) {
-                        srs_server = evt.info.data.srs_server;
-                    }
-                    if (evt.info.data.hasOwnProperty("srs_primary")) {
-                        srs_primary = evt.info.data.srs_primary;
-                    }
-                    if (evt.info.data.hasOwnProperty("srs_authors")) {
-                        srs_authors = evt.info.data.srs_authors;
-                    }
-                    if (evt.info.data.hasOwnProperty("srs_id")) {
-                        srs_id = evt.info.data.srs_id;
-                    }
-                    if (evt.info.data.hasOwnProperty("srs_pid")) {
-                        srs_pid = evt.info.data.srs_pid;
-                    }
-                    if (evt.info.data.hasOwnProperty("srs_server_ip")) {
-                        srs_server_ip = evt.info.data.srs_server_ip;
-                    }
-                    update_context_items();
-                }
-                
-                // TODO: FIXME: failed event.
-                if (evt.info.code != "NetConnection.Connect.Success") {
-                    return;
-                }
-                
-                media_stream = new NetStream(media_conn);
-                media_stream.soundTransform = new SoundTransform(volume);
-                media_stream.bufferTime = buffer_time;
-                media_stream.client = {};
-                media_stream.client.onMetaData = system_on_metadata;
-                media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
-                    trace ("NetStream: code=" + evt.info.code);
-                    
-                    if (evt.info.code == "NetStream.Video.DimensionChange") {
-                        system_on_metadata(media_metadata);
-                    } else if (evt.info.code == "NetStream.Buffer.Empty") {
-						system_on_buffer_empty();
-					} else if (evt.info.code == "NetStream.Buffer.Full") {
-						system_on_buffer_full();
-					}
-                    
-                    // TODO: FIXME: failed event.
-                });
-                
-                if (url.indexOf("http") == 0) {
-                    media_stream.play(url);
-                } else {
-                    var streamName:String = url.substr(url.lastIndexOf("/") + 1);
-                    media_stream.play(streamName);
-                }
-                
-                media_video = new Video();
-                media_video.width = _width;
-                media_video.height = _height;
-                media_video.attachNetStream(media_stream);
-                media_video.smoothing = true;
-                addChild(media_video);
-                
-                __draw_black_background(_width, _height);
-                
-                // lowest layer, for mask to cover it.
-                setChildIndex(media_video, 0);
-            });
-            
-            if (url.indexOf("http") == 0) {
-                this.media_conn.connect(null);
-            } else {
-                var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
-                this.media_conn.connect(tcUrl);
-            }
+			
+			// trim last ?
+			while (Utility.stringEndswith(url, "?")) {
+				url = url.substr(0, url.length - 1);
+			}
+
+            // create player.
+            player = new Player(this);
+
+            // init player by config.
+            player.init(config);
+
+            // play the url.
+            player.play(url);
         }
+        public function on_player_before_play():void {
+            if (!player) {
+                return;
+            }
+
+            var ms:NetStream = player.stream();
+            if (!ms) {
+                return;
+            }
+
+            ms.soundTransform = new SoundTransform(user_volume);
+            ms.bufferTime = user_buffer_time;
+            ms.bufferTimeMax = user_max_buffer_time;
+            ms.client = {};
+            ms.client.onMetaData = system_on_metadata;
+        }
+        public function on_player_play():void {
+            if (!player) {
+                return;
+            }
+
+            media_video = new Video();
+            media_video.width = user_w;
+            media_video.height = user_h;
+            media_video.attachNetStream(player.stream());
+            media_video.smoothing = true;
+            addChild(media_video);
+
+            __draw_black_background(user_w, user_h);
+
+            // lowest layer, for mask to cover it.
+            setChildIndex(media_video, 0);
+        }
+        public function on_player_metadata(data:Object):void {
+            system_on_metadata(data);
+        }
+        public function on_player_302(url:String):void {
+            setTimeout(function():void{
+                log("Async RTMP 302 Redirected.");
+                js_call_play(url, user_w, user_h, user_buffer_time, user_max_buffer_time, user_volume);
+            }, 1000);
+        }
+        public function on_player_dimension_change():void {
+            system_on_metadata(media_metadata);
+        }
+        public function on_player_buffer_empty():void {
+            system_on_buffer_empty();
+        }
+        public function on_player_buffer_full():void {
+            system_on_buffer_full();
+        }
+		
+		public function on_player_status(code:String, desc:String):void {
+			log("[STATUS] code=" + code + ", desc=" + desc);
+			flash.external.ExternalInterface.call(this.js_on_player_status, this.js_id, code, desc);
+		}
         
         /**
         * get the "right" size of video,
@@ -434,6 +512,9 @@ package
         * 3. override with codec size if specified.
         */
         private function __get_video_size_object():Object {
+			if (!media_video) {
+				return {};
+			}
             var obj:Object = {
                 width: media_video.width,
                 height: media_video.height
@@ -497,10 +578,10 @@ package
             
             // rescale to fs
             __update_video_size(num, den, 
-				obj.width * user_fs_percent / 100, 
-				obj.height * user_fs_percent / 100, 
-				this.stage.fullScreenWidth, this.stage.fullScreenHeight
-			);
+                obj.width * user_fs_percent / 100, 
+                obj.height * user_fs_percent / 100, 
+                this.stage.fullScreenWidth, this.stage.fullScreenHeight
+            );
         }
         
         /**
@@ -579,18 +660,9 @@ package
             this.control_fs_mask.graphics.drawRect(0, 0, _width, _height);
             this.control_fs_mask.graphics.endFill();
         }
-		
-		private function log(msg:String):void {
-			msg = "[" + new Date() +"][srs-player][" + js_id + "] " + msg;
-			
-			trace(msg);
-			
-			if (!flash.external.ExternalInterface.available) {
-				flash.utils.setTimeout(log, 300, msg);
-				return;
-			}
-			
-			ExternalInterface.call("console.log", msg);
-		}
+        
+        private function log(msg:String):void {
+            Utility.log(js_id, msg);
+        }
     }
 }

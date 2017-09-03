@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_refer.hpp>
 
@@ -47,7 +47,7 @@ int SrsRefer::check(std::string page_url, SrsConfDirective* refer)
     for (int i = 0; i < (int)refer->args.size(); i++) {
         if ((ret = check_single_refer(page_url, refer->args.at(i))) == ERROR_SUCCESS) {
             srs_verbose("check refer success. page_url=%s, refer=%s",
-                page_url.c_str(), refer->args.at(i).c_str());
+                        page_url.c_str(), refer->args.at(i).c_str());
             return ret;
         }
     }
@@ -88,7 +88,7 @@ int SrsRefer::check_single_refer(std::string page_url, std::string refer)
     
     if (ret != ERROR_SUCCESS) {
         srs_verbose("access denied, page_url=%s, domain_name=%s, refer=%s, ret=%d",
-            page_url.c_str(), domain_name.c_str(), refer.c_str(), ret);
+                    page_url.c_str(), domain_name.c_str(), refer.c_str(), ret);
     }
     
     return ret;

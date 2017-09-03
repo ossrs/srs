@@ -1,39 +1,35 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_RECV_THREAD_HPP
 #define SRS_APP_RECV_THREAD_HPP
-
-/*
-#include <srs_app_recv_thread.hpp>
-*/
 
 #include <srs_core.hpp>
 
 #include <vector>
 
 #include <srs_app_thread.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>
 
@@ -47,71 +43,86 @@ class SrsHttpConn;
 class SrsResponseOnlyHttpConn;
 
 /**
- * for the recv thread to handle the message.
+ * The message consumer which consume a message.
  */
-class ISrsMessageHandler
+class ISrsMessageConsumer
 {
 public:
-    ISrsMessageHandler();
-    virtual ~ISrsMessageHandler();
+    ISrsMessageConsumer();
+    virtual ~ISrsMessageConsumer();
 public:
     /**
-    * whether the handler can handle,
-    * for example, when queue recv handler got an message,
-    * it wait the user to process it, then the recv thread
-    * never recv message util the handler is ok.
-    */
-    virtual bool can_handle() = 0;
-    /**
-     * process the received message.
+     * Consume the received message.
      * @remark user must free this message.
      */
-    virtual int handle(SrsCommonMessage* msg) = 0;
+    virtual int consume(SrsCommonMessage* msg) = 0;
+};
+
+/**
+ * The message pumper to pump messages to processer.
+ */
+class ISrsMessagePumper : public ISrsMessageConsumer
+{
+public:
+    ISrsMessagePumper();
+    virtual ~ISrsMessagePumper();
+public:
     /**
-    * when recv message error.
-    */
-    virtual void on_recv_error(int ret) = 0;
+     * Whether the pumper is interrupted.
+     * For example, when pumpter is busy, it's interrupted,
+     * please wait for a while then try to feed the pumper.
+     */
+    virtual bool interrupted() = 0;
     /**
-    * when thread start or stop, 
-    * for example, the message handler can set whether auto response.
-    */
-    virtual void on_thread_start() = 0;
-    virtual void on_thread_stop() = 0;
+     * Interrupt the pumper for a error.
+     */
+    virtual void interrupt(int error) = 0;
+    /**
+     * When start the pumper.
+     */
+    virtual void on_start() = 0;
+    /**
+     * When stop the pumper.
+     */
+    virtual void on_stop() = 0;
 };
 
 /**
  * the recv thread, use message handler to handle each received message.
  */
-class SrsRecvThread : public ISrsReusableThread2Handler
+class SrsRecvThread : public ISrsCoroutineHandler
 {
 protected:
-    SrsReusableThread2* trd;
-    ISrsMessageHandler* handler;
+    SrsCoroutine* trd;
+    ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
+    // The recv timeout in ms.
     int timeout;
 public:
-    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms);
+    // Constructor.
+    // @param tm The receive timeout in ms.
+    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm);
     virtual ~SrsRecvThread();
 public:
     virtual int cid();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
     virtual void stop_loop();
 // interface ISrsReusableThread2Handler
 public:
-    virtual int cycle();
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+    virtual srs_error_t cycle();
+private:
+    virtual srs_error_t do_cycle();
 };
 
 /**
-* the recv thread used to replace the timeout recv,
-* which hurt performance for the epoll_ctrl is frequently used.
-* @see: SrsRtmpConn::playing
-* @see: https://github.com/ossrs/srs/issues/217
-*/
-class SrsQueueRecvThread : public ISrsMessageHandler
+ * the recv thread used to replace the timeout recv,
+ * which hurt performance for the epoll_ctrl is frequently used.
+ * @see: SrsRtmpConn::playing
+ * @see: https://github.com/ossrs/srs/issues/217
+ */
+class SrsQueueRecvThread : public ISrsMessagePumper
 {
 private:
     std::vector<SrsCommonMessage*> queue;
@@ -124,31 +135,30 @@ public:
     SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
 public:
     virtual bool empty();
     virtual int size();
     virtual SrsCommonMessage* pump();
     virtual int error_code();
+// interface ISrsMessagePumper
 public:
-    virtual bool can_handle();
-    virtual int handle(SrsCommonMessage* msg);
-    virtual void on_recv_error(int ret);
-public:
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+    virtual int consume(SrsCommonMessage* msg);
+    virtual bool interrupted();
+    virtual void interrupt(int ret);
+    virtual void on_start();
+    virtual void on_stop();
 };
 
 /**
-* the publish recv thread got message and callback the source method to process message.
-* @see: https://github.com/ossrs/srs/issues/237
-*/
-class SrsPublishRecvThread : virtual public ISrsMessageHandler
+ * the publish recv thread got message and callback the source method to process message.
+ * @see: https://github.com/ossrs/srs/issues/237
+ */
+class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public ISrsReloadHandler
 #ifdef SRS_PERF_MERGED_READ
     , virtual public IMergeReadHandler
 #endif
-    , virtual public ISrsReloadHandler
 {
 private:
     SrsRecvThread trd;
@@ -171,39 +181,35 @@ private:
     SrsRtmpConn* _conn;
     // the params for conn callback.
     SrsSource* _source;
-    bool _is_fmle;
-    bool _is_edge;
     // the error timeout cond
     // @see https://github.com/ossrs/srs/issues/244
-    st_cond_t error;
+    srs_cond_t error;
     // merged context id.
     int cid;
     int ncid;
 public:
-    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, 
-        SrsRequest* _req, int mr_sock_fd, int timeout_ms, 
-        SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge);
+    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req, int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source);
     virtual ~SrsPublishRecvThread();
 public:
     /**
-    * wait for error for some timeout.
-    */
-    virtual int wait(int timeout_ms);
+     * wait for error for some timeout.
+     */
+    virtual int wait(uint64_t timeout_ms);
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual int error_code();
     virtual void set_cid(int v);
     virtual int get_cid();
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
-// interface ISrsMessageHandler    
+// interface ISrsMessagePumper
 public:
-    virtual bool can_handle();
-    virtual int handle(SrsCommonMessage* msg);
-    virtual void on_recv_error(int ret);
+    virtual int consume(SrsCommonMessage* msg);
+    virtual bool interrupted();
+    virtual void interrupt(int ret);
+    virtual void on_start();
+    virtual void on_stop();
 // interface IMergeReadHandler
 public:
 #ifdef SRS_PERF_MERGED_READ
@@ -211,7 +217,7 @@ public:
 #endif
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_mr(std::string vhost);
+    virtual int on_reload_vhost_publish(std::string vhost);
     virtual int on_reload_vhost_realtime(std::string vhost);
 private:
     virtual void set_socket_buffer(int sleep_ms);
@@ -223,22 +229,21 @@ private:
  * when client closed the request, to avoid FD leak.
  * @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
  */
-class SrsHttpRecvThread : public ISrsOneCycleThreadHandler
+class SrsHttpRecvThread : public ISrsCoroutineHandler
 {
 private:
     SrsResponseOnlyHttpConn* conn;
-    SrsOneCycleThread* trd;
-    int error;
+    SrsCoroutine* trd;
 public:
     SrsHttpRecvThread(SrsResponseOnlyHttpConn* c);
     virtual ~SrsHttpRecvThread();
 public:
-    virtual int start();
+    virtual srs_error_t start();
 public:
-    virtual int error_code();
+    virtual srs_error_t pull();
 // interface ISrsOneCycleThreadHandler
 public:
-    virtual int cycle();
+    virtual srs_error_t cycle();
 };
 
 #endif

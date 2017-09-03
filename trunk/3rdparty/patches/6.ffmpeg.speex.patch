@@ -1,0 +1,13 @@
+--- configure	2017-02-10 21:25:25.000000000 +0800
++++ ../ffmpeg-3.2.4-patch/configure	2017-02-13 22:39:22.676288196 +0800
+@@ -5739,7 +5739,9 @@
+ enabled libsnappy         && require snappy snappy-c.h snappy_compress -lsnappy
+ enabled libsoxr           && require libsoxr soxr.h soxr_create -lsoxr && LIBSOXR="-lsoxr"
+ enabled libssh            && require_pkg_config libssh libssh/sftp.h sftp_init
+-enabled libspeex          && require_pkg_config speex speex/speex.h speex_decoder_init -lspeex
++enabled libspeex          && { use_pkg_config speex speex/speex.h speex_decoder_init -lspeex ||
++                                { require libspeex speex/speex.h speex_decoder_init -lspeex &&
++                                 warn "using libspeex without pkg-config"; } }
+ enabled libtesseract      && require_pkg_config tesseract tesseract/capi.h TessBaseAPICreate
+ enabled libtheora         && require libtheora theora/theoraenc.h th_info_init -ltheoraenc -ltheoradec -logg
+ enabled libtwolame        && require libtwolame twolame.h twolame_init -ltwolame &&

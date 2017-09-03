@@ -2,10 +2,10 @@
 general:
     branches:
         only:
+            - 3.0release
             - 2.0release
             - develop
             - master
-            - bms
             - /feature\/.*/
             - /hotfix\/.*/
             - /release\/.*/
@@ -17,6 +17,6 @@ dependencies:
 
 test:
     override:
-        - (cd trunk && ./configure --without-ssl && make)
+        - (cd trunk && ./configure --without-ssl --without-valgrind && make)
         - (cd trunk && ./objs/srs_utest)
 

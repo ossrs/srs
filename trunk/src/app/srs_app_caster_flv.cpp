@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_caster_flv.hpp>
 
@@ -37,11 +37,13 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_HTTP_FLV_STREAM_BUFFER 4096
 
@@ -49,51 +51,61 @@ SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
     output = _srs_config->get_stream_caster_output(c);
+    manager = new SrsCoroutineManager();
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()
 {
+    srs_freep(http_mux);
+    srs_freep(manager);
 }
 
-int SrsAppCasterFlv::initialize()
+srs_error_t SrsAppCasterFlv::initialize()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = http_mux->handle("/", this)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = http_mux->handle("/", this)) != srs_success) {
+        return srs_error_wrap(err, "handle root");
     }
     
-    return ret;
+    if ((err = manager->start()) != srs_success) {
+        return srs_error_wrap(err, "start manager");
+    }
+    
+    return err;
 }
 
-int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
+srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux);
+    string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
-    if ((ret = conn->start()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = conn->start()) != srs_success) {
+        return srs_error_wrap(err, "start tcp listener");
     }
     
-    return ret;
+    return err;
 }
 
-void SrsAppCasterFlv::remove(SrsConnection* c)
+void SrsAppCasterFlv::remove(ISrsConnection* c)
 {
+    SrsConnection* conn = dynamic_cast<SrsConnection*>(c);
+    
     std::vector<SrsHttpConn*>::iterator it;
-    if ((it = std::find(conns.begin(), conns.end(), c)) != conns.end()) {
+    if ((it = std::find(conns.begin(), conns.end(), conn)) != conns.end()) {
         conns.erase(it);
     }
     
     // fixbug: SrsHttpConn for CasterFlv is not freed, which could cause memory leak
     // so, free conn which is not managed by SrsServer->conns;
     // @see: https://github.com/ossrs/srs/issues/826
-    srs_freep(c);
+    manager->remove(c);
 }
 
-int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsHttpMessage* msg = dynamic_cast<SrsHttpMessage*>(r);
     SrsDynamicHttpConn* conn = dynamic_cast<SrsDynamicHttpConn*>(msg->connection());
@@ -116,33 +128,30 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         o = o.substr(0, o.length() - 4);
     }
     
-    return conn->proxy(w, r, o);
+    int ret = conn->proxy(w, r, o);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "proxy");
+    }
+    
+    return srs_success;
 }
 
-SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
-    : SrsHttpConn(cm, fd, m)
+SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
+: SrsHttpConn(cm, fd, m, cip)
 {
-    
-    req = NULL;
-    io = NULL;
-    client = NULL;
-    stfd = NULL;
-    stream_id = 0;
-    
+    sdk = NULL;
     pprint = SrsPithyPrint::create_caster();
 }
 
 SrsDynamicHttpConn::~SrsDynamicHttpConn()
 {
-    close();
-    
+    srs_freep(sdk);
     srs_freep(pprint);
 }
 
-int SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
+srs_error_t SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return srs_success;
 }
 
 int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o)
@@ -181,7 +190,7 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std
     }
     
     ret = do_proxy(rr, &dec);
-    close();
+    sdk->close();
     
     return ret;
 }
@@ -190,17 +199,29 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_freep(sdk);
+    
+    int64_t cto = SRS_CONSTS_RTMP_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    sdk = new SrsSimpleRtmpClient(output, cto, sto);
+    
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        srs_error("flv: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
+        return ret;
+    }
+    
+    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        srs_error("flv: publish failed. ret=%d", ret);
+        return ret;
+    }
+    
     char pps[4];
     while (!rr->eof()) {
         pprint->elapse();
         
-        if ((ret = connect()) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
         char type;
         int32_t size;
-        u_int32_t time;
+        uint32_t time;
         if ((ret = dec->read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy tag header failed. ret=%d", ret);
@@ -217,11 +238,21 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
             return ret;
         }
         
-        if ((ret = rtmp_write_packet(type, time, data, size)) != ERROR_SUCCESS) {
+        SrsSharedPtrMessage* msg = NULL;
+        if ((ret = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // TODO: FIXME: for post flv, reconnect when error.
+        if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy rtmp packet failed. ret=%d", ret);
             }
             return ret;
+        }
+        
+        if (pprint->can_print()) {
+            srs_trace("flv: send msg %d age=%d, dts=%d, size=%d", type, pprint->age(), time, size);
         }
         
         if ((ret = dec->read_previous_tag_size(pps)) != ERROR_SUCCESS) {
@@ -233,153 +264,6 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
     }
     
     return ret;
-}
-
-int SrsDynamicHttpConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsSharedPtrMessage* msg = NULL;
-    
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
-        srs_error("flv: create shared ptr msg failed. ret=%d", ret);
-        return ret;
-    }
-    srs_assert(msg);
-    
-    if (pprint->can_print()) {
-        srs_trace("flv: send msg %s age=%d, dts=%"PRId64", size=%d",
-                  msg->is_audio()? "A":msg->is_video()? "V":"N", pprint->age(), msg->timestamp, msg->size);
-    }
-    
-    // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsDynamicHttpConn::connect()
-{
-    int ret = ERROR_SUCCESS;
-    
-    // when ok, ignore.
-    // TODO: FIXME: should reconnect when disconnected.
-    if (io || client) {
-        return ret;
-    }
-    
-    // parse uri
-    if (!req) {
-        req = new SrsRequest();
-        
-        size_t pos = string::npos;
-        string uri = req->tcUrl = output;
-        
-        // tcUrl, stream
-        if ((pos = uri.rfind("/")) != string::npos) {
-            req->stream = uri.substr(pos + 1);
-            req->tcUrl = uri = uri.substr(0, pos);
-        }
-        
-        srs_discovery_tc_url(req->tcUrl,
-                             req->schema, req->host, req->vhost, req->app, req->port,
-                             req->param);
-    }
-    
-    // connect host.
-    if ((ret = srs_socket_connect(req->host, ::atoi(req->port.c_str()), ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect server %s:%s failed. ret=%d", req->host.c_str(), req->port.c_str(), ret);
-        return ret;
-    }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
-    
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
-    
-    // connect to vhost/app
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("mpegts: handshake with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
-        return ret;
-    }
-    
-    // publish.
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: publish failed, stream=%s, stream_id=%d. ret=%d",
-                  req->stream.c_str(), stream_id, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-// TODO: FIXME: refine the connect_app.
-int SrsDynamicHttpConn::connect_app(string ep_server, string ep_port)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
-    // notify server the edge identity,
-    // @see https://github.com/ossrs/srs/issues/147
-    SrsAmf0Object* data = req->args;
-    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
-    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
-    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
-    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
-    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
-    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
-    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    // for edge to directly get the id of client.
-    data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
-    
-    // local ip of edge
-    std::vector<std::string> ips = srs_get_local_ipv4_ips();
-    assert(_srs_config->get_stats_network() < (int)ips.size());
-    std::string local_ip = ips[_srs_config->get_stats_network()];
-    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
-    
-    // generate the tcUrl
-    std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
-    
-    // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/ossrs/srs/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
-    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
-                  tc_url.c_str(), debug_srs_upnode, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-void SrsDynamicHttpConn::close()
-{
-    srs_freep(client);
-    srs_freep(io);
-    srs_freep(req);
-    srs_close_stfd(stfd);
 }
 
 SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader* h)
@@ -414,7 +298,7 @@ void SrsHttpFileReader::skip(int64_t /*size*/)
 {
 }
 
-int64_t SrsHttpFileReader::lseek(int64_t offset)
+int64_t SrsHttpFileReader::seek2(int64_t offset)
 {
     return offset;
 }
@@ -456,6 +340,12 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
     }
     
     return ret;
+}
+
+int SrsHttpFileReader::lseek(off_t offset, int whence, off_t* seeked)
+{
+    // TODO: FIXME: Use HTTP range for seek.
+    return ERROR_SUCCESS;
 }
 
 #endif

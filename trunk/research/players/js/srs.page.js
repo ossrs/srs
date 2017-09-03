@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.25"; }
+function srs_get_version_code() { return "1.31"; }
 
 /**
 * player specified size.
@@ -54,34 +54,53 @@ function update_nav() {
 function build_default_rtmp_url() {
     var query = parse_query_string();
 
+    var schema = (query.schema == undefined)? "rtmp":query.schema;
     var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? 1935:query.port;
+    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "demo":query.stream;
 
-    if (server == vhost || vhost == "") {
-        return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
-    } else {
-        return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
+    var queries = [];
+    if (server != vhost && vhost != "__defaultVhost__") {
+        queries.push("vhost=" + vhost);
     }
+    if (query.shp_identify) {
+        queries.push("shp_identify=" + query.shp_identify);
+    }
+
+    var uri = schema + "://" + server + ":" + port + "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.indexOf("?") == uri.length - 1) {
+        uri = uri.substr(0, uri.length - 1);
+    }
+
+    return uri;
 }
 // for the chat to init the publish url.
 function build_default_publish_rtmp_url() {
     var query = parse_query_string();
 
+    var schema = (query.schema == undefined)? "rtmp":query.schema;
     var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? 1935:query.port;
+    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "demo":query.stream;
 
-    if (server == vhost || vhost == "") {
-        return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
-    } else {
-        vhost = srs_get_player_chat_vhost(vhost);
-        return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
+    var queries = [];
+    if (server != vhost && vhost != "__defaultVhost__") {
+        queries.push("vhost=" + srs_get_player_chat_vhost(vhost));
     }
+    if (query.shp_identify) {
+        queries.push("shp_identify=" + query.shp_identify);
+    }
+
+    var uri = schema + "://" + server + ":" + port + "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.indexOf("?") == uri.length - 1) {
+        uri = uri.substr(0, uri.length - 1);
+    }
+
+    return uri;
 }
 // for the bandwidth tool to init page
 function build_default_bandwidth_rtmp_url() {

@@ -1,28 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 /**
-gcc srs_flv_injecter.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_flv_injecter
-*/
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,7 +52,7 @@ int main(int argc, char** argv)
     // temp variables.
     int tmp_file_size = 0;
     char* tmp_file;
-
+    
     printf("inject flv file keyframes to metadata.\n");
     printf("srs(ossrs) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
@@ -82,7 +79,7 @@ int main(int argc, char** argv)
     srs_human_trace("input:  %s", in_flv_file);
     srs_human_trace("output:  %s", out_flv_file);
     srs_human_trace("tmp_file:  %s", tmp_file);
-
+    
     ret = process(in_flv_file, tmp_file, &ic, &oc);
     
     srs_flv_close(ic);
@@ -139,9 +136,9 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
     *poc = oc;
     
     /**
-    * we use two roundtrip to avoid the paddings of metadata,
-    * to support large keyframes videos without padding fields.
-    */
+     * we use two roundtrip to avoid the paddings of metadata,
+     * to support large keyframes videos without padding fields.
+     */
     // build keyframes offset to metadata.
     if ((ret = build_keyframes(ic, &amf0_name, &amf0_data, &filepositions, &metadata_end_offset)) != 0) {
         return ret;
@@ -189,7 +186,7 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
     
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     int64_t offset = 0;
@@ -294,7 +291,7 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
     char header[13];
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     
@@ -322,7 +319,7 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
     if (amf0_name != NULL && amf0_data != NULL) {
         amf0_name_size = srs_amf0_size(amf0_name);
         size = amf0_name_size + srs_amf0_size(amf0_data);
-
+        
         // adjust all offset of keyframes.
         new_metadata_end_offset = srs_flv_tellg(oc) + srs_flv_size_tag(size);
         // the adjust is new offset sub the old offset of metadata end.

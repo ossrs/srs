@@ -17,7 +17,7 @@ FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
 APP_TARGET="${SRS_OBJS_DIR}/${APP_NAME}"
 
-echo "generate app ${APP_NAME} depends...";
+echo "Generating app ${APP_NAME} depends.";
 
 echo "# build ${APP_TARGET}" >> ${FILE}
 # generate the binary depends, for example:
@@ -52,7 +52,7 @@ for item in ${MODULE_OBJS[*]}; do
 done
 echo "" >> ${FILE}
 
-echo "generate app ${APP_NAME} link...";
+echo "Generating app ${APP_NAME} link.";
 
 # genereate the actual link command, for example:
 #       	$(LINK)  -o objs/srs objs/src/core/srs_core.o -ldl
@@ -89,4 +89,4 @@ done
 echo -n "${LINK_OPTIONS}" >> ${FILE}
 echo "" >> ${FILE}
 
-echo -n "generate app ${APP_NAME} ok"; echo '!';
+echo -n "Generate app ${APP_NAME} ok"; echo '!';

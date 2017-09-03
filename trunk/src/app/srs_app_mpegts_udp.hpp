@@ -1,32 +1,28 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef SRS_APP_MPEGTS_UDP_HPP
 #define SRS_APP_MPEGTS_UDP_HPP
-
-/*
-#include <srs_app_mpegts_udp.hpp>
-*/
 
 #include <srs_core.hpp>
 
@@ -36,10 +32,10 @@ struct sockaddr_in;
 #include <string>
 #include <map>
 
-class SrsStream;
+class SrsBuffer;
 class SrsTsContext;
 class SrsConfDirective;
-class SrsSimpleBuffer;
+class SrsSimpleStream;
 class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
@@ -48,16 +44,17 @@ class SrsSharedPtrMessage;
 class SrsRawAacStream;
 struct SrsRawAacStreamCodec;
 class SrsPithyPrint;
+class SrsSimpleRtmpClient;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_listener.hpp>
 
 /**
-* the queue for mpegts over udp to send packets.
-* for the aac in mpegts contains many flv packets in a pes packet,
-* we must recalc the timestamp.
-*/
+ * the queue for mpegts over udp to send packets.
+ * for the aac in mpegts contains many flv packets in a pes packet,
+ * we must recalc the timestamp.
+ */
 class SrsMpegtsQueue
 {
 private:
@@ -74,22 +71,18 @@ public:
 };
 
 /**
-* the mpegts over udp stream caster.
-*/
+ * the mpegts over udp stream caster.
+ */
 class SrsMpegtsOverUdp : virtual public ISrsTsHandler
-    , virtual public ISrsUdpHandler
+, virtual public ISrsUdpHandler
 {
 private:
-    SrsStream* stream;
+    SrsBuffer* stream;
     SrsTsContext* context;
-    SrsSimpleBuffer* buffer;
+    SrsSimpleStream* buffer;
     std::string output;
 private:
-    SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
-    SrsRtmpClient* client;
-    int stream_id;
+    SrsSimpleRtmpClient* sdk;
 private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -108,26 +101,24 @@ public:
     virtual ~SrsMpegtsOverUdp();
 // interface ISrsUdpHandler
 public:
-    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
 private:
     virtual int on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
 private:
-    virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
-    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
-    virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
-    virtual int on_ts_audio(SrsTsMessage* msg, SrsStream* avs);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+    virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 private:
-    // connect to rtmp output url. 
-    // @remark ignore when not connected, reconnect when disconnected.
+    // Connect to RTMP server.
     virtual int connect();
-    virtual int connect_app(std::string ep_server, std::string ep_port);
-    // close the connected io and rtmp to ready to be re-connect.
+    // Close the connection to RTMP server.
     virtual void close();
 };
 

@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_utility.hpp>
 
@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 #include <map>
 using namespace std;
 
@@ -45,78 +46,27 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
-int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
-{
-    int ret = ERROR_SUCCESS;
-    
-    *pstfd = NULL;
-    st_netfd_t stfd = NULL;
-    sockaddr_in addr;
-    
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
-        return ret;
-    }
-    
-    srs_assert(!stfd);
-    stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket failed. ret=%d", ret);
-        return ret;
-    }
-    
-    // connect to server.
-    std::string ip = srs_dns_resolve(server);
-    if (ip.empty()) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        goto failed;
-    }
-    
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), timeout) == -1){
-        ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        goto failed;
-    }
-    srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
-    
-    *pstfd = stfd;
-    return ret;
-    
-failed:
-    if (stfd) {
-        srs_close_stfd(stfd);
-    }
-    return ret;
-}
-
-int srs_get_log_level(string level)
+SrsLogLevel srs_get_log_level(string level)
 {
     if ("verbose" == level) {
-        return SrsLogLevel::Verbose;
+        return SrsLogLevelVerbose;
     } else if ("info" == level) {
-        return SrsLogLevel::Info;
+        return SrsLogLevelInfo;
     } else if ("trace" == level) {
-        return SrsLogLevel::Trace;
+        return SrsLogLevelTrace;
     } else if ("warn" == level) {
-        return SrsLogLevel::Warn;
+        return SrsLogLevelWarn;
     } else if ("error" == level) {
-        return SrsLogLevel::Error;
+        return SrsLogLevelError;
     } else {
-        return SrsLogLevel::Disabled;
+        return SrsLogLevelDisabled;
     }
 }
 
@@ -199,30 +149,10 @@ string srs_path_build_timestamp(string template_path)
     // [timestamp],replace this const to current UNIX timestamp in ms.
     if (true) {
         int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
-        snprintf(buf, sizeof(buf), "%"PRId64, now_us / 1000);
-        path = srs_string_replace(path, "[timestamp]", buf);
+        path = srs_string_replace(path, "[timestamp]", srs_int2str(now_us / 1000));
     }
     
     return path;
-}
-
-void srs_parse_endpoint(string ip_port, string& ip, string& port)
-{
-    ip = "0.0.0.0";
-    port = ip_port;
-    
-    size_t pos = string::npos;
-    if ((pos = port.find(":")) != string::npos) {
-        ip = port.substr(0, pos);
-        port = port.substr(pos + 1);
-    }
-}
-
-void srs_parse_endpoint(string ip_port, string& ip, int& port)
-{
-    std::string the_port;
-    srs_parse_endpoint(ip_port, ip, the_port);
-    port = ::atoi(the_port.c_str());
 }
 
 int srs_kill_forced(int& pid)
@@ -249,7 +179,7 @@ int srs_kill_forced(int& pid)
         
         // 0 is not quit yet.
         if (qpid == 0) {
-            st_usleep(10 * 1000);
+            srs_usleep(10 * 1000);
             continue;
         }
         
@@ -259,7 +189,7 @@ int srs_kill_forced(int& pid)
         
         return ret;
     }
-
+    
     // then, try kill by SIGKILL.
     if (kill(pid, SIGKILL) < 0) {
         return ERROR_SYSTEM_KILL;
@@ -274,7 +204,7 @@ int srs_kill_forced(int& pid)
     // @remark when we use SIGKILL to kill process, it must be killed,
     //      so we always wait it to quit by infinite loop.
     while (waitpid(pid, &status, 0) < 0) {
-        st_usleep(10 * 1000);
+        srs_usleep(10 * 1000);
         continue;
     }
     
@@ -414,17 +344,17 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
         
         // @see: read_stat_cpu() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L88
         // @remark, ignore the filed 10 cpu_guest_nice
-        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n", 
-            &r.user, 
-            &r.nice, 
-            &r.sys, 
-            &r.idle, 
-            &r.iowait, 
-            &r.irq, 
-            &r.softirq, 
-            &r.steal, 
-            &r.guest);
-
+        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+               &r.user,
+               &r.nice,
+               &r.sys,
+               &r.idle,
+               &r.iowait,
+               &r.irq,
+               &r.softirq,
+               &r.steal,
+               &r.guest);
+        
         break;
     }
     
@@ -433,7 +363,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     // TODO: FIXME: impelments it.
     // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
-
+    
     r.ok = true;
     
     return true;
@@ -449,23 +379,23 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
     }
     
     fscanf(f, "%d %32s %c %d %d %d %d "
-        "%d %u %lu %lu %lu %lu "
-        "%lu %lu %ld %ld %ld %ld "
-        "%ld %ld %llu %lu %ld "
-        "%lu %lu %lu %lu %lu "
-        "%lu %lu %lu %lu %lu "
-        "%lu %lu %lu %d %d "
-        "%u %u %llu "
-        "%lu %ld", 
-        &r.pid, r.comm, &r.state, &r.ppid, &r.pgrp, &r.session, &r.tty_nr,
-        &r.tpgid, &r.flags, &r.minflt, &r.cminflt, &r.majflt, &r.cmajflt,
-        &r.utime, &r.stime, &r.cutime, &r.cstime, &r.priority, &r.nice,
-        &r.num_threads, &r.itrealvalue, &r.starttime, &r.vsize, &r.rss,
-        &r.rsslim, &r.startcode, &r.endcode, &r.startstack, &r.kstkesp,
-        &r.kstkeip, &r.signal, &r.blocked, &r.sigignore, &r.sigcatch,
-        &r.wchan, &r.nswap, &r.cnswap, &r.exit_signal, &r.processor,
-        &r.rt_priority, &r.policy, &r.delayacct_blkio_ticks, 
-        &r.guest_time, &r.cguest_time);
+           "%d %u %lu %lu %lu %lu "
+           "%lu %lu %ld %ld %ld %ld "
+           "%ld %ld %llu %lu %ld "
+           "%lu %lu %lu %lu %lu "
+           "%lu %lu %lu %lu %lu "
+           "%lu %lu %lu %d %d "
+           "%u %u %llu "
+           "%lu %ld",
+           &r.pid, r.comm, &r.state, &r.ppid, &r.pgrp, &r.session, &r.tty_nr,
+           &r.tpgid, &r.flags, &r.minflt, &r.cminflt, &r.majflt, &r.cmajflt,
+           &r.utime, &r.stime, &r.cutime, &r.cstime, &r.priority, &r.nice,
+           &r.num_threads, &r.itrealvalue, &r.starttime, &r.vsize, &r.rss,
+           &r.rsslim, &r.startcode, &r.endcode, &r.startstack, &r.kstkesp,
+           &r.kstkeip, &r.signal, &r.blocked, &r.sigignore, &r.sigcatch,
+           &r.wchan, &r.nswap, &r.cnswap, &r.exit_signal, &r.processor,
+           &r.rt_priority, &r.policy, &r.delayacct_blkio_ticks,
+           &r.guest_time, &r.cguest_time);
     
     fclose(f);
 #else
@@ -633,22 +563,22 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         unsigned int aveq = 0;
         memset(name, 0, sizeof(name));
         
-        sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
-            &major, 
-            &minor, 
-            name, 
-            &rd_ios, 
-            &rd_merges,
-            &rd_sectors, 
-            &rd_ticks, 
-            &wr_ios, 
-            &wr_merges,
-            &wr_sectors, 
-            &wr_ticks, 
-            &nb_current, 
-            &ticks, 
-            &aveq);
-
+        sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u",
+               &major,
+               &minor,
+               name,
+               &rd_ios,
+               &rd_merges,
+               &rd_sectors,
+               &rd_ticks,
+               &wr_ios,
+               &wr_merges,
+               &wr_sectors,
+               &wr_ticks,
+               &nb_current,
+               &ticks,
+               &aveq);
+        
         for (int i = 0; i < (int)conf->args.size(); i++) {
             string name_ok = conf->args.at(i);
             
@@ -725,7 +655,7 @@ void srs_update_disk_stat()
         if (r.cpu.ok && r.cpu.total_delta > 0
             && cpuinfo->ok && cpuinfo->nb_processors > 0
             && o.ticks < r.ticks
-        ) {
+            ) {
             // @see: write_ext_stat() from https://github.com/sysstat/sysstat/blob/master/iostat.c#L979
             // TODO: FIXME: the USER_HZ assert to 100, so the total_delta ticks *10 is ms.
             double delta_ms = r.cpu.total_delta * 10 / cpuinfo->nb_processors;
@@ -875,7 +805,7 @@ void srs_update_platform_info()
         }
         
         fscanf(f, "%lf %lf\n", &r.os_uptime, &r.os_ilde_time);
-    
+        
         fclose(f);
     }
     
@@ -888,11 +818,11 @@ void srs_update_platform_info()
         
         // @see: read_loadavg() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L402
         // @remark, we use our algorithm, not sysstat.
-        fscanf(f, "%lf %lf %lf\n", 
-            &r.load_one_minutes, 
-            &r.load_five_minutes, 
-            &r.load_fifteen_minutes);
-    
+        fscanf(f, "%lf %lf %lf\n",
+               &r.load_one_minutes,
+               &r.load_five_minutes,
+               &r.load_fifteen_minutes);
+        
         fclose(f);
     }
 #else
@@ -990,21 +920,21 @@ void srs_update_network_devices()
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
         fgets(buf, sizeof(buf), f);
-    
+        
         for (int i = 0; i < MAX_NETWORK_DEVICES_COUNT; i++) {
             if (!fgets(buf, sizeof(buf), f)) {
                 break;
             }
             
             SrsNetworkDevices& r = _srs_system_network_devices[i];
-    
+            
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
             // @remark, we use our algorithm, not sysstat.
             char fname[7];
             sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
-                fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
-                &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
-                
+                   fname, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
+                   &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
+            
             sscanf(fname, "%s", r.name);
             _nb_srs_system_network_devices = i + 1;
             srs_info("scan network device ifname=%s, total=%d", r.name, _nb_srs_system_network_devices);
@@ -1012,55 +942,13 @@ void srs_update_network_devices()
             r.sample_time = srs_get_system_time_ms();
             r.ok = true;
         }
-    
+        
         fclose(f);
     }
 #else
     // TODO: FIXME: impelments it.
     // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
-}
-
-// we detect all network device as internet or intranet device, by its ip address.
-//      key is device name, for instance, eth0
-//      value is whether internet, for instance, true.
-static std::map<std::string, bool> _srs_device_ifs;
-
-bool srs_net_device_is_internet(string ifname)
-{
-    srs_info("check ifname=%s", ifname.c_str());
-
-    if (_srs_device_ifs.find(ifname) == _srs_device_ifs.end()) {
-        return false;
-    }
-    return _srs_device_ifs[ifname];
-}
-
-bool srs_net_device_is_internet(in_addr_t addr)
-{
-    u_int32_t addr_h = ntohl(addr);
-    
-    // lo, 127.0.0.0-127.0.0.1
-    if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
-        return false;
-    }
-    
-    // Class A 10.0.0.0-10.255.255.255
-    if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
-        return false;
-    }
-    
-    // Class B 172.16.0.0-172.31.255.255
-    if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
-        return false;
-    }
-    
-    // Class C 192.168.0.0-192.168.255.255
-    if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
-        return false;
-    }
-    
-    return true;
 }
 
 SrsNetworkRtmpServer::SrsNetworkRtmpServer()
@@ -1081,7 +969,7 @@ SrsNetworkRtmpServer* srs_get_network_rtmp_server()
 
 // @see: http://stackoverflow.com/questions/5992211/list-of-possible-internal-socket-statuses-from-proc
 enum {
-    SYS_TCP_ESTABLISHED =      0x01,
+    SYS_TCP_ESTABLISHED = 0x01,
     SYS_TCP_SYN_SENT,       // 0x02
     SYS_TCP_SYN_RECV,       // 0x03
     SYS_TCP_FIN_WAIT1,      // 0x04
@@ -1092,14 +980,14 @@ enum {
     SYS_TCP_LAST_ACK,       // 0x09
     SYS_TCP_LISTEN,         // 0x0A
     SYS_TCP_CLOSING,        // 0x0B /* Now a valid state */
-
+    
     SYS_TCP_MAX_STATES      // 0x0C /* Leave at the end! */
 };
 
 void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 {
     SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
-        
+    
     int nb_socks = 0;
     int nb_tcp4_hashed = 0;
     int nb_tcp_orphans = 0;
@@ -1125,17 +1013,17 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
             if (strncmp(buf, "sockets: used ", 14) == 0) {
                 sscanf(buf + 14, "%d\n", &nb_socks);
             } else if (strncmp(buf, "TCP: ", 5) == 0) {
-                sscanf(buf + 5, "%*s %d %*s %d %*s %d %*s %d %*s %d\n", 
-                    &nb_tcp4_hashed, 
-                    &nb_tcp_orphans, 
-                    &nb_tcp_tws, 
-                    &nb_tcp_total, 
-                    &nb_tcp_mem);
+                sscanf(buf + 5, "%*s %d %*s %d %*s %d %*s %d %*s %d\n",
+                       &nb_tcp4_hashed,
+                       &nb_tcp_orphans,
+                       &nb_tcp_tws,
+                       &nb_tcp_total,
+                       &nb_tcp_mem);
             } else if (strncmp(buf, "UDP: ", 5) == 0) {
                 sscanf(buf + 5, "%*s %d\n", &nb_udp4);
             }
         }
-    
+        
         fclose(f);
     }
 #else
@@ -1179,7 +1067,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
                 }
             }
         }
-    
+        
         fclose(f);
     }
 #else
@@ -1215,134 +1103,10 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     }
 }
 
-vector<string> _srs_system_ipv4_ips;
-
-void retrieve_local_ipv4_ips()
-{
-    vector<string>& ips = _srs_system_ipv4_ips;
-    
-    ips.clear();
-    
-    ifaddrs* ifap;
-    if (getifaddrs(&ifap) == -1) {
-        srs_warn("retrieve local ips, ini ifaddrs failed.");
-        return;
-    }
-    
-    ifaddrs* p = ifap;
-    while (p != NULL) {
-        ifaddrs* cur = p;
-        sockaddr* addr = cur->ifa_addr;
-        p = p->ifa_next;
-        
-        // retrieve ipv4 addr
-        // ignore the tun0 network device, 
-        // which addr is NULL.
-        // @see: https://github.com/ossrs/srs/issues/141
-        if (addr && addr->sa_family == AF_INET) {
-            in_addr* inaddr = &((sockaddr_in*)addr)->sin_addr;
-            
-            char buf[16];
-            memset(buf, 0, sizeof(buf));
-            
-            if ((inet_ntop(addr->sa_family, inaddr, buf, sizeof(buf))) == NULL) {
-                srs_warn("convert local ip failed");
-                break;
-            }
-            
-            std::string ip = buf;
-            if (ip != SRS_CONSTS_LOCALHOST) {
-                srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
-                ips.push_back(ip);
-            }
-            
-            // set the device internet status.
-            if (!srs_net_device_is_internet(inaddr->s_addr)) {
-                srs_trace("detect intranet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
-                _srs_device_ifs[cur->ifa_name] = false;
-            } else {
-                srs_trace("detect internet address: %s, ifname=%s", ip.c_str(), cur->ifa_name);
-                _srs_device_ifs[cur->ifa_name] = true;
-            }
-        }
-    }
-
-    freeifaddrs(ifap);
-}
-
-vector<string>& srs_get_local_ipv4_ips()
-{
-    if (_srs_system_ipv4_ips.empty()) {
-        retrieve_local_ipv4_ips();
-    }
-
-    return _srs_system_ipv4_ips;
-}
-
-std::string _public_internet_address;
-
-string srs_get_public_internet_address()
-{
-    if (!_public_internet_address.empty()) {
-        return _public_internet_address;
-    }
-    
-    std::vector<std::string>& ips = srs_get_local_ipv4_ips();
-    
-    // find the best match public address.
-    for (int i = 0; i < (int)ips.size(); i++) {
-        std::string ip = ips[i];
-        in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
-        // lo, 127.0.0.0-127.0.0.1
-        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class A 10.0.0.0-10.255.255.255
-        if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class B 172.16.0.0-172.31.255.255
-        if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class C 192.168.0.0-192.168.255.255
-        if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        srs_warn("use public address as ip: %s", ip.c_str());
-        
-        _public_internet_address = ip;
-        return ip;
-    }
-    
-    // no public address, use private address.
-    for (int i = 0; i < (int)ips.size(); i++) {
-        std::string ip = ips[i];
-        in_addr_t addr = inet_addr(ip.c_str());
-        u_int32_t addr_h = ntohl(addr);
-        // lo, 127.0.0.0-127.0.0.1
-        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        srs_warn("use private address as ip: %s", ip.c_str());
-        
-        _public_internet_address = ip;
-        return ip;
-    }
-    
-    return "";
-}
-
 string srs_get_local_ip(int fd)
 {
     std::string ip;
-
+    
     // discovery client information
     sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
@@ -1350,19 +1114,19 @@ string srs_get_local_ip(int fd)
         return ip;
     }
     srs_verbose("get local ip success.");
-
+    
     // ip v4 or v6
     char buf[INET6_ADDRSTRLEN];
     memset(buf, 0, sizeof(buf));
-
+    
     if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
         return ip;
     }
-
+    
     ip = buf;
-
+    
     srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-
+    
     return ip;
 }
 
@@ -1377,9 +1141,9 @@ int srs_get_local_port(int fd)
     srs_verbose("get local ip success.");
     
     int port = ntohs(addr.sin_port);
-
+    
     srs_verbose("get local ip of client port=%s, fd=%d", port, fd);
-
+    
     return port;
 }
 
@@ -1394,7 +1158,7 @@ string srs_get_peer_ip(int fd)
         return ip;
     }
     srs_verbose("get peer name success.");
-
+    
     // ip v4 or v6
     char buf[INET6_ADDRSTRLEN];
     memset(buf, 0, sizeof(buf));
@@ -1409,11 +1173,6 @@ string srs_get_peer_ip(int fd)
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
     
     return ip;
-}
-
-bool srs_string_is_http(string url)
-{
-    return srs_string_starts_with(url, "http://", "https://");
 }
 
 bool srs_is_digit_number(const string& str)
@@ -1432,7 +1191,7 @@ bool srs_is_boolean(const string& str)
     return str == "true" || str == "false";
 }
 
-void srs_api_dump_summaries(std::stringstream& ss)
+void srs_api_dump_summaries(SrsJsonObject* obj)
 {
     SrsRusage* r = srs_get_system_rusage();
     SrsProcSelfStat* u = srs_get_self_proc_stat();
@@ -1482,60 +1241,64 @@ void srs_api_dump_summaries(std::stringstream& ss)
     }
     
     // all data is ok?
-    bool ok = (r->ok && u->ok && s->ok && c->ok 
-        && d->ok && m->ok && p->ok && nrs->ok);
+    bool ok = (r->ok && u->ok && s->ok && c->ok
+               && d->ok && m->ok && p->ok && nrs->ok);
     
-    ss << SRS_JOBJECT_START
-        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
-        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
-            << SRS_JFIELD_ORG("ok", (ok? "true":"false")) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("now_ms", now) << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("self", SRS_JOBJECT_START)
-                << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("pid", getpid()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ppid", u->ppid) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("argv", _srs_config->argv()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_STR("cwd", _srs_config->cwd()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_percent", self_mem_percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpu_percent", u->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_uptime", srs_uptime)
-            << SRS_JOBJECT_END << SRS_JFIELD_CONT
-            << SRS_JFIELD_ORG("system", SRS_JOBJECT_START)
-                << SRS_JFIELD_ORG("cpu_percent", s->percent) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_read_KBps", d->in_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_write_KBps", d->out_KBps) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("disk_busy_percent", d->busy) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("mem_swap_percent", m->percent_swap) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus", c->nb_processors) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("cpus_online", c->nb_processors_online) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("uptime", p->os_uptime) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("ilde_time", p->os_ilde_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << SRS_JFIELD_CONT
-                // system network bytes stat.
-                << SRS_JFIELD_ORG("net_sample_time", n_sample_time) << SRS_JFIELD_CONT
-                // internet public address network device bytes.
-                << SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << SRS_JFIELD_CONT
-                // intranet private address network device bytes.
-                << SRS_JFIELD_ORG("net_recvi_bytes", nri_bytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("net_sendi_bytes", nsi_bytes) << SRS_JFIELD_CONT
-                // srs network bytes stat.
-                << SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_sys_udp", nrs->nb_conn_sys_udp) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
-            << SRS_JOBJECT_END
-        << SRS_JOBJECT_END
-        << SRS_JOBJECT_END;
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+    
+    data->set("ok", SrsJsonAny::boolean(ok));
+    data->set("now_ms", SrsJsonAny::integer(now));
+    
+    // self
+    SrsJsonObject* self = SrsJsonAny::object();
+    data->set("self", self);
+    
+    self->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
+    self->set("pid", SrsJsonAny::integer(getpid()));
+    self->set("ppid", SrsJsonAny::integer(u->ppid));
+    self->set("argv", SrsJsonAny::str(_srs_config->argv().c_str()));
+    self->set("cwd", SrsJsonAny::str(_srs_config->cwd().c_str()));
+    self->set("mem_kbyte", SrsJsonAny::integer(r->r.ru_maxrss));
+    self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
+    self->set("cpu_percent", SrsJsonAny::number(u->percent));
+    self->set("srs_uptime", SrsJsonAny::integer(srs_uptime));
+    
+    // system
+    SrsJsonObject* sys = SrsJsonAny::object();
+    data->set("system", sys);
+    
+    sys->set("cpu_percent", SrsJsonAny::number(s->percent));
+    sys->set("disk_read_KBps", SrsJsonAny::integer(d->in_KBps));
+    sys->set("disk_write_KBps", SrsJsonAny::integer(d->out_KBps));
+    sys->set("disk_busy_percent", SrsJsonAny::number(d->busy));
+    sys->set("mem_ram_kbyte", SrsJsonAny::integer(m->MemTotal));
+    sys->set("mem_ram_percent", SrsJsonAny::number(m->percent_ram));
+    sys->set("mem_swap_kbyte", SrsJsonAny::integer(m->SwapTotal));
+    sys->set("mem_swap_percent", SrsJsonAny::number(m->percent_swap));
+    sys->set("cpus", SrsJsonAny::integer(c->nb_processors));
+    sys->set("cpus_online", SrsJsonAny::integer(c->nb_processors_online));
+    sys->set("uptime", SrsJsonAny::number(p->os_uptime));
+    sys->set("ilde_time", SrsJsonAny::number(p->os_ilde_time));
+    sys->set("load_1m", SrsJsonAny::number(p->load_one_minutes));
+    sys->set("load_5m", SrsJsonAny::number(p->load_five_minutes));
+    sys->set("load_15m", SrsJsonAny::number(p->load_fifteen_minutes));
+    // system network bytes stat.
+    sys->set("net_sample_time", SrsJsonAny::integer(n_sample_time));
+    // internet public address network device bytes.
+    sys->set("net_recv_bytes", SrsJsonAny::integer(nr_bytes));
+    sys->set("net_send_bytes", SrsJsonAny::integer(ns_bytes));
+    // intranet private address network device bytes.
+    sys->set("net_recvi_bytes", SrsJsonAny::integer(nri_bytes));
+    sys->set("net_sendi_bytes", SrsJsonAny::integer(nsi_bytes));
+    // srs network bytes stat.
+    sys->set("srs_sample_time", SrsJsonAny::integer(nrs->sample_time));
+    sys->set("srs_recv_bytes", SrsJsonAny::integer(nrs->rbytes));
+    sys->set("srs_send_bytes", SrsJsonAny::integer(nrs->sbytes));
+    sys->set("conn_sys", SrsJsonAny::integer(nrs->nb_conn_sys));
+    sys->set("conn_sys_et", SrsJsonAny::integer(nrs->nb_conn_sys_et));
+    sys->set("conn_sys_tw", SrsJsonAny::integer(nrs->nb_conn_sys_tw));
+    sys->set("conn_sys_udp", SrsJsonAny::integer(nrs->nb_conn_sys_udp));
+    sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 

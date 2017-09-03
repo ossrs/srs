@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,17 +30,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest.hpp>
 
 #include <string>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_handshake.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 
 #ifdef SRS_AUTO_SSL
 using namespace _srs_internal;
 #endif
 
-#include <srs_rtmp_io.hpp>
+#include <srs_protocol_io.hpp>
 
 class MockEmptyIO : public ISrsProtocolReaderWriter
 {
@@ -49,19 +49,19 @@ public:
     virtual ~MockEmptyIO();
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t timeout_us);
+    virtual bool is_never_timeout(int64_t tm);
 // for handshake.
 public:
     virtual int read_fully(void* buf, size_t size, ssize_t* nread);
     virtual int write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
@@ -73,32 +73,34 @@ public:
 class MockBufferIO : public ISrsProtocolReaderWriter
 {
 public:
-    int64_t recv_timeout;
-    int64_t send_timeout;
-    int64_t recv_bytes;
-    int64_t send_bytes;
+    // The send/recv timeout in ms.
+    int64_t rtm;
+    int64_t stm;
+    // The send/recv data in bytes.
+    int64_t rbytes;
+    int64_t sbytes;
     // data source for socket read.
-    SrsSimpleBuffer in_buffer;
+    SrsSimpleStream in_buffer;
     // data buffer for socket send.
-    SrsSimpleBuffer out_buffer;
+    SrsSimpleStream out_buffer;
 public:
     MockBufferIO();
     virtual ~MockBufferIO();
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t timeout_us);
+    virtual bool is_never_timeout(int64_t tm);
 // for handshake.
 public:
     virtual int read_fully(void* buf, size_t size, ssize_t* nread);
     virtual int write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);

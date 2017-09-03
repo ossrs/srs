@@ -17,7 +17,7 @@
 
 FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 echo "#####################################################################################" >> ${FILE}
-echo "# the ${MODULE_ID} module." >> ${FILE}
+echo "# The module ${MODULE_ID}." >> ${FILE}
 echo "#####################################################################################" >> ${FILE}
 echo  >> ${FILE}
 
@@ -41,7 +41,7 @@ echo -n "${INCS_NAME} = -I${MODULE_DIR} " >> ${FILE}
 for item in ${MODULE_DEPENDS[*]}; do
     DEP_INCS_NAME="${item}_INCS"do
     DEP_INCS_NAME="${item}_MODULE_INCS"
-    echo -n "\$(${DEP_INCS_NAME}) " >> ${FILE}
+    echo -n "\$(${DEP_INCS_NAME})" >> ${FILE}
 done
 #
 # depends library header files
@@ -79,7 +79,8 @@ for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES} \$(${INCS_NAME})\\" >> ${FILE}
+        echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES}\\" >> ${FILE}
+        echo "          \$(${INCS_NAME})\\" >> ${FILE}
         echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done
@@ -88,4 +89,4 @@ echo "" >> ${FILE}
 # parent Makefile, to create module output dir before compile it.
 echo "	@mkdir -p ${SRS_OBJS_DIR}/${MODULE_DIR}" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
-echo -n "generate module ${MODULE_ID} ok"; echo '!';
+echo -n "Generate modules ${MODULE_ID} ok"; echo '!';

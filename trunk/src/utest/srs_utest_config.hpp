@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -41,7 +41,7 @@ public:
     MockSrsConfigBuffer(std::string buf);
     virtual ~MockSrsConfigBuffer();
 public:
-    virtual int fullfill(const char* filename);
+    virtual srs_error_t fullfill(const char* filename);
 };
 
 class MockSrsConfig : public SrsConfig
@@ -50,7 +50,7 @@ public:
     MockSrsConfig();
     virtual ~MockSrsConfig();
 public:
-    virtual int parse(std::string buf);
+    virtual srs_error_t parse(std::string buf);
 };
 
 #endif

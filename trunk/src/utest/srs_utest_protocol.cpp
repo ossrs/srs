@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -26,12 +26,12 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_rtmp_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_rtmp_stack.hpp>
 
 MockEmptyIO::MockEmptyIO()
@@ -42,7 +42,7 @@ MockEmptyIO::~MockEmptyIO()
 {
 }
 
-bool MockEmptyIO::is_never_timeout(int64_t /*timeout_us*/)
+bool MockEmptyIO::is_never_timeout(int64_t /*tm*/)
 {
     return true;
 }
@@ -57,7 +57,7 @@ int MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
     return ERROR_SUCCESS;
 }
 
-void MockEmptyIO::set_recv_timeout(int64_t /*timeout_us*/)
+void MockEmptyIO::set_recv_timeout(int64_t /*tm*/)
 {
 }
 
@@ -71,7 +71,7 @@ int64_t MockEmptyIO::get_recv_bytes()
     return -1;
 }
 
-void MockEmptyIO::set_send_timeout(int64_t /*timeout_us*/)
+void MockEmptyIO::set_send_timeout(int64_t /*tm*/)
 {
 }
 
@@ -97,17 +97,17 @@ int MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 
 MockBufferIO::MockBufferIO()
 {
-    recv_timeout = send_timeout = ST_UTIME_NO_TIMEOUT;
-    recv_bytes = send_bytes = 0;
+    rtm = stm = SRS_CONSTS_NO_TMMS;
+    rbytes = sbytes = 0;
 }
 
 MockBufferIO::~MockBufferIO()
 {
 }
 
-bool MockBufferIO::is_never_timeout(int64_t timeout_us)
+bool MockBufferIO::is_never_timeout(int64_t tm)
 {
-    return (int64_t)ST_UTIME_NO_TIMEOUT == timeout_us;
+    return tm == SRS_CONSTS_NO_TMMS;
 }
 
 int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
@@ -117,7 +117,7 @@ int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
     }
     memcpy(buf, in_buffer.bytes(), size);
     
-    recv_bytes += size;
+    rbytes += size;
     if (nread) {
         *nread = size;
     }
@@ -127,7 +127,7 @@ int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 
 int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
 {
-    send_bytes += size;
+    sbytes += size;
     if (nwrite) {
         *nwrite = size;
     }
@@ -135,34 +135,34 @@ int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
     return ERROR_SUCCESS;
 }
 
-void MockBufferIO::set_recv_timeout(int64_t timeout_us)
+void MockBufferIO::set_recv_timeout(int64_t tm)
 {
-    recv_timeout = timeout_us;
+    rtm = tm;
 }
 
 int64_t MockBufferIO::get_recv_timeout()
 {
-    return recv_timeout;
+    return rtm;
 }
 
 int64_t MockBufferIO::get_recv_bytes()
 {
-    return recv_bytes;
+    return rbytes;
 }
 
-void MockBufferIO::set_send_timeout(int64_t timeout_us)
+void MockBufferIO::set_send_timeout(int64_t tm)
 {
-    send_timeout = timeout_us;
+    stm = tm;
 }
 
 int64_t MockBufferIO::get_send_timeout()
 {
-    return send_timeout;
+    return stm;
 }
 
 int64_t MockBufferIO::get_send_bytes()
 {
-    return send_bytes;
+    return sbytes;
 }
 
 int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
@@ -180,6 +180,8 @@ int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
         total += writen;
     }
     
+    sbytes += total;
+    
     if (nwrite) {
         *nwrite = total;
     }
@@ -195,7 +197,7 @@ int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
     size_t available = srs_min(in_buffer.length(), (int)size);
     memcpy(buf, in_buffer.bytes(), available);
     
-    recv_bytes += available;
+    rbytes += available;
     if (nread) {
         *nread = available;
     }
@@ -424,46 +426,13 @@ VOID TEST(ProtocolHandshakeTest, BytesEqual)
 }
 
 /**
-* resolve vhost from tcUrl.
-*/
-VOID TEST(ProtocolUtilityTest, VhostResolve)
-{
-    std::string vhost = "vhost";
-    std::string app = "app";
-    std::string param;
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("vhost", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?vhost=changed";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?vhost=changed1&&query=true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed1", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app?other=true&&vhost=changed2&&query=true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed2", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-    
-    app = "app...other...true...vhost...changed3...query...true";
-    srs_vhost_resolve(vhost, app, param);
-    EXPECT_STREQ("changed3", vhost.c_str());
-    EXPECT_STREQ("app", app.c_str());
-}
-
-/**
 * discovery tcUrl to schema/vhost/host/port/app
 */
 VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
 {
     std::string tcUrl; 
     std::string schema; std::string host; std::string vhost; 
-    std::string app; std::string port; std::string param;
+    std::string app; int port; std::string param;
     
     tcUrl = "rtmp://127.0.0.1:1935/live";
     srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
@@ -471,7 +440,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("127.0.0.1", vhost.c_str());
     EXPECT_STREQ("live", app.c_str());
-    EXPECT_STREQ("1935", port.c_str());
+    EXPECT_EQ(1935, port);
     
     tcUrl = "rtmp://127.0.0.1:19351/live";
     srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
@@ -479,7 +448,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("127.0.0.1", vhost.c_str());
     EXPECT_STREQ("live", app.c_str());
-    EXPECT_STREQ("19351", port.c_str());
+    EXPECT_EQ(19351, port);
     
     tcUrl = "rtmp://127.0.0.1:19351/live?vhost=demo";
     srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
@@ -487,7 +456,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("demo", vhost.c_str());
     EXPECT_STREQ("live", app.c_str());
-    EXPECT_STREQ("19351", port.c_str());
+    EXPECT_EQ(19351, port);
     
     tcUrl = "rtmp://127.0.0.1:19351/live/show?vhost=demo";
     srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
@@ -495,7 +464,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("demo", vhost.c_str());
     EXPECT_STREQ("live/show", app.c_str());
-    EXPECT_STREQ("19351", port.c_str());
+    EXPECT_EQ(19351, port);
 }
 
 /**
@@ -503,17 +472,17 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
 */
 VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
 {
-    string ip; string vhost; string app; string port; string tcUrl; string param;
+    string ip; string vhost; string app; int port; string tcUrl; string param;
     
-    ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = "1935";
+    ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = 1935;
     tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://127.0.0.1/live", tcUrl.c_str());
     
-    ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = "1935";
+    ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 1935;
     tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://demo/live", tcUrl.c_str());
     
-    ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = "19351";
+    ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 19351;
     tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
@@ -563,8 +532,8 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     MockBufferIO bio;
     SrsProtocol proto(&bio);
     
-    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
-    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_send_timeout());
+    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_recv_timeout());
+    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_send_timeout());
     
     proto.set_recv_timeout(10);
     EXPECT_TRUE(10 == proto.get_recv_timeout());
@@ -5411,7 +5380,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
     EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
     EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_STREQ("1935", req.port.c_str());
+    EXPECT_EQ(1935, req.port);
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://s td.os srs.n et/li v e", 
@@ -5421,7 +5390,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
     EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
     EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_STREQ("1935", req.port.c_str());
+    EXPECT_EQ(1935, req.port);
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://s\ntd.o\rssrs.ne\nt/li\nve", 
@@ -5431,7 +5400,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
     EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
     EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_STREQ("1935", req.port.c_str());
+    EXPECT_EQ(1935, req.port);
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://std.ossrs.net/live ", 
@@ -5441,7 +5410,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
     EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
     EXPECT_STREQ("live", req.app.c_str());
-    EXPECT_STREQ("1935", req.port.c_str());
+    EXPECT_EQ(1935, req.port);
     
     EXPECT_TRUE(NULL == req.args);
     SrsRequest req1;

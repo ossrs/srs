@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://code.csdn.net/snippets/147103
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.11
+ * v 1.0.17
  */
 
 /**
@@ -96,19 +96,76 @@ function system_array_get(arr, elem_or_function) {
 /**
  * to iterate on array.
  * @param arr the array to iterate on.
- * @param pfn the function to apply on it
+ * @param pfn the function to apply on it. return false to break loop.
  * for example,
  *      arr = [10, 15, 20, 30, 20, 40]
  *      system_array_foreach(arr, function(elem, index){
  *          console.log('index=' + index + ',elem=' + elem);
  *      });
+ * @return true when iterate all elems.
  */
 function system_array_foreach(arr, pfn) {
+    if (!pfn) {
+        return false;
+    }
+
     for (var i = 0; i < arr.length; i++) {
-        if (pfn) {
-            pfn(arr[i], i)
+        if (!pfn(arr[i], i)) {
+            return false;
         }
     }
+
+    return true;
+}
+
+/**
+ * whether the str starts with flag.
+ */
+function system_string_startswith(str, flag) {
+    if (typeof flag == "object" && flag.constructor == Array) {
+        for (var i = 0; i < flag.length; i++) {
+            if (system_string_startswith(str, flag[i])) {
+                return true;
+            }
+        }
+    }
+
+    return str && flag && str.length >= flag.length && str.indexOf(flag) == 0;
+}
+
+/**
+ * whether the str ends with flag.
+ */
+function system_string_endswith(str, flag) {
+    if (typeof flag == "object" && flag.constructor == Array) {
+        for (var i = 0; i < flag.length; i++) {
+            if (system_string_endswith(str, flag[i])) {
+                return true;
+            }
+        }
+    }
+
+    return str && flag && str.length >= flag.length && str.indexOf(flag) == str.length - flag.length;
+}
+
+/**
+ * trim the start and end of flag in str.
+ * @param flag a string to trim.
+ */
+function system_string_trim(str, flag) {
+    if (!flag || !flag.length || typeof flag != "string") {
+        return str;
+    }
+
+    while (system_string_startswith(str, flag)) {
+        str = str.substr(flag.length);
+    }
+
+    while (system_string_endswith(str, flag)) {
+        str = str.substr(0, str.length - flag.length);
+    }
+
+    return str;
 }
 
 /**
@@ -186,14 +243,37 @@ function parse_query_string(){
         }
     }
 
-    var queries = query_string.split("&");
-    $(queries).each(function(){
-        var query = this.split("=");
-        obj[query[0]] = query[1];
-        obj.user_query[query[0]] = query[1];
-    });
+    __fill_query(query_string, obj);
 
     return obj;
+}
+
+function __fill_query(query_string, obj) {
+    // pure user query object.
+    obj.user_query = {};
+
+    if (query_string.length == 0) {
+        return;
+    }
+
+    // split again for angularjs.
+    if (query_string.indexOf("?") >= 0) {
+        query_string = query_string.split("?")[1];
+    }
+
+    var queries = query_string.split("&");
+    for (var i = 0; i < queries.length; i++) {
+        var elem = queries[i];
+
+        var query = elem.split("=");
+        obj[query[0]] = query[1];
+        obj.user_query[query[0]] = query[1];
+    }
+
+    // alias domain for vhost.
+    if (obj.domain) {
+        obj.vhost = obj.domain;
+    }
 }
 
 /**
@@ -213,10 +293,9 @@ function parse_query_string(){
 function parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
-    a.href = rtmp_url.replace("rtmp://", "http://").replace("?", "...").replace("=", "...");
+    a.href = rtmp_url.replace("rtmp://", "http://");
 
     var vhost = a.hostname;
-    var port = (a.port == "")? "1935":a.port;
     var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
     var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
 
@@ -242,11 +321,21 @@ function parse_rtmp_url(rtmp_url) {
             vhost = "__defaultVhost__";
         }
     }
+    
+    // parse the schema
+    var schema = "rtmp";
+    if (rtmp_url.indexOf("://") > 0) {
+        schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
+    }
+    var port = (a.port == "")? (schema=="http"?"80":"1935"):a.port;
 
     var ret = {
+        url: rtmp_url,
+        schema: schema,
         server: a.hostname, port: port,
         vhost: vhost, app: app, stream: stream
     };
+    __fill_query(a.search, ret);
 
     return ret;
 }
@@ -500,7 +589,14 @@ AsyncRefresh2.prototype.initialize = function(pfn, timeout) {
  * stop refresh, the refresh pfn is set to null.
  */
 AsyncRefresh2.prototype.stop = function() {
-    this.refresh_change(null, null);
+    this.__call.__enabled = false;
+}
+/**
+ * restart refresh, use previous config.
+ */
+AsyncRefresh2.prototype.restart = function() {
+    this.__call.__enabled = true;
+    this.request(0);
 }
 /**
  * change refresh pfn, the old pfn will set to disabled.

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2015 SRS(ossrs)
+Copyright (c) 2013-2017 OSSRS(winlin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -31,9 +31,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <srs_kernel_file.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_protocol_stream.hpp>
 
-class MockBufferReader: public ISrsBufferReader
+class MockBufferReader: public ISrsReader
 {
 private:
     std::string str;
@@ -81,10 +81,11 @@ public:
     virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);
-    virtual int64_t lseek(int64_t offset);
+    virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
 public:
     virtual int read(void* buf, size_t count, ssize_t* pnread);
+    virtual int lseek(off_t offset, int whence, off_t* seeked);
 // for mock
 public:
     // append data to current offset, modify the offset and size.

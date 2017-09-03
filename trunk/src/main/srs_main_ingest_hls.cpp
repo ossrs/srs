@@ -1,25 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_core.hpp>
 
@@ -29,56 +29,42 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 using namespace std;
 
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_rtmp_stack.hpp>
-#include <srs_kernel_buffer.hpp>
-#include <srs_kernel_stream.hpp>
-#include <srs_kernel_ts.hpp>
-#include <srs_app_http_client.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_st.hpp>
-#include <srs_rtmp_utility.hpp>
-#include <srs_app_st.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_rtmp_amf0.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_ts.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_raw_avc.hpp>
-#include <srs_app_http_conn.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_service_http_client.hpp>
+#include <srs_service_log.hpp>
+#include <srs_service_st.hpp>
+#include <srs_service_http_conn.hpp>
+#include <srs_service_rtmp_conn.hpp>
+#include <srs_service_utility.hpp>
 
 // pre-declare
-int proxy_hls2rtmp(std::string hls, std::string rtmp);
+srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
 
-// for the main objects(server, config, log, context),
-// never subscribe handler in constructor,
-// instead, subscribe handler in initialize method.
-// kernel module.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
-// app module.
-SrsConfig* _srs_config = NULL;
-SrsServer* _srs_server = NULL;
-
-#if defined(SRS_AUTO_HTTP_CORE)
+// @global log and context.
+ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
+ISrsThreadContext* _srs_context = new SrsThreadContext();
 
 /**
-* main entrance.
-*/
-int main(int argc, char** argv) 
+ * main entrance.
+ */
+int main(int argc, char** argv)
 {
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
     
     // directly failed when compile limited.
-#if !defined(SRS_AUTO_HTTP_CORE)
-    srs_error("depends on http-parser.");
-    exit(-1);
-#endif
-    
 #if defined(SRS_AUTO_GPERF_MP) || defined(SRS_AUTO_GPERF_MP) \
-|| defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
+    || defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
     srs_error("donot support gmc/gmp/gcp/gprof");
     exit(-1);
 #endif
@@ -124,7 +110,11 @@ int main(int argc, char** argv)
     srs_trace("input:  %s", in_hls_url.c_str());
     srs_trace("output: %s", out_rtmp_url.c_str());
     
-    return proxy_hls2rtmp(in_hls_url, out_rtmp_url);
+    srs_error_t err = proxy_hls2rtmp(in_hls_url, out_rtmp_url);
+    
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 class ISrsAacHandler
@@ -133,12 +123,12 @@ public:
     /**
      * handle the aac frame, which in ADTS format(starts with FFFx).
      * @param duration the duration in seconds of frames.
-*/
-virtual int on_aac_frame(char* frame, int frame_size, double duration) = 0;
+     */
+    virtual int on_aac_frame(char* frame, int frame_size, double duration) = 0;
 };
 
 // the context to ingest hls stream.
-class SrsIngestSrsInput
+class SrsIngestHlsInput
 {
 private:
     struct SrsTsPiece {
@@ -166,17 +156,17 @@ private:
     std::vector<SrsTsPiece*> pieces;
     int64_t next_connect_time;
 private:
-    SrsStream* stream;
+    SrsBuffer* stream;
     SrsTsContext* context;
 public:
-    SrsIngestSrsInput(SrsHttpUri* hls) {
+    SrsIngestHlsInput(SrsHttpUri* hls) {
         in_hls = hls;
         next_connect_time = 0;
         
-        stream = new SrsStream();
+        stream = new SrsBuffer();
         context = new SrsTsContext();
     }
-    virtual ~SrsIngestSrsInput() {
+    virtual ~SrsIngestHlsInput() {
         srs_freep(stream);
         srs_freep(context);
         
@@ -223,14 +213,14 @@ private:
     virtual void remove_dirty();
 };
 
-int SrsIngestSrsInput::connect()
+int SrsIngestHlsInput::connect()
 {
     int ret = ERROR_SUCCESS;
     
     int64_t now = srs_update_system_time_ms();
     if (now < next_connect_time) {
         srs_trace("input hls wait for %dms", next_connect_time - now);
-        st_usleep((next_connect_time - now) * 1000);
+        srs_usleep((next_connect_time - now) * 1000);
     }
     
     // set all ts to dirty.
@@ -257,7 +247,7 @@ int SrsIngestSrsInput::connect()
     return ret;
 }
 
-int SrsIngestSrsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
+int SrsIngestHlsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
 {
     int ret = ERROR_SUCCESS;
     
@@ -292,12 +282,12 @@ int SrsIngestSrsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
     return ret;
 }
 
-int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
+int SrsIngestHlsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
 {
     int ret = ERROR_SUCCESS;
     
     // use stream to parse ts packet.
-    int nb_packet =  (int)nb_body / SRS_TS_PACKET_SIZE;
+    int nb_packet = (int)nb_body / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = (char*)body + (i * SRS_TS_PACKET_SIZE);
         if ((ret = stream->initialize(p, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {
@@ -316,7 +306,7 @@ int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
     return ret;
 }
 
-int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body, double duration)
+int SrsIngestHlsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -331,21 +321,21 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
         return ret;
     }
     
-    u_int8_t id0 = (u_int8_t)body[0];
-    u_int8_t id1 = (u_int8_t)body[1];
-    u_int8_t id2 = (u_int8_t)body[2];
+    uint8_t id0 = (uint8_t)body[0];
+    uint8_t id1 = (uint8_t)body[1];
+    uint8_t id2 = (uint8_t)body[2];
     
     // skip ID3.
     if (id0 == 0x49 && id1 == 0x44 && id2 == 0x33) {
         /*char id3[] = {
-            (char)0x49, (char)0x44, (char)0x33, // ID3
-            (char)0x03, (char)0x00, // version
-            (char)0x00, // flags
-            (char)0x00, (char)0x00, (char)0x00, (char)0x0a, // size
-            
-            (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameID
-            (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameSize
-            (char)0x00, (char)0x00 // Flags
+         (char)0x49, (char)0x44, (char)0x33, // ID3
+         (char)0x03, (char)0x00, // version
+         (char)0x00, // flags
+         (char)0x00, (char)0x00, (char)0x00, (char)0x0a, // size
+         
+         (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameID
+         (char)0x00, (char)0x00, (char)0x00, (char)0x00, // FrameSize
+         (char)0x00, (char)0x00 // Flags
          };*/
         // atleast 10 bytes.
         if (!stream->require(10)) {
@@ -357,7 +347,7 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
         // ignore ID3 + version + flag.
         stream->skip(6);
         // read the size of ID3.
-        u_int32_t nb_id3 = stream->read_4bytes();
+        uint32_t nb_id3 = stream->read_4bytes();
         
         // read body of ID3
         if (!stream->require(nb_id3)) {
@@ -373,12 +363,12 @@ int SrsIngestSrsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
     return handler->on_aac_frame(frame, frame_size, duration);
 }
 
-int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
+int SrsIngestHlsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
 {
     int ret = ERROR_SUCCESS;
     
     SrsHttpClient client;
-    srs_trace("parse input hls %s", url->get_url());
+    srs_trace("parse input hls %s", url->get_url().c_str());
     
     if ((ret = client.initialize(url->get_host(), url->get_port())) != ERROR_SUCCESS) {
         srs_error("connect to server failed. ret=%d", ret);
@@ -387,7 +377,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
-        srs_error("HTTP GET %s failed. ret=%d", url->get_url(), ret);
+        srs_error("HTTP GET %s failed. ret=%d", url->get_url().c_str(), ret);
         return ret;
     }
     
@@ -511,7 +501,7 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     return ret;
 }
 
-SrsIngestSrsInput::SrsTsPiece* SrsIngestSrsInput::find_ts(string url)
+SrsIngestHlsInput::SrsTsPiece* SrsIngestHlsInput::find_ts(string url)
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end(); ++it) {
@@ -523,7 +513,7 @@ SrsIngestSrsInput::SrsTsPiece* SrsIngestSrsInput::find_ts(string url)
     return NULL;
 }
 
-void SrsIngestSrsInput::dirty_all_ts()
+void SrsIngestHlsInput::dirty_all_ts()
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end(); ++it) {
@@ -532,7 +522,7 @@ void SrsIngestSrsInput::dirty_all_ts()
     }
 }
 
-int SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
+int SrsIngestHlsInput::fetch_all_ts(bool fresh_m3u8)
 {
     int ret = ERROR_SUCCESS;
     
@@ -566,7 +556,7 @@ int SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
 }
 
 
-void SrsIngestSrsInput::remove_dirty()
+void SrsIngestHlsInput::remove_dirty()
 {
     std::vector<SrsTsPiece*>::iterator it;
     for (it = pieces.begin(); it != pieces.end();) {
@@ -582,7 +572,7 @@ void SrsIngestSrsInput::remove_dirty()
     }
 }
 
-int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
+int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
 {
     int ret = ERROR_SUCCESS;
     
@@ -609,7 +599,7 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
-        srs_error("HTTP GET %s failed. ret=%d", uri.get_url(), ret);
+        srs_error("HTTP GET %s failed. ret=%d", uri.get_url().c_str(), ret);
         return ret;
     }
     
@@ -627,7 +617,7 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
 }
 
 // the context to output to rtmp server
-class SrsIngestSrsOutput : virtual public ISrsTsHandler, virtual public ISrsAacHandler
+class SrsIngestHlsOutput : virtual public ISrsTsHandler, virtual public ISrsAacHandler
 {
 private:
     SrsHttpUri* out_rtmp;
@@ -637,10 +627,7 @@ private:
     int64_t raw_aac_dts;
 private:
     SrsRequest* req;
-    st_netfd_t stfd;
-    SrsStSocket* io;
-    SrsRtmpClient* client;
-    int stream_id;
+    SrsBasicRtmpClient* sdk;
 private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -652,36 +639,8 @@ private:
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 public:
-    SrsIngestSrsOutput(SrsHttpUri* rtmp) {
-        out_rtmp = rtmp;
-        disconnected = false;
-        raw_aac_dts = srs_update_system_time_ms();
-        
-        req = NULL;
-        io = NULL;
-        client = NULL;
-        stfd = NULL;
-        stream_id = 0;
-        
-        avc = new SrsRawH264Stream();
-        aac = new SrsRawAacStream();
-        h264_sps_changed = false;
-        h264_pps_changed = false;
-        h264_sps_pps_sent = false;
-    }
-    virtual ~SrsIngestSrsOutput() {
-        close();
-        
-        srs_freep(avc);
-        srs_freep(aac);
-        
-        std::multimap<int64_t, SrsTsMessage*>::iterator it;
-        for (it = queue.begin(); it != queue.end(); ++it) {
-            SrsTsMessage* msg = it->second;
-            srs_freep(msg);
-        }
-        queue.clear();
-    }
+    SrsIngestHlsOutput(SrsHttpUri* rtmp);
+    virtual ~SrsIngestHlsOutput();
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
@@ -689,15 +648,15 @@ public:
 public:
     virtual int on_aac_frame(char* frame, int frame_size, double duration);
 private:
-    virtual int do_on_aac_frame(SrsStream* avs, double duration);
+    virtual int do_on_aac_frame(SrsBuffer* avs, double duration);
     virtual int parse_message_queue();
-    virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
-    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
-    virtual int write_h264_ipb_frame(std::string ibps, SrsCodecVideoAVCFrame frame_type, u_int32_t dts, u_int32_t pts);
-    virtual int on_ts_audio(SrsTsMessage* msg, SrsStream* avs);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+    virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual int write_h264_ipb_frame(std::string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts);
+    virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
-    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 public:
     /**
      * connect to output rtmp server.
@@ -708,12 +667,42 @@ public:
      */
     virtual int flush_message_queue();
 private:
-    virtual int connect_app(std::string ep_server, std::string ep_port);
     // close the connected io and rtmp to ready to be re-connect.
     virtual void close();
 };
 
-int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
+SrsIngestHlsOutput::SrsIngestHlsOutput(SrsHttpUri* rtmp)
+{
+    out_rtmp = rtmp;
+    disconnected = false;
+    raw_aac_dts = srs_update_system_time_ms();
+    
+    req = NULL;
+    sdk = NULL;
+    
+    avc = new SrsRawH264Stream();
+    aac = new SrsRawAacStream();
+    h264_sps_changed = false;
+    h264_pps_changed = false;
+    h264_sps_pps_sent = false;
+}
+
+SrsIngestHlsOutput::~SrsIngestHlsOutput()
+{
+    close();
+    
+    srs_freep(avc);
+    srs_freep(aac);
+    
+    std::multimap<int64_t, SrsTsMessage*>::iterator it;
+    for (it = queue.begin(); it != queue.end(); ++it) {
+        SrsTsMessage* msg = it->second;
+        srs_freep(msg);
+    }
+    queue.clear();
+}
+
+int SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -721,8 +710,8 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     // for example, when SrsTsStream of SrsTsChannel indicates stream_type is SrsTsStreamVideoMpeg4 and SrsTsStreamAudioMpeg4,
     // the elementary stream can be mux in "2.11 Carriage of ISO/IEC 14496 data" in hls-mpeg-ts-iso13818-1.pdf, page 103
     // @remark, the most popular stream_id is 0xe0 for h.264 over mpegts, which indicates the stream_id is video and
-    //      stream_number is 0, where I guess the elementary is specified in annexb format(H.264-AVC-ISO_IEC_14496-10.pdf, page 211).
-    //      because when audio stream_number is 0, the elementary is ADTS(aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS).
+    //      stream_number is 0, where I guess the elementary is specified in annexb format(ISO_IEC_14496-10-AVC-2003.pdf, page 211).
+    //      because when audio stream_number is 0, the elementary is ADTS(ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS).
     
     // about the bytes of PES_packet_data_byte, defined in hls-mpeg-ts-iso13818-1.pdf, page 58
     // PES_packet_data_byte ¨C PES_packet_data_bytes shall be contiguous bytes of data from the elementary stream
@@ -754,10 +743,10 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
     
-    srs_info("<- "SRS_CONSTS_LOG_STREAM_CASTER" mpegts: got %s stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
-              (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
-              msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
-              msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
+    srs_info("<- " SRS_CONSTS_LOG_STREAM_CASTER " mpegts: got %s stream=%s, dts=%" PRId64 ", pts=%" PRId64 ", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
+             (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
+             msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
+             msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
     
     // When the audio SID is private stream 1, we use common audio.
     // @see https://github.com/ossrs/srs/issues/740
@@ -789,13 +778,13 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     return ret;
 }
 
-int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duration)
+int SrsIngestHlsOutput::on_aac_frame(char* frame, int frame_size, double duration)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("handle aac frames, size=%dB, duration=%.2f, dts=%"PRId64, frame_size, duration, raw_aac_dts);
+    srs_trace("handle aac frames, size=%dB, duration=%.2f, dts=%" PRId64, frame_size, duration, raw_aac_dts);
     
-    SrsStream stream;
+    SrsBuffer stream;
     if ((ret = stream.initialize(frame, frame_size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -803,18 +792,18 @@ int SrsIngestSrsOutput::on_aac_frame(char* frame, int frame_size, double duratio
     return do_on_aac_frame(&stream, duration);
 }
 
-int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
+int SrsIngestHlsOutput::do_on_aac_frame(SrsBuffer* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
-    u_int32_t duration_ms = (u_int32_t)(duration * 1000);
+    uint32_t duration_ms = (uint32_t)(duration * 1000);
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)raw_aac_dts;
+    uint32_t dts = (uint32_t)raw_aac_dts;
     raw_aac_dts += duration_ms;
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t max_dts = dts + duration_ms;
+    uint32_t max_dts = dts + duration_ms;
     
     // send each frame.
     while (!avs->empty()) {
@@ -854,14 +843,14 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = duration_ms / (avs->size() / frame_size);
-        dts = (u_int32_t)(srs_min(max_dts, dts + delta));
+        uint32_t delta = duration_ms / (avs->size() / frame_size);
+        dts = (uint32_t)(srs_min(max_dts, dts + delta));
     }
     
     return ret;
 }
 
-int SrsIngestSrsOutput::parse_message_queue()
+int SrsIngestHlsOutput::parse_message_queue()
 {
     int ret = ERROR_SUCCESS;
     
@@ -904,7 +893,7 @@ int SrsIngestSrsOutput::parse_message_queue()
         queue.erase(it);
         
         // parse the stream.
-        SrsStream avs;
+        SrsBuffer avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
             return ret;
@@ -926,7 +915,7 @@ int SrsIngestSrsOutput::parse_message_queue()
     return ret;
 }
 
-int SrsIngestSrsOutput::flush_message_queue()
+int SrsIngestHlsOutput::flush_message_queue()
 {
     int ret = ERROR_SUCCESS;
     
@@ -938,7 +927,7 @@ int SrsIngestSrsOutput::flush_message_queue()
         queue.erase(it);
         
         // parse the stream.
-        SrsStream avs;
+        SrsBuffer avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
             return ret;
@@ -960,16 +949,16 @@ int SrsIngestSrsOutput::flush_message_queue()
     return ret;
 }
 
-int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
+int SrsIngestHlsOutput::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
-    u_int32_t pts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
+    uint32_t pts = (uint32_t)(msg->dts / 90);
     
     std::string ibps;
-    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
     
     // send each frame.
     while (!avs->empty()) {
@@ -980,13 +969,13 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
-        // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
         
         // for IDR frame, the frame is keyframe.
         if (nal_unit_type == SrsAvcNaluTypeIDR) {
-            frame_type = SrsCodecVideoAVCFrameKeyFrame;
+            frame_type = SrsVideoAvcFrameTypeKeyFrame;
         }
         
         // ignore the nalu type aud(9)
@@ -1047,7 +1036,7 @@ int SrsIngestSrsOutput::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+int SrsIngestHlsOutput::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1070,8 +1059,8 @@ int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // h264 packet to flv packet.
-    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1079,8 +1068,8 @@ int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
+    uint32_t timestamp = dts;
+    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1093,7 +1082,7 @@ int SrsIngestSrsOutput::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
     return ret;
 }
 
-int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame frame_type, u_int32_t dts, u_int32_t pts)
+int SrsIngestHlsOutput::write_h264_ipb_frame(string ibps, SrsVideoAvcFrameType frame_type, uint32_t dts, uint32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1103,7 +1092,7 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
     
-    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
     if ((ret = avc->mux_avc2flv(ibps, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
@@ -1111,24 +1100,24 @@ int SrsIngestSrsOutput::write_h264_ipb_frame(string ibps, SrsCodecVideoAVCFrame 
     }
     
     // the timestamp in rtmp message header is dts.
-    u_int32_t timestamp = dts;
-    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+    uint32_t timestamp = dts;
+    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsStream* avs)
+int SrsIngestHlsOutput::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
     int ret = ERROR_SUCCESS;
     
     // ts tbn to flv tbn.
-    u_int32_t dts = (u_int32_t)(msg->dts / 90);
+    uint32_t dts = (uint32_t)(msg->dts / 90);
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t duration = 0;
+    uint32_t duration = 0;
     if (!queue.empty()) {
         SrsTsMessage* nm = queue.begin()->second;
-        duration = (u_int32_t)(srs_max(0, nm->dts - msg->dts) / 90);
+        duration = (uint32_t)(srs_max(0, nm->dts - msg->dts) / 90);
     }
-    u_int32_t max_dts = dts + duration;
+    uint32_t max_dts = dts + duration;
     
     // send each frame.
     while (!avs->empty()) {
@@ -1168,14 +1157,14 @@ int SrsIngestSrsOutput::on_ts_audio(SrsTsMessage* msg, SrsStream* avs)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = duration / (msg->payload->length() / frame_size);
-        dts = (u_int32_t)(srs_min(max_dts, dts + delta));
+        uint32_t delta = duration / (msg->payload->length() / frame_size);
+        dts = (uint32_t)(srs_min(max_dts, dts + delta));
     }
     
     return ret;
 }
 
-int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts)
+int SrsIngestHlsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1185,16 +1174,20 @@ int SrsIngestSrsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRa
         return ret;
     }
     
-    return rtmp_write_packet(SrsCodecFlvTagAudio, dts, data, size);
+    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
-int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+int SrsIngestHlsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsSharedPtrMessage* msg = NULL;
     
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
         srs_error("mpegts: create shared ptr msg failed. ret=%d", ret);
         return ret;
     }
@@ -1203,7 +1196,8 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
     srs_info("RTMP type=%d, dts=%d, size=%d", type, timestamp, size);
     
     // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+    if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        close();
         srs_error("send RTMP type=%d, dts=%d, size=%d failed. ret=%d", type, timestamp, size, ret);
         return ret;
     }
@@ -1211,144 +1205,58 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
     return ret;
 }
 
-int SrsIngestSrsOutput::connect()
+int SrsIngestHlsOutput::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    // when ok, ignore.
-    // TODO: FIXME: should reconnect when disconnected.
-    if (io || client) {
+    // Ignore when connected.
+    if (sdk) {
         return ret;
     }
     
-    srs_trace("connect output=%s", out_rtmp->get_url());
-    
-    // parse uri
-    if (!req) {
-        req = new SrsRequest();
-        
-        string uri = req->tcUrl = out_rtmp->get_url();
-        
-        // tcUrl, stream
-        if (srs_string_contains(uri, "/")) {
-            req->stream = srs_path_basename(uri);
-            req->tcUrl = uri = srs_path_dirname(uri);
-        }
-        
-        srs_discovery_tc_url(req->tcUrl,
-            req->schema, req->host, req->vhost, req->app, req->port,
-            req->param);
-    }
+    std::string url = out_rtmp->get_url();
+    srs_trace("connect output=%s", url.c_str());
     
     // connect host.
-    if ((ret = srs_socket_connect(req->host, ::atoi(req->port.c_str()), ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect server %s:%s failed. ret=%d", req->host.c_str(), req->port.c_str(), ret);
-        return ret;
-    }
-    io = new SrsStSocket(stfd);
-    client = new SrsRtmpClient(io);
+    int64_t cto = SRS_CONSTS_RTMP_TMMS;
+    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    sdk = new SrsBasicRtmpClient(url, cto, sto);
     
-    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
-    
-    // connect to vhost/app
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        srs_error("mpegts: handshake with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed. ret=%d", ret);
-        return ret;
-    }
-    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+        close();
+        srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("mpegts: publish failed, stream=%s, stream_id=%d. ret=%d",
-                  req->stream.c_str(), stream_id, ret);
+    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+        close();
+        srs_error("mpegts: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;
     }
     
     return ret;
 }
 
-// TODO: FIXME: refine the connect_app.
-int SrsIngestSrsOutput::connect_app(string ep_server, string ep_port)
+void SrsIngestHlsOutput::close()
 {
-    int ret = ERROR_SUCCESS;
-    
-    // args of request takes the srs info.
-    if (req->args == NULL) {
-        req->args = SrsAmf0Any::object();
-    }
-    
-    // notify server the edge identity,
-    // @see https://github.com/ossrs/srs/issues/147
-    SrsAmf0Object* data = req->args;
-    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
-    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
-    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
-    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
-    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
-    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
-    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
-    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
-    // for edge to directly get the id of client.
-    data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
-    
-    // local ip of edge
-    std::vector<std::string> ips = srs_get_local_ipv4_ips();
-    assert(0 < (int)ips.size());
-    std::string local_ip = ips[0];
-    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
-    
-    // generate the tcUrl
-    std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
-    
-    // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/ossrs/srs/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
-    bool debug_srs_upnode = true;
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("mpegts: connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
-                  tc_url.c_str(), debug_srs_upnode, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-void SrsIngestSrsOutput::close()
-{
-    srs_trace("close output=%s", out_rtmp->get_url());
     h264_sps_pps_sent = false;
-    
-    srs_freep(client);
-    srs_freep(io);
     srs_freep(req);
-    srs_close_stfd(stfd);
+    srs_freep(sdk);
 }
 
 // the context for ingest hls stream.
-class SrsIngestSrsContext
+class SrsIngestHlsContext
 {
 private:
-    SrsIngestSrsInput* ic;
-    SrsIngestSrsOutput* oc;
+    SrsIngestHlsInput* ic;
+    SrsIngestHlsOutput* oc;
 public:
-    SrsIngestSrsContext(SrsHttpUri* hls, SrsHttpUri* rtmp) {
-        ic = new SrsIngestSrsInput(hls);
-        oc = new SrsIngestSrsOutput(rtmp);
+    SrsIngestHlsContext(SrsHttpUri* hls, SrsHttpUri* rtmp) {
+        ic = new SrsIngestHlsInput(hls);
+        oc = new SrsIngestHlsOutput(rtmp);
     }
-    virtual ~SrsIngestSrsContext() {
+    virtual ~SrsIngestHlsContext() {
         srs_freep(ic);
         srs_freep(oc);
     }
@@ -1379,46 +1287,31 @@ public:
     }
 };
 
-int proxy_hls2rtmp(string hls, string rtmp)
+srs_error_t proxy_hls2rtmp(string hls, string rtmp)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // init st.
-    if ((ret = srs_st_init()) != ERROR_SUCCESS) {
-        srs_error("init st failed. ret=%d", ret);
-        return ret;
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "initialize st");
     }
     
     SrsHttpUri hls_uri, rtmp_uri;
     if ((ret = hls_uri.initialize(hls)) != ERROR_SUCCESS) {
-        srs_error("hls uri invalid. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "hls parse uri=%s", hls.c_str());
     }
     if ((ret = rtmp_uri.initialize(rtmp)) != ERROR_SUCCESS) {
-        srs_error("rtmp uri invalid. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "rtmp parse uri=%s", rtmp.c_str());
     }
     
-    SrsIngestSrsContext context(&hls_uri, &rtmp_uri);
+    SrsIngestHlsContext context(&hls_uri, &rtmp_uri);
     for (;;) {
         if ((ret = context.proxy()) != ERROR_SUCCESS) {
-            srs_error("proxy hls to rtmp failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "proxy hls to rtmp");
         }
     }
     
-    return ret;
+    return err;
 }
-
-#else
-
-int main(int argc, char** argv)
-{
-#ifndef SRS_AUTO_HTTP_CORE
-    srs_error("ingest requires http-api or http-server");
-#endif
-    return -1;
-}
-
-#endif
 

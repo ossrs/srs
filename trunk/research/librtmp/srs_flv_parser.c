@@ -1,28 +1,25 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 /**
-gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_flv
-*/
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2017 OSSRS(winlin)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -62,7 +59,7 @@ int main(int argc, char** argv)
     
     in_flv_file = argv[1];
     srs_human_trace("input:  %s", in_flv_file);
-
+    
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         srs_human_trace("open flv file failed. ret=%d", ret);
@@ -114,7 +111,7 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
 {
     memset(hbuf, 0, hsize);
     memset(tbuf, 0, tsize);
-
+    
     if (size > 0) {
         digit_to_char(data, size, hbuf, hsize - 1);
     }
@@ -122,7 +119,7 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
     if (size > print_size * 2) {
         digit_to_char(data + size - print_size, size, tbuf, tsize - 1);
     }
-
+    
     return 0;
 }
 
@@ -134,7 +131,7 @@ int parse_flv(srs_flv_t flv)
     char header[13];
     // packet data
     char type;
-    u_int32_t timestamp = 0;
+    uint32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
     int64_t offset = 0;
@@ -144,6 +141,7 @@ int parse_flv(srs_flv_t flv)
     }
     
     srs_human_trace("start parse flv");
+    char buffer[1024];
     for (;;) {
         offset = srs_flv_tellg(flv);
         
@@ -165,11 +163,12 @@ int parse_flv(srs_flv_t flv)
         data = (char*)malloc(size);
         
         if ((ret = srs_flv_read_tag_data(flv, data, size)) == 0) {
-            if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) == 0) {
+            if ((ret = srs_human_format_rtmp_packet(buffer, sizeof(buffer), type, timestamp, data, size)) == 0) {
+                srs_human_trace("%s", buffer);
+                
                 char hbuf[48]; char tbuf[48];
                 parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-                srs_human_raw("offset=%d, first and last 16 bytes:\n"
-                    "[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
+                srs_human_raw("offset=%d, first and last 16 bytes:\n[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
             } else {
                 srs_human_trace("print packet failed. ret=%d", ret);
             }

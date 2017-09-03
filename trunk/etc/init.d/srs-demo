@@ -2,8 +2,8 @@
 
 ### BEGIN INIT INFO
 # Provides:          ossrs(srs)
-# RequiRED-Start:    $all
-# RequiRED-Stop:     $all
+# Required-Start:    $all
+# Required-Stop:     $all
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: ossrs(srs)
@@ -78,7 +78,7 @@ start() {
     if [[ -z $log_file ]]; then
         (cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
     else
-        (cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file 2>&1)
+        (cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file.sys 2>&1)
     fi
     
     # check again after start server
