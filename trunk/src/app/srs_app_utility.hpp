@@ -663,6 +663,9 @@ extern std::vector<std::string>& srs_get_local_ipv4_ips();
 // get local public ip, empty string if no public internet address found.
 extern std::string srs_get_public_internet_address();
 
+// check for IPv6 support
+extern int srs_check_ipv6();
+
 // get local or peer ip.
 // where local ip is the server ip which client connected.
 extern std::string srs_get_local_ip(int fd);

@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netdb.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -110,10 +111,25 @@ st_netfd_t SrsUdpListener::stfd()
 int SrsUdpListener::listen()
 {
     int ret = ERROR_SUCCESS;
+
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+    addrinfo* result  = NULL;
+    if(getaddrinfo(ip.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("bad address. ret=%d", ret);
+        return ret;
+    }
     
-    if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+    if ((_fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol)) == -1) {
         ret = ERROR_SOCKET_CREATE;
         srs_error("create linux socket error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("create linux socket success. ip=%s, port=%d, fd=%d", ip.c_str(), port, _fd);
@@ -122,17 +138,15 @@ int SrsUdpListener::listen()
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
         srs_error("setsockopt reuse-addr error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("setsockopt reuse-addr success. ip=%s, port=%d, fd=%d", ip.c_str(), port, _fd);
     
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
+    if (bind(_fd, result->ai_addr, result->ai_addrlen) == -1) {
         ret = ERROR_SOCKET_BIND;
         srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
@@ -140,16 +154,19 @@ int SrsUdpListener::listen()
     if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
 
+    freeaddrinfo(result);
     return ret;
 }
 
@@ -158,8 +175,8 @@ int SrsUdpListener::cycle()
     int ret = ERROR_SUCCESS;
 
     // TODO: FIXME: support ipv6, @see man 7 ipv6
-    sockaddr_in from;
-    int nb_from = sizeof(sockaddr_in);
+    sockaddr_storage from;
+    int nb_from = sizeof(sockaddr_in6);
     int nread = 0;
 
     if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
@@ -167,7 +184,7 @@ int SrsUdpListener::cycle()
         return ret;
     }
     
-    if ((ret = handler->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
+    if ((ret = handler->on_udp_packet((sockaddr*)&from, buf, nread)) != ERROR_SUCCESS) {
         srs_warn("handle udp packet failed. ret=%d", ret);
         return ret;
     }
@@ -184,7 +201,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-
+    
     _fd = -1;
     _stfd = NULL;
 
@@ -208,9 +225,24 @@ int SrsTcpListener::listen()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = srs_check_ipv6() ? AF_INET6 : AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+    addrinfo* result  = NULL;
+    if(getaddrinfo(ip.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("bad address. ret=%d", ret);
+        return ret;
+    }
+
+    if ((_fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol)) == -1) {
         ret = ERROR_SOCKET_CREATE;
         srs_error("create linux socket error. port=%d, ret=%d", port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("create linux socket success. port=%d, fd=%d", port, _fd);
@@ -219,17 +251,15 @@ int SrsTcpListener::listen()
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
         srs_error("setsockopt reuse-addr error. port=%d, ret=%d", port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", port, _fd);
     
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
+    if (bind(_fd, result->ai_addr, result->ai_addrlen) == -1) {
         ret = ERROR_SOCKET_BIND;
         srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
@@ -237,6 +267,7 @@ int SrsTcpListener::listen()
     if (::listen(_fd, SERVER_LISTEN_BACKLOG) == -1) {
         ret = ERROR_SOCKET_LISTEN;
         srs_error("listen socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("listen socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
@@ -244,16 +275,19 @@ int SrsTcpListener::listen()
     if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
+        freeaddrinfo(result);
         return ret;
     }
     srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
     
+    freeaddrinfo(result);
     return ret;
 }
 

@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_librtmp.hpp>
 
 #include <stdlib.h>
+#include <sys/socket.h>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -331,15 +332,11 @@ struct Context
     {
         switch (af) {
         case AF_INET:
-            return (inet_ntop4( (unsigned char*)src, (char*)dst, size)); // ****
-    #ifdef AF_INET6
-        #error "IPv6 not supported"
-        //case AF_INET6:
-        //    return (char*)(inet_ntop6( (unsigned char*)src, (char*)dst, size)); // ****
-    #endif
+            return (inet_ntop4( (unsigned char*)src, (char*)dst, size));
+        case AF_INET6:
+           return (char*)(inet_ntop6( (unsigned char*)src, (char*)dst, size));
         default:
-            // return (NULL); // ****
-            return 0 ; // ****
+            return (NULL);
         }
         /* NOTREACHED */
     }
@@ -493,7 +490,8 @@ int srs_librtmp_context_resolve_host(Context* context)
     int ret = ERROR_SUCCESS;
     
     // connect to server:port
-    context->ip = srs_dns_resolve(context->host);
+    int family = AF_UNSPEC;
+    context->ip = srs_dns_resolve(context->host, family);
     if (context->ip.empty()) {
         return ERROR_SYSTEM_DNS_RESOLVE;
     }
