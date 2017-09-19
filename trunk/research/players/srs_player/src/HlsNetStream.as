@@ -1838,7 +1838,7 @@ class SrsUtils
         var v:int = (1 << leadingZeroBits) - 1;
         for (var i:int = 0; i < leadingZeroBits; i++) {
            b = stream.read_bit();
-            v += b << (leadingZeroBits - 1);
+            v += b << (leadingZeroBits - 1 - i);
         }
         
         return v;
