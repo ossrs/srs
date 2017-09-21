@@ -154,26 +154,28 @@ int64_t srs_update_system_time_ms()
     return _srs_system_time_us_cache / 1000;
 }
 
-string srs_dns_resolve(string host)
+string srs_dns_resolve(string host, int& family)
 {
-    if (inet_addr(host.c_str()) != INADDR_NONE) {
-        return host;
-    }
-    
-    hostent* answer = gethostbyname(host.c_str());
-    if (answer == NULL) {
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family  = family;
+    addrinfo* result = NULL;
+    if(getaddrinfo(host.c_str(), NULL, NULL, &result) != 0) {
         return "";
     }
     
-    char ipv4[16];
-    memset(ipv4, 0, sizeof(ipv4));
-    
-    // covert the first entry to ip.
-    if (answer->h_length > 0) {
-        inet_ntop(AF_INET, answer->h_addr_list[0], ipv4, sizeof(ipv4));
+    char address_string[64];
+    const int success = getnameinfo(result->ai_addr, result->ai_addrlen, 
+                                    (char*)&address_string, sizeof(address_string),
+                                    NULL, 0,
+                                    NI_NUMERICHOST);
+    freeaddrinfo(result);
+
+    if(success) {
+       family = result->ai_family;
+       return string(address_string);
     }
-    
-    return ipv4;
+    return "";
 }
 
 void srs_parse_hostport(const string& hostport, string& host, int& port)
@@ -188,9 +190,19 @@ void srs_parse_hostport(const string& hostport, string& host, int& port)
     }
 }
 
+static int check_ipv6()
+{
+    int sd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if(sd >= 0) {
+        close(sd);
+        return 1;
+    }
+    return 0;
+}
+
 void srs_parse_endpoint(string hostport, string& ip, int& port)
 {
-    ip = "0.0.0.0";
+    ip = check_ipv6() ? "::" : "0.0.0.0";
     
     size_t pos = string::npos;
     if ((pos = hostport.find(":")) != string::npos) {

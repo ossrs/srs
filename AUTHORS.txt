@@ -26,4 +26,4 @@ CONTRIBUTORS ordered by first contribution.
 * lovecat<littlefawn@163.com> "Bug fixed"
 * panda1986<542638787@qq.com> "Bug fixed"
 * YueHonghui<hongf.yue@hotmail.com> "Bug fixed"
-
+* Thomas Dreibholz<dreibh@simula.no> "IPv6 support"

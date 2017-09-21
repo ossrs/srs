@@ -133,7 +133,8 @@ int srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
     }
     
     // connect to server.
-    std::string ip = srs_dns_resolve(server);
+    int family = AF_UNSPEC;
+    std::string ip = srs_dns_resolve(server, family);
     if (ip.empty()) {
         ret = ERROR_SYSTEM_IP_INVALID;
         srs_error("dns resolve server error, ip empty. ret=%d", ret);
