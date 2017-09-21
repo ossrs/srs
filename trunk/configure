@@ -86,7 +86,7 @@ done
 #####################################################################################
 # build tools or compiler args.
 # enable gdb debug
-GDBDebug=" -g -O0"
+GDBDebug=" -g -O1"
 # the warning level.
 WarnLevel=" -Wall"
 # the compile standard.

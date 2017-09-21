@@ -76,7 +76,7 @@ srs_error_t SrsRtpConn::listen()
     return listener->listen();
 }
 
-srs_error_t SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
