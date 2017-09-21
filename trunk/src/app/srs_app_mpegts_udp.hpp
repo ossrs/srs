@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-struct sockaddr_in;
+struct sockaddr;
 #include <string>
 #include <map>
 
@@ -108,7 +108,7 @@ public:
     virtual ~SrsMpegtsOverUdp();
 // interface ISrsUdpHandler
 public:
-    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+    virtual int on_udp_packet(sockaddr* from, char* buf, int nb_buf);
 private:
     virtual int on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
 // interface ISrsTsHandler

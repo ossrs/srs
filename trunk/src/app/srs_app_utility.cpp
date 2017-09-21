@@ -30,6 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <signal.h>
 #include <sys/wait.h>
 #include <math.h>
+#include <netdb.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
 
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
@@ -54,15 +58,29 @@ using namespace std;
 int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {
     int ret = ERROR_SUCCESS;
-    
+
     *pstfd = NULL;
     st_netfd_t stfd = NULL;
-    sockaddr_in addr;
+
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result  = NULL;
+
+    if(getaddrinfo(server.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
+        return ret;
+    }
     
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
+    int sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if(sock == -1) {
         ret = ERROR_SOCKET_CREATE;
         srs_error("create socket error. ret=%d", ret);
+        freeaddrinfo(result);
         return ret;
     }
     
@@ -71,35 +89,21 @@ int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pst
     if(stfd == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        srs_close_stfd(stfd);
+        freeaddrinfo(result);
         return ret;
     }
     
-    // connect to server.
-    std::string ip = srs_dns_resolve(server);
-    if (ip.empty()) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        goto failed;
-    }
-    
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), timeout) == -1){
+    if (st_connect(stfd, result->ai_addr, result->ai_addrlen, timeout) == -1){
         ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        goto failed;
+        srs_error("connect to server error. server=%s, port=%d, ret=%d", server.c_str(), port, ret);
+        srs_close_stfd(stfd);
+        freeaddrinfo(result);
+        return ret;
     }
-    srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    srs_info("connect ok. server=%s, port=%d", server.c_str(), port);
     
     *pstfd = stfd;
-    return ret;
-    
-failed:
-    if (stfd) {
-        srs_close_stfd(stfd);
-    }
     return ret;
 }
 
@@ -208,13 +212,22 @@ string srs_path_build_timestamp(string template_path)
 
 void srs_parse_endpoint(string ip_port, string& ip, string& port)
 {
-    ip = "0.0.0.0";
-    port = ip_port;
-    
-    size_t pos = string::npos;
-    if ((pos = port.find(":")) != string::npos) {
-        ip = port.substr(0, pos);
-        port = port.substr(pos + 1);
+    const size_t pos = ip_port.rfind(":");   // Look for ":" from the end, to work with IPv6.
+    if (pos != std::string::npos) {
+        if ((pos >= 1) &&
+            (ip_port[0]       == '[') &&
+            (ip_port[pos - 1] == ']')) {
+            // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
+            ip = ip_port.substr(1, pos - 2);
+        }
+        else {
+            // Handle IP address
+            ip = ip_port.substr(0, pos);
+        }
+        port = ip_port.substr(pos + 1);
+    } else {
+        ip   = srs_check_ipv6() ? "::" : "0.0.0.0";
+        port = ip_port;
     }
 }
 
@@ -1339,76 +1352,84 @@ string srs_get_public_internet_address()
     return "";
 }
 
+int srs_check_ipv6()
+{
+    int sd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if(sd >= 0) {
+        close(sd);
+        return 1;
+    }
+    return 0;
+}
+
 string srs_get_local_ip(int fd)
 {
-    std::string ip;
-
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        return ip;
+        return "";
     }
     srs_verbose("get local ip success.");
 
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        return ip;
+    char address_string[64];
+    const int success = getnameinfo((const sockaddr*)&addr, addrlen, 
+                                    (char*)&address_string, sizeof(address_string),
+                                    NULL, 0,
+                                    NI_NUMERICHOST);    
+    if(success != 0) {
+        return "";
     }
 
-    ip = buf;
-
-    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-
-    return ip;
+    srs_verbose("get local ip of client ip=%s, fd=%d", address_string, fd);
+    return std::string(address_string);
 }
 
 int srs_get_local_port(int fd)
 {
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
         return 0;
     }
     srs_verbose("get local ip success.");
-    
-    int port = ntohs(addr.sin_port);
 
-    srs_verbose("get local ip of client port=%s, fd=%d", port, fd);
+    int port = 0;
+    switch(addr.ss_family) {
+        case AF_INET:
+            port = ntohs(((sockaddr_in*)&addr)->sin_port);
+         break;
+        case AF_INET6:
+            port = ntohs(((sockaddr_in6*)&addr)->sin6_port);
+         break;
+    }
 
+    srs_verbose("get local port of client port=%s, fd=%d", port, fd);
     return port;
 }
 
 string srs_get_peer_ip(int fd)
 {
-    std::string ip;
-    
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
-    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        return ip;
+    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return "";
     }
-    srs_verbose("get peer name success.");
+    srs_verbose("get peer ip success.");
 
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-    
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        return ip;
+    char address_string[64];
+    const int success = getnameinfo((const sockaddr*)&addr, addrlen, 
+                                    (char*)&address_string, sizeof(address_string),
+                                    NULL, 0,
+                                    NI_NUMERICHOST);    
+    if(success != 0) {
+        return "";
     }
-    srs_verbose("get peer ip of client ip=%s, fd=%d", buf, fd);
-    
-    ip = buf;
-    
-    srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
-    
-    return ip;
+
+    srs_verbose("get peer ip of client ip=%s, fd=%d", address_string, fd);
+    return std::string(address_string);
 }
 
 bool srs_string_is_http(string url)

@@ -50,7 +50,7 @@ extern int64_t srs_get_system_startup_time_ms();
 extern int64_t srs_update_system_time_ms();
 
 // dns resolve utility, return the resolved ip address.
-extern std::string srs_dns_resolve(std::string host);
+extern std::string srs_dns_resolve(std::string host, int& family);
 
 // whether system is little endian
 extern bool srs_is_little_endian();

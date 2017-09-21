@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
-struct sockaddr_in;
+struct sockaddr;
 
 /**
 * the udp packet handler.
@@ -61,7 +61,7 @@ public:
     * @param nb_buf, the size of udp packet bytes.
     * @remark user should never use the buf, for it's a shared memory bytes.
     */
-    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf) = 0;
+    virtual int on_udp_packet(sockaddr* from, char* buf, int nb_buf) = 0;
 };
 
 /**
