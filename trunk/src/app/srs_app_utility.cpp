@@ -212,14 +212,22 @@ string srs_path_build_timestamp(string template_path)
 
 void srs_parse_endpoint(string ip_port, string& ip, string& port)
 {
-    ip = srs_check_ipv6() ? "::" : "0.0.0.0";
-    
-    port = ip_port;
-    
-    size_t pos = string::npos;
-    if ((pos = port.find(":")) != string::npos) {
-        ip = port.substr(0, pos);
-        port = port.substr(pos + 1);
+    const size_t pos = ip_port.rfind(":");   // Look for ":" from the end, to work with IPv6.
+    if (pos != std::string::npos) {
+        if ((pos >= 1) &&
+            (ip_port[0]       == '[') &&
+            (ip_port[pos - 1] == ']')) {
+            // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
+            ip = ip_port.substr(1, pos - 2);
+        }
+        else {
+            // Handle IP address
+            ip = ip_port.substr(0, pos);
+        }
+        port = ip_port.substr(pos + 1);
+    } else {
+        ip   = srs_check_ipv6() ? "::" : "0.0.0.0";
+        port = ip_port;
     }
 }
 
