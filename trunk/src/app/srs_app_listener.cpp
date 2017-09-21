@@ -176,7 +176,7 @@ int SrsUdpListener::cycle()
 
     // TODO: FIXME: support ipv6, @see man 7 ipv6
     sockaddr_storage from;
-    int nb_from = sizeof(sockaddr_in6);
+    int nb_from = sizeof(from);
     int nread = 0;
 
     if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
