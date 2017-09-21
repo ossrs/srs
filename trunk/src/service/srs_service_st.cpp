@@ -26,6 +26,7 @@
 #include <st.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <netdb.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -113,52 +114,50 @@ int srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
     
     *pstfd = NULL;
     srs_netfd_t stfd = NULL;
-    sockaddr_in addr;
-    
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
+
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result  = NULL;
+
+    if(getaddrinfo(server.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
         return ret;
     }
     
-    srs_fd_close_exec(sock);
+    int sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if(sock == -1) {
+        ret = ERROR_SOCKET_CREATE;
+        srs_error("create socket error. ret=%d", ret);
+        freeaddrinfo(result);
+        return ret;
+    }
     
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        srs_close_stfd(stfd);
+        freeaddrinfo(result);
         return ret;
     }
     
-    // connect to server.
-    int family = AF_UNSPEC;
-    std::string ip = srs_dns_resolve(server, family);
-    if (ip.empty()) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        goto failed;
-    }
-    
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect((st_netfd_t)stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), timeout) == -1){
+    if (st_connect((st_netfd_t)stfd, result->ai_addr, result->ai_addrlen, timeout) == -1){
         ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        goto failed;
-    }
-    srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
-    
-    *pstfd = stfd;
-    return ret;
-    
-failed:
-    if (stfd) {
+        srs_error("connect to server error. server=%s, port=%d, ret=%d", server.c_str(), port, ret);
         srs_close_stfd(stfd);
+        freeaddrinfo(result);
+        return ret;
     }
+    srs_info("connect ok. server=%s, port=%d", server.c_str(), port);
+    
+    freeaddrinfo(result);
+    *pstfd = stfd;
     return ret;
 }
 
