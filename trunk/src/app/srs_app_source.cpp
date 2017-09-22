@@ -85,15 +85,15 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // for performance issue
     if (ag != SrsRtmpJitterAlgorithmFULL) {
         // all jitter correct features is disabled, ignore.
         if (ag == SrsRtmpJitterAlgorithmOFF) {
-            return ret;
+            return err;
         }
         
         // start at zero, but donot ensure monotonically increasing.
@@ -103,18 +103,18 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
                 last_pkt_correct_time = msg->timestamp;
             }
             msg->timestamp -= last_pkt_correct_time;
-            return ret;
+            return err;
         }
         
         // other algorithm, ignore.
-        return ret;
+        return err;
     }
     
     // full jitter algorithm, do jitter correct.
     // set to 0 for metadata.
     if (!msg->is_av()) {
         msg->timestamp = 0;
-        return ret;
+        return err;
     }
     
     /**
@@ -148,7 +148,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
     msg->timestamp = last_pkt_correct_time;
     last_pkt_time = time;
     
-    return ret;
+    return err;
 }
 
 int SrsRtmpJitter::get_time()
@@ -470,12 +470,16 @@ int SrsConsumer::get_time()
 int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_msg->copy();
     
     if (!atc) {
-        if ((ret = jitter->correct(msg, ag)) != ERROR_SUCCESS) {
+        if ((err = jitter->correct(msg, ag)) != srs_success) {
             srs_freep(msg);
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
     }
@@ -963,6 +967,7 @@ int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDa
 int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
     
@@ -993,7 +998,11 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   srs_flv_srates[c->sound_rate]);
     }
     
-    if ((ret = hls->on_audio(msg, format)) != ERROR_SUCCESS) {
+    if ((err = hls->on_audio(msg, format)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1063,6 +1072,7 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
 int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video;
     
@@ -1095,7 +1105,11 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
                   c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
     
-    if ((ret = hls->on_video(msg, format)) != ERROR_SUCCESS) {
+    if ((err = hls->on_video(msg, format)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1165,6 +1179,7 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
 int SrsOriginHub::on_publish()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // create forwarders
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
@@ -1180,7 +1195,10 @@ int SrsOriginHub::on_publish()
     }
 #endif
     
-    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
+    if ((err = hls->on_publish()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
@@ -1384,8 +1402,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
         return err;
     }
     
-    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "hls publish failed");
+    if ((err = hls->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish failed");
     }
     srs_trace("vhost %s hls reload success", vhost.c_str());
     
@@ -1399,8 +1417,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
         if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
             return srs_error_new(ret, "format on_video");
         }
-        if ((ret = hls->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "hls on_video");
+        if ((err = hls->on_video(cache_sh_video, format)) != srs_success) {
+            return srs_error_wrap(err, "hls on_video");
         }
     }
     
@@ -1409,8 +1427,8 @@ srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
         if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
             return srs_error_new(ret, "format on_audio");
         }
-        if ((ret = hls->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "hls on_audio");
+        if ((err = hls->on_audio(cache_sh_audio, format)) != srs_success) {
+            return srs_error_wrap(err, "hls on_audio");
         }
     }
     

@@ -94,7 +94,7 @@ public:
      * detect the time jitter and correct it.
      * @param ag the algorithm to use for time jitter.
      */
-    virtual int correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
     /**
      * get current client time, the last packet time.
      */

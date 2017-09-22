@@ -283,7 +283,7 @@ public:
     /**
      * dumps all bytes in stream to ts message.
      */
-    virtual int dump(SrsBuffer* stream, int* pnb_bytes);
+    virtual srs_error_t dump(SrsBuffer* stream, int* pnb_bytes);
     /**
      * whether ts message is completed to reap.
      * @param payload_unit_start_indicator whether new ts message start.
@@ -334,7 +334,7 @@ public:
      * @param msg the ts msg, user should never free it.
      * @return an int error code.
      */
-    virtual int on_ts_message(SrsTsMessage* msg) = 0;
+    virtual srs_error_t on_ts_message(SrsTsMessage* msg) = 0;
 };
 
 /**
@@ -392,7 +392,7 @@ public:
      * @param handler the ts message handler to process the msg.
      * @remark we will consume all bytes in stream.
      */
-    virtual int decode(SrsBuffer* stream, ISrsTsHandler* handler);
+    virtual srs_error_t decode(SrsBuffer* stream, ISrsTsHandler* handler);
     // encode methods
 public:
     /**
@@ -401,8 +401,8 @@ public:
      * @param vc the video codec, write the PAT/PMT table when changed.
      * @param ac the audio codec, write the PAT/PMT table when changed.
      */
-    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
-    // drm methods
+    virtual srs_error_t encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
+// drm methods
 public:
     /**
      * set sync byte of ts segment.
@@ -410,8 +410,8 @@ public:
      */
     virtual void set_sync_byte(int8_t sb);
 private:
-    virtual int encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
-    virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
+    virtual srs_error_t encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+    virtual srs_error_t encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
 };
 
 /**
@@ -516,10 +516,10 @@ public:
     SrsTsPacket(SrsTsContext* c);
     virtual ~SrsTsPacket();
 public:
-    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
+    virtual srs_error_t decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
     virtual void padding(int nb_stuffings);
 public:
     static SrsTsPacket* create_pat(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid);
@@ -832,10 +832,10 @@ public:
     SrsTsAdaptationField(SrsTsPacket* pkt);
     virtual ~SrsTsAdaptationField();
 public:
-    virtual int decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
 };
 
 /**
@@ -880,10 +880,10 @@ public:
     SrsTsPayload(SrsTsPacket* p);
     virtual ~SrsTsPayload();
 public:
-    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg) = 0;
+    virtual srs_error_t decode(SrsBuffer* stream, SrsTsMessage** ppmsg) = 0;
 public:
     virtual int size() = 0;
-    virtual int encode(SrsBuffer* stream) = 0;
+    virtual srs_error_t encode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -1222,13 +1222,13 @@ public:
     SrsTsPayloadPES(SrsTsPacket* p);
     virtual ~SrsTsPayloadPES();
 public:
-    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
+    virtual srs_error_t decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
 private:
-    virtual int decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
-    virtual int encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
+    virtual srs_error_t decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv);
+    virtual srs_error_t encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v);
 };
 
 /**
@@ -1289,14 +1289,14 @@ public:
     SrsTsPayloadPSI(SrsTsPacket* p);
     virtual ~SrsTsPayloadPSI();
 public:
-    virtual int decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
+    virtual srs_error_t decode(SrsBuffer* stream, SrsTsMessage** ppmsg);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
 protected:
     virtual int psi_size() = 0;
-    virtual int psi_encode(SrsBuffer* stream) = 0;
-    virtual int psi_decode(SrsBuffer* stream) = 0;
+    virtual srs_error_t psi_encode(SrsBuffer* stream) = 0;
+    virtual srs_error_t psi_decode(SrsBuffer* stream) = 0;
 };
 
 /**
@@ -1329,10 +1329,10 @@ public:
     SrsTsPayloadPATProgram(int16_t n = 0, int16_t p = 0);
     virtual ~SrsTsPayloadPATProgram();
 public:
-    virtual int decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
 };
 
 /**
@@ -1393,10 +1393,10 @@ public:
     SrsTsPayloadPAT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPAT();
 protected:
-    virtual int psi_decode(SrsBuffer* stream);
+    virtual srs_error_t psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsBuffer* stream);
+    virtual srs_error_t psi_encode(SrsBuffer* stream);
 };
 
 /**
@@ -1433,10 +1433,10 @@ public:
     SrsTsPayloadPMTESInfo(SrsTsStream st = SrsTsStreamReserved, int16_t epid = 0);
     virtual ~SrsTsPayloadPMTESInfo();
 public:
-    virtual int decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer* stream);
 public:
     virtual int size();
-    virtual int encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* stream);
 };
 
 /**
@@ -1523,10 +1523,10 @@ public:
     SrsTsPayloadPMT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPMT();
 protected:
-    virtual int psi_decode(SrsBuffer* stream);
+    virtual srs_error_t psi_decode(SrsBuffer* stream);
 protected:
     virtual int psi_size();
-    virtual int psi_encode(SrsBuffer* stream);
+    virtual srs_error_t psi_encode(SrsBuffer* stream);
 };
 
 /**
@@ -1551,15 +1551,15 @@ public:
      * open the writer, donot write the PSI of ts.
      * @param p a string indicates the path of ts file to mux to.
      */
-    virtual int open(std::string p);
+    virtual srs_error_t open(std::string p);
     /**
      * write an audio frame to ts,
      */
-    virtual int write_audio(SrsTsMessage* audio);
+    virtual srs_error_t write_audio(SrsTsMessage* audio);
     /**
      * write a video frame to ts,
      */
-    virtual int write_video(SrsTsMessage* video);
+    virtual srs_error_t write_video(SrsTsMessage* video);
     /**
      * close the writer.
      */
@@ -1588,15 +1588,15 @@ public:
     /**
      * write audio to cache
      */
-    virtual int cache_audio(SrsAudioFrame* frame, int64_t dts);
+    virtual srs_error_t cache_audio(SrsAudioFrame* frame, int64_t dts);
     /**
      * write video to muxer.
      */
-    virtual int cache_video(SrsVideoFrame* frame, int64_t dts);
+    virtual srs_error_t cache_video(SrsVideoFrame* frame, int64_t dts);
 private:
-    virtual int do_cache_mp3(SrsAudioFrame* frame);
-    virtual int do_cache_aac(SrsAudioFrame* frame);
-    virtual int do_cache_avc(SrsVideoFrame* frame);
+    virtual srs_error_t do_cache_mp3(SrsAudioFrame* frame);
+    virtual srs_error_t do_cache_aac(SrsAudioFrame* frame);
+    virtual srs_error_t do_cache_avc(SrsVideoFrame* frame);
 };
 
 /**
@@ -1619,17 +1619,17 @@ public:
      * initialize the underlayer file stream.
      * @param fw the writer to use for ts encoder, user must free it.
      */
-    virtual int initialize(SrsFileWriter* fw);
+    virtual srs_error_t initialize(SrsFileWriter* fw);
 public:
     /**
      * write audio/video packet.
      * @remark assert data is not NULL.
      */
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
 private:
-    virtual int flush_audio();
-    virtual int flush_video();
+    virtual srs_error_t flush_audio();
+    virtual srs_error_t flush_video();
 };
 
 #endif

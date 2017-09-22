@@ -109,12 +109,12 @@ SrsTsMessage::~SrsTsMessage()
     srs_freep(payload);
 }
 
-int SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
+srs_error_t SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (stream->empty()) {
-        return ret;
+        return err;
     }
     
     // xB
@@ -125,9 +125,7 @@ int SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
     
     if (nb_bytes > 0) {
         if (!stream->require(nb_bytes)) {
-            ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: dump PSE bytes failed, requires=%dB. ret=%d", nb_bytes, ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: dump PSE bytes failed, requires=%dB", nb_bytes);
         }
         
         payload->append(stream->data() + stream->pos(), nb_bytes);
@@ -136,7 +134,7 @@ int SrsTsMessage::dump(SrsBuffer* stream, int* pnb_bytes)
     
     *pnb_bytes = nb_bytes;
     
-    return ret;
+    return err;
 }
 
 bool SrsTsMessage::completed(int8_t payload_unit_start_indicator)
@@ -266,9 +264,9 @@ void SrsTsContext::set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream)
     channel->stream = stream;
 }
 
-int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
+srs_error_t SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // parse util EOF of stream.
     // for example, parse multiple times for the PES_packet_length(0) packet.
@@ -277,9 +275,8 @@ int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
         SrsAutoFree(SrsTsPacket, packet);
         
         SrsTsMessage* msg = NULL;
-        if ((ret = packet->decode(stream, &msg)) != ERROR_SUCCESS) {
-            srs_error("mpegts: decode ts packet failed. ret=%d", ret);
-            return ret;
+        if ((err = packet->decode(stream, &msg)) != srs_success) {
+            return srs_error_wrap(err, "ts: ts packet decode");
         }
         
         if (!msg) {
@@ -287,18 +284,17 @@ int SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
         }
         SrsAutoFree(SrsTsMessage, msg);
         
-        if ((ret = handler->on_ts_message(msg)) != ERROR_SUCCESS) {
-            srs_error("mpegts: handler ts message failed. ret=%d", ret);
-            return ret;
+        if ((err = handler->on_ts_message(msg)) != srs_success) {
+            return srs_error_wrap(err, "ts: handle ts message");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
+srs_error_t SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsTsStream vs, as;
     int16_t video_pid = 0, audio_pid = 0;
@@ -351,17 +347,15 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodec
     }
     
     if (as == SrsTsStreamReserved && vs == SrsTsStreamReserved) {
-        ret = ERROR_HLS_NO_STREAM;
-        srs_error("hls: no video or audio stream, vcodec=%d, acodec=%d. ret=%d", vc, ac, ret);
-        return ret;
+        return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no a/v stream, vcodec=%d, acodec=%d", vc, ac);
     }
     
     // when any codec changed, write PAT/PMT table.
     if (vcodec != vc || acodec != ac) {
         vcodec = vc;
         acodec = ac;
-        if ((ret = encode_pat_pmt(writer, video_pid, vs, audio_pid, as)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = encode_pat_pmt(writer, video_pid, vs, audio_pid, as)) != srs_success) {
+            return srs_error_wrap(err, "ts: encode PAT/PMT");
         }
     }
     
@@ -378,14 +372,13 @@ void SrsTsContext::set_sync_byte(int8_t sb)
     sync_byte = sb;
 }
 
-int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
+srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (vs != SrsTsStreamVideoH264 && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
-        ret = ERROR_HLS_NO_STREAM;
-        srs_error("hls: no pmt pcr pid, vs=%d, as=%d. ret=%d", vs, as, ret);
-        return ret;
+        return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no PID, vs=%d, as=%d", vs, as);
     }
     
     int16_t pmt_number = TS_PMT_NUMBER;
@@ -406,15 +399,13 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         
         SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "ts: init stream");
         }
-        if ((ret = pkt->encode(&stream)) != ERROR_SUCCESS) {
-            srs_error("ts encode ts packet failed. ret=%d", ret);
-            return ret;
+        if ((err = pkt->encode(&stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: encode packet");
         }
         if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            srs_error("ts write ts packet failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ts: write packet");
         }
     }
     if (true) {
@@ -433,42 +424,39 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
         
         SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "ts: init stream");
         }
-        if ((ret = pkt->encode(&stream)) != ERROR_SUCCESS) {
-            srs_error("ts encode ts packet failed. ret=%d", ret);
-            return ret;
+        if ((err = pkt->encode(&stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: encode packet");
         }
         if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            srs_error("ts write ts packet failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ts: write packet");
         }
     }
     
     // When PAT and PMT are writen, the context is ready now.
     ready = true;
 
-    return ret;
+    return err;
 }
 
-int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
+srs_error_t SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Sometimes, the context is not ready(PAT/PMT write failed), error in this situation.
     if (!ready) {
-        ret = ERROR_TS_CONTEXT_NOT_READY;
-        srs_error("TS: context not ready, ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_TS_CONTEXT_NOT_READY, "ts: not ready");
     }
 
     if (msg->payload->length() == 0) {
-        return ret;
+        return err;
     }
     
     if (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC) {
         srs_info("ts: ignore the unknown stream, sid=%d", sid);
-        return ret;
+        return err;
     }
     
     SrsTsChannel* channel = get(pid);
@@ -543,19 +531,17 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         
         SrsBuffer stream;
         if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "ts: init stream");
         }
-        if ((ret = pkt->encode(&stream)) != ERROR_SUCCESS) {
-            srs_error("ts encode ts packet failed. ret=%d", ret);
-            return ret;
+        if ((err = pkt->encode(&stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: encode packet");
         }
         if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            srs_error("ts write ts packet failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "ts: write packet");
         }
     }
     
-    return ret;
+    return err;
 }
 
 SrsTsPacket::SrsTsPacket(SrsTsContext* c)
@@ -580,24 +566,20 @@ SrsTsPacket::~SrsTsPacket()
     srs_freep(payload);
 }
 
-int SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
+srs_error_t SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     int pos = stream->pos();
     
     // 4B ts packet header.
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_HEADER;
-        srs_error("ts: demux header failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_HEADER, "ts: decode packet");
     }
     
     sync_byte = stream->read_1bytes();
     if (sync_byte != 0x47) {
-        ret = ERROR_STREAM_CASTER_TS_SYNC_BYTE;
-        srs_error("ts: sync_bytes must be 0x47, actual=%#x. ret=%d", sync_byte, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_SYNC_BYTE, "ts: sync_bytes must be 0x47, actual=%#x", sync_byte);
     }
     
     int16_t pidv = stream->read_2bytes();
@@ -622,9 +604,8 @@ int SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
         srs_freep(adaptation_field);
         adaptation_field = new SrsTsAdaptationField(this);
         
-        if ((ret = adaptation_field->decode(stream)) != ERROR_SUCCESS) {
-            srs_error("ts: demux af faield. ret=%d", ret);
-            return ret;
+        if ((err = adaptation_field->decode(stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: demux af field");
         }
         srs_verbose("ts: demux af ok.");
     }
@@ -654,13 +635,12 @@ int SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             }
         }
         
-        if (payload && (ret = payload->decode(stream, ppmsg)) != ERROR_SUCCESS) {
-            srs_error("ts: demux payload failed. ret=%d", ret);
-            return ret;
+        if (payload && (err = payload->decode(stream, ppmsg)) != srs_success) {
+            return srs_error_wrap(err, "ts: demux payload");
         }
     }
     
-    return ret;
+    return err;
 }
 
 int SrsTsPacket::size()
@@ -673,15 +653,13 @@ int SrsTsPacket::size()
     return sz;
 }
 
-int SrsTsPacket::encode(SrsBuffer* stream)
+srs_error_t SrsTsPacket::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 4B ts packet header.
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_HEADER;
-        srs_error("ts: mux header failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_HEADER, "ts: requires 4+ bytes");
     }
     
     stream->write_1bytes(sync_byte);
@@ -703,23 +681,21 @@ int SrsTsPacket::encode(SrsBuffer* stream)
     
     // optional: adaptation field
     if (adaptation_field) {
-        if ((ret = adaptation_field->encode(stream)) != ERROR_SUCCESS) {
-            srs_error("ts: mux af faield. ret=%d", ret);
-            return ret;
+        if ((err = adaptation_field->encode(stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: mux af field");
         }
         srs_verbose("ts: mux af ok.");
     }
     
     // optional: payload.
     if (payload) {
-        if ((ret = payload->encode(stream)) != ERROR_SUCCESS) {
-            srs_error("ts: mux payload failed. ret=%d", ret);
-            return ret;
+        if ((err = payload->encode(stream)) != srs_success) {
+            return srs_error_wrap(err, "ts: mux payload");
         }
         srs_verbose("ts: mux payload ok.");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsTsPacket::padding(int nb_stuffings)
@@ -943,36 +919,30 @@ SrsTsAdaptationField::~SrsTsAdaptationField()
 {
 }
 
-int SrsTsAdaptationField::decode(SrsBuffer* stream)
+srs_error_t SrsTsAdaptationField::decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!stream->require(2)) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: demux af failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: decode af");
     }
     adaption_field_length = stream->read_1bytes();
     
     // When the adaptation_field_control value is '11', the value of the adaptation_field_length shall
     // be in the range 0 to 182.
     if (packet->adaption_field_control == SrsTsAdaptationFieldTypeBoth && adaption_field_length > 182) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: demux af length failed, must in [0, 182], actual=%d. ret=%d", adaption_field_length, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af length failed, must in [0, 182], actual=%d", adaption_field_length);
     }
     // When the adaptation_field_control value is '10', the value of the adaptation_field_length shall
     // be 183.
     if (packet->adaption_field_control == SrsTsAdaptationFieldTypeAdaptionOnly && adaption_field_length != 183) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: demux af length failed, must be 183, actual=%d. ret=%d", adaption_field_length, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af length failed, must be 183, actual=%d", adaption_field_length);
     }
     
     // no adaptation field.
     if (adaption_field_length == 0) {
         srs_info("ts: demux af empty.");
-        return ret;
+        return err;
     }
     
     // the adaptation field start at here.
@@ -990,9 +960,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
     
     if (PCR_flag) {
         if (!stream->require(6)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af PCR_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af PCR_flag");
         }
         
         char* pp = NULL;
@@ -1017,9 +985,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
     
     if (OPCR_flag) {
         if (!stream->require(6)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af OPCR_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af OPCR_flag");
         }
         
         char* pp = NULL;
@@ -1044,18 +1010,14 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
     
     if (splicing_point_flag) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af splicing_point_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af splicing_point_flag");
         }
         splice_countdown = stream->read_1bytes();
     }
     
     if (transport_private_data_flag) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af transport_private_data_flag");
         }
         /**
          * The transport_private_data_length is an 8-bit field specifying the number of
@@ -1064,11 +1026,9 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
          */
         uint8_t transport_private_data_length = (uint8_t)stream->read_1bytes();
         
-        if (transport_private_data_length> 0) {
+        if (transport_private_data_length > 0) {
             if (!stream->require(transport_private_data_length)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af transport_private_data");
             }
             transport_private_data.resize(transport_private_data_length);
             stream->read_bytes(&transport_private_data[0], transport_private_data_length);
@@ -1079,9 +1039,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         int pos_af_ext = stream->pos();
         
         if (!stream->require(2)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af adaptation_field_extension_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af adaptation_field_extension_flag");
         }
         adaptation_field_extension_length = (uint8_t)stream->read_1bytes();
         int8_t ltwfv = stream->read_1bytes();
@@ -1093,9 +1051,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         
         if (ltw_flag) {
             if (!stream->require(2)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: demux af ltw_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af ltw_flag");
             }
             ltw_offset = stream->read_2bytes();
             
@@ -1105,9 +1061,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         
         if (piecewise_rate_flag) {
             if (!stream->require(3)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: demux af piecewise_rate_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af piecewise_rate_flag");
             }
             piecewise_rate = stream->read_3bytes();
             
@@ -1116,9 +1070,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
         
         if (seamless_splice_flag) {
             if (!stream->require(5)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: demux af seamless_splice_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af seamless_splice_flag");
             }
             marker_bit0 = stream->read_1bytes();
             DTS_next_AU1 = stream->read_2bytes();
@@ -1147,7 +1099,7 @@ int SrsTsAdaptationField::decode(SrsBuffer* stream)
              transport_private_data_flag, adaptation_field_extension_flag, adaptation_field_extension_length, program_clock_reference_base,
              program_clock_reference_extension, original_program_clock_reference_base, original_program_clock_reference_extension);
     
-    return ret;
+    return err;
 }
 
 int SrsTsAdaptationField::size()
@@ -1167,36 +1119,30 @@ int SrsTsAdaptationField::size()
     return sz;
 }
 
-int SrsTsAdaptationField::encode(SrsBuffer* stream)
+srs_error_t SrsTsAdaptationField::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!stream->require(2)) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: mux af failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af");
     }
     stream->write_1bytes(adaption_field_length);
     
     // When the adaptation_field_control value is '11', the value of the adaptation_field_length shall
     // be in the range 0 to 182.
     if (packet->adaption_field_control == SrsTsAdaptationFieldTypeBoth && adaption_field_length > 182) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: mux af length failed, must in [0, 182], actual=%d. ret=%d", adaption_field_length, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af length failed, must in [0, 182], actual=%d", adaption_field_length);
     }
     // When the adaptation_field_control value is '10', the value of the adaptation_field_length shall
     // be 183.
     if (packet->adaption_field_control == SrsTsAdaptationFieldTypeAdaptionOnly && adaption_field_length != 183) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: mux af length failed, must be 183, actual=%d. ret=%d", adaption_field_length, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af length failed, must be 183, actual=%d", adaption_field_length);
     }
     
     // no adaptation field.
     if (adaption_field_length == 0) {
         srs_info("ts: mux af empty.");
-        return ret;
+        return err;
     }
     int8_t tmpv = adaptation_field_extension_flag & 0x01;
     tmpv |= (discontinuity_indicator << 7) & 0x80;
@@ -1210,9 +1156,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
     
     if (PCR_flag) {
         if (!stream->require(6)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: mux af PCR_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af PCR_flag");
         }
         
         char* pp = NULL;
@@ -1236,9 +1180,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
     
     if (OPCR_flag) {
         if (!stream->require(6)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af OPCR_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af OPCR_flag");
         }
         stream->skip(6);
         srs_warn("ts: mux af ignore OPCR");
@@ -1246,36 +1188,28 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
     
     if (splicing_point_flag) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: mux af splicing_point_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af splicing_point_flag");
         }
         stream->write_1bytes(splice_countdown);
     }
     
     if (transport_private_data_flag) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: mux af transport_private_data_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af transport_private_data_flag");
         }
         stream->write_1bytes(transport_private_data.size());
         
         if (!transport_private_data.empty()) {
-            if (!stream->require(transport_private_data.size())) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: mux af transport_private_data_flag failed. ret=%d", ret);
-                return ret;
+            if (!stream->require((int)transport_private_data.size())) {
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af transport_private_data");
             }
-            stream->write_bytes(&transport_private_data[0], transport_private_data.size());
+            stream->write_bytes(&transport_private_data[0], (int)transport_private_data.size());
         }
     }
     
     if (adaptation_field_extension_flag) {
         if (!stream->require(2)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: mux af adaptation_field_extension_flag failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af adaptation_field_extension_flag");
         }
         stream->write_1bytes(adaptation_field_extension_length);
         int8_t ltwfv = const1_value1 & 0x1F;
@@ -1286,9 +1220,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
         
         if (ltw_flag) {
             if (!stream->require(2)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: mux af ltw_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af ltw_flag");
             }
             stream->skip(2);
             srs_warn("ts: mux af ignore ltw");
@@ -1296,9 +1228,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
         
         if (piecewise_rate_flag) {
             if (!stream->require(3)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: mux af piecewise_rate_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af piecewise_rate_flag");
             }
             stream->skip(3);
             srs_warn("ts: mux af ignore piecewise_rate");
@@ -1306,9 +1236,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
         
         if (seamless_splice_flag) {
             if (!stream->require(5)) {
-                ret = ERROR_STREAM_CASTER_TS_AF;
-                srs_error("ts: mux af seamless_splice_flag failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af seamless_splice_flag");
             }
             stream->skip(5);
             srs_warn("ts: mux af ignore seamless_splice");
@@ -1328,7 +1256,7 @@ int SrsTsAdaptationField::encode(SrsBuffer* stream)
              transport_private_data_flag, adaptation_field_extension_flag, adaptation_field_extension_length, program_clock_reference_base,
              program_clock_reference_extension, original_program_clock_reference_base, original_program_clock_reference_extension);
     
-    return ret;
+    return err;
 }
 
 SrsTsPayload::SrsTsPayload(SrsTsPacket* p)
@@ -1353,16 +1281,14 @@ SrsTsPayloadPES::~SrsTsPayloadPES()
 {
 }
 
-int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
+srs_error_t SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // find the channel from chunk.
     SrsTsChannel* channel = packet->context->get(packet->pid);
     if (!channel) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PES no channel for pid=%#x. ret=%d", packet->pid, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PES no channel for pid=%#x", packet->pid);
     }
     
     // init msg.
@@ -1380,54 +1306,42 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
     // check when fresh, the payload_unit_start_indicator
     // should be 1 for the fresh msg.
     if (is_fresh_msg && !packet->payload_unit_start_indicator) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: PES fresh packet length=%d, us=%d, cc=%d. ret=%d",
-                  msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter,
-                  ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: PES fresh packet length=%d, us=%d, cc=%d",
+            msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter);
     }
     
     // check when not fresh and PES_packet_length>0,
     // the payload_unit_start_indicator should never be 1 when not completed.
-    if (!is_fresh_msg && msg->PES_packet_length > 0
-        && !msg->completed(packet->payload_unit_start_indicator)
-        && packet->payload_unit_start_indicator
-        ) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: PES packet length=%d, payload=%d, us=%d, cc=%d. ret=%d",
-                  msg->PES_packet_length, msg->payload->length(), packet->payload_unit_start_indicator,
-                  packet->continuity_counter, ret);
+    if (!is_fresh_msg && msg->PES_packet_length > 0 && !msg->completed(packet->payload_unit_start_indicator) && packet->payload_unit_start_indicator) {
+        srs_warn("ts: ignore PES packet length=%d, payload=%d, us=%d, cc=%d",
+            msg->PES_packet_length, msg->payload->length(), packet->payload_unit_start_indicator, packet->continuity_counter);
         
         // reparse current msg.
         stream->skip(stream->pos() * -1);
         srs_freep(msg);
         channel->msg = NULL;
-        return ERROR_SUCCESS;
+        return err;
     }
     
     // check the continuity counter
     if (!is_fresh_msg) {
         // late-incoming or duplicated continuity, drop message.
         // @remark check overflow, the counter plus 1 should greater when invalid.
-        if (msg->continuity_counter >= packet->continuity_counter
-            && ((msg->continuity_counter + 1) & 0x0f) > packet->continuity_counter
-            ) {
+        if (msg->continuity_counter >= packet->continuity_counter && ((msg->continuity_counter + 1) & 0x0f) > packet->continuity_counter) {
             srs_warn("ts: drop PES %dB for duplicated cc=%#x", msg->continuity_counter);
             stream->skip(stream->size() - stream->pos());
-            return ret;
+            return err;
         }
         
         // when got partially message, the continous count must be continuous, or drop it.
         if (((msg->continuity_counter + 1) & 0x0f) != packet->continuity_counter) {
-            ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: continuity must be continous, msg=%#x, packet=%#x. ret=%d",
-                      msg->continuity_counter, packet->continuity_counter, ret);
+            srs_warn("ts: ignore continuity must be continous, msg=%#x, packet=%#x", msg->continuity_counter, packet->continuity_counter);
             
             // reparse current msg.
             stream->skip(stream->pos() * -1);
             srs_freep(msg);
             channel->msg = NULL;
-            return ERROR_SUCCESS;
+            return err;
         }
     }
     msg->continuity_counter = packet->continuity_counter;
@@ -1440,13 +1354,13 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
         
         // reparse current msg.
         stream->skip(stream->pos() * -1);
-        return ret;
+        return err;
     }
     
     // contious packet, append bytes for unit start is 0
     if (!packet->payload_unit_start_indicator) {
-        if ((ret = msg->dump(stream, &nb_bytes)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = msg->dump(stream, &nb_bytes)) != srs_success) {
+            return srs_error_wrap(err, "ts: pes dump");
         }
     }
     
@@ -1454,9 +1368,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
     if (packet->payload_unit_start_indicator) {
         // 6B fixed header.
         if (!stream->require(6)) {
-            ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: demux PSE failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE");
         }
         // 3B
         packet_start_code_prefix = stream->read_3bytes();
@@ -1468,9 +1380,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
         // check the packet start prefix.
         packet_start_code_prefix &= 0xFFFFFF;
         if (packet_start_code_prefix != 0x01) {
-            ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: demux PES start code failed, expect=0x01, actual=%#x. ret=%d", packet_start_code_prefix, ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PES start code failed, expect=0x01, actual=%#x", packet_start_code_prefix);
         }
         int pos_packet = stream->pos();
         
@@ -1490,9 +1400,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             ) {
             // 3B flags.
             if (!stream->require(3)) {
-                ret = ERROR_STREAM_CASTER_TS_PSE;
-                srs_error("ts: demux PES flags failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE flags");
             }
             // 1B
             int8_t oocv = stream->read_1bytes();
@@ -1529,15 +1437,13 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             nb_required += PES_CRC_flag? 2:0;
             nb_required += PES_extension_flag? 1:0;
             if (!stream->require(nb_required)) {
-                ret = ERROR_STREAM_CASTER_TS_PSE;
-                srs_error("ts: demux PES payload failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE payload");
             }
             
             // 5B
             if (PTS_DTS_flags == 0x2) {
-                if ((ret = decode_33bits_dts_pts(stream, &pts)) != ERROR_SUCCESS) {
-                    return ret;
+                if ((err = decode_33bits_dts_pts(stream, &pts)) != srs_success) {
+                    return srs_error_wrap(err, "dts/pts");
                 }
                 dts = pts;
                 
@@ -1548,11 +1454,11 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             
             // 10B
             if (PTS_DTS_flags == 0x3) {
-                if ((ret = decode_33bits_dts_pts(stream, &pts)) != ERROR_SUCCESS) {
-                    return ret;
+                if ((err = decode_33bits_dts_pts(stream, &pts)) != srs_success) {
+                    return srs_error_wrap(err, "dts/pts");
                 }
-                if ((ret = decode_33bits_dts_pts(stream, &dts)) != ERROR_SUCCESS) {
-                    return ret;
+                if ((err = decode_33bits_dts_pts(stream, &dts)) != srs_success) {
+                    return srs_error_wrap(err, "dts/pts");
                 }
                 
                 // check sync, the diff of dts and pts should never greater than 1s.
@@ -1620,9 +1526,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                 nb_required += P_STD_buffer_flag? 2:0;
                 nb_required += PES_extension_flag_2? 1:0; // 1+x bytes.
                 if (!stream->require(nb_required)) {
-                    ret = ERROR_STREAM_CASTER_TS_PSE;
-                    srs_error("ts: demux PSE ext payload failed. ret=%d", ret);
-                    return ret;
+                    return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE ext payload");
                 }
                 
                 // 16B
@@ -1639,9 +1543,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                         // the adjust required bytes.
                         nb_required = nb_required - 16 - 1 + pack_field_length;
                         if (!stream->require(nb_required)) {
-                            ret = ERROR_STREAM_CASTER_TS_PSE;
-                            srs_error("ts: demux PSE ext pack failed. ret=%d", ret);
-                            return ret;
+                            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE ext pack");
                         }
                         pack_field.resize(pack_field_length);
                         stream->read_bytes(&pack_field[0], pack_field_length);
@@ -1680,9 +1582,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                     
                     if (PES_extension_field_length > 0) {
                         if (!stream->require(PES_extension_field_length)) {
-                            ret = ERROR_STREAM_CASTER_TS_PSE;
-                            srs_error("ts: demux PSE ext field failed. ret=%d", ret);
-                            return ret;
+                            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE ext field");
                         }
                         PES_extension_field.resize(PES_extension_field_length);
                         stream->read_bytes(&PES_extension_field[0], PES_extension_field_length);
@@ -1694,9 +1594,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             nb_stuffings = PES_header_data_length - (stream->pos() - pos_header);
             if (nb_stuffings > 0) {
                 if (!stream->require(nb_stuffings)) {
-                    ret = ERROR_STREAM_CASTER_TS_PSE;
-                    srs_error("ts: demux PSE stuffings failed. ret=%d", ret);
-                    return ret;
+                    return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE stuffings");
                 }
                 stream->skip(nb_stuffings);
             }
@@ -1719,8 +1617,8 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             }
             
             // xB
-            if ((ret = msg->dump(stream, &nb_bytes)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = msg->dump(stream, &nb_bytes)) != srs_success) {
+                return srs_error_wrap(err, "dump pes");
             }
         } else if (sid == SrsTsPESStreamIdProgramStreamMap
                    || sid == SrsTsPESStreamIdPrivateStream2
@@ -1735,8 +1633,8 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
             // }
             
             // xB
-            if ((ret = msg->dump(stream, &nb_bytes)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = msg->dump(stream, &nb_bytes)) != srs_success) {
+                return srs_error_wrap(err, "dump packet");
             }
         } else if (sid == SrsTsPESStreamIdPaddingStream) {
             // for (i = 0; i < PES_packet_length; i++) {
@@ -1756,7 +1654,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
     // the payload_unit_start_indicator always be 1,
     // the message should never EOF for the first packet.
     if (is_fresh_msg && msg->PES_packet_length == 0) {
-        return ret;
+        return err;
     }
     
     // check msg, reap when completed.
@@ -1766,7 +1664,7 @@ int SrsTsPayloadPES::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
         srs_info("ts: reap msg for completed.");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPES::size()
@@ -1826,15 +1724,13 @@ int SrsTsPayloadPES::size()
     return sz;
 }
 
-int SrsTsPayloadPES::encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPES::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 6B fixed header.
     if (!stream->require(6)) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: mux PSE failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE");
     }
     
     // 3B
@@ -1854,16 +1750,12 @@ int SrsTsPayloadPES::encode(SrsBuffer* stream)
     // check the packet start prefix.
     packet_start_code_prefix &= 0xFFFFFF;
     if (packet_start_code_prefix != 0x01) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: mux PSE start code failed, expect=0x01, actual=%#x. ret=%d", packet_start_code_prefix, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE start code failed, expect=0x01, actual=%#x", packet_start_code_prefix);
     }
     
     // 3B flags.
     if (!stream->require(3)) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: mux PSE flags failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE flags");
     }
     // 1B
     int8_t oocv = original_or_copy & 0x01;
@@ -1896,25 +1788,23 @@ int SrsTsPayloadPES::encode(SrsBuffer* stream)
     nb_required += PES_CRC_flag? 2:0;
     nb_required += PES_extension_flag? 1:0;
     if (!stream->require(nb_required)) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: mux PSE payload failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE payload");
     }
     
     // 5B
     if (PTS_DTS_flags == 0x2) {
-        if ((ret = encode_33bits_dts_pts(stream, 0x02, pts)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = encode_33bits_dts_pts(stream, 0x02, pts)) != srs_success) {
+            return srs_error_wrap(err, "dts/pts");
         }
     }
     
     // 10B
     if (PTS_DTS_flags == 0x3) {
-        if ((ret = encode_33bits_dts_pts(stream, 0x03, pts)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = encode_33bits_dts_pts(stream, 0x03, pts)) != srs_success) {
+            return srs_error_wrap(err, "dts/pts");
         }
-        if ((ret = encode_33bits_dts_pts(stream, 0x01, dts)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = encode_33bits_dts_pts(stream, 0x01, dts)) != srs_success) {
+            return srs_error_wrap(err, "dts/pts");
         }
         
         // check sync, the diff of dts and pts should never greater than 1s.
@@ -1970,9 +1860,7 @@ int SrsTsPayloadPES::encode(SrsBuffer* stream)
         nb_required += P_STD_buffer_flag? 2:0;
         nb_required += PES_extension_flag_2 ? 1 + PES_extension_field.size() : 0; // 1+x bytes.
         if (!stream->require(nb_required)) {
-            ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: mux PSE ext payload failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE ext payload");
         }
         stream->skip(nb_required);
         srs_warn("ts: demux PES, ignore the PES_extension.");
@@ -1984,17 +1872,15 @@ int SrsTsPayloadPES::encode(SrsBuffer* stream)
         srs_warn("ts: demux PES, ignore the stuffings.");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
+srs_error_t SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PSE dts/pts failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts");
     }
     
     // decode the 33bits schema.
@@ -2004,16 +1890,12 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     // 1bit const '1'
     int64_t dts_pts_30_32 = stream->read_1bytes();
     if ((dts_pts_30_32 & 0x01) != 0x01) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PSE dts/pts 30-32 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 30-32");
     }
     // @remark, we donot check the high 4bits, maybe '0001', '0010' or '0011'.
     //      so we just ensure the high 4bits is not 0x00.
     if (((dts_pts_30_32 >> 4) & 0x0f) == 0x00) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PSE dts/pts 30-32 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 30-32");
     }
     dts_pts_30_32 = (dts_pts_30_32 >> 1) & 0x07;
     
@@ -2022,9 +1904,7 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     // 1bit const '1'
     int64_t dts_pts_15_29 = stream->read_2bytes();
     if ((dts_pts_15_29 & 0x01) != 0x01) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PSE dts/pts 15-29 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 15-29");
     }
     dts_pts_15_29 = (dts_pts_15_29 >> 1) & 0x7fff;
     
@@ -2033,9 +1913,7 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     // 1bit const '1'
     int64_t dts_pts_0_14 = stream->read_2bytes();
     if ((dts_pts_0_14 & 0x01) != 0x01) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: demux PSE dts/pts 0-14 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 0-14");
     }
     dts_pts_0_14 = (dts_pts_0_14 >> 1) & 0x7fff;
     
@@ -2045,17 +1923,15 @@ int SrsTsPayloadPES::decode_33bits_dts_pts(SrsBuffer* stream, int64_t* pv)
     v |= dts_pts_0_14 & 0x7fff;
     *pv = v;
     
-    return ret;
+    return err;
 }
 
-int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v)
+srs_error_t SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_t v)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: mux PSE dts/pts failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE dts/pts");
     }
     
     char* p = stream->data() + stream->pos();
@@ -2063,18 +1939,18 @@ int SrsTsPayloadPES::encode_33bits_dts_pts(SrsBuffer* stream, uint8_t fb, int64_
     
     int32_t val = 0;
     
-    val = fb << 4 | (((v >> 30) & 0x07) << 1) | 1;
+    val = int32_t(fb << 4 | (((v >> 30) & 0x07) << 1) | 1);
     *p++ = val;
     
-    val = (((v >> 15) & 0x7fff) << 1) | 1;
+    val = int32_t((((v >> 15) & 0x7fff) << 1) | 1);
     *p++ = (val >> 8);
     *p++ = val;
     
-    val = (((v) & 0x7fff) << 1) | 1;
+    val = int32_t((((v) & 0x7fff) << 1) | 1);
     *p++ = (val >> 8);
     *p++ = val;
     
-    return ret;
+    return err;
 }
 
 SrsTsPayloadPSI::SrsTsPayloadPSI(SrsTsPacket* p) : SrsTsPayload(p)
@@ -2089,9 +1965,9 @@ SrsTsPayloadPSI::~SrsTsPayloadPSI()
 {
 }
 
-int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
+srs_error_t SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     /**
      * When the payload of the Transport Stream packet contains PSI data, the payload_unit_start_indicator has the following
@@ -2103,9 +1979,7 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
      */
     if (packet->payload_unit_start_indicator) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_PSI;
-            srs_error("ts: demux PSI failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI");
         }
         pointer_field = stream->read_1bytes();
     }
@@ -2116,9 +1990,7 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
     
     // atleast 3B for all psi.
     if (!stream->require(3)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: demux PSI failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI");
     }
     // 1B
     table_id = (SrsTsPsiId)stream->read_1bytes();
@@ -2134,34 +2006,28 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
     // no section, ignore.
     if (section_length == 0) {
         srs_warn("ts: demux PAT ignore empty section");
-        return ret;
+        return err;
     }
     
     if (!stream->require(section_length)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: demux PAT section failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI section");
     }
     
     // call the virtual method of actual PSI.
-    if ((ret = psi_decode(stream)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = psi_decode(stream)) != srs_success) {
+        return srs_error_wrap(err, "demux PSI");
     }
     
     // 4B
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: demux PSI crc32 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI crc32");
     }
     CRC_32 = stream->read_4bytes();
     
     // verify crc32.
     int32_t crc32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos - 4);
     if (crc32 != CRC_32) {
-        ret = ERROR_STREAM_CASTER_TS_CRC32;
-        srs_error("ts: verify PSI crc32 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: verify PSI crc32");
     }
     
     // consume left stuffings
@@ -2181,7 +2047,7 @@ int SrsTsPayloadPSI::decode(SrsBuffer* stream, SrsTsMessage** /*ppmsg*/)
         stream->skip(nb_stuffings);
     }
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPSI::size()
@@ -2198,15 +2064,13 @@ int SrsTsPayloadPSI::size()
     return sz;
 }
 
-int SrsTsPayloadPSI::encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPSI::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (packet->payload_unit_start_indicator) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_PSI;
-            srs_error("ts: mux PSI failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI");
         }
         stream->write_1bytes(pointer_field);
     }
@@ -2217,9 +2081,7 @@ int SrsTsPayloadPSI::encode(SrsBuffer* stream)
     
     // atleast 3B for all psi.
     if (!stream->require(3)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: mux PSI failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI");
     }
     // 1B
     stream->write_1bytes(table_id);
@@ -2234,30 +2096,26 @@ int SrsTsPayloadPSI::encode(SrsBuffer* stream)
     // no section, ignore.
     if (section_length == 0) {
         srs_warn("ts: mux PAT ignore empty section");
-        return ret;
+        return err;
     }
     
     if (!stream->require(section_length)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: mux PAT section failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI section");
     }
     
     // call the virtual method of actual PSI.
-    if ((ret = psi_encode(stream)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = psi_encode(stream)) != srs_success) {
+        return srs_error_wrap(err, "mux PSI");
     }
     
     // 4B
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_PSI;
-        srs_error("ts: mux PSI crc32 failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI crc32");
     }
     CRC_32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos);
     stream->write_4bytes(CRC_32);
     
-    return ret;
+    return err;
 }
 
 SrsTsPayloadPATProgram::SrsTsPayloadPATProgram(int16_t n, int16_t p)
@@ -2271,15 +2129,13 @@ SrsTsPayloadPATProgram::~SrsTsPayloadPATProgram()
 {
 }
 
-int SrsTsPayloadPATProgram::decode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPATProgram::decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 4B for PAT program specified
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_PAT;
-        srs_error("ts: demux PAT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: demux PAT");
     }
     
     int tmpv = stream->read_4bytes();
@@ -2287,7 +2143,7 @@ int SrsTsPayloadPATProgram::decode(SrsBuffer* stream)
     const1_value = (int16_t)((tmpv >> 13) & 0x07);
     pid = (int16_t)(tmpv & 0x1FFF);
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPATProgram::size()
@@ -2295,15 +2151,13 @@ int SrsTsPayloadPATProgram::size()
     return 4;
 }
 
-int SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 4B for PAT program specified
     if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_PAT;
-        srs_error("ts: mux PAT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: mux PAT");
     }
     
     int tmpv = pid & 0x1FFF;
@@ -2311,7 +2165,7 @@ int SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
     tmpv |= (const1_value << 13) & 0xE000;
     stream->write_4bytes(tmpv);
     
-    return ret;
+    return err;
 }
 
 SrsTsPayloadPAT::SrsTsPayloadPAT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
@@ -2329,15 +2183,13 @@ SrsTsPayloadPAT::~SrsTsPayloadPAT()
     programs.clear();
 }
 
-int SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 5B for PAT specified
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PAT;
-        srs_error("ts: demux PAT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: demux PAT");
     }
     
     int pos = stream->pos();
@@ -2364,8 +2216,8 @@ int SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
     for (int i = 0; i < program_bytes; i += 4) {
         SrsTsPayloadPATProgram* program = new SrsTsPayloadPATProgram();
         
-        if ((ret = program->decode(stream)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = program->decode(stream)) != srs_success) {
+            return srs_error_wrap(err, "demux PAT program");
         }
         
         // update the apply pid table.
@@ -2378,7 +2230,7 @@ int SrsTsPayloadPAT::psi_decode(SrsBuffer* stream)
     packet->context->set(packet->pid, SrsTsPidApplyPAT);
     packet->context->on_pmt_parsed();
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPAT::psi_size()
@@ -2391,15 +2243,13 @@ int SrsTsPayloadPAT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 5B for PAT specified
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PAT;
-        srs_error("ts: mux PAT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: mux PAT");
     }
     
     // 2B
@@ -2419,8 +2269,8 @@ int SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
     // multiple 4B program data.
     for (int i = 0; i < (int)programs.size(); i ++) {
         SrsTsPayloadPATProgram* program = programs.at(i);
-        if ((ret = program->encode(stream)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = program->encode(stream)) != srs_success) {
+            return srs_error_wrap(err, "mux PAT program");
         }
         
         // update the apply pid table.
@@ -2430,7 +2280,7 @@ int SrsTsPayloadPAT::psi_encode(SrsBuffer* stream)
     // update the apply pid table.
     packet->context->set(packet->pid, SrsTsPidApplyPAT);
     
-    return ret;
+    return err;
 }
 
 SrsTsPayloadPMTESInfo::SrsTsPayloadPMTESInfo(SrsTsStream st, int16_t epid)
@@ -2446,15 +2296,13 @@ SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
 {
 }
 
-int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 5B
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PMT;
-        srs_error("ts: demux PMT es info failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT");
     }
     
     stream_type = (SrsTsStream)stream->read_1bytes();
@@ -2473,15 +2321,13 @@ int SrsTsPayloadPMTESInfo::decode(SrsBuffer* stream)
     
     if (ES_info_length > 0) {
         if (!stream->require(ES_info_length)) {
-            ret = ERROR_STREAM_CASTER_TS_PMT;
-            srs_error("ts: demux PMT es info data failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT ES_info");
         }
         ES_info.resize(ES_info_length);
         stream->read_bytes(&ES_info[0], ES_info_length);
     }
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPMTESInfo::size()
@@ -2489,15 +2335,13 @@ int SrsTsPayloadPMTESInfo::size()
     return 5 + (int)ES_info.size();
 }
 
-int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 5B
     if (!stream->require(5)) {
-        ret = ERROR_STREAM_CASTER_TS_PMT;
-        srs_error("ts: mux PMT es info failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT");
     }
     
     stream->write_1bytes(stream_type);
@@ -2511,15 +2355,13 @@ int SrsTsPayloadPMTESInfo::encode(SrsBuffer* stream)
     stream->write_2bytes(eilv);
     
     if (!ES_info.empty()) {
-        if (!stream->require(ES_info.size())) {
-            ret = ERROR_STREAM_CASTER_TS_PMT;
-            srs_error("ts: mux PMT es info data failed. ret=%d", ret);
-            return ret;
+        if (!stream->require((int)ES_info.size())) {
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT ES_info");
         }
-        stream->write_bytes(&ES_info[0], ES_info.size());
+        stream->write_bytes(&ES_info[0], (int)ES_info.size());
     }
     
-    return ret;
+    return err;
 }
 
 SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
@@ -2539,15 +2381,13 @@ SrsTsPayloadPMT::~SrsTsPayloadPMT()
     infos.clear();
 }
 
-int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 9B for PMT specified
     if (!stream->require(9)) {
-        ret = ERROR_STREAM_CASTER_TS_PMT;
-        srs_error("ts: demux PMT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT");
     }
     
     // 2B
@@ -2582,9 +2422,7 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
     
     if (program_info_length > 0) {
         if (!stream->require(program_info_length)) {
-            ret = ERROR_STREAM_CASTER_TS_PMT;
-            srs_error("ts: demux PMT program info failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT program info");
         }
         
         program_info_desc.resize(program_info_length);
@@ -2597,8 +2435,8 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
         SrsTsPayloadPMTESInfo* info = new SrsTsPayloadPMTESInfo();
         infos.push_back(info);
         
-        if ((ret = info->decode(stream)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = info->decode(stream)) != srs_success) {
+            return srs_error_wrap(err, "demux PMT program info");
         }
         
         // update the apply pid table
@@ -2622,7 +2460,7 @@ int SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
     // update the apply pid table.
     packet->context->set(packet->pid, SrsTsPidApplyPMT);
     
-    return ret;
+    return err;
 }
 
 int SrsTsPayloadPMT::psi_size()
@@ -2636,15 +2474,13 @@ int SrsTsPayloadPMT::psi_size()
     return sz;
 }
 
-int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
+srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 9B for PMT specified
     if (!stream->require(9)) {
-        ret = ERROR_STREAM_CASTER_TS_PMT;
-        srs_error("ts: mux PMT failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT");
     }
     
     // 2B
@@ -2673,19 +2509,17 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     stream->write_2bytes(pilv);
     
     if (!program_info_desc.empty()) {
-        if (!stream->require(program_info_desc.size())) {
-            ret = ERROR_STREAM_CASTER_TS_PMT;
-            srs_error("ts: mux PMT program info failed. ret=%d", ret);
-            return ret;
+        if (!stream->require((int)program_info_desc.size())) {
+            return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT program info");
         }
         
-        stream->write_bytes(&program_info_desc[0], program_info_desc.size());
+        stream->write_bytes(&program_info_desc[0], (int)program_info_desc.size());
     }
     
     for (int i = 0; i < (int)infos.size(); i ++) {
         SrsTsPayloadPMTESInfo* info = infos.at(i);
-        if ((ret = info->encode(stream)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = info->encode(stream)) != srs_success) {
+            return srs_error_wrap(err, "mux PMT program info");
         }
         
         // update the apply pid table
@@ -2709,7 +2543,7 @@ int SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     // update the apply pid table.
     packet->context->set(packet->pid, SrsTsPidApplyPMT);
     
-    return ret;
+    return err;
 }
 
 SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
@@ -2726,9 +2560,10 @@ SrsTsContextWriter::~SrsTsContextWriter()
     close();
 }
 
-int SrsTsContextWriter::open(string p)
+srs_error_t SrsTsContextWriter::open(string p)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     path = p;
     
@@ -2738,42 +2573,40 @@ int SrsTsContextWriter::open(string p)
     context->reset();
     
     if ((ret = writer->open(path)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ts: open writer");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsContextWriter::write_audio(SrsTsMessage* audio)
+srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_info("hls: write audio pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
-             audio->pts, audio->dts, audio->PES_packet_length);
+        audio->pts, audio->dts, audio->PES_packet_length);
     
-    if ((ret = context->encode(writer, audio, vcodec, acodec)) != ERROR_SUCCESS) {
-        srs_error("hls encode audio failed. ret=%d", ret);
-        return ret;
+    if ((err = context->encode(writer, audio, vcodec, acodec)) != srs_success) {
+        return srs_error_wrap(err, "ts: write audio");
     }
     srs_info("hls encode audio ok");
     
-    return ret;
+    return err;
 }
 
-int SrsTsContextWriter::write_video(SrsTsMessage* video)
+srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_info("hls: write video pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
-             video->pts, video->dts, video->PES_packet_length);
+        video->pts, video->dts, video->PES_packet_length);
     
-    if ((ret = context->encode(writer, video, vcodec, acodec)) != ERROR_SUCCESS) {
-        srs_error("hls encode video failed. ret=%d", ret);
-        return ret;
+    if ((err = context->encode(writer, video, vcodec, acodec)) != srs_success) {
+        return srs_error_wrap(err, "ts: write video");
     }
     srs_info("hls encode video ok");
     
-    return ret;
+    return err;
 }
 
 void SrsTsContextWriter::close()
@@ -2798,9 +2631,9 @@ SrsTsMessageCache::~SrsTsMessageCache()
     srs_freep(video);
 }
 
-int SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
+srs_error_t SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // create the ts audio message.
     if (!audio) {
@@ -2820,21 +2653,21 @@ int SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
     
     // write video to cache.
     if (acodec->id == SrsAudioCodecIdAAC) {
-        if ((ret = do_cache_aac(frame)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = do_cache_aac(frame)) != srs_success) {
+            return srs_error_wrap(err, "ts: cache aac");
         }
     } else {
-        if ((ret = do_cache_mp3(frame)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = do_cache_mp3(frame)) != srs_success) {
+            return srs_error_wrap(err, "ts: cache mp3");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
+srs_error_t SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // create the ts video message.
     if (!video) {
@@ -2848,16 +2681,16 @@ int SrsTsMessageCache::cache_video(SrsVideoFrame* frame, int64_t dts)
     video->sid = SrsTsPESStreamIdVideoCommon;
     
     // write video to cache.
-    if ((ret = do_cache_avc(frame)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = do_cache_avc(frame)) != srs_success) {
+        return srs_error_wrap(err, "ts: cache avc");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsMessageCache::do_cache_mp3(SrsAudioFrame* frame)
+srs_error_t SrsTsMessageCache::do_cache_mp3(SrsAudioFrame* frame)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // for mp3, directly write to cache.
     // TODO: FIXME: implements the ts jitter.
@@ -2866,12 +2699,12 @@ int SrsTsMessageCache::do_cache_mp3(SrsAudioFrame* frame)
         audio->payload->append(sample->bytes, sample->size);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
+srs_error_t SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsAudioCodecConfig* codec = frame->acodec();
     srs_assert(codec);
@@ -2881,9 +2714,7 @@ int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
         int32_t size = sample->size;
         
         if (!sample->bytes || size <= 0 || size > 0x1fff) {
-            ret = ERROR_HLS_AAC_FRAME_LENGTH;
-            srs_error("invalid aac frame length=%d, ret=%d", size, ret);
-            return ret;
+            return srs_error_new(ERROR_HLS_AAC_FRAME_LENGTH, "ts: invalid aac frame length=%d", size);
         }
         
         // the frame length is the AAC raw data plus the adts header size.
@@ -2937,7 +2768,7 @@ int SrsTsMessageCache::do_cache_aac(SrsAudioFrame* frame)
         audio->payload->append(sample->bytes, sample->size);
     }
     
-    return ret;
+    return err;
 }
 
 void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
@@ -2996,9 +2827,9 @@ void srs_avc_insert_aud(SrsSimpleStream* payload, bool& aud_inserted)
     }
 }
 
-int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
+srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Whether aud inserted.
     bool aud_inserted = false;
@@ -3051,9 +2882,7 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         int32_t size = sample->size;
         
         if (!sample->bytes || size <= 0) {
-            ret = ERROR_HLS_AVC_SAMPLE_SIZE;
-            srs_error("invalid avc sample length=%d, ret=%d", size, ret);
-            return ret;
+            return srs_error_new(ERROR_HLS_AVC_SAMPLE_SIZE, "ts: invalid avc sample length=%d", size);
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
@@ -3065,11 +2894,11 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps && !is_sps_pps_appended) {
             if (!codec->sequenceParameterSetNALUnit.empty()) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(&codec->sequenceParameterSetNALUnit[0], codec->sequenceParameterSetNALUnit.size());
+                video->payload->append(&codec->sequenceParameterSetNALUnit[0], (int)codec->sequenceParameterSetNALUnit.size());
             }
             if (!codec->pictureParameterSetNALUnit.empty()) {
                 srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(&codec->pictureParameterSetNALUnit[0], codec->pictureParameterSetNALUnit.size());
+                video->payload->append(&codec->pictureParameterSetNALUnit[0], (int)codec->pictureParameterSetNALUnit.size());
             }
             is_sps_pps_appended = true;
         }
@@ -3079,7 +2908,7 @@ int SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         video->payload->append(sample->bytes, sample->size);
     }
     
-    return ret;
+    return err;
 }
 
 SrsTsTransmuxer::SrsTsTransmuxer()
@@ -3099,25 +2928,18 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
     srs_freep(context);
 }
 
-int SrsTsTransmuxer::initialize(SrsFileWriter* fw)
+srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if ((err = format->initialize()) != srs_success) {
-        // TODO: FIXME: Use error.
-        ret = srs_error_code(err);
-        srs_freep(err);
-        
-        return ret;
+        return srs_error_wrap(err, "ts: init format");
     }
     
     srs_assert(fw);
     
     if (!fw->is_open()) {
-        ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for encoder. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KERNEL_FLV_STREAM_CLOSED, "ts: stream is not open");
     }
     
     writer = fw;
@@ -3126,30 +2948,31 @@ int SrsTsTransmuxer::initialize(SrsFileWriter* fw)
     // TODO: FIXME: Support config the codec.
     tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
     
-    if ((ret = tscw->open("")) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = tscw->open("")) != srs_success) {
+        return srs_error_wrap(err, "ts: open writer");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
+srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = format->on_audio(timestamp, data, size)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ts: format on audio");
     }
     
     // ts support audio codec: aac/mp3
     srs_assert(format->acodec && format->audio);
     if (format->acodec->id != SrsAudioCodecIdAAC && format->acodec->id != SrsAudioCodecIdMP3) {
-        return ret;
+        return err;
     }
     
     // for aac: ignore sequence header
     if (format->acodec->id == SrsAudioCodecIdAAC && format->audio->aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
-        return ret;
+        return err;
     }
     
     // the dts calc from rtmp/flv header.
@@ -3158,8 +2981,8 @@ int SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
     int64_t dts = timestamp * 90;
     
     // write audio to cache.
-    if ((ret = tsmc->cache_audio(format->audio, dts)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = tsmc->cache_audio(format->audio, dts)) != srs_success) {
+        return srs_error_wrap(err, "ts: cache audio");
     }
     
     // TODO: FIXME: for pure audio, aggregate some frame to one.
@@ -3169,67 +2992,67 @@ int SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
     return flush_audio();
 }
 
-int SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size)
+srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = format->on_video(timestamp, data, size)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ts: on video");
     }
     
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video && format->vcodec);
     if (format->video->frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
-        return ret;
+        return err;
     }
     
     if (format->vcodec->id != SrsVideoCodecIdAVC) {
-        return ret;
+        return err;
     }
     
     // ignore sequence header
-    if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame
-        && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
-        return ret;
+    if (format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && format->video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+        return err;
     }
     
     int64_t dts = timestamp * 90;
     
     // write video to cache.
-    if ((ret = tsmc->cache_video(format->video, dts)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = tsmc->cache_video(format->video, dts)) != srs_success) {
+        return srs_error_wrap(err, "ts: cache video");
     }
     
     return flush_video();
 }
 
-int SrsTsTransmuxer::flush_audio()
+srs_error_t SrsTsTransmuxer::flush_audio()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = tscw->write_audio(tsmc->audio)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = tscw->write_audio(tsmc->audio)) != srs_success) {
+        return srs_error_wrap(err, "ts: write audio");
     }
     
     // write success, clear and free the ts message.
     srs_freep(tsmc->audio);
     
-    return ret;
+    return err;
 }
 
-int SrsTsTransmuxer::flush_video()
+srs_error_t SrsTsTransmuxer::flush_video()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = tscw->write_video(tsmc->video)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = tscw->write_video(tsmc->video)) != srs_success) {
+        return srs_error_wrap(err, "ts: write video");
     }
     
     // write success, clear and free the ts message.
     srs_freep(tsmc->video);
     
-    return ret;
+    return err;
 }
 
 #endif

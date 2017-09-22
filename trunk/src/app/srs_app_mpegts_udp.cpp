@@ -178,6 +178,7 @@ srs_error_t SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb
 int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // collect nMB data to parse in a time.
     // TODO: FIXME: comment the following for release.
@@ -237,7 +238,10 @@ int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
         }
         
         // process each ts packet
-        if ((ret = context->decode(stream, this)) != ERROR_SUCCESS) {
+        if ((err = context->decode(stream, this)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_warn("mpegts: ignore parse ts packet failed. ret=%d", ret);
             continue;
         }
@@ -253,9 +257,10 @@ int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
     return ret;
 }
 
-int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
+srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     pprint->elapse();
     
@@ -311,36 +316,35 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     
     // when not audio/video, or not adts/annexb format, donot support.
     if (msg->stream_number() != 0) {
-        ret = ERROR_STREAM_CASTER_TS_ES;
-        srs_error("mpegts: unsupported stream format, sid=%#x(%s-%d). ret=%d",
-                  msg->sid, msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number(), ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_ES, "ts: unsupported stream format, sid=%#x(%s-%d)",
+            msg->sid, msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
     }
     
     // check supported codec
     if (msg->channel->stream != SrsTsStreamVideoH264 && msg->channel->stream != SrsTsStreamAudioAAC) {
-        ret = ERROR_STREAM_CASTER_TS_CODEC;
-        srs_error("mpegts: unsupported stream codec=%d. ret=%d", msg->channel->stream, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "ts: unsupported stream codec=%d", msg->channel->stream);
     }
     
     // parse the stream.
     SrsBuffer avs;
     if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
-        srs_error("mpegts: initialize av stream failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "ts: init av stream");
     }
     
     // publish audio or video.
     if (msg->channel->stream == SrsTsStreamVideoH264) {
-        return on_ts_video(msg, &avs);
+        if ((ret = on_ts_video(msg, &avs)) != ERROR_SUCCESS) {
+            return srs_error_new(ret, "ts: consume video");
+        }
     }
     if (msg->channel->stream == SrsTsStreamAudioAAC) {
-        return on_ts_audio(msg, &avs);
+        if ((ret = on_ts_audio(msg, &avs)) != ERROR_SUCCESS) {
+            return srs_error_new(ret, "ts: consume audio");
+        }
     }
     
     // TODO: FIXME: implements it.
-    return ret;
+    return err;
 }
 
 int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)

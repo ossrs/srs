@@ -166,8 +166,8 @@ srs_error_t SrsRtmpConn::do_cycle()
     
     // notify kafka cluster.
 #ifdef SRS_AUTO_KAFKA
-    if ((ret = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "kafka on client");
+    if ((err = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != srs_success) {
+        return srs_error_wrap(err, "kafka on client");
     }
 #endif
     
@@ -1411,14 +1411,13 @@ int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
 
 srs_error_t SrsRtmpConn::on_disconnect()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     http_hooks_on_close();
     
 #ifdef SRS_AUTO_KAFKA
-    if ((ret = _srs_kafka->on_close(srs_id())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "kafka on close");
+    if ((err = _srs_kafka->on_close(srs_id())) != srs_success) {
+        return srs_error_wrap(err, "kafka on close");
     }
 #endif
     

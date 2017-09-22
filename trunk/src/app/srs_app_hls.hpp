@@ -179,15 +179,15 @@ public:
     /**
      * when publish, update the config for muxer.
      */
-    virtual int update_config(SrsRequest* r, std::string entry_prefix,
+    virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
         double fragment, double window, bool ts_floor, double aof_ratio,
         bool cleanup, bool wait_keyframe);
     /**
      * open a new segment(a new ts file)
      */
-    virtual int segment_open();
-    virtual int on_sequence_header();
+    virtual srs_error_t segment_open();
+    virtual srs_error_t on_sequence_header();
     /**
      * whether segment overflow,
      * that is whether the current segment duration>=(the segment in config)
@@ -208,15 +208,15 @@ public:
      * whether current hls muxer is pure audio mode.
      */
     virtual bool pure_audio();
-    virtual int flush_audio(SrsTsMessageCache* cache);
-    virtual int flush_video(SrsTsMessageCache* cache);
+    virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
+    virtual srs_error_t flush_video(SrsTsMessageCache* cache);
     /**
      * Close segment(ts).
      */
-    virtual int segment_close();
+    virtual srs_error_t segment_close();
 private:
-    virtual int refresh_m3u8();
-    virtual int _refresh_m3u8(std::string m3u8_file);
+    virtual srs_error_t refresh_m3u8();
+    virtual srs_error_t _refresh_m3u8(std::string m3u8_file);
 };
 
 /**
@@ -258,23 +258,23 @@ public:
     /**
      * when publish or unpublish stream.
      */
-    virtual int on_publish(SrsRequest* req);
-    virtual int on_unpublish();
+    virtual srs_error_t on_publish(SrsRequest* req);
+    virtual srs_error_t on_unpublish();
     /**
      * when get sequence header,
      * must write a #EXT-X-DISCONTINUITY to m3u8.
      * @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
      * @see: 3.4.11.  EXT-X-DISCONTINUITY
      */
-    virtual int on_sequence_header();
+    virtual srs_error_t on_sequence_header();
     /**
      * write audio to cache, if need to flush, flush to muxer.
      */
-    virtual int write_audio(SrsAudioFrame* frame, int64_t pts);
+    virtual srs_error_t write_audio(SrsAudioFrame* frame, int64_t pts);
     /**
      * write video to muxer.
      */
-    virtual int write_video(SrsVideoFrame* frame, int64_t dts);
+    virtual srs_error_t write_video(SrsVideoFrame* frame, int64_t dts);
 private:
     /**
      * reopen the muxer for a new hls segment,
@@ -282,7 +282,7 @@ private:
      * then write the key frame to the new segment.
      * so, user must reap_segment then flush_video to hls muxer.
      */
-    virtual int reap_segment();
+    virtual srs_error_t reap_segment();
 };
 
 /**
@@ -324,7 +324,7 @@ public:
      * for the muxer object not destroyed.
      * @param fetch_sequence_header whether fetch sequence from source.
      */
-    virtual int on_publish();
+    virtual srs_error_t on_publish();
     /**
      * the unpublish event, only close the muxer, donot destroy the
      * muxer, for when we continue to publish, the m3u8 will continue.
@@ -334,14 +334,14 @@ public:
      * mux the audio packets to ts.
      * @param shared_audio, directly ptr, copy it if need to save it.
      */
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     /**
      * mux the video packets to ts.
      * @param shared_video, directly ptr, copy it if need to save it.
      * @param is_sps_pps whether the video is h.264 sps/pps.
      */
     // TODO: FIXME: Remove param is_sps_pps.
-    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual void hls_show_mux_log();
 };

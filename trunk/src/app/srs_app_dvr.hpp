@@ -203,7 +203,7 @@ public:
     // Internal interface for segmenter.
 public:
     // When segmenter close a segment.
-    virtual int on_reap_segment();
+    virtual srs_error_t on_reap_segment();
 public:
     static srs_error_t create_plan(std::string vhost, SrsDvrPlan** pplan);
 };

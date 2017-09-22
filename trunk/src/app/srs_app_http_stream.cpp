@@ -203,8 +203,12 @@ SrsTsStreamEncoder::~SrsTsStreamEncoder()
 int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+    if ((err = enc->initialize(w)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -213,12 +217,20 @@ int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 
 int SrsTsStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
-    return enc->write_audio(timestamp, data, size);
+    srs_error_t err = enc->write_audio(timestamp, data, size);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 int SrsTsStreamEncoder::write_video(int64_t timestamp, char* data, int size)
 {
-    return enc->write_video(timestamp, data, size);
+    srs_error_t err = enc->write_video(timestamp, data, size);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 int SrsTsStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)

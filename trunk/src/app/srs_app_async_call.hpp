@@ -74,7 +74,7 @@ public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
 public:
-    virtual int execute(ISrsAsyncCallTask* t);
+    virtual srs_error_t execute(ISrsAsyncCallTask* t);
     virtual int count();
 public:
     virtual srs_error_t start();

@@ -106,7 +106,7 @@ private:
     virtual int on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
 // interface ISrsTsHandler
 public:
-    virtual int on_ts_message(SrsTsMessage* msg);
+    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 private:
     virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
     virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);

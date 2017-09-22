@@ -509,17 +509,15 @@ int srs_do_create_dir_recursively(string dir)
         return true;
     }
     
-    int srs_create_dir_recursively(string dir)
+    srs_error_t srs_create_dir_recursively(string dir)
     {
-        int ret = ERROR_SUCCESS;
-        
-        ret = srs_do_create_dir_recursively(dir);
+        int ret = srs_do_create_dir_recursively(dir);
         
         if (ret == ERROR_SYSTEM_DIR_EXISTS) {
-            return ERROR_SUCCESS;
+            return srs_success;
         }
         
-        return ret;
+        return srs_error_new(ret, "create dir %s", dir.c_str());
     }
     
     bool srs_path_exists(std::string path)

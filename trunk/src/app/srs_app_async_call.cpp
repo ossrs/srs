@@ -56,14 +56,14 @@ SrsAsyncCallWorker::~SrsAsyncCallWorker()
     srs_cond_destroy(wait);
 }
 
-int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
+srs_error_t SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     tasks.push_back(t);
     srs_cond_signal(wait);
     
-    return ret;
+    return err;
 }
 
 int SrsAsyncCallWorker::count()

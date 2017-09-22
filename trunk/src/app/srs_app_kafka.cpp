@@ -460,12 +460,12 @@ int SrsKafkaProducer::send(int key, SrsJsonObject* obj)
     return ret;
 }
 
-int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
+srs_error_t SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!enabled) {
-        return ret;
+        return err;
     }
     
     SrsJsonObject* obj = SrsJsonAny::object();
@@ -477,12 +477,12 @@ int SrsKafkaProducer::on_client(int key, SrsListenerType type, string ip)
     return worker->execute(new SrsKafkaMessage(this, key, obj));
 }
 
-int SrsKafkaProducer::on_close(int key)
+srs_error_t SrsKafkaProducer::on_close(int key)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!enabled) {
-        return ret;
+        return err;
     }
     
     SrsJsonObject* obj = SrsJsonAny::object();

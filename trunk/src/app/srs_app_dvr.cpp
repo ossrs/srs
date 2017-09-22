@@ -84,6 +84,7 @@ SrsFragment* SrsDvrSegmenter::current()
 int SrsDvrSegmenter::open()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when already open.
     if (fs->is_open()) {
@@ -99,7 +100,10 @@ int SrsDvrSegmenter::open()
     fragment->set_path(path);
     
     // create dir first.
-    if ((ret = fragment->create_dir()) != ERROR_SUCCESS) {
+    if ((err = fragment->create_dir()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -177,6 +181,7 @@ int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
 int SrsDvrSegmenter::close()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when already closed.
     if (!fs->is_open()) {
@@ -191,13 +196,19 @@ int SrsDvrSegmenter::close()
     fs->close();
     
     // when tmp flv file exists, reap it.
-    if ((ret = fragment->rename()) != ERROR_SUCCESS) {
+    if ((err = fragment->rename()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
     // TODO: FIXME: the http callback is async, which will trigger thread switch,
     //          so the on_video maybe invoked during the http callback, and error.
-    if ((ret = plan->on_reap_segment()) != ERROR_SUCCESS) {
+    if ((err = plan->on_reap_segment()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("dvr: notify plan to reap segment failed. ret=%d", ret);
         return ret;
     }
@@ -669,20 +680,20 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     return ret;
 }
 
-int SrsDvrPlan::on_reap_segment()
+srs_error_t SrsDvrPlan::on_reap_segment()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     int cid = _srs_context->get_id();
     
     SrsFragment* fragment = segment->current();
     string fullpath = fragment->fullpath();
     
-    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != srs_success) {
+        return srs_error_wrap(err, "reap segment");
     }
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsDvrPlan::create_plan(string vhost, SrsDvrPlan** pplan)
