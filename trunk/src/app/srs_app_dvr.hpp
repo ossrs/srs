@@ -107,7 +107,7 @@ private:
     virtual int on_update_duration(SrsSharedPtrMessage* msg);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
 
 /**
@@ -174,7 +174,7 @@ public:
     SrsDvrAsyncCallOnDvr(int c, SrsRequest* r, std::string p);
     virtual ~SrsDvrAsyncCallOnDvr();
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 
@@ -203,7 +203,7 @@ public:
     // Internal interface for segmenter.
 public:
     // When segmenter close a segment.
-    virtual int on_reap_segment();
+    virtual srs_error_t on_reap_segment();
 public:
     static srs_error_t create_plan(std::string vhost, SrsDvrPlan** pplan);
 };
@@ -243,7 +243,7 @@ private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
 
 /**
@@ -297,7 +297,7 @@ public:
     virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_dvr_apply(std::string vhost);
+    virtual srs_error_t on_reload_vhost_dvr_apply(std::string vhost);
 };
 
 #endif

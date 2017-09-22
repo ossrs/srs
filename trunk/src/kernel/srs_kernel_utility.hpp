@@ -102,7 +102,7 @@ extern std::vector<std::string> srs_string_split(std::string str, std::vector<st
 extern bool srs_bytes_equals(void* pa, void* pb, int size);
 
 // create dir recursively
-extern int srs_create_dir_recursively(std::string dir);
+extern srs_error_t srs_create_dir_recursively(std::string dir);
 
 // whether path exists.
 extern bool srs_path_exists(std::string path);

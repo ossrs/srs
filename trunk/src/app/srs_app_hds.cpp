@@ -433,6 +433,7 @@ int SrsHds::on_audio(SrsSharedPtrMessage* msg)
 int SrsHds::flush_mainfest()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     char buf[1024] = {0};
     sprintf(buf, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
@@ -446,7 +447,10 @@ int SrsHds::flush_mainfest()
             , hds_req->stream.c_str(), hds_req->stream.c_str(), hds_req->stream.c_str());
     
     string dir = _srs_config->get_hds_path(hds_req->vhost) + "/" + hds_req->app;
-    if ((ret = srs_create_dir_recursively(dir)) != ERROR_SUCCESS) {
+    if ((err = srs_create_dir_recursively(dir)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("hds create dir failed. ret=%d", ret);
         return ret;
     }

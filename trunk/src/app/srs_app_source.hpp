@@ -94,7 +94,7 @@ public:
      * detect the time jitter and correct it.
      * @param ag the algorithm to use for time jitter.
      */
-    virtual int correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag);
     /**
      * get current client time, the last packet time.
      */
@@ -472,13 +472,13 @@ public:
     virtual int on_dvr_request_sh();
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_forward(std::string vhost);
-    virtual int on_reload_vhost_dash(std::string vhost);
-    virtual int on_reload_vhost_hls(std::string vhost);
-    virtual int on_reload_vhost_hds(std::string vhost);
-    virtual int on_reload_vhost_dvr(std::string vhost);
-    virtual int on_reload_vhost_transcode(std::string vhost);
-    virtual int on_reload_vhost_exec(std::string vhost);
+    virtual srs_error_t on_reload_vhost_forward(std::string vhost);
+    virtual srs_error_t on_reload_vhost_dash(std::string vhost);
+    virtual srs_error_t on_reload_vhost_hls(std::string vhost);
+    virtual srs_error_t on_reload_vhost_hds(std::string vhost);
+    virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
+    virtual srs_error_t on_reload_vhost_transcode(std::string vhost);
+    virtual srs_error_t on_reload_vhost_exec(std::string vhost);
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
@@ -631,7 +631,7 @@ public:
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_play(std::string vhost);
+    virtual srs_error_t on_reload_vhost_play(std::string vhost);
     // for the tools callback
 public:
     // source id changed.

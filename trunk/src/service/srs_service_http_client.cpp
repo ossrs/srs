@@ -53,16 +53,16 @@ SrsHttpClient::~SrsHttpClient()
 }
 
 // TODO: FIXME: use ms for timeout.
-int SrsHttpClient::initialize(string h, int p, int64_t tm)
+srs_error_t SrsHttpClient::initialize(string h, int p, int64_t tm)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_freep(parser);
     parser = new SrsHttpParser();
     
     if ((ret = parser->initialize(HTTP_RESPONSE, false)) != ERROR_SUCCESS) {
-        srs_error("initialize parser failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "http: init parser");
     }
     
     // Always disconnect the transport.
@@ -83,7 +83,7 @@ int SrsHttpClient::initialize(string h, int p, int64_t tm)
     headers["User-Agent"] = RTMP_SIG_SRS_SERVER;
     headers["Content-Type"] = "application/json";
     
-    return ret;
+    return err;
 }
 
 SrsHttpClient* SrsHttpClient::set_header(string k, string v)
@@ -93,18 +93,18 @@ SrsHttpClient* SrsHttpClient::set_header(string k, string v)
     return this;
 }
 
-int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
+srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // always set the content length.
     headers["Content-Length"] = srs_int2str(req.length());
     
-    if ((ret = connect()) != ERROR_SUCCESS) {
-        srs_warn("http connect server failed. ret=%d", ret);
-        return ret;
+    if ((err = connect()) != srs_success) {
+        return srs_error_wrap(err, "http: connect server");
     }
     
     // send POST request to uri
@@ -122,14 +122,12 @@ int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
     if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
-        srs_error("write http post failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
-        srs_error("parse http post response failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "http: parse response");
     }
     srs_assert(msg);
     
@@ -140,21 +138,21 @@ int SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg)
     }
     srs_info("parse http post response success.");
     
-    return ret;
+    return err;
 }
 
-int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
+srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // always set the content length.
     headers["Content-Length"] = srs_int2str(req.length());
     
-    if ((ret = connect()) != ERROR_SUCCESS) {
-        srs_warn("http connect server failed. ret=%d", ret);
-        return ret;
+    if ((err = connect()) != srs_success) {
+        return srs_error_wrap(err, "http: connect server");
     }
     
     // send POST request to uri
@@ -172,14 +170,12 @@ int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
-        srs_error("write http get failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
     if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
-        srs_error("parse http post response failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "http: parse response");
     }
     srs_assert(msg);
     
@@ -190,7 +186,7 @@ int SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     }
     srs_info("parse http get response success.");
     
-    return ret;
+    return err;
 }
 
 void SrsHttpClient::set_recv_timeout(int64_t tm)
@@ -218,20 +214,19 @@ void SrsHttpClient::disconnect()
     srs_freep(transport);
 }
 
-int SrsHttpClient::connect()
+srs_error_t SrsHttpClient::connect()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // When transport connected, ignore.
     if (transport) {
-        return ret;
+        return err;
     }
     
     transport = new SrsTcpClient(host, port, timeout);
-    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+    if ((err = transport->connect()) != srs_success) {
         disconnect();
-        srs_warn("http client failed, server=%s, port=%d, timeout=%" PRId64 ", ret=%d", host.c_str(), port, timeout, ret);
-        return ret;
+        return srs_error_wrap(err, "http: tcp connect %s:%d to=%d", host.c_str(), port, (int)timeout);
     }
     srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);
     
@@ -241,6 +236,6 @@ int SrsHttpClient::connect()
     
     kbps->set_io(transport, transport);
     
-    return ret;
+    return err;
 }
 

@@ -50,7 +50,7 @@ public:
      * this method is the actual execute method of task,
      * for example, to notify callback server.
      */
-    virtual int call() = 0;
+    virtual srs_error_t call() = 0;
     /**
      * convert task to string to describe it.
      * used for logger.
@@ -74,7 +74,7 @@ public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
 public:
-    virtual int execute(ISrsAsyncCallTask* t);
+    virtual srs_error_t execute(ISrsAsyncCallTask* t);
     virtual int count();
 public:
     virtual srs_error_t start();

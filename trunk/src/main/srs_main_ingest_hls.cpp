@@ -285,6 +285,7 @@ int SrsIngestHlsInput::parse(ISrsTsHandler* ts, ISrsAacHandler* aac)
 int SrsIngestHlsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // use stream to parse ts packet.
     int nb_packet = (int)nb_body / SRS_TS_PACKET_SIZE;
@@ -295,7 +296,10 @@ int SrsIngestHlsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
         }
         
         // process each ts packet
-        if ((ret = context->decode(stream, handler)) != ERROR_SUCCESS) {
+        if ((err = context->decode(stream, handler)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_error("mpegts: ignore parse ts packet failed. ret=%d", ret);
             return ret;
         }
@@ -366,17 +370,24 @@ int SrsIngestHlsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
 int SrsIngestHlsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsHttpClient client;
     srs_trace("parse input hls %s", url->get_url().c_str());
     
-    if ((ret = client.initialize(url->get_host(), url->get_port())) != ERROR_SUCCESS) {
+    if ((err = client.initialize(url->get_host(), url->get_port())) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("connect to server failed. ret=%d", ret);
         return ret;
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((err = client.get(url->get_path(), "", &msg)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("HTTP GET %s failed. ret=%d", url->get_url().c_str(), ret);
         return ret;
     }
@@ -575,6 +586,7 @@ void SrsIngestHlsInput::remove_dirty()
 int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (skip || sent || !body.empty()) {
         return ret;
@@ -598,7 +610,10 @@ int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((err = client.get(uri.get_path(), "", &msg)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("HTTP GET %s failed. ret=%d", uri.get_url().c_str(), ret);
         return ret;
     }
@@ -643,7 +658,7 @@ public:
     virtual ~SrsIngestHlsOutput();
 // interface ISrsTsHandler
 public:
-    virtual int on_ts_message(SrsTsMessage* msg);
+    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 // interface IAacHandler
 public:
     virtual int on_aac_frame(char* frame, int frame_size, double duration);
@@ -702,9 +717,10 @@ SrsIngestHlsOutput::~SrsIngestHlsOutput()
     queue.clear();
 }
 
-int SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
+srs_error_t SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // about the bytes of msg, specified by elementary stream which indicates by PES_packet_data_byte and stream_id
     // for example, when SrsTsStream of SrsTsChannel indicates stream_type is SrsTsStreamVideoMpeg4 and SrsTsStreamAudioMpeg4,
@@ -756,26 +772,22 @@ int SrsIngestHlsOutput::on_ts_message(SrsTsMessage* msg)
     
     // when not audio/video, or not adts/annexb format, donot support.
     if (msg->stream_number() != 0) {
-        ret = ERROR_STREAM_CASTER_TS_ES;
-        srs_error("mpegts: unsupported stream format, sid=%#x(%s-%d). ret=%d",
-                  msg->sid, msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number(), ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_ES, "ts: unsupported stream format, sid=%#x(%s-%d)",
+            msg->sid, msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
     }
     
     // check supported codec
     if (msg->channel->stream != SrsTsStreamVideoH264 && msg->channel->stream != SrsTsStreamAudioAAC) {
-        ret = ERROR_STREAM_CASTER_TS_CODEC;
-        srs_error("mpegts: unsupported stream codec=%d. ret=%d", msg->channel->stream, ret);
-        return ret;
+        return srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "ts: unsupported stream codec=%d", msg->channel->stream);
     }
     
     // we must use queue to cache the msg, then parse it if possible.
     queue.insert(std::make_pair(msg->dts, msg->detach()));
     if ((ret = parse_message_queue()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "ts: parse message");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsIngestHlsOutput::on_aac_frame(char* frame, int frame_size, double duration)

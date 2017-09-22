@@ -135,11 +135,11 @@ protected:
     virtual srs_error_t do_cycle();
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_vhost_play(std::string vhost);
-    virtual int on_reload_vhost_tcp_nodelay(std::string vhost);
-    virtual int on_reload_vhost_realtime(std::string vhost);
-    virtual int on_reload_vhost_publish(std::string vhost);
+    virtual srs_error_t on_reload_vhost_removed(std::string vhost);
+    virtual srs_error_t on_reload_vhost_play(std::string vhost);
+    virtual srs_error_t on_reload_vhost_tcp_nodelay(std::string vhost);
+    virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
+    virtual srs_error_t on_reload_vhost_publish(std::string vhost);
 // interface IKbpsDelta
 public:
     virtual void resample();
@@ -173,11 +173,11 @@ private:
      */
     virtual srs_error_t on_disconnect();
 private:
-    virtual int http_hooks_on_connect();
+    virtual srs_error_t http_hooks_on_connect();
     virtual void http_hooks_on_close();
-    virtual int http_hooks_on_publish();
+    virtual srs_error_t http_hooks_on_publish();
     virtual void http_hooks_on_unpublish();
-    virtual int http_hooks_on_play();
+    virtual srs_error_t http_hooks_on_play();
     virtual void http_hooks_on_stop();
 };
 

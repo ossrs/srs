@@ -56,14 +56,14 @@ SrsAsyncCallWorker::~SrsAsyncCallWorker()
     srs_cond_destroy(wait);
 }
 
-int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
+srs_error_t SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     tasks.push_back(t);
     srs_cond_signal(wait);
     
-    return ret;
+    return err;
 }
 
 int SrsAsyncCallWorker::count()
@@ -111,9 +111,9 @@ srs_error_t SrsAsyncCallWorker::cycle()
         for (it = copy.begin(); it != copy.end(); ++it) {
             ISrsAsyncCallTask* task = *it;
             
-            int ret = ERROR_SUCCESS;
-            if ((ret = task->call()) != ERROR_SUCCESS) {
-                srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);
+            if ((err = task->call()) != srs_success) {
+                srs_warn("ignore task failed %s", srs_error_desc(err).c_str());
+                srs_freep(err);
             }
             srs_freep(task);
         }

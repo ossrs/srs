@@ -47,7 +47,7 @@ public:
     virtual void elapse(int64_t diff);
     virtual bool can_print();
 public:
-    virtual int on_reload_pithy_print();
+    virtual srs_error_t on_reload_pithy_print();
 };
 
 /**

@@ -158,12 +158,16 @@ void SrsForwarder::on_unpublish()
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* metadata = shared_metadata->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(metadata, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
+    if ((err = jitter->correct(metadata, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         srs_freep(metadata);
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -177,12 +181,16 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
+    if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         srs_freep(msg);
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -201,12 +209,16 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
 int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
-    if ((ret = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
+    if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
         srs_freep(msg);
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     

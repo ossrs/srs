@@ -382,7 +382,7 @@ private:
     /**
      * reload the vhost section of config.
      */
-    virtual int reload_vhost(SrsConfDirective* old_root);
+    virtual srs_error_t reload_vhost(SrsConfDirective* old_root);
 protected:
     /**
      * reload from the config.
@@ -402,11 +402,11 @@ private:
     /**
      * reload the transcode section of vhost of config.
      */
-    virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
+    virtual srs_error_t reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     /**
      * reload the ingest section of vhost of config.
      */
-    virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
+    virtual srs_error_t reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     // parse options and file
 public:
     /**
@@ -510,17 +510,17 @@ public:
      */
     virtual int raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
 private:
-    virtual int do_reload_listen();
-    virtual int do_reload_pid();
-    virtual int do_reload_srs_log_tank();
-    virtual int do_reload_srs_log_level();
-    virtual int do_reload_srs_log_file();
-    virtual int do_reload_max_connections();
+    virtual srs_error_t do_reload_listen();
+    virtual srs_error_t do_reload_pid();
+    virtual srs_error_t do_reload_srs_log_tank();
+    virtual srs_error_t do_reload_srs_log_level();
+    virtual srs_error_t do_reload_srs_log_file();
+    virtual srs_error_t do_reload_max_connections();
     virtual srs_error_t do_reload_utc_time();
-    virtual int do_reload_pithy_print_ms();
-    virtual int do_reload_vhost_added(std::string vhost);
-    virtual int do_reload_vhost_removed(std::string vhost);
-    virtual int do_reload_vhost_dvr_apply(std::string vhost);
+    virtual srs_error_t do_reload_pithy_print_ms();
+    virtual srs_error_t do_reload_vhost_added(std::string vhost);
+    virtual srs_error_t do_reload_vhost_removed(std::string vhost);
+    virtual srs_error_t do_reload_vhost_dvr_apply(std::string vhost);
 public:
     /**
      * get the config file path.

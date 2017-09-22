@@ -63,16 +63,16 @@ public:
     virtual void set_path(std::string v);
     // Unlink the fragment, to delete the file.
     // @remark Ignore any error.
-    virtual int unlink_file();
+    virtual srs_error_t unlink_file();
     // Create the dir for file recursively.
-    virtual int create_dir();
+    virtual srs_error_t create_dir();
 public:
     // Get the temporary path for file.
     virtual std::string tmppath();
     // Unlink the temporary file.
-    virtual int unlink_tmpfile();
+    virtual srs_error_t unlink_tmpfile();
     // Rename the temp file to final file.
-    virtual int rename();
+    virtual srs_error_t rename();
 };
 
 /**

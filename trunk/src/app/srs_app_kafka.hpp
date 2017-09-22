@@ -89,7 +89,7 @@ public:
     virtual ~SrsKafkaMessage();
 // interface ISrsAsyncCallTask
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 
@@ -141,12 +141,12 @@ public:
      * @param type the type of client.
      * @param ip the peer ip of client.
      */
-    virtual int on_client(int key, SrsListenerType type, std::string ip) = 0;
+    virtual srs_error_t on_client(int key, SrsListenerType type, std::string ip) = 0;
     /**
      * when client close or disconnect for error.
      * @param key the partition map key, the client id or hash(ip).
      */
-    virtual int on_close(int key) = 0;
+    virtual srs_error_t on_close(int key) = 0;
 };
 
 // @global kafka event producer.
@@ -192,8 +192,8 @@ public:
     virtual int send(int key, SrsJsonObject* obj);
 // interface ISrsKafkaCluster
 public:
-    virtual int on_client(int key, SrsListenerType type, std::string ip);
-    virtual int on_close(int key);
+    virtual srs_error_t on_client(int key, SrsListenerType type, std::string ip);
+    virtual srs_error_t on_close(int key);
 // interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();

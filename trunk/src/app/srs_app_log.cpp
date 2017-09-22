@@ -206,23 +206,23 @@ srs_error_t SrsFastLog::on_reload_utc_time()
     return srs_success;
 }
 
-int SrsFastLog::on_reload_log_tank()
+srs_error_t SrsFastLog::on_reload_log_tank()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config) {
-        return ret;
+        return err;
     }
     
     bool tank = log_to_file_tank;
     log_to_file_tank = _srs_config->get_log_tank_file();
     
     if (tank) {
-        return ret;
+        return err;
     }
     
     if (!log_to_file_tank) {
-        return ret;
+        return err;
     }
     
     if (fd > 0) {
@@ -230,32 +230,32 @@ int SrsFastLog::on_reload_log_tank()
     }
     open_log_file();
     
-    return ret;
+    return err;
 }
 
-int SrsFastLog::on_reload_log_level()
+srs_error_t SrsFastLog::on_reload_log_level()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config) {
-        return ret;
+        return err;
     }
     
     level = srs_get_log_level(_srs_config->get_log_level());
     
-    return ret;
+    return err;
 }
 
-int SrsFastLog::on_reload_log_file()
+srs_error_t SrsFastLog::on_reload_log_file()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config) {
-        return ret;
+        return err;
     }
     
     if (!log_to_file_tank) {
-        return ret;
+        return err;
     }
     
     if (fd > 0) {
@@ -263,7 +263,7 @@ int SrsFastLog::on_reload_log_file()
     }
     open_log_file();
     
-    return ret;
+    return err;
 }
 
 void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)

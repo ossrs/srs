@@ -483,9 +483,9 @@ void SrsIngester::show_ingest_log_message()
     }
 }
 
-int SrsIngester::on_reload_vhost_removed(string vhost)
+srs_error_t SrsIngester::on_reload_vhost_removed(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::vector<SrsIngesterFFMPEG*>::iterator it;
     
@@ -508,26 +508,27 @@ int SrsIngester::on_reload_vhost_removed(string vhost)
         it = ingesters.erase(it);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::on_reload_vhost_added(string vhost)
+srs_error_t SrsIngester::on_reload_vhost_added(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
     if ((ret = parse_ingesters(_vhost)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "parse ingesters");
     }
     
     srs_trace("reload add vhost ingesters, vhost=%s", vhost.c_str());
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::on_reload_ingest_removed(string vhost, string ingest_id)
+srs_error_t SrsIngester::on_reload_ingest_removed(string vhost, string ingest_id)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::vector<SrsIngesterFFMPEG*>::iterator it;
     
@@ -550,48 +551,47 @@ int SrsIngester::on_reload_ingest_removed(string vhost, string ingest_id)
         it = ingesters.erase(it);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::on_reload_ingest_added(string vhost, string ingest_id)
+srs_error_t SrsIngester::on_reload_ingest_added(string vhost, string ingest_id)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
     SrsConfDirective* _ingester = _srs_config->get_ingest_by_id(vhost, ingest_id);
     
     if ((ret = parse_engines(_vhost, _ingester)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "parse engines");
     }
     
-    srs_trace("reload add ingester, "
-              "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
+    srs_trace("reload add ingester, vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::on_reload_ingest_updated(string vhost, string ingest_id)
+srs_error_t SrsIngester::on_reload_ingest_updated(string vhost, string ingest_id)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = on_reload_ingest_removed(vhost, ingest_id)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_ingest_removed(vhost, ingest_id)) != srs_success) {
+        return srs_error_wrap(err, "reload ingest removed");
     }
     
-    if ((ret = on_reload_ingest_added(vhost, ingest_id)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_ingest_added(vhost, ingest_id)) != srs_success) {
+        return srs_error_wrap(err, "reload ingest added");
     }
     
-    srs_trace("reload updated ingester, "
-              "vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
+    srs_trace("reload updated ingester, vhost=%s, id=%s", vhost.c_str(), ingest_id.c_str());
     
-    return ret;
+    return err;
 }
 
-int SrsIngester::on_reload_listen()
+srs_error_t SrsIngester::on_reload_listen()
 {
     expired = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 #endif

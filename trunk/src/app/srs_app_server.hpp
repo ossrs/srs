@@ -371,15 +371,15 @@ public:
     virtual void remove(ISrsConnection* c);
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_listen();
-    virtual int on_reload_pid();
-    virtual int on_reload_vhost_added(std::string vhost);
-    virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_http_api_enabled();
-    virtual int on_reload_http_api_disabled();
-    virtual int on_reload_http_stream_enabled();
-    virtual int on_reload_http_stream_disabled();
-    virtual int on_reload_http_stream_updated();
+    virtual srs_error_t on_reload_listen();
+    virtual srs_error_t on_reload_pid();
+    virtual srs_error_t on_reload_vhost_added(std::string vhost);
+    virtual srs_error_t on_reload_vhost_removed(std::string vhost);
+    virtual srs_error_t on_reload_http_api_enabled();
+    virtual srs_error_t on_reload_http_api_disabled();
+    virtual srs_error_t on_reload_http_stream_enabled();
+    virtual srs_error_t on_reload_http_stream_disabled();
+    virtual srs_error_t on_reload_http_stream_updated();
 // interface ISrsSourceHandler
 public:
     virtual int on_publish(SrsSource* s, SrsRequest* r);

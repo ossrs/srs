@@ -468,12 +468,12 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 }
 #endif
 
-int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
+srs_error_t SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // the mr settings,
@@ -505,22 +505,22 @@ int SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
     mr = mr_enabled;
     mr_sleep = sleep_ms;
     
-    return ret;
+    return err;
 }
 
-int SrsPublishRecvThread::on_reload_vhost_realtime(string vhost)
+srs_error_t SrsPublishRecvThread::on_reload_vhost_realtime(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     bool realtime_enabled = _srs_config->get_realtime_enabled(req->vhost);
     srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
     realtime = realtime_enabled;
     
-    return ret;
+    return err;
 }
 
 void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)

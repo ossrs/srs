@@ -85,6 +85,7 @@ SrsFragmentedMp4::~SrsFragmentedMp4()
 int SrsFragmentedMp4::initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd, uint32_t tid)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     string file_home;
     string file_name;
@@ -97,7 +98,10 @@ int SrsFragmentedMp4::initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd, u
     string home = _srs_config->get_dash_path(r->vhost);
     set_path(home + "/" + file_home + "/" + file_name);
     
-    if ((ret = create_dir()) != ERROR_SUCCESS) {
+    if ((err = create_dir()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -146,6 +150,7 @@ int SrsFragmentedMp4::write(SrsSharedPtrMessage* shared_msg, SrsFormat* format)
 int SrsFragmentedMp4::reap(uint64_t& dts)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = enc->flush(dts)) != ERROR_SUCCESS) {
         srs_error("DASH: Flush encoder failed, ret=%d", ret);
@@ -154,7 +159,10 @@ int SrsFragmentedMp4::reap(uint64_t& dts)
     
     srs_freep(fw);
     
-    if ((ret = rename()) != ERROR_SUCCESS) {
+    if ((err = rename()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -191,6 +199,7 @@ srs_error_t SrsMpdWriter::initialize(SrsRequest* r)
 int SrsMpdWriter::write(SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // MPD is not expired?
     if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < update_period) {
@@ -204,7 +213,10 @@ int SrsMpdWriter::write(SrsFormat* format)
     
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
     
-    if ((ret = srs_create_dir_recursively(full_home)) != ERROR_SUCCESS) {
+    if ((err = srs_create_dir_recursively(full_home)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("DASH: Create MPD home failed, home=%s, ret=%d", full_home.c_str(), ret);
         return ret;
     }
@@ -427,6 +439,7 @@ int SrsDashController::refresh_mpd(SrsFormat* format)
 int SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* format)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (msg->size <= 0 || (msg->is_video() && !format->vcodec->is_avc_codec_ok())
         || (msg->is_audio() && !format->acodec->is_aac_codec_ok())) {
@@ -435,7 +448,10 @@ int SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* for
     }
     
     string full_home = home + "/" + req->app + "/" + req->stream;
-    if ((ret = srs_create_dir_recursively(full_home)) != ERROR_SUCCESS) {
+    if ((err = srs_create_dir_recursively(full_home)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("DASH: Create media home failed, home=%s, ret=%d", full_home.c_str(), ret);
         return ret;
     }
@@ -457,7 +473,10 @@ int SrsDashController::refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* for
         return ret;
     }
     
-    if ((ret = init_mp4->rename()) != ERROR_SUCCESS) {
+    if ((err = init_mp4->rename()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     

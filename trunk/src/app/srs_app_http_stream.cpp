@@ -203,8 +203,12 @@ SrsTsStreamEncoder::~SrsTsStreamEncoder()
 int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+    if ((err = enc->initialize(w)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -213,12 +217,20 @@ int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
 
 int SrsTsStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
-    return enc->write_audio(timestamp, data, size);
+    srs_error_t err = enc->write_audio(timestamp, data, size);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 int SrsTsStreamEncoder::write_video(int64_t timestamp, char* data, int size)
 {
-    return enc->write_video(timestamp, data, size);
+    srs_error_t err = enc->write_video(timestamp, data, size);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 int SrsTsStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
@@ -813,29 +825,30 @@ void SrsHttpStreamServer::http_unmount(SrsSource* s, SrsRequest* r)
     entry->stream->entry->enabled = false;
 }
 
-int SrsHttpStreamServer::on_reload_vhost_added(string vhost)
+srs_error_t SrsHttpStreamServer::on_reload_vhost_added(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = on_reload_vhost_http_remux_updated(vhost)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_vhost_http_remux_updated(vhost)) != srs_success) {
+        return srs_error_wrap(err, "reload vhost added");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
+srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (tflvs.find(vhost) == tflvs.end()) {
         if ((ret = initialize_flv_entry(vhost)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "init flv entry");
         }
         
         // http mount need SrsRequest and SrsSource param, only create a mapping template entry
         // and do mount automatically on playing http flv if this stream is a new http_remux stream.
-        return ret;
+        return err;
     }
     
     SrsLiveEntry* tmpl = tflvs[vhost];
@@ -848,7 +861,7 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
     }
     
     if (!_srs_config->get_vhost_http_remux_enabled(vhost)) {
-        return ret;
+        return err;
     }
     
     string old_tmpl_mount = tmpl->mount;
@@ -867,8 +880,7 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
         
         // remount stream.
         if ((ret = http_mount(source, req)) != ERROR_SUCCESS) {
-            srs_trace("vhost %s http_remux reload failed", vhost.c_str());
-            return ret;
+            return srs_error_new(ret, "vhost %s http_remux reload failed", vhost.c_str());
         }
     } else {
         // for without SrsRequest and SrsSource if stream is not played yet, do http mount automatically
@@ -877,7 +889,7 @@ int SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
     
     srs_trace("vhost %s http_remux reload success", vhost.c_str());
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)

@@ -63,8 +63,8 @@ private:
     virtual int mount_vhost(std::string vhost, std::string& pmount);
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_vhost_added(std::string vhost);
-    virtual int on_reload_vhost_http_updated();
+    virtual srs_error_t on_reload_vhost_added(std::string vhost);
+    virtual srs_error_t on_reload_vhost_http_updated();
 };
 
 #endif

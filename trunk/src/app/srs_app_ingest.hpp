@@ -106,12 +106,12 @@ private:
     virtual void show_ingest_log_message();
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_vhost_added(std::string vhost);
-    virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
-    virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
-    virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);
-    virtual int on_reload_listen();
+    virtual srs_error_t on_reload_vhost_removed(std::string vhost);
+    virtual srs_error_t on_reload_vhost_added(std::string vhost);
+    virtual srs_error_t on_reload_ingest_removed(std::string vhost, std::string ingest_id);
+    virtual srs_error_t on_reload_ingest_added(std::string vhost, std::string ingest_id);
+    virtual srs_error_t on_reload_ingest_updated(std::string vhost, std::string ingest_id);
+    virtual srs_error_t on_reload_listen();
 };
 
 #endif

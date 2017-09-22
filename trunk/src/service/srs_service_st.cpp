@@ -103,10 +103,8 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-int srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
 {
-    int ret = ERROR_SUCCESS;
-    
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_CONSTS_NO_TMMS) {
         timeout = (st_utime_t)(tm * 1000);
@@ -122,43 +120,35 @@ int srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
     hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     addrinfo* result  = NULL;
-
     if(getaddrinfo(server.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "dns resolve server error");
     }
     
     int sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if(sock == -1) {
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
+    if(sock == -1){
         freeaddrinfo(result);
-        return ret;
+        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
     
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket failed. ret=%d", ret);
         srs_close_stfd(stfd);
         freeaddrinfo(result);
-        return ret;
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
     
     if (st_connect((st_netfd_t)stfd, result->ai_addr, result->ai_addrlen, timeout) == -1){
-        ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. server=%s, port=%d, ret=%d", server.c_str(), port, ret);
         srs_close_stfd(stfd);
         freeaddrinfo(result);
-        return ret;
+        return srs_error_new(ERROR_ST_CONNECT, "connect to %s:%d", server.c_str(), port);
     }
+    
     srs_info("connect ok. server=%s, port=%d", server.c_str(), port);
     
     freeaddrinfo(result);
     *pstfd = stfd;
-    return ret;
+    return srs_success;
 }
 
 srs_cond_t srs_cond_new()
@@ -252,10 +242,10 @@ SrsStSocket::~SrsStSocket()
 {
 }
 
-int SrsStSocket::initialize(srs_netfd_t fd)
+srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
 {
     stfd = fd;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 bool SrsStSocket::is_never_timeout(int64_t tm)
@@ -444,23 +434,22 @@ SrsTcpClient::~SrsTcpClient()
     srs_freep(io);
 }
 
-int SrsTcpClient::connect()
+srs_error_t SrsTcpClient::connect()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     close();
     
     srs_assert(stfd == NULL);
-    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_error("connect tcp://%s:%d failed, to=%" PRId64 "ms. ret=%d", host.c_str(), port, timeout, ret);
-        return ret;
+    if ((err = srs_socket_connect(host, port, timeout, &stfd)) != srs_success) {
+        return srs_error_wrap(err, "tcp: connect %s:%d to=%d", host.c_str(), port, (int)timeout);
     }
     
-    if ((ret = io->initialize(stfd)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = io->initialize(stfd)) != srs_success) {
+        return srs_error_wrap(err, "tcp: init socket object");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsTcpClient::close()

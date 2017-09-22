@@ -231,11 +231,10 @@ SrsRtspConn::~SrsRtspConn()
 
 srs_error_t SrsRtspConn::serve()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "socket initialize");
+    if ((err = skt->initialize(stfd)) != srs_success) {
+        return srs_error_wrap(err, "socket initialize");
     }
     
     if ((err = trd->start()) != srs_success) {

@@ -77,33 +77,30 @@ void SrsFragment::set_path(string v)
     filepath = v;
 }
 
-int SrsFragment::unlink_file()
+srs_error_t SrsFragment::unlink_file()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (::unlink(filepath.c_str()) < 0) {
-        ret = ERROR_SYSTEM_FRAGMENT_UNLINK;
-        srs_error("Unlink fragment failed, file=%s, ret=%d.", filepath.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_FRAGMENT_UNLINK, "unlink %s", filepath.c_str());
     }
     
-    return ret;
+    return err;
 }
 
-int SrsFragment::create_dir()
+srs_error_t SrsFragment::create_dir()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::string segment_dir = srs_path_dirname(filepath);
     
-    if ((ret = srs_create_dir_recursively(segment_dir)) != ERROR_SUCCESS) {
-        srs_error("Create dir %s failed. ret=%d", segment_dir.c_str(), ret);
-        return ret;
+    if ((err = srs_create_dir_recursively(segment_dir)) != srs_success) {
+        return srs_error_wrap(err, "create %s", segment_dir.c_str());
     }
     
     srs_info("Create dir %s ok", segment_dir.c_str());
     
-    return ret;
+    return err;
 }
 
 string SrsFragment::tmppath()
@@ -111,34 +108,30 @@ string SrsFragment::tmppath()
     return filepath + ".tmp";
 }
 
-int SrsFragment::unlink_tmpfile()
+srs_error_t SrsFragment::unlink_tmpfile()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     string filepath = tmppath();
     if (::unlink(filepath.c_str()) < 0) {
-        ret = ERROR_SYSTEM_FRAGMENT_UNLINK;
-        srs_error("Unlink temporary fragment failed, file=%s, ret=%d.", filepath.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_FRAGMENT_UNLINK, "unlink tmp file %s", filepath.c_str());
     }
     
-    return ret;
+    return err;
 }
 
-int SrsFragment::rename()
+srs_error_t SrsFragment::rename()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     string full_path = fullpath();
     string tmp_file = tmppath();
     
     if (::rename(tmp_file.c_str(), full_path.c_str()) < 0) {
-        ret = ERROR_SYSTEM_FRAGMENT_RENAME;
-        srs_error("rename ts file failed, %s => %s. ret=%d", tmp_file.c_str(), full_path.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_FRAGMENT_RENAME, "rename %s to %s", tmp_file.c_str(), full_path.c_str());
     }
     
-    return ret;
+    return err;
 }
 
 SrsFragmentWindow::SrsFragmentWindow()
@@ -164,14 +157,15 @@ SrsFragmentWindow::~SrsFragmentWindow()
 
 void SrsFragmentWindow::dispose()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::vector<SrsFragment*>::iterator it;
     
     for (it = fragments.begin(); it != fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        if ((ret = fragment->unlink_file()) != ERROR_SUCCESS) {
-            srs_warn("Unlink ts failed, file=%s, ret=%d", fragment->fullpath().c_str(), ret);
+        if ((err = fragment->unlink_file()) != srs_success) {
+            srs_warn("Unlink ts failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         srs_freep(fragment);
     }
@@ -179,8 +173,9 @@ void SrsFragmentWindow::dispose()
     
     for (it = expired_fragments.begin(); it != expired_fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        if ((ret = fragment->unlink_file()) != ERROR_SUCCESS) {
-            srs_warn("Unlink ts failed, file=%s, ret=%d", fragment->fullpath().c_str(), ret);
+        if ((err = fragment->unlink_file()) != srs_success) {
+            srs_warn("Unlink ts failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         srs_freep(fragment);
     }
@@ -217,14 +212,15 @@ void SrsFragmentWindow::shrink(int64_t window)
 
 void SrsFragmentWindow::clear_expired(bool delete_files)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::vector<SrsFragment*>::iterator it;
     
     for (it = expired_fragments.begin(); it != expired_fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        if (delete_files && (ret = fragment->unlink_file()) != ERROR_SUCCESS) {
-            srs_warn("Unlink ts failed, file=%s, ret=%d", fragment->fullpath().c_str(), ret);
+        if (delete_files && (err = fragment->unlink_file()) != srs_success) {
+            srs_warn("Unlink ts failed, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
         srs_freep(fragment);
     }

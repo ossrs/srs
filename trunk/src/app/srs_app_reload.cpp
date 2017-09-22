@@ -35,9 +35,9 @@ ISrsReloadHandler::~ISrsReloadHandler()
 {
 }
 
-int ISrsReloadHandler::on_reload_listen()
+srs_error_t ISrsReloadHandler::on_reload_listen()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 srs_error_t ISrsReloadHandler::on_reload_utc_time()
@@ -45,44 +45,44 @@ srs_error_t ISrsReloadHandler::on_reload_utc_time()
     return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_max_conns()
+srs_error_t ISrsReloadHandler::on_reload_max_conns()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_pid()
+srs_error_t ISrsReloadHandler::on_reload_pid()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_log_tank()
+srs_error_t ISrsReloadHandler::on_reload_log_tank()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_log_level()
+srs_error_t ISrsReloadHandler::on_reload_log_level()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_log_file()
+srs_error_t ISrsReloadHandler::on_reload_log_file()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_pithy_print()
+srs_error_t ISrsReloadHandler::on_reload_pithy_print()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_api_enabled()
+srs_error_t ISrsReloadHandler::on_reload_http_api_enabled()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_api_disabled()
+srs_error_t ISrsReloadHandler::on_reload_http_api_disabled()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 srs_error_t ISrsReloadHandler::on_reload_http_api_crossdomain()
@@ -90,24 +90,24 @@ srs_error_t ISrsReloadHandler::on_reload_http_api_crossdomain()
     return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_api_raw_api()
+srs_error_t ISrsReloadHandler::on_reload_http_api_raw_api()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_stream_enabled()
+srs_error_t ISrsReloadHandler::on_reload_http_stream_enabled()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_stream_disabled()
+srs_error_t ISrsReloadHandler::on_reload_http_stream_disabled()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_http_stream_updated()
+srs_error_t ISrsReloadHandler::on_reload_http_stream_updated()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 srs_error_t ISrsReloadHandler::on_reload_http_stream_crossdomain()
@@ -115,108 +115,108 @@ srs_error_t ISrsReloadHandler::on_reload_http_stream_crossdomain()
     return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_http_updated()
+srs_error_t ISrsReloadHandler::on_reload_vhost_http_updated()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_http_remux_updated(string vhost)
+srs_error_t ISrsReloadHandler::on_reload_vhost_http_remux_updated(string vhost)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_added(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_added(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_play(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_play(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_forward(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_forward(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_dash(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_dash(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_hls(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_hls(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_hds(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_hds(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_dvr_apply(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_dvr_apply(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_publish(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_publish(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_tcp_nodelay(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_tcp_nodelay(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_realtime(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_realtime(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_chunk_size(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_chunk_size(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_transcode(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_transcode(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_vhost_exec(string /*vhost*/)
+srs_error_t ISrsReloadHandler::on_reload_vhost_exec(string /*vhost*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_ingest_removed(string /*vhost*/, string /*ingest_id*/)
+srs_error_t ISrsReloadHandler::on_reload_ingest_removed(string /*vhost*/, string /*ingest_id*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_ingest_added(string /*vhost*/, string /*ingest_id*/)
+srs_error_t ISrsReloadHandler::on_reload_ingest_added(string /*vhost*/, string /*ingest_id*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*ingest_id*/)
+srs_error_t ISrsReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*ingest_id*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int ISrsReloadHandler::on_reload_user_info()
+srs_error_t ISrsReloadHandler::on_reload_user_info()
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 

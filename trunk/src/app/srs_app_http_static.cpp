@@ -289,22 +289,22 @@ int SrsHttpStaticServer::mount_vhost(string vhost, string& pmount)
     return ret;
 }
 
-int SrsHttpStaticServer::on_reload_vhost_added(string vhost)
+srs_error_t SrsHttpStaticServer::on_reload_vhost_added(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     string pmount;
     if ((ret = mount_vhost(vhost, pmount)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "mount vhost");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsHttpStaticServer::on_reload_vhost_http_updated()
+srs_error_t SrsHttpStaticServer::on_reload_vhost_http_updated()
 {
-    int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
-    return ret;
+    return srs_success;
 }
 

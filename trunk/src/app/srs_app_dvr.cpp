@@ -84,6 +84,7 @@ SrsFragment* SrsDvrSegmenter::current()
 int SrsDvrSegmenter::open()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when already open.
     if (fs->is_open()) {
@@ -99,7 +100,10 @@ int SrsDvrSegmenter::open()
     fragment->set_path(path);
     
     // create dir first.
-    if ((ret = fragment->create_dir()) != ERROR_SUCCESS) {
+    if ((err = fragment->create_dir()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -177,6 +181,7 @@ int SrsDvrSegmenter::write_video(SrsSharedPtrMessage* shared_video, SrsFormat* f
 int SrsDvrSegmenter::close()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when already closed.
     if (!fs->is_open()) {
@@ -191,25 +196,22 @@ int SrsDvrSegmenter::close()
     fs->close();
     
     // when tmp flv file exists, reap it.
-    if ((ret = fragment->rename()) != ERROR_SUCCESS) {
+    if ((err = fragment->rename()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
     // TODO: FIXME: the http callback is async, which will trigger thread switch,
     //          so the on_video maybe invoked during the http callback, and error.
-    if ((ret = plan->on_reap_segment()) != ERROR_SUCCESS) {
+    if ((err = plan->on_reap_segment()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("dvr: notify plan to reap segment failed. ret=%d", ret);
         return ret;
     }
-    
-    return ret;
-}
-
-int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    fragment->append(msg->timestamp);
     
     return ret;
 }
@@ -233,18 +235,27 @@ string SrsDvrSegmenter::generate_path()
     return flv_path;
 }
 
-int SrsDvrSegmenter::on_reload_vhost_dvr(std::string vhost)
+int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
+    fragment->append(msg->timestamp);
+    
+    return ret;
+}
+
+srs_error_t SrsDvrSegmenter::on_reload_vhost_dvr(std::string vhost)
+{
+    srs_error_t err = srs_success;
+    
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost);
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
-    return ret;
+    return err;
 }
 
 SrsDvrFlvSegmenter::SrsDvrFlvSegmenter()
@@ -553,12 +564,12 @@ SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
     srs_freep(req);
 }
 
-int SrsDvrAsyncCallOnDvr::call()
+srs_error_t SrsDvrAsyncCallOnDvr::call()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -571,7 +582,7 @@ int SrsDvrAsyncCallOnDvr::call()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_dvr");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -579,13 +590,12 @@ int SrsDvrAsyncCallOnDvr::call()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_dvr(cid, url, req, path)) != ERROR_SUCCESS) {
-            srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_dvr(cid, url, req, path)) != srs_success) {
+            return srs_error_wrap(err, "callback on_dvr %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 string SrsDvrAsyncCallOnDvr::to_string()
@@ -670,20 +680,20 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     return ret;
 }
 
-int SrsDvrPlan::on_reap_segment()
+srs_error_t SrsDvrPlan::on_reap_segment()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     int cid = _srs_context->get_id();
     
     SrsFragment* fragment = segment->current();
     string fullpath = fragment->fullpath();
     
-    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != srs_success) {
+        return srs_error_wrap(err, "reap segment");
     }
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsDvrPlan::create_plan(string vhost, SrsDvrPlan** pplan)
@@ -885,12 +895,12 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
+srs_error_t SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
@@ -899,7 +909,7 @@ int SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
     // to ms
     cduration *= 1000;
     
-    return ret;
+    return err;
 }
 
 SrsDvr::SrsDvr()
@@ -1006,32 +1016,33 @@ int SrsDvr::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     return plan->on_video(shared_video, format);
 }
 
-int SrsDvr::on_reload_vhost_dvr_apply(string vhost)
+srs_error_t SrsDvr::on_reload_vhost_dvr_apply(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* conf = _srs_config->get_dvr_apply(req->vhost);
     bool v = srs_config_apply_filter(conf, req);
     
     // the apply changed, republish the dvr.
     if (v == actived) {
-        return ret;
+        return err;
     }
     actived = v;
     
     on_unpublish();
     if (!actived) {
-        return ret;
+        return err;
     }
     
     if ((ret = on_publish()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "on publish");
     }
     if ((ret = hub->on_dvr_request_sh()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "request sh");
     }
     
-    return ret;
+    return err;
 }
 
 

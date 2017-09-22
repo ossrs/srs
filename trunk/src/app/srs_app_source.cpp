@@ -85,15 +85,15 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // for performance issue
     if (ag != SrsRtmpJitterAlgorithmFULL) {
         // all jitter correct features is disabled, ignore.
         if (ag == SrsRtmpJitterAlgorithmOFF) {
-            return ret;
+            return err;
         }
         
         // start at zero, but donot ensure monotonically increasing.
@@ -103,18 +103,18 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
                 last_pkt_correct_time = msg->timestamp;
             }
             msg->timestamp -= last_pkt_correct_time;
-            return ret;
+            return err;
         }
         
         // other algorithm, ignore.
-        return ret;
+        return err;
     }
     
     // full jitter algorithm, do jitter correct.
     // set to 0 for metadata.
     if (!msg->is_av()) {
         msg->timestamp = 0;
-        return ret;
+        return err;
     }
     
     /**
@@ -148,7 +148,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, SrsRtmpJitterAlgorithm ag)
     msg->timestamp = last_pkt_correct_time;
     last_pkt_time = time;
     
-    return ret;
+    return err;
 }
 
 int SrsRtmpJitter::get_time()
@@ -470,12 +470,16 @@ int SrsConsumer::get_time()
 int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_msg->copy();
     
     if (!atc) {
-        if ((ret = jitter->correct(msg, ag)) != ERROR_SUCCESS) {
+        if ((err = jitter->correct(msg, ag)) != srs_success) {
             srs_freep(msg);
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
     }
@@ -963,6 +967,7 @@ int SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDa
 int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
     
@@ -993,7 +998,11 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   srs_flv_srates[c->sound_rate]);
     }
     
-    if ((ret = hls->on_audio(msg, format)) != ERROR_SUCCESS) {
+    if ((err = hls->on_audio(msg, format)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1063,6 +1072,7 @@ int SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
 int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video;
     
@@ -1095,7 +1105,11 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
                   c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
     
-    if ((ret = hls->on_video(msg, format)) != ERROR_SUCCESS) {
+    if ((err = hls->on_video(msg, format)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
+        
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);
@@ -1165,6 +1179,7 @@ int SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_h
 int SrsOriginHub::on_publish()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // create forwarders
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
@@ -1180,7 +1195,10 @@ int SrsOriginHub::on_publish()
     }
 #endif
     
-    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
+    if ((err = hls->on_publish()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
@@ -1295,12 +1313,13 @@ int SrsOriginHub::on_dvr_request_sh()
     return ret;
 }
 
-int SrsOriginHub::on_reload_vhost_forward(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_forward(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1310,70 +1329,68 @@ int SrsOriginHub::on_reload_vhost_forward(string vhost)
     
     // Don't start forwarders when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
-        srs_error("create forwarders failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "create forwarders");
     }
     
     srs_trace("vhost %s forwarders reload success", vhost.c_str());
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_dash(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_dash(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     dash->on_unpublish();
     
     // Don't start DASH when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     if ((ret = dash->on_publish()) != ERROR_SUCCESS) {
-        srs_error("DASH start failed, ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "dash start publish");
     }
     
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
     if (cache_sh_video) {
         if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "format on_video");
         }
         if ((ret = dash->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
-            srs_error("DASH consume video failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "dash on_video");
         }
     }
     
     SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
     if (cache_sh_audio) {
         if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "format on_audio");
         }
         if ((ret = dash->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
-            srs_error("DASH consume audio failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "dash on_audio");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_hls(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_hls(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1382,12 +1399,11 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     
     // Don't start HLS when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
-    if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
-        srs_error("hls publish failed. ret=%d", ret);
-        return ret;
+    if ((err = hls->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish failed");
     }
     srs_trace("vhost %s hls reload success", vhost.c_str());
     
@@ -1399,34 +1415,33 @@ int SrsOriginHub::on_reload_vhost_hls(string vhost)
     SrsSharedPtrMessage* cache_sh_video = source->meta->vsh();
     if (cache_sh_video) {
         if ((ret = format->on_video(cache_sh_video)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "format on_video");
         }
-        if ((ret = hls->on_video(cache_sh_video, format)) != ERROR_SUCCESS) {
-            srs_error("hls process video sequence header message failed. ret=%d", ret);
-            return ret;
+        if ((err = hls->on_video(cache_sh_video, format)) != srs_success) {
+            return srs_error_wrap(err, "hls on_video");
         }
     }
     
     SrsSharedPtrMessage* cache_sh_audio = source->meta->ash();
     if (cache_sh_audio) {
         if ((ret = format->on_audio(cache_sh_audio)) != ERROR_SUCCESS) {
-            return ret;
+            return srs_error_new(ret, "format on_audio");
         }
-        if ((ret = hls->on_audio(cache_sh_audio, format)) != ERROR_SUCCESS) {
-            srs_error("hls process audio sequence header message failed. ret=%d", ret);
-            return ret;
+        if ((err = hls->on_audio(cache_sh_audio, format)) != srs_success) {
+            return srs_error_wrap(err, "hls on_audio");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_hds(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1436,26 +1451,25 @@ int SrsOriginHub::on_reload_vhost_hds(string vhost)
     
     // Don't start HDS when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     if ((ret = hds->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("hds publish failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "hds publish failed");
     }
     srs_trace("vhost %s hds reload success", vhost.c_str());
 #endif
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_dvr(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_dvr(string vhost)
 {
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1465,39 +1479,35 @@ int SrsOriginHub::on_reload_vhost_dvr(string vhost)
     
     // Don't start DVR when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     // reinitialize the dvr, update plan.
     if ((err = dvr->initialize(this, req)) != srs_success) {
-        // TODO: FIXME: Use error.
-        ret = srs_error_code(err);
-        srs_freep(err);
-        
-        return ret;
+        return srs_error_wrap(err, "reload dvr");
     }
     
     // start to publish by new plan.
     if ((ret = dvr->on_publish()) != ERROR_SUCCESS) {
-        srs_error("dvr publish failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "dvr publish failed");
     }
     
     if ((ret = on_dvr_request_sh()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "request sh");
     }
     
     srs_trace("vhost %s dvr reload success", vhost.c_str());
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_transcode(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_transcode(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1507,25 +1517,25 @@ int SrsOriginHub::on_reload_vhost_transcode(string vhost)
     
     // Don't start transcode when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start encoder failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "start encoder failed");
     }
     srs_trace("vhost %s transcode reload success", vhost.c_str());
 #endif
     
-    return ret;
+    return err;
 }
 
-int SrsOriginHub::on_reload_vhost_exec(string vhost)
+srs_error_t SrsOriginHub::on_reload_vhost_exec(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
@@ -1534,16 +1544,15 @@ int SrsOriginHub::on_reload_vhost_exec(string vhost)
     
     // Don't start exec when source is not active.
     if (!is_active) {
-        return ret;
+        return err;
     }
     
     if ((ret = ng_exec->on_publish(req)) != ERROR_SUCCESS) {
-        srs_error("start exec failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ret, "start exec failed");
     }
     srs_trace("vhost %s exec reload success", vhost.c_str());
     
-    return ret;
+    return err;
 }
 
 int SrsOriginHub::create_forwarders()
@@ -1993,12 +2002,12 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     return err;
 }
 
-int SrsSource::on_reload_vhost_play(string vhost)
+srs_error_t SrsSource::on_reload_vhost_play(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // time_jitter
@@ -2073,7 +2082,7 @@ int SrsSource::on_reload_vhost_play(string vhost)
 #endif
     }
     
-    return ret;
+    return err;
 }
 
 int SrsSource::on_source_id_changed(int id)
