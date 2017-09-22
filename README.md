@@ -75,12 +75,6 @@ Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN]
 git clone https://github.com/ossrs/srs.git
 ```
 
-CSDN: [https://code.csdn.net/winlinvip/srs-csdn][csdn], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
-
-```
-git clone https://code.csdn.net/winlinvip/srs-csdn.git
-```
-
 OSChina: [http://git.oschina.net/winlinvip/srs.oschina][oschina], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
