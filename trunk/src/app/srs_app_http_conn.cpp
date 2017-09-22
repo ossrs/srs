@@ -217,8 +217,8 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
     
     SrsStSocket skt;
     
-    if ((ret = skt.initialize(stfd)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init socket");
+    if ((err = skt.initialize(stfd)) != srs_success) {
+        return srs_error_wrap(err, "init socket");
     }
     
     if ((ret = parser->parse_message(&skt, this, preq)) != ERROR_SUCCESS) {

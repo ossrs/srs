@@ -366,17 +366,24 @@ int SrsIngestHlsInput::parseAac(ISrsAacHandler* handler, char* body, int nb_body
 int SrsIngestHlsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsHttpClient client;
     srs_trace("parse input hls %s", url->get_url().c_str());
     
-    if ((ret = client.initialize(url->get_host(), url->get_port())) != ERROR_SUCCESS) {
+    if ((err = client.initialize(url->get_host(), url->get_port())) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("connect to server failed. ret=%d", ret);
         return ret;
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((err = client.get(url->get_path(), "", &msg)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("HTTP GET %s failed. ret=%d", url->get_url().c_str(), ret);
         return ret;
     }
@@ -575,6 +582,7 @@ void SrsIngestHlsInput::remove_dirty()
 int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (skip || sent || !body.empty()) {
         return ret;
@@ -598,7 +606,10 @@ int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((err = client.get(uri.get_path(), "", &msg)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("HTTP GET %s failed. ret=%d", uri.get_url().c_str(), ret);
         return ret;
     }

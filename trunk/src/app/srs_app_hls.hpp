@@ -91,7 +91,7 @@ public:
     SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 
@@ -108,7 +108,7 @@ public:
     SrsDvrAsyncCallOnHlsNotify(int c, SrsRequest* r, std::string u);
     virtual ~SrsDvrAsyncCallOnHlsNotify();
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 

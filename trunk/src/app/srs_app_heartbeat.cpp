@@ -47,6 +47,7 @@ SrsHttpHeartbeat::~SrsHttpHeartbeat()
 void SrsHttpHeartbeat::heartbeat()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::string url = _srs_config->get_heartbeat_url();
     
@@ -78,13 +79,17 @@ void SrsHttpHeartbeat::heartbeat()
     }
     
     SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+    if ((err = http.initialize(uri.get_host(), uri.get_port())) != srs_success) {
+        srs_freep(err);
         return;
     }
     
     std::string req = obj->dumps();
     ISrsHttpMessage* msg = NULL;
-    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
+    if ((err = http.post(uri.get_path(), req, &msg)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_info("http post hartbeart uri failed. url=%s, request=%s, ret=%d",
                  url.c_str(), req.c_str(), ret);
         return;

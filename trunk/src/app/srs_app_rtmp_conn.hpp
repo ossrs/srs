@@ -173,11 +173,11 @@ private:
      */
     virtual srs_error_t on_disconnect();
 private:
-    virtual int http_hooks_on_connect();
+    virtual srs_error_t http_hooks_on_connect();
     virtual void http_hooks_on_close();
-    virtual int http_hooks_on_publish();
+    virtual srs_error_t http_hooks_on_publish();
     virtual void http_hooks_on_unpublish();
-    virtual int http_hooks_on_play();
+    virtual srs_error_t http_hooks_on_play();
     virtual void http_hooks_on_stop();
 };
 

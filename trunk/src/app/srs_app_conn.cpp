@@ -82,11 +82,10 @@ void SrsConnection::dispose()
 
 srs_error_t SrsConnection::start()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = skt->initialize(stfd)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "socket");
+    if ((err = skt->initialize(stfd)) != srs_success) {
+        return srs_error_wrap(err, "init socket");
     }
     
     if ((err = trd->start()) != srs_success) {

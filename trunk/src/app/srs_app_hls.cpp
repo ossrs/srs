@@ -90,12 +90,12 @@ SrsDvrAsyncCallOnHls::~SrsDvrAsyncCallOnHls()
     srs_freep(req);
 }
 
-int SrsDvrAsyncCallOnHls::call()
+srs_error_t SrsDvrAsyncCallOnHls::call()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -108,7 +108,7 @@ int SrsDvrAsyncCallOnHls::call()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_hls");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -116,13 +116,12 @@ int SrsDvrAsyncCallOnHls::call()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_hls(cid, url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != ERROR_SUCCESS) {
-            srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_hls(cid, url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != srs_success) {
+            return srs_error_wrap(err, "callback on_hls %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 string SrsDvrAsyncCallOnHls::to_string()
@@ -142,12 +141,12 @@ SrsDvrAsyncCallOnHlsNotify::~SrsDvrAsyncCallOnHlsNotify()
     srs_freep(req);
 }
 
-int SrsDvrAsyncCallOnHlsNotify::call()
+srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -160,7 +159,7 @@ int SrsDvrAsyncCallOnHlsNotify::call()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_hls_notify");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -169,13 +168,12 @@ int SrsDvrAsyncCallOnHlsNotify::call()
     int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_hls_notify(cid, url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
-            srs_error("hook client on_hls_notify failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_hls_notify(cid, url, req, ts_url, nb_notify)) != srs_success) {
+            return srs_error_wrap(err, "callback on_hls_notify %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 string SrsDvrAsyncCallOnHlsNotify::to_string()

@@ -174,7 +174,7 @@ public:
     SrsDvrAsyncCallOnDvr(int c, SrsRequest* r, std::string p);
     virtual ~SrsDvrAsyncCallOnDvr();
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 

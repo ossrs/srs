@@ -89,7 +89,7 @@ public:
     virtual ~SrsKafkaMessage();
 // interface ISrsAsyncCallTask
 public:
-    virtual int call();
+    virtual srs_error_t call();
     virtual std::string to_string();
 };
 

@@ -553,12 +553,12 @@ SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
     srs_freep(req);
 }
 
-int SrsDvrAsyncCallOnDvr::call()
+srs_error_t SrsDvrAsyncCallOnDvr::call()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -571,7 +571,7 @@ int SrsDvrAsyncCallOnDvr::call()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_dvr");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -579,13 +579,12 @@ int SrsDvrAsyncCallOnDvr::call()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_dvr(cid, url, req, path)) != ERROR_SUCCESS) {
-            srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_dvr(cid, url, req, path)) != srs_success) {
+            return srs_error_wrap(err, "callback on_dvr %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 string SrsDvrAsyncCallOnDvr::to_string()

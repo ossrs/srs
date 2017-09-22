@@ -60,6 +60,7 @@ SrsBasicRtmpClient::~SrsBasicRtmpClient()
 int SrsBasicRtmpClient::connect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     close();
     
@@ -67,8 +68,11 @@ int SrsBasicRtmpClient::connect()
     client = new SrsRtmpClient(transport);
     kbps->set_io(transport, transport);
     
-    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+    if ((err = transport->connect()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     

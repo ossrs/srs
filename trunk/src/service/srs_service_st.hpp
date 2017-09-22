@@ -57,7 +57,7 @@ extern srs_thread_t srs_thread_self();
 
 // client open socket and connect to server.
 // @param tm The timeout in ms.
-extern int srs_socket_connect(std::string server, int port, int64_t tm, srs_netfd_t* pstfd);
+extern srs_error_t srs_socket_connect(std::string server, int port, int64_t tm, srs_netfd_t* pstfd);
 
 // Wrap for coroutine.
 extern srs_cond_t srs_cond_new();
@@ -126,7 +126,7 @@ public:
     virtual ~SrsStSocket();
 public:
     // Initialize the socket with stfd, user must manage it.
-    virtual int initialize(srs_netfd_t fd);
+    virtual srs_error_t initialize(srs_netfd_t fd);
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);
@@ -182,14 +182,14 @@ public:
      * Connect to server over TCP.
      * @remark We will close the exists connection before do connect.
      */
-    virtual int connect();
+    virtual srs_error_t connect();
 private:
     /**
      * Close the connection to server.
      * @remark User should never use the client when close it.
      */
     virtual void close();
-    // interface ISrsProtocolReaderWriter
+// interface ISrsProtocolReaderWriter
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);

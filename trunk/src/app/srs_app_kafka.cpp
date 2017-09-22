@@ -155,6 +155,7 @@ string SrsKafkaPartition::hostport()
 int SrsKafkaPartition::connect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (transport) {
         return ret;
@@ -162,8 +163,11 @@ int SrsKafkaPartition::connect()
     transport = new SrsTcpClient(host, port, SRS_KAFKA_PRODUCER_TIMEOUT);
     kafka = new SrsKafkaClient(transport);
     
-    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+    if ((err = transport->connect()) != srs_success) {
         disconnect();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("connect to %s partition=%d failed. ret=%d", hostport().c_str(), id, ret);
         return ret;
     }
@@ -196,14 +200,14 @@ SrsKafkaMessage::~SrsKafkaMessage()
     srs_freep(obj);
 }
 
-int SrsKafkaMessage::call()
+srs_error_t SrsKafkaMessage::call()
 {
     int ret = producer->send(key, obj);
     
     // the obj is manged by producer now.
     obj = NULL;
     
-    return ret;
+    return srs_error_new(ret, "kafka send");
 }
 
 string SrsKafkaMessage::to_string()
@@ -552,6 +556,7 @@ srs_error_t SrsKafkaProducer::do_cycle()
 int SrsKafkaProducer::request_metadata()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ignore when disabled.
     if (!enabled) {
@@ -588,7 +593,10 @@ int SrsKafkaProducer::request_metadata()
     SrsAutoFree(SrsKafkaClient, kafka);
     
     // reconnect to kafka server.
-    if ((ret = transport->connect()) != ERROR_SUCCESS) {
+    if ((err = transport->connect()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("kafka connect %s:%d failed. ret=%d", server.c_str(), port, ret);
         return ret;
     }

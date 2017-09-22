@@ -75,7 +75,7 @@ public:
      * @param tm The underlayer TCP transport timeout in ms.
      * @remark we will set default values in headers, which can be override by set_header.
      */
-    virtual int initialize(std::string h, int p, int64_t tm = SRS_HTTP_CLIENT_TMMS);
+    virtual srs_error_t initialize(std::string h, int p, int64_t tm = SRS_HTTP_CLIENT_TMMS);
     /**
      * Set HTTP request header in header[k]=v.
      * @return the HTTP client itself.
@@ -89,7 +89,7 @@ public:
      * @param ppmsg output the http message to read the response.
      * @remark user must free the ppmsg if not NULL.
      */
-    virtual int post(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage** ppmsg);
     /**
      * to get data from the uri.
      * @param the path to request on.
@@ -97,14 +97,14 @@ public:
      * @param ppmsg output the http message to read the response.
      * @remark user must free the ppmsg if not NULL.
      */
-    virtual int get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
 private:
     virtual void set_recv_timeout(int64_t tm);
 public:
     virtual void kbps_sample(const char* label, int64_t age);
 private:
     virtual void disconnect();
-    virtual int connect();
+    virtual srs_error_t connect();
 };
 
 #endif

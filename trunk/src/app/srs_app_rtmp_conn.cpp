@@ -502,6 +502,7 @@ int SrsRtmpConn::service_cycle()
 int SrsRtmpConn::stream_service_cycle()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
@@ -563,7 +564,10 @@ int SrsRtmpConn::stream_service_cycle()
                 srs_error("start to play stream failed. ret=%d", ret);
                 return ret;
             }
-            if ((ret = http_hooks_on_play()) != ERROR_SUCCESS) {
+            if ((err = http_hooks_on_play()) != srs_success) {
+                // TODO: FIXME: Use error
+                ret = srs_error_code(err);
+                srs_freep(err);
                 srs_error("http hook on_play failed. ret=%d", ret);
                 return ret;
             }
@@ -617,6 +621,7 @@ int SrsRtmpConn::stream_service_cycle()
 int SrsRtmpConn::check_vhost(bool try_default_vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     srs_assert(req != NULL);
@@ -647,7 +652,11 @@ int SrsRtmpConn::check_vhost(bool try_default_vhost)
         srs_verbose("check refer success.");
     }
     
-    if ((ret = http_hooks_on_connect()) != ERROR_SUCCESS) {
+    if ((err = http_hooks_on_connect()) != srs_success) {
+        srs_error("check vhost failed %s", srs_error_desc(err).c_str());
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -880,6 +889,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
 int SrsRtmpConn::publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
@@ -891,7 +901,10 @@ int SrsRtmpConn::publishing(SrsSource* source)
         srs_verbose("check publish_refer success.");
     }
     
-    if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
+    if ((err = http_hooks_on_publish()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("http hook on_publish failed. ret=%d", ret);
         return ret;
     }
@@ -1330,6 +1343,7 @@ void SrsRtmpConn::set_sock_options()
 int SrsRtmpConn::check_edge_token_traverse_auth()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     srs_assert(req);
@@ -1350,7 +1364,10 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
         SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TMMS);
         SrsAutoFree(SrsTcpClient, transport);
         
-        if ((ret = transport->connect()) != ERROR_SUCCESS) {
+        if ((err = transport->connect()) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_warn("Illegal edge token, tcUrl=%s to server=%s, port=%d. ret=%d", req->tcUrl.c_str(), server.c_str(), port, ret);
             continue;
         }
@@ -1410,14 +1427,14 @@ srs_error_t SrsRtmpConn::on_disconnect()
     return err;
 }
 
-int SrsRtmpConn::http_hooks_on_connect()
+srs_error_t SrsRtmpConn::http_hooks_on_connect()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -1430,7 +1447,7 @@ int SrsRtmpConn::http_hooks_on_connect()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_connect");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -1438,13 +1455,12 @@ int SrsRtmpConn::http_hooks_on_connect()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_connect(url, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_connect(url, req)) != srs_success) {
+            return srs_error_wrap(err, "rtmp on_connect %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 void SrsRtmpConn::http_hooks_on_close()
@@ -1477,14 +1493,14 @@ void SrsRtmpConn::http_hooks_on_close()
     }
 }
 
-int SrsRtmpConn::http_hooks_on_publish()
+srs_error_t SrsRtmpConn::http_hooks_on_publish()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -1497,7 +1513,7 @@ int SrsRtmpConn::http_hooks_on_publish()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_publish");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -1505,13 +1521,12 @@ int SrsRtmpConn::http_hooks_on_publish()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_publish(url, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
+            return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 void SrsRtmpConn::http_hooks_on_unpublish()
@@ -1544,14 +1559,14 @@ void SrsRtmpConn::http_hooks_on_unpublish()
     }
 }
 
-int SrsRtmpConn::http_hooks_on_play()
+srs_error_t SrsRtmpConn::http_hooks_on_play()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return ret;
+        return err;
     }
     
     // the http hooks will cause context switch,
@@ -1564,7 +1579,7 @@ int SrsRtmpConn::http_hooks_on_play()
         
         if (!conf) {
             srs_info("ignore the empty http callback: on_play");
-            return ret;
+            return err;
         }
         
         hooks = conf->args;
@@ -1572,13 +1587,12 @@ int SrsRtmpConn::http_hooks_on_play()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((ret = SrsHttpHooks::on_play(url, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
-            return ret;
+        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+            return srs_error_wrap(err, "rtmp on_play %s", url.c_str());
         }
     }
     
-    return ret;
+    return err;
 }
 
 void SrsRtmpConn::http_hooks_on_stop()
