@@ -137,142 +137,142 @@ bool MockReloadHandler::all_true()
     return count_true() == count_total();
 }
 
-int MockReloadHandler::on_reload_listen()
+srs_error_t MockReloadHandler::on_reload_listen()
 {
     listen_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_pid()
+srs_error_t MockReloadHandler::on_reload_pid()
 {
     pid_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_log_tank()
+srs_error_t MockReloadHandler::on_reload_log_tank()
 {
     log_tank_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_log_level()
+srs_error_t MockReloadHandler::on_reload_log_level()
 {
     log_level_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_log_file()
+srs_error_t MockReloadHandler::on_reload_log_file()
 {
     log_file_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_pithy_print()
+srs_error_t MockReloadHandler::on_reload_pithy_print()
 {
     pithy_print_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_http_api_enabled()
+srs_error_t MockReloadHandler::on_reload_http_api_enabled()
 {
     http_api_enabled_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_http_api_disabled()
+srs_error_t MockReloadHandler::on_reload_http_api_disabled()
 {
     http_api_disabled_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_http_stream_enabled()
+srs_error_t MockReloadHandler::on_reload_http_stream_enabled()
 {
     http_stream_enabled_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_http_stream_disabled()
+srs_error_t MockReloadHandler::on_reload_http_stream_disabled()
 {
     http_stream_disabled_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_http_stream_updated()
+srs_error_t MockReloadHandler::on_reload_http_stream_updated()
 {
     http_stream_updated_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_http_updated()
+srs_error_t MockReloadHandler::on_reload_vhost_http_updated()
 {
     vhost_http_updated_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_added(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_added(string /*vhost*/)
 {
     vhost_added_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_removed(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_removed(string /*vhost*/)
 {
     vhost_removed_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_play(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_play(string /*vhost*/)
 {
     vhost_play_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_forward(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_forward(string /*vhost*/)
 {
     vhost_forward_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_hls(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_hls(string /*vhost*/)
 {
     vhost_hls_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_hds(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_hds(string /*vhost*/)
 {
     vhost_hls_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
 {
     vhost_dvr_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_vhost_transcode(string /*vhost*/)
+srs_error_t MockReloadHandler::on_reload_vhost_transcode(string /*vhost*/)
 {
     vhost_transcode_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_ingest_removed(string /*vhost*/, string /*ingest_id*/)
+srs_error_t MockReloadHandler::on_reload_ingest_removed(string /*vhost*/, string /*ingest_id*/)
 {
     ingest_removed_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_ingest_added(string /*vhost*/, string /*ingest_id*/)
+srs_error_t MockReloadHandler::on_reload_ingest_added(string /*vhost*/, string /*ingest_id*/)
 {
     ingest_added_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*ingest_id*/)
+srs_error_t MockReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*ingest_id*/)
 {
     ingest_updated_reloaded = true;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 MockSrsReloadConfig::MockSrsReloadConfig()

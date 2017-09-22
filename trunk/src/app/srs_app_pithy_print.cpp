@@ -69,10 +69,10 @@ bool SrsStageInfo::can_print()
     return can_print;
 }
 
-int SrsStageInfo::on_reload_pithy_print()
+srs_error_t SrsStageInfo::on_reload_pithy_print()
 {
     update_print_time();
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 static std::map<int, SrsStageInfo*> _srs_stages;

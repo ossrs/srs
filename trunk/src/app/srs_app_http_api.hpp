@@ -189,7 +189,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 // interface ISrsReloadHandler
 public:
-    virtual int on_reload_http_api_raw_api();
+    virtual srs_error_t on_reload_http_api_raw_api();
 };
 
 class SrsGoApiError : public ISrsHttpHandler

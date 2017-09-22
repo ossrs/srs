@@ -290,8 +290,8 @@ public:
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
 // interface ISrsReloadHandler.
 public:
-    virtual int on_reload_vhost_added(std::string vhost);
-    virtual int on_reload_vhost_http_remux_updated(std::string vhost);
+    virtual srs_error_t on_reload_vhost_added(std::string vhost);
+    virtual srs_error_t on_reload_vhost_http_remux_updated(std::string vhost);
 // interface ISrsHttpMatchHijacker
 public:
     virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);

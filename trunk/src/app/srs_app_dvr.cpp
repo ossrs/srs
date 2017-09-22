@@ -205,15 +205,6 @@ int SrsDvrSegmenter::close()
     return ret;
 }
 
-int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    fragment->append(msg->timestamp);
-    
-    return ret;
-}
-
 string SrsDvrSegmenter::generate_path()
 {
     // the path in config, for example,
@@ -233,18 +224,27 @@ string SrsDvrSegmenter::generate_path()
     return flv_path;
 }
 
-int SrsDvrSegmenter::on_reload_vhost_dvr(std::string vhost)
+int SrsDvrSegmenter::on_update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
+    fragment->append(msg->timestamp);
+    
+    return ret;
+}
+
+srs_error_t SrsDvrSegmenter::on_reload_vhost_dvr(std::string vhost)
+{
+    srs_error_t err = srs_success;
+    
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(req->vhost);
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
-    return ret;
+    return err;
 }
 
 SrsDvrFlvSegmenter::SrsDvrFlvSegmenter()
@@ -885,12 +885,12 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
+srs_error_t SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
@@ -899,7 +899,7 @@ int SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
     // to ms
     cduration *= 1000;
     
-    return ret;
+    return err;
 }
 
 SrsDvr::SrsDvr()
@@ -1006,32 +1006,33 @@ int SrsDvr::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
     return plan->on_video(shared_video, format);
 }
 
-int SrsDvr::on_reload_vhost_dvr_apply(string vhost)
+srs_error_t SrsDvr::on_reload_vhost_dvr_apply(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* conf = _srs_config->get_dvr_apply(req->vhost);
     bool v = srs_config_apply_filter(conf, req);
     
     // the apply changed, republish the dvr.
     if (v == actived) {
-        return ret;
+        return err;
     }
     actived = v;
     
     on_unpublish();
     if (!actived) {
-        return ret;
+        return err;
     }
     
     if ((ret = on_publish()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "on publish");
     }
     if ((ret = hub->on_dvr_request_sh()) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "request sh");
     }
     
-    return ret;
+    return err;
 }
 
 

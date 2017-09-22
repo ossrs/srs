@@ -66,9 +66,9 @@ public:
 // interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_utc_time();
-    virtual int on_reload_log_tank();
-    virtual int on_reload_log_level();
-    virtual int on_reload_log_file();
+    virtual srs_error_t on_reload_log_tank();
+    virtual srs_error_t on_reload_log_level();
+    virtual srs_error_t on_reload_log_file();
 private:
     virtual void write_log(int& fd, char* str_log, int size, int level);
     virtual void open_log_file();

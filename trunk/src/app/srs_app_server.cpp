@@ -1283,102 +1283,110 @@ void SrsServer::remove(ISrsConnection* c)
     conn_manager->remove(c);
 }
 
-int SrsServer::on_reload_listen()
+srs_error_t SrsServer::on_reload_listen()
 {
-    // TODO: FIXME: Use error.
-    srs_error_t err = listen();
-    int ret = srs_error_code(err);
-    srs_freep(err);
-    return ret;
+    srs_error_t err = srs_success;
+    
+    if ((err = listen()) != srs_success) {
+        return srs_error_wrap(err, "reload listen");
+    }
+    
+    return err;
 }
 
-int SrsServer::on_reload_pid()
+srs_error_t SrsServer::on_reload_pid()
 {
+    srs_error_t err = srs_success;
+    
     if (pid_fd > 0) {
         ::close(pid_fd);
         pid_fd = -1;
     }
     
-    // TODO: FIXME: Use error.
-    srs_error_t err = acquire_pid_file();
-    int ret = srs_error_code(err);
-    srs_freep(err);
-    return ret;
+    if ((err = acquire_pid_file()) != srs_success) {
+        return srs_error_wrap(err, "reload pid");
+    }
+    
+    return err;
 }
 
-int SrsServer::on_reload_vhost_added(std::string vhost)
+srs_error_t SrsServer::on_reload_vhost_added(std::string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!_srs_config->get_vhost_http_enabled(vhost)) {
-        return ret;
+        return err;
     }
     
     // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_vhost_http_updated()) != srs_success) {
+        return srs_error_wrap(err, "reload vhost added");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
+srs_error_t SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_vhost_http_updated()) != srs_success) {
+        return srs_error_wrap(err, "reload vhost removed");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsServer::on_reload_http_api_enabled()
+srs_error_t SrsServer::on_reload_http_api_enabled()
 {
-    // TODO: FIXME: Use error.
-    srs_error_t err = listen_http_api();
-    int ret = srs_error_code(err);
-    srs_freep(err);
-    return ret;
+    srs_error_t err = srs_success;
+    
+    if ((err = listen_http_api()) != srs_success) {
+        return srs_error_wrap(err, "reload http_api");
+    }
+    
+    return err;
 }
 
-int SrsServer::on_reload_http_api_disabled()
+srs_error_t SrsServer::on_reload_http_api_disabled()
 {
     close_listeners(SrsListenerHttpApi);
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int SrsServer::on_reload_http_stream_enabled()
+srs_error_t SrsServer::on_reload_http_stream_enabled()
 {
-    // TODO: FIXME: Use error.
-    srs_error_t err = listen_http_stream();
-    int ret = srs_error_code(err);
-    srs_freep(err);
-    return ret;
+    srs_error_t err = srs_success;
+    
+    if ((err = listen_http_stream()) != srs_success) {
+        return srs_error_wrap(err, "reload http_stream enabled");
+    }
+    
+    return err;
 }
 
-int SrsServer::on_reload_http_stream_disabled()
+srs_error_t SrsServer::on_reload_http_stream_disabled()
 {
     close_listeners(SrsListenerHttpStream);
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 // TODO: FIXME: rename to http_remux
-int SrsServer::on_reload_http_stream_updated()
+srs_error_t SrsServer::on_reload_http_stream_updated()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = on_reload_http_stream_enabled()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_http_stream_enabled()) != srs_success) {
+        return srs_error_wrap(err, "reload http_stream updated");
     }
     
     // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = on_reload_vhost_http_updated()) != srs_success) {
+        return srs_error_wrap(err, "reload http_stream updated");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsServer::on_publish(SrsSource* s, SrsRequest* r)

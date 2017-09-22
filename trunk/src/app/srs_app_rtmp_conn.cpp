@@ -252,14 +252,14 @@ srs_error_t SrsRtmpConn::do_cycle()
     return err;
 }
 
-int SrsRtmpConn::on_reload_vhost_removed(string vhost)
+srs_error_t SrsRtmpConn::on_reload_vhost_removed(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // if the vhost connected is removed, disconnect the client.
@@ -271,17 +271,17 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     // so we just ignore the vhost enabled event.
     //srs_close_stfd(stfd);
     
-    return ret;
+    return err;
 }
 
-int SrsRtmpConn::on_reload_vhost_play(string vhost)
+srs_error_t SrsRtmpConn::on_reload_vhost_play(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     // send_min_interval
@@ -293,32 +293,32 @@ int SrsRtmpConn::on_reload_vhost_play(string vhost)
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtmpConn::on_reload_vhost_tcp_nodelay(string vhost)
+srs_error_t SrsRtmpConn::on_reload_vhost_tcp_nodelay(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     set_sock_options();
     
-    return ret;
+    return err;
 }
 
-int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
+srs_error_t SrsRtmpConn::on_reload_vhost_realtime(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     bool realtime_enabled = _srs_config->get_realtime_enabled(req->vhost);
@@ -327,17 +327,17 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
         realtime = realtime_enabled;
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtmpConn::on_reload_vhost_publish(string vhost)
+srs_error_t SrsRtmpConn::on_reload_vhost_publish(string vhost)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (req->vhost != vhost) {
-        return ret;
+        return err;
     }
     
     int p1stpt = _srs_config->get_publish_1stpkt_timeout(req->vhost);
@@ -352,7 +352,7 @@ int SrsRtmpConn::on_reload_vhost_publish(string vhost)
         publish_normal_timeout = pnt;
     }
     
-    return ret;
+    return err;
 }
 
 void SrsRtmpConn::resample()
