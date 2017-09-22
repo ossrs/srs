@@ -166,7 +166,7 @@ srs_error_t SrsMpegtsOverUdp::on_udp_packet(const sockaddr* from, const int from
                    (char*)&address_string, sizeof(address_string),
                    (char*)&port_string, sizeof(port_string),
                    NI_NUMERICHOST|NI_NUMERICSERV) != 0) {
-        abort();
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
     }
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
