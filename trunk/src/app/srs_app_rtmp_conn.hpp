@@ -148,24 +148,24 @@ public:
     virtual void cleanup();
 private:
     // when valid and connected to vhost/app, service the client.
-    virtual int service_cycle();
+    virtual srs_error_t service_cycle();
     // stream(play/publish) service cycle, identify client first.
-    virtual int stream_service_cycle();
-    virtual int check_vhost(bool try_default_vhost);
-    virtual int playing(SrsSource* source);
-    virtual int do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd);
-    virtual int publishing(SrsSource* source);
-    virtual int do_publishing(SrsSource* source, SrsPublishRecvThread* trd);
-    virtual int acquire_publish(SrsSource* source);
+    virtual srs_error_t stream_service_cycle();
+    virtual srs_error_t check_vhost(bool try_default_vhost);
+    virtual srs_error_t playing(SrsSource* source);
+    virtual srs_error_t do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd);
+    virtual srs_error_t publishing(SrsSource* source);
+    virtual srs_error_t do_publishing(SrsSource* source, SrsPublishRecvThread* trd);
+    virtual srs_error_t acquire_publish(SrsSource* source);
     virtual void release_publish(SrsSource* source);
-    virtual int handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
-    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
-    virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
+    virtual srs_error_t handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
+    virtual srs_error_t process_publish_message(SrsSource* source, SrsCommonMessage* msg);
+    virtual srs_error_t process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
     virtual void change_mw_sleep(int sleep_ms);
     virtual void set_sock_options();
 private:
-    virtual int check_edge_token_traverse_auth();
-    virtual int do_token_traverse_auth(SrsRtmpClient* client);
+    virtual srs_error_t check_edge_token_traverse_auth();
+    virtual srs_error_t do_token_traverse_auth(SrsRtmpClient* client);
 private:
     /**
      * when the connection disconnect, call this method.

@@ -382,7 +382,7 @@ public:
     virtual srs_error_t on_reload_http_stream_updated();
 // interface ISrsSourceHandler
 public:
-    virtual int on_publish(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
 };
 

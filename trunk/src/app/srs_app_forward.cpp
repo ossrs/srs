@@ -71,9 +71,9 @@ SrsForwarder::~SrsForwarder()
     srs_freep(sh_audio);
 }
 
-int SrsForwarder::initialize(SrsRequest* r, string ep)
+srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // it's ok to use the request object,
     // SrsSource already copy it and never delete it.
@@ -82,7 +82,7 @@ int SrsForwarder::initialize(SrsRequest* r, string ep)
     // the ep(endpoint) to forward to
     ep_forward = ep;
     
-    return ret;
+    return err;
 }
 
 void SrsForwarder::set_queue_size(double queue_size)
@@ -90,9 +90,8 @@ void SrsForwarder::set_queue_size(double queue_size)
     queue->set_queue_size(queue_size);
 }
 
-int SrsForwarder::on_publish()
+srs_error_t SrsForwarder::on_publish()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // discovery the server port and tcUrl from req and ep_forward.
@@ -127,26 +126,17 @@ int SrsForwarder::on_publish()
     dest_ep += req->vhost;
     
     if (source_ep == dest_ep) {
-        ret = ERROR_SYSTEM_FORWARD_LOOP;
-        srs_warn("forward loop detected. src=%s, dest=%s, ret=%d",
-                 source_ep.c_str(), dest_ep.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "forward loop detected. src=%s, dest=%s", source_ep.c_str(), dest_ep.c_str());
     }
-    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s",
-              source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(),
-              req->stream.c_str());
+    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s", source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(), req->stream.c_str());
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("forward", this);
     if ((err = trd->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        
-        return ret;
+        return srs_error_wrap(err, "start thread");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsForwarder::on_unpublish()
@@ -155,43 +145,33 @@ void SrsForwarder::on_unpublish()
     sdk->close();
 }
 
-int SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
+srs_error_t SrsForwarder::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* metadata = shared_metadata->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(metadata, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-        srs_freep(metadata);
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "jitter");
     }
     
-    if ((ret = queue->enqueue(metadata)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = queue->enqueue(metadata)) != srs_success) {
+        return srs_error_wrap(err, "enqueue metadata");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
+srs_error_t SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-        srs_freep(msg);
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "jitter");
     }
     
     if (SrsFlvAudio::sh(msg->payload, msg->size)) {
@@ -199,27 +179,22 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* shared_audio)
         sh_audio = msg->copy();
     }
     
-    if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = queue->enqueue(msg)) != srs_success) {
+        return srs_error_wrap(err, "enqueue audio");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
+srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_video->copy();
     
     // TODO: FIXME: config the jitter of Forwarder.
     if ((err = jitter->correct(msg, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-        srs_freep(msg);
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "jitter");
     }
     
     if (SrsFlvVideo::sh(msg->payload, msg->size)) {
@@ -227,11 +202,11 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
         sh_video = msg->copy();
     }
     
-    if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = queue->enqueue(msg)) != srs_success) {
+        return srs_error_wrap(err, "enqueue video");
     }
     
-    return ret;
+    return err;
 }
 
 // when error, forwarder sleep for a while and retry.
@@ -287,21 +262,22 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_new(ret, "sdk publish");
     }
     
-    if ((ret = hub->on_forwarder_start(this)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "notify hub start");
+    if ((err = hub->on_forwarder_start(this)) != srs_success) {
+        return srs_error_wrap(err, "notify hub start");
     }
     
-    if ((ret = forward()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "forward");
+    if ((err = forward()) != srs_success) {
+        return srs_error_wrap(err, "forward");
     }
     
     return err;
 }
 
 #define SYS_MAX_FORWARD_SEND_MSGS 128
-int SrsForwarder::forward()
+srs_error_t SrsForwarder::forward()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
     
@@ -314,24 +290,18 @@ int SrsForwarder::forward()
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
     if (sh_video) {
         if ((ret = sdk->send_and_free_message(sh_video->copy())) != ERROR_SUCCESS) {
-            srs_error("forwarder send sh_video to server failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "send video sh");
         }
     }
     if (sh_audio) {
         if ((ret = sdk->send_and_free_message(sh_audio->copy())) != ERROR_SUCCESS) {
-            srs_error("forwarder send sh_audio to server failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "send audio sh");
         }
     }
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
-            srs_freep(err);
-            return ret;
+            return srs_error_wrap(err, "thread quit");
         }
         
         pprint->elapse();
@@ -341,10 +311,8 @@ int SrsForwarder::forward()
             SrsCommonMessage* msg = NULL;
             ret = sdk->recv_message(&msg);
             
-            srs_verbose("play loop recv message. ret=%d", ret);
             if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                srs_error("recv server control message failed. ret=%d", ret);
-                return ret;
+                return srs_error_new(ret, "receive control message");
             }
             
             srs_freep(msg);
@@ -353,9 +321,8 @@ int SrsForwarder::forward()
         // forward all messages.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
-        if ((ret = queue->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
-            srs_error("get message to forward failed. ret=%d", ret);
-            return ret;
+        if ((err = queue->dump_packets(msgs.max, msgs.msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "dump packets");
         }
         
         // pithy print
@@ -365,18 +332,16 @@ int SrsForwarder::forward()
         
         // ignore when no messages.
         if (count <= 0) {
-            srs_verbose("no packets to forward.");
             continue;
         }
         
         // sendout messages, all messages are freed by send_and_free_messages().
         if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
-            srs_error("forwarder messages to server failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ret, "send messages");
         }
     }
     
-    return ret;
+    return err;
 }
 
 

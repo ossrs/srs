@@ -325,7 +325,7 @@
 // user-define error.
 ///////////////////////////////////////////////////////
 #define ERROR_USER_START                    9000
-#define ERROR_USER_DISCONNECT               9001
+//#define ERROR_USER_DISCONNECT               9001
 #define ERROR_SOURCE_NOT_FOUND              9002
 #define ERROR_USER_END                      9999
 
@@ -334,7 +334,9 @@
  */
 // TODO: FIXME: Remove it from underlayer for confused with error and logger.
 extern bool srs_is_system_control_error(int error_code);
+extern bool srs_is_system_control_error(srs_error_t err);
 extern bool srs_is_client_gracefully_close(int error_code);
+extern bool srs_is_client_gracefully_close(srs_error_t err);
 
 // Use complex errors, @read https://github.com/ossrs/srs/issues/913
 class SrsCplxError
@@ -374,6 +376,7 @@ public:
 #define srs_error_copy(err) SrsCplxError::copy(err)
 #define srs_error_desc(err) SrsCplxError::description(err)
 #define srs_error_code(err) SrsCplxError::error_code(err)
+#define srs_error_reset(err) srs_freep(err); err = srs_success
 
 #endif
 

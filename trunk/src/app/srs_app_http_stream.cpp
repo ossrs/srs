@@ -99,6 +99,7 @@ srs_error_t SrsBufferCache::start()
 int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (fast_cache <= 0) {
         srs_info("http: ignore dump fast cache.");
@@ -106,7 +107,10 @@ int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jit
     }
     
     // the jitter is get from SrsSource, which means the time_jitter of vhost.
-    if ((ret = queue->dump_packets(consumer, false, jitter)) != ERROR_SUCCESS) {
+    if ((err = queue->dump_packets(consumer, false, jitter)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -118,7 +122,6 @@ int SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jit
 
 srs_error_t SrsBufferCache::cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // TODO: FIXME: support reload.
@@ -130,8 +133,8 @@ srs_error_t SrsBufferCache::cycle()
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(NULL, consumer, false, false, true)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "create consumer");
+    if ((err = source->create_consumer(NULL, consumer, false, false, true)) != srs_success) {
+        return srs_error_wrap(err, "create consumer");
     }
     SrsAutoFree(SrsConsumer, consumer);
     
@@ -154,8 +157,8 @@ srs_error_t SrsBufferCache::cycle()
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
-        if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "consumer dump packets");
+        if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "consumer dump packets");
         }
         
         if (count <= 0) {
@@ -521,8 +524,8 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "create consumer");
+    if ((err = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != srs_success) {
+        return srs_error_wrap(err, "create consumer");
     }
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("http: consumer created success.");
@@ -579,8 +582,8 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
-        if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "consumer dump packets");
+        if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "consumer dump packets");
         }
         
         if (count <= 0) {
@@ -977,8 +980,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     
     SrsSource* s = NULL;
-    if ((ret = SrsSource::fetch_or_create(r, server, &s)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "source create");
+    if ((err = SrsSource::fetch_or_create(r, server, &s)) != srs_success) {
+        return srs_error_wrap(err, "source create");
     }
     srs_assert(s != NULL);
     

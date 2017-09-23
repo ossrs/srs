@@ -368,6 +368,7 @@ void SrsPublishRecvThread::stop()
 int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when cid changed, change it.
     if (ncid != cid) {
@@ -386,7 +387,10 @@ int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
                 srs_update_system_time_ms(), msg->header.timestamp, msg->size);
     
     // the rtmp connection will handle this message
-    ret = _conn->handle_publish_message(_source, msg);
+    err = _conn->handle_publish_message(_source, msg);
+    // TODO: FIXME: Use error
+    ret = srs_error_code(err);
+    srs_freep(err);
     
     // must always free it,
     // the source will copy it if need to use.

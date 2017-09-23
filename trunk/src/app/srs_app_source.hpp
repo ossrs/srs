@@ -98,7 +98,7 @@ public:
     /**
      * get current client time, the last packet time.
      */
-    virtual int get_time();
+    virtual int64_t get_time();
 };
 
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
@@ -168,19 +168,19 @@ public:
      * @param msg, the msg to enqueue, user never free it whatever the return code.
      * @param is_overflow, whether overflow and shrinked. NULL to ignore.
      */
-    virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     /**
      * get packets in consumer queue.
      * @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
      * @count the count in array, output param.
      * @max_count the max count to dequeue, must be positive.
      */
-    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     /**
      * dumps packets to consumer, use specified args.
      * @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
      */
-    virtual int dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 private:
     /**
      * remove a gop from the front.
@@ -250,21 +250,21 @@ public:
     /**
      * get current client time, the last packet time.
      */
-    virtual int get_time();
+    virtual int64_t get_time();
     /**
      * enqueue an shared ptr message.
      * @param shared_msg, directly ptr, copy it if need to save it.
      * @param whether atc, donot use jitter correct if true.
      * @param ag the algorithm of time jitter.
      */
-    virtual int enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
     /**
      * get packets in consumer queue.
      * @param msgs the msgs array to dump packets to send.
      * @param count the count in array, intput and output param.
      * @remark user can specifies the count to get specified msgs; 0 to get all if possible.
      */
-    virtual int dump_packets(SrsMessageArray* msgs, int& count);
+    virtual srs_error_t dump_packets(SrsMessageArray* msgs, int& count);
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     /**
      * wait for messages incomming, atleast nb_msgs and in duration.
@@ -276,7 +276,7 @@ public:
     /**
      * when client send the pause message.
      */
-    virtual int on_play_client_pause(bool is_pause);
+    virtual srs_error_t on_play_client_pause(bool is_pause);
     // ISrsWakable
 public:
     /**
@@ -341,7 +341,7 @@ public:
      * 2. clear gop when got keyframe.
      * @param shared_msg, directly ptr, copy it if need to save it.
      */
-    virtual int cache(SrsSharedPtrMessage* shared_msg);
+    virtual srs_error_t cache(SrsSharedPtrMessage* shared_msg);
     /**
      * clear the gop cache.
      */
@@ -349,7 +349,7 @@ public:
     /**
      * dump the cached gop to consumer.
      */
-    virtual int dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
+    virtual srs_error_t dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
     /**
      * used for atc to get the time of gop cache,
      * the atc will adjust the sequence header timestamp to gop cache.
@@ -381,7 +381,7 @@ public:
     /**
      * when stream start publish, mount stream.
      */
-    virtual int on_publish(SrsSource* s, SrsRequest* r) = 0;
+    virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r) = 0;
     /**
      * when stream stop publish, unmount stream.
      */
@@ -454,22 +454,22 @@ public:
     virtual srs_error_t cycle();
 public:
     // When got a parsed metadata.
-    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
+    virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
     // When got a parsed audio packet.
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio);
     // When got a parsed video packet.
-    virtual int on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, bool is_sequence_header);
 public:
     // When start publish stream.
-    virtual int on_publish();
+    virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
     // Internal callback.
 public:
     // for the SrsForwarder to callback to request the sequence headers.
-    virtual int on_forwarder_start(SrsForwarder* forwarder);
+    virtual srs_error_t on_forwarder_start(SrsForwarder* forwarder);
     // for the SrsDvr to callback to request the sequence headers.
-    virtual int on_dvr_request_sh();
+    virtual srs_error_t on_dvr_request_sh();
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_forward(std::string vhost);
@@ -480,7 +480,7 @@ public:
     virtual srs_error_t on_reload_vhost_transcode(std::string vhost);
     virtual srs_error_t on_reload_vhost_exec(std::string vhost);
 private:
-    virtual int create_forwarders();
+    virtual srs_error_t create_forwarders();
     virtual void destroy_forwarders();
 };
 
@@ -518,14 +518,14 @@ public:
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
-    virtual int dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+    virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
     // Update the cached metadata by packet.
-    virtual int update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
+    virtual srs_error_t update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
     // Update the cached audio sequence header.
-    virtual int update_ash(SrsSharedPtrMessage* msg);
+    virtual srs_error_t update_ash(SrsSharedPtrMessage* msg);
     // Update the cached video sequence header.
-    virtual int update_vsh(SrsSharedPtrMessage* msg);
+    virtual srs_error_t update_vsh(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -543,7 +543,7 @@ public:
      * @param h the event handler for source.
      * @param pps the matched source, if success never be NULL.
      */
-    static int fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
+    static srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
 private:
     /**
      * get the exists source, NULL when not exists.
@@ -635,30 +635,30 @@ public:
     // for the tools callback
 public:
     // source id changed.
-    virtual int on_source_id_changed(int id);
+    virtual srs_error_t on_source_id_changed(int id);
     // get current source id.
     virtual int source_id();
     virtual int pre_source_id();
     // logic data methods
 public:
     virtual bool can_publish(bool is_edge);
-    virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
+    virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 public:
-    virtual int on_audio(SrsCommonMessage* audio);
+    virtual srs_error_t on_audio(SrsCommonMessage* audio);
 private:
-    virtual int on_audio_imp(SrsSharedPtrMessage* audio);
+    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
 public:
-    virtual int on_video(SrsCommonMessage* video);
+    virtual srs_error_t on_video(SrsCommonMessage* video);
 private:
-    virtual int on_video_imp(SrsSharedPtrMessage* video);
+    virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
 public:
-    virtual int on_aggregate(SrsCommonMessage* msg);
+    virtual srs_error_t on_aggregate(SrsCommonMessage* msg);
     /**
      * publish stream event notify.
      * @param _req the request from client, the source will deep copy it,
      *         for when reload the request of client maybe invalid.
      */
-    virtual int on_publish();
+    virtual srs_error_t on_publish();
     virtual void on_unpublish();
     // consumer methods
 public:
@@ -669,16 +669,16 @@ public:
      * @param dm, whether dumps the metadata.
      * @param dg, whether dumps the gop cache.
      */
-    virtual int create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
     // internal
 public:
     // for edge, when publish edge stream, check the state
-    virtual int on_edge_start_publish();
+    virtual srs_error_t on_edge_start_publish();
     // for edge, proxy the publish
-    virtual int on_edge_proxy_publish(SrsCommonMessage* msg);
+    virtual srs_error_t on_edge_proxy_publish(SrsCommonMessage* msg);
     // for edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
 public:
