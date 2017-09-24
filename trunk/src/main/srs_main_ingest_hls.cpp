@@ -1192,6 +1192,7 @@ int SrsIngestHlsOutput::write_audio_raw_frame(char* frame, int frame_size, SrsRa
 int SrsIngestHlsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = connect()) != ERROR_SUCCESS) {
         return ret;
@@ -1208,8 +1209,11 @@ int SrsIngestHlsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* d
     srs_info("RTMP type=%d, dts=%d, size=%d", type, timestamp, size);
     
     // send out encoded msg.
-    if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+    if ((err = sdk->send_and_free_message(msg)) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("send RTMP type=%d, dts=%d, size=%d failed. ret=%d", type, timestamp, size, ret);
         return ret;
     }
@@ -1220,6 +1224,7 @@ int SrsIngestHlsOutput::rtmp_write_packet(char type, uint32_t timestamp, char* d
 int SrsIngestHlsOutput::connect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Ignore when connected.
     if (sdk) {
@@ -1234,14 +1239,17 @@ int SrsIngestHlsOutput::connect()
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsBasicRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+    if ((err = sdk->connect()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+    if ((err = sdk->publish()) != srs_success) {
         close();
         srs_error("mpegts: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;

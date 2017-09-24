@@ -714,6 +714,7 @@ int SrsHttpResponseWriter::write(char* data, int size)
 int SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when header not ready, or not chunked, send one by one.
     if (!header_wrote || content_length != -1) {
@@ -784,7 +785,10 @@ int SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite
     
     // sendout all ioves.
     ssize_t nwrite;
-    if ((ret = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != ERROR_SUCCESS) {
+    if ((err = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     

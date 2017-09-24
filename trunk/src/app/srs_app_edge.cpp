@@ -75,6 +75,7 @@ SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
 int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = r;
     
@@ -120,12 +121,18 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+    if ((err = sdk->connect()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("edge pull %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
-    if ((ret = sdk->play()) != ERROR_SUCCESS) {
+    if ((err = sdk->play()) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("edge pull %s stream failed. ret=%d", url.c_str(), ret);
         return ret;
     }
@@ -135,12 +142,20 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
 
 int SrsEdgeRtmpUpstream::recv_message(SrsCommonMessage** pmsg)
 {
-    return sdk->recv_message(pmsg);
+    srs_error_t err = sdk->recv_message(pmsg);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 int SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
-    return sdk->decode_message(msg, ppacket);
+    srs_error_t err = sdk->decode_message(msg, ppacket);
+    // TODO: FIXME: Use error
+    int ret = srs_error_code(err);
+    srs_freep(err);
+    return ret;
 }
 
 void SrsEdgeRtmpUpstream::close()
@@ -456,7 +471,6 @@ srs_error_t SrsEdgeForwarder::initialize(SrsSource* s, SrsPublishEdge* e, SrsReq
 
 srs_error_t SrsEdgeForwarder::start()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // reset the error code.
@@ -486,12 +500,12 @@ srs_error_t SrsEdgeForwarder::start()
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
+    if ((err = sdk->connect()) != srs_success) {
+        return srs_error_wrap(err, "sdk connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk publish");
+    if ((err = sdk->publish()) != srs_success) {
+        return srs_error_wrap(err, "sdk publish");
     }
     
     srs_freep(trd);
@@ -537,7 +551,6 @@ srs_error_t SrsEdgeForwarder::cycle()
 
 srs_error_t SrsEdgeForwarder::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
@@ -560,13 +573,18 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
-            ret = sdk->recv_message(&msg);
+            err = sdk->recv_message(&msg);
             
             srs_verbose("edge loop recv message. ret=%d", ret);
-            if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                srs_error("edge push get server control message failed. ret=%d", ret);
-                send_error_code = ret;
-                continue;
+            if (err != srs_success) {
+                int ret = srs_error_code(err);
+                srs_freep(err);
+                
+                if (ret != ERROR_SOCKET_TIMEOUT) {
+                    srs_error("edge push get server control message failed. ret=%d", ret);
+                    send_error_code = ret;
+                    continue;
+                }
             }
             
             srs_freep(msg);
@@ -593,8 +611,8 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
         
         // sendout messages, all messages are freed by send_and_free_messages().
-        if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "send messages");
+        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "send messages");
         }
     }
     

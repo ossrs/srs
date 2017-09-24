@@ -673,7 +673,7 @@ public:
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
-    // internal
+// internal
 public:
     // for edge, when publish edge stream, check the state
     virtual srs_error_t on_edge_start_publish();

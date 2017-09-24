@@ -234,7 +234,6 @@ srs_error_t SrsForwarder::cycle()
 
 srs_error_t SrsForwarder::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     std::string url;
@@ -254,12 +253,12 @@ srs_error_t SrsForwarder::do_cycle()
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk connect url=%s, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
+    if ((err = sdk->connect()) != srs_success) {
+        return srs_error_wrap(err, "sdk connect url=%s, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk publish");
+    if ((err = sdk->publish()) != srs_success) {
+        return srs_error_wrap(err, "sdk publish");
     }
     
     if ((err = hub->on_forwarder_start(this)) != srs_success) {
@@ -276,7 +275,6 @@ srs_error_t SrsForwarder::do_cycle()
 #define SYS_MAX_FORWARD_SEND_MSGS 128
 srs_error_t SrsForwarder::forward()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
@@ -289,13 +287,13 @@ srs_error_t SrsForwarder::forward()
     // update sequence header
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
     if (sh_video) {
-        if ((ret = sdk->send_and_free_message(sh_video->copy())) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "send video sh");
+        if ((err = sdk->send_and_free_message(sh_video->copy())) != srs_success) {
+            return srs_error_wrap(err, "send video sh");
         }
     }
     if (sh_audio) {
-        if ((ret = sdk->send_and_free_message(sh_audio->copy())) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "send audio sh");
+        if ((err = sdk->send_and_free_message(sh_audio->copy())) != srs_success) {
+            return srs_error_wrap(err, "send audio sh");
         }
     }
     
@@ -309,10 +307,13 @@ srs_error_t SrsForwarder::forward()
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
-            ret = sdk->recv_message(&msg);
+            err = sdk->recv_message(&msg);
             
-            if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                return srs_error_new(ret, "receive control message");
+            if (err != srs_success) {
+                if (srs_error_code(err) != ERROR_SOCKET_TIMEOUT) {
+                    return srs_error_wrap(err, "receive control message");
+                }
+                srs_error_reset(err);
             }
             
             srs_freep(msg);
@@ -336,8 +337,8 @@ srs_error_t SrsForwarder::forward()
         }
         
         // sendout messages, all messages are freed by send_and_free_messages().
-        if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "send messages");
+        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "send messages");
         }
     }
     

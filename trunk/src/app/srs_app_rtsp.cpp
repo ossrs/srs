@@ -619,6 +619,7 @@ int SrsRtspConn::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStr
 int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = connect()) != ERROR_SUCCESS) {
         return ret;
@@ -633,8 +634,11 @@ int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, in
     srs_assert(msg);
     
     // send out encoded msg.
-    if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+    if ((err = sdk->send_and_free_message(msg)) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         return ret;
     }
     
@@ -644,6 +648,7 @@ int SrsRtspConn::rtmp_write_packet(char type, uint32_t timestamp, char* data, in
 int SrsRtspConn::connect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Ignore when connected.
     if (sdk) {
@@ -668,15 +673,21 @@ int SrsRtspConn::connect()
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+    if ((err = sdk->connect()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("rtsp: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
         return ret;
     }
     
     // publish.
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+    if ((err = sdk->publish()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("rtsp: publish %s failed. ret=%d", url.c_str(), ret);
         return ret;
     }

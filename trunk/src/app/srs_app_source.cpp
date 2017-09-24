@@ -1636,8 +1636,8 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPac
     // encode the metadata to payload
     int size = 0;
     char* payload = NULL;
-    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "encode metadata");
+    if ((err = metadata->encode(size, payload)) != srs_success) {
+        return srs_error_wrap(err, "encode metadata");
     }
     
     if (size <= 0) {

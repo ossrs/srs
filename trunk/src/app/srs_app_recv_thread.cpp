@@ -142,12 +142,14 @@ srs_error_t SrsRecvThread::do_cycle()
         SrsCommonMessage* msg = NULL;
         
         // Process the received message.
-        if ((ret = rtmp->recv_message(&msg)) == ERROR_SUCCESS) {
-            ret = pumper->consume(msg);
+        if ((err = rtmp->recv_message(&msg)) == srs_success) {
+            if ((ret = pumper->consume(msg)) != ERROR_SUCCESS) {
+                err = srs_error_new(ret, "pumper consume");
+            }
         }
         
-        if (ret != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
+        if (err != srs_success) {
+            if (!srs_is_client_gracefully_close(err) && !srs_is_system_control_error(err)) {
                 srs_error("recv thread error. ret=%d", ret);
             }
             
@@ -155,11 +157,10 @@ srs_error_t SrsRecvThread::do_cycle()
             trd->interrupt();
             
             // Notify the pumper to quit for error.
-            pumper->interrupt(ret);
+            pumper->interrupt(srs_error_code(err));
             
-            return srs_error_new(ret, "recv thread");
+            return srs_error_wrap(err, "recv thread");
         }
-        srs_verbose("thread loop recv message. ret=%d", ret);
     }
     
     return err;
