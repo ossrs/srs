@@ -60,7 +60,7 @@ void SrsHttpHeartbeat::heartbeat()
     std::string ip = "";
     std::string device_id = _srs_config->get_heartbeat_device_id();
     
-    vector<string>& ips = srs_get_local_ipv4_ips();
+    vector<string>& ips = srs_get_local_ips();
     if (!ips.empty()) {
         ip = ips[_srs_config->get_stats_network() % (int)ips.size()];
     }
