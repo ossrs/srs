@@ -219,6 +219,7 @@ int SrsRtpPacket::decode(SrsBuffer* stream)
 int SrsRtpPacket::decode_97(SrsBuffer* stream)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 2bytes content.
     if (!stream->require(2)) {
@@ -265,7 +266,10 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
             return ret;
         }
         
-        if ((ret = audio->add_sample(sample, sample_size)) != ERROR_SUCCESS) {
+        if ((err = audio->add_sample(sample, sample_size)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_error("rtsp: rtp type97 add sample failed. ret=%d", ret);
             return ret;
         }

@@ -2957,11 +2957,10 @@ srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
 
 srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = format->on_audio(timestamp, data, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ts: format on audio");
+    if ((err = format->on_audio(timestamp, data, size)) != srs_success) {
+        return srs_error_wrap(err, "ts: format on audio");
     }
     
     // ts support audio codec: aac/mp3
@@ -2994,11 +2993,10 @@ srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size
 
 srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = format->on_video(timestamp, data, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ts: on video");
+    if ((err = format->on_video(timestamp, data, size)) != srs_success) {
+        return srs_error_wrap(err, "ts: on video");
     }
     
     // ignore info frame,

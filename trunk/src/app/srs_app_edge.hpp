@@ -139,8 +139,8 @@ public:
 private:
     virtual srs_error_t do_cycle();
 private:
-    virtual int ingest();
-    virtual int process_publish_message(SrsCommonMessage* msg);
+    virtual srs_error_t ingest();
+    virtual srs_error_t process_publish_message(SrsCommonMessage* msg);
 };
 
 /**
@@ -181,7 +181,7 @@ public:
 private:
     virtual srs_error_t do_cycle();
 public:
-    virtual int proxy(SrsCommonMessage* msg);
+    virtual srs_error_t proxy(SrsCommonMessage* msg);
 };
 
 /**
@@ -239,11 +239,11 @@ public:
     /**
      * when client publish stream on edge.
      */
-    virtual int on_client_publish();
+    virtual srs_error_t on_client_publish();
     /**
      * proxy publish stream to edge
      */
-    virtual int on_proxy_publish(SrsCommonMessage* msg);
+    virtual srs_error_t on_proxy_publish(SrsCommonMessage* msg);
     /**
      * proxy unpublish stream to edge.
      */

@@ -584,6 +584,7 @@ int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawA
 int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = connect()) != ERROR_SUCCESS) {
         return ret;
@@ -615,8 +616,11 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* dat
         }
         
         // send out encoded msg.
-        if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        if ((err = sdk->send_and_free_message(msg)) != srs_success) {
             close();
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
     }
@@ -627,6 +631,7 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* dat
 int SrsMpegtsOverUdp::connect()
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Ignore when connected.
     if (sdk) {
@@ -637,14 +642,20 @@ int SrsMpegtsOverUdp::connect()
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+    if ((err = sdk->connect()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
         return ret;
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+    if ((err = sdk->publish()) != srs_success) {
         close();
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("mpegts: publish failed. ret=%d", ret);
         return ret;
     }

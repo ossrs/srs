@@ -70,33 +70,33 @@ public:
     SrsForwarder(SrsOriginHub* h);
     virtual ~SrsForwarder();
 public:
-    virtual int initialize(SrsRequest* r, std::string ep);
+    virtual srs_error_t initialize(SrsRequest* r, std::string ep);
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int on_publish();
+    virtual srs_error_t on_publish();
     virtual void on_unpublish();
     /**
      * forward the audio packet.
      * @param shared_metadata, directly ptr, copy it if need to save it.
      */
-    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
+    virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata);
     /**
      * forward the audio packet.
      * @param shared_audio, directly ptr, copy it if need to save it.
      */
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio);
     /**
      * forward the video packet.
      * @param shared_video, directly ptr, copy it if need to save it.
      */
-    virtual int on_video(SrsSharedPtrMessage* shared_video);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video);
 // interface ISrsReusableThread2Handler.
 public:
     virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
 private:
-    virtual int forward();
+    virtual srs_error_t forward();
 };
 
 #endif

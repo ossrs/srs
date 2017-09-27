@@ -1389,15 +1389,16 @@ srs_error_t SrsServer::on_reload_http_stream_updated()
     return err;
 }
 
-int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
+srs_error_t SrsServer::on_publish(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if ((ret = http_server->http_mount(s, r)) != ERROR_SUCCESS) {
-        return ret;
+        return srs_error_new(ret, "http mount");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)

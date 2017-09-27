@@ -112,11 +112,12 @@ srs_error_t SrsConnection::cycle()
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(srs_error_code(err))) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
-        srs_freep(err);
-        return srs_success;
+    } else {
+        srs_error("connect error %s", srs_error_desc(err).c_str());
     }
     
-    return srs_error_wrap(err, "cycle");
+    srs_freep(err);
+    return srs_success;
 }
 
 int SrsConnection::srs_id()
