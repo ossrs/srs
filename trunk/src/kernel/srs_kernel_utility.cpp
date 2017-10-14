@@ -39,6 +39,7 @@
 #include <vector>
 using namespace std;
 
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -159,21 +160,22 @@ string srs_dns_resolve(string host, int& family)
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family  = family;
-    addrinfo* result = NULL;
-    if(getaddrinfo(host.c_str(), NULL, NULL, &result) != 0) {
+    
+    addrinfo* r = NULL;
+    SrsAutoFree(addrinfo, r);
+    
+    if(getaddrinfo(host.c_str(), NULL, NULL, &r) != 0) {
         return "";
     }
     
-    char address_string[64];
-    const int success = getnameinfo(result->ai_addr, result->ai_addrlen, 
-                                    (char*)&address_string, sizeof(address_string),
-                                    NULL, 0,
-                                    NI_NUMERICHOST);
-    freeaddrinfo(result);
+    char saddr[64];
+    char* h = (char*)saddr;
+    socklen_t nbh = sizeof(saddr);
+    const int r0 = getnameinfo(r->ai_addr, r->ai_addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
 
-    if(success) {
-       family = result->ai_family;
-       return string(address_string);
+    if(r0) {
+       family = r->ai_family;
+       return string(saddr);
     }
     return "";
 }
@@ -188,8 +190,7 @@ void srs_parse_hostport(const string& hostport, string& host, int& port)
             (hostport[pos - 1] == ']')) {
             // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
             host = hostport.substr(1, pos - 2);
-        }
-        else {
+        } else {
             // Handle IP address
             host = hostport.substr(0, pos);
         }
@@ -199,34 +200,37 @@ void srs_parse_hostport(const string& hostport, string& host, int& port)
     }
 }
 
-static int check_ipv6()
+string srs_any_address4listener()
 {
-    int sd = socket(AF_INET6, SOCK_DGRAM, 0);
-    if(sd >= 0) {
-        close(sd);
-        return 1;
+    int fd = socket(AF_INET6, SOCK_DGRAM, 0);
+    
+    // socket()
+    // A -1 is returned if an error occurs, otherwise the return value is a
+    // descriptor referencing the socket.
+    if(fd != -1) {
+        close(fd);
+        return "::";
     }
-    return 0;
+    
+    return "0.0.0.0";
 }
 
 void srs_parse_endpoint(string hostport, string& ip, int& port)
 {
     const size_t pos = hostport.rfind(":");   // Look for ":" from the end, to work with IPv6.
     if (pos != std::string::npos) {
-        if ((pos >= 1) &&
-            (hostport[0]       == '[') &&
-            (hostport[pos - 1] == ']')) {
+        if ((pos >= 1) && (hostport[0] == '[') && (hostport[pos - 1] == ']')) {
             // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
             ip = hostport.substr(1, pos - 2);
-        }
-        else {
+        } else {
             // Handle IP address
             ip = hostport.substr(0, pos);
         }
+        
         const string sport = hostport.substr(pos + 1);
         port = ::atoi(sport.c_str());
     } else {
-        ip   = check_ipv6() ? "::" : "0.0.0.0";
+        ip   = srs_any_address4listener();
         port = ::atoi(hostport.c_str());
     }
 }

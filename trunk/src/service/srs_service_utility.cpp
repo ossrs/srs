@@ -87,8 +87,7 @@ bool srs_net_device_is_internet(const sockaddr* addr)
         if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
             return false;
         }
-    }
-    else if(addr->sa_family == AF_INET6) {
+    } else if(addr->sa_family == AF_INET6) {
         const sockaddr_in6* a6 = (const sockaddr_in6*)addr;
         if ((IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) ||
             (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr))) {
@@ -128,20 +127,17 @@ void retrieve_local_ips()
         // ignore the tun0 network device,
         // which addr is NULL.
         // @see: https://github.com/ossrs/srs/issues/141
-        if ( (cur->ifa_addr) &&
-             ( (cur->ifa_addr->sa_family == AF_INET) ||
-               (cur->ifa_addr->sa_family == AF_INET6) ) ) {
-            char address_string[64];
-            const int success = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), 
-                                            (char*)&address_string, sizeof(address_string),
-                                            NULL, 0,
-                                            NI_NUMERICHOST);
-            if(success != 0) {
-                srs_warn("convert local ip failed: %s", gai_strerror(success));
+        if ((cur->ifa_addr) && ((cur->ifa_addr->sa_family == AF_INET) || (cur->ifa_addr->sa_family == AF_INET6))) {
+            char saddr[64];
+            char* h = (char*)saddr;
+            socklen_t nbh = (socklen_t)sizeof(saddr);
+            const int r0 = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), h, nbh, NULL, 0, NI_NUMERICHOST);
+            if(r0 != 0) {
+                srs_warn("convert local ip failed: %s", gai_strerror(r0));
                 break;
             }
             
-            std::string ip = address_string;
+            std::string ip = saddr;
             if (ip != SRS_CONSTS_LOCALHOST) {
                 ss0 << ", local[" << (int)ips.size() << "] ipv4 " << ip;
                 ips.push_back(ip);
