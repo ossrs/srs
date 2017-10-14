@@ -29,6 +29,7 @@
 #include <netdb.h>
 using namespace std;
 
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_service_utility.hpp>
@@ -113,40 +114,36 @@ srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t*
     *pstfd = NULL;
     srs_netfd_t stfd = NULL;
 
-    char port_string[8];
-    snprintf(port_string, sizeof(port_string), "%d", port);
+    char sport[8];
+    snprintf(sport, sizeof(sport), "%d", port);
+    
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    addrinfo* result  = NULL;
-    if(getaddrinfo(server.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "dns resolve server error");
+    
+    addrinfo* r  = NULL;
+    SrsAutoFree(addrinfo, r);
+    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r) != 0) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
     
-    int sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    int sock = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
     if(sock == -1){
-        freeaddrinfo(result);
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
     
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
-        srs_close_stfd(stfd);
-        freeaddrinfo(result);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
     
-    if (st_connect((st_netfd_t)stfd, result->ai_addr, result->ai_addrlen, timeout) == -1){
+    if (st_connect((st_netfd_t)stfd, r->ai_addr, r->ai_addrlen, timeout) == -1){
         srs_close_stfd(stfd);
-        freeaddrinfo(result);
         return srs_error_new(ERROR_ST_CONNECT, "connect to %s:%d", server.c_str(), port);
     }
     
-    srs_info("connect ok. server=%s, port=%d", server.c_str(), port);
-    
-    freeaddrinfo(result);
     *pstfd = stfd;
     return srs_success;
 }

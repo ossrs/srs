@@ -46,6 +46,10 @@ extern int64_t srs_get_system_startup_time_ms();
 // the deamon st-thread will update it.
 extern int64_t srs_update_system_time_ms();
 
+// the any address for listener,
+// it's "0.0.0.0" for ipv4, and "::" for ipv6.
+extern std::string srs_any_address4listener();
+
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host, int& family);
 

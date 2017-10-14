@@ -342,9 +342,9 @@ const char* inet_ntop(int af, const void *src, char *dst, socklen_t size)
 {
     switch (af) {
     case AF_INET:
-        return (inet_ntop4( (unsigned char*)src, (char*)dst, size));
+        return (inet_ntop4((unsigned char*)src, (char*)dst, size));
     case AF_INET6:
-       return (char*)(inet_ntop6( (unsigned char*)src, (char*)dst, size));
+       return (char*)(inet_ntop6((unsigned char*)src, (char*)dst, size));
     default:
         return (NULL);
     }
