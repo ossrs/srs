@@ -30,6 +30,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <math.h>
+#include <netdb.h>
 
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
@@ -1103,76 +1104,84 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     }
 }
 
+int srs_check_ipv6()
+{
+    int sd = socket(AF_INET6, SOCK_DGRAM, 0);
+    if(sd >= 0) {
+        close(sd);
+        return 1;
+    }
+    return 0;
+}
+
 string srs_get_local_ip(int fd)
 {
-    std::string ip;
-    
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        return ip;
+        return "";
     }
     srs_verbose("get local ip success.");
-    
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-    
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        return ip;
+
+    char address_string[64];
+    const int success = getnameinfo((const sockaddr*)&addr, addrlen, 
+                                    (char*)&address_string, sizeof(address_string),
+                                    NULL, 0,
+                                    NI_NUMERICHOST);    
+    if(success != 0) {
+        return "";
     }
-    
-    ip = buf;
-    
-    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-    
-    return ip;
+
+    srs_verbose("get local ip of client ip=%s, fd=%d", address_string, fd);
+    return std::string(address_string);
 }
 
 int srs_get_local_port(int fd)
 {
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
         return 0;
     }
     srs_verbose("get local ip success.");
-    
-    int port = ntohs(addr.sin_port);
-    
-    srs_verbose("get local ip of client port=%s, fd=%d", port, fd);
-    
+
+    int port = 0;
+    switch(addr.ss_family) {
+        case AF_INET:
+            port = ntohs(((sockaddr_in*)&addr)->sin_port);
+         break;
+        case AF_INET6:
+            port = ntohs(((sockaddr_in6*)&addr)->sin6_port);
+         break;
+    }
+
+    srs_verbose("get local port of client port=%s, fd=%d", port, fd);
     return port;
 }
 
 string srs_get_peer_ip(int fd)
 {
-    std::string ip;
-    
     // discovery client information
-    sockaddr_in addr;
+    sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
-    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        return ip;
+    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return "";
     }
-    srs_verbose("get peer name success.");
-    
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-    
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        return ip;
+    srs_verbose("get peer ip success.");
+
+    char address_string[64];
+    const int success = getnameinfo((const sockaddr*)&addr, addrlen, 
+                                    (char*)&address_string, sizeof(address_string),
+                                    NULL, 0,
+                                    NI_NUMERICHOST);    
+    if(success != 0) {
+        return "";
     }
-    srs_verbose("get peer ip of client ip=%s, fd=%d", buf, fd);
-    
-    ip = buf;
-    
-    srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
-    
-    return ip;
+
+    srs_verbose("get peer ip of client ip=%s, fd=%d", address_string, fd);
+    return std::string(address_string);
 }
 
 bool srs_is_digit_number(const string& str)

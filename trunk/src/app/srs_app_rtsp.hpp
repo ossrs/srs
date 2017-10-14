@@ -74,7 +74,7 @@ public:
     virtual srs_error_t listen();
 // interface ISrsUdpHandler
 public:
-    virtual srs_error_t on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
 /**

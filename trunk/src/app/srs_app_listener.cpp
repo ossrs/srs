@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <netdb.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -111,20 +112,31 @@ srs_error_t SrsUdpListener::listen()
 {
     srs_error_t err = srs_success;
     
-    if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+    addrinfo* result  = NULL;
+    if(getaddrinfo(ip.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
     }
     
+    if ((_fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol)) == -1) {
+        freeaddrinfo(result);
+        return srs_error_new(ERROR_SOCKET_CREATE, "create linux socket error. ip=%s, port=%d", ip.c_str(), port);
+    }
+
     srs_fd_close_exec(_fd);
     srs_socket_reuse_addr(_fd);
     
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
-        return srs_error_new(ERROR_SOCKET_BIND, "bind socket");
+    if (bind(_fd, result->ai_addr, result->ai_addrlen) == -1) {
+        freeaddrinfo(result);
+        return srs_error_new(ERROR_SOCKET_BIND, "bind socket error. ep=%s:%d", ip.c_str(), port);;
     }
+    freeaddrinfo(result);
     
     if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open socket");
@@ -148,16 +160,15 @@ srs_error_t SrsUdpListener::cycle()
             return srs_error_wrap(err, "udp listener");
         }
         
-        // TODO: FIXME: support ipv6, @see man 7 ipv6
-        sockaddr_in from;
-        int nb_from = sizeof(sockaddr_in);
+        sockaddr_storage from;
+        int nb_from = sizeof(from);
         int nread = 0;
         
         if ((nread = srs_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
             return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
         }
         
-        if ((err = handler->on_udp_packet(&from, buf, nread)) != srs_success) {
+        if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             return srs_error_wrap(err, "handle packet %d bytes", nread);
         }
         
@@ -197,21 +208,32 @@ srs_error_t SrsTcpListener::listen()
 {
     srs_error_t err = srs_success;
     
-    if ((_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+    addrinfo* result  = NULL;
+    if(getaddrinfo(ip.c_str(), port_string, (const addrinfo*)&hints, &result) != 0) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
     }
     
+    if ((_fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol)) == -1) {
+        freeaddrinfo(result);
+        return srs_error_new(ERROR_SOCKET_CREATE, "create linux socket error. ip=%s, port=%d", ip.c_str(), port);
+    }
+
     srs_fd_close_exec(_fd);
     srs_socket_reuse_addr(_fd);
     
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
-        return srs_error_new(ERROR_SOCKET_BIND, "bind socket");
+    if (bind(_fd, result->ai_addr, result->ai_addrlen) == -1) {
+        freeaddrinfo(result);
+        return srs_error_new(ERROR_SOCKET_BIND, "bind socket error. ep=%s:%d", ip.c_str(), port);;
     }
-    
+    freeaddrinfo(result);
+
     if (::listen(_fd, SERVER_LISTEN_BACKLOG) == -1) {
         return srs_error_new(ERROR_SOCKET_LISTEN, "listen socket");
     }

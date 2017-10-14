@@ -28,7 +28,7 @@
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-struct sockaddr_in;
+struct sockaddr;
 #include <string>
 #include <map>
 
@@ -101,7 +101,7 @@ public:
     virtual ~SrsMpegtsOverUdp();
 // interface ISrsUdpHandler
 public:
-    virtual srs_error_t on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 private:
     virtual int on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
 // interface ISrsTsHandler

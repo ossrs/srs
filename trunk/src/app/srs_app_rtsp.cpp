@@ -54,7 +54,7 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     _port = p;
     stream_id = sid;
     // TODO: support listen at <[ip:]port>
-    listener = new SrsUdpListener(this, "0.0.0.0", p);
+    listener = new SrsUdpListener(this,  (srs_check_ipv6() ? "::" : "0.0.0.0"), p);
     cache = new SrsRtpPacket();
     pprint = SrsPithyPrint::create_caster();
 }
@@ -76,7 +76,7 @@ srs_error_t SrsRtpConn::listen()
     return listener->listen();
 }
 
-srs_error_t SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;

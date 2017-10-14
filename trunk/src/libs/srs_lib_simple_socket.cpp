@@ -64,6 +64,8 @@
 
 #include <sys/types.h>
 #include <errno.h>
+#include <stdio.h>
+#include <netdb.h>
 
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_consts.hpp>
@@ -73,6 +75,7 @@
 struct SrsBlockSyncSocket
 {
     SOCKET fd;
+    int    family;
     int64_t rbytes;
     int64_t sbytes;
     // The send/recv timeout in ms.
@@ -105,27 +108,40 @@ void srs_hijack_io_destroy(srs_hijack_io_t ctx)
 int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
 {
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-    
-    skt->fd = ::socket(AF_INET, SOCK_STREAM, 0);
+
+    skt->family = AF_INET6;
+    skt->fd = ::socket(skt->family, SOCK_STREAM, 0);   // Try IPv6 first.
+    if (!SOCKET_VALID(skt->fd)) {
+        skt->family = AF_INET;
+        skt->fd = ::socket(skt->family, SOCK_STREAM, 0);   // Try IPv4 instead, if IPv6 fails.
+    }
     if (!SOCKET_VALID(skt->fd)) {
         return ERROR_SOCKET_CREATE;
     }
-    
+
     return ERROR_SUCCESS;
 }
 int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port)
 {
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-    
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(server_ip);
-    
-    if(::connect(skt->fd, (const struct sockaddr*)&addr, sizeof(sockaddr_in)) < 0){
-        return ERROR_SOCKET_CONNECT;
+
+    char port_string[8];
+    snprintf(port_string, sizeof(port_string), "%d", port);
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = skt->family;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+    addrinfo* result  = NULL;
+
+    if(getaddrinfo(server_ip, port_string, (const addrinfo*)&hints, &result) == 0) {
+        if(::connect(skt->fd, result->ai_addr, result->ai_addrlen) < 0){
+            freeaddrinfo(result);
+            return ERROR_SOCKET_CONNECT;
+        }
     }
-    
+
+    freeaddrinfo(result);
     return ERROR_SUCCESS;
 }
 int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread)
