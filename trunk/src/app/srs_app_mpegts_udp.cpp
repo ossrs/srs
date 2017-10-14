@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 using namespace std;
 
 #include <srs_app_config.hpp>
@@ -155,10 +156,18 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     srs_freep(pprint);
 }
 
-srs_error_t SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+srs_error_t SrsMpegtsOverUdp::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
-    std::string peer_ip = inet_ntoa(from->sin_addr);
-    int peer_port = ntohs(from->sin_port);
+    char address_string[64];
+    char port_string[16];
+    if(getnameinfo(from, fromlen, 
+                   (char*)&address_string, sizeof(address_string),
+                   (char*)&port_string, sizeof(port_string),
+                   NI_NUMERICHOST|NI_NUMERICSERV) != 0) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+    }
+    std::string peer_ip = std::string(address_string);
+    int peer_port = atoi(port_string);
     
     // append to buffer.
     buffer->append(buf, nb_buf);

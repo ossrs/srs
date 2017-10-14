@@ -37,14 +37,14 @@ extern bool srs_string_is_http(std::string url);
 extern bool srs_string_is_rtmp(std::string url);
 
 // get local ip, fill to @param ips
-extern std::vector<std::string>& srs_get_local_ipv4_ips();
+extern std::vector<std::string>& srs_get_local_ips();
 
 // get local public ip, empty string if no public internet address found.
 extern std::string srs_get_public_internet_address();
 
 // detect whether specified device is internet public address.
 extern bool srs_net_device_is_internet(std::string ifname);
-extern bool srs_net_device_is_internet(in_addr_t addr);
+extern bool srs_net_device_is_internet(const sockaddr* addr);
 
 #endif
 

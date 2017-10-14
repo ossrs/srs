@@ -87,7 +87,7 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 
 srs_error_t SrsSimpleRtmpClient::connect_app()
 {
-    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    std::vector<std::string> ips = srs_get_local_ips();
     assert(_srs_config->get_stats_network() < (int)ips.size());
     std::string local_ip = ips[_srs_config->get_stats_network()];
     

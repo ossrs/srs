@@ -643,6 +643,9 @@ extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
 // the deamon st-thread will update it.
 extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
+// check for IPv6 support
+extern int srs_check_ipv6();
+
 // get local or peer ip.
 // where local ip is the server ip which client connected.
 extern std::string srs_get_local_ip(int fd);

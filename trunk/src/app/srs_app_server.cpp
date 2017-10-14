@@ -1137,7 +1137,7 @@ srs_error_t SrsServer::listen_stream_caster()
         }
         
         // TODO: support listen at <[ip:]port>
-        if ((err = listener->listen("0.0.0.0", port)) != srs_success) {
+        if ((err = listener->listen( (srs_check_ipv6() ? "::" : "0.0.0.0"), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
         }
     }
