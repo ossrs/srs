@@ -483,6 +483,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
+        w->header()->set("Access-Control-Allow-Origin", "*");
 #ifdef SRS_PERF_FAST_FLV_ENCODER
         enc = new SrsFastFlvStreamEncoder();
 #else
