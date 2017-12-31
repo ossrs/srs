@@ -129,16 +129,17 @@ srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code)
 
 srs_error_t srs_go_http_error(ISrsHttpResponseWriter* w, int code, string error)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     w->header()->set_content_type("text/plain; charset=utf-8");
     w->header()->set_content_length(error.length());
     w->write_header(code);
-    if ((ret = w->write((char*)error.data(), (int)error.length())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http write");
+    
+    if ((err = w->write((char*)error.data(), (int)error.length())) != srs_success) {
+        return srs_error_wrap(err, "http write");
     }
     
-    return srs_success;
+    return err;
 }
 
 SrsHttpHeader::SrsHttpHeader()
@@ -330,14 +331,13 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 
 srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // open the target file.
     SrsFileReader fs;
     
-    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "open file %s", fullpath.c_str());
+    if ((err = fs.open(fullpath)) != srs_success) {
+        return srs_error_wrap(err, "open file %s", fullpath.c_str());
     }
     
     int64_t length = fs.filesize();
@@ -397,8 +397,8 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
         return srs_error_wrap(err, "copy file=%s size=%d", fullpath.c_str(), left);
     }
     
-    if ((ret = w->final_request()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "final request");
+    if ((err = w->final_request()) != srs_success) {
+        return srs_error_wrap(err, "final request");
     }
     
     return err;
@@ -468,7 +468,7 @@ srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsH
 
 srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int size)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     int left = size;
     char* buf = r->http_ts_send_buffer();
@@ -476,21 +476,21 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
     while (left > 0) {
         ssize_t nread = -1;
         int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
-        if ((ret = fs->read(buf, max_read, &nread)) != ERROR_SUCCESS) {
+        if ((err = fs->read(buf, max_read, &nread)) != srs_success) {
             break;
         }
         
         left -= nread;
-        if ((ret = w->write(buf, (int)nread)) != ERROR_SUCCESS) {
+        if ((err = w->write(buf, (int)nread)) != srs_success) {
             break;
         }
     }
     
-    if (ret != ERROR_SUCCESS) {
-        return srs_error_new(ret, "copy");
+    if (err != srs_success) {
+        return srs_error_wrap(err, "copy");
     }
     
-    return srs_success;
+    return err;
 }
 
 SrsHttpMuxEntry::SrsHttpMuxEntry()
@@ -765,7 +765,7 @@ srs_error_t SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabl
 
 srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // If CORS enabled, and there is a "Origin" header, it's CORS.
     if (enabled) {
@@ -795,8 +795,8 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         } else {
             w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
         }
-        if ((ret = w->final_request()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "final request");
+        if ((err = w->final_request()) != srs_success) {
+            return srs_error_wrap(err, "final request");
         }
     }
     

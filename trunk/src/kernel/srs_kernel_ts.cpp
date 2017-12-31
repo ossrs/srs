@@ -374,7 +374,6 @@ void SrsTsContext::set_sync_byte(int8_t sb)
 
 srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (vs != SrsTsStreamVideoH264 && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
@@ -397,15 +396,12 @@ srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, Sr
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: init stream");
-        }
+        SrsBuffer stream(buf, nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: write packet");
+        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+            return srs_error_wrap(err, "ts: write packet");
         }
     }
     if (true) {
@@ -422,15 +418,12 @@ srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, Sr
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: init stream");
-        }
+        SrsBuffer stream(buf, nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: write packet");
+        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+            return srs_error_wrap(err, "ts: write packet");
         }
     }
     
@@ -442,7 +435,6 @@ srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, Sr
 
 srs_error_t SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // Sometimes, the context is not ready(PAT/PMT write failed), error in this situation.
@@ -529,15 +521,12 @@ srs_error_t SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, i
         memcpy(buf + nb_buf, p, left);
         p += left;
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: init stream");
-        }
+        SrsBuffer stream(buf, nb_buf);
         if ((err = pkt->encode(&stream)) != srs_success) {
             return srs_error_wrap(err, "ts: encode packet");
         }
-        if ((ret = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: write packet");
+        if ((err = writer->write(buf, SRS_TS_PACKET_SIZE, NULL)) != srs_success) {
+            return srs_error_wrap(err, "ts: write packet");
         }
     }
     
@@ -2562,7 +2551,6 @@ SrsTsContextWriter::~SrsTsContextWriter()
 
 srs_error_t SrsTsContextWriter::open(string p)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     path = p;
@@ -2572,8 +2560,8 @@ srs_error_t SrsTsContextWriter::open(string p)
     // reset the context for a new ts start.
     context->reset();
     
-    if ((ret = writer->open(path)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ts: open writer");
+    if ((err = writer->open(path)) != srs_success) {
+        return srs_error_wrap(err, "ts: open writer");
     }
     
     return err;

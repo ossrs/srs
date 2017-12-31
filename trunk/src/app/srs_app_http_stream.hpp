@@ -50,10 +50,10 @@ private:
 public:
     SrsBufferCache(SrsSource* s, SrsRequest* r);
     virtual ~SrsBufferCache();
-    virtual int update(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t update(SrsSource* s, SrsRequest* r);
 public:
     virtual srs_error_t start();
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 // interface ISrsEndlessThreadHandler.
 public:
     virtual srs_error_t cycle();
@@ -73,13 +73,13 @@ public:
      * @param w the writer to write to http response.
      * @param c the stream cache for audio stream fast startup.
      */
-    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c) = 0;
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c) = 0;
     /**
      * write rtmp video/audio/metadata.
      */
-    virtual int write_audio(int64_t timestamp, char* data, int size) = 0;
-    virtual int write_video(int64_t timestamp, char* data, int size) = 0;
-    virtual int write_metadata(int64_t timestamp, char* data, int size) = 0;
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size) = 0;
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size) = 0;
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size) = 0;
 public:
     /**
      * for some stream, for example, mp3 and aac, the audio stream,
@@ -90,7 +90,7 @@ public:
     /**
      * dumps the cache of encoder to consumer.
      */
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
 };
 
 /**
@@ -104,13 +104,13 @@ public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
-    virtual int write_metadata(int64_t timestamp, char* data, int size);
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
@@ -127,7 +127,7 @@ public:
     /**
      * write the tags in a time.
      */
-    virtual int write_tags(SrsSharedPtrMessage** msgs, int count);
+    virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 };
 #endif
 
@@ -142,13 +142,13 @@ public:
     SrsTsStreamEncoder();
     virtual ~SrsTsStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
-    virtual int write_metadata(int64_t timestamp, char* data, int size);
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**
@@ -163,13 +163,13 @@ public:
     SrsAacStreamEncoder();
     virtual ~SrsAacStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
-    virtual int write_metadata(int64_t timestamp, char* data, int size);
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**
@@ -184,13 +184,13 @@ public:
     SrsMp3StreamEncoder();
     virtual ~SrsMp3StreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w, SrsBufferCache* c);
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
-    virtual int write_metadata(int64_t timestamp, char* data, int size);
+    virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual int dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 /**
@@ -204,14 +204,14 @@ public:
     SrsBufferWriter(ISrsHttpResponseWriter* w);
     virtual ~SrsBufferWriter();
 public:
-    virtual int open(std::string file);
+    virtual srs_error_t open(std::string file);
     virtual void close();
 public:
     virtual bool is_open();
     virtual int64_t tellg();
 public:
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
 /**
@@ -227,11 +227,11 @@ private:
 public:
     SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
-    virtual int update(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t update(SrsSource* s, SrsRequest* r);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
-    virtual int streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**
@@ -286,7 +286,7 @@ public:
     virtual srs_error_t initialize();
     // http flv/ts/mp3/aac stream
 public:
-    virtual int http_mount(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
 // interface ISrsReloadHandler.
 public:
@@ -296,8 +296,8 @@ public:
 public:
     virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);
 private:
-    virtual int initialize_flv_streaming();
-    virtual int initialize_flv_entry(std::string vhost);
+    virtual srs_error_t initialize_flv_streaming();
+    virtual srs_error_t initialize_flv_entry(std::string vhost);
 };
 
 #endif

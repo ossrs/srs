@@ -1104,7 +1104,7 @@ int SrsKafkaProducerPartitionMessages::decode(SrsBuffer* buf)
     
     // for the message set decode util empty, we must create a new buffer when
     // there exists other objects after message set.
-    if (buf->size() - buf->pos() != message_set_size) {
+    if (buf->left() != message_set_size) {
         SrsBuffer* tbuf = new SrsBuffer();
         SrsAutoFree(SrsBuffer, tbuf);
         

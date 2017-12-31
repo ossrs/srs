@@ -49,12 +49,12 @@ using namespace std;
 // @see SRS_SYS_TIME_RESOLUTION_MS_TIMES
 #define SYS_TIME_RESOLUTION_US 300*1000
 
-int srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
+srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (stream->empty()) {
-        return ERROR_AVC_NALU_UEV;
+        return srs_error_new(ERROR_AVC_NALU_UEV, "empty stream");
     }
     
     // ue(v) in 9.1 Parsing process for Exp-Golomb codes
@@ -71,7 +71,7 @@ int srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
     }
     
     if (leadingZeroBits >= 31) {
-        return ERROR_AVC_NALU_UEV;
+        return srs_error_new(ERROR_AVC_NALU_UEV, "%dbits overflow 31bits", leadingZeroBits);
     }
     
     v = (1 << leadingZeroBits) - 1;
@@ -80,20 +80,20 @@ int srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
         v += b << (leadingZeroBits - 1 - i);
     }
     
-    return ret;
+    return err;
 }
 
-int srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v)
+srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (stream->empty()) {
-        return ERROR_AVC_NALU_UEV;
+        return srs_error_new(ERROR_AVC_NALU_UEV, "empty stream");
     }
     
     v = stream->read_bit();
     
-    return ret;
+    return err;
 }
 
 static int64_t _srs_system_time_us_cache = 0;
@@ -961,7 +961,7 @@ int srs_do_create_dir_recursively(string dir)
         *dst++ = v >> 4;
     out1:
     out0:
-        return bits & 1 ? -1 : dst - out;
+        return bits & 1 ? -1 : (int)(dst - out);
     }
     
     /*****************************************************************************

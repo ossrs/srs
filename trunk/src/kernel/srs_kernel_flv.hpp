@@ -294,7 +294,7 @@ public:
      * @remark user should never free the body.
      * @param pheader, the header to copy to the message. NULL to ignore.
      */
-    virtual int create(SrsMessageHeader* pheader, char* body, int size);
+    virtual srs_error_t create(SrsMessageHeader* pheader, char* body, int size);
 };
 
 /**
@@ -398,14 +398,14 @@ public:
      * set the payload to NULL to prevent double free.
      * @remark payload of msg set to NULL if success.
      */
-    virtual int create(SrsCommonMessage* msg);
+    virtual srs_error_t create(SrsCommonMessage* msg);
     /**
      * create shared ptr message,
      * from the header and payload.
      * @remark user should never free the payload.
      * @param pheader, the header to copy to the message. NULL to ignore.
      */
-    virtual int create(SrsMessageHeader* pheader, char* payload, int size);
+    virtual srs_error_t create(SrsMessageHeader* pheader, char* payload, int size);
     /**
      * get current reference count.
      * when this object created, count set to 0.
@@ -445,7 +445,6 @@ class SrsFlvTransmuxer
 private:
     ISrsWriter* writer;
 private:
-    SrsBuffer* tag_stream;
     char tag_header[SRS_FLV_TAG_HEADER_SIZE];
 public:
     SrsFlvTransmuxer();
@@ -456,7 +455,7 @@ public:
      * @remark user can initialize multiple times to encode multiple flv files.
      * @remark, user must free the @param fw, flv encoder never close/free it.
      */
-    virtual int initialize(ISrsWriter* fw);
+    virtual srs_error_t initialize(ISrsWriter* fw);
 public:
     /**
      * write flv header.
@@ -465,8 +464,8 @@ public:
      *   2. PreviousTagSize0 UI32 Always 0
      * that is, 9+4=13bytes.
      */
-    virtual int write_header();
-    virtual int write_header(char flv_header[9]);
+    virtual srs_error_t write_header();
+    virtual srs_error_t write_header(char flv_header[9]);
     /**
      * write flv metadata.
      * @param type, the type of data, or other message type.
@@ -476,13 +475,13 @@ public:
      *   AMF0 object: the metadata object.
      * @remark assert data is not NULL.
      */
-    virtual int write_metadata(char type, char* data, int size);
+    virtual srs_error_t write_metadata(char type, char* data, int size);
     /**
      * write audio/video packet.
      * @remark assert data is not NULL.
      */
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
+    virtual srs_error_t write_video(int64_t timestamp, char* data, int size);
 public:
     /**
      * get the tag size,
@@ -505,14 +504,14 @@ public:
     /**
      * write the tags in a time.
      */
-    virtual int write_tags(SrsSharedPtrMessage** msgs, int count);
+    virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 #endif
 private:
-    virtual int write_metadata_to_cache(char type, char* data, int size, char* cache);
-    virtual int write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual int write_video_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual int write_pts_to_cache(int size, char* cache);
-    virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
+    virtual srs_error_t write_metadata_to_cache(char type, char* data, int size, char* cache);
+    virtual srs_error_t write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache);
+    virtual srs_error_t write_video_to_cache(int64_t timestamp, char* data, int size, char* cache);
+    virtual srs_error_t write_pts_to_cache(int size, char* cache);
+    virtual srs_error_t write_tag(char* header, int header_size, char* tag, int tag_size);
 };
 
 /**
@@ -522,8 +521,6 @@ class SrsFlvDecoder
 {
 private:
     ISrsReader* reader;
-private:
-    SrsBuffer* tag_stream;
 public:
     SrsFlvDecoder();
     virtual ~SrsFlvDecoder();
@@ -533,28 +530,28 @@ public:
      * @remark user can initialize multiple times to decode multiple flv files.
      * @remark user must free the @param fr, flv decoder never close/free it
      */
-    virtual int initialize(ISrsReader* fr);
+    virtual srs_error_t initialize(ISrsReader* fr);
 public:
     /**
      * read the flv header, donot including the 4bytes previous tag size.
      * @remark assert header not NULL.
      */
-    virtual int read_header(char header[9]);
+    virtual srs_error_t read_header(char header[9]);
     /**
      * read the tag header infos.
      * @remark assert ptype/pdata_size/ptime not NULL.
      */
-    virtual int read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime);
+    virtual srs_error_t read_tag_header(char* ptype, int32_t* pdata_size, uint32_t* ptime);
     /**
      * read the tag data.
      * @remark assert data not NULL.
      */
-    virtual int read_tag_data(char* data, int32_t size);
+    virtual srs_error_t read_tag_data(char* data, int32_t size);
     /**
      * read the 4bytes previous tag size.
      * @remark assert previous_tag_size not NULL.
      */
-    virtual int read_previous_tag_size(char previous_tag_size[4]);
+    virtual srs_error_t read_previous_tag_size(char previous_tag_size[4]);
 };
 
 /**
@@ -566,8 +563,6 @@ class SrsFlvVodStreamDecoder
 {
 private:
     SrsFileReader* reader;
-private:
-    SrsBuffer* tag_stream;
 public:
     SrsFlvVodStreamDecoder();
     virtual ~SrsFlvVodStreamDecoder();
@@ -577,14 +572,14 @@ public:
      * @remark user can initialize multiple times to decode multiple flv files.
      * @remark user must free the @param fr, flv decoder never close/free it.
      */
-    virtual int initialize(ISrsReader* fr);
+    virtual srs_error_t initialize(ISrsReader* fr);
 public:
     /**
      * read the flv header and its size.
      * @param header, fill it 13bytes(9bytes header, 4bytes previous tag size).
      * @remark assert header not NULL.
      */
-    virtual int read_header_ext(char header[13]);
+    virtual srs_error_t read_header_ext(char header[13]);
     /**
      * read the sequence header tags offset and its size.
      * @param pstart, the start offset of sequence header.
@@ -592,12 +587,12 @@ public:
      * @remark we think the first audio/video is sequence header.
      * @remark assert pstart/psize not NULL.
      */
-    virtual int read_sequence_header_summary(int64_t* pstart, int* psize);
+    virtual srs_error_t read_sequence_header_summary(int64_t* pstart, int* psize);
 public:
     /**
      * for start offset, seed to this position and response flv stream.
      */
-    virtual int seek2(int64_t offset);
+    virtual srs_error_t seek2(int64_t offset);
 };
 
 #endif

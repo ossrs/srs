@@ -39,55 +39,48 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_core_autofree.hpp>
 
 SrsAacTransmuxer::SrsAacTransmuxer()
 {
     _fs = NULL;
     got_sequence_header = false;
-    tag_stream = new SrsBuffer();
     aac_object = SrsAacObjectTypeReserved;
 }
 
 SrsAacTransmuxer::~SrsAacTransmuxer()
 {
-    srs_freep(tag_stream);
 }
 
-int SrsAacTransmuxer::initialize(SrsFileWriter* fs)
+srs_error_t SrsAacTransmuxer::initialize(SrsFileWriter* fs)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_assert(fs);
     
     if (!fs->is_open()) {
-        ret = ERROR_KERNEL_AAC_STREAM_CLOSED;
-        srs_warn("stream is not open for encoder. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KERNEL_AAC_STREAM_CLOSED, "stream is not open");
     }
     
     _fs = fs;
     
-    return ret;
+    return err;
 }
 
-int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
+srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_assert(data);
     
     timestamp &= 0x7fffffff;
     
-    SrsBuffer* stream = tag_stream;
-    if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    SrsBuffer* stream = new SrsBuffer(data, size);
+    SrsAutoFree(SrsBuffer, stream);
     
     // audio decode
     if (!stream->require(1)) {
-        ret = ERROR_AAC_DECODE_ERROR;
-        srs_error("aac decode audio sound_format failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac decode audio sound_format failed");
     }
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
@@ -99,15 +92,11 @@ int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
     sound_format = (sound_format >> 4) & 0x0f;
     
     if ((SrsAudioCodecId)sound_format != SrsAudioCodecIdAAC) {
-        ret = ERROR_AAC_DECODE_ERROR;
-        srs_error("aac required, format=%d. ret=%d", sound_format, ret);
-        return ret;
+        return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac required, format=%d", sound_format);
     }
     
     if (!stream->require(1)) {
-        ret = ERROR_AAC_DECODE_ERROR;
-        srs_error("aac decode aac_packet_type failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac decode aac_packet_type failed");
     }
     
     SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
@@ -120,9 +109,7 @@ int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
         // samplingFrequencyIndex, aac_sample_rate, 4bits.
         // channelConfiguration, aac_channels, 4bits
         if (!stream->require(2)) {
-            ret = ERROR_AAC_DECODE_ERROR;
-            srs_error("aac decode sequence header failed. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac decode sequence header failed");
         }
         
         int8_t audioObjectType = stream->read_1bytes();
@@ -136,13 +123,11 @@ int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
         
         got_sequence_header = true;
         
-        return ret;
+        return err;
     }
     
     if (!got_sequence_header) {
-        ret = ERROR_AAC_DECODE_ERROR;
-        srs_error("aac no sequence header. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac no sequence header");
     }
     
     // the left is the aac raw frame data.
@@ -207,16 +192,16 @@ int SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int size)
     }
     
     // write 7bytes fixed header.
-    if ((ret = _fs->write(aac_fixed_header, 7, NULL)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _fs->write(aac_fixed_header, 7, NULL)) != srs_success) {
+        return srs_error_wrap(err, "write aac header");
     }
     
     // write aac frame body.
-    if ((ret = _fs->write(data + stream->pos(), aac_raw_length, NULL)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = _fs->write(data + stream->pos(), aac_raw_length, NULL)) != srs_success) {
+        return srs_error_wrap(err, "write aac frame");
     }
     
-    return ret;
+    return err;
 }
 
 #endif

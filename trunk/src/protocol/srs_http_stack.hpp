@@ -180,7 +180,7 @@ public:
     // final the request to complete the chunked encoding.
     // for no-chunked mode,
     // final to send request, for example, content-length is 0.
-    virtual int final_request() = 0;
+    virtual srs_error_t final_request() = 0;
     
     // Header returns the header map that will be sent by WriteHeader.
     // Changing the header after a call to WriteHeader (or Write) has
@@ -193,12 +193,12 @@ public:
     // Content-Type line, Write adds a Content-Type set to the result of passing
     // the initial 512 bytes of written data to DetectContentType.
     // @param data, the data to send. NULL to flush header only.
-    virtual int write(char* data, int size) = 0;
+    virtual srs_error_t write(char* data, int size) = 0;
     /**
      * for the HTTP FLV, to writev to improve performance.
      * @see https://github.com/ossrs/srs/issues/405
      */
-    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite) = 0;
     
     // WriteHeader sends an HTTP response header with status code.
     // If WriteHeader is not called explicitly, the first call to Write
@@ -235,7 +235,7 @@ public:
      *      or by chunked), because the sdk never know whether there is no data or
      *      infinite chunked.
      */
-    virtual int read(char* data, int nb_data, int* nb_read) = 0;
+    virtual srs_error_t read(char* data, int nb_data, int* nb_read) = 0;
 };
 
 // Objects implementing the Handler interface can be
@@ -538,12 +538,12 @@ public:
      * which is chunked encoding without chunked header.
      * @remark error when message is in chunked or content-length specified.
      */
-    virtual int enter_infinite_chunked() = 0;
+    virtual srs_error_t enter_infinite_chunked() = 0;
     /**
      * read body to string.
      * @remark for small http body.
      */
-    virtual int body_read_all(std::string& body) = 0;
+    virtual srs_error_t body_read_all(std::string& body) = 0;
     /**
      * get the body reader, to read one by one.
      * @remark when body is very large, or chunked, use this.

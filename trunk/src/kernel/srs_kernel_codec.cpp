@@ -507,7 +507,6 @@ SrsFormat::SrsFormat()
     vcodec = NULL;
     audio = NULL;
     video = NULL;
-    buffer = new SrsBuffer();
     avc_parse_sps = true;
     raw = NULL;
     nb_raw = 0;
@@ -519,7 +518,6 @@ SrsFormat::~SrsFormat()
     srs_freep(video);
     srs_freep(acodec);
     srs_freep(vcodec);
-    srs_freep(buffer);
 }
 
 srs_error_t SrsFormat::initialize()
@@ -529,7 +527,6 @@ srs_error_t SrsFormat::initialize()
 
 srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (!data || size <= 0) {
@@ -537,9 +534,8 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
         return err;
     }
     
-    if ((ret = buffer->initialize(data, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init buffer");
-    }
+    SrsBuffer* buffer = new SrsBuffer(data, size);
+    SrsAutoFree(SrsBuffer, buffer);
     
     // audio decode
     if (!buffer->require(1)) {
@@ -577,7 +573,6 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
 
 srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (!data || size <= 0) {
@@ -585,9 +580,8 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
         return err;
     }
     
-    if ((ret = buffer->initialize(data, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init buffer");
-    }
+    SrsBuffer* buffer = new SrsBuffer(data, size);
+    SrsAutoFree(SrsBuffer, buffer);
     
     // video decode
     if (!buffer->require(1)) {
@@ -785,19 +779,16 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
 
 srs_error_t SrsFormat::avc_demux_sps()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (vcodec->sequenceParameterSetNALUnit.empty()) {
         return err;
     }
     
-    SrsBuffer stream;
     char* sps = &vcodec->sequenceParameterSetNALUnit[0];
     int nbsps = (int)vcodec->sequenceParameterSetNALUnit.size();
-    if ((ret = stream.initialize(sps, nbsps)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init stream");
-    }
+    
+    SrsBuffer stream(sps, nbsps);
     
     // for NALU, 7.3.1 NAL unit syntax
     // ISO_IEC_14496-10-AVC-2012.pdf, page 61.
@@ -856,7 +847,6 @@ srs_error_t SrsFormat::avc_demux_sps()
 
 srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // we donot parse the detail of sps.
@@ -866,10 +856,7 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     }
     
     // reparse the rbsp.
-    SrsBuffer stream;
-    if ((ret = stream.initialize(rbsp, nb_rbsp)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init stream");
-    }
+    SrsBuffer stream(rbsp, nb_rbsp);
     
     // for SPS, 7.3.2.1.1 Sequence parameter set data syntax
     // ISO_IEC_14496-10-AVC-2012.pdf, page 62.
@@ -892,13 +879,13 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     }
     
     SrsBitBuffer bs;
-    if ((ret = bs.initialize(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init bit buffer");
+    if ((err = bs.initialize(&stream)) != srs_success) {
+        return srs_error_wrap(err, "init bit buffer");
     }
     
     int32_t seq_parameter_set_id = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read seq_parameter_set_id");
+    if ((err = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != srs_success) {
+        return srs_error_wrap(err, "read seq_parameter_set_id");
     }
     if (seq_parameter_set_id < 0) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the seq_parameter_set_id invalid");
@@ -908,110 +895,110 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     if (profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 244
         || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118
         || profile_idc == 128) {
-        if ((ret = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read chroma_format_idc");
+        if ((err = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != srs_success) {
+            return srs_error_wrap(err, "read chroma_format_idc");
         }
         if (chroma_format_idc == 3) {
             int8_t separate_colour_plane_flag = -1;
-            if ((ret = srs_avc_nalu_read_bit(&bs, separate_colour_plane_flag)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "read separate_colour_plane_flag");
+            if ((err = srs_avc_nalu_read_bit(&bs, separate_colour_plane_flag)) != srs_success) {
+                return srs_error_wrap(err, "read separate_colour_plane_flag");
             }
         }
         
         int32_t bit_depth_luma_minus8 = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_luma_minus8)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read bit_depth_luma_minus8");;
+        if ((err = srs_avc_nalu_read_uev(&bs, bit_depth_luma_minus8)) != srs_success) {
+            return srs_error_wrap(err, "read bit_depth_luma_minus8");;
         }
         
         int32_t bit_depth_chroma_minus8 = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_chroma_minus8)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read bit_depth_chroma_minus8");;
+        if ((err = srs_avc_nalu_read_uev(&bs, bit_depth_chroma_minus8)) != srs_success) {
+            return srs_error_wrap(err, "read bit_depth_chroma_minus8");;
         }
         
         int8_t qpprime_y_zero_transform_bypass_flag = -1;
-        if ((ret = srs_avc_nalu_read_bit(&bs, qpprime_y_zero_transform_bypass_flag)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read qpprime_y_zero_transform_bypass_flag");;
+        if ((err = srs_avc_nalu_read_bit(&bs, qpprime_y_zero_transform_bypass_flag)) != srs_success) {
+            return srs_error_wrap(err, "read qpprime_y_zero_transform_bypass_flag");;
         }
         
         int8_t seq_scaling_matrix_present_flag = -1;
-        if ((ret = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read seq_scaling_matrix_present_flag");;
+        if ((err = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag)) != srs_success) {
+            return srs_error_wrap(err, "read seq_scaling_matrix_present_flag");;
         }
         if (seq_scaling_matrix_present_flag) {
             int nb_scmpfs = ((chroma_format_idc != 3)? 8:12);
             for (int i = 0; i < nb_scmpfs; i++) {
                 int8_t seq_scaling_matrix_present_flag_i = -1;
-                if ((ret = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag_i)) != ERROR_SUCCESS) {
-                    return srs_error_new(ret, "read seq_scaling_matrix_present_flag_i");;
+                if ((err = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag_i)) != srs_success) {
+                    return srs_error_wrap(err, "read seq_scaling_matrix_present_flag_i");;
                 }
             }
         }
     }
     
     int32_t log2_max_frame_num_minus4 = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_frame_num_minus4)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read log2_max_frame_num_minus4");;
+    if ((err = srs_avc_nalu_read_uev(&bs, log2_max_frame_num_minus4)) != srs_success) {
+        return srs_error_wrap(err, "read log2_max_frame_num_minus4");;
     }
     
     int32_t pic_order_cnt_type = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, pic_order_cnt_type)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read pic_order_cnt_type");;
+    if ((err = srs_avc_nalu_read_uev(&bs, pic_order_cnt_type)) != srs_success) {
+        return srs_error_wrap(err, "read pic_order_cnt_type");;
     }
     
     if (pic_order_cnt_type == 0) {
         int32_t log2_max_pic_order_cnt_lsb_minus4 = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_pic_order_cnt_lsb_minus4)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read log2_max_pic_order_cnt_lsb_minus4");;
+        if ((err = srs_avc_nalu_read_uev(&bs, log2_max_pic_order_cnt_lsb_minus4)) != srs_success) {
+            return srs_error_wrap(err, "read log2_max_pic_order_cnt_lsb_minus4");;
         }
     } else if (pic_order_cnt_type == 1) {
         int8_t delta_pic_order_always_zero_flag = -1;
-        if ((ret = srs_avc_nalu_read_bit(&bs, delta_pic_order_always_zero_flag)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read delta_pic_order_always_zero_flag");;
+        if ((err = srs_avc_nalu_read_bit(&bs, delta_pic_order_always_zero_flag)) != srs_success) {
+            return srs_error_wrap(err, "read delta_pic_order_always_zero_flag");;
         }
         
         int32_t offset_for_non_ref_pic = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_non_ref_pic)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read offset_for_non_ref_pic");;
+        if ((err = srs_avc_nalu_read_uev(&bs, offset_for_non_ref_pic)) != srs_success) {
+            return srs_error_wrap(err, "read offset_for_non_ref_pic");;
         }
         
         int32_t offset_for_top_to_bottom_field = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_top_to_bottom_field)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read offset_for_top_to_bottom_field");;
+        if ((err = srs_avc_nalu_read_uev(&bs, offset_for_top_to_bottom_field)) != srs_success) {
+            return srs_error_wrap(err, "read offset_for_top_to_bottom_field");;
         }
         
         int32_t num_ref_frames_in_pic_order_cnt_cycle = -1;
-        if ((ret = srs_avc_nalu_read_uev(&bs, num_ref_frames_in_pic_order_cnt_cycle)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read num_ref_frames_in_pic_order_cnt_cycle");;
+        if ((err = srs_avc_nalu_read_uev(&bs, num_ref_frames_in_pic_order_cnt_cycle)) != srs_success) {
+            return srs_error_wrap(err, "read num_ref_frames_in_pic_order_cnt_cycle");;
         }
         if (num_ref_frames_in_pic_order_cnt_cycle < 0) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the num_ref_frames_in_pic_order_cnt_cycle");
         }
         for (int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++) {
             int32_t offset_for_ref_frame_i = -1;
-            if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_ref_frame_i)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "read offset_for_ref_frame_i");;
+            if ((err = srs_avc_nalu_read_uev(&bs, offset_for_ref_frame_i)) != srs_success) {
+                return srs_error_wrap(err, "read offset_for_ref_frame_i");;
             }
         }
     }
     
     int32_t max_num_ref_frames = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, max_num_ref_frames)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read max_num_ref_frames");;
+    if ((err = srs_avc_nalu_read_uev(&bs, max_num_ref_frames)) != srs_success) {
+        return srs_error_wrap(err, "read max_num_ref_frames");;
     }
     
     int8_t gaps_in_frame_num_value_allowed_flag = -1;
-    if ((ret = srs_avc_nalu_read_bit(&bs, gaps_in_frame_num_value_allowed_flag)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read gaps_in_frame_num_value_allowed_flag");;
+    if ((err = srs_avc_nalu_read_bit(&bs, gaps_in_frame_num_value_allowed_flag)) != srs_success) {
+        return srs_error_wrap(err, "read gaps_in_frame_num_value_allowed_flag");;
     }
     
     int32_t pic_width_in_mbs_minus1 = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, pic_width_in_mbs_minus1)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read pic_width_in_mbs_minus1");;
+    if ((err = srs_avc_nalu_read_uev(&bs, pic_width_in_mbs_minus1)) != srs_success) {
+        return srs_error_wrap(err, "read pic_width_in_mbs_minus1");;
     }
     
     int32_t pic_height_in_map_units_minus1 = -1;
-    if ((ret = srs_avc_nalu_read_uev(&bs, pic_height_in_map_units_minus1)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read pic_height_in_map_units_minus1");;
+    if ((err = srs_avc_nalu_read_uev(&bs, pic_height_in_map_units_minus1)) != srs_success) {
+        return srs_error_wrap(err, "read pic_height_in_map_units_minus1");;
     }
     
     vcodec->width = (int)(pic_width_in_mbs_minus1 + 1) * 16;
@@ -1323,12 +1310,10 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
 
 srs_error_t SrsFormat::audio_aac_sequence_header_demux(char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = buffer->initialize(data, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init buffer");
-    }
+    SrsBuffer* buffer = new SrsBuffer(data, size);
+    SrsAutoFree(SrsBuffer, buffer);
     
     // only need to decode the first 2bytes:
     //      audioObjectType, aac_profile, 5bits.

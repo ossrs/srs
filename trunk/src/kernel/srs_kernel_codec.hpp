@@ -682,8 +682,6 @@ public:
 public:
     char* raw;
     int nb_raw;
-private:
-    SrsBuffer* buffer;
 public:
     // for sequence header, whether parse the h.264 sps.
     // TODO: FIXME: Refine it.

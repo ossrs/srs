@@ -51,12 +51,12 @@ public:
      * open file writer, in truncate mode.
      * @param p a string indicates the path of file to open.
      */
-    virtual int open(std::string p);
+    virtual srs_error_t open(std::string p);
     /**
      * open file writer, in append mode.
      * @param p a string indicates the path of file to open.
      */
-    virtual int open_append(std::string p);
+    virtual srs_error_t open_append(std::string p);
     /**
      * close current writer.
      * @remark user can reopen again.
@@ -68,9 +68,9 @@ public:
     virtual int64_t tellg();
 // Interface ISrsWriteSeeker
 public:
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
-    virtual int lseek(off_t offset, int whence, off_t* seeked);
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 };
 
 /**
@@ -89,7 +89,7 @@ public:
      * open file reader.
      * @param p a string indicates the path of file to open.
      */
-    virtual int open(std::string p);
+    virtual srs_error_t open(std::string p);
     /**
      * close current reader.
      * @remark user can reopen again.
@@ -104,8 +104,8 @@ public:
     virtual int64_t filesize();
 // Interface ISrsReadSeeker
 public:
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    virtual int lseek(off_t offset, int whence, off_t* seeked);
+    virtual srs_error_t read(void* buf, size_t count, ssize_t* pnread);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 };
 
 #endif
