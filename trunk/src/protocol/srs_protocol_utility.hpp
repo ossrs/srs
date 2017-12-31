@@ -111,7 +111,7 @@ extern void srs_parse_rtmp_url(std::string url, std::string& tcUrl, std::string&
 extern std::string srs_generate_rtmp_url(std::string server, int port, std::string vhost, std::string app, std::string stream);
 
 // write large numbers of iovs.
-extern int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
+extern srs_error_t srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
 
 // join string in vector with indicated separator
 extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);

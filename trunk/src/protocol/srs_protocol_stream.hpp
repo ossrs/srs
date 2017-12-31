@@ -134,7 +134,7 @@ public:
      * @return an int error code, error if required_size negative.
      * @remark, we actually maybe read more than required_size, maybe 4k for example.
      */
-    virtual int grow(ISrsReader* reader, int required_size);
+    virtual srs_error_t grow(ISrsReader* reader, int required_size);
 public:
 #ifdef SRS_PERF_MERGED_READ
     /**

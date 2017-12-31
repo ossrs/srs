@@ -42,8 +42,8 @@ namespace _srs_internal
 #define SRS_OpensslHashSize 512
     extern uint8_t SrsGenuineFMSKey[];
     extern uint8_t SrsGenuineFPKey[];
-    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
-    int openssl_generate_key(char* public_key, int32_t size);
+    srs_error_t openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
+    srs_error_t openssl_generate_key(char* public_key, int32_t size);
     
     /**
      * the DH wrapper.
@@ -64,7 +64,7 @@ namespace _srs_internal
          *       sometimes openssl generate 127bytes public key.
          *       default to false to donot ensure.
          */
-        virtual int initialize(bool ensure_128bytes_public_key = false);
+        virtual srs_error_t initialize(bool ensure_128bytes_public_key = false);
         /**
          * copy the public key.
          * @param pkey the bytes to copy the public key.
@@ -72,7 +72,7 @@ namespace _srs_internal
          *       user should never ignore this size.
          * @remark, when ensure_128bytes_public_key, the size always 128.
          */
-        virtual int copy_public_key(char* pkey, int32_t& pkey_size);
+        virtual srs_error_t copy_public_key(char* pkey, int32_t& pkey_size);
         /**
          * generate and copy the shared key.
          * generate the shared key with peer public key.
@@ -82,9 +82,9 @@ namespace _srs_internal
          * @param skey_size the max shared key size, output the actual shared key size.
          *       user should never ignore this size.
          */
-        virtual int copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t& skey_size);
+        virtual srs_error_t copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t& skey_size);
     private:
-        virtual int do_initialize();
+        virtual srs_error_t do_initialize();
     };
     /**
      * the schema type.
@@ -137,7 +137,7 @@ namespace _srs_internal
         // parse key block from c1s1.
         // if created, user must free it by srs_key_block_free
         // @stream contains c1s1_key_bytes the key start bytes
-        int parse(SrsBuffer* stream);
+        srs_error_t parse(SrsBuffer* stream);
     private:
         // calc the offset of key,
         // the key->offset cannot be used as the offset of key.
@@ -175,7 +175,7 @@ namespace _srs_internal
         // parse digest block from c1s1.
         // if created, user must free it by srs_digest_block_free
         // @stream contains c1s1_digest_bytes the digest start bytes
-        int parse(SrsBuffer* stream);
+        srs_error_t parse(SrsBuffer* stream);
     private:
         // calc the offset of digest,
         // the key->offset cannot be used as the offset of digest.
@@ -214,12 +214,12 @@ namespace _srs_internal
          * copy to bytes.
          * @param size must be 1536.
          */
-        virtual int dump(c1s1* owner, char* _c1s1, int size);
+        virtual srs_error_t dump(c1s1* owner, char* _c1s1, int size);
         /**
          * server: parse the c1s1, discovery the key and digest by schema.
          * use the c1_validate_digest() to valid the digest of c1.
          */
-        virtual int parse(char* _c1s1, int size) = 0;
+        virtual srs_error_t parse(char* _c1s1, int size) = 0;
     public:
         /**
          * client: create and sign c1 by schema.
@@ -236,11 +236,11 @@ namespace _srs_internal
          *        digest-data = calc_c1_digest(c1, schema)
          *        copy digest-data to c1
          */
-        virtual int c1_create(c1s1* owner);
+        virtual srs_error_t c1_create(c1s1* owner);
         /**
          * server: validate the parsed c1 schema
          */
-        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
+        virtual srs_error_t c1_validate_digest(c1s1* owner, bool& is_valid);
         /**
          * server: create and sign the s1 from c1.
          *       // decode c1 try schema0 then schema1
@@ -268,25 +268,25 @@ namespace _srs_internal
          *       copy s1-digest-data and s1-key-data to s1.
          * @param c1, to get the peer_pub_key of client.
          */
-        virtual int s1_create(c1s1* owner, c1s1* c1);
+        virtual srs_error_t s1_create(c1s1* owner, c1s1* c1);
         /**
          * server: validate the parsed s1 schema
          */
-        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
+        virtual srs_error_t s1_validate_digest(c1s1* owner, bool& is_valid);
     public:
         /**
          * calc the digest for c1
          */
-        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
+        virtual srs_error_t calc_c1_digest(c1s1* owner, char*& c1_digest);
         /**
          * calc the digest for s1
          */
-        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+        virtual srs_error_t calc_s1_digest(c1s1* owner, char*& s1_digest);
         /**
          * copy whole c1s1 to bytes.
          * @param size must always be 1536 with digest, and 1504 without digest.
          */
-        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest) = 0;
+        virtual srs_error_t copy_to(c1s1* owner, char* bytes, int size, bool with_digest) = 0;
         /**
          * copy time and version to stream.
          */
@@ -313,9 +313,9 @@ namespace _srs_internal
         virtual ~c1s1_strategy_schema0();
     public:
         virtual srs_schema_type schema();
-        virtual int parse(char* _c1s1, int size);
+        virtual srs_error_t parse(char* _c1s1, int size);
     public:
-        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
+        virtual srs_error_t copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
     
     /**
@@ -330,9 +330,9 @@ namespace _srs_internal
         virtual ~c1s1_strategy_schema1();
     public:
         virtual srs_schema_type schema();
-        virtual int parse(char* _c1s1, int size);
+        virtual srs_error_t parse(char* _c1s1, int size);
     public:
-        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
+        virtual srs_error_t copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
     
     /**
@@ -378,14 +378,14 @@ namespace _srs_internal
          * copy to bytes.
          * @param size, must always be 1536.
          */
-        virtual int dump(char* _c1s1, int size);
+        virtual srs_error_t dump(char* _c1s1, int size);
         /**
          * server: parse the c1s1, discovery the key and digest by schema.
          * @param size, must always be 1536.
          * use the c1_validate_digest() to valid the digest of c1.
          * use the s1_validate_digest() to valid the digest of s1.
          */
-        virtual int parse(char* _c1s1, int size, srs_schema_type _schema);
+        virtual srs_error_t parse(char* _c1s1, int size, srs_schema_type _schema);
     public:
         /**
          * client: create and sign c1 by schema.
@@ -402,11 +402,11 @@ namespace _srs_internal
          *        digest-data = calc_c1_digest(c1, schema)
          *        copy digest-data to c1
          */
-        virtual int c1_create(srs_schema_type _schema);
+        virtual srs_error_t c1_create(srs_schema_type _schema);
         /**
          * server: validate the parsed c1 schema
          */
-        virtual int c1_validate_digest(bool& is_valid);
+        virtual srs_error_t c1_validate_digest(bool& is_valid);
     public:
         /**
          * server: create and sign the s1 from c1.
@@ -434,11 +434,11 @@ namespace _srs_internal
          *       s1-digest-data = HMACsha256(c1s1-joined, FMSKey, 36)
          *       copy s1-digest-data and s1-key-data to s1.
          */
-        virtual int s1_create(c1s1* c1);
+        virtual srs_error_t s1_create(c1s1* c1);
         /**
          * server: validate the parsed s1 schema
          */
-        virtual int s1_validate_digest(bool& is_valid);
+        virtual srs_error_t s1_validate_digest(bool& is_valid);
     };
     
     /**
@@ -460,12 +460,12 @@ namespace _srs_internal
          * copy to bytes.
          * @param size, must always be 1536.
          */
-        virtual int dump(char* _c2s2, int size);
+        virtual srs_error_t dump(char* _c2s2, int size);
         /**
          * parse the c2s2
          * @param size, must always be 1536.
          */
-        virtual int parse(char* _c2s2, int size);
+        virtual srs_error_t parse(char* _c2s2, int size);
     public:
         /**
          * create c2.
@@ -475,12 +475,12 @@ namespace _srs_internal
          * temp-key = HMACsha256(s1-digest, FPKey, 62)
          * c2-digest-data = HMACsha256(c2-random-data, temp-key, 32)
          */
-        virtual int c2_create(c1s1* s1);
+        virtual srs_error_t c2_create(c1s1* s1);
         
         /**
          * validate the c2 from client.
          */
-        virtual int c2_validate(c1s1* s1, bool& is_valid);
+        virtual srs_error_t c2_validate(c1s1* s1, bool& is_valid);
     public:
         /**
          * create s2.
@@ -490,12 +490,12 @@ namespace _srs_internal
          * temp-key = HMACsha256(c1-digest, FMSKey, 68)
          * s2-digest-data = HMACsha256(s2-random-data, temp-key, 32)
          */
-        virtual int s2_create(c1s1* c1);
+        virtual srs_error_t s2_create(c1s1* c1);
         
         /**
          * validate the s2 from server.
          */
-        virtual int s2_validate(c1s1* c1, bool& is_valid);
+        virtual srs_error_t s2_validate(c1s1* c1, bool& is_valid);
     };
 }
 
@@ -515,8 +515,8 @@ public:
     /**
      * simple handshake.
      */
-    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
 };
 
 /**
@@ -537,8 +537,8 @@ public:
      *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
      *     otherwise, disconnect
      */
-    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
 };
 
 #endif

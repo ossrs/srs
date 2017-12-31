@@ -103,7 +103,7 @@ public:
      * read specified size bytes of data
      * @param nread, the actually read size, NULL to ignore.
      */
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**

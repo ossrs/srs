@@ -139,13 +139,13 @@ public:
     /**
      * @param nread, the actual read bytes, ignore if NULL.
      */
-    virtual int read(void* buf, size_t size, ssize_t* nread);
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
     /**
      * @param nwrite, the actual write bytes, ignore if NULL.
      */
-    virtual int write(void* buf, size_t size, ssize_t* nwrite);
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 /**
@@ -198,10 +198,10 @@ public:
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    virtual int read(void* buf, size_t size, ssize_t* nread);
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
-    virtual int write(void* buf, size_t size, ssize_t* nwrite);
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 #endif

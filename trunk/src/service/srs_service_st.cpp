@@ -286,9 +286,9 @@ int64_t SrsStSocket::get_send_bytes()
     return sbytes;
 }
 
-int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ssize_t nb_read;
     if (rtm == SRS_CONSTS_NO_TMMS) {
@@ -307,24 +307,24 @@ int SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     if (nb_read <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return ERROR_SOCKET_TIMEOUT;
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
         }
         
         if (nb_read == 0) {
             errno = ECONNRESET;
         }
         
-        return ERROR_SOCKET_READ;
+        return srs_error_new(ERROR_SOCKET_READ, "read");
     }
     
     rbytes += nb_read;
     
-    return ret;
+    return err;
 }
 
-int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ssize_t nb_read;
     if (rtm == SRS_CONSTS_NO_TMMS) {
@@ -343,24 +343,24 @@ int SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     if (nb_read != (ssize_t)size) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return ERROR_SOCKET_TIMEOUT;
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
         }
         
         if (nb_read >= 0) {
             errno = ECONNRESET;
         }
         
-        return ERROR_SOCKET_READ_FULLY;
+        return srs_error_new(ERROR_SOCKET_READ_FULLY, "read fully");
     }
     
     rbytes += nb_read;
     
-    return ret;
+    return err;
 }
 
-int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ssize_t nb_write;
     if (stm == SRS_CONSTS_NO_TMMS) {
@@ -378,20 +378,20 @@ int SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return ERROR_SOCKET_TIMEOUT;
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", stm);
         }
         
-        return ERROR_SOCKET_WRITE;
+        return srs_error_new(ERROR_SOCKET_WRITE, "write");
     }
     
     sbytes += nb_write;
     
-    return ret;
+    return err;
 }
 
-int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ssize_t nb_write;
     if (stm == SRS_CONSTS_NO_TMMS) {
@@ -409,15 +409,15 @@ int SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return ERROR_SOCKET_TIMEOUT;
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", stm);
         }
         
-        return ERROR_SOCKET_WRITE;
+        return srs_error_new(ERROR_SOCKET_WRITE, "writev");
     }
     
     sbytes += nb_write;
     
-    return ret;
+    return err;
 }
 
 SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
@@ -500,22 +500,22 @@ int64_t SrsTcpClient::get_send_bytes()
     return io->get_send_bytes();
 }
 
-int SrsTcpClient::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpClient::read(void* buf, size_t size, ssize_t* nread)
 {
     return io->read(buf, size, nread);
 }
 
-int SrsTcpClient::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SrsTcpClient::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     return io->read_fully(buf, size, nread);
 }
 
-int SrsTcpClient::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SrsTcpClient::write(void* buf, size_t size, ssize_t* nwrite)
 {
     return io->write(buf, size, nwrite);
 }
 
-int SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SrsTcpClient::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     return io->writev(iov, iov_size, nwrite);
 }

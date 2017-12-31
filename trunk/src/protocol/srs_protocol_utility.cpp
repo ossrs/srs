@@ -309,9 +309,9 @@ string srs_generate_rtmp_url(string server, int port, string vhost, string app, 
     return ss.str();
 }
 
-int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
+srs_error_t srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // the limits of writev iovs.
     // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
@@ -324,29 +324,23 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     
     // send in a time.
     if (size < limits) {
-        if ((ret = skt->writev(iovs, size, pnwrite)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("send with writev failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = skt->writev(iovs, size, pnwrite)) != srs_success) {
+            return srs_error_wrap(err, "writev");
         }
-        return ret;
+        return err;
     }
     
     // send in multiple times.
     int cur_iov = 0;
     while (cur_iov < size) {
         int cur_count = srs_min(limits, size - cur_iov);
-        if ((ret = skt->writev(iovs + cur_iov, cur_count, pnwrite)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("send with writev failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = skt->writev(iovs + cur_iov, cur_count, pnwrite)) != srs_success) {
+            return srs_error_wrap(err, "writev");
         }
         cur_iov += cur_count;
     }
     
-    return ret;
+    return err;
 }
 
 string srs_join_vector_string(vector<string>& vs, string separator)

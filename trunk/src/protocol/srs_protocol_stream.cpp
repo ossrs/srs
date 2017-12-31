@@ -131,13 +131,13 @@ void SrsFastStream::skip(int size)
     p += size;
 }
 
-int SrsFastStream::grow(ISrsReader* reader, int required_size)
+srs_error_t SrsFastStream::grow(ISrsReader* reader, int required_size)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // already got required size of bytes.
     if (end - p >= required_size) {
-        return ret;
+        return err;
     }
     
     // must be positive.
@@ -153,13 +153,10 @@ int SrsFastStream::grow(ISrsReader* reader, int required_size)
     
     // resize the space when no left space.
     if (nb_free_space < required_size - nb_exists_bytes) {
-        srs_verbose("move fast buffer %d bytes", nb_exists_bytes);
-        
         // reset or move to get more space.
         if (!nb_exists_bytes) {
             // reset when buffer is empty.
             p = end = buffer;
-            srs_verbose("all consumed, reset fast buffer");
         } else if (nb_exists_bytes < nb_buffer && p > buffer) {
             // move the left bytes to start of buffer.
             // @remark Only move memory when space is enough, or failed at next check.
@@ -172,18 +169,15 @@ int SrsFastStream::grow(ISrsReader* reader, int required_size)
         // check whether enough free space in buffer.
         nb_free_space = (int)(buffer + nb_buffer - end);
         if (nb_free_space < required_size - nb_exists_bytes) {
-            ret = ERROR_READER_BUFFER_OVERFLOW;
-            srs_error("buffer overflow, required=%d, max=%d, left=%d, ret=%d",
-                      required_size, nb_buffer, nb_free_space, ret);
-            return ret;
+            return srs_error_new(ERROR_READER_BUFFER_OVERFLOW, "overflow, required=%d, max=%d, left=%d", required_size, nb_buffer, nb_free_space);
         }
     }
     
     // buffer is ok, read required size of bytes.
     while (end - p < required_size) {
         ssize_t nread;
-        if ((ret = reader->read(end, nb_free_space, &nread)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = reader->read(end, nb_free_space, &nread)) != srs_success) {
+            return srs_error_wrap(err, "read bytes");
         }
         
 #ifdef SRS_PERF_MERGED_READ
@@ -204,7 +198,7 @@ int SrsFastStream::grow(ISrsReader* reader, int required_size)
         nb_free_space -= nread;
     }
     
-    return ret;
+    return err;
 }
 
 #ifdef SRS_PERF_MERGED_READ
