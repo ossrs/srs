@@ -895,8 +895,6 @@ namespace _srs_internal
     
     srs_error_t c1s1::parse(char* _c1s1, int size, srs_schema_type schema)
     {
-        srs_error_t err = srs_success;
-        
         srs_assert(size == 1536);
         
         if (schema != srs_schema0 && schema != srs_schema1) {
@@ -920,8 +918,6 @@ namespace _srs_internal
     
     srs_error_t c1s1::c1_create(srs_schema_type schema)
     {
-        srs_error_t err = srs_success;
-        
         if (schema != srs_schema0 && schema != srs_schema1) {
             return srs_error_new(ERROR_RTMP_CH_SCHEMA, "create c1 failed. invalid schema=%d", schema);
         }
@@ -950,8 +946,6 @@ namespace _srs_internal
     
     srs_error_t c1s1::s1_create(c1s1* c1)
     {
-        srs_error_t err = srs_success;
-        
         if (c1->schema() != srs_schema0 && c1->schema() != srs_schema1) {
             return srs_error_new(ERROR_RTMP_CH_SCHEMA, "create s1 failed. invalid schema=%d", c1->schema());
         }
