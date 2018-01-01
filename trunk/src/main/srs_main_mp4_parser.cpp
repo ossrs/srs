@@ -43,16 +43,23 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 int parse(std::string mp4_file, bool verbose)
 {
     int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsFileReader fr;
-    if ((ret = fr.open(mp4_file)) != ERROR_SUCCESS) {
+    if ((err = fr.open(mp4_file)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("Open MP4 file failed, ret=%d", ret);
         return ret;
     }
     srs_trace("MP4 file open success");
     
     SrsMp4BoxReader br;
-    if ((ret = br.initialize(&fr)) != ERROR_SUCCESS) {
+    if ((err = br.initialize(&fr)) != srs_success) {
+        // TODO: FIXME: Use error
+        ret = srs_error_code(err);
+        srs_freep(err);
         srs_error("Open MP4 box reader failed, ret=%d", ret);
         return ret;
     }
@@ -66,7 +73,10 @@ int parse(std::string mp4_file, bool verbose)
         SrsMp4Box* box = NULL;
         SrsAutoFree(SrsMp4Box, box);
         
-        if ((ret = br.read(stream, &box)) != ERROR_SUCCESS) {
+        if ((err = br.read(stream, &box)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             if (ret != ERROR_SYSTEM_FILE_EOF) {
                 srs_error("Read MP4 box failed, ret=%d", ret);
             } else {
@@ -78,12 +88,18 @@ int parse(std::string mp4_file, bool verbose)
         SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
         SrsAutoFree(SrsBuffer, buffer);
         
-        if ((ret = box->decode(buffer)) != ERROR_SUCCESS) {
+        if ((err = box->decode(buffer)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_error("Decode the box failed, ret=%d", ret);
             return ret;
         }
         
-        if ((ret = br.skip(box, stream)) != ERROR_SUCCESS) {
+        if ((err = br.skip(box, stream)) != srs_success) {
+            // TODO: FIXME: Use error
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_error("Skip MP4 box failed, ret=%d", ret);
             return ret;
         }

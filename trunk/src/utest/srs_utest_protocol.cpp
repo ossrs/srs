@@ -47,14 +47,14 @@ bool MockEmptyIO::is_never_timeout(int64_t /*tm*/)
     return true;
 }
 
-int MockEmptyIO::read_fully(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+srs_error_t MockEmptyIO::read_fully(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
+srs_error_t MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 void MockEmptyIO::set_recv_timeout(int64_t /*tm*/)
@@ -85,14 +85,14 @@ int64_t MockEmptyIO::get_send_bytes()
     return 0;
 }
 
-int MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrite*/)
+srs_error_t MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrite*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+srs_error_t MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 MockBufferIO::MockBufferIO()
@@ -110,10 +110,10 @@ bool MockBufferIO::is_never_timeout(int64_t tm)
     return tm == SRS_CONSTS_NO_TMMS;
 }
 
-int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     if (in_buffer.length() < (int)size) {
-        return ERROR_SOCKET_READ;
+        return srs_error_new(ERROR_SOCKET_READ, "read");
     }
     memcpy(buf, in_buffer.bytes(), size);
     
@@ -122,17 +122,17 @@ int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
         *nread = size;
     }
     in_buffer.erase(size);
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
-int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
 {
     sbytes += size;
     if (nwrite) {
         *nwrite = size;
     }
     out_buffer.append((char*)buf, size);
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 void MockBufferIO::set_recv_timeout(int64_t tm)
@@ -165,17 +165,17 @@ int64_t MockBufferIO::get_send_bytes()
     return sbytes;
 }
 
-int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     ssize_t total = 0;
     for (int i = 0; i <iov_size; i++) {
         const iovec& pi = iov[i];
         
         ssize_t writen = 0;
-        if ((ret = write(pi.iov_base, pi.iov_len, &writen)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = write(pi.iov_base, pi.iov_len, &writen)) != srs_success) {
+            return err;
         }
         total += writen;
     }
@@ -185,13 +185,13 @@ int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (nwrite) {
         *nwrite = total;
     }
-    return ret;
+    return err;
 }
 
-int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
 {
     if (in_buffer.length() <= 0) {
-        return ERROR_SOCKET_READ;
+        return srs_error_new(ERROR_SOCKET_READ, "read");
     }
     
     size_t available = srs_min(in_buffer.length(), (int)size);
@@ -202,7 +202,7 @@ int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
         *nread = available;
     }
     in_buffer.erase(available);
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 #ifdef ENABLE_UTEST_PROTOCOL

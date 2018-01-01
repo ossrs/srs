@@ -83,7 +83,6 @@ SrsFragment* SrsDvrSegmenter::current()
 
 srs_error_t SrsDvrSegmenter::open()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // ignore when already open.
@@ -108,8 +107,8 @@ srs_error_t SrsDvrSegmenter::open()
     
     // open file writer, in append or create mode.
     string tmp_dvr_file = fragment->tmppath();
-    if ((ret = fs->open(tmp_dvr_file)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "open file %s", path.c_str());
+    if ((err = fs->open(tmp_dvr_file)) != srs_success) {
+        return srs_error_wrap(err, "open file %s", path.c_str());
     }
     
     // initialize the encoder.
@@ -256,7 +255,6 @@ SrsDvrFlvSegmenter::~SrsDvrFlvSegmenter()
 
 srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // no duration or filesize specified.
@@ -270,24 +268,21 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     char* buf = new char[SrsAmf0Size::number()];
     SrsAutoFreeA(char, buf);
     
-    SrsBuffer stream;
-    if ((ret = stream.initialize(buf, SrsAmf0Size::number())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init stream");
-    }
+    SrsBuffer stream(buf, SrsAmf0Size::number());
     
     // filesize to buf.
     SrsAmf0Any* size = SrsAmf0Any::number((double)cur);
     SrsAutoFree(SrsAmf0Any, size);
     
     stream.skip(-1 * stream.pos());
-    if ((ret = size->write(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write filesize");
+    if ((err = size->write(&stream)) != srs_success) {
+        return srs_error_wrap(err, "write filesize");
     }
     
     // update the flesize.
     fs->seek2(filesize_offset);
-    if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "update filesize");
+    if ((err = fs->write(buf, SrsAmf0Size::number(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "update filesize");
     }
     
     // duration to buf
@@ -295,14 +290,14 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     SrsAutoFree(SrsAmf0Any, dur);
     
     stream.skip(-1 * stream.pos());
-    if ((ret = dur->write(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write duration");
+    if ((err = dur->write(&stream)) != srs_success) {
+        return srs_error_wrap(err, "write duration");
     }
     
     // update the duration
     fs->seek2(duration_offset);
-    if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "update duration");
+    if ((err = fs->write(buf, SrsAmf0Size::number(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "update duration");
     }
     
     // reset the offset.
@@ -313,7 +308,6 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
 
 srs_error_t SrsDvrFlvSegmenter::open_encoder()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     has_keyframe = false;
@@ -325,13 +319,13 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
     srs_freep(enc);
     enc = new SrsFlvTransmuxer();
     
-    if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init encoder");
+    if ((err = enc->initialize(fs)) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
     }
     
     // write the flv header to writer.
-    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write flv header");
+    if ((err = enc->write_header()) != srs_success) {
+        return srs_error_wrap(err, "write flv header");
     }
     
     return err;
@@ -339,29 +333,25 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
 
 srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // Ignore when metadata already written.
     if (duration_offset || filesize_offset) {
         return err;
     }
-    
-    SrsBuffer stream;
-    if ((ret = stream.initialize(metadata->payload, metadata->size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init stream");
-    }
+
+    SrsBuffer stream(metadata->payload, metadata->size);
     
     SrsAmf0Any* name = SrsAmf0Any::str();
     SrsAutoFree(SrsAmf0Any, name);
-    if ((ret = name->read(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read name");
+    if ((err = name->read(&stream)) != srs_success) {
+        return srs_error_wrap(err, "read name");
     }
     
     SrsAmf0Object* obj = SrsAmf0Any::object();
     SrsAutoFree(SrsAmf0Object, obj);
-    if ((ret = obj->read(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "read object");
+    if ((err = obj->read(&stream)) != srs_success) {
+        return srs_error_wrap(err, "read object");
     }
     
     // remove duration and filesize.
@@ -383,19 +373,18 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
     filesize_offset = duration_offset - SrsAmf0Size::utf8("duration") - SrsAmf0Size::number();
     
     // convert metadata to bytes.
-    if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init stream");
+    SrsBuffer buf(payload, size);
+    
+    if ((err = name->write(&buf)) != srs_success) {
+        return srs_error_wrap(err, "write name");
     }
-    if ((ret = name->write(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write name");
-    }
-    if ((ret = obj->write(&stream)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write object");
+    if ((err = obj->write(&buf)) != srs_success) {
+        return srs_error_wrap(err, "write object");
     }
     
     // to flv file.
-    if ((ret = enc->write_metadata(18, payload, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write metadata");
+    if ((err = enc->write_metadata(18, payload, size)) != srs_success) {
+        return srs_error_wrap(err, "write metadata");
     }
     
     return err;
@@ -403,13 +392,12 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsSharedPtrMessage* metadata)
 
 srs_error_t SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     char* payload = audio->payload;
     int size = audio->size;
-    if ((ret = enc->write_audio(audio->timestamp, payload, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write audio");
+    if ((err = enc->write_audio(audio->timestamp, payload, size)) != srs_success) {
+        return srs_error_wrap(err, "write audio");
     }
     
     return err;
@@ -417,7 +405,6 @@ srs_error_t SrsDvrFlvSegmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
 
 srs_error_t SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     char* payload = video->payload;
@@ -435,8 +422,8 @@ srs_error_t SrsDvrFlvSegmenter::encode_video(SrsSharedPtrMessage* video, SrsForm
         return err;
     }
     
-    if ((ret = enc->write_video(video->timestamp, payload, size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write video");
+    if ((err = enc->write_video(video->timestamp, payload, size)) != srs_success) {
+        return srs_error_wrap(err, "write video");
     }
     
     return err;
@@ -464,14 +451,13 @@ srs_error_t SrsDvrMp4Segmenter::refresh_metadata()
 
 srs_error_t SrsDvrMp4Segmenter::open_encoder()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     srs_freep(enc);
     enc = new SrsMp4Encoder();
     
-    if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init encoder");
+    if ((err = enc->initialize(fs)) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
     }
     
     return err;
@@ -484,7 +470,6 @@ srs_error_t SrsDvrMp4Segmenter::encode_metadata(SrsSharedPtrMessage* /*metadata*
 
 srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsAudioCodecId sound_format = format->acodec->id;
@@ -504,8 +489,8 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     uint32_t nb_sample = (uint32_t)format->nb_raw;
     
     uint32_t dts = (uint32_t)audio->timestamp;
-    if ((ret = enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write sample");
+    if ((err = enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
+        return srs_error_wrap(err, "write sample");
     }
     
     return err;
@@ -513,7 +498,6 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
 
 srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsFormat* format)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsVideoAvcFrameType frame_type = format->video->frame_type;
@@ -531,8 +515,8 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsForm
     
     uint8_t* sample = (uint8_t*)format->raw;
     uint32_t nb_sample = (uint32_t)format->nb_raw;
-    if ((ret = enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "write sample");
+    if ((err = enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
+        return srs_error_wrap(err, "write sample");
     }
     
     return err;
@@ -540,11 +524,10 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsForm
 
 srs_error_t SrsDvrMp4Segmenter::close_encoder()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = enc->flush()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "flush encoder");
+    if ((err = enc->flush()) != srs_success) {
+        return srs_error_wrap(err, "flush encoder");
     }
     
     return err;

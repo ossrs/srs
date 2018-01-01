@@ -78,7 +78,7 @@ private:
     /**
      * report and final packet
      */
-    virtual int final(SrsBandwidthPacket** ppkt);
+    virtual int do_final(SrsBandwidthPacket** ppkt);
 };
 
 #endif

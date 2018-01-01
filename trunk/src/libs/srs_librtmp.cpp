@@ -100,9 +100,6 @@ struct Context
     SrsRawH264Stream avc_raw;
     SrsRawAacStream aac_raw;
     
-    // for h264 raw stream,
-    // @see: https://github.com/ossrs/srs/issues/66#issuecomment-62240521
-    SrsBuffer h264_raw_stream;
     // about SPS, @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
@@ -113,9 +110,6 @@ struct Context
     // @see https://github.com/ossrs/srs/issues/204
     bool h264_sps_changed;
     bool h264_pps_changed;
-    // for aac raw stream,
-    // @see: https://github.com/ossrs/srs/issues/212#issuecomment-64146250
-    SrsBuffer aac_raw_stream;
     // the aac sequence header.
     std::string aac_specific_config;
     
@@ -666,6 +660,7 @@ extern "C"{
         return ERROR_RTMP_HS_SSL_REQUIRE;
 #else
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
@@ -676,7 +671,9 @@ extern "C"{
         srs_freep(context->rtmp);
         context->rtmp = new SrsRtmpClient(context->skt);
         
-        if ((ret = context->rtmp->complex_handshake()) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->complex_handshake()) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -687,6 +684,7 @@ extern "C"{
     int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
@@ -697,16 +695,17 @@ extern "C"{
         srs_freep(context->rtmp);
         context->rtmp = new SrsRtmpClient(context->skt);
         
-        if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->simple_handshake()) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
         return ret;
     }
     
-    int srs_rtmp_set_connect_args(srs_rtmp_t rtmp,
-                                  const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
-                                  ) {
+    int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args)
+    {
         int ret = ERROR_SUCCESS;
         
         srs_assert(rtmp != NULL);
@@ -746,6 +745,7 @@ extern "C"{
     int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
@@ -767,7 +767,9 @@ extern "C"{
         }
         
         Context* c = context;
-        if ((ret = context->rtmp->connect_app(c->app, tcUrl, c->req, true, &c->si)) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->connect_app(c->app, tcUrl, c->req, true, &c->si)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -812,14 +814,20 @@ extern "C"{
     int srs_rtmp_play_stream(srs_rtmp_t rtmp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
         
-        if ((ret = context->rtmp->create_stream(context->stream_id)) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->create_stream(context->stream_id)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
-        if ((ret = context->rtmp->play(context->stream, context->stream_id)) != ERROR_SUCCESS) {
+        
+        if ((err = context->rtmp->play(context->stream, context->stream_id)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -829,11 +837,14 @@ extern "C"{
     int srs_rtmp_publish_stream(srs_rtmp_t rtmp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
         
-        if ((ret = context->rtmp->fmle_publish(context->stream, context->stream_id)) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->fmle_publish(context->stream, context->stream_id)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -881,11 +892,8 @@ extern "C"{
     {
         int ret = ERROR_SUCCESS;
         
-        SrsBuffer aggregate_stream;
-        SrsBuffer* stream = &aggregate_stream;
-        if ((ret = stream->initialize(msg->payload, msg->size)) != ERROR_SUCCESS) {
-            return ret;
-        }
+        SrsBuffer* stream = new SrsBuffer(msg->payload, msg->size);
+        SrsAutoFree(SrsBuffer, stream);
         
         // the aggregate message always use abs time.
         int delta = -1;
@@ -1035,6 +1043,7 @@ extern "C"{
         *size = 0;
         
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
@@ -1050,7 +1059,9 @@ extern "C"{
             }
             
             // read from protocol sdk.
-            if (!msg && (ret = context->rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+            if (!msg && (err = context->rtmp->recv_message(&msg)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             
@@ -1079,20 +1090,25 @@ extern "C"{
     int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, uint32_t timestamp, char* data, int size)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
         
         SrsSharedPtrMessage* msg = NULL;
         
-        if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, context->stream_id, &msg)) != ERROR_SUCCESS) {
+        if ((err = srs_rtmp_create_msg(type, timestamp, data, size, context->stream_id, &msg)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
         srs_assert(msg);
         
         // send out encoded msg.
-        if ((ret = context->rtmp->send_and_free_message(msg, context->stream_id)) != ERROR_SUCCESS) {
+        if ((err = context->rtmp->send_and_free_message(msg, context->stream_id)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1106,19 +1122,17 @@ extern "C"{
     
     srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
     {
-        int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         if (type != SRS_RTMP_TYPE_SCRIPT) {
             return false;
         }
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
-            return false;
-        }
+        SrsBuffer stream(data, size);
         
         std::string name;
-        if ((ret = srs_amf0_read_string(&stream, name)) != ERROR_SUCCESS) {
+        if ((err = srs_amf0_read_string(&stream, name)) != srs_success) {
+            srs_freep(err);
             return false;
         }
         
@@ -1139,10 +1153,13 @@ extern "C"{
     int srs_write_audio_raw_frame(Context* context, char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t timestamp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         char* data = NULL;
         int size = 0;
-        if ((ret = context->aac_raw.mux_aac2flv(frame, frame_size, codec, timestamp, &data, &size)) != ERROR_SUCCESS) {
+        if ((err = context->aac_raw.mux_aac2flv(frame, frame_size, codec, timestamp, &data, &size)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1155,11 +1172,14 @@ extern "C"{
     int srs_write_aac_adts_frame(Context* context, SrsRawAacStreamCodec* codec, char* frame, int frame_size, uint32_t timestamp)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         // send out aac sequence header if not sent.
         if (context->aac_specific_config.empty()) {
             std::string sh;
-            if ((ret = context->aac_raw.mux_sequence_header(codec, sh)) != ERROR_SUCCESS) {
+            if ((err = context->aac_raw.mux_sequence_header(codec, sh)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             context->aac_specific_config = sh;
@@ -1182,17 +1202,18 @@ extern "C"{
         char sound_size, char sound_type, char* frames, int frames_size, uint32_t timestamp
     ) {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
-        SrsBuffer* stream = &context->aac_raw_stream;
-        if ((ret = stream->initialize(frames, frames_size)) != ERROR_SUCCESS) {
-            return ret;
-        }
+        SrsBuffer* stream = new SrsBuffer(frames, frames_size);
+        SrsAutoFree(SrsBuffer, stream);
         
         while (!stream->empty()) {
             char* frame = NULL;
             int frame_size = 0;
             SrsRawAacStreamCodec codec;
-            if ((ret = context->aac_raw.adts_demux(stream, &frame, &frame_size, codec)) != ERROR_SUCCESS) {
+            if ((err = context->aac_raw.adts_demux(stream, &frame, &frame_size, codec)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             
@@ -1251,12 +1272,7 @@ extern "C"{
      */
     srs_bool srs_aac_is_adts(char* aac_raw_data, int ac_raw_size)
     {
-        SrsBuffer stream;
-        
-        if (stream.initialize(aac_raw_data, ac_raw_size) != ERROR_SUCCESS) {
-            return false;
-        }
-        
+        SrsBuffer stream(aac_raw_data, ac_raw_size);
         return srs_aac_startswith_adts(&stream);
     }
     
@@ -1294,6 +1310,7 @@ extern "C"{
     int srs_write_h264_ipb_frame(Context* context, char* frame, int frame_size, uint32_t dts, uint32_t pts)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         // when sps or pps not sent, ignore the packet.
         // @see https://github.com/ossrs/srs/issues/203
@@ -1321,14 +1338,18 @@ extern "C"{
         }
         
         std::string ibp;
-        if ((ret = context->avc_raw.mux_ipb_frame(frame, frame_size, ibp)) != ERROR_SUCCESS) {
+        if ((err = context->avc_raw.mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
         int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
         char* flv = NULL;
         int nb_flv = 0;
-        if ((ret = context->avc_raw.mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
+        if ((err = context->avc_raw.mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1343,6 +1364,7 @@ extern "C"{
     int srs_write_h264_sps_pps(Context* context, uint32_t dts, uint32_t pts)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         // send when sps or pps changed.
         if (!context->h264_sps_changed && !context->h264_pps_changed) {
@@ -1351,7 +1373,9 @@ extern "C"{
         
         // h264 raw to h264 packet.
         std::string sh;
-        if ((ret = context->avc_raw.mux_sequence_header(context->h264_sps, context->h264_pps, dts, pts, sh)) != ERROR_SUCCESS) {
+        if ((err = context->avc_raw.mux_sequence_header(context->h264_sps, context->h264_pps, dts, pts, sh)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1360,7 +1384,9 @@ extern "C"{
         int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
         char* flv = NULL;
         int nb_flv = 0;
-        if ((ret = context->avc_raw.mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
+        if ((err = context->avc_raw.mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1380,6 +1406,7 @@ extern "C"{
     int srs_write_h264_raw_frame(Context* context, char* frame, int frame_size, uint32_t dts, uint32_t pts)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         // empty frame.
         if (frame_size <= 0) {
@@ -1389,7 +1416,9 @@ extern "C"{
         // for sps
         if (context->avc_raw.is_sps(frame, frame_size)) {
             std::string sps;
-            if ((ret = context->avc_raw.sps_demux(frame, frame_size, sps)) != ERROR_SUCCESS) {
+            if ((err = context->avc_raw.sps_demux(frame, frame_size, sps)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             
@@ -1405,7 +1434,9 @@ extern "C"{
         // for pps
         if (context->avc_raw.is_pps(frame, frame_size)) {
             std::string pps;
-            if ((ret = context->avc_raw.pps_demux(frame, frame_size, pps)) != ERROR_SUCCESS) {
+            if ((err = context->avc_raw.pps_demux(frame, frame_size, pps)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             
@@ -1445,6 +1476,7 @@ extern "C"{
     int srs_h264_write_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, uint32_t dts, uint32_t pts)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_assert(frames != NULL);
         srs_assert(frames_size > 0);
@@ -1452,9 +1484,8 @@ extern "C"{
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
         
-        if ((ret = context->h264_raw_stream.initialize(frames, frames_size)) != ERROR_SUCCESS) {
-            return ret;
-        }
+        SrsBuffer* stream = new SrsBuffer(frames, frames_size);
+        SrsAutoFree(SrsBuffer, stream);
         
         // use the last error
         // @see https://github.com/ossrs/srs/issues/203
@@ -1462,10 +1493,12 @@ extern "C"{
         int error_code_return = ret;
         
         // send each frame.
-        while (!context->h264_raw_stream.empty()) {
+        while (!stream->empty()) {
             char* frame = NULL;
             int frame_size = 0;
-            if ((ret = context->avc_raw.annexb_demux(&context->h264_raw_stream, &frame, &frame_size)) != ERROR_SUCCESS) {
+            if ((err = context->avc_raw.annexb_demux(stream, &frame, &frame_size)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
                 return ret;
             }
             
@@ -1511,11 +1544,7 @@ extern "C"{
     
     srs_bool srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int* pnb_start_code)
     {
-        SrsBuffer stream;
-        if (stream.initialize(h264_raw_data, h264_raw_size) != ERROR_SUCCESS) {
-            return false;
-        }
-        
+        SrsBuffer stream(h264_raw_data, h264_raw_size);
         return srs_avc_startswith_annexb(&stream, pnb_start_code);
     }
     
@@ -1528,10 +1557,13 @@ extern "C"{
     srs_mp4_t srs_mp4_open_read(const char* file)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         Mp4Context* mp4 = new Mp4Context();
         
-        if ((ret = mp4->reader.open(file)) != ERROR_SUCCESS) {
+        if ((err = mp4->reader.open(file)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_human_error("Open MP4 file failed, ret=%d", ret);
             
             srs_freep(mp4);
@@ -1550,10 +1582,13 @@ extern "C"{
     int srs_mp4_init_demuxer(srs_mp4_t mp4)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         Mp4Context* context = (Mp4Context*)mp4;
         
-        if ((ret = context->dec.initialize(&context->reader)) != ERROR_SUCCESS) {
+        if ((err = context->dec.initialize(&context->reader)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1565,12 +1600,15 @@ extern "C"{
         s->sample = NULL;
         
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         Mp4Context* context = (Mp4Context*)mp4;
         SrsMp4Decoder* dec = &context->dec;
         
         SrsMp4HandlerType ht = SrsMp4HandlerTypeForbidden;
-        if ((ret = dec->read_sample(&ht, &s->frame_type, &s->frame_trait, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != ERROR_SUCCESS) {
+        if ((err = dec->read_sample(&ht, &s->frame_type, &s->frame_trait, &s->dts, &s->pts, &s->sample, &s->nb_sample)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1662,17 +1700,22 @@ extern "C"{
     srs_flv_t srs_flv_open_read(const char* file)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* flv = new FlvContext();
         
-        if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
+        if ((err = flv->reader.open(file)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_human_error("Open FLV file failed, ret=%d", ret);
             
             srs_freep(flv);
             return NULL;
         }
         
-        if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
+        if ((err = flv->dec.initialize(&flv->reader)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_human_error("Initialize FLV demuxer failed, ret=%d", ret);
             
             srs_freep(flv);
@@ -1685,17 +1728,22 @@ extern "C"{
     srs_flv_t srs_flv_open_write(const char* file)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* flv = new FlvContext();
         
-        if ((ret = flv->writer.open(file)) != ERROR_SUCCESS) {
+        if ((err = flv->writer.open(file)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_human_error("Open FLV file failed, ret=%d", ret);
             
             srs_freep(flv);
             return NULL;
         }
         
-        if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
+        if ((err = flv->enc.initialize(&flv->writer)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             srs_human_error("Initilize FLV muxer failed, ret=%d", ret);
             
             srs_freep(flv);
@@ -1714,6 +1762,7 @@ extern "C"{
     int srs_flv_read_header(srs_flv_t flv, char header[9])
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* context = (FlvContext*)flv;
         
@@ -1721,12 +1770,16 @@ extern "C"{
             return ERROR_SYSTEM_IO_INVALID;
         }
         
-        if ((ret = context->dec.read_header(header)) != ERROR_SUCCESS) {
+        if ((err = context->dec.read_header(header)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
         char ts[4]; // tag size
-        if ((ret = context->dec.read_previous_tag_size(ts)) != ERROR_SUCCESS) {
+        if ((err = context->dec.read_previous_tag_size(ts)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1736,6 +1789,7 @@ extern "C"{
     int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, uint32_t* ptime)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* context = (FlvContext*)flv;
         
@@ -1743,7 +1797,9 @@ extern "C"{
             return ERROR_SYSTEM_IO_INVALID;
         }
         
-        if ((ret = context->dec.read_tag_header(ptype, pdata_size, ptime)) != ERROR_SUCCESS) {
+        if ((err = context->dec.read_tag_header(ptype, pdata_size, ptime)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1753,6 +1809,7 @@ extern "C"{
     int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* context = (FlvContext*)flv;
         
@@ -1760,12 +1817,16 @@ extern "C"{
             return ERROR_SYSTEM_IO_INVALID;
         }
         
-        if ((ret = context->dec.read_tag_data(data, size)) != ERROR_SUCCESS) {
+        if ((err = context->dec.read_tag_data(data, size)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
         char ts[4]; // tag size
-        if ((ret = context->dec.read_previous_tag_size(ts)) != ERROR_SUCCESS) {
+        if ((err = context->dec.read_previous_tag_size(ts)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1775,6 +1836,7 @@ extern "C"{
     int srs_flv_write_header(srs_flv_t flv, char header[9])
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* context = (FlvContext*)flv;
         
@@ -1782,7 +1844,9 @@ extern "C"{
             return ERROR_SYSTEM_IO_INVALID;
         }
         
-        if ((ret = context->enc.write_header(header)) != ERROR_SUCCESS) {
+        if ((err = context->enc.write_header(header)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         
@@ -1792,6 +1856,7 @@ extern "C"{
     int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int size)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         FlvContext* context = (FlvContext*)flv;
         
@@ -1800,11 +1865,23 @@ extern "C"{
         }
         
         if (type == SRS_RTMP_TYPE_AUDIO) {
-            return context->enc.write_audio(time, data, size);
+            if ((err = context->enc.write_audio(time, data, size)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
+                return ret;
+            }
         } else if (type == SRS_RTMP_TYPE_VIDEO) {
-            return context->enc.write_video(time, data, size);
+            if ((err = context->enc.write_video(time, data, size)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
+                return ret;
+            }
         } else {
-            return context->enc.write_metadata(type, data, size);
+            if ((err = context->enc.write_metadata(type, data, size)) != srs_success) {
+                ret = srs_error_code(err);
+                srs_freep(err);
+                return ret;
+            }
         }
         
         return ret;
@@ -1845,22 +1922,21 @@ extern "C"{
     
     srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     {
-        int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         srs_amf0_t amf0 = NULL;
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
-            return amf0;
-        }
+        SrsBuffer stream(data, size);
         
         SrsAmf0Any* any = NULL;
-        if ((ret = SrsAmf0Any::discovery(&stream, &any)) != ERROR_SUCCESS) {
+        if ((err = SrsAmf0Any::discovery(&stream, &any)) != srs_success) {
+            srs_freep(err);
             return amf0;
         }
         
         stream.skip(-1 * stream.pos());
-        if ((ret = any->read(&stream)) != ERROR_SUCCESS) {
+        if ((err = any->read(&stream)) != srs_success) {
+            srs_freep(err);
             srs_freep(any);
             return amf0;
         }
@@ -1929,15 +2005,15 @@ extern "C"{
     int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size)
     {
         int ret = ERROR_SUCCESS;
+        srs_error_t err = srs_success;
         
         SrsAmf0Any* any = (SrsAmf0Any*)amf0;
         
-        SrsBuffer stream;
-        if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
-            return ret;
-        }
+        SrsBuffer stream(data, size);
         
-        if ((ret = any->write(&stream)) != ERROR_SUCCESS) {
+        if ((err = any->write(&stream)) != srs_success) {
+            ret = srs_error_code(err);
+            srs_freep(err);
             return ret;
         }
         

@@ -41,7 +41,7 @@ public:
     MockBufferReader(const char* data);
     virtual ~MockBufferReader();
 public:
-    virtual int read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 };
 
 class MockSrsFileWriter : public SrsFileWriter
@@ -53,13 +53,13 @@ public:
     MockSrsFileWriter();
     virtual ~MockSrsFileWriter();
 public:
-    virtual int open(std::string file);
+    virtual srs_error_t open(std::string file);
     virtual void close();
 public:
     virtual bool is_open();
     virtual int64_t tellg();
 public:
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
 // for mock
 public:
     void mock_reset_offset();
@@ -75,7 +75,7 @@ public:
     MockSrsFileReader();
     virtual ~MockSrsFileReader();
 public:
-    virtual int open(std::string file);
+    virtual srs_error_t open(std::string file);
     virtual void close();
 public:
     virtual bool is_open();
@@ -84,8 +84,8 @@ public:
     virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
 public:
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    virtual int lseek(off_t offset, int whence, off_t* seeked);
+    virtual srs_error_t read(void* buf, size_t count, ssize_t* pnread);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 // for mock
 public:
     // append data to current offset, modify the offset and size.

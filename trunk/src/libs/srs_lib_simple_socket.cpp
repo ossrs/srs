@@ -342,10 +342,14 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
 }
 
 // ISrsReader
-int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
+srs_error_t SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);
-    return srs_hijack_io_read(io, buf, size, nread);
+    int ret = srs_hijack_io_read(io, buf, size, nread);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "read");
+    }
+    return srs_success;
 }
 
 // ISrsProtocolReader
@@ -386,10 +390,14 @@ int64_t SimpleSocketStream::get_send_bytes()
     return srs_hijack_io_get_send_bytes(io);
 }
 
-int SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+srs_error_t SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     srs_assert(io);
-    return srs_hijack_io_writev(io, iov, iov_size, nwrite);
+    int ret = srs_hijack_io_writev(io, iov, iov_size, nwrite);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "read");
+    }
+    return srs_success;
 }
 
 // ISrsProtocolReaderWriter
@@ -399,16 +407,24 @@ bool SimpleSocketStream::is_never_timeout(int64_t tm)
     return srs_hijack_io_is_never_timeout(io, tm);
 }
 
-int SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)
+srs_error_t SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);
-    return srs_hijack_io_read_fully(io, buf, size, nread);
+    int ret = srs_hijack_io_read_fully(io, buf, size, nread);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "read");
+    }
+    return srs_success;
 }
 
-int SimpleSocketStream::write(void* buf, size_t size, ssize_t* nwrite)
+srs_error_t SimpleSocketStream::write(void* buf, size_t size, ssize_t* nwrite)
 {
     srs_assert(io);
-    return srs_hijack_io_write(io, buf, size, nwrite);
+    int ret = srs_hijack_io_write(io, buf, size, nwrite);
+    if (ret != ERROR_SUCCESS) {
+        return srs_error_new(ret, "read");
+    }
+    return srs_success;
 }
 
 
