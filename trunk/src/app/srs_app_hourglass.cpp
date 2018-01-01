@@ -48,24 +48,22 @@ SrsHourGlass::~SrsHourGlass()
 {
 }
 
-int SrsHourGlass::tick(int type, int interval)
+srs_error_t SrsHourGlass::tick(int type, int interval)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (resolution > 0 && (interval % resolution) != 0) {
-        ret = ERROR_SYSTEM_HOURGLASS_RESOLUTION;
-        srs_error("hourglass interval=%d invalid, resolution=%d. ret=%d", interval, resolution, ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_HOURGLASS_RESOLUTION, "hourglass interval=%d invalid, resolution=%d", interval, resolution);
     }
     
     ticks[type] = interval;
     
-    return ret;
+    return err;
 }
 
-int SrsHourGlass::cycle()
+srs_error_t SrsHourGlass::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     map<int, int>::iterator it;
     for (it = ticks.begin(); it != ticks.end(); ++it) {
@@ -73,8 +71,8 @@ int SrsHourGlass::cycle()
         int interval = it->second;
         
         if (interval == 0 || (total_elapse % interval) == 0) {
-            if ((ret = handler->notify(type, interval, total_elapse)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = handler->notify(type, interval, total_elapse)) != srs_success) {
+                return srs_error_wrap(err, "notify");
             }
         }
     }
@@ -82,5 +80,5 @@ int SrsHourGlass::cycle()
     total_elapse += resolution;
     srs_usleep(resolution * 1000);
     
-    return ret;
+    return err;
 }

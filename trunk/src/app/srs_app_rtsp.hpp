@@ -155,9 +155,9 @@ public:
     virtual srs_error_t serve();
 private:
     virtual srs_error_t do_cycle();
-    // internal methods
+// internal methods
 public:
-    virtual int on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
+    virtual srs_error_t on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
 // interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();

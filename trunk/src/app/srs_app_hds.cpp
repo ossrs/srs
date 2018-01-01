@@ -58,11 +58,11 @@ char flv_header[] = {'F', 'L', 'V',
 
 string serialFlv(SrsSharedPtrMessage *msg)
 {
-    SrsBuffer *stream = new SrsBuffer;
-    
     int size = 15 + msg->size;
     char *byte = new char[size];
-    stream->initialize(byte, size);
+    
+    SrsBuffer *stream = new SrsBuffer(byte, size);
+    SrsAutoFree(SrsBuffer, stream);
     
     // tag header
     long long dts = msg->timestamp;
@@ -70,7 +70,7 @@ string serialFlv(SrsSharedPtrMessage *msg)
     
     stream->write_1bytes(type);
     stream->write_3bytes(msg->size);
-    stream->write_3bytes(dts);
+    stream->write_3bytes((int32_t)dts);
     stream->write_1bytes(dts >> 24 & 0xFF);
     stream->write_3bytes(0);
     stream->write_bytes(msg->payload, msg->size);
@@ -81,7 +81,6 @@ string serialFlv(SrsSharedPtrMessage *msg)
     
     string ret(stream->data(), stream->size());
     
-    delete stream;
     delete [] byte;
     
     return ret;
@@ -128,7 +127,7 @@ public:
     /*!
      flush data to disk.
      */
-    int flush()
+    srs_error_t flush()
     {
         string data;
         if (videoSh) {
@@ -148,9 +147,8 @@ public:
         }
         
         char box_header[8];
-        SrsBuffer ss;
-        ss.initialize(box_header, 8);
-        ss.write_4bytes(8 + data.size());
+        SrsBuffer ss(box_header, 8);
+        ss.write_4bytes((int32_t)(8 + data.size()));
         ss.write_string("mdat");
         
         data = string(ss.data(), ss.size()) + data;
@@ -158,20 +156,18 @@ public:
         const char *file_path = path.c_str();
         int fd = open(file_path, O_WRONLY | O_CREAT, S_IRWXU | S_IRGRP | S_IROTH);
         if (fd < 0) {
-            srs_error("open fragment file failed, path=%s", file_path);
-            return -1;
+            return srs_error_new(-1, "open fragment file failed, path=%s", file_path);
         }
         
         if (write(fd, data.data(), data.size()) != (int)data.size()) {
-            srs_error("write fragment file failed, path=", file_path);
             close(fd);
-            return -1;
+            return srs_error_new(-1, "write fragment file failed, path=", file_path);
         }
         close(fd);
         
         srs_trace("build fragment success=%s", file_path);
         
-        return ERROR_SUCCESS;
+        return srs_success;
     }
     
     /*!
@@ -192,7 +188,7 @@ public:
             SrsSharedPtrMessage *last_msg = msgs.back();
             last_msg_ts = last_msg->timestamp;
             
-            duration_ms = last_msg_ts - first_msg_ts;
+            duration_ms = (int)(last_msg_ts - first_msg_ts);
         }
         
         return duration_ms;
@@ -276,17 +272,18 @@ SrsHds::~SrsHds()
 {
 }
 
-int SrsHds::on_publish(SrsRequest *req)
+srs_error_t SrsHds::on_publish(SrsRequest *req)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
+    
     if (hds_enabled) {
-        return ret;
+        return err;
     }
     
     std::string vhost = req->vhost;
     if (!_srs_config->get_hds_enabled(vhost)) {
         hds_enabled = false;
-        return ret;
+        return err;
     }
     hds_enabled = true;
     
@@ -295,12 +292,12 @@ int SrsHds::on_publish(SrsRequest *req)
     return flush_mainfest();
 }
 
-int SrsHds::on_unpublish()
+srs_error_t SrsHds::on_unpublish()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!hds_enabled) {
-        return ret;
+        return err;
     }
     
     hds_enabled = false;
@@ -321,15 +318,15 @@ int SrsHds::on_unpublish()
     
     srs_trace("HDS un-published");
     
-    return ret;
+    return err;
 }
 
-int SrsHds::on_video(SrsSharedPtrMessage* msg)
+srs_error_t SrsHds::on_video(SrsSharedPtrMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!hds_enabled) {
-        return ret;
+        return err;
     }
     
     if (SrsFlvVideo::sh(msg->payload, msg->size)) {
@@ -354,9 +351,8 @@ int SrsHds::on_video(SrsSharedPtrMessage* msg)
     double fragment_duration = _srs_config->get_hds_fragment(hds_req->vhost) * 1000;
     if (currentSegment->duration() >= fragment_duration) {
         // flush segment
-        if ((ret = currentSegment->flush()) != ERROR_SUCCESS) {
-            srs_error("flush segment failed.");
-            return ret;
+        if ((err = currentSegment->flush()) != srs_success) {
+            return srs_error_wrap(err, "flush segment");
         }
         
         srs_trace("flush Segment success.");
@@ -365,23 +361,22 @@ int SrsHds::on_video(SrsSharedPtrMessage* msg)
         adjust_windows();
         
         // flush bootstrap
-        if ((ret = flush_bootstrap()) != ERROR_SUCCESS) {
-            srs_error("flush bootstrap failed.");
-            return ret;
+        if ((err = flush_bootstrap()) != srs_success) {
+            return srs_error_wrap(err, "flush bootstrap");
         }
         
         srs_trace("flush BootStrap success.");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsHds::on_audio(SrsSharedPtrMessage* msg)
+srs_error_t SrsHds::on_audio(SrsSharedPtrMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!hds_enabled) {
-        return ret;
+        return err;
     }
     
     if (SrsFlvAudio::sh(msg->payload, msg->size)) {
@@ -406,9 +401,8 @@ int SrsHds::on_audio(SrsSharedPtrMessage* msg)
     double fragment_duration = _srs_config->get_hds_fragment(hds_req->vhost) * 1000;
     if (currentSegment->duration() >= fragment_duration) {
         // flush segment
-        if ((ret = currentSegment->flush()) != ERROR_SUCCESS) {
-            srs_error("flush segment failed.");
-            return ret;
+        if ((err = currentSegment->flush()) != srs_success) {
+            return srs_error_wrap(err, "flush segment");
         }
         
         srs_info("flush Segment success.");
@@ -419,20 +413,18 @@ int SrsHds::on_audio(SrsSharedPtrMessage* msg)
         adjust_windows();
         
         // flush bootstrap
-        if ((ret = flush_bootstrap()) != ERROR_SUCCESS) {
-            srs_error("flush bootstrap failed.");
-            return ret;
+        if ((err = flush_bootstrap()) != srs_success) {
+            return srs_error_wrap(err, "flush bootstrap");
         }
         
         srs_info("flush BootStrap success.");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsHds::flush_mainfest()
+srs_error_t SrsHds::flush_mainfest()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     char buf[1024] = {0};
@@ -448,40 +440,30 @@ int SrsHds::flush_mainfest()
     
     string dir = _srs_config->get_hds_path(hds_req->vhost) + "/" + hds_req->app;
     if ((err = srs_create_dir_recursively(dir)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        srs_error("hds create dir failed. ret=%d", ret);
-        return ret;
+        return srs_error_wrap(err, "hds create dir failed");
     }
     string path = dir + "/" + hds_req->stream + ".f4m";
     
     int fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRGRP | S_IROTH);
     if (fd < 0) {
-        srs_error("open manifest file failed, path=%s", path.c_str());
-        ret = ERROR_HDS_OPEN_F4M_FAILED;
-        return ret;
+        return srs_error_new(ERROR_HDS_OPEN_F4M_FAILED, "open manifest file failed, path=%s", path.c_str());
     }
     
-    int f4m_size = strlen(buf);
+    int f4m_size = (int)strlen(buf);
     if (write(fd, buf, f4m_size) != f4m_size) {
-        srs_error("write manifest file failed, path=", path.c_str());
         close(fd);
-        ret = ERROR_HDS_WRITE_F4M_FAILED;
-        return ret;
+        return srs_error_new(ERROR_HDS_WRITE_F4M_FAILED, "write manifest file failed, path=", path.c_str());
     }
     close(fd);
     
     srs_trace("build manifest success=%s", path.c_str());
     
-    return ERROR_SUCCESS;
+    return err;
 }
 
-int SrsHds::flush_bootstrap()
+srs_error_t SrsHds::flush_bootstrap()
 {
-    int ret = ERROR_SUCCESS;
-    
-    SrsBuffer abst;
+    srs_error_t err = srs_success;
     
     int size = 1024*100;
     
@@ -494,9 +476,7 @@ int SrsHds::flush_bootstrap()
     char *start_afrt = NULL;
     int size_afrt = 0;
     
-    if ((ret = abst.initialize(start_abst, size)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    SrsBuffer abst(start_abst, size);
     
     // @see video_file_format_spec_v10_1
     // page: 46
@@ -695,7 +675,7 @@ int SrsHds::flush_bootstrap()
      The number of items in this FragmentRunEntryTable.
      The minimum value is 1.
      */
-    abst.write_4bytes(fragments.size());
+    abst.write_4bytes((int32_t)fragments.size());
     size_afrt += 4;
     
     list<SrsHdsFragment *>::iterator iter;
@@ -715,22 +695,18 @@ int SrsHds::flush_bootstrap()
     
     int fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRWXU | S_IRGRP | S_IROTH);
     if (fd < 0) {
-        srs_error("open bootstrap file failed, path=%s", path.c_str());
-        ret = ERROR_HDS_OPEN_BOOTSTRAP_FAILED;
-        return ret;
+        return srs_error_new(ERROR_HDS_OPEN_BOOTSTRAP_FAILED, "open bootstrap file failed, path=%s", path.c_str());
     }
     
     if (write(fd, start_abst, size_abst) != size_abst) {
-        srs_error("write bootstrap file failed, path=", path.c_str());
         close(fd);
-        ret = ERROR_HDS_WRITE_BOOTSTRAP_FAILED;
-        return ret;
+        return srs_error_new(ERROR_HDS_WRITE_BOOTSTRAP_FAILED, "write bootstrap file failed, path=", path.c_str());
     }
     close(fd);
     
     srs_trace("build bootstrap success=%s", path.c_str());
     
-    return ERROR_SUCCESS;
+    return err;
 }
 
 void SrsHds::adjust_windows()

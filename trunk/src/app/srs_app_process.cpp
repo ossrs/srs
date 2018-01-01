@@ -66,9 +66,9 @@ bool SrsProcess::started()
     return is_started;
 }
 
-int SrsProcess::initialize(string binary, vector<string> argv)
+srs_error_t SrsProcess::initialize(string binary, vector<string> argv)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     bin = binary;
     cli = "";
@@ -138,16 +138,16 @@ int SrsProcess::initialize(string binary, vector<string> argv)
     actual_cli = srs_join_vector_string(params, " ");
     cli = srs_join_vector_string(argv, " ");
     
-    return ret;
+    return err;
 }
 
-int srs_redirect_output(string from_file, int to_fd)
+srs_error_t srs_redirect_output(string from_file, int to_fd)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // use default output.
     if (from_file.empty()) {
-        return ret;
+        return err;
     }
     
     // redirect the fd to file.
@@ -156,28 +156,24 @@ int srs_redirect_output(string from_file, int to_fd)
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
     if ((fd = ::open(from_file.c_str(), flags, mode)) < 0) {
-        ret = ERROR_FORK_OPEN_LOG;
-        fprintf(stderr, "open process %d %s failed. ret=%d", to_fd, from_file.c_str(), ret);
-        exit(ret);
+        return srs_error_new(ERROR_FORK_OPEN_LOG, "open process %d %s failed", to_fd, from_file.c_str());
     }
     
     if (dup2(fd, to_fd) < 0) {
-        ret = ERROR_FORK_DUP2_LOG;
-        srs_error("dup2 process %d failed. ret=%d", to_fd, ret);
-        exit(ret);
+        return srs_error_new(ERROR_FORK_DUP2_LOG, "dup2 process %d failed", to_fd);
     }
     
     ::close(fd);
     
-    return ret;
+    return err;
 }
 
-int SrsProcess::start()
+srs_error_t SrsProcess::start()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (is_started) {
-        return ret;
+        return err;
     }
     
     // generate the argv of process.
@@ -189,9 +185,7 @@ int SrsProcess::start()
     
     // TODO: fork or vfork?
     if ((pid = fork()) < 0) {
-        ret = ERROR_ENCODER_FORK;
-        srs_error("vfork process failed, cli=%s. ret=%d", cli.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_ENCODER_FORK, "vfork process failed, cli=%s", cli.c_str());
     }
     
     // for osx(lldb) to debug the child process.
@@ -209,14 +203,14 @@ int SrsProcess::start()
         
         // for the stdout, ignore when not specified.
         // redirect stdout to file if possible.
-        if ((ret = srs_redirect_output(stdout_file, STDOUT_FILENO)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = srs_redirect_output(stdout_file, STDOUT_FILENO)) != srs_success) {
+            return srs_error_wrap(err, "redirect output");
         }
         
         // for the stderr, ignore when not specified.
         // redirect stderr to file if possible.
-        if ((ret = srs_redirect_output(stderr_file, STDERR_FILENO)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = srs_redirect_output(stderr_file, STDERR_FILENO)) != srs_success) {
+            return srs_error_wrap(err, "redirect output");
         }
         
         // should never close the fd 3+, for it myabe used.
@@ -242,11 +236,11 @@ int SrsProcess::start()
         argv[params.size()] = NULL;
         
         // use execv to start the program.
-        ret = execv(bin.c_str(), argv);
-        if (ret < 0) {
+        int r0 = execv(bin.c_str(), argv);
+        if (r0 < 0) {
             fprintf(stderr, "fork process failed, errno=%d(%s)", errno, strerror(errno));
         }
-        exit(ret);
+        exit(r0);
     }
     
     // parent.
@@ -254,43 +248,41 @@ int SrsProcess::start()
         is_started = true;
         srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
                   pid, bin.c_str(), stdout_file.c_str(), stderr_file.c_str(), actual_cli.c_str());
-        return ret;
+        return err;
     }
     
-    return ret;
+    return err;
 }
 
-int SrsProcess::cycle()
+srs_error_t SrsProcess::cycle()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!is_started) {
-        return ret;
+        return err;
     }
     
     // ffmpeg is prepare to stop, donot cycle.
     if (fast_stopped) {
-        return ret;
+        return err;
     }
     
     int status = 0;
     pid_t p = waitpid(pid, &status, WNOHANG);
     
     if (p < 0) {
-        ret = ERROR_SYSTEM_WAITPID;
-        srs_error("process waitpid failed, pid=%d, ret=%d", pid, ret);
-        return ret;
+        return srs_error_new(ERROR_SYSTEM_WAITPID, "process waitpid failed, pid=%d", pid);
     }
     
     if (p == 0) {
         srs_info("process process pid=%d is running.", pid);
-        return ret;
+        return err;
     }
     
     srs_trace("process pid=%d terminate, please restart it.", pid);
     is_started = false;
     
-    return ret;
+    return err;
 }
 
 void SrsProcess::stop()
@@ -303,9 +295,10 @@ void SrsProcess::stop()
     // when rewind, upstream will stop publish(unpublish),
     // unpublish event will stop all ffmpeg encoders,
     // then publish will start all ffmpeg encoders.
-    int ret = srs_kill_forced(pid);
-    if (ret != ERROR_SUCCESS) {
-        srs_warn("ignore kill the process failed, pid=%d. ret=%d", pid, ret);
+    srs_error_t err = srs_kill_forced(pid);
+    if (err != srs_success) {
+        srs_warn("ignore kill the process failed, pid=%d. err=%s", pid, srs_error_desc(err).c_str());
+        srs_freep(err);
         return;
     }
     

@@ -128,12 +128,12 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         o = o.substr(0, o.length() - 4);
     }
     
-    int ret = conn->proxy(w, r, o);
-    if (ret != ERROR_SUCCESS) {
-        return srs_error_new(ret, "proxy");
+    srs_error_t err = conn->proxy(w, r, o);
+    if (err != srs_success) {
+        return srs_error_wrap(err, "proxy");
     }
     
-    return srs_success;
+    return err;
 }
 
 SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
@@ -154,9 +154,9 @@ srs_error_t SrsDynamicHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     return srs_success;
 }
 
-int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o)
+srs_error_t SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     output = o;
     srs_trace("flv: proxy %s to %s", r->uri().c_str(), output.c_str());
@@ -168,36 +168,29 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std
     SrsHttpFileReader reader(rr);
     SrsFlvDecoder dec;
     
-    if ((ret = dec.initialize(&reader)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = dec.initialize(&reader)) != srs_success) {
+        return srs_error_wrap(err, "init decoder");
     }
     
     char header[9];
-    if ((ret = dec.read_header(header)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("flv: proxy flv header failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = dec.read_header(header)) != srs_success) {
+        return srs_error_wrap(err, "read header");
     }
-    srs_trace("flv: proxy drop flv header.");
     
     char pps[4];
-    if ((ret = dec.read_previous_tag_size(pps)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("flv: proxy flv header pps failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = dec.read_previous_tag_size(pps)) != srs_success) {
+        return srs_error_wrap(err, "read pts");
     }
     
-    ret = do_proxy(rr, &dec);
+    err = do_proxy(rr, &dec);
     sdk->close();
     
-    return ret;
+    return err;
 }
 
-int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
+srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_freep(sdk);
     
@@ -205,14 +198,12 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_error("flv: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
-        return ret;
+    if ((err = sdk->connect()) != srs_success) {
+        return srs_error_wrap(err, "connect %s failed, cto=%" PRId64 ", sto=%" PRId64, output.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
-        srs_error("flv: publish failed. ret=%d", ret);
-        return ret;
+    if ((err = sdk->publish()) != srs_success) {
+        return srs_error_wrap(err, "publish");
     }
     
     char pps[4];
@@ -222,48 +213,36 @@ int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
         char type;
         int32_t size;
         uint32_t time;
-        if ((ret = dec->read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("flv: proxy tag header failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = dec->read_tag_header(&type, &size, &time)) != srs_success) {
+            return srs_error_wrap(err, "read tag header");
         }
         
         char* data = new char[size];
-        if ((ret = dec->read_tag_data(data, size)) != ERROR_SUCCESS) {
+        if ((err = dec->read_tag_data(data, size)) != srs_success) {
             srs_freepa(data);
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("flv: proxy tag data failed. ret=%d", ret);
-            }
-            return ret;
+            return srs_error_wrap(err, "read tag data");
         }
         
         SrsSharedPtrMessage* msg = NULL;
-        if ((ret = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &msg)) != srs_success) {
+            return srs_error_wrap(err, "create message");
         }
         
         // TODO: FIXME: for post flv, reconnect when error.
-        if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("flv: proxy rtmp packet failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = sdk->send_and_free_message(msg)) != srs_success) {
+            return srs_error_wrap(err, "send message");
         }
         
         if (pprint->can_print()) {
             srs_trace("flv: send msg %d age=%d, dts=%d, size=%d", type, pprint->age(), time, size);
         }
         
-        if ((ret = dec->read_previous_tag_size(pps)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("flv: proxy tag header pps failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = dec->read_previous_tag_size(pps)) != srs_success) {
+            return srs_error_wrap(err, "read pts");
         }
     }
     
-    return ret;
+    return err;
 }
 
 SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader* h)
@@ -275,9 +254,9 @@ SrsHttpFileReader::~SrsHttpFileReader()
 {
 }
 
-int SrsHttpFileReader::open(std::string /*file*/)
+srs_error_t SrsHttpFileReader::open(std::string /*file*/)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 void SrsHttpFileReader::close()
@@ -308,26 +287,23 @@ int64_t SrsHttpFileReader::filesize()
     return 0;
 }
 
-int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
+srs_error_t SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (http->eof()) {
-        ret = ERROR_HTTP_REQUEST_EOF;
-        srs_error("flv: encoder EOF. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
     }
     
     int total_read = 0;
     while (total_read < (int)count) {
         int nread = 0;
-        if ((ret = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != srs_success) {
+            return srs_error_wrap(err, "read");
         }
         
         if (nread == 0) {
-            ret = ERROR_HTTP_REQUEST_EOF;
-            srs_warn("flv: encoder read EOF. ret=%d", ret);
+            err = srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
             break;
         }
         
@@ -339,13 +315,13 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
         *pnread = total_read;
     }
     
-    return ret;
+    return err;
 }
 
-int SrsHttpFileReader::lseek(off_t offset, int whence, off_t* seeked)
+srs_error_t SrsHttpFileReader::lseek(off_t offset, int whence, off_t* seeked)
 {
     // TODO: FIXME: Use HTTP range for seek.
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 #endif

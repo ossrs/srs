@@ -67,9 +67,9 @@ SrsMpegtsQueue::~SrsMpegtsQueue()
     msgs.clear();
 }
 
-int SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
+srs_error_t SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // TODO: FIXME: use right way.
     for (int i = 0; i < 10; i++) {
@@ -83,7 +83,7 @@ int SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
         if (i >= 5) {
             srs_warn("mpegts: free the msg for dts exists, dts=%" PRId64, msg->timestamp);
             srs_freep(msg);
-            return ret;
+            return err;
         }
     }
     
@@ -97,7 +97,7 @@ int SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
     
     msgs[msg->timestamp] = msg;
     
-    return ret;
+    return err;
 }
 
 SrsSharedPtrMessage* SrsMpegtsQueue::dequeue()
@@ -128,7 +128,6 @@ SrsSharedPtrMessage* SrsMpegtsQueue::dequeue()
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
-    stream = new SrsBuffer();
     context = new SrsTsContext();
     buffer = new SrsSimpleStream();
     output = _srs_config->get_stream_caster_output(c);
@@ -149,7 +148,6 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     close();
     
     srs_freep(buffer);
-    srs_freep(stream);
     srs_freep(context);
     srs_freep(avc);
     srs_freep(aac);
@@ -165,19 +163,15 @@ srs_error_t SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb
     // append to buffer.
     buffer->append(buf, nb_buf);
     
-    srs_info("udp: got %s:%d packet %d/%d bytes",
-             peer_ip.c_str(), peer_port, nb_buf, buffer->length());
-    
-    int ret = on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
-    if (ret != ERROR_SUCCESS) {
-        return srs_error_new(ret, "process udp");
+    srs_error_t err = on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
+    if (err != srs_success) {
+        return srs_error_wrap(err, "process udp");
     }
-    return srs_success;
+    return err;
 }
 
-int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
+srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // collect nMB data to parse in a time.
@@ -186,25 +180,25 @@ int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
     // TODO: FIXME: remove the debug to file.
 #if 0
     SrsFileWriter fw;
-    if ((ret = fw.open("latest.ts")) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = fw.open("latest.ts")) != srs_success) {
+        return srs_error_wrap(err, "open file");
     }
-    if ((ret = fw.write(buffer->bytes(), buffer->length(), NULL)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = fw.write(buffer->bytes(), buffer->length(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "write data");
     }
     fw.close();
 #endif
 #if 0
     SrsFileReader fr;
-    if ((ret = fr.open("latest.ts")) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = fr.open("latest.ts")) != srs_success) {
+        return srs_error_wrap(err, "open file");
     }
     buffer->erase(buffer->length());
     int nb_fbuf = fr.filesize();
     char* fbuf = new char[nb_fbuf];
     SrsAutoFreeA(char, fbuf);
-    if ((ret = fr.read(fbuf, nb_fbuf, NULL)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = fr.read(fbuf, nb_fbuf, NULL)) != srs_success) {
+        return srs_error_wrap(err, "read data");
     }
     fr.close();
     buffer->append(fbuf, nb_fbuf);
@@ -226,40 +220,35 @@ int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
     // drop ts packet when size not modulus by 188
     if (buffer->length() < SRS_TS_PACKET_SIZE) {
         srs_warn("udp: wait %s:%d packet %d/%d bytes", host.c_str(), port, nb_buf, buffer->length());
-        return ret;
+        return err;
     }
     
     // use stream to parse ts packet.
     int nb_packet = buffer->length() / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char* p = buffer->bytes() + (i * SRS_TS_PACKET_SIZE);
-        if ((ret = stream->initialize(p, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {
-            return ret;
-        }
+        
+        SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
+        SrsAutoFree(SrsBuffer, stream);
         
         // process each ts packet
         if ((err = context->decode(stream, this)) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
-            srs_freep(err);
-            srs_warn("mpegts: ignore parse ts packet failed. ret=%d", ret);
+            srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
             continue;
         }
-        srs_info("mpegts: parse ts packet completed");
     }
-    srs_info("mpegts: parse udp packet completed");
     
     // erase consumed bytes
     if (nb_packet > 0) {
         buffer->erase(nb_packet * SRS_TS_PACKET_SIZE);
     }
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     pprint->elapse();
@@ -326,20 +315,17 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     }
     
     // parse the stream.
-    SrsBuffer avs;
-    if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "ts: init av stream");
-    }
+    SrsBuffer avs(msg->payload->bytes(), msg->payload->length());
     
     // publish audio or video.
     if (msg->channel->stream == SrsTsStreamVideoH264) {
-        if ((ret = on_ts_video(msg, &avs)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: consume video");
+        if ((err = on_ts_video(msg, &avs)) != srs_success) {
+            return srs_error_wrap(err, "ts: consume video");
         }
     }
     if (msg->channel->stream == SrsTsStreamAudioAAC) {
-        if ((ret = on_ts_audio(msg, &avs)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ts: consume audio");
+        if ((err = on_ts_audio(msg, &avs)) != srs_success) {
+            return srs_error_wrap(err, "ts: consume audio");
         }
     }
     
@@ -347,13 +333,13 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     return err;
 }
 
-int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ensure rtmp connected.
-    if ((ret = connect()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = connect()) != srs_success) {
+        return srs_error_wrap(err, "connect");
     }
     
     // ts tbn to flv tbn.
@@ -364,8 +350,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
     while (!avs->empty()) {
         char* frame = NULL;
         int frame_size = 0;
-        if ((ret = avc->annexb_demux(avs, &frame, &frame_size)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = avc->annexb_demux(avs, &frame, &frame_size)) != srs_success) {
+            return srs_error_wrap(err, "demux annexb");
         }
         
         // 5bits, 7.3.1 NAL unit syntax,
@@ -381,8 +367,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         // for sps
         if (avc->is_sps(frame, frame_size)) {
             std::string sps;
-            if ((ret = avc->sps_demux(frame, frame_size, sps)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = avc->sps_demux(frame, frame_size, sps)) != srs_success) {
+                return srs_error_wrap(err, "demux sps");
             }
             
             if (h264_sps == sps) {
@@ -391,8 +377,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
             h264_sps_changed = true;
             h264_sps = sps;
             
-            if ((ret = write_h264_sps_pps(dts, pts)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+                return srs_error_wrap(err, "write sps/pps");
             }
             continue;
         }
@@ -400,8 +386,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         // for pps
         if (avc->is_pps(frame, frame_size)) {
             std::string pps;
-            if ((ret = avc->pps_demux(frame, frame_size, pps)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = avc->pps_demux(frame, frame_size, pps)) != srs_success) {
+                return srs_error_wrap(err, "demux pps");
             }
             
             if (h264_pps == pps) {
@@ -410,8 +396,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
             h264_pps_changed = true;
             h264_pps = pps;
             
-            if ((ret = write_h264_sps_pps(dts, pts)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+                return srs_error_wrap(err, "write sps/pps");
             }
             continue;
         }
@@ -419,30 +405,30 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsBuffer* avs)
         // ibp frame.
         // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
         srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((ret = write_h264_ipb_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
+            return srs_error_wrap(err, "write frame");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
+srs_error_t SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // TODO: FIMXE: there exists bug, see following comments.
     // when sps or pps changed, update the sequence header,
     // for the pps maybe not changed while sps changed.
     // so, we must check when each video ts message frame parsed.
     if (!h264_sps_changed || !h264_pps_changed) {
-        return ret;
+        return err;
     }
     
     // h264 raw to h264 packet.
     std::string sh;
-    if ((ret = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != srs_success) {
+        return srs_error_wrap(err, "mux sequence header");
     }
     
     // h264 packet to flv packet.
@@ -450,14 +436,14 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char* flv = NULL;
     int nb_flv = 0;
-    if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "avc to flv");
     }
     
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
-    if ((ret = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "write packet");
     }
     
     // reset sps and pps.
@@ -465,17 +451,17 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     h264_pps_changed = false;
     h264_sps_pps_sent = true;
     
-    return ret;
+    return err;
 }
 
-int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts)
+srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when sps or pps not sent, ignore the packet.
     // @see https://github.com/ossrs/srs/issues/203
     if (!h264_sps_pps_sent) {
-        return ERROR_H264_DROP_BEFORE_SPS_PPS;
+        return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop sps/pps");
     }
     
     // 5bits, 7.3.1 NAL unit syntax,
@@ -490,15 +476,15 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t
     }
     
     std::string ibp;
-    if ((ret = avc->mux_ipb_frame(frame, frame_size, ibp)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = avc->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+        return srs_error_wrap(err, "mux frame");
     }
     
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
     int nb_flv = 0;
-    if ((ret = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+        return srs_error_wrap(err, "mux avc to flv");
     }
     
     // the timestamp in rtmp message header is dts.
@@ -506,13 +492,13 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, uint32_t
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
+srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // ensure rtmp connected.
-    if ((ret = connect()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = connect()) != srs_success) {
+        return srs_error_wrap(err, "connect");
     }
     
     // ts tbn to flv tbn.
@@ -523,8 +509,8 @@ int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         char* frame = NULL;
         int frame_size = 0;
         SrsRawAacStreamCodec codec;
-        if ((ret = aac->adts_demux(avs, &frame, &frame_size, codec)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
+            return srs_error_wrap(err, "demux adts");
         }
         
         // ignore invalid frame,
@@ -537,61 +523,59 @@ int SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
         // generate sh.
         if (aac_specific_config.empty()) {
             std::string sh;
-            if ((ret = aac->mux_sequence_header(&codec, sh)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
+                return srs_error_wrap(err, "mux sequence header");
             }
             aac_specific_config = sh;
             
             codec.aac_packet_type = 0;
             
-            if ((ret = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != ERROR_SUCCESS) {
-                return ret;
+            if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
+                return srs_error_wrap(err, "write raw audio frame");
             }
         }
         
         // audio raw data.
         codec.aac_packet_type = 1;
-        if ((ret = write_audio_raw_frame(frame, frame_size, &codec, dts)) != ERROR_SUCCESS) {
-            return ret;
+        if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+            return srs_error_wrap(err, "write audio raw frame");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
+srs_error_t SrsMpegtsOverUdp::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     char* data = NULL;
     int size = 0;
-    if ((ret = aac->mux_aac2flv(frame, frame_size, codec, dts, &data, &size)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = aac->mux_aac2flv(frame, frame_size, codec, dts, &data, &size)) != srs_success) {
+        return srs_error_wrap(err, "mux aac to flv");
     }
     
     return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
-int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
+srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = connect()) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = connect()) != srs_success) {
+        return srs_error_wrap(err, "connect");
     }
     
     SrsSharedPtrMessage* msg = NULL;
     
-    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != ERROR_SUCCESS) {
-        srs_error("mpegts: create shared ptr msg failed. ret=%d", ret);
-        return ret;
+    if ((err = srs_rtmp_create_msg(type, timestamp, data, size, sdk->sid(), &msg)) != srs_success) {
+        return srs_error_wrap(err, "create message");
     }
     srs_assert(msg);
     
     // push msg to queue.
-    if ((ret = queue->push(msg)) != ERROR_SUCCESS) {
-        srs_error("mpegts: push msg to queue failed. ret=%d", ret);
-        return ret;
+    if ((err = queue->push(msg)) != srs_success) {
+        return srs_error_wrap(err, "push to queue");
     }
     
     // for all ready msg, dequeue and send out.
@@ -606,41 +590,39 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char* dat
         }
         
         // send out encoded msg.
-        if ((ret = sdk->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        if ((err = sdk->send_and_free_message(msg)) != srs_success) {
             close();
-            return ret;
+            return srs_error_wrap(err, "send messages");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsMpegtsOverUdp::connect()
+srs_error_t SrsMpegtsOverUdp::connect()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // Ignore when connected.
     if (sdk) {
-        return ret;
+        return err;
     }
     
     int64_t cto = SRS_CONSTS_RTMP_TMMS;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
+    if ((err = sdk->connect()) != srs_success) {
         close();
-        srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", output.c_str(), cto, sto, ret);
-        return ret;
+        return srs_error_wrap(err, "connect %s failed, cto=%" PRId64 ", sto=%" PRId64, output.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
+    if ((err = sdk->publish()) != srs_success) {
         close();
-        srs_error("mpegts: publish failed. ret=%d", ret);
-        return ret;
+        return srs_error_wrap(err, "publish");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsMpegtsOverUdp::close()

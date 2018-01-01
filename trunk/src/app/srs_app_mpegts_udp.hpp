@@ -77,7 +77,6 @@ class SrsMpegtsOverUdp : virtual public ISrsTsHandler
 , virtual public ISrsUdpHandler
 {
 private:
-    SrsBuffer* stream;
     SrsTsContext* context;
     SrsSimpleStream* buffer;
     std::string output;
