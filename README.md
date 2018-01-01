@@ -164,7 +164,7 @@ Please select according to languages:
 - [x] Support valgrind and latest ARM by patching ST, read [ST#1](https://github.com/ossrs/state-threads/issues/1) and [ST#2](https://github.com/ossrs/state-threads/issues/2).
 - [x] Support tracable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
 - [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB.
-- [ ] Enhanced complex error code with description and stack, read [#913][bug #913].
+- [x] Enhanced complex error code with description and stack, read [#913][bug #913].
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
@@ -176,6 +176,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-01-01, Fix [#913][bug #913], support complex error. 3.0.26
 * v3.0, 2017-06-04, Fix [#299][bug #299], support experimental MPEG-DASH. 3.0.25
 * v3.0, 2017-05-30, Fix [#821][bug #821], support MP4 file parser. 3.0.24
 * v3.0, 2017-05-30, Fix [#904][bug #904], replace NXJSON(LGPL) with json-parser(BSD). 3.0.23
@@ -208,6 +209,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-01-01, Merge [#1033][bug #1033], allow user to add some specific flags. 2.0.244
 * <strong>v2.0, 2017-06-10, [2.0 release2(2.0.243)][r2.0r2] released. 86670 lines.</strong>
 * v2.0, 2017-05-29, Merge [#899][bug #899] to fix [#893][bug #893], ts PES ext length. 2.0.243
 * v2.0, 2017-05-01, Fix [#865][bug #865], shouldn't remove ts/m3u8 when hls_dispose disabled. 2.0.242
@@ -1400,6 +1402,7 @@ Winlin
 [bug #865]: https://github.com/ossrs/srs/issues/865
 [bug #893]: https://github.com/ossrs/srs/issues/893
 [bug #899]: https://github.com/ossrs/srs/issues/899
+[bug #1033]: https://github.com/ossrs/srs/issues/1033
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
