@@ -95,56 +95,46 @@ int SrsKafkaString::nb_bytes()
     return _size == -1? 2 : 2 + _size;
 }
 
-int SrsKafkaString::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaString::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(2)) {
-        ret = ERROR_KAFKA_CODEC_STRING;
-        srs_error("kafka encode string failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_STRING, "requires 2 only %d bytes", buf->left());
     }
     buf->write_2bytes(_size);
     
     if (_size <= 0) {
-        return ret;
+        return err;
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_STRING;
-        srs_error("kafka encode string data failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_STRING, "requires %d only %d bytes", _size, buf->left());
     }
     buf->write_bytes(data, _size);
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaString::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaString::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(2)) {
-        ret = ERROR_KAFKA_CODEC_STRING;
-        srs_error("kafka decode string failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_STRING, "requires 2 only %d bytes", buf->left());
     }
     _size = buf->read_2bytes();
     
     if (_size != -1 && _size < 0) {
-        ret = ERROR_KAFKA_CODEC_STRING;
-        srs_error("kafka string must be -1 or >=0, actual is %d. ret=%d", _size, ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_STRING, "invalid size=%d", _size);
     }
     
     if (_size <= 0) {
-        return ret;
+        return err;
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_STRING;
-        srs_error("kafka decode string data failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_STRING, "requires %d only %d bytes", _size, buf->left());
     }
     
     srs_freepa(data);
@@ -152,7 +142,7 @@ int SrsKafkaString::decode(SrsBuffer* buf)
     
     buf->read_bytes(data, _size);
     
-    return ret;
+    return err;
 }
 
 SrsKafkaBytes::SrsKafkaBytes()
@@ -232,59 +222,49 @@ int SrsKafkaBytes::nb_bytes()
     return 4 + (_size == -1? 0 : _size);
 }
 
-int SrsKafkaBytes::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaBytes::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_BYTES;
-        srs_error("kafka encode bytes failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_BYTES, "requires 4 only %d bytes", buf->left());
     }
     buf->write_4bytes(_size);
     
     if (_size <= 0) {
-        return ret;
+        return err;
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_BYTES;
-        srs_error("kafka encode bytes data failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_BYTES, "requires %d only %d bytes", _size, buf->left());
     }
     buf->write_bytes(_data, _size);
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaBytes::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaBytes::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_BYTES;
-        srs_error("kafka decode bytes failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_BYTES, "requires 4 only %d bytes", buf->left());
     }
     _size = buf->read_4bytes();
     
     if (_size != -1 && _size < 0) {
-        ret = ERROR_KAFKA_CODEC_BYTES;
-        srs_error("kafka bytes must be -1 or >=0, actual is %d. ret=%d", _size, ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_BYTES, "invalid size=%d", _size);
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_BYTES;
-        srs_error("kafka decode bytes data failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_BYTES, "requires %d only %d bytes", _size, buf->left());
     }
     
     srs_freepa(_data);
     _data = new char[_size];
     buf->read_bytes(_data, _size);
     
-    return ret;
+    return err;
 }
 
 SrsKafkaRequestHeader::SrsKafkaRequestHeader()
@@ -380,14 +360,12 @@ int SrsKafkaRequestHeader::nb_bytes()
     return 4 + header_size();
 }
 
-int SrsKafkaRequestHeader::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaRequestHeader::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4 + _size)) {
-        ret = ERROR_KAFKA_CODEC_REQUEST;
-        srs_error("kafka encode request failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_REQUEST, "requires %d only %d bytes", 4 + _size, buf->left());
     }
     
     buf->write_4bytes(_size);
@@ -395,45 +373,39 @@ int SrsKafkaRequestHeader::encode(SrsBuffer* buf)
     buf->write_2bytes(api_version);
     buf->write_4bytes(_correlation_id);
     
-    if ((ret = client_id->encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode request client_id failed. ret=%d", ret);
-        return ret;
+    if ((err = client_id->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode client_id");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaRequestHeader::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaRequestHeader::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_REQUEST;
-        srs_error("kafka decode request size failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_REQUEST, "requires %d only %d bytes", 4, buf->left());
     }
     _size = buf->read_4bytes();
     
     if (_size <= 0) {
         srs_warn("kafka got empty request");
-        return ret;
+        return err;
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_REQUEST;
-        srs_error("kafka decode request message failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_REQUEST, "requires %d only %d bytes", _size, buf->left());
     }
     _api_key = buf->read_2bytes();
     api_version = buf->read_2bytes();
     _correlation_id = buf->read_4bytes();
     
-    if ((ret = client_id->decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode request client_id failed. ret=%d", ret);
-        return ret;
+    if ((err = client_id->decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode client_id");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaResponseHeader::SrsKafkaResponseHeader()
@@ -476,46 +448,40 @@ int SrsKafkaResponseHeader::nb_bytes()
     return 4 + header_size();
 }
 
-int SrsKafkaResponseHeader::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaResponseHeader::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4 + _size)) {
-        ret = ERROR_KAFKA_CODEC_RESPONSE;
-        srs_error("kafka encode response failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_RESPONSE, "requires %d only %d bytes", 4 + _size, buf->left());
     }
     
     buf->write_4bytes(_size);
     buf->write_4bytes(_correlation_id);
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaResponseHeader::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaResponseHeader::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_RESPONSE;
-        srs_error("kafka decode response size failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_RESPONSE, "requires %d only %d bytes", 4, buf->left());
     }
     _size = buf->read_4bytes();
     
     if (_size <= 0) {
         srs_warn("kafka got empty response");
-        return ret;
+        return err;
     }
     
     if (!buf->require(_size)) {
-        ret = ERROR_KAFKA_CODEC_RESPONSE;
-        srs_error("kafka decode response message failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_RESPONSE, "requires %d only %d bytes", _size, buf->left());
     }
     _correlation_id = buf->read_4bytes();
     
-    return ret;
+    return err;
 }
 
 SrsKafkaRawMessage::SrsKafkaRawMessage()
@@ -535,9 +501,9 @@ SrsKafkaRawMessage::~SrsKafkaRawMessage()
     srs_freep(value);
 }
 
-int SrsKafkaRawMessage::create(SrsJsonObject* obj)
+srs_error_t SrsKafkaRawMessage::create(SrsJsonObject* obj)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // current must be 0.
     magic_byte = 0;
@@ -558,7 +524,7 @@ int SrsKafkaRawMessage::create(SrsJsonObject* obj)
     
     message_size = raw_message_size();
     
-    return ret;
+    return err;
 }
 
 int SrsKafkaRawMessage::raw_message_size()
@@ -571,14 +537,13 @@ int SrsKafkaRawMessage::nb_bytes()
     return 8 + 4 + 4 + 1 + 1 + key->nb_bytes() + value->nb_bytes();
 }
 
-int SrsKafkaRawMessage::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaRawMessage::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(8 + 4 + 4 + 1 + 1)) {
-        ret = ERROR_KAFKA_CODEC_MESSAGE;
-        srs_error("kafka encode message failed. ret=%d", ret);
-        return ret;
+    int nb_required = 8 + 4 + 4 + 1 + 1;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_MESSAGE, "requires %d only %d bytes", nb_required, buf->left());
     }
     buf->write_8bytes(offset);
     buf->write_4bytes(message_size);
@@ -586,27 +551,24 @@ int SrsKafkaRawMessage::encode(SrsBuffer* buf)
     buf->write_1bytes(magic_byte);
     buf->write_1bytes(attributes);
     
-    if ((ret = key->encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode message key failed. ret=%d", ret);
-        return ret;
+    if ((err = key->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode key");
     }
     
-    if ((ret = value->encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode message value failed. ret=%d", ret);
-        return ret;
+    if ((err = value->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode value");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaRawMessage::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaRawMessage::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(8 + 4 + 4 + 1 + 1)) {
-        ret = ERROR_KAFKA_CODEC_MESSAGE;
-        srs_error("kafka decode message failed. ret=%d", ret);
-        return ret;
+    int nb_required = 8 + 4 + 4 + 1 + 1;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_MESSAGE, "requires %d only %d bytes", nb_required, buf->left());
     }
     offset = buf->read_8bytes();
     message_size = buf->read_4bytes();
@@ -614,17 +576,15 @@ int SrsKafkaRawMessage::decode(SrsBuffer* buf)
     magic_byte = buf->read_1bytes();
     attributes = buf->read_1bytes();
     
-    if ((ret = key->decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode message key failed. ret=%d", ret);
-        return ret;
+    if ((err = key->decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode key");
     }
     
-    if ((ret = value->decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode message value failed. ret=%d", ret);
-        return ret;
+    if ((err = value->decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode value");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaRawMessageSet::SrsKafkaRawMessageSet()
@@ -659,39 +619,37 @@ int SrsKafkaRawMessageSet::nb_bytes()
     return s;
 }
 
-int SrsKafkaRawMessageSet::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaRawMessageSet::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     vector<SrsKafkaRawMessage*>::iterator it;
     for (it = messages.begin(); it != messages.end(); ++it) {
         SrsKafkaRawMessage* message = *it;
-        if ((ret = message->encode(buf)) != ERROR_SUCCESS) {
-            srs_error("kafka encode message set failed. ret=%d", ret);
-            return ret;
+        if ((err = message->encode(buf)) != srs_success) {
+            return srs_error_wrap(err, "encode message");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaRawMessageSet::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaRawMessageSet::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     while (!buf->empty()) {
         SrsKafkaRawMessage* message = new SrsKafkaRawMessage();
         
-        if ((ret = message->decode(buf)) != ERROR_SUCCESS) {
+        if ((err = message->decode(buf)) != srs_success) {
             srs_freep(message);
-            srs_error("kafka decode message set elem failed. ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "decode message");
         }
         
         messages.push_back(message);
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaRequest::SrsKafkaRequest()
@@ -723,12 +681,12 @@ int SrsKafkaRequest::nb_bytes()
     return header.nb_bytes();
 }
 
-int SrsKafkaRequest::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaRequest::encode(SrsBuffer* buf)
 {
     return header.encode(buf);
 }
 
-int SrsKafkaRequest::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaRequest::decode(SrsBuffer* buf)
 {
     return header.decode(buf);
 }
@@ -751,12 +709,12 @@ int SrsKafkaResponse::nb_bytes()
     return header.nb_bytes();
 }
 
-int SrsKafkaResponse::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaResponse::encode(SrsBuffer* buf)
 {
     return header.encode(buf);
 }
 
-int SrsKafkaResponse::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaResponse::decode(SrsBuffer* buf)
 {
     return header.decode(buf);
 }
@@ -780,38 +738,34 @@ int SrsKafkaTopicMetadataRequest::nb_bytes()
     return SrsKafkaRequest::nb_bytes() + topics.nb_bytes();
 }
 
-int SrsKafkaTopicMetadataRequest::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadataRequest::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaRequest::encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode metadata request failed. ret=%d", ret);
-        return ret;
+    if ((err = SrsKafkaRequest::encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode request");
     }
     
-    if ((ret = topics.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode metadata topics failed. ret=%d", ret);
-        return ret;
+    if ((err = topics.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode topics");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaTopicMetadataRequest::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadataRequest::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaRequest::decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode metadata request failed. ret=%d", ret);
-        return ret;
+    if ((err = SrsKafkaRequest::decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode request");
     }
     
-    if ((ret = topics.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode metadata topics failed. ret=%d", ret);
-        return ret;
+    if ((err = topics.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode topics");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaBroker::SrsKafkaBroker()
@@ -828,56 +782,46 @@ int SrsKafkaBroker::nb_bytes()
     return 4 + host.nb_bytes() + 4;
 }
 
-int SrsKafkaBroker::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaBroker::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka encode broker node_id failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 4, buf->left());
     }
     buf->write_4bytes(node_id);
     
-    if ((ret = host.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode broker host failed. ret=%d", ret);
-        return ret;
+    if ((err = host.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "host");
     }
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka encode broker port failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 4, buf->left());
     }
     buf->write_4bytes(port);
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaBroker::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaBroker::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka decode broker node_id failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 4, buf->left());
     }
     node_id = buf->read_4bytes();
     
-    if ((ret = host.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode broker host failed. ret=%d", ret);
-        return ret;
+    if ((err = host.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "host");
     }
     
     if (!buf->require(4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka decode broker port failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 4, buf->left());
     }
     port = buf->read_4bytes();
     
-    return ret;
+    return err;
 }
 
 SrsKafkaPartitionMetadata::SrsKafkaPartitionMetadata()
@@ -896,54 +840,48 @@ int SrsKafkaPartitionMetadata::nb_bytes()
     return 2 + 4 + 4 + replicas.nb_bytes() + isr.nb_bytes();
 }
 
-int SrsKafkaPartitionMetadata::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaPartitionMetadata::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(2 + 4 + 4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka encode partition metadata failed. ret=%d", ret);
-        return ret;
+    int nb_required = 2 + 4 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", nb_required, buf->left());
     }
     buf->write_2bytes(error_code);
     buf->write_4bytes(partition_id);
     buf->write_4bytes(leader);
     
-    if ((ret = replicas.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode partition metadata replicas failed. ret=%d", ret);
-        return ret;
+    if ((err = replicas.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "replicas");
     }
-    if ((ret = isr.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode partition metadata isr failed. ret=%d", ret);
-        return ret;
+    if ((err = isr.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "isr");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaPartitionMetadata::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaPartitionMetadata::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(2 + 4 + 4)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka decode partition metadata failed. ret=%d", ret);
-        return ret;
+    int nb_required = 2 + 4 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", nb_required, buf->left());
     }
     error_code = buf->read_2bytes();
     partition_id = buf->read_4bytes();
     leader = buf->read_4bytes();
     
-    if ((ret = replicas.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode partition metadata replicas failed. ret=%d", ret);
-        return ret;
+    if ((err = replicas.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "replicas");
     }
-    if ((ret = isr.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode partition metadata isr failed. ret=%d", ret);
-        return ret;
+    if ((err = isr.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "isr");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaTopicMetadata::SrsKafkaTopicMetadata()
@@ -960,52 +898,44 @@ int SrsKafkaTopicMetadata::nb_bytes()
     return 2 + name.nb_bytes() + metadatas.nb_bytes();
 }
 
-int SrsKafkaTopicMetadata::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadata::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(2)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka encode topic metadata failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 2, buf->left());
     }
     buf->write_2bytes(error_code);
     
-    if ((ret = name.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode topic name failed. ret=%d", ret);
-        return ret;
+    if ((err = name.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "name");
     }
     
-    if ((ret = metadatas.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode topic metadatas failed. ret=%d", ret);
-        return ret;
+    if ((err = metadatas.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "metadatas");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaTopicMetadata::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadata::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!buf->require(2)) {
-        ret = ERROR_KAFKA_CODEC_METADATA;
-        srs_error("kafka decode topic metadata failed. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_KAFKA_CODEC_METADATA, "requires %d only %d bytes", 2, buf->left());
     }
     error_code = buf->read_2bytes();
     
-    if ((ret = name.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode topic name failed. ret=%d", ret);
-        return ret;
+    if ((err = name.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "name");
     }
     
-    if ((ret = metadatas.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode topic metadatas failed. ret=%d", ret);
-        return ret;
+    if ((err = metadatas.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "metadatas");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaTopicMetadataResponse::SrsKafkaTopicMetadataResponse()
@@ -1021,48 +951,42 @@ int SrsKafkaTopicMetadataResponse::nb_bytes()
     return SrsKafkaResponse::nb_bytes() + brokers.nb_bytes() + metadatas.nb_bytes();
 }
 
-int SrsKafkaTopicMetadataResponse::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadataResponse::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaResponse::encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode metadata response failed. ret=%d", ret);
-        return ret;
+    if ((err = SrsKafkaResponse::encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode response");
     }
     
-    if ((ret = brokers.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode metadata brokers failed. ret=%d", ret);
-        return ret;
+    if ((err = brokers.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "brokers");
     }
     
-    if ((ret = metadatas.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode metadatas failed. ret=%d", ret);
-        return ret;
+    if ((err = metadatas.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "metadatas");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaTopicMetadataResponse::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaTopicMetadataResponse::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaResponse::decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode metadata response failed. ret=%d", ret);
-        return ret;
+    if ((err = SrsKafkaResponse::decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode response");
     }
     
-    if ((ret = brokers.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode metadata brokers failed. ret=%d", ret);
-        return ret;
+    if ((err = brokers.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "brokers");
     }
     
-    if ((ret = metadatas.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode metadatas failed. ret=%d", ret);
-        return ret;
+    if ((err = metadatas.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "metadatas");
     }
     
-    return ret;
+    return err;
 }
 
 int SrsKafkaProducerPartitionMessages::nb_bytes()
@@ -1070,34 +994,31 @@ int SrsKafkaProducerPartitionMessages::nb_bytes()
     return 4 + 4 + messages.nb_bytes();
 }
 
-int SrsKafkaProducerPartitionMessages::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerPartitionMessages::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(4 + 4)) {
-        ret = ERROR_KAFKA_CODEC_PRODUCER;
-        srs_error("kafka encode producer failed. ret=%d", ret);
-        return ret;
+    int nb_required = 4 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_PRODUCER, "requires %d only %d bytes", nb_required, buf->left());
     }
     buf->write_4bytes(partition);
     buf->write_4bytes(message_set_size);
     
-    if ((ret = messages.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode producer messages failed. ret=%d", ret);
-        return ret;
+    if ((err = messages.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "messages");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaProducerPartitionMessages::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerPartitionMessages::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if (!buf->require(4 + 4)) {
-        ret = ERROR_KAFKA_CODEC_PRODUCER;
-        srs_error("kafka decode producer failed. ret=%d", ret);
-        return ret;
+    int nb_required = 4 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_PRODUCER, "requires %d only %d bytes", nb_required, buf->left());
     }
     partition = buf->read_4bytes();
     message_set_size = buf->read_4bytes();
@@ -1105,25 +1026,19 @@ int SrsKafkaProducerPartitionMessages::decode(SrsBuffer* buf)
     // for the message set decode util empty, we must create a new buffer when
     // there exists other objects after message set.
     if (buf->left() != message_set_size) {
-        SrsBuffer* tbuf = new SrsBuffer();
+        SrsBuffer* tbuf = new SrsBuffer(buf->data() + buf->pos(), message_set_size);
         SrsAutoFree(SrsBuffer, tbuf);
         
-        if ((ret = tbuf->initialize(buf->data() + buf->pos(), message_set_size)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        if ((ret = messages.decode(tbuf)) != ERROR_SUCCESS) {
-            srs_error("kafka decode procuder messages failed. ret=%d", ret);
-            return ret;
+        if ((err = messages.decode(buf)) != srs_success) {
+            return srs_error_wrap(err, "messages");
         }
     } else {
-        if ((ret = messages.decode(buf)) != ERROR_SUCCESS) {
-            srs_error("kafka decode procuder messages failed. ret=%d", ret);
-            return ret;
+        if ((err = messages.decode(buf)) != srs_success) {
+            return srs_error_wrap(err, "messages");
         }
     }
     
-    return ret;
+    return err;
 }
 
 int SrsKafkaProducerTopicMessages::nb_bytes()
@@ -1131,34 +1046,34 @@ int SrsKafkaProducerTopicMessages::nb_bytes()
     return topic_name.nb_bytes() + partitions.nb_bytes();
 }
 
-int SrsKafkaProducerTopicMessages::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerTopicMessages::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = topic_name.encode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = topic_name.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "topic_name");
     }
     
-    if ((ret = partitions.encode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = partitions.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "partitions");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaProducerTopicMessages::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerTopicMessages::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = topic_name.decode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = topic_name.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "topic_name");
     }
     
-    if ((ret = partitions.decode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = partitions.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "partitions");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaProducerRequest::SrsKafkaProducerRequest()
@@ -1176,50 +1091,48 @@ int SrsKafkaProducerRequest::nb_bytes()
     return SrsKafkaRequest::nb_bytes() + 2 + 4 + topics.nb_bytes();
 }
 
-int SrsKafkaProducerRequest::encode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerRequest::encode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaRequest::encode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = SrsKafkaRequest::encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode request");
     }
     
-    if (!buf->require(2 + 4)) {
-        ret = ERROR_KAFKA_CODEC_PRODUCER;
-        srs_error("kafka encode producer failed. ret=%d", ret);
-        return ret;
+    int nb_required = 2 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_PRODUCER, "requires %d only %d bytes", nb_required, buf->left());
     }
     buf->write_2bytes(required_acks);
     buf->write_4bytes(timeout);
     
-    if ((ret = topics.encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode producer topics failed. ret=%d", ret);
+    if ((err = topics.encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode topics");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaProducerRequest::decode(SrsBuffer* buf)
+srs_error_t SrsKafkaProducerRequest::decode(SrsBuffer* buf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
-    if ((ret = SrsKafkaRequest::decode(buf)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = SrsKafkaRequest::decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode request");
     }
     
-    if (!buf->require(2 + 4)) {
-        ret = ERROR_KAFKA_CODEC_PRODUCER;
-        srs_error("kafka decode producer failed. ret=%d", ret);
-        return ret;
+    int nb_required = 2 + 4;
+    if (!buf->require(nb_required)) {
+        return srs_error_new(ERROR_KAFKA_CODEC_PRODUCER, "requires %d only %d bytes", nb_required, buf->left());
     }
     required_acks = buf->read_2bytes();
     timeout = buf->read_4bytes();
     
-    if ((ret = topics.decode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka decode producer topics failed. ret=%d", ret);
+    if ((err = topics.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode topics");
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaCorrelationPool* SrsKafkaCorrelationPool::_instance = new SrsKafkaCorrelationPool();
@@ -1291,16 +1204,16 @@ SrsKafkaProtocol::~SrsKafkaProtocol()
     srs_freep(reader);
 }
 
-int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
+srs_error_t SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // TODO: FIXME: refine for performance issue.
     SrsAutoFree(SrsKafkaRequest, msg);
     
     int size = msg->nb_bytes();
     if (size <= 0) {
-        return ret;
+        return err;
     }
     
     // update the header of message.
@@ -1315,52 +1228,40 @@ int SrsKafkaProtocol::send_and_free_message(SrsKafkaRequest* msg)
     SrsAutoFreeA(char, bytes);
     
     // TODO: FIXME: refine for performance issue.
-    SrsBuffer* buf = new SrsBuffer();
+    SrsBuffer* buf = new SrsBuffer(bytes, size);
     SrsAutoFree(SrsBuffer, buf);
     
-    if ((ret = buf->initialize(bytes, size)) != ERROR_SUCCESS) {
-        srs_error("kafka create buffer failed. ret=%d", ret);
-        return ret;
+    if ((err = msg->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode msg");
     }
     
-    if ((ret = msg->encode(buf)) != ERROR_SUCCESS) {
-        srs_error("kafka encode message failed. ret=%d", ret);
-        return ret;
+    if ((err = skt->write(bytes, size, NULL)) != srs_success) {
+        return srs_error_wrap(err, "write msg");
     }
     
-    if ((ret = skt->write(bytes, size, NULL)) != ERROR_SUCCESS) {
-        srs_error("kafka send message failed. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
+    return err;
 }
 
-int SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
+srs_error_t SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
 {
     *pmsg = NULL;
     
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     while (true) {
         SrsKafkaResponseHeader header;
         
         // ensure enough bytes for response header.
-        if ((ret = reader->grow(skt, header.nb_bytes())) != ERROR_SUCCESS) {
-            srs_error("kafka recv message failed. ret=%d", ret);
-            return ret;
+        if ((err = reader->grow(skt, header.nb_bytes())) != srs_success) {
+            return srs_error_wrap(err, "grow buffer");
         }
         
         // decode response header.
-        SrsBuffer buffer;
-        if ((ret = buffer.initialize(reader->bytes(), reader->size())) != ERROR_SUCCESS) {
-            return ret;
-        }
+        SrsBuffer* buf = new SrsBuffer(reader->bytes(), reader->size());
+        SrsAutoFree(SrsBuffer, buf);
         
-        SrsBuffer* buf = &buffer;
-        if ((ret = header.decode(buf)) != ERROR_SUCCESS) {
-            srs_error("kafka decode response header failed. ret=%d", ret);
-            return ret;
+        if ((err = header.decode(buf)) != srs_success) {
+            return srs_error_wrap(err, "decode header");
         }
         
         // skip the used buffer for header.
@@ -1384,10 +1285,9 @@ int SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
         }
         
         // ensure enough bytes to decode message.
-        if ((ret = reader->grow(skt, header.total_size())) != ERROR_SUCCESS) {
+        if ((err = reader->grow(skt, header.total_size())) != srs_success) {
             srs_freep(res);
-            srs_error("kafka recv message body failed. ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "grow buffer");
         }
         
         // dropped message, fetch next.
@@ -1398,17 +1298,16 @@ int SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
         }
         
         // parse the whole message.
-        if ((ret = res->decode(buf)) != ERROR_SUCCESS) {
+        if ((err = res->decode(buf)) != srs_success) {
             srs_freep(res);
-            srs_error("kafka decode message failed. ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "decode response");
         }
         
         *pmsg = res;
         break;
     }
     
-    return ret;
+    return err;
 }
 
 SrsKafkaClient::SrsKafkaClient(ISrsProtocolReaderWriter* io)
@@ -1421,32 +1320,30 @@ SrsKafkaClient::~SrsKafkaClient()
     srs_freep(protocol);
 }
 
-int SrsKafkaClient::fetch_metadata(string topic, SrsKafkaTopicMetadataResponse** pmsg)
+srs_error_t SrsKafkaClient::fetch_metadata(string topic, SrsKafkaTopicMetadataResponse** pmsg)
 {
     *pmsg = NULL;
     
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsKafkaTopicMetadataRequest* req = new SrsKafkaTopicMetadataRequest();
     
     req->add_topic(topic);
     
-    if ((ret = protocol->send_and_free_message(req)) != ERROR_SUCCESS) {
-        srs_error("kafka send message failed. ret=%d", ret);
-        return ret;
+    if ((err = protocol->send_and_free_message(req)) != srs_success) {
+        return srs_error_wrap(err, "send request");
     }
     
-    if ((ret = protocol->expect_message(pmsg)) != ERROR_SUCCESS) {
-        srs_error("kafka recv response failed. ret=%d", ret);
-        return ret;
+    if ((err = protocol->expect_message(pmsg)) != srs_success) {
+        return srs_error_wrap(err, "expect message");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<SrsJsonObject*>& msgs)
+srs_error_t SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<SrsJsonObject*>& msgs)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsKafkaProducerRequest* req = new SrsKafkaProducerRequest();
     
@@ -1471,11 +1368,10 @@ int SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<
         SrsJsonObject* obj = *it;
         SrsKafkaRawMessage* msg = new SrsKafkaRawMessage();
         
-        if ((ret = msg->create(obj)) != ERROR_SUCCESS) {
+        if ((err = msg->create(obj)) != srs_success) {
             srs_freep(msg);
             srs_freep(req);
-            srs_error("kafka write messages failed. ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "create message");
         }
         
         partitions->messages.append(msg);
@@ -1484,12 +1380,11 @@ int SrsKafkaClient::write_messages(std::string topic, int32_t partition, vector<
     partitions->message_set_size = partitions->messages.nb_bytes();
     
     // write to kafka cluster.
-    if ((ret = protocol->send_and_free_message(req)) != ERROR_SUCCESS) {
-        srs_error("kafka write producer message failed. ret=%d", ret);
-        return ret;
+    if ((err = protocol->send_and_free_message(req)) != srs_success) {
+        return srs_error_wrap(err, "send request");
     }
     
-    return ret;
+    return err;
 }
 
 vector<string> srs_kafka_array2vector(SrsKafkaArray<SrsKafkaString>* arr)

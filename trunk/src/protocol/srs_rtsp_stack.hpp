@@ -311,10 +311,10 @@ public:
     /**
      * decode rtp packet from stream.
      */
-    virtual int decode(SrsBuffer* stream);
+    virtual srs_error_t decode(SrsBuffer* stream);
 private:
-    virtual int decode_97(SrsBuffer* stream);
-    virtual int decode_96(SrsBuffer* stream);
+    virtual srs_error_t decode_97(SrsBuffer* stream);
+    virtual srs_error_t decode_96(SrsBuffer* stream);
 };
 
 /**
@@ -394,16 +394,16 @@ public:
     /**
      * parse a line of token for sdp.
      */
-    virtual int parse(std::string token);
+    virtual srs_error_t parse(std::string token);
 private:
     /**
      * generally, the fmtp is the sequence header for video or audio.
      */
-    virtual int parse_fmtp_attribute(std::string attr);
+    virtual srs_error_t parse_fmtp_attribute(std::string attr);
     /**
      * generally, the control is the stream info for video or audio.
      */
-    virtual int parse_control_attribute(std::string attr);
+    virtual srs_error_t parse_control_attribute(std::string attr);
     /**
      * decode the string by base64.
      */
@@ -454,7 +454,7 @@ public:
     /**
      * parse a line of token for transport.
      */
-    virtual int parse(std::string attr);
+    virtual srs_error_t parse(std::string attr);
 };
 
 /**
@@ -588,12 +588,12 @@ public:
     /**
      * encode message to string.
      */
-    virtual int encode(std::stringstream& ss);
+    virtual srs_error_t encode(std::stringstream& ss);
 protected:
     /**
      * sub classes override this to encode the headers.
      */
-    virtual int encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream& ss);
 };
 
 /**
@@ -613,7 +613,7 @@ public:
     SrsRtspOptionsResponse(int cseq);
     virtual ~SrsRtspOptionsResponse();
 protected:
-    virtual int encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream& ss);
 };
 
 /**
@@ -643,7 +643,7 @@ public:
     SrsRtspSetupResponse(int cseq);
     virtual ~SrsRtspSetupResponse();
 protected:
-    virtual int encode_header(std::stringstream& ss);
+    virtual srs_error_t encode_header(std::stringstream& ss);
 };
 
 /**
@@ -670,31 +670,31 @@ public:
      * @return an int error code.
      *       ERROR_RTSP_REQUEST_HEADER_EOF indicates request header EOF.
      */
-    virtual int recv_message(SrsRtspRequest** preq);
+    virtual srs_error_t recv_message(SrsRtspRequest** preq);
     /**
      * send rtsp message over underlayer io.
      * @param res the rtsp response message, which user should never free it.
      * @return an int error code.
      */
-    virtual int send_message(SrsRtspResponse* res);
+    virtual srs_error_t send_message(SrsRtspResponse* res);
 private:
     /**
      * recv the rtsp message.
      */
-    virtual int do_recv_message(SrsRtspRequest* req);
+    virtual srs_error_t do_recv_message(SrsRtspRequest* req);
     /**
      * read a normal token from io, error when token state is not normal.
      */
-    virtual int recv_token_normal(std::string& token);
+    virtual srs_error_t recv_token_normal(std::string& token);
     /**
      * read a normal token from io, error when token state is not eof.
      */
-    virtual int recv_token_eof(std::string& token);
+    virtual srs_error_t recv_token_eof(std::string& token);
     /**
      * read the token util got eof, for example, to read the response status Reason-Phrase
      * @param pconsumed, output the token parsed length. NULL to ignore.
      */
-    virtual int recv_token_util_eof(std::string& token, int* pconsumed = NULL);
+    virtual srs_error_t recv_token_util_eof(std::string& token, int* pconsumed = NULL);
     /**
      * read a token from io, split by SP, endswith CRLF:
      *       token1 SP token2 SP ... tokenN CRLF
@@ -705,7 +705,7 @@ private:
      *       the 0x00 use to ignore normal token flag. @see recv_token_util_eof
      * @param pconsumed, output the token parsed length. NULL to ignore.
      */
-    virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
+    virtual srs_error_t recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
 };
 
 #endif

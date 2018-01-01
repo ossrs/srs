@@ -41,9 +41,9 @@ SrsRawH264Stream::~SrsRawH264Stream()
 {
 }
 
-int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame)
+srs_error_t SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     *pframe = NULL;
     *pnb_frame = 0;
@@ -53,7 +53,7 @@ int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_fr
         // about annexb, @see ISO_IEC_14496-10-AVC-2003.pdf, page 211.
         int pnb_start_code = 0;
         if (!srs_avc_startswith_annexb(stream, &pnb_start_code)) {
-            return ERROR_H264_API_NO_PREFIXED;
+            return srs_error_new(ERROR_H264_API_NO_PREFIXED, "annexb start code");
         }
         int start = stream->pos() + pnb_start_code;
         
@@ -72,7 +72,7 @@ int SrsRawH264Stream::annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_fr
         break;
     }
     
-    return ret;
+    return err;
 }
 
 bool SrsRawH264Stream::is_sps(char* frame, int nb_frame)
@@ -99,13 +99,13 @@ bool SrsRawH264Stream::is_pps(char* frame, int nb_frame)
     return nal_unit_type == 8;
 }
 
-int SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
+srs_error_t SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 1bytes for SPS to decode the type, profile, constrain and level.
     if (nb_frame < 4) {
-        return ret;
+        return err;
     }
     
     sps = "";
@@ -115,15 +115,15 @@ int SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
     
     // should never be empty.
     if (sps.empty()) {
-        return ERROR_STREAM_CASTER_AVC_SPS;
+        return srs_error_new(ERROR_STREAM_CASTER_AVC_SPS, "no sps");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
+srs_error_t SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     pps = "";
     if (nb_frame > 0) {
@@ -132,15 +132,15 @@ int SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
     
     // should never be empty.
     if (pps.empty()) {
-        return ERROR_STREAM_CASTER_AVC_PPS;
+        return srs_error_new(ERROR_STREAM_CASTER_AVC_PPS, "no pps");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, uint32_t pts, string& sh)
+srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, uint32_t pts, string& sh)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 5bytes sps/pps header:
     //      configurationVersion, AVCProfileIndication, profile_compatibility,
@@ -160,10 +160,7 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, 
     SrsAutoFreeA(char, packet);
     
     // use stream to generate the h264 packet.
-    SrsBuffer stream;
-    if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    SrsBuffer stream(packet, nb_packet);
     
     // decode the SPS:
     // @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
@@ -223,12 +220,12 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32_t dts, 
     sh = "";
     sh.append(packet, nb_packet);
     
-    return ret;
+    return err;
 }
 
-int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
+srs_error_t SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 4bytes size of nalu:
     //      NALUnitLength
@@ -239,10 +236,7 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     SrsAutoFreeA(char, packet);
     
     // use stream to generate the h264 packet.
-    SrsBuffer stream;
-    if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    SrsBuffer stream(packet, nb_packet);
     
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
@@ -258,12 +252,12 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
     ibp = "";
     ibp.append(packet, nb_packet);
     
-    return ret;
+    return err;
 }
 
-int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
+srs_error_t SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // for h264 in RTMP video payload, there is 5bytes header:
     //      1bytes, FrameType | CodecID
@@ -299,7 +293,7 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     *flv = data;
     *nb_flv = size;
     
-    return ret;
+    return err;
 }
 
 SrsRawAacStream::SrsRawAacStream()
@@ -310,9 +304,9 @@ SrsRawAacStream::~SrsRawAacStream()
 {
 }
 
-int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec)
+srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     while (!stream->empty()) {
         int adts_header_start = stream->pos();
@@ -337,12 +331,12 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         // else
         //      require(9bytes)=72bits
         if (!stream->require(7)) {
-            return ERROR_AAC_ADTS_HEADER;
+            return srs_error_new(ERROR_AAC_ADTS_HEADER, "requires 7 only %d bytes", stream->left());
         }
         
         // for aac, the frame must be ADTS format.
         if (!srs_aac_startswith_adts(stream)) {
-            return ERROR_AAC_REQUIRED_ADTS;
+            return srs_error_new(ERROR_AAC_REQUIRED_ADTS, "not adts");
         }
         
         // syncword 12 bslbf
@@ -362,8 +356,6 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
          * and set to '0' if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
          */
         if (id != 0x01) {
-            srs_info("adts: id must be 1(aac), actual 0(mp4a). ret=%d", ret);
-            
             // well, some system always use 0, but actually is aac format.
             // for example, houjian vod ts always set the aac id to 0, actually 1.
             // we just ignore it, and alwyas use 1(aac) to demux.
@@ -406,7 +398,7 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         // adts_error_check(), 1.A.2.2.3 Error detection
         if (!protection_absent) {
             if (!stream->require(2)) {
-                return ERROR_AAC_ADTS_HEADER;
+                return srs_error_new(ERROR_AAC_ADTS_HEADER, "requires 2 only %d bytes", stream->left());
             }
             // crc_check 16 Rpchof
             /*int16_t crc_check = */stream->read_2bytes();
@@ -419,7 +411,7 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         int adts_header_size = stream->pos() - adts_header_start;
         int raw_data_size = frame_length - adts_header_size;
         if (!stream->require(raw_data_size)) {
-            return ERROR_AAC_ADTS_HEADER;
+            return srs_error_new(ERROR_AAC_ADTS_HEADER, "requires %d only %d bytes", raw_data_size, stream->left());
         }
         
         // the codec info.
@@ -456,16 +448,16 @@ int SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame
         break;
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
+srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // only support aac profile 1-4.
     if (codec->aac_object == SrsAacObjectTypeReserved) {
-        return ERROR_AAC_DATA_INVALID;
+        return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid aac object");
     }
     
     SrsAacObjectType audioObjectType = codec->aac_object;
@@ -500,7 +492,7 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     sh += ch;
     ch = (samplingFrequencyIndex << 7) & 0x80;
     if (samplingFrequencyIndex == 0x0f) {
-        return ERROR_AAC_DATA_INVALID;
+        return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid sampling frequency index");
     }
     // 7bits left.
     
@@ -515,12 +507,12 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     // extensionFlag; 1 bslbf
     sh += ch;
     
-    return ret;
+    return err;
 }
 
-int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv)
+srs_error_t SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     char sound_format = codec->sound_format;
     char sound_type = codec->sound_type;
@@ -554,6 +546,6 @@ int SrsRawAacStream::mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec
     *flv = data;
     *nb_flv = size;
     
-    return ret;
+    return err;
 }
 

@@ -179,15 +179,13 @@ void SrsRtpPacket::reap(SrsRtpPacket* src)
     src->audio = NULL;
 }
 
-int SrsRtpPacket::decode(SrsBuffer* stream)
+srs_error_t SrsRtpPacket::decode(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // 12bytes header
     if (!stream->require(12)) {
-        ret = ERROR_RTP_HEADER_CORRUPT;
-        srs_error("rtsp: rtp header corrupt. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "requires 12 only %d bytes", stream->left());
     }
     
     int8_t vv = stream->read_1bytes();
@@ -213,19 +211,16 @@ int SrsRtpPacket::decode(SrsBuffer* stream)
         return decode_97(stream);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtpPacket::decode_97(SrsBuffer* stream)
+srs_error_t SrsRtpPacket::decode_97(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // atleast 2bytes content.
     if (!stream->require(2)) {
-        ret = ERROR_RTP_TYPE97_CORRUPT;
-        srs_error("rtsp: rtp type97 corrupt. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires 2 only %d bytes", stream->left());
     }
     
     int8_t hasv = stream->read_1bytes();
@@ -233,9 +228,7 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
     uint16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
     
     if (!stream->require(au_size)) {
-        ret = ERROR_RTP_TYPE97_CORRUPT;
-        srs_error("rtsp: rtp type97 au_size corrupt. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires %d only %d bytes", au_size, stream->left());
     }
     
     int required_size = 0;
@@ -261,35 +254,28 @@ int SrsRtpPacket::decode_97(SrsBuffer* stream)
         required_size += sample_size;
         
         if (!stream->require(required_size)) {
-            ret = ERROR_RTP_TYPE97_CORRUPT;
-            srs_error("rtsp: rtp type97 samples corrupt. ret=%d", ret);
-            return ret;
+            return srs_error_new(ERROR_RTP_TYPE97_CORRUPT, "requires %d only %d bytes", required_size, stream->left());
         }
         
         if ((err = audio->add_sample(sample, sample_size)) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
             srs_freep(err);
-            srs_error("rtsp: rtp type97 add sample failed. ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "add sample");
         }
     }
     
     // parsed ok.
     completed = true;
     
-    return ret;
+    return err;
 }
 
-int SrsRtpPacket::decode_96(SrsBuffer* stream)
+srs_error_t SrsRtpPacket::decode_96(SrsBuffer* stream)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // atleast 2bytes content.
     if (!stream->require(2)) {
-        ret = ERROR_RTP_TYPE96_CORRUPT;
-        srs_error("rtsp: rtp type96 corrupt. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_RTP_TYPE96_CORRUPT, "requires 2 only %d bytes", stream->left());
     }
     
     // frame type
@@ -324,7 +310,7 @@ int SrsRtpPacket::decode_96(SrsBuffer* stream)
         }
         
         payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
-        return ret;
+        return err;
     }
     
     // no chunked, append to payload.
@@ -332,7 +318,7 @@ int SrsRtpPacket::decode_96(SrsBuffer* stream)
     payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
     completed = true;
     
-    return ret;
+    return err;
 }
 
 SrsRtspSdp::SrsRtspSdp()
@@ -344,13 +330,13 @@ SrsRtspSdp::~SrsRtspSdp()
 {
 }
 
-int SrsRtspSdp::parse(string token)
+srs_error_t SrsRtspSdp::parse(string token)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (token.empty()) {
-        srs_info("rtsp: ignore empty token.");
-        return ret;
+        // ignore empty token
+        return err;
     }
     
     size_t pos = string::npos;
@@ -456,17 +442,15 @@ int SrsRtspSdp::parse(string token)
             } else if (desc_key == "fmtp") {
                 for (int i = 1; i < (int)attrs.size(); i++) {
                     std::string attr = attrs.at(i);
-                    if ((ret = parse_fmtp_attribute(attr)) != ERROR_SUCCESS) {
-                        srs_error("rtsp: parse fmtp failed, attr=%s. ret=%d", attr.c_str(), ret);
-                        return ret;
+                    if ((err = parse_fmtp_attribute(attr)) != srs_success) {
+                        return srs_error_wrap(err, "parse fmtp attr=%s", attr.c_str());
                     }
                 }
             } else if (desc_key == "control") {
                 for (int i = 0; i < (int)attrs.size(); i++) {
                     std::string attr = attrs.at(i);
-                    if ((ret = parse_control_attribute(attr)) != ERROR_SUCCESS) {
-                        srs_error("rtsp: parse control failed, attr=%s. ret=%d", attr.c_str(), ret);
-                        return ret;
+                    if ((err = parse_control_attribute(attr)) != srs_success) {
+                        return srs_error_wrap(err, "parse control attr=%s", attr.c_str());
                     }
                 }
             }
@@ -497,12 +481,12 @@ int SrsRtspSdp::parse(string token)
         default: break;
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtspSdp::parse_fmtp_attribute(string attr)
+srs_error_t SrsRtspSdp::parse_fmtp_attribute(string attr)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     size_t pos = string::npos;
     std::string token = attr;
@@ -548,9 +532,7 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
                 audio_index_delta_length = item_value;
             } else if (item_key == "config") {
                 if (item_value.length() <= 0) {
-                    ret = ERROR_RTSP_AUDIO_CONFIG;
-                    srs_error("rtsp: audio config failed. ret=%d", ret);
-                    return ret;
+                    return srs_error_new(ERROR_RTSP_AUDIO_CONFIG, "audio config");
                 }
                 
                 char* tmp_sh = new char[item_value.length()];
@@ -562,12 +544,12 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtspSdp::parse_control_attribute(string attr)
+srs_error_t SrsRtspSdp::parse_control_attribute(string attr)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     size_t pos = string::npos;
     std::string token = attr;
@@ -598,7 +580,7 @@ int SrsRtspSdp::parse_control_attribute(string attr)
         }
     }
     
-    return ret;
+    return err;
 }
 
 string SrsRtspSdp::base64_decode(string value)
@@ -631,9 +613,9 @@ SrsRtspTransport::~SrsRtspTransport()
 {
 }
 
-int SrsRtspTransport::parse(string attr)
+srs_error_t SrsRtspTransport::parse(string attr)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     size_t pos = string::npos;
     std::string token = attr;
@@ -681,7 +663,7 @@ int SrsRtspTransport::parse(string attr)
         }
     }
     
-    return ret;
+    return err;
 }
 
 SrsRtspRequest::SrsRtspRequest()
@@ -729,9 +711,9 @@ SrsRtspResponse::~SrsRtspResponse()
 {
 }
 
-int SrsRtspResponse::encode(stringstream& ss)
+srs_error_t SrsRtspResponse::encode(stringstream& ss)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // status line
     ss << SRS_RTSP_VERSION << SRS_RTSP_SP
@@ -751,20 +733,19 @@ int SrsRtspResponse::encode(stringstream& ss)
         ss << SRS_RTSP_TOKEN_SESSION << ":" << session << SRS_RTSP_CRLF;
     }
     
-    if ((ret = encode_header(ss)) != ERROR_SUCCESS) {
-        srs_error("rtsp: encode header failed. ret=%d", ret);
-        return ret;
+    if ((err = encode_header(ss)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
     };
     
     // header EOF.
     ss << SRS_RTSP_CRLF;
     
-    return ret;
+    return err;
 }
 
-int SrsRtspResponse::encode_header(std::stringstream& ss)
+srs_error_t SrsRtspResponse::encode_header(std::stringstream& ss)
 {
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 SrsRtspOptionsResponse::SrsRtspOptionsResponse(int cseq) : SrsRtspResponse(cseq)
@@ -778,7 +759,7 @@ SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
 {
 }
 
-int SrsRtspOptionsResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspOptionsResponse::encode_header(stringstream& ss)
 {
     SrsRtspMethod rtsp_methods[] = {
         SrsRtspMethodDescribe,
@@ -812,7 +793,7 @@ int SrsRtspOptionsResponse::encode_header(stringstream& ss)
     }
     ss << SRS_RTSP_CRLF;
     
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 SrsRtspSetupResponse::SrsRtspSetupResponse(int seq) : SrsRtspResponse(seq)
@@ -825,14 +806,14 @@ SrsRtspSetupResponse::~SrsRtspSetupResponse()
 {
 }
 
-int SrsRtspSetupResponse::encode_header(stringstream& ss)
+srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
 {
     ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session << SRS_RTSP_CRLF;
     ss << SRS_RTSP_TOKEN_TRANSPORT << ":" << SRS_RTSP_SP
     << "RTP/AVP;unicast;client_port=" << client_port_min << "-" << client_port_max << ";"
     << "server_port=" << local_port_min << "-" << local_port_max
     << SRS_RTSP_CRLF;
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 SrsRtspStack::SrsRtspStack(ISrsProtocolReaderWriter* s)
@@ -846,24 +827,24 @@ SrsRtspStack::~SrsRtspStack()
     srs_freep(buf);
 }
 
-int SrsRtspStack::recv_message(SrsRtspRequest** preq)
+srs_error_t SrsRtspStack::recv_message(SrsRtspRequest** preq)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRtspRequest* req = new SrsRtspRequest();
-    if ((ret = do_recv_message(req)) != ERROR_SUCCESS) {
+    if ((err = do_recv_message(req)) != srs_success) {
         srs_freep(req);
-        return ret;
+        return srs_error_wrap(err, "recv message");
     }
     
     *preq = req;
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::send_message(SrsRtspResponse* res)
+srs_error_t SrsRtspStack::send_message(SrsRtspResponse* res)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::stringstream ss;
     // encode the message to string.
@@ -872,119 +853,83 @@ int SrsRtspStack::send_message(SrsRtspResponse* res)
     std::string str = ss.str();
     srs_assert(!str.empty());
     
-    if ((ret = skt->write((char*)str.c_str(), (int)str.length(), NULL)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: send response failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = skt->write((char*)str.c_str(), (int)str.length(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "write message");
     }
-    srs_info("rtsp: send response ok");
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
+srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // parse request line.
-    if ((ret = recv_token_normal(req->method)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse method failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = recv_token_normal(req->method)) != srs_success) {
+        return srs_error_wrap(err, "method");
     }
     
-    if ((ret = recv_token_normal(req->uri)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse uri failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = recv_token_normal(req->uri)) != srs_success) {
+        return srs_error_wrap(err, "uri");
     }
     
-    if ((ret = recv_token_eof(req->version)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse version failed. ret=%d", ret);
-        }
-        return ret;
+    if ((err = recv_token_eof(req->version)) != srs_success) {
+        return srs_error_wrap(err, "version");
     }
     
     // parse headers.
     for (;;) {
         // parse the header name
         std::string token;
-        if ((ret = recv_token_normal(token)) != ERROR_SUCCESS) {
-            if (ret == ERROR_RTSP_REQUEST_HEADER_EOF) {
-                ret = ERROR_SUCCESS;
-                srs_info("rtsp: message header parsed");
+        if ((err = recv_token_normal(token)) != srs_success) {
+            if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
+                srs_error_reset(err);
                 break;
             }
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("rtsp: parse token failed. ret=%d", ret);
-            }
-            return ret;
+            return srs_error_wrap(err, "recv token");
         }
         
         // parse the header value according by header name
         if (token == SRS_RTSP_TOKEN_CSEQ) {
             std::string seq;
-            if ((ret = recv_token_eof(seq)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CSEQ, ret);
-                }
-                return ret;
+            if ((err = recv_token_eof(seq)) != srs_success) {
+                return srs_error_wrap(err, "seq");
             }
             req->seq = ::atol(seq.c_str());
         } else if (token == SRS_RTSP_TOKEN_CONTENT_TYPE) {
             std::string ct;
-            if ((ret = recv_token_eof(ct)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CONTENT_TYPE, ret);
-                }
-                return ret;
+            if ((err = recv_token_eof(ct)) != srs_success) {
+                return srs_error_wrap(err, "ct");
             }
             req->content_type = ct;
         } else if (token == SRS_RTSP_TOKEN_CONTENT_LENGTH) {
             std::string cl;
-            if ((ret = recv_token_eof(cl)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CONTENT_LENGTH, ret);
-                }
-                return ret;
+            if ((err = recv_token_eof(cl)) != srs_success) {
+                return srs_error_wrap(err, "cl");
             }
             req->content_length = ::atol(cl.c_str());
         } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
             std::string transport;
-            if ((ret = recv_token_eof(transport)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_TRANSPORT, ret);
-                }
-                return ret;
+            if ((err = recv_token_eof(transport)) != srs_success) {
+                return srs_error_wrap(err, "transport");
             }
             if (!req->transport) {
                 req->transport = new SrsRtspTransport();
             }
-            if ((ret = req->transport->parse(transport)) != ERROR_SUCCESS) {
-                srs_error("rtsp: parse transport failed, transport=%s. ret=%d", transport.c_str(), ret);
-                return ret;
+            if ((err = req->transport->parse(transport)) != srs_success) {
+                return srs_error_wrap(err, "parse transport=%s", transport.c_str());
             }
         } else if (token == SRS_RTSP_TOKEN_SESSION) {
-            if ((ret = recv_token_eof(req->session)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_SESSION, ret);
-                }
-                return ret;
+            if ((err = recv_token_eof(req->session)) != srs_success) {
+                return srs_error_wrap(err, "session");
             }
         } else {
             // unknown header name, parse util EOF.
             SrsRtspTokenState state = SrsRtspTokenStateNormal;
             while (state == SrsRtspTokenStateNormal) {
                 std::string value;
-                if ((ret = recv_token(value, state)) != ERROR_SUCCESS) {
-                    if (!srs_is_client_gracefully_close(ret)) {
-                        srs_error("rtsp: parse token failed. ret=%d", ret);
-                    }
-                    return ret;
+                if ((err = recv_token(value, state)) != srs_success) {
+                    return srs_error_wrap(err, "state");
                 }
                 srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
             }
@@ -1011,104 +956,83 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
         
         int nb_token = 0;
         std::string token;
-        if ((ret = recv_token_util_eof(token, &nb_token)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("rtsp: parse sdp token failed. ret=%d", ret);
-            }
-            return ret;
+        if ((err = recv_token_util_eof(token, &nb_token)) != srs_success) {
+            return srs_error_wrap(err, "recv token");
         }
         consumed += nb_token;
         
-        if ((ret = req->sdp->parse(token)) != ERROR_SUCCESS) {
-            srs_error("rtsp: sdp parse token failed, token=%s. ret=%d", token.c_str(), ret);
-            return ret;
+        if ((err = req->sdp->parse(token)) != srs_success) {
+            return srs_error_wrap(err, "parse token");
         }
-        srs_info("rtsp: %s", token.c_str());
     }
-    srs_info("rtsp: sdp parsed, size=%d", consumed);
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::recv_token_normal(std::string& token)
+srs_error_t SrsRtspStack::recv_token_normal(std::string& token)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRtspTokenState state;
     
-    if ((ret = recv_token(token, state)) != ERROR_SUCCESS) {
-        if (ret == ERROR_RTSP_REQUEST_HEADER_EOF) {
-            return ret;
+    if ((err = recv_token(token, state)) != srs_success) {
+        if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
+            return srs_error_wrap(err, "EOF");
         }
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse token failed. ret=%d", ret);
-        }
-        return ret;
+        return srs_error_wrap(err, "recv token");
     }
     
     if (state != SrsRtspTokenStateNormal) {
-        ret = ERROR_RTSP_TOKEN_NOT_NORMAL;
-        srs_error("rtsp: parse normal token failed, state=%d. ret=%d", state, ret);
-        return ret;
+        return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::recv_token_eof(std::string& token)
+srs_error_t SrsRtspStack::recv_token_eof(std::string& token)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRtspTokenState state;
     
-    if ((ret = recv_token(token, state)) != ERROR_SUCCESS) {
-        if (ret == ERROR_RTSP_REQUEST_HEADER_EOF) {
-            return ret;
+    if ((err = recv_token(token, state)) != srs_success) {
+        if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
+            return srs_error_wrap(err, "EOF");
         }
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse token failed. ret=%d", ret);
-        }
-        return ret;
+        return srs_error_wrap(err, "recv token");
     }
     
     if (state != SrsRtspTokenStateEOF) {
-        ret = ERROR_RTSP_TOKEN_NOT_NORMAL;
-        srs_error("rtsp: parse eof token failed, state=%d. ret=%d", state, ret);
-        return ret;
+        return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::recv_token_util_eof(std::string& token, int* pconsumed)
+srs_error_t SrsRtspStack::recv_token_util_eof(std::string& token, int* pconsumed)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRtspTokenState state;
     
     // use 0x00 as ignore the normal token flag.
-    if ((ret = recv_token(token, state, 0x00, pconsumed)) != ERROR_SUCCESS) {
-        if (ret == ERROR_RTSP_REQUEST_HEADER_EOF) {
-            return ret;
+    if ((err = recv_token(token, state, 0x00, pconsumed)) != srs_success) {
+        if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
+            return srs_error_wrap(err, "EOF");
         }
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("rtsp: parse token failed. ret=%d", ret);
-        }
-        return ret;
+        return srs_error_wrap(err, "recv token");
     }
     
     if (state != SrsRtspTokenStateEOF) {
-        ret = ERROR_RTSP_TOKEN_NOT_NORMAL;
-        srs_error("rtsp: parse eof token failed, state=%d. ret=%d", state, ret);
-        return ret;
+        return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch, int* pconsumed)
+srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch, int* pconsumed)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // whatever, default to error state.
     state = SrsRtspTokenStateError;
@@ -1124,15 +1048,11 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
             
             char buffer[SRS_RTSP_BUFFER];
             ssize_t nb_read = 0;
-            if ((ret = skt->read(buffer, SRS_RTSP_BUFFER, &nb_read)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: io read failed. ret=%d", ret);
-                }
-                return ret;
+            if ((err = skt->read(buffer, SRS_RTSP_BUFFER, &nb_read)) != srs_success) {
+                return srs_error_wrap(err, "recv data");
             }
-            srs_info("rtsp: io read %d bytes", nb_read);
             
-            buf->append(buffer, nb_read);
+            buf->append(buffer, (int)nb_read);
         }
         
         // parse one by one.
@@ -1154,7 +1074,7 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
             }
             
             // got the token.
-            int nb_token = p - start;
+            int nb_token = (int)(p - start);
             // trim last ':' character.
             if (nb_token && p[-1] == ':') {
                 nb_token--;
@@ -1162,7 +1082,7 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
             if (nb_token) {
                 token.append(start, nb_token);
             } else {
-                ret = ERROR_RTSP_REQUEST_HEADER_EOF;
+                err = srs_error_new(ERROR_RTSP_REQUEST_HEADER_EOF, "EOF");
             }
             
             // ignore SP/CR/LF
@@ -1171,9 +1091,9 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
             
             // consume the token bytes.
             srs_assert(p - start);
-            buf->erase(p - start);
+            buf->erase((int)(p - start));
             if (pconsumed) {
-                *pconsumed = p - start;
+                *pconsumed = (int)(p - start);
             }
             break;
         }
@@ -1182,7 +1102,7 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
         append_bytes = true;
     }
     
-    return ret;
+    return err;
 }
 
 #endif

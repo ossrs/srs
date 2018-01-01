@@ -47,7 +47,7 @@ public:
      * @param pframe the output h.264 frame in stream. user should never free it.
      * @param pnb_frame the output h.264 frame size.
      */
-    virtual int annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame);
+    virtual srs_error_t annexb_demux(SrsBuffer* stream, char** pframe, int* pnb_frame);
     /**
      * whether the frame is sps or pps.
      */
@@ -57,22 +57,22 @@ public:
      * demux the sps or pps to string.
      * @param sps/pps output the sps/pps.
      */
-    virtual int sps_demux(char* frame, int nb_frame, std::string& sps);
-    virtual int pps_demux(char* frame, int nb_frame, std::string& pps);
+    virtual srs_error_t sps_demux(char* frame, int nb_frame, std::string& sps);
+    virtual srs_error_t pps_demux(char* frame, int nb_frame, std::string& pps);
 public:
     /**
      * h264 raw data to h264 packet, without flv payload header.
      * mux the sps/pps to flv sequence header packet.
      * @param sh output the sequence header.
      */
-    virtual int mux_sequence_header(std::string sps, std::string pps, uint32_t dts, uint32_t pts, std::string& sh);
+    virtual srs_error_t mux_sequence_header(std::string sps, std::string pps, uint32_t dts, uint32_t pts, std::string& sh);
     /**
      * h264 raw data to h264 packet, without flv payload header.
      * mux the ibp to flv ibp packet.
      * @param ibp output the packet.
      * @param frame_type output the frame type.
      */
-    virtual int mux_ipb_frame(char* frame, int nb_frame, std::string& ibp);
+    virtual srs_error_t mux_ipb_frame(char* frame, int nb_frame, std::string& ibp);
     /**
      * mux the avc video packet to flv video packet.
      * @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
@@ -81,7 +81,7 @@ public:
      * @param flv output the muxed flv packet.
      * @param nb_flv output the muxed flv size.
      */
-    virtual int mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
+    virtual srs_error_t mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char** flv, int* nb_flv);
 };
 
 /**
@@ -119,13 +119,13 @@ public:
      * @param pnb_frame the output aac frame size.
      * @param codec the output codec info.
      */
-    virtual int adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec);
+    virtual srs_error_t adts_demux(SrsBuffer* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec);
     /**
      * aac raw data to aac packet, without flv payload header.
      * mux the aac specific config to flv sequence header packet.
      * @param sh output the sequence header.
      */
-    virtual int mux_sequence_header(SrsRawAacStreamCodec* codec, std::string& sh);
+    virtual srs_error_t mux_sequence_header(SrsRawAacStreamCodec* codec, std::string& sh);
     /**
      * mux the aac audio packet to flv audio packet.
      * @param frame the aac raw data.
@@ -134,7 +134,7 @@ public:
      * @param flv output the muxed flv packet.
      * @param nb_flv output the muxed flv size.
      */
-    virtual int mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv);
+    virtual srs_error_t mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, uint32_t dts, char** flv, int* nb_flv);
 };
 
 #endif
