@@ -3028,9 +3028,9 @@ SrsHttpUri::~SrsHttpUri()
 {
 }
 
-int SrsHttpUri::initialize(string _url)
+srs_error_t SrsHttpUri::initialize(string _url)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     schema = host = path = query = "";
     
@@ -3038,12 +3038,9 @@ int SrsHttpUri::initialize(string _url)
     const char* purl = url.c_str();
     
     http_parser_url hp_u;
-    if((ret = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
-        int code = ret;
-        ret = ERROR_HTTP_PARSE_URI;
-        
-        srs_error("parse url %s failed, code=%d, ret=%d", purl, code, ret);
-        return ret;
+    int r0;
+    if((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
+        return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s failed, code=%d", purl, r0);
     }
     
     std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
@@ -3062,12 +3059,9 @@ int SrsHttpUri::initialize(string _url)
     }
     
     path = get_uri_field(url, &hp_u, UF_PATH);
-    srs_info("parse url %s success", purl);
-    
     query = get_uri_field(url, &hp_u, UF_QUERY);
-    srs_info("parse query %s success", query.c_str());
     
-    return ret;
+    return err;
 }
 
 string SrsHttpUri::get_url()
@@ -3105,12 +3099,6 @@ string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_
     if((hp_u->field_set & (1 << field)) == 0){
         return "";
     }
-    
-    srs_verbose("uri field matched, off=%d, len=%d, value=%.*s",
-                hp_u->field_data[field].off,
-                hp_u->field_data[field].len,
-                hp_u->field_data[field].len,
-                uri.c_str() + hp_u->field_data[field].off);
     
     int offset = hp_u->field_data[field].off;
     int len = hp_u->field_data[field].len;

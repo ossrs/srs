@@ -900,7 +900,7 @@ public:
     /**
      * initialize the http uri.
      */
-    virtual int initialize(std::string _url);
+    virtual srs_error_t initialize(std::string _url);
 public:
     virtual std::string get_url();
     virtual std::string get_schema();

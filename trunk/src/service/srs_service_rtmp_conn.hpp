@@ -68,22 +68,22 @@ public:
 public:
     // Connect, handshake and connect app to RTMP server.
     // @remark We always close the transport.
-    virtual int connect();
+    virtual srs_error_t connect();
     virtual void close();
 protected:
-    virtual int connect_app();
-    virtual int do_connect_app(std::string local_ip, bool debug);
+    virtual srs_error_t connect_app();
+    virtual srs_error_t do_connect_app(std::string local_ip, bool debug);
 public:
-    virtual int publish();
-    virtual int play();
+    virtual srs_error_t publish();
+    virtual srs_error_t play();
     virtual void kbps_sample(const char* label, int64_t age);
     virtual void kbps_sample(const char* label, int64_t age, int msgs);
     virtual int sid();
 public:
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
-    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
-    virtual int send_and_free_message(SrsSharedPtrMessage* msg);
+    virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
+    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual srs_error_t send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
 public:
     virtual void set_recv_timeout(int64_t timeout);
 };

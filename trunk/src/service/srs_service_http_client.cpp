@@ -55,14 +55,13 @@ SrsHttpClient::~SrsHttpClient()
 // TODO: FIXME: use ms for timeout.
 srs_error_t SrsHttpClient::initialize(string h, int p, int64_t tm)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     srs_freep(parser);
     parser = new SrsHttpParser();
     
-    if ((ret = parser->initialize(HTTP_RESPONSE, false)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: init parser");
+    if ((err = parser->initialize(HTTP_RESPONSE, false)) != srs_success) {
+        return srs_error_wrap(err, "http: init parser");
     }
     
     // Always disconnect the transport.
@@ -97,7 +96,6 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
 {
     *ppmsg = NULL;
     
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // always set the content length.
@@ -119,15 +117,15 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
     ss << SRS_HTTP_CRLF << req;
     
     std::string data = ss.str();
-    if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((err = transport->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
-        return srs_error_new(ret, "http: write");
+        return srs_error_wrap(err, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: parse response");
+    if ((err = parser->parse_message(transport, NULL, &msg)) != srs_success) {
+        return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);
     
@@ -136,7 +134,6 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
     } else {
         srs_freep(msg);
     }
-    srs_info("parse http post response success.");
     
     return err;
 }
@@ -145,7 +142,6 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // always set the content length.
@@ -167,15 +163,15 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     ss << SRS_HTTP_CRLF << req;
     
     std::string data = ss.str();
-    if ((ret = transport->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((err = transport->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
-        return srs_error_new(ret, "http: write");
+        return srs_error_wrap(err, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(transport, NULL, &msg)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: parse response");
+    if ((err = parser->parse_message(transport, NULL, &msg)) != srs_success) {
+        return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);
     
@@ -184,7 +180,6 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     } else {
         srs_freep(msg);
     }
-    srs_info("parse http get response success.");
     
     return err;
 }
@@ -228,7 +223,6 @@ srs_error_t SrsHttpClient::connect()
         disconnect();
         return srs_error_wrap(err, "http: tcp connect %s:%d to=%d", host.c_str(), port, (int)timeout);
     }
-    srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);
     
     // Set the recv/send timeout in ms.
     transport->set_recv_timeout(timeout);

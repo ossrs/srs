@@ -69,7 +69,7 @@ public:
      * one parser can only parse request or response messages.
      * @param allow_jsonp whether allow jsonp parser, which indicates the method in query string.
      */
-    virtual int initialize(enum http_parser_type type, bool allow_jsonp);
+    virtual srs_error_t initialize(enum http_parser_type type, bool allow_jsonp);
     /**
      * always parse a http message,
      * that is, the *ppmsg always NOT-NULL when return success.
@@ -77,12 +77,12 @@ public:
      * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
      * @remark user must free the ppmsg if not NULL.
      */
-    virtual int parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
 private:
     /**
      * parse the HTTP message to member field: msg.
      */
-    virtual int parse_message_imp(ISrsProtocolReaderWriter* io);
+    virtual srs_error_t parse_message_imp(ISrsProtocolReaderWriter* io);
 private:
     static int on_message_begin(http_parser* parser);
     static int on_headers_complete(http_parser* parser);
@@ -161,7 +161,7 @@ public:
     /**
      * set the original messages, then update the message.
      */
-    virtual int update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
+    virtual srs_error_t update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
 public:
     virtual SrsConnection* connection();
 public:
@@ -206,13 +206,13 @@ public:
      */
     virtual int parse_rest_id(std::string pattern);
 public:
-    virtual int enter_infinite_chunked();
+    virtual srs_error_t enter_infinite_chunked();
 public:
     /**
      * read body to string.
      * @remark for small http body.
      */
-    virtual int body_read_all(std::string& body);
+    virtual srs_error_t body_read_all(std::string& body);
     /**
      * get the body reader, to read one by one.
      * @remark when body is very large, or chunked, use this.
@@ -281,12 +281,12 @@ public:
     SrsHttpResponseWriter(SrsStSocket* io);
     virtual ~SrsHttpResponseWriter();
 public:
-    virtual int final_request();
+    virtual srs_error_t final_request();
     virtual SrsHttpHeader* header();
-    virtual int write(char* data, int size);
-    virtual int writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual srs_error_t write(char* data, int size);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual void write_header(int code);
-    virtual int send_header(char* data, int size);
+    virtual srs_error_t send_header(char* data, int size);
 };
 
 /**
@@ -312,14 +312,14 @@ public:
     /**
      * initialize the response reader with buffer.
      */
-    virtual int initialize(SrsFastStream* buffer);
+    virtual srs_error_t initialize(SrsFastStream* buffer);
     // interface ISrsHttpResponseReader
 public:
     virtual bool eof();
-    virtual int read(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read(char* data, int nb_data, int* nb_read);
 private:
-    virtual int read_chunked(char* data, int nb_data, int* nb_read);
-    virtual int read_specified(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read_chunked(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read_specified(char* data, int nb_data, int* nb_read);
 };
 
 #endif
