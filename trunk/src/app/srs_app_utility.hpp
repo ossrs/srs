@@ -76,7 +76,7 @@ extern std::string srs_path_build_timestamp(std::string template_path);
  * @param pid the pid to kill. ignore for -1. set to -1 when killed.
  * @return an int error code.
  */
-extern int srs_kill_forced(int& pid);
+extern srs_error_t srs_kill_forced(int& pid);
 
 // current process resouce usage.
 // @see: man getrusage

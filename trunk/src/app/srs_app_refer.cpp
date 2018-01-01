@@ -35,32 +35,28 @@ SrsRefer::~SrsRefer()
 {
 }
 
-int SrsRefer::check(std::string page_url, SrsConfDirective* refer)
+srs_error_t SrsRefer::check(std::string page_url, SrsConfDirective* refer)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (!refer) {
-        srs_verbose("ignore refer check for page_url=%s", page_url.c_str());
-        return ret;
+        return err;
     }
     
     for (int i = 0; i < (int)refer->args.size(); i++) {
-        if ((ret = check_single_refer(page_url, refer->args.at(i))) == ERROR_SUCCESS) {
-            srs_verbose("check refer success. page_url=%s, refer=%s",
-                        page_url.c_str(), refer->args.at(i).c_str());
-            return ret;
+        if ((err = check_single_refer(page_url, refer->args.at(i))) == srs_success) {
+            return srs_success;
         }
+        
+        srs_error_reset(err);
     }
     
-    ret = ERROR_RTMP_ACCESS_DENIED;
-    srs_error("check refer failed. ret=%d", ret);
-    
-    return ret;
+    return srs_error_new(ERROR_RTMP_ACCESS_DENIED, "access denied");
 }
 
-int SrsRefer::check_single_refer(std::string page_url, std::string refer)
+srs_error_t SrsRefer::check_single_refer(std::string page_url, std::string refer)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     size_t pos = std::string::npos;
     
@@ -79,19 +75,14 @@ int SrsRefer::check_single_refer(std::string page_url, std::string refer)
     
     pos = domain_name.find(refer);
     if (pos == std::string::npos) {
-        ret = ERROR_RTMP_ACCESS_DENIED;
+        return srs_error_new(ERROR_RTMP_ACCESS_DENIED, "access denied");
     }
     // match primary domain.
     if (pos != domain_name.length() - refer.length()) {
-        ret = ERROR_RTMP_ACCESS_DENIED;
+        return srs_error_new(ERROR_RTMP_ACCESS_DENIED, "access denied");
     }
     
-    if (ret != ERROR_SUCCESS) {
-        srs_verbose("access denied, page_url=%s, domain_name=%s, refer=%s, ret=%d",
-                    page_url.c_str(), domain_name.c_str(), refer.c_str(), ret);
-    }
-    
-    return ret;
+    return err;
 }
 
 

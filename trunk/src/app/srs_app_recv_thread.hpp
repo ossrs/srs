@@ -55,7 +55,7 @@ public:
      * Consume the received message.
      * @remark user must free this message.
      */
-    virtual int consume(SrsCommonMessage* msg) = 0;
+    virtual srs_error_t consume(SrsCommonMessage* msg) = 0;
 };
 
 /**
@@ -76,7 +76,7 @@ public:
     /**
      * Interrupt the pumper for a error.
      */
-    virtual void interrupt(int error) = 0;
+    virtual void interrupt(srs_error_t error) = 0;
     /**
      * When start the pumper.
      */
@@ -129,7 +129,7 @@ private:
     SrsRecvThread trd;
     SrsRtmpServer* rtmp;
     // the recv thread error code.
-    int recv_error_code;
+    srs_error_t recv_error;
     SrsConsumer* _consumer;
 public:
     SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
@@ -141,12 +141,12 @@ public:
     virtual bool empty();
     virtual int size();
     virtual SrsCommonMessage* pump();
-    virtual int error_code();
+    virtual srs_error_t error_code();
 // interface ISrsMessagePumper
 public:
-    virtual int consume(SrsCommonMessage* msg);
+    virtual srs_error_t consume(SrsCommonMessage* msg);
     virtual bool interrupted();
-    virtual void interrupt(int ret);
+    virtual void interrupt(srs_error_t err);
     virtual void on_start();
     virtual void on_stop();
 };
@@ -177,7 +177,7 @@ private:
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
     // the recv thread error code.
-    int recv_error_code;
+    srs_error_t recv_error;
     SrsRtmpConn* _conn;
     // the params for conn callback.
     SrsSource* _source;
@@ -194,10 +194,10 @@ public:
     /**
      * wait for error for some timeout.
      */
-    virtual int wait(uint64_t timeout_ms);
+    virtual srs_error_t wait(uint64_t timeout_ms);
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
-    virtual int error_code();
+    virtual srs_error_t error_code();
     virtual void set_cid(int v);
     virtual int get_cid();
 public:
@@ -205,9 +205,9 @@ public:
     virtual void stop();
 // interface ISrsMessagePumper
 public:
-    virtual int consume(SrsCommonMessage* msg);
+    virtual srs_error_t consume(SrsCommonMessage* msg);
     virtual bool interrupted();
-    virtual void interrupt(int ret);
+    virtual void interrupt(srs_error_t err);
     virtual void on_start();
     virtual void on_stop();
 // interface IMergeReadHandler

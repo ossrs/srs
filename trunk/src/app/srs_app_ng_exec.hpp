@@ -51,7 +51,7 @@ public:
     SrsNgExec();
     virtual ~SrsNgExec();
 public:
-    virtual int on_publish(SrsRequest* req);
+    virtual srs_error_t on_publish(SrsRequest* req);
     virtual void on_unpublish();
 // interface ISrsReusableThreadHandler.
 public:
@@ -59,7 +59,7 @@ public:
 private:
     virtual srs_error_t do_cycle();
 private:
-    virtual int parse_exec_publish(SrsRequest* req);
+    virtual srs_error_t parse_exec_publish(SrsRequest* req);
     virtual void clear_exec_publish();
     virtual void show_exec_log_message();
     virtual std::string parse(SrsRequest* req, std::string tmpl);

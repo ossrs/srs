@@ -41,9 +41,9 @@ public:
      * @param page_url the client page url.
      * @param refer the refer in config.
      */
-    virtual int check(std::string page_url, SrsConfDirective* refer);
+    virtual srs_error_t check(std::string page_url, SrsConfDirective* refer);
 private:
-    virtual int check_single_refer(std::string page_url, std::string refer);
+    virtual srs_error_t check_single_refer(std::string page_url, std::string refer);
 };
 
 #endif

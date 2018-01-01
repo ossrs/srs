@@ -60,7 +60,7 @@ public:
 public:
     virtual srs_error_t initialize();
 private:
-    virtual int mount_vhost(std::string vhost, std::string& pmount);
+    virtual srs_error_t mount_vhost(std::string vhost, std::string& pmount);
 // interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_vhost_added(std::string vhost);

@@ -594,8 +594,6 @@ private:
     bool is_monotonically_increase;
     // the time of the packet we just got.
     int64_t last_packet_time;
-    // for aggregate message
-    SrsBuffer* aggregate_stream;
     // the event handler.
     ISrsSourceHandler* handler;
     // edge control service

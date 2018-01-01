@@ -615,27 +615,27 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return err;
 }
 
-int SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
+srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
         
         if (msg->is_audio()) {
-            ret = enc->write_audio(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_audio(msg->timestamp, msg->payload, msg->size);
         } else if (msg->is_video()) {
-            ret = enc->write_video(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_video(msg->timestamp, msg->payload, msg->size);
         } else {
-            ret = enc->write_metadata(msg->timestamp, msg->payload, msg->size);
+            err = enc->write_metadata(msg->timestamp, msg->payload, msg->size);
         }
         
-        if (ret != ERROR_SUCCESS) {
-            return ret;
+        if (err != srs_success) {
+            return srs_error_wrap(err, "send messages");
         }
     }
     
-    return ret;
+    return err;
 }
 
 SrsLiveEntry::SrsLiveEntry(std::string m)
@@ -731,8 +731,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
     // create stream from template when not found.
     if (sflvs.find(sid) == sflvs.end()) {
         if (tflvs.find(r->vhost) == tflvs.end()) {
-            srs_info("ignore mount flv stream for disabled");
-            return ret;
+            return err;
         }
         
         SrsLiveEntry* tmpl = tflvs[r->vhost];
@@ -797,7 +796,6 @@ void SrsHttpStreamServer::http_unmount(SrsSource* s, SrsRequest* r)
     std::string sid = r->get_stream_url();
     
     if (sflvs.find(sid) == sflvs.end()) {
-        srs_info("ignore unmount flv stream for disabled");
         return;
     }
     

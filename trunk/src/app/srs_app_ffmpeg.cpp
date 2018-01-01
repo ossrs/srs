@@ -97,20 +97,20 @@ string SrsFFMPEG::output()
     return _output;
 }
 
-int SrsFFMPEG::initialize(string in, string out, string log)
+srs_error_t SrsFFMPEG::initialize(string in, string out, string log)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     input = in;
     _output = out;
     log_file = log;
     
-    return ret;
+    return err;
 }
 
-int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
+srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     perfile = _srs_config->get_engine_perfile(engine);
     iformat = _srs_config->get_engine_iformat(engine);
@@ -136,85 +136,56 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     vheight -= vheight % 2;
     
     if (vcodec == SRS_RTMP_ENCODER_NO_VIDEO && acodec == SRS_RTMP_ENCODER_NO_AUDIO) {
-        ret = ERROR_ENCODER_VCODEC;
-        srs_warn("video and audio disabled. ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_ENCODER_VCODEC, "video and audio disabled");
     }
     
     if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO && vcodec != SRS_RTMP_ENCODER_VCODEC_PNG) {
         if (vcodec != SRS_RTMP_ENCODER_VCODEC_LIBX264) {
-            ret = ERROR_ENCODER_VCODEC;
-            srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
-                      SRS_RTMP_ENCODER_VCODEC_LIBX264, vcodec.c_str(), ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VCODEC, "invalid vcodec, must be %s, actual %s", SRS_RTMP_ENCODER_VCODEC_LIBX264, vcodec.c_str());
         }
         if (vbitrate < 0) {
-            ret = ERROR_ENCODER_VBITRATE;
-            srs_error("invalid vbitrate: %d, ret=%d", vbitrate, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VBITRATE, "invalid vbitrate: %d", vbitrate);
         }
         if (vfps < 0) {
-            ret = ERROR_ENCODER_VFPS;
-            srs_error("invalid vfps: %.2f, ret=%d", vfps, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VFPS, "invalid vfps: %.2f", vfps);
         }
         if (vwidth < 0) {
-            ret = ERROR_ENCODER_VWIDTH;
-            srs_error("invalid vwidth: %d, ret=%d", vwidth, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VWIDTH, "invalid vwidth: %d", vwidth);
         }
         if (vheight < 0) {
-            ret = ERROR_ENCODER_VHEIGHT;
-            srs_error("invalid vheight: %d, ret=%d", vheight, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VHEIGHT, "invalid vheight: %d", vheight);
         }
         if (vthreads < 0) {
-            ret = ERROR_ENCODER_VTHREADS;
-            srs_error("invalid vthreads: %d, ret=%d", vthreads, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VTHREADS, "invalid vthreads: %d", vthreads);
         }
         if (vprofile.empty()) {
-            ret = ERROR_ENCODER_VPROFILE;
-            srs_error("invalid vprofile: %s, ret=%d", vprofile.c_str(), ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VPROFILE, "invalid vprofile: %s", vprofile.c_str());
         }
         if (vpreset.empty()) {
-            ret = ERROR_ENCODER_VPRESET;
-            srs_error("invalid vpreset: %s, ret=%d", vpreset.c_str(), ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_VPRESET, "invalid vpreset: %s", vpreset.c_str());
         }
     }
     
     // @see, https://github.com/ossrs/srs/issues/145
     if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS && acodec != SRS_RTMP_ENCODER_LIBFDKAAC) {
         if (abitrate != 0 && (abitrate < 16 || abitrate > 72)) {
-            ret = ERROR_ENCODER_ABITRATE;
-            srs_error("invalid abitrate for aac: %d, must in [16, 72], ret=%d", abitrate, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_ABITRATE, "invalid abitrate for aac: %d, must in [16, 72]", abitrate);
         }
     }
     
     if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
         if (abitrate < 0) {
-            ret = ERROR_ENCODER_ABITRATE;
-            srs_error("invalid abitrate: %d, ret=%d", abitrate, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_ABITRATE, "invalid abitrate: %d", abitrate);
         }
         if (asample_rate < 0) {
-            ret = ERROR_ENCODER_ASAMPLE_RATE;
-            srs_error("invalid sample rate: %d, ret=%d", asample_rate, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_ASAMPLE_RATE, "invalid sample rate: %d", asample_rate);
         }
         if (achannels != 0 && achannels != 1 && achannels != 2) {
-            ret = ERROR_ENCODER_ACHANNELS;
-            srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", achannels, ret);
-            return ret;
+            return srs_error_new(ERROR_ENCODER_ACHANNELS, "invalid achannels, must be 1 or 2, actual %d", achannels);
         }
     }
     if (_output.empty()) {
-        ret = ERROR_ENCODER_OUTPUT;
-        srs_error("invalid empty output, ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_ENCODER_OUTPUT, "invalid empty output");
     }
     
     // for not rtmp input, donot append the iformat,
@@ -224,31 +195,29 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         iformat = "";
     }
     
-    return ret;
+    return err;
 }
 
-int SrsFFMPEG::initialize_copy()
+srs_error_t SrsFFMPEG::initialize_copy()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     vcodec = SRS_RTMP_ENCODER_COPY;
     acodec = SRS_RTMP_ENCODER_COPY;
     
     if (_output.empty()) {
-        ret = ERROR_ENCODER_OUTPUT;
-        srs_error("invalid empty output, ret=%d", ret);
-        return ret;
+        return srs_error_new(ERROR_ENCODER_OUTPUT, "invalid empty output");
     }
     
-    return ret;
+    return err;
 }
 
-int SrsFFMPEG::start()
+srs_error_t SrsFFMPEG::start()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (process->started()) {
-        return ret;
+        return err;
     }
     
     // the argv for process.
@@ -427,14 +396,14 @@ int SrsFFMPEG::start()
     }
     
     // initialize the process.
-    if ((ret = process->initialize(ffmpeg, params)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = process->initialize(ffmpeg, params)) != srs_success) {
+        return srs_error_wrap(err, "init process");
     }
     
     return process->start();
 }
 
-int SrsFFMPEG::cycle()
+srs_error_t SrsFFMPEG::cycle()
 {
     return process->cycle();
 }

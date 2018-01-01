@@ -66,7 +66,7 @@ public:
     SrsMpegtsQueue();
     virtual ~SrsMpegtsQueue();
 public:
-    virtual int push(SrsSharedPtrMessage* msg);
+    virtual srs_error_t push(SrsSharedPtrMessage* msg);
     virtual SrsSharedPtrMessage* dequeue();
 };
 
@@ -103,21 +103,21 @@ public:
 public:
     virtual srs_error_t on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
 private:
-    virtual int on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
 // interface ISrsTsHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 private:
-    virtual int on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual int write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
-    virtual int on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+    virtual srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
+    virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 private:
-    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+    virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 private:
     // Connect to RTMP server.
-    virtual int connect();
+    virtual srs_error_t connect();
     // Close the connection to RTMP server.
     virtual void close();
 };

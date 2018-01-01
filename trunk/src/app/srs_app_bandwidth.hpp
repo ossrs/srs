@@ -131,13 +131,13 @@ public:
      * @param req, client request object, specifies the request info from client.
      * @param local_ip, the ip of server which client connected at
      */
-    virtual int bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStatistic* io_stat, SrsRequest* req, std::string local_ip);
+    virtual srs_error_t bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStatistic* io_stat, SrsRequest* req, std::string local_ip);
 private:
     /**
      * used to process band width check from client.
      * @param limit, the bandwidth limit object, to slowdown if exceed the kbps.
      */
-    virtual int do_bandwidth_check(SrsKbpsLimit* limit);
+    virtual srs_error_t do_bandwidth_check(SrsKbpsLimit* limit);
     // play check/test, downloading bandwidth kbps.
 private:
     /**
@@ -145,19 +145,19 @@ private:
      * send start-play command to client, client must response starting-play
      * to start the test.
      */
-    virtual int play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
      * do play/download bandwidth check/test,
      * server send call messages to client in specified time,
      * calc the time and bytes sent, then we got the kbps.
      */
-    virtual int play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
      * stop play/download bandwidth check/test,
      * send stop-play command to client, client must response stopped-play
      * to stop the test.
      */
-    virtual int play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     // publish check/test, publishing bandwidth kbps.
 private:
     /**
@@ -165,7 +165,7 @@ private:
      * send start-publish command to client, client must response starting-publish
      * to start the test.
      */
-    virtual int publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
      * do publish/upload bandwidth check/test,
      * client send call messages to client in specified time,
@@ -176,7 +176,7 @@ private:
      *       the send queue is fullfill with call messages, so we should never expect the
      *       response message in the publish-stop stage.
      */
-    virtual int publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
      * stop publish/upload bandwidth check/test,
      * send stop-publish command to client,
@@ -184,7 +184,7 @@ private:
      * for flash client, the sent queue is fullfill with publishing call messages,
      *       so server never expect the stopped-publish from it.
      */
-    virtual int publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual srs_error_t publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
 private:
     /**
      * report and final packet
@@ -193,7 +193,7 @@ private:
      * for flash client, the sent queue is fullfill with publishing call messages,
      *       so server never expect the final packet from it.
      */
-    virtual int finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
+    virtual srs_error_t do_final(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
 };
 
 /**

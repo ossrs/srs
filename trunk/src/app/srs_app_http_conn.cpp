@@ -97,14 +97,13 @@ void SrsHttpConn::cleanup()
 
 srs_error_t SrsHttpConn::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     srs_trace("HTTP client ip=%s", ip.c_str());
     
     // initialize parser
-    if ((ret = parser->initialize(HTTP_REQUEST, false)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "init parser");
+    if ((err = parser->initialize(HTTP_REQUEST, false)) != srs_success) {
+        return srs_error_wrap(err, "init parser");
     }
     
     // set the recv timeout, for some clients never disconnect the connection.
@@ -125,7 +124,7 @@ srs_error_t SrsHttpConn::do_cycle()
         ISrsHttpMessage* req = NULL;
         
         // get a http message
-        if ((ret = parser->parse_message(skt, this, &req)) != ERROR_SUCCESS) {
+        if ((err = parser->parse_message(skt, this, &req)) != srs_success) {
             break;
         }
         
@@ -212,7 +211,6 @@ SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 
 srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsStSocket skt;
@@ -221,8 +219,8 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
         return srs_error_wrap(err, "init socket");
     }
     
-    if ((ret = parser->parse_message(&skt, this, preq)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "parse message");
+    if ((err = parser->parse_message(&skt, this, preq)) != srs_success) {
+        return srs_error_wrap(err, "parse message");
     }
     
     return err;
@@ -230,7 +228,6 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 
 srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     ISrsHttpResponseReader* br = msg->body_reader();
@@ -243,8 +240,8 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     // drop all request body.
     while (!br->eof()) {
         char body[4096];
-        if ((ret = br->read(body, 4096, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read response");
+        if ((err = br->read(body, 4096, NULL)) != srs_success) {
+            return srs_error_wrap(err, "read response");
         }
     }
     
@@ -300,7 +297,7 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return http_static->mux.serve_http(w, r);
 }
 
-int SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
+srs_error_t SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
 {
     return http_stream->http_mount(s, r);
 }

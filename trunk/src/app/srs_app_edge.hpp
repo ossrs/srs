@@ -81,9 +81,9 @@ public:
     SrsEdgeUpstream();
     virtual ~SrsEdgeUpstream();
 public:
-    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb) = 0;
-    virtual int recv_message(SrsCommonMessage** pmsg) = 0;
-    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
+    virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb) = 0;
+    virtual srs_error_t recv_message(SrsCommonMessage** pmsg) = 0;
+    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
     virtual void close() = 0;
 public:
     virtual void set_recv_timeout(int64_t tm) = 0;
@@ -102,9 +102,9 @@ public:
     SrsEdgeRtmpUpstream(std::string r);
     virtual ~SrsEdgeRtmpUpstream();
 public:
-    virtual int connect(SrsRequest* r, SrsLbRoundRobin* lb);
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
+    virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
+    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual void close();
 public:
     virtual void set_recv_timeout(int64_t tm);
@@ -206,7 +206,7 @@ public:
     /**
      * when client play stream on edge.
      */
-    virtual int on_client_play();
+    virtual srs_error_t on_client_play();
     /**
      * when all client stopped play, disconnect to origin.
      */
@@ -216,7 +216,7 @@ public:
     /**
      * when ingester start to play stream.
      */
-    virtual int on_ingest_play();
+    virtual srs_error_t on_ingest_play();
 };
 
 /**

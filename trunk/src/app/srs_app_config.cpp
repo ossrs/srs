@@ -78,7 +78,7 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
  * @param dir the transcode or ingest config directive.
  * @param engine the amf0 object to dumps to.
  */
-int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine);
+srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine);
 
 /**
  * whether the two vector actual equals, for instance,
@@ -135,14 +135,13 @@ namespace _srs_internal
     
     srs_error_t SrsConfigBuffer::fullfill(const char* filename)
     {
-        int ret = ERROR_SUCCESS;
         srs_error_t err = srs_success;
         
         SrsFileReader reader;
         
         // open file reader.
-        if ((ret = reader.open(filename)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "open file=%s", filename);
+        if ((err = reader.open(filename)) != srs_success) {
+            return srs_error_wrap(err, "open file=%s", filename);
         }
         
         // read all.
@@ -155,8 +154,8 @@ namespace _srs_internal
         
         // read total content from file.
         ssize_t nread = 0;
-        if ((ret = reader.read(start, filesize, &nread)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "read %d only %d bytes", filesize, nread);
+        if ((err = reader.read(start, filesize, &nread)) != srs_success) {
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, nread);
         }
         
         return err;
@@ -527,9 +526,9 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
     return err;
 }
 
-int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
+srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* conf = NULL;
     
@@ -626,7 +625,7 @@ int srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
         engine->set("output", conf->dumps_arg0_to_str());
     }
     
-    return ret;
+    return err;
 }
 
 SrsConfDirective::SrsConfDirective()
@@ -803,7 +802,6 @@ srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer)
 
 srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     static char SPACE = SRS_CONSTS_SP;
@@ -817,34 +815,34 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     if (level > 0) {
         // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
-            if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write indent");
+            if ((err = writer->write((char*)INDENT, 4, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write indent");
             }
         }
         
         // directive name.
-        if ((ret = writer->write((char*)name.c_str(), (int)name.length(), NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "write name");
+        if ((err = writer->write((char*)name.c_str(), (int)name.length(), NULL)) != srs_success) {
+            return srs_error_wrap(err, "write name");
         }
-        if (!args.empty() && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "write name space");
+        if (!args.empty() && (err = writer->write((char*)&SPACE, 1, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write name space");
         }
         
         // directive args.
         for (int i = 0; i < (int)args.size(); i++) {
             std::string& arg = args.at(i);
-            if ((ret = writer->write((char*)arg.c_str(), (int)arg.length(), NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write arg");
+            if ((err = writer->write((char*)arg.c_str(), (int)arg.length(), NULL)) != srs_success) {
+                return srs_error_wrap(err, "write arg");
             }
-            if (i < (int)args.size() - 1 && (ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write arg space");
+            if (i < (int)args.size() - 1 && (err = writer->write((char*)&SPACE, 1, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write arg space");
             }
         }
         
         // native directive, without sub directives.
         if (directives.empty()) {
-            if ((ret = writer->write((char*)&SEMICOLON, 1, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write arg semicolon");
+            if ((err = writer->write((char*)&SEMICOLON, 1, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write arg semicolon");
             }
         }
     }
@@ -852,16 +850,16 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     // persistence all sub directives.
     if (level > 0) {
         if (!directives.empty()) {
-            if ((ret = writer->write((char*)&SPACE, 1, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write sub-dir space");
+            if ((err = writer->write((char*)&SPACE, 1, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write sub-dir space");
             }
-            if ((ret = writer->write((char*)&LB, 1, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write sub-dir left-brace");
+            if ((err = writer->write((char*)&LB, 1, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write sub-dir left-brace");
             }
         }
         
-        if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "write sub-dir linefeed");
+        if ((err = writer->write((char*)&LF, 1, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write sub-dir linefeed");
         }
     }
     
@@ -875,17 +873,17 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     if (level > 0 && !directives.empty()) {
         // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
-            if ((ret = writer->write((char*)INDENT, 4, NULL)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "write sub-dir indent");
+            if ((err = writer->write((char*)INDENT, 4, NULL)) != srs_success) {
+                return srs_error_wrap(err, "write sub-dir indent");
             }
         }
         
-        if ((ret = writer->write((char*)&RB, 1, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "write sub-dir right-brace");
+        if ((err = writer->write((char*)&RB, 1, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write sub-dir right-brace");
         }
         
-        if ((ret = writer->write((char*)&LF, 1, NULL)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "write sub-dir linefeed");
+        if ((err = writer->write((char*)&LF, 1, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write sub-dir linefeed");
         }
     }
     
@@ -1983,7 +1981,6 @@ srs_error_t SrsConfig::initialize_cwd()
 
 srs_error_t SrsConfig::persistence()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // write to a tmp file, then mv to the config.
@@ -1991,8 +1988,8 @@ srs_error_t SrsConfig::persistence()
     
     // open the tmp file for persistence
     SrsFileWriter fw;
-    if ((ret = fw.open(path)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "open file");
+    if ((err = fw.open(path)) != srs_success) {
+        return srs_error_wrap(err, "open file");
     }
     
     // do persistence to writer.
@@ -2004,8 +2001,7 @@ srs_error_t SrsConfig::persistence()
     // rename the config file.
     if (::rename(path.c_str(), config_file.c_str()) < 0) {
         ::unlink(path.c_str());
-        return srs_error_new(ERROR_SYSTEM_CONFIG_PERSISTENCE, "rename %s=>%s",
-            path.c_str(), config_file.c_str());
+        return srs_error_new(ERROR_SYSTEM_CONFIG_PERSISTENCE, "rename %s=>%s", path.c_str(), config_file.c_str());
     }
     
     return err;
@@ -2023,9 +2019,9 @@ srs_error_t SrsConfig::do_persistence(SrsFileWriter* fw)
     return err;
 }
 
-int SrsConfig::minimal_to_json(SrsJsonObject* obj)
+srs_error_t SrsConfig::minimal_to_json(SrsJsonObject* obj)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* dir = root->directives.at(i);
@@ -2038,12 +2034,12 @@ int SrsConfig::minimal_to_json(SrsJsonObject* obj)
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::global_to_json(SrsJsonObject* obj)
+srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* dir = root->directives.at(i);
@@ -2307,12 +2303,12 @@ int SrsConfig::global_to_json(SrsJsonObject* obj)
     obj->set("nb_vhosts", SrsJsonAny::integer(nb_vhosts));
     obj->set("vhosts", sobjs);
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
+srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsConfDirective* dir = NULL;
     
@@ -2716,8 +2712,8 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
                 SrsJsonObject* engine = SrsJsonAny::object();
                 ingest->set("engine", engine);
                 
-                if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
-                    return ret;
+                if ((err = srs_config_dumps_engine(sdir, engine)) != srs_success) {
+                    return srs_error_wrap(err, "dump engine");
                 }
             }
         }
@@ -2754,19 +2750,19 @@ int SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj)
                 SrsJsonObject* engine = SrsJsonAny::object();
                 engines->append(engine);
                 
-                if ((ret = srs_config_dumps_engine(sdir, engine)) != ERROR_SUCCESS) {
-                    return ret;
+                if ((err = srs_config_dumps_engine(sdir, engine)) != srs_success) {
+                    return srs_error_wrap(err, "dump engine");
                 }
             }
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_to_json(SrsJsonObject* obj)
+srs_error_t SrsConfig::raw_to_json(SrsJsonObject* obj)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsJsonObject* sobj = SrsJsonAny::object();
     obj->set("http_api", sobj);
@@ -2783,12 +2779,11 @@ int SrsConfig::raw_to_json(SrsJsonObject* obj)
     ssobj->set("allow_query", SrsJsonAny::boolean(get_raw_api_allow_query()));
     ssobj->set("allow_update", SrsJsonAny::boolean(get_raw_api_allow_update()));
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
+srs_error_t SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2797,27 +2792,23 @@ int SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
     
     // nothing changed, ignore.
     if (srs_vector_actual_equals(conf->args, eps)) {
-        return ret;
+        return err;
     }
     
     // changed, apply and reload.
     conf->args = eps;
     
     if ((err = do_reload_listen()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload listen");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_pid(string pid, bool& applied)
+srs_error_t SrsConfig::raw_set_pid(string pid, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2825,34 +2816,31 @@ int SrsConfig::raw_set_pid(string pid, bool& applied)
     SrsConfDirective* conf = root->get_or_create("pid");
     
     if (conf->arg0() == pid) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(pid);
     
     if ((err = do_reload_pid()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload pid");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
+srs_error_t SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     applied = false;
     
     SrsConfDirective* conf = root->get_or_create("chunk_size");
     
     if (conf->arg0() == chunk_size) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
@@ -2862,19 +2850,19 @@ int SrsConfig::raw_set_chunk_size(string chunk_size, bool& applied)
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
+srs_error_t SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     applied = false;
     
     SrsConfDirective* conf = root->get_or_create("ff_log_dir");
     
     if (conf->arg0() == ff_log_dir) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
@@ -2884,12 +2872,11 @@ int SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
+srs_error_t SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2897,27 +2884,23 @@ int SrsConfig::raw_set_srs_log_tank(string srs_log_tank, bool& applied)
     SrsConfDirective* conf = root->get_or_create("srs_log_tank");
     
     if (conf->arg0() == srs_log_tank) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(srs_log_tank);
     
     if ((err = do_reload_srs_log_tank()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload log tank");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
+srs_error_t SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2925,27 +2908,23 @@ int SrsConfig::raw_set_srs_log_level(string srs_log_level, bool& applied)
     SrsConfDirective* conf = root->get_or_create("srs_log_level");
     
     if (conf->arg0() == srs_log_level) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(srs_log_level);
     
     if ((err = do_reload_srs_log_level()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload log level");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
+srs_error_t SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2953,27 +2932,23 @@ int SrsConfig::raw_set_srs_log_file(string srs_log_file, bool& applied)
     SrsConfDirective* conf = root->get_or_create("srs_log_file");
     
     if (conf->arg0() == srs_log_file) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(srs_log_file);
     
     if ((err = do_reload_srs_log_file()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload log file");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
+srs_error_t SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -2981,22 +2956,19 @@ int SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
     SrsConfDirective* conf = root->get_or_create("max_connections");
     
     if (conf->arg0() == max_connections) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(max_connections);
     
     if ((err = do_reload_max_connections()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload max connection");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
@@ -3023,9 +2995,8 @@ srs_error_t SrsConfig::raw_set_utc_time(string utc_time, bool& applied)
     return err;
 }
 
-int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
+srs_error_t SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3033,27 +3004,23 @@ int SrsConfig::raw_set_pithy_print_ms(string pithy_print_ms, bool& applied)
     SrsConfDirective* conf = root->get_or_create("pithy_print_ms");
     
     if (conf->arg0() == pithy_print_ms) {
-        return ret;
+        return err;
     }
     
     conf->args.clear();
     conf->args.push_back(pithy_print_ms);
     
     if ((err = do_reload_pithy_print_ms()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload pithy print");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_create_vhost(string vhost, bool& applied)
+srs_error_t SrsConfig::raw_create_vhost(string vhost, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3062,20 +3029,17 @@ int SrsConfig::raw_create_vhost(string vhost, bool& applied)
     conf->get_or_create("enabled")->set_arg0("on");
     
     if ((err = do_reload_vhost_added(vhost)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload vhost");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_update_vhost(string vhost, string name, bool& applied)
+srs_error_t SrsConfig::raw_update_vhost(string vhost, string name, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     applied = false;
     
@@ -3085,12 +3049,12 @@ int SrsConfig::raw_update_vhost(string vhost, string name, bool& applied)
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_delete_vhost(string vhost, bool& applied)
+srs_error_t SrsConfig::raw_delete_vhost(string vhost, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     applied = false;
     
@@ -3104,12 +3068,11 @@ int SrsConfig::raw_delete_vhost(string vhost, bool& applied)
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_disable_vhost(string vhost, bool& applied)
+srs_error_t SrsConfig::raw_disable_vhost(string vhost, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3118,20 +3081,16 @@ int SrsConfig::raw_disable_vhost(string vhost, bool& applied)
     conf->get_or_create("enabled")->set_arg0("off");
     
     if ((err = do_reload_vhost_removed(vhost)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload vhost removed");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_enable_vhost(string vhost, bool& applied)
+srs_error_t SrsConfig::raw_enable_vhost(string vhost, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3140,20 +3099,16 @@ int SrsConfig::raw_enable_vhost(string vhost, bool& applied)
     conf->get_or_create("enabled")->set_arg0("on");
     
     if ((err = do_reload_vhost_added(vhost)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload vhost added");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied)
+srs_error_t SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3170,20 +3125,16 @@ int SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied)
     }
     
     if ((err = do_reload_vhost_dvr_apply(vhost)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload vhost dvr");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
-int SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applied)
+srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applied)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     applied = false;
@@ -3202,15 +3153,12 @@ int SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applied)
     }
     
     if ((err = do_reload_vhost_dvr_apply(vhost)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        return ret;
+        return srs_error_wrap(err, "reload vhost dvr");
     }
     
     applied = true;
     
-    return ret;
+    return err;
 }
 
 srs_error_t SrsConfig::do_reload_listen()

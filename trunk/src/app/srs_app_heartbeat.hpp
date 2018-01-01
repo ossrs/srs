@@ -37,6 +37,8 @@ public:
     virtual ~SrsHttpHeartbeat();
 public:
     virtual void heartbeat();
+private:
+    virtual srs_error_t do_heartbeat();
 };
 
 #endif

@@ -53,7 +53,7 @@ public:
     virtual ~SrsInitMp4();
 public:
     // Write the init mp4 file, with the tid(track id).
-    virtual int write(SrsFormat* format, bool video, int tid);
+    virtual srs_error_t write(SrsFormat* format, bool video, int tid);
 };
 
 /**
@@ -69,11 +69,11 @@ public:
     virtual ~SrsFragmentedMp4();
 public:
     // Initialize the fragment, create the home dir, open the file.
-    virtual int initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd, uint32_t tid);
+    virtual srs_error_t initialize(SrsRequest* r, bool video, SrsMpdWriter* mpd, uint32_t tid);
     // Write media message to fragment.
-    virtual int write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
+    virtual srs_error_t write(SrsSharedPtrMessage* shared_msg, SrsFormat* format);
     // Reap the fragment, close the fd and rename tmp to official file.
-    virtual int reap(uint64_t& dts);
+    virtual srs_error_t reap(uint64_t& dts);
 };
 
 /**
@@ -104,11 +104,11 @@ public:
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     // Write MPD according to parsed format of stream.
-    virtual int write(SrsFormat* format);
+    virtual srs_error_t write(SrsFormat* format);
 public:
     // Get the fragment relative home and filename.
     // The basetime is the absolute time in ms, while the sn(sequence number) is basetime/fragment.
-    virtual int get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, uint64_t& basetime);
+    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, uint64_t& basetime);
 };
 
 /**
@@ -138,11 +138,11 @@ public:
     virtual ~SrsDashController();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
-    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
-    virtual int refresh_mpd(SrsFormat* format);
-    virtual int refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* format);
+    virtual srs_error_t refresh_mpd(SrsFormat* format);
+    virtual srs_error_t refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* format);
 };
 
 /**
@@ -163,11 +163,11 @@ public:
     // Initalize the encoder.
     virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
     // When stream start publishing.
-    virtual int on_publish();
+    virtual srs_error_t on_publish();
     // When got an shared audio message.
-    virtual int on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     // When got an shared video message.
-    virtual int on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
     // When stream stop publishing.
     virtual void on_unpublish();
 };

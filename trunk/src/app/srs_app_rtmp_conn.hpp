@@ -67,7 +67,7 @@ public:
     SrsSimpleRtmpClient(std::string u, int64_t ctm, int64_t stm);
     virtual ~SrsSimpleRtmpClient();
 protected:
-    virtual int connect_app();
+    virtual srs_error_t connect_app();
 };
 
 /**

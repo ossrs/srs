@@ -69,8 +69,8 @@ public:
     virtual ~SrsKafkaPartition();
 public:
     virtual std::string hostport();
-    virtual int connect();
-    virtual int flush(SrsKafkaPartitionCache* pc);
+    virtual srs_error_t connect();
+    virtual srs_error_t flush(SrsKafkaPartitionCache* pc);
 private:
     virtual void disconnect();
 };
@@ -123,7 +123,7 @@ public:
     /**
      * flush the specified partition cache.
      */
-    virtual int flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitionCache* pc);
+    virtual srs_error_t flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitionCache* pc);
 };
 
 /**
@@ -189,7 +189,7 @@ public:
      * @param key the key to map to the partition, user can use cid or hash.
      * @param obj the json object; user must never free it again.
      */
-    virtual int send(int key, SrsJsonObject* obj);
+    virtual srs_error_t send(int key, SrsJsonObject* obj);
 // interface ISrsKafkaCluster
 public:
     virtual srs_error_t on_client(int key, SrsListenerType type, std::string ip);
@@ -200,10 +200,10 @@ public:
 private:
     virtual void clear_metadata();
     virtual srs_error_t do_cycle();
-    virtual int request_metadata();
+    virtual srs_error_t request_metadata();
     // set the metadata to invalid and refresh it.
     virtual void refresh_metadata();
-    virtual int flush();
+    virtual srs_error_t flush();
 };
 
 #endif

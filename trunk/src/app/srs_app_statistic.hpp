@@ -55,7 +55,7 @@ public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
 public:
-    virtual int dumps(SrsJsonObject* obj);
+    virtual srs_error_t dumps(SrsJsonObject* obj);
 };
 
 struct SrsStatisticStream
@@ -101,7 +101,7 @@ public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
-    virtual int dumps(SrsJsonObject* obj);
+    virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
     /**
      * publish the stream.
@@ -126,7 +126,7 @@ public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();
 public:
-    virtual int dumps(SrsJsonObject* obj);
+    virtual srs_error_t dumps(SrsJsonObject* obj);
 };
 
 class SrsStatistic
@@ -166,16 +166,18 @@ public:
     /**
      * when got video info for stream.
      */
-    virtual int on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level, int width, int height);
+    virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile,
+        SrsAvcLevel avc_level, int width, int height);
     /**
      * when got audio info for stream.
      */
-    virtual int on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type, SrsAacObjectType aac_object);
+    virtual srs_error_t on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate,
+        SrsAudioChannels asound_type, SrsAacObjectType aac_object);
     /**
      * When got videos, update the frames.
      * We only stat the total number of video frames.
      */
-    virtual int on_video_frames(SrsRequest* req, int nb_frames);
+    virtual srs_error_t on_video_frames(SrsRequest* req, int nb_frames);
     /**
      * when publish stream.
      * @param req the request object of publish connection.
@@ -194,7 +196,7 @@ public:
      * @param conn, the physical absract connection object.
      * @param type, the type of connection.
      */
-    virtual int on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
     /**
      * client disconnect
      * @remark the on_disconnect always call, while the on_client is call when
@@ -222,17 +224,17 @@ public:
     /**
      * dumps the vhosts to amf0 array.
      */
-    virtual int dumps_vhosts(SrsJsonArray* arr);
+    virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     /**
      * dumps the streams to amf0 array.
      */
-    virtual int dumps_streams(SrsJsonArray* arr);
+    virtual srs_error_t dumps_streams(SrsJsonArray* arr);
     /**
      * dumps the clients to amf0 array
      * @param start the start index, from 0.
      * @param count the max count of clients to dump.
      */
-    virtual int dumps_clients(SrsJsonArray* arr, int start, int count);
+    virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

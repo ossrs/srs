@@ -51,7 +51,7 @@ public:
     SrsIngesterFFMPEG();
     virtual ~SrsIngesterFFMPEG();
 public:
-    virtual int initialize(SrsFFMPEG* ff, std::string v, std::string i);
+    virtual srs_error_t initialize(SrsFFMPEG* ff, std::string v, std::string i);
     // the ingest uri, [vhost]/[ingest id]
     virtual std::string uri();
     // the alive in ms.
@@ -59,9 +59,9 @@ public:
     virtual bool equals(std::string v, std::string i);
     virtual bool equals(std::string v);
 public:
-    virtual int start();
+    virtual srs_error_t start();
     virtual void stop();
-    virtual int cycle();
+    virtual srs_error_t cycle();
     // @see SrsFFMPEG.fast_stop().
     virtual void fast_stop();
 };
@@ -99,10 +99,10 @@ private:
     virtual srs_error_t do_cycle();
 private:
     virtual void clear_engines();
-    virtual int parse();
-    virtual int parse_ingesters(SrsConfDirective* vhost);
-    virtual int parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
-    virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
+    virtual srs_error_t parse();
+    virtual srs_error_t parse_ingesters(SrsConfDirective* vhost);
+    virtual srs_error_t parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
+    virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
     virtual void show_ingest_log_message();
 // interface ISrsReloadHandler.
 public:

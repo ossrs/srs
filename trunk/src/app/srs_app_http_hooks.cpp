@@ -343,7 +343,6 @@ srs_error_t SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string fi
 
 srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     int client_id = cid;
@@ -360,8 +359,8 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     int64_t starttime = srs_update_system_time_ms();
     
     SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: init url=%s", url.c_str());
+    if ((err = uri.initialize(url)) != srs_success) {
+        return srs_error_wrap(err, "http: init url=%s", url.c_str());
     }
     
     SrsHttpClient http;
@@ -393,30 +392,28 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
         int nb_bytes = 0;
-        if ((ret = br->read(buf, nb_buf, &nb_bytes)) != ERROR_SUCCESS) {
+        if ((err = br->read(buf, nb_buf, &nb_bytes)) != srs_success) {
             break;
         }
         nb_read += nb_bytes;
     }
     
     int spenttime = (int)(srs_update_system_time_ms() - starttime);
-    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, ret=%d",
-        client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
+    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, err=%s",
+        client_id, url.c_str(), msg->status_code(), spenttime, nb_read, srs_error_desc(err).c_str());
     
     // ignore any error for on_hls_notify.
-    ret = ERROR_SUCCESS;
-    
-    return err;
+    srs_error_reset(err);
+    return srs_success;
 }
 
 srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: post failed. url=%s", url.c_str());
+    if ((err = uri.initialize(url)) != srs_success) {
+        return srs_error_wrap(err, "http: post failed. url=%s", url.c_str());
     }
     
     if ((err = hc->initialize(uri.get_host(), uri.get_port())) != srs_success) {
@@ -430,8 +427,8 @@ srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::strin
     SrsAutoFree(ISrsHttpMessage, msg);
     
     code = msg->status_code();
-    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "http: body read");
+    if ((err = msg->body_read_all(res)) != srs_success) {
+        return srs_error_wrap(err, "http: body read");
     }
     
     // ensure the http status is ok.

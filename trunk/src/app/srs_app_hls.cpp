@@ -107,7 +107,6 @@ srs_error_t SrsDvrAsyncCallOnHls::call()
         SrsConfDirective* conf = _srs_config->get_vhost_on_hls(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_hls");
             return err;
         }
         
@@ -158,7 +157,6 @@ srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
         SrsConfDirective* conf = _srs_config->get_vhost_on_hls_notify(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_hls_notify");
             return err;
         }
         
@@ -299,7 +297,6 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     if ((err = srs_create_dir_recursively(m3u8_dir)) != srs_success) {
         return srs_error_wrap(err, "create dir");
     }
-    srs_info("create m3u8 dir %s ok", m3u8_dir.c_str());
     
     return err;
 }
@@ -322,13 +319,10 @@ srs_error_t SrsHlsMuxer::segment_open()
         std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
         if (default_acodec_str == "mp3") {
             default_acodec = SrsAudioCodecIdMP3;
-            srs_info("hls: use default mp3 acodec");
         } else if (default_acodec_str == "aac") {
             default_acodec = SrsAudioCodecIdAAC;
-            srs_info("hls: use default aac acodec");
         } else if (default_acodec_str == "an") {
             default_acodec = SrsAudioCodecIdDisabled;
-            srs_info("hls: use default an acodec for pure video");
         } else {
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
         }
@@ -340,10 +334,8 @@ srs_error_t SrsHlsMuxer::segment_open()
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
             default_vcodec = SrsVideoCodecIdAVC;
-            srs_info("hls: use default h264 vcodec");
         } else if (default_vcodec_str == "vn") {
             default_vcodec = SrsVideoCodecIdDisabled;
-            srs_info("hls: use default vn vcodec for pure audio");
         } else {
             srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
         }
@@ -397,7 +389,6 @@ srs_error_t SrsHlsMuxer::segment_open()
         ts_file = srs_string_replace(ts_file, "[seq]", ss.str());
     }
     current->set_path(hls_path + "/" + ts_file);
-    srs_info("hls: generate ts path %s, tmpl=%s, floor=%d", ts_file.c_str(), hls_ts_file.c_str(), hls_ts_floor);
     
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
@@ -430,7 +421,6 @@ srs_error_t SrsHlsMuxer::segment_open()
     if ((err = current->tscw->open(tmp_file.c_str())) != srs_success) {
         return srs_error_wrap(err, "open hls muxer");
     }
-    srs_info("open HLS muxer success. path=%s, tmp=%s", current->fullpath().c_str(), tmp_file.c_str());
     
     return err;
 }
@@ -459,8 +449,6 @@ bool SrsHlsMuxer::is_segment_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%" PRId64 "ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
-             current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_fragment + deviation) * 1000;
 }
@@ -482,8 +470,6 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    srs_info("hls: dur=%" PRId64 "ms, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
-             current->duration(), hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration() >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
 }
@@ -576,7 +562,6 @@ srs_error_t SrsHlsMuxer::segment_close()
         if ((err = async->execute(new SrsDvrAsyncCallOnHlsNotify(_srs_context->get_id(), req, current->uri))) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
-        srs_info("Reap ts segment, sequence_no=%d, uri=%s, duration=%" PRId64 "ms", current->sequence_no, current->uri.c_str(), current->duration());
         
         // close the muxer of finished segment.
         srs_freep(current->tscw);
@@ -646,7 +631,6 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
 
 srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // no segments, return.
@@ -655,10 +639,9 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     }
     
     SrsFileWriter writer;
-    if ((ret = writer.open(m3u8_file)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "hls: open m3u8 file %s", m3u8_file.c_str());
+    if ((err = writer.open(m3u8_file)) != srs_success) {
+        return srs_error_wrap(err, "hls: open m3u8 file %s", m3u8_file.c_str());
     }
-    srs_info("open m3u8 file %s success.", m3u8_file.c_str());
     
     // #EXTM3U\n
     // #EXT-X-VERSION:3\n
@@ -667,12 +650,10 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     ss << "#EXTM3U" << SRS_CONSTS_LF
     << "#EXT-X-VERSION:3" << SRS_CONSTS_LF
     << "#EXT-X-ALLOW-CACHE:YES" << SRS_CONSTS_LF;
-    srs_verbose("write m3u8 header success.");
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = dynamic_cast<SrsHlsSegment*>(segments->first());
     ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
-    srs_verbose("write m3u8 sequence success.");
     
     // iterator shared for td generation and segemnts wrote.
     std::vector<SrsHlsSegment*>::iterator it;
@@ -691,7 +672,6 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     target_duration = srs_max(target_duration, max_td);
     
     ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
-    srs_verbose("write m3u8 duration success.");
     
     // write all segments
     for (int i = 0; i < segments->size(); i++) {
@@ -700,26 +680,22 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         if (segment->is_sequence_header()) {
             // #EXT-X-DISCONTINUITY\n
             ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
-            srs_verbose("write m3u8 segment discontinuity success.");
         }
         
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
         ss.setf(std::ios::fixed, std::ios::floatfield);
         ss << "#EXTINF:" << segment->duration() / 1000.0 << ", no desc" << SRS_CONSTS_LF;
-        srs_verbose("write m3u8 segment info success.");
         
         // {file name}\n
         ss << segment->uri << SRS_CONSTS_LF;
-        srs_verbose("write m3u8 segment uri success.");
     }
     
     // write m3u8 to writer.
     std::string m3u8 = ss.str();
-    if ((ret = writer.write((char*)m3u8.c_str(), (int)m3u8.length(), NULL)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "hls: write m3u8");
+    if ((err = writer.write((char*)m3u8.c_str(), (int)m3u8.length(), NULL)) != srs_success) {
+        return srs_error_wrap(err, "hls: write m3u8");
     }
-    srs_info("write m3u8 %s success.", m3u8_file.c_str());
     
     return err;
 }

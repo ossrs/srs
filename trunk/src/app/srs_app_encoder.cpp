@@ -53,38 +53,33 @@ SrsEncoder::~SrsEncoder()
     srs_freep(pprint);
 }
 
-int SrsEncoder::on_publish(SrsRequest* req)
+srs_error_t SrsEncoder::on_publish(SrsRequest* req)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // parse the transcode engines for vhost and app and stream.
-    ret = parse_scope_engines(req);
+    err = parse_scope_engines(req);
     
     // ignore the loop encoder
     // if got a loop, donot transcode the whole stream.
-    if (ret == ERROR_ENCODER_LOOP) {
+    if (srs_error_code(err) == ERROR_ENCODER_LOOP) {
         clear_engines();
-        ret = ERROR_SUCCESS;
+        srs_error_reset(err);
     }
     
     // return for error or no engine.
-    if (ret != ERROR_SUCCESS || ffmpegs.empty()) {
-        return ret;
+    if (err != srs_success || ffmpegs.empty()) {
+        return err;
     }
     
     // start thread to run all encoding engines.
     srs_freep(trd);
     trd = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
     if ((err = trd->start()) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-
-        return ret;
+        return srs_error_wrap(err, "start encoder");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsEncoder::on_unpublish()
@@ -103,11 +98,12 @@ srs_error_t SrsEncoder::cycle()
     while (true) {
         if ((err = do_cycle()) != srs_success) {
             srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
-            srs_freep(err);
+            srs_error_reset(err);
         }
         
         if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "encoder");
+            err = srs_error_wrap(err, "encoder");
+            break;
         }
     
         srs_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
@@ -126,7 +122,6 @@ srs_error_t SrsEncoder::cycle()
 
 srs_error_t SrsEncoder::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     std::vector<SrsFFMPEG*>::iterator it;
@@ -134,13 +129,13 @@ srs_error_t SrsEncoder::do_cycle()
         SrsFFMPEG* ffmpeg = *it;
         
         // start all ffmpegs.
-        if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ffmpeg start");
+        if ((err = ffmpeg->start()) != srs_success) {
+            return srs_error_wrap(err, "ffmpeg start");
         }
         
         // check ffmpeg status.
-        if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "ffmpeg cycle");
+        if ((err = ffmpeg->cycle()) != srs_success) {
+            return srs_error_wrap(err, "ffmpeg cycle");
         }
     }
     
@@ -176,9 +171,9 @@ SrsFFMPEG* SrsEncoder::at(int index)
     return ffmpegs[index];
 }
 
-int SrsEncoder::parse_scope_engines(SrsRequest* req)
+srs_error_t SrsEncoder::parse_scope_engines(SrsRequest* req)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // parse all transcode engines.
     SrsConfDirective* conf = NULL;
@@ -186,96 +181,78 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
     // parse vhost scope engines
     std::string scope = "";
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
-        if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("parse vhost scope=%s transcode engines failed. "
-                          "ret=%d", scope.c_str(), ret);
-            }
-            return ret;
+        if ((err = parse_ffmpeg(req, conf)) != srs_success) {
+            return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     // parse app scope engines
     scope = req->app;
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
-        if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("parse app scope=%s transcode engines failed. "
-                          "ret=%d", scope.c_str(), ret);
-            }
-            return ret;
+        if ((err = parse_ffmpeg(req, conf)) != srs_success) {
+            return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     // parse stream scope engines
     scope += "/";
     scope += req->stream;
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
-        if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("parse stream scope=%s transcode engines failed. "
-                          "ret=%d", scope.c_str(), ret);
-            }
-            return ret;
+        if ((err = parse_ffmpeg(req, conf)) != srs_success) {
+            return srs_error_wrap(err, "parse ffmpeg");
         }
     }
     
-    return ret;
+    return err;
 }
 
-int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
+srs_error_t SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     srs_assert(conf);
     
     // enabled
     if (!_srs_config->get_transcode_enabled(conf)) {
         srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
-        return ret;
+        return err;
     }
     
     // ffmpeg
     std::string ffmpeg_bin = _srs_config->get_transcode_ffmpeg(conf);
     if (ffmpeg_bin.empty()) {
-        srs_trace("ignore the empty ffmpeg transcode: %s",
-                  conf->arg0().c_str());
-        return ret;
+        srs_trace("ignore the empty ffmpeg transcode: %s", conf->arg0().c_str());
+        return err;
     }
     
     // get all engines.
     std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(conf);
     if (engines.empty()) {
-        srs_trace("ignore the empty transcode engine: %s",
-                  conf->arg0().c_str());
-        return ret;
+        srs_trace("ignore the empty transcode engine: %s", conf->arg0().c_str());
+        return err;
     }
     
     // create engine
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective* engine = engines[i];
         if (!_srs_config->get_engine_enabled(engine)) {
-            srs_trace("ignore the diabled transcode engine: %s %s",
-                      conf->arg0().c_str(), engine->arg0().c_str());
+            srs_trace("ignore the diabled transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
             continue;
         }
         
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((ret = initialize_ffmpeg(ffmpeg, req, engine)) != ERROR_SUCCESS) {
+        if ((err = initialize_ffmpeg(ffmpeg, req, engine)) != srs_success) {
             srs_freep(ffmpeg);
-            if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("invalid transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
-            }
-            return ret;
+            return srs_error_wrap(err, "init ffmpeg");
         }
         
         ffmpegs.push_back(ffmpeg);
     }
     
-    return ret;
+    return err;
 }
 
-int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine)
+srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     std::string input;
     // input stream, from local.
@@ -330,21 +307,18 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     std::vector<std::string>::iterator it;
     it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
     if (it != _transcoded_url.end()) {
-        ret = ERROR_ENCODER_LOOP;
-        srs_trace("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
-                  input.c_str(), output.c_str(), ret);
-        return ret;
+        return srs_error_new(ERROR_ENCODER_LOOP, "detect a loop cycle, input=%s, output=%s", input.c_str(), output.c_str());
     }
     _transcoded_url.push_back(output);
     
-    if ((ret = ffmpeg->initialize(input, output, log_file)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = ffmpeg->initialize(input, output, log_file)) != srs_success) {
+        return srs_error_wrap(err, "init ffmpeg");
     }
-    if ((ret = ffmpeg->initialize_transcode(engine)) != ERROR_SUCCESS) {
-        return ret;
+    if ((err = ffmpeg->initialize_transcode(engine)) != srs_success) {
+        return srs_error_wrap(err, "init transcode");
     }
     
-    return ret;
+    return err;
 }
 
 void SrsEncoder::show_encode_log_message()

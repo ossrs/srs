@@ -41,15 +41,15 @@ public:
     SrsHds();
     virtual ~SrsHds();
     
-    int on_publish(SrsRequest* req);
-    int on_unpublish();
+    srs_error_t on_publish(SrsRequest* req);
+    srs_error_t on_unpublish();
     
-    int on_video(SrsSharedPtrMessage* msg);
-    int on_audio(SrsSharedPtrMessage* msg);
+    srs_error_t on_video(SrsSharedPtrMessage* msg);
+    srs_error_t on_audio(SrsSharedPtrMessage* msg);
     
 private:
-    int flush_mainfest();
-    int flush_bootstrap();
+    srs_error_t flush_mainfest();
+    srs_error_t flush_bootstrap();
     void adjust_windows();
     
 private:

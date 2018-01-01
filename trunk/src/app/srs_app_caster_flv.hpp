@@ -90,9 +90,9 @@ public:
 public:
     virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
 public:
-    virtual int proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
+    virtual srs_error_t proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
-    virtual int do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
+    virtual srs_error_t do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
 };
 
 /**
@@ -110,7 +110,7 @@ public:
     /**
      * open file reader, can open then close then open...
      */
-    virtual int open(std::string file);
+    virtual srs_error_t open(std::string file);
     virtual void close();
 public:
     // TODO: FIXME: extract interface.
@@ -120,8 +120,8 @@ public:
     virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
 public:
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    virtual int lseek(off_t offset, int whence, off_t* seeked);
+    virtual srs_error_t read(void* buf, size_t count, ssize_t* pnread);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 };
 
 #endif

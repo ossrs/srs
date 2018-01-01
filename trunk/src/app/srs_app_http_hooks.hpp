@@ -102,7 +102,8 @@ public:
      * @param duration the segment duration in seconds.
      * @param cid the source connection cid, for the on_dvr is async call.
      */
-    static srs_error_t on_hls(int cid, std::string url, SrsRequest* req, std::string file, std::string ts_url, std::string m3u8, std::string m3u8_url, int sn, double duration);
+    static srs_error_t on_hls(int cid, std::string url, SrsRequest* req, std::string file, std::string ts_url,
+        std::string m3u8, std::string m3u8_url, int sn, double duration);
     /**
      * when hls reap segment, callback.
      * @param url the api server url, to process the event.

@@ -155,17 +155,17 @@ string srs_path_build_timestamp(string template_path)
     return path;
 }
 
-int srs_kill_forced(int& pid)
+srs_error_t srs_kill_forced(int& pid)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     if (pid <= 0) {
-        return ret;
+        return err;
     }
     
     // first, try kill by SIGTERM.
     if (kill(pid, SIGTERM) < 0) {
-        return ERROR_SYSTEM_KILL;
+        return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
     
     // wait to quit.
@@ -174,7 +174,7 @@ int srs_kill_forced(int& pid)
         int status = 0;
         pid_t qpid = -1;
         if ((qpid = waitpid(pid, &status, WNOHANG)) < 0) {
-            return ERROR_SYSTEM_KILL;
+            return srs_error_new(ERROR_SYSTEM_KILL, "kill");
         }
         
         // 0 is not quit yet.
@@ -187,12 +187,12 @@ int srs_kill_forced(int& pid)
         srs_trace("SIGTERM stop process pid=%d ok.", pid);
         pid = -1;
         
-        return ret;
+        return err;
     }
     
     // then, try kill by SIGKILL.
     if (kill(pid, SIGKILL) < 0) {
-        return ERROR_SYSTEM_KILL;
+        return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
     
     // wait for the process to quit.
@@ -211,7 +211,7 @@ int srs_kill_forced(int& pid)
     srs_trace("SIGKILL stop process pid=%d ok.", pid);
     pid = -1;
     
-    return ret;
+    return err;
 }
 
 static SrsRusage _srs_system_rusage;

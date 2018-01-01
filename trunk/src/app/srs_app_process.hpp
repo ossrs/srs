@@ -77,17 +77,17 @@ public:
      * @param argv the argv for binary path, the argv[0] generally is the binary.
      * @remark the argv[0] must be the binary.
      */
-    virtual int initialize(std::string binary, std::vector<std::string> argv);
+    virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv);
 public:
     /**
      * start the process, ignore when already started.
      */
-    virtual int start();
+    virtual srs_error_t start();
     /**
      * cycle check the process, update the state of process.
      * @remark when process terminated(not started), user can restart it again by start().
      */
-    virtual int cycle();
+    virtual srs_error_t cycle();
     /**
      * send SIGTERM then SIGKILL to ensure the process stopped.
      * the stop will wait [0, SRS_PROCESS_QUIT_TIMEOUT_MS] depends on the

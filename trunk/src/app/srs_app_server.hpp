@@ -295,7 +295,7 @@ private:
      * to stop all ingesters, cleanup HLS and dvr.
      */
     virtual void dispose();
-    // server startup workflow, @see run_master()
+// server startup workflow, @see run_master()
 public:
     /**
      * initialize server with callback handler ch.
@@ -310,7 +310,7 @@ public:
     virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
     virtual srs_error_t cycle();
-    // server utilities.
+// server utilities.
 public:
     /**
      * callback for signal manager got a signal.

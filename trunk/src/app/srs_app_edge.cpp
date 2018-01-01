@@ -72,9 +72,9 @@ SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
     close();
 }
 
-int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
+srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     SrsRequest* req = r;
     
@@ -86,9 +86,7 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {
-            ret = ERROR_EDGE_VHOST_REMOVED;
-            srs_warn("vhost %s removed. ret=%d", req->vhost.c_str(), ret);
-            return ret;
+            return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost.c_str());
         }
         
         // select the origin.
@@ -120,25 +118,23 @@ int SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        srs_error("edge pull %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
-        return ret;
+    if ((err = sdk->connect()) != srs_success) {
+        return srs_error_wrap(err, "edge pull %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->play()) != ERROR_SUCCESS) {
-        srs_error("edge pull %s stream failed. ret=%d", url.c_str(), ret);
-        return ret;
+    if ((err = sdk->play()) != srs_success) {
+        return srs_error_wrap(err, "edge pull %s stream failed", url.c_str());
     }
     
-    return ret;
+    return err;
 }
 
-int SrsEdgeRtmpUpstream::recv_message(SrsCommonMessage** pmsg)
+srs_error_t SrsEdgeRtmpUpstream::recv_message(SrsCommonMessage** pmsg)
 {
     return sdk->recv_message(pmsg);
 }
 
-int SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
+srs_error_t SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
     return sdk->decode_message(msg, ppacket);
 }
@@ -246,7 +242,6 @@ srs_error_t SrsEdgeIngester::cycle()
 
 srs_error_t SrsEdgeIngester::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     while (true) {
@@ -265,12 +260,12 @@ srs_error_t SrsEdgeIngester::do_cycle()
             return srs_error_wrap(err, "on source id changed");
         }
         
-        if ((ret = upstream->connect(req, lb)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "connect upstream");
+        if ((err = upstream->connect(req, lb)) != srs_success) {
+            return srs_error_wrap(err, "connect upstream");
         }
         
-        if ((ret = edge->on_ingest_play()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "notify edge play");
+        if ((err = edge->on_ingest_play()) != srs_success) {
+            return srs_error_wrap(err, "notify edge play");
         }
         
         err = ingest();
@@ -288,12 +283,11 @@ srs_error_t SrsEdgeIngester::do_cycle()
         break;
     }
     
-    return srs_error_new(ret, "cycle");
+    return err;
 }
 
 srs_error_t SrsEdgeIngester::ingest()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
@@ -317,8 +311,8 @@ srs_error_t SrsEdgeIngester::ingest()
         
         // read from client.
         SrsCommonMessage* msg = NULL;
-        if ((ret = upstream->recv_message(&msg)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "recv message");
+        if ((err = upstream->recv_message(&msg)) != srs_success) {
+            return srs_error_wrap(err, "recv message");
         }
         
         srs_assert(msg);
@@ -334,7 +328,6 @@ srs_error_t SrsEdgeIngester::ingest()
 
 srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // process audio packet
@@ -362,8 +355,8 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
-        if ((ret = upstream->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "decode message");
+        if ((err = upstream->decode_message(msg, &pkt)) != srs_success) {
+            return srs_error_wrap(err, "decode message");
         }
         SrsAutoFree(SrsPacket, pkt);
         
@@ -381,8 +374,8 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
     // call messages, for example, reject, redirect.
     if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
         SrsPacket* pkt = NULL;
-        if ((ret = upstream->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "decode message");
+        if ((err = upstream->decode_message(msg, &pkt)) != srs_success) {
+            return srs_error_wrap(err, "decode message");
         }
         SrsAutoFree(SrsPacket, pkt);
         
@@ -456,7 +449,6 @@ srs_error_t SrsEdgeForwarder::initialize(SrsSource* s, SrsPublishEdge* e, SrsReq
 
 srs_error_t SrsEdgeForwarder::start()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // reset the error code.
@@ -486,12 +478,12 @@ srs_error_t SrsEdgeForwarder::start()
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
-    if ((ret = sdk->connect()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
+    if ((err = sdk->connect()) != srs_success) {
+        return srs_error_wrap(err, "sdk connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((ret = sdk->publish()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "sdk publish");
+    if ((err = sdk->publish()) != srs_success) {
+        return srs_error_wrap(err, "sdk publish");
     }
     
     srs_freep(trd);
@@ -537,7 +529,6 @@ srs_error_t SrsEdgeForwarder::cycle()
 
 srs_error_t SrsEdgeForwarder::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
@@ -560,15 +551,17 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
-            ret = sdk->recv_message(&msg);
+            err = sdk->recv_message(&msg);
             
             srs_verbose("edge loop recv message. ret=%d", ret);
-            if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                srs_error("edge push get server control message failed. ret=%d", ret);
-                send_error_code = ret;
+            if (err != srs_success && srs_error_code(err) != ERROR_SOCKET_TIMEOUT) {
+                srs_error("edge push get server control message failed. err=%s", srs_error_desc(err).c_str());
+                send_error_code = srs_error_code(err);
+                srs_error_reset(err);
                 continue;
             }
             
+            srs_error_reset(err);
             srs_freep(msg);
         }
         
@@ -593,8 +586,8 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
         
         // sendout messages, all messages are freed by send_and_free_messages().
-        if ((ret = sdk->send_and_free_messages(msgs.msgs, count)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "send messages");
+        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
+            return srs_error_wrap(err, "send messages");
         }
     }
     
@@ -603,11 +596,10 @@ srs_error_t SrsEdgeForwarder::do_cycle()
 
 srs_error_t SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = send_error_code) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "edge forwarder");
+    if (send_error_code != ERROR_SUCCESS) {
+        return srs_error_new(send_error_code, "edge forwarder");
     }
     
     // the msg is auto free by source,
@@ -620,8 +612,8 @@ srs_error_t SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
     }
     
     SrsSharedPtrMessage copy;
-    if ((ret = copy.create(msg)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "create message");
+    if ((err = copy.create(msg)) != srs_success) {
+        return srs_error_wrap(err, "create message");
     }
     
     copy.stream_id = sdk->sid();
@@ -654,22 +646,17 @@ srs_error_t SrsPlayEdge::initialize(SrsSource* source, SrsRequest* req)
     return err;
 }
 
-int SrsPlayEdge::on_client_play()
+srs_error_t SrsPlayEdge::on_client_play()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // start ingest when init state.
     if (state == SrsEdgeStateInit) {
         state = SrsEdgeStatePlay;
         err = ingester->start();
-        
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
     }
     
-    return ret;
+    return err;
 }
 
 void SrsPlayEdge::on_all_client_stop()
@@ -692,13 +679,13 @@ string SrsPlayEdge::get_curr_origin()
     return ingester->get_curr_origin();
 }
 
-int SrsPlayEdge::on_ingest_play()
+srs_error_t SrsPlayEdge::on_ingest_play()
 {
-    int ret = ERROR_SUCCESS;
+    srs_error_t err = srs_success;
     
     // when already connected(for instance, reconnect for error), ignore.
     if (state == SrsEdgeStateIngestConnected) {
-        return ret;
+        return err;
     }
     
     srs_assert(state == SrsEdgeStatePlay);
@@ -707,7 +694,7 @@ int SrsPlayEdge::on_ingest_play()
     state = SrsEdgeStateIngestConnected;
     srs_trace("edge change from %d to state %d (pull).", pstate, state);
     
-    return ret;
+    return err;
 }
 
 SrsPublishEdge::SrsPublishEdge()

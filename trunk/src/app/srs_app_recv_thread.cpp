@@ -125,7 +125,6 @@ srs_error_t SrsRecvThread::cycle()
 
 srs_error_t SrsRecvThread::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     while (true) {
@@ -142,24 +141,19 @@ srs_error_t SrsRecvThread::do_cycle()
         SrsCommonMessage* msg = NULL;
         
         // Process the received message.
-        if ((ret = rtmp->recv_message(&msg)) == ERROR_SUCCESS) {
-            ret = pumper->consume(msg);
+        if ((err = rtmp->recv_message(&msg)) == srs_success) {
+            err = pumper->consume(msg);
         }
         
-        if (ret != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret) && !srs_is_system_control_error(ret)) {
-                srs_error("recv thread error. ret=%d", ret);
-            }
-            
+        if (err != srs_success) {
             // Interrupt the receive thread for any error.
             trd->interrupt();
             
             // Notify the pumper to quit for error.
-            pumper->interrupt(ret);
+            pumper->interrupt(err);
             
-            return srs_error_new(ret, "recv thread");
+            return srs_error_wrap(err, "recv thread");
         }
-        srs_verbose("thread loop recv message. ret=%d", ret);
     }
     
     return err;
@@ -170,7 +164,7 @@ SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtm
 {
     _consumer = consumer;
     rtmp = rtmp_sdk;
-    recv_error_code = ERROR_SUCCESS;
+    recv_error = srs_success;
 }
 
 SrsQueueRecvThread::~SrsQueueRecvThread()
@@ -184,6 +178,8 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
         srs_freep(msg);
     }
     queue.clear();
+    
+    srs_freep(recv_error);
 }
 
 srs_error_t SrsQueueRecvThread::start()
@@ -223,12 +219,12 @@ SrsCommonMessage* SrsQueueRecvThread::pump()
     return msg;
 }
 
-int SrsQueueRecvThread::error_code()
+srs_error_t SrsQueueRecvThread::error_code()
 {
-    return recv_error_code;
+    return srs_error_copy(recv_error);
 }
 
-int SrsQueueRecvThread::consume(SrsCommonMessage* msg)
+srs_error_t SrsQueueRecvThread::consume(SrsCommonMessage* msg)
 {
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
@@ -238,7 +234,7 @@ int SrsQueueRecvThread::consume(SrsCommonMessage* msg)
         _consumer->wakeup();
     }
 #endif
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 bool SrsQueueRecvThread::interrupted()
@@ -250,9 +246,10 @@ bool SrsQueueRecvThread::interrupted()
     return !empty();
 }
 
-void SrsQueueRecvThread::interrupt(int ret)
+void SrsQueueRecvThread::interrupt(srs_error_t err)
 {
-    recv_error_code = ret;
+    srs_freep(recv_error);
+    recv_error = srs_error_copy(err);
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (_consumer) {
@@ -283,7 +280,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     _conn = conn;
     _source = source;
     
-    recv_error_code = ERROR_SUCCESS;
+    recv_error = srs_success;
     _nb_msgs = 0;
     video_frames = 0;
     error = srs_cond_new();
@@ -308,18 +305,19 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     
     trd.stop();
     srs_cond_destroy(error);
+    srs_freep(recv_error);
 }
 
-int SrsPublishRecvThread::wait(uint64_t timeout_ms)
+srs_error_t SrsPublishRecvThread::wait(uint64_t timeout_ms)
 {
-    if (recv_error_code != ERROR_SUCCESS) {
-        return recv_error_code;
+    if (recv_error != srs_success) {
+        return srs_error_copy(recv_error);
     }
     
     // ignore any return of cond wait.
     srs_cond_timedwait(error, timeout_ms * 1000);
     
-    return ERROR_SUCCESS;
+    return srs_success;
 }
 
 int64_t SrsPublishRecvThread::nb_msgs()
@@ -332,9 +330,9 @@ uint64_t SrsPublishRecvThread::nb_video_frames()
     return video_frames;
 }
 
-int SrsPublishRecvThread::error_code()
+srs_error_t SrsPublishRecvThread::error_code()
 {
-    return recv_error_code;
+    return srs_error_copy(recv_error);
 }
 
 void SrsPublishRecvThread::set_cid(int v)
@@ -365,9 +363,8 @@ void SrsPublishRecvThread::stop()
     trd.stop();
 }
 
-int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
+srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // when cid changed, change it.
@@ -388,15 +385,16 @@ int SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     
     // the rtmp connection will handle this message
     err = _conn->handle_publish_message(_source, msg);
-    // TODO: FIXME: Use error
-    ret = srs_error_code(err);
-    srs_freep(err);
     
     // must always free it,
     // the source will copy it if need to use.
     srs_freep(msg);
     
-    return ret;
+    if (err != srs_success) {
+        return srs_error_wrap(err, "handle publish message");
+    }
+    
+    return err;
 }
 
 bool SrsPublishRecvThread::interrupted()
@@ -405,9 +403,10 @@ bool SrsPublishRecvThread::interrupted()
     return false;
 }
 
-void SrsPublishRecvThread::interrupt(int ret)
+void SrsPublishRecvThread::interrupt(srs_error_t err)
 {
-    recv_error_code = ret;
+    srs_freep(recv_error);
+    recv_error = srs_error_copy(err);
     
     // when recv thread error, signal the conn thread to process it.
     // @see https://github.com/ossrs/srs/issues/244

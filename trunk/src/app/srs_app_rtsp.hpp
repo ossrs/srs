@@ -104,7 +104,7 @@ public:
     virtual ~SrsRtspJitter();
 public:
     virtual int64_t timestamp();
-    virtual int correct(int64_t& ts);
+    virtual srs_error_t correct(int64_t& ts);
 };
 
 /**
@@ -162,18 +162,18 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    virtual int on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
-    virtual int on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
-    virtual int kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
+    virtual srs_error_t on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
 private:
-    virtual int write_sequence_header();
-    virtual int write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual int write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
-    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
-    virtual int rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+    virtual srs_error_t write_sequence_header();
+    virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+    virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
 private:
     // Connect to RTMP server.
-    virtual int connect();
+    virtual srs_error_t connect();
     // Close the connection to RTMP server.
     virtual void close();
 };
@@ -199,7 +199,7 @@ public:
      * alloc a rtp port from local ports pool.
      * @param pport output the rtp port.
      */
-    virtual int alloc_port(int* pport);
+    virtual srs_error_t alloc_port(int* pport);
     /**
      * free the alloced rtp port.
      */

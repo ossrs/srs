@@ -85,7 +85,7 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 {
 }
 
-int SrsSimpleRtmpClient::connect_app()
+srs_error_t SrsSimpleRtmpClient::connect_app()
 {
     std::vector<std::string> ips = srs_get_local_ipv4_ips();
     assert(_srs_config->get_stats_network() < (int)ips.size());
@@ -159,7 +159,6 @@ void SrsRtmpConn::dispose()
 // TODO: return detail message when error for client.
 srs_error_t SrsRtmpConn::do_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
@@ -174,13 +173,13 @@ srs_error_t SrsRtmpConn::do_cycle()
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
-    if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp handshake");
+    if ((err = rtmp->handshake()) != srs_success) {
+        return srs_error_wrap(err, "rtmp handshake");
     }
     
     SrsRequest* req = info->req;
-    if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp connect tcUrl");
+    if ((err = rtmp->connect_app(req)) != srs_success) {
+        return srs_error_wrap(err, "rtmp connect tcUrl");
     }
     
     // set client ip to request.
@@ -191,9 +190,6 @@ srs_error_t SrsRtmpConn::do_cycle()
     if (parsed_vhost) {
         req->vhost = parsed_vhost->arg0();
     }
-    
-    srs_info("discovery app success. schema=%s, vhost=%s, port=%d, app=%s",
-        req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     
     if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
         return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
@@ -231,8 +227,6 @@ srs_error_t SrsRtmpConn::do_cycle()
             srs_id = (int)prop->to_number();
         }
         
-        srs_info("edge-srs ip=%s, version=%s, pid=%d, id=%d",
-            srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         if (srs_pid > 0) {
             srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d",
                 srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
@@ -377,23 +371,22 @@ void SrsRtmpConn::cleanup()
 
 srs_error_t SrsRtmpConn::service_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     int out_ack_size = _srs_config->get_out_ack_size(req->vhost);
-    if (out_ack_size && (ret = rtmp->set_window_ack_size(out_ack_size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: set out window ack size");
+    if (out_ack_size && (err = rtmp->set_window_ack_size(out_ack_size)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: set out window ack size");
     }
     
     int in_ack_size = _srs_config->get_in_ack_size(req->vhost);
-    if (in_ack_size && (ret = rtmp->set_in_window_ack_size(in_ack_size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: set in window ack size");
+    if (in_ack_size && (err = rtmp->set_in_window_ack_size(in_ack_size)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: set in window ack size");
     }
     
-    if ((ret = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: set peer bandwidth");
+    if ((err = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: set peer bandwidth");
     }
     
     // get the ip which client connected.
@@ -401,8 +394,8 @@ srs_error_t SrsRtmpConn::service_cycle()
     
     // do bandwidth test if connect to the vhost which is for bandwidth check.
     if (_srs_config->get_bw_check_enabled(req->vhost)) {
-        if ((ret = bandwidth->bandwidth_check(rtmp, skt, req, local_ip)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: bandwidth check");
+        if ((err = bandwidth->bandwidth_check(rtmp, skt, req, local_ip)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: bandwidth check");
         }
         return err;
     }
@@ -423,17 +416,17 @@ srs_error_t SrsRtmpConn::service_cycle()
     // set the chunk size before any larger response greater than 128,
     // to make OBS happy, @see https://github.com/ossrs/srs/issues/454
     int chunk_size = _srs_config->get_chunk_size(req->vhost);
-    if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: set chunk size %d", chunk_size);
+    if ((err = rtmp->set_chunk_size(chunk_size)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: set chunk size %d", chunk_size);
     }
     
     // response the client connect ok.
-    if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: response connect app");
+    if ((err = rtmp->response_connect_app(req, local_ip.c_str())) != srs_success) {
+        return srs_error_wrap(err, "rtmp: response connect app");
     }
     
-    if ((ret = rtmp->on_bw_done()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: on bw down");
+    if ((err = rtmp->on_bw_done()) != srs_success) {
+        return srs_error_wrap(err, "rtmp: on bw down");
     }
     
     while (true) {
@@ -490,21 +483,20 @@ srs_error_t SrsRtmpConn::service_cycle()
 
 srs_error_t SrsRtmpConn::stream_service_cycle()
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
-    if ((ret = rtmp->identify_client(info->res->stream_id, info->type, req->stream, req->duration)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: identify client");
+    if ((err = rtmp->identify_client(info->res->stream_id, info->type, req->stream, req->duration)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: identify client");
     }
     req->strip();
     srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f",
         srs_client_type_string(info->type).c_str(), req->stream.c_str(), req->duration);
     
     // security check
-    if ((ret = security->check(info->type, ip, req)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: security check");
+    if ((err = security->check(info->type, ip, req)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: security check");
     }
     
     // Never allow the empty stream name, for HLS may write to a file with empty name.
@@ -526,8 +518,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->on_client(_srs_context->get_id(), req, this, info->type)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: stat client");
+    if ((err = stat->on_client(_srs_context->get_id(), req, this, info->type)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: stat client");
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
@@ -538,8 +530,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     switch (info->type) {
         case SrsRtmpConnPlay: {
             // response connection start play
-            if ((ret = rtmp->start_play(info->res->stream_id)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: start play");
+            if ((err = rtmp->start_play(info->res->stream_id)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: start play");
             }
             if ((err = http_hooks_on_play()) != srs_success) {
                 return srs_error_wrap(err, "rtmp: callback on play");
@@ -551,22 +543,22 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             return err;
         }
         case SrsRtmpConnFMLEPublish: {
-            if ((ret = rtmp->start_fmle_publish(info->res->stream_id)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: start FMLE publish");
+            if ((err = rtmp->start_fmle_publish(info->res->stream_id)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: start FMLE publish");
             }
             
             return publishing(source);
         }
         case SrsRtmpConnHaivisionPublish: {
-            if ((ret = rtmp->start_haivision_publish(info->res->stream_id)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: start HAIVISION publish");
+            if ((err = rtmp->start_haivision_publish(info->res->stream_id)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: start HAIVISION publish");
             }
             
             return publishing(source);
         }
         case SrsRtmpConnFlashPublish: {
-            if ((ret = rtmp->start_flash_publish(info->res->stream_id)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: start FLASH publish");
+            if ((err = rtmp->start_flash_publish(info->res->stream_id)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: start FLASH publish");
             }
             
             return publishing(source);
@@ -581,7 +573,6 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
 srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
@@ -602,8 +593,8 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
     }
     
     if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_all(req->vhost))) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: referer check");
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_all(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
         }
     }
     
@@ -652,15 +643,14 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
 
 srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* rtrd)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     srs_assert(consumer != NULL);
     
     SrsRequest* req = info->req;
     if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: referer check");
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
         }
     }
     
@@ -707,8 +697,8 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         }
         
         // quit when recv thread error.
-        if ((ret = rtrd->error_code()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: recv thread");
+        if ((err = rtrd->error_code()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: recv thread");
         }
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
@@ -766,8 +756,8 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         
         // sendout messages, all messages are freed by send_and_free_messages().
         // no need to assert msg, for the rtmp will assert it.
-        if (count > 0 && (ret = rtmp->send_and_free_messages(msgs.msgs, count, info->res->stream_id)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: send %d messages", count);
+        if (count > 0 && (err = rtmp->send_and_free_messages(msgs.msgs, count, info->res->stream_id)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: send %d messages", count);
         }
         
         // if duration specified, and exceed it, stop play live.
@@ -789,14 +779,13 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
 
 srs_error_t SrsRtmpConn::publishing(SrsSource* source)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
     
     if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: referer check");
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
         }
     }
     
@@ -828,7 +817,6 @@ srs_error_t SrsRtmpConn::publishing(SrsSource* source)
 
 srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* rtrd)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
@@ -878,8 +866,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         }
         
         // check the thread error code.
-        if ((ret = rtrd->error_code()) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: receive thread");
+        if ((err = rtrd->error_code()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: receive thread");
         }
         
         // when not got any messages, timeout.
@@ -892,8 +880,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         // Update the stat for video fps.
         // @remark https://github.com/ossrs/srs/issues/851
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_video_frames(req, (int)(rtrd->nb_video_frames() - nb_frames))) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: stat video frames");
+        if ((err = stat->on_video_frames(req, (int)(rtrd->nb_video_frames() - nb_frames))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat video frames");
         }
         nb_frames = rtrd->nb_video_frames();
 
@@ -948,14 +936,13 @@ void SrsRtmpConn::release_publish(SrsSource* source)
 
 srs_error_t SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // process publish event.
     if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
         SrsPacket* pkt = NULL;
-        if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: decode message");
+        if ((err = rtmp->decode_message(msg, &pkt)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: decode message");
         }
         SrsAutoFree(SrsPacket, pkt);
         
@@ -970,8 +957,8 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMess
         // for fmle, drop others except the fmle start packet.
         if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
             SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
-            if ((ret = rtmp->fmle_unpublish(info->res->stream_id, unpublish->transaction_id)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: republish");
+            if ((err = rtmp->fmle_unpublish(info->res->stream_id, unpublish->transaction_id)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: republish");
             }
             return srs_error_new(ERROR_CONTROL_REPUBLISH, "rtmp: republish");
         }
@@ -990,7 +977,6 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMess
 
 srs_error_t SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     // for edge, directly proxy message to origin.
@@ -1027,8 +1013,8 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMes
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
-        if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: decode message");
+        if ((err = rtmp->decode_message(msg, &pkt)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: decode message");
         }
         SrsAutoFree(SrsPacket, pkt);
         
@@ -1047,7 +1033,6 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMes
 
 srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     if (!msg) {
@@ -1060,8 +1045,8 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsComm
     }
     
     SrsPacket* pkt = NULL;
-    if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: decode message");
+    if ((err = rtmp->decode_message(msg, &pkt)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: decode message");
     }
     SrsAutoFree(SrsPacket, pkt);
     
@@ -1084,8 +1069,8 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsComm
             SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
             res->command_object = SrsAmf0Any::null();
             res->response = SrsAmf0Any::null();
-            if ((ret = rtmp->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
-                return srs_error_new(ret, "rtmp: send packets");
+            if ((err = rtmp->send_and_free_packet(res, 0)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: send packets");
             }
         }
         return err;
@@ -1094,8 +1079,8 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsComm
     // pause
     SrsPausePacket* pause = dynamic_cast<SrsPausePacket*>(pkt);
     if (pause) {
-        if ((ret = rtmp->on_play_client_pause(info->res->stream_id, pause->is_pause)) != ERROR_SUCCESS) {
-            return srs_error_new(ret, "rtmp: pause");
+        if ((err = rtmp->on_play_client_pause(info->res->stream_id, pause->is_pause)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: pause");
         }
         if ((err = consumer->on_play_client_pause(pause->is_pause)) != srs_success) {
             return srs_error_wrap(err, "rtmp: pause");
@@ -1226,7 +1211,6 @@ srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
 
 srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
@@ -1235,13 +1219,13 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     client->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     client->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
     
-    if ((ret = client->handshake()) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: handshake");
+    if ((err = client->handshake()) != srs_success) {
+        return srs_error_wrap(err, "rtmp: handshake");
     }
     
     // for token tranverse, always take the debug info(which carries token).
-    if ((ret = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != ERROR_SUCCESS) {
-        return srs_error_new(ret, "rtmp: connect tcUrl");
+    if ((err = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
     
     srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl.c_str());
@@ -1284,7 +1268,6 @@ srs_error_t SrsRtmpConn::http_hooks_on_connect()
         SrsConfDirective* conf = _srs_config->get_vhost_on_connect(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_connect");
             return err;
         }
         
@@ -1318,7 +1301,6 @@ void SrsRtmpConn::http_hooks_on_close()
         SrsConfDirective* conf = _srs_config->get_vhost_on_close(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_close");
             return;
         }
         
@@ -1350,7 +1332,6 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
         SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_publish");
             return err;
         }
         
@@ -1384,7 +1365,6 @@ void SrsRtmpConn::http_hooks_on_unpublish()
         SrsConfDirective* conf = _srs_config->get_vhost_on_unpublish(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_unpublish");
             return;
         }
         
@@ -1416,7 +1396,6 @@ srs_error_t SrsRtmpConn::http_hooks_on_play()
         SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_play");
             return err;
         }
         
@@ -1450,7 +1429,6 @@ void SrsRtmpConn::http_hooks_on_stop()
         SrsConfDirective* conf = _srs_config->get_vhost_on_stop(req->vhost);
         
         if (!conf) {
-            srs_info("ignore the empty http callback: on_stop");
             return;
         }
         
