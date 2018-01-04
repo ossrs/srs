@@ -332,6 +332,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-01-04, Merge [#1039][bug #1039], fix bug of init.d script.
 * v2.0, 2018-01-01, Merge [#1033][bug #1033], allow user to add some specific flags. 2.0.244
 * <strong>v2.0, 2017-06-10, [2.0 release2(2.0.243)][r2.0r2] released. 86670 lines.</strong>
 * v2.0, 2017-05-29, Merge [#899][bug #899] to fix [#893][bug #893], ts PES ext length. 2.0.243
@@ -1298,6 +1299,7 @@ Winlin
 [bug #893]: https://github.com/ossrs/srs/issues/893
 [bug #899]: https://github.com/ossrs/srs/issues/899
 [bug #1033]: https://github.com/ossrs/srs/issues/1033
+[bug #1039]: https://github.com/ossrs/srs/issues/1039
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
