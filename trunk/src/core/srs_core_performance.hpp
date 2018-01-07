@@ -188,9 +188,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #undef SRS_PERF_FAST_FLV_ENCODER
 #define SRS_PERF_FAST_FLV_ENCODER
 
-// Whether set SO_KEEPALIVE for TCP connection.
-// @see https://github.com/ossrs/srs/issues/1044
-#undef SRS_PERF_SO_KEEPALIVE
-
 #endif
 
