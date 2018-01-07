@@ -227,6 +227,13 @@ srs_error_t SrsTcpListener::listen()
     if ((_fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket. ip=%s, port=%d", ip.c_str(), port);
     }
+    
+#ifdef SRS_PERF_SO_KEEPALIVE
+    int tcp_keepalive = 1;
+    if (setsockopt(_fd, SOL_SOCKET, SO_KEEPALIVE, &tcp_keepalive, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "setsockopt SO_KEEPALIVE[%d]error. port=%d", tcp_keepalive, port);
+    }
+#endif
 
     srs_fd_close_exec(_fd);
     srs_socket_reuse_addr(_fd);

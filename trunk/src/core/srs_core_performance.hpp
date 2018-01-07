@@ -190,5 +190,9 @@
 #define SRS_PERF_GLIBC_MEMORY_CHECK
 #undef SRS_PERF_GLIBC_MEMORY_CHECK
 
+// Whether set SO_KEEPALIVE for TCP connection.
+// @see https://github.com/ossrs/srs/issues/1044
+#undef SRS_PERF_SO_KEEPALIVE
+
 #endif
 
