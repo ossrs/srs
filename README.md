@@ -32,7 +32,6 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 * [System Architecture](#system-architecture)
 * [Modularity Architecture](#modularity-architecture)
 * [Stream Architecture](#stream-architecture)
-* [Tips](#tips)
 * [Authors](#authors)
 * [Mirrors](#mirrors)
 * [System Requirements](#system-requirements)
@@ -945,10 +944,6 @@ Remark:
 1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v1_CN_Ingest].
 1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v2_CN_Streamer].
 1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v3_CN_NgExec].
-
-## Tips
-
-Other tips is comming...
 
 ### AUTHORS
 
