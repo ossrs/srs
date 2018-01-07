@@ -6,7 +6,7 @@
 
 SRS/3.0, [OuXuli][release3]<br/>
 SRS是大娱乐直播领域广泛应用的野鸡服务器，志存高远不限于色情行业。<br/>
-SRS's an industrial-strength live streaming cluster, with the simplest implementation and the best conceptual integrity.
+SRS's a simplest, conceptual integrated, industrial-strength live streaming origin cluster.
 
 Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
@@ -39,16 +39,31 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 ## About
 
-SRS(Simple RTMP Server) is created in 2013.10 by winlin.
-SRS supports the major internet live steraming protocols including RTMP, HLS, HTTP-FLV, HDS and MPEG-DASH.
-User can run SRS on LINUX and OSX, with CPUs such as X86, X64, ARM and MIPS.
-The cluster feature consists of origin and edge server, which uses vhost as the service unit seperating config for customers.
-There're lots of useful features in origin server, including transcoding, DVR, ingesting and forwarding.
-The ST coroutine, HTTP API and tracable log cost SRS effective for maintainability.
-All wikis are writen in English and Chinese.
+SRS's a simplest, conceptual integrated, industrial-strength live streaming origin cluster.
+
+It's created in 2013.10, by winlin, patched by many developers.
 
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
 which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+
+We always choose the best arch to write simplest code.
+It's easy to use for the English and Chinese wikis.
+The embeded HTTP API and tracable log is useful to integrate.
+
+All features are conceptual integrated.
+The live streaming features include RTMP, HTTP-FLV, HLS, HDS and MPEG-DASH, covering major protocols.
+The transform features include DVR, Transcode, Forward and Ingest, which is powerful and convenient.
+The origin-edge and origin-origin clusters provide strong fault-tolerance and load-balance feature.
+User can run SRS on LINUX and OSX, with CPUs such as X86, X64, ARM and MIPS.
+
+> Remark: The origin-edge cluster is released, while the origin-origin cluster is coming soon.
+
+The goal is industrial-strength live streaming origin cluster.
+The utests will cover full use-scenarios to avoid bugs from new code.
+Complex error logs the stack and message from each level.
+The FT and LB cluster make the servies robust.
+
+> Remark: We are working on utest now.
 
 Enjoy it!
 
