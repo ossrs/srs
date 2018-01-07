@@ -223,7 +223,7 @@ int SrsTcpListener::listen()
     }
     srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", port, _fd);
     
-#ifdef SO_KEEPALIVE
+#ifdef SRS_PERF_SO_KEEPALIVE
     int tcp_keepalive = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_KEEPALIVE, &tcp_keepalive, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETKEEPALIVE;

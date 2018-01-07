@@ -332,6 +332,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-01-07, Merge [#1045][bug #1045], fix [#1044][bug #1044], TCP connection alive detection. 2.0.245
 * v2.0, 2018-01-04, Merge [#1039][bug #1039], fix bug of init.d script.
 * v2.0, 2018-01-01, Merge [#1033][bug #1033], allow user to add some specific flags. 2.0.244
 * <strong>v2.0, 2017-06-10, [2.0 release2(2.0.243)][r2.0r2] released. 86670 lines.</strong>
@@ -1300,6 +1301,8 @@ Winlin
 [bug #899]: https://github.com/ossrs/srs/issues/899
 [bug #1033]: https://github.com/ossrs/srs/issues/1033
 [bug #1039]: https://github.com/ossrs/srs/issues/1039
+[bug #1044]: https://github.com/ossrs/srs/issues/1044
+[bug #1045]: https://github.com/ossrs/srs/issues/1045
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
