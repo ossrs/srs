@@ -223,6 +223,16 @@ int SrsTcpListener::listen()
     }
     srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", port, _fd);
     
+#ifdef SO_KEEPALIVE
+    int tcp_keepalive = 1;
+    if (setsockopt(_fd, SOL_SOCKET, SO_KEEPALIVE, &tcp_keepalive, sizeof(int)) == -1) {
+        ret = ERROR_SOCKET_SETKEEPALIVE;
+        srs_error("setsockopt SO_KEEPALIVE[%d]error. port=%d, ret=%d", tcp_keepalive, port, ret);
+        return ret;
+    }
+    srs_verbose("setsockopt SO_KEEPALIVE[%d]success. port=%d", tcp_keepalive, port);
+#endif
+
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
