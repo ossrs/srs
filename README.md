@@ -64,6 +64,8 @@ The FT and LB cluster make the servies robust.
 
 > Remark: We are working on utest now.
 
+> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
+
 Enjoy it!
 
 <a name="product"></a>
@@ -95,7 +97,7 @@ cd srs/trunk
 ./objs/srs -c conf/srs.conf
 ```
 
-<strong>From here, </strong> strongly recommend to try other main scenarios:
+<strong>From here, </strong> strongly recommend to try other main use-scenarios:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
@@ -112,7 +114,7 @@ cd srs/trunk
 * Usage: How to run the demostration of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
 * Usage: Who are using SRS?([CN][v1_CN_Sample])
-* Usage: Why choose SRS?([CN][v1_CN_Product], [EN][v1_EN_Product])
+* Usage: Why choose SRS? About the milestone and product plan? ([CN][v1_CN_Product], [EN][v1_EN_Product])
 
 ### SRS 1.0 wiki
 
@@ -186,6 +188,8 @@ Please select according to languages:
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
+
+> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
 <a name="history"></a>
 <a name="change-logs"></a>
