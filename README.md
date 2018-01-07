@@ -178,9 +178,11 @@ Please select according to languages:
 - [x] Enhanced json, replace NXJSON(LGPL) with json-parser(BSD), read [#904][bug #904].
 - [x] Support valgrind and latest ARM by patching ST, read [ST#1](https://github.com/ossrs/state-threads/issues/1) and [ST#2](https://github.com/ossrs/state-threads/issues/2).
 - [x] Support tracable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
-- [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB.
+- [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(200kbps), CPU 82%, 203MB.
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
+- [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
+- [ ] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [ ] Support source cleanup for idle streams.
 - [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
@@ -1431,6 +1433,7 @@ Winlin
 [bug #904]: https://github.com/ossrs/srs/issues/904
 [bug #821]: https://github.com/ossrs/srs/issues/821
 [bug #913]: https://github.com/ossrs/srs/issues/913
+[bug #460]: https://github.com/ossrs/srs/issues/460
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
