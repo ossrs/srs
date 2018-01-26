@@ -1018,7 +1018,9 @@ SrsSource::~SrsSource()
 void SrsSource::dispose()
 {
 #ifdef SRS_AUTO_HLS
-    hls->dispose();
+    if (!_srs_config->get_vhost_is_edge(_req->vhost)) {
+        hls->dispose();
+    }
 #endif
     
     // cleaup the cached packets.
