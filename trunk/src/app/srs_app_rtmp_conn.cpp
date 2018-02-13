@@ -465,8 +465,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
-    srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f",
-        srs_client_type_string(info->type).c_str(), req->stream.c_str(), req->duration);
+    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream_name=%s, duration=%.2f",
+        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->duration);
     
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
