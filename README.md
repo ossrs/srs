@@ -332,6 +332,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-02-13, Fix [#1059][bug #1059], support vhost in stream parameters. 2.0.246
 * v2.0, 2018-01-07, Merge [#1045][bug #1045], fix [#1044][bug #1044], TCP connection alive detection. 2.0.245
 * v2.0, 2018-01-04, Merge [#1039][bug #1039], fix bug of init.d script.
 * v2.0, 2018-01-01, Merge [#1033][bug #1033], allow user to add some specific flags. 2.0.244
@@ -1303,6 +1304,7 @@ Winlin
 [bug #1039]: https://github.com/ossrs/srs/issues/1039
 [bug #1044]: https://github.com/ossrs/srs/issues/1044
 [bug #1045]: https://github.com/ossrs/srs/issues/1045
+[bug #1059]: https://github.com/ossrs/srs/issues/1059
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

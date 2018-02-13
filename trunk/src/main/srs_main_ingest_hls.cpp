@@ -1236,7 +1236,7 @@ int SrsIngestSrsOutput::connect()
         }
         
         srs_discovery_tc_url(req->tcUrl,
-            req->schema, req->host, req->vhost, req->app, req->port,
+            req->schema, req->host, req->vhost, req->app, req->stream, req->port,
             req->param);
     }
     

@@ -43,7 +43,7 @@ using namespace std;
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
-    string& app, string& port, std::string& param
+    string& app, string& stream, string& port, std::string& param
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
@@ -70,6 +70,7 @@ void srs_discovery_tc_url(
     app = url;
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
+    srs_vhost_resolve(vhost, stream, param);
 }
 
 void srs_vhost_resolve(string& vhost, string& app, string& param)
