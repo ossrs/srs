@@ -1876,8 +1876,9 @@ srs_error_t SrsRtmpClient::handshake()
             if ((err = simple_hs->handshake_with_server(hs_bytes, io)) != srs_success) {
                 return srs_error_wrap(err, "simple handshake");
             }
+        } else {
+            return srs_error_wrap(err, "complex handshake");
         }
-        return srs_error_wrap(err, "complex handshake");
     }
     
     srs_freep(hs_bytes);
@@ -2272,8 +2273,9 @@ srs_error_t SrsRtmpServer::handshake()
             if ((err = simple_hs.handshake_with_client(hs_bytes, io)) != srs_success) {
                 return srs_error_wrap(err, "simple handshake");
             }
+        } else {
+            return srs_error_wrap(err, "complex handshake");
         }
-        return srs_error_wrap(err, "complex handshake");
     }
     
     srs_freep(hs_bytes);

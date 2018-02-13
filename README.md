@@ -197,6 +197,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-02-13, Fix [#1057][bug #1057], switch to simple handshake. 3.0.28
 * v3.0, 2018-02-13, Fix [#1059][bug #1059], merge from 2.0, supports url with vhost in stream. 3.0.27
 * v3.0, 2018-01-01, Fix [#913][bug #913], support complex error. 3.0.26
 * v3.0, 2017-06-04, Fix [#299][bug #299], support experimental MPEG-DASH. 3.0.25
@@ -1440,6 +1441,7 @@ Winlin
 [bug #821]: https://github.com/ossrs/srs/issues/821
 [bug #913]: https://github.com/ossrs/srs/issues/913
 [bug #460]: https://github.com/ossrs/srs/issues/460
+[bug #1057]: https://github.com/ossrs/srs/issues/1057
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
