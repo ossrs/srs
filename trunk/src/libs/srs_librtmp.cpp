@@ -484,8 +484,8 @@ int srs_librtmp_context_parse_uri(Context* context)
     
     // when connect, we only need to parse the tcUrl
     srs_discovery_tc_url(context->tcUrl,
-                         schema, context->host, context->vhost, context->app, context->port,
-                         context->param);
+        schema, context->host, context->vhost, context->app, context->stream, context->port,
+        context->param);
     
     return ret;
 }

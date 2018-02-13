@@ -2317,7 +2317,7 @@ srs_error_t SrsRtmpServer::connect_app(SrsRequest* req)
         req->args = pkt->args->copy()->to_object();
     }
     
-    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
     
     return err;

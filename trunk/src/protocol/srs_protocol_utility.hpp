@@ -54,8 +54,12 @@ class ISrsProtocolReaderWriter;
  * @param port, for example, 19350
  *       default to 1935 if not specified.
  * param param, for example, vhost=vhost.ossrs.net
+ * @remark The param stream is input and output param, that is:
+ *       input: tcUrl+stream
+ *       output: schema, host, vhost, app, stream, port, param
  */
-extern void srs_discovery_tc_url(std::string tcUrl, std::string& schema, std::string& host, std::string& vhost, std::string& app, int& port, std::string& param);
+extern void srs_discovery_tc_url(std::string tcUrl, std::string& schema, std::string& host, std::string& vhost, std::string& app,
+    std::string& stream, int& port, std::string& param);
 
 // parse query string to map(k,v).
 // must format as key=value&...&keyN=valueN

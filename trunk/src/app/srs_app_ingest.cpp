@@ -368,7 +368,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         std::string tcUrl, schema, host, vhost2, param;
         srs_parse_rtmp_url(output, tcUrl, stream);
-        srs_discovery_tc_url(tcUrl, schema, host, vhost2, app, port, param);
+        srs_discovery_tc_url(tcUrl, schema, host, vhost2, app, stream, port, param);
     }
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled

@@ -43,7 +43,7 @@ SrsBasicRtmpClient::SrsBasicRtmpClient(string u, int64_t ctm, int64_t stm)
     
     req = new SrsRequest();
     srs_parse_rtmp_url(url, req->tcUrl, req->stream);
-    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port, req->param);
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     
     transport = NULL;
     client = NULL;

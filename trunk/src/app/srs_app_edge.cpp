@@ -97,10 +97,10 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         // override the origin info by redirect.
         if (!redirect.empty()) {
             int _port;
-            string _schema, _vhost, _app, _param, _host;
-            srs_discovery_tc_url(redirect, _schema, _host, _vhost, _app, _port, _param);
+            string _schema, _vhost, _app, _stream, _param, _host;
+            srs_discovery_tc_url(redirect, _schema, _host, _vhost, _app, _stream, _port, _param);
             
-            srs_warn("RTMP redirect %s:%d to %s:%d", server.c_str(), port, _host.c_str(), _port);
+            srs_warn("RTMP redirect %s:%d to %s:%d stream=%s", server.c_str(), port, _host.c_str(), _port, _stream.c_str());
             server = _host;
             port = _port;
         }

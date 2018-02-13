@@ -185,22 +185,6 @@ srs_error_t SrsRtmpConn::do_cycle()
     // set client ip to request.
     req->ip = ip;
     
-    // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
-    if (parsed_vhost) {
-        req->vhost = parsed_vhost->arg0();
-    }
-    
-    if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
-        return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
-            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
-    }
-    
-    // check vhost, allow default vhost.
-    if ((err = check_vhost(true)) != srs_success) {
-        return srs_error_wrap(err, "check vhost");
-    }
-    
     srs_trace("connect app, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, args=%s",
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
         req->schema.c_str(), req->vhost.c_str(), req->port,
@@ -400,18 +384,6 @@ srs_error_t SrsRtmpConn::service_cycle()
         return err;
     }
     
-    // do token traverse before serve it.
-    // @see https://github.com/ossrs/srs/pull/239
-    if (true) {
-        info->edge = _srs_config->get_vhost_is_edge(req->vhost);
-        bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
-        if (info->edge && edge_traverse) {
-            if ((err = check_edge_token_traverse_auth()) != srs_success) {
-                return srs_error_wrap(err, "rtmp: check token traverse");
-            }
-        }
-    }
-    
     // set chunk size to larger.
     // set the chunk size before any larger response greater than 128,
     // to make OBS happy, @see https://github.com/ossrs/srs/issues/454
@@ -490,9 +462,44 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     if ((err = rtmp->identify_client(info->res->stream_id, info->type, req->stream, req->duration)) != srs_success) {
         return srs_error_wrap(err, "rtmp: identify client");
     }
+    
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
     srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f",
         srs_client_type_string(info->type).c_str(), req->stream.c_str(), req->duration);
+    
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
+    if (parsed_vhost) {
+        req->vhost = parsed_vhost->arg0();
+    }
+    
+    if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
+        return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
+            req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
+    }
+    
+    // check vhost, allow default vhost.
+    if ((err = check_vhost(true)) != srs_success) {
+        return srs_error_wrap(err, "check vhost");
+    }
+    
+    srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, args=%s",
+        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
+        req->schema.c_str(), req->vhost.c_str(), req->port,
+        req->app.c_str(), req->stream.c_str(), (req->args? "(obj)":"null"));
+    
+    // do token traverse before serve it.
+    // @see https://github.com/ossrs/srs/pull/239
+    if (true) {
+        info->edge = _srs_config->get_vhost_is_edge(req->vhost);
+        bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
+        if (info->edge && edge_traverse) {
+            if ((err = check_edge_token_traverse_auth()) != srs_success) {
+                return srs_error_wrap(err, "rtmp: check token traverse");
+            }
+        }
+    }
     
     // security check
     if ((err = security->check(info->type, ip, req)) != srs_success) {

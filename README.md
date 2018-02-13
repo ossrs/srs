@@ -181,6 +181,7 @@ Please select according to languages:
 - [x] Support tracable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
 - [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(200kbps), CPU 82%, 203MB.
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
+- [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support listen at IPv4 and IPv6, read [#460][bug #460].
@@ -196,6 +197,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-02-13, Fix [#1059][bug #1059], merge from 2.0, supports url with vhost in stream. 3.0.27
 * v3.0, 2018-01-01, Fix [#913][bug #913], support complex error. 3.0.26
 * v3.0, 2017-06-04, Fix [#299][bug #299], support experimental MPEG-DASH. 3.0.25
 * v3.0, 2017-05-30, Fix [#821][bug #821], support MP4 file parser. 3.0.24
@@ -229,6 +231,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-02-13, Fix [#1059][bug #1059], support vhost in stream parameters. 2.0.246
 * v2.0, 2018-01-07, Merge [#1045][bug #1045], fix [#1044][bug #1044], TCP connection alive detection. 2.0.245
 * v2.0, 2018-01-04, Merge [#1039][bug #1039], fix bug of init.d script.
 * v2.0, 2018-01-01, Merge [#1033][bug #1033], allow user to add some specific flags. 2.0.244
@@ -1424,6 +1427,7 @@ Winlin
 [bug #1039]: https://github.com/ossrs/srs/issues/1039
 [bug #1044]: https://github.com/ossrs/srs/issues/1044
 [bug #1045]: https://github.com/ossrs/srs/issues/1045
+[bug #1059]: https://github.com/ossrs/srs/issues/1059
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735

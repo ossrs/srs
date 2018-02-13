@@ -81,11 +81,8 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     /* others */
 }
 
-void srs_discovery_tc_url(
-                          string tcUrl,
-                          string& schema, string& host, string& vhost,
-                          string& app, int& port, string& param
-                          ) {
+void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vhost, string& app, string& stream, int& port, string& param)
+{
     size_t pos = std::string::npos;
     std::string url = tcUrl;
     
@@ -115,6 +112,7 @@ void srs_discovery_tc_url(
     
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
+    srs_vhost_resolve(vhost, stream, param);
 }
 
 void srs_parse_query_string(string q, map<string,string>& query)
