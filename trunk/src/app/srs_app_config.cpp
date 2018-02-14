@@ -3726,7 +3726,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "cluster") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode") {
+                    if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.cluster.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5155,6 +5155,33 @@ string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
     }
     
     return conf->arg0();
+}
+
+vector<string> SrsConfig::get_vhost_coworkers(string vhost)
+{
+    vector<string> coworkers;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return coworkers;
+    }
+
+    conf = conf->get("cluster");
+    if (!conf) {
+        return coworkers;
+    }
+
+    conf = conf->get("coworkers");
+    for (int i = 0; i < (int)conf->directives.size(); i++) {
+        SrsConfDirective* option = conf->directives[i];
+        if (!option) {
+            continue;
+        }
+
+        coworkers.push_back(option->arg0());
+    }
+
+    return coworkers;
 }
 
 bool SrsConfig::get_security_enabled(string vhost)

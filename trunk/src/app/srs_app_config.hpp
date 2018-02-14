@@ -190,7 +190,7 @@ public:
     virtual SrsConfDirective* copy();
     // @param except the name of sub directive.
     virtual SrsConfDirective* copy(std::string except);
-    // args
+// args
 public:
     /**
      * get the args0,1,2, if user want to get more args,
@@ -200,7 +200,7 @@ public:
     virtual std::string arg1();
     virtual std::string arg2();
     virtual std::string arg3();
-    // directives
+// directives
 public:
     /**
      * get the directive by index.
@@ -224,7 +224,7 @@ public:
      * remove the v from sub directives, user must free the v.
      */
     virtual void remove(SrsConfDirective* v);
-    // help utilities
+// help utilities
 public:
     /**
      * whether current directive is vhost.
@@ -234,7 +234,7 @@ public:
      * whether current directive is stream_caster.
      */
     virtual bool is_stream_caster();
-    // parse utilities
+// parse utilities
 public:
     /**
      * parse config directive from file buffer.
@@ -256,7 +256,7 @@ public:
     virtual SrsJsonAny* dumps_arg0_to_integer();
     virtual SrsJsonAny* dumps_arg0_to_number();
     virtual SrsJsonAny* dumps_arg0_to_boolean();
-    // private parse.
+// private parse.
 private:
     /**
      * the directive parsing type.
@@ -297,7 +297,7 @@ private:
  */
 class SrsConfig
 {
-    // user command
+// user command
 private:
     /**
      * whether srs is run in dolphin mode.
@@ -322,7 +322,7 @@ private:
      * whether show SRS signature and exit.
      */
     bool show_signature;
-    // global env variables.
+// global env variables.
 private:
     /**
      * the user parameters, the argc and argv.
@@ -345,7 +345,7 @@ protected:
      * the directive root.
      */
     SrsConfDirective* root;
-    // reload section
+// reload section
 private:
     /**
      * the reload subscribers, when reload, callback all handlers.
@@ -362,7 +362,7 @@ public:
     virtual bool is_dolphin();
 private:
     virtual void set_config_directive(SrsConfDirective* parent, std::string dir, std::string value);
-    // reload
+// reload
 public:
     /**
      * for reload handler to register itself,
@@ -564,7 +564,7 @@ public:
      * get the cli, the main(argc,argv), program start command.
      */
     virtual std::string argv();
-    // global section
+// global section
 public:
     /**
      * get the directive root, corresponding to the config file.
@@ -619,7 +619,7 @@ public:
     virtual std::string get_work_dir();
     // whether use asprocess mode.
     virtual bool get_asprocess();
-    // stream_caster section
+// stream_caster section
 public:
     /**
      * get all stream_caster in config file.
@@ -649,7 +649,7 @@ public:
      * get the max udp port for rtp of stream caster rtsp.
      */
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
-    // kafka section.
+// kafka section.
 public:
     /**
      * whether the kafka enabled.
@@ -663,7 +663,7 @@ public:
      * get the kafka topic to use for srs.
      */
     virtual std::string get_kafka_topic();
-    // vhost specified section
+// vhost specified section
 public:
     /**
      * get the vhost directive by vhost name.
@@ -826,7 +826,7 @@ public:
      * get the forward directive of vhost.
      */
     virtual SrsConfDirective* get_forwards(std::string vhost);
-    // http_hooks section
+// http_hooks section
 private:
     /**
      * get the http_hooks directive of vhost.
@@ -883,7 +883,7 @@ public:
      * @return the on_hls_notify callback directive, the args is the url to callback.
      */
     virtual SrsConfDirective* get_vhost_on_hls_notify(std::string vhost);
-    // bwct(bandwidth check tool) section
+// bwct(bandwidth check tool) section
 public:
     /**
      * whether bw check enabled for vhost.
@@ -908,7 +908,7 @@ public:
      * @remark this is used to protect the service bandwidth.
      */
     virtual int get_bw_check_limit_kbps(std::string vhost);
-    // vhost cluster section
+// vhost cluster section
 public:
     /**
      * whether vhost is edge mode.
@@ -939,7 +939,12 @@ public:
      * @see https://github.com/ossrs/srs/issues/372
      */
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
-    // vhost security section
+    /**
+     * Get the co-workers of origin cluster.
+     * @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
+     */
+    virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
+// vhost security section
 public:
     /**
      * whether the secrity of vhost enabled.
@@ -949,7 +954,7 @@ public:
      * get the security rules.
      */
     virtual SrsConfDirective* get_security_rules(std::string vhost);
-    // vhost transcode section
+// vhost transcode section
 public:
     /**
      * get the transcode directive of vhost in specified scope.
@@ -1070,7 +1075,7 @@ public:
      * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
      */
     virtual std::string get_engine_output(SrsConfDirective* conf);
-    // vhost exec secion
+// vhost exec secion
 private:
     /**
      * get the exec directive of vhost.
@@ -1111,7 +1116,7 @@ public:
      * get the ingest input url.
      */
     virtual std::string get_ingest_input_url(SrsConfDirective* conf);
-    // log section
+// log section
 public:
     /**
      * whether log to file.
@@ -1134,7 +1139,7 @@ public:
      * @remark, /dev/null to disable it.
      */
     virtual std::string get_ffmpeg_log_dir();
-    // The MPEG-DASH section.
+// The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);
 public:
@@ -1150,7 +1155,7 @@ public:
     virtual std::string get_dash_path(std::string vhost);
     // Get the path for DASH MPD, to generate the MPD file.
     virtual std::string get_dash_mpd_file(std::string vhost);
-    // hls section
+// hls section
 private:
     /**
      * get the hls directive of vhost.
@@ -1231,7 +1236,7 @@ public:
      * that is, to read max bytes of the bytes from the callback, or timeout or error.
      */
     virtual int get_vhost_hls_nb_notify(std::string vhost);
-    // hds section
+// hds section
 private:
     /**
      * get the hds directive of vhost.
@@ -1255,8 +1260,7 @@ public:
      * a window is a set of hds fragments.
      */
     virtual double get_hds_window(const std::string &vhost);
-    
-    // dvr section
+// dvr section
 private:
     /**
      * get the dvr directive.
@@ -1292,7 +1296,7 @@ public:
      * get the time_jitter algorithm for dvr.
      */
     virtual int get_dvr_time_jitter(std::string vhost);
-    // http api section
+// http api section
 private:
     /**
      * whether http api enabled
@@ -1327,7 +1331,7 @@ public:
      * whether allow rpc update.
      */
     virtual bool get_raw_api_allow_update();
-    // http stream section
+// http stream section
 private:
     /**
      * whether http stream enabled.
@@ -1366,7 +1370,7 @@ public:
      * the path on disk for mount root of http vhost.
      */
     virtual std::string get_vhost_http_dir(std::string vhost);
-    // flv live streaming section
+// flv live streaming section
 public:
     /**
      * get whether vhost enabled http flv live stream
@@ -1381,7 +1385,7 @@ public:
      * used to generate the flv stream mount path.
      */
     virtual std::string get_vhost_http_remux_mount(std::string vhost);
-    // http heartbeart section
+// http heartbeart section
 private:
     /**
      * get the heartbeat directive.
@@ -1408,7 +1412,7 @@ public:
      * whether report with summaries of http api: /api/v1/summaries.
      */
     virtual bool get_heartbeat_summaries();
-    // stats section
+// stats section
 private:
     /**
      * get the stats directive.
