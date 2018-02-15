@@ -51,6 +51,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_kafka.hpp>
 #include <srs_app_thread.hpp>
+#include <srs_app_coworkers.hpp>
 
 // system interval in ms,
 // all resolution times should be times togother,
@@ -772,6 +773,9 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/raw", new SrsGoApiRaw(this))) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
+    if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
+        return srs_error_wrap(err, "handle raw");
+    }
     
     // test the request info.
     if ((err = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != srs_success) {
@@ -1397,11 +1401,19 @@ srs_error_t SrsServer::on_publish(SrsSource* s, SrsRequest* r)
         return srs_error_wrap(err, "http mount");
     }
     
+    SrsCoWorkers* coworkers = SrsCoWorkers::instance();
+    if ((err = coworkers->on_publish(s, r)) != srs_success) {
+        return srs_error_wrap(err, "coworkers");
+    }
+    
     return err;
 }
 
 void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
 {
     http_server->http_unmount(s, r);
+    
+    SrsCoWorkers* coworkers = SrsCoWorkers::instance();
+    coworkers->on_unpublish(s, r);
 }
 

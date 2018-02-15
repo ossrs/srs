@@ -1818,11 +1818,11 @@ SrsAmf0Any* SrsJsonObject::to_amf0()
     return obj;
 }
 
-void SrsJsonObject::set(string key, SrsJsonAny* value)
+SrsJsonObject* SrsJsonObject::set(string key, SrsJsonAny* value)
 {
     if (!value) {
         srs_warn("add a NULL propertity %s", key.c_str());
-        return;
+        return this;
     }
     
     std::vector<SrsJsonObjectPropertyType>::iterator it;
@@ -1840,6 +1840,7 @@ void SrsJsonObject::set(string key, SrsJsonAny* value)
     }
     
     properties.push_back(std::make_pair(key, value));
+    return this;
 }
 
 SrsJsonAny* SrsJsonObject::get_property(string name)
@@ -1980,9 +1981,10 @@ void SrsJsonArray::add(SrsJsonAny* value)
     properties.push_back(value);
 }
 
-void SrsJsonArray::append(SrsJsonAny* value)
+SrsJsonArray* SrsJsonArray::append(SrsJsonAny* value)
 {
     add(value);
+    return this;
 }
 
 string SrsJsonArray::dumps()

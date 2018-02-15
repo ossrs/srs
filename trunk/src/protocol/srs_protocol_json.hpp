@@ -145,7 +145,7 @@ public:
     virtual std::string dumps();
     virtual SrsAmf0Any* to_amf0();
 public:
-    virtual void set(std::string key, SrsJsonAny* value);
+    virtual SrsJsonObject* set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
     virtual SrsJsonAny* ensure_property_string(std::string name);
     virtual SrsJsonAny* ensure_property_integer(std::string name);
@@ -172,7 +172,7 @@ public:
     virtual SrsJsonAny* at(int index);
     virtual void add(SrsJsonAny* value);
     // alias to add.
-    virtual void append(SrsJsonAny* value);
+    virtual SrsJsonArray* append(SrsJsonAny* value);
 public:
     virtual std::string dumps();
     virtual SrsAmf0Any* to_amf0();

@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_coworkers.hpp>
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -262,6 +263,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("streams", SrsJsonAny::str("manage all streams or specified stream"));
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
+    urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1288,6 +1290,39 @@ srs_error_t SrsGoApiRaw::on_reload_http_api_raw_api()
     allow_update = _srs_config->get_raw_api_allow_update();
     
     return srs_success;
+}
+
+SrsGoApiClusters::SrsGoApiClusters()
+{
+}
+
+SrsGoApiClusters::~SrsGoApiClusters()
+{
+}
+
+srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+    
+    string ip = r->query_get("ip");
+    string vhost = r->query_get("vhost");
+    string app = r->query_get("app");
+    string stream = r->query_get("stream");
+    data->set("query", SrsJsonAny::object()
+              ->set("ip", SrsJsonAny::str(ip.c_str()))
+              ->set("vhost", SrsJsonAny::str(vhost.c_str()))
+              ->set("app", SrsJsonAny::str(app.c_str()))
+              ->set("stream", SrsJsonAny::str(stream.c_str())));
+    
+    SrsCoWorkers* coworkers = SrsCoWorkers::instance();
+    data->set("origin", coworkers->dumps(vhost, app, stream));
+    
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiError::SrsGoApiError()

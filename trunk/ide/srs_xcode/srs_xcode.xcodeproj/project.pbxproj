@@ -132,6 +132,7 @@
 		3CECAF9E1EDC100F00C50501 /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CECAF961EDC100F00C50501 /* sched.c */; };
 		3CECAF9F1EDC100F00C50501 /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CECAF971EDC100F00C50501 /* stk.c */; };
 		3CECAFA01EDC100F00C50501 /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CECAF981EDC100F00C50501 /* sync.c */; };
+		8C0652B12035B5BA000B0661 /* srs_app_coworkers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C0652B02035B5B9000B0661 /* srs_app_coworkers.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -446,6 +447,8 @@
 		3CECAF971EDC100F00C50501 /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../../objs/state-threads-1.9.1/stk.c"; sourceTree = "<group>"; };
 		3CECAF981EDC100F00C50501 /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../../objs/state-threads-1.9.1/sync.c"; sourceTree = "<group>"; };
 		3CFBDA271F0338A40054D63E /* circle.yml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = circle.yml; path = ../../../circle.yml; sourceTree = "<group>"; };
+		8C0652AF2035B5B9000B0661 /* srs_app_coworkers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_coworkers.hpp; path = ../../../src/app/srs_app_coworkers.hpp; sourceTree = "<group>"; };
+		8C0652B02035B5B9000B0661 /* srs_app_coworkers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_coworkers.cpp; path = ../../../src/app/srs_app_coworkers.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -622,6 +625,8 @@
 				3C12324F1AAE81D900CE8F6C /* srs_app_config.hpp */,
 				3C1232501AAE81D900CE8F6C /* srs_app_conn.cpp */,
 				3C1232511AAE81D900CE8F6C /* srs_app_conn.hpp */,
+				8C0652B02035B5B9000B0661 /* srs_app_coworkers.cpp */,
+				8C0652AF2035B5B9000B0661 /* srs_app_coworkers.hpp */,
 				3C9F82201E4ECA8200F5B2D2 /* srs_app_dash.cpp */,
 				3C9F82211E4ECA8200F5B2D2 /* srs_app_dash.hpp */,
 				3CE893B31E87508D000B742D /* srs_app_dvr.cpp */,
@@ -1056,6 +1061,7 @@
 				3CC52DDC1ACE4023006FEB01 /* srs_utest_protocol.cpp in Sources */,
 				3C663F151AB0155100286D8B /* srs_h264_raw_publish.c in Sources */,
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
+				8C0652B12035B5BA000B0661 /* srs_app_coworkers.cpp in Sources */,
 				3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */,
 				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
 				3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */,
