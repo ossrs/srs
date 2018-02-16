@@ -175,16 +175,18 @@ void retrieve_local_ips()
     }
     
     // If empty, disover IPv4 loopback.
-    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
-        ifaddrs* cur = p;
-        
-        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
-        // @see: https://github.com/ossrs/srs/issues/141
-        bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
-        bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
-        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC);
-        if (ipv4 && ready && !ignored) {
-            discover_network_iface(cur, ips, ss0, ss1, false);
+    if (ips.empty()) {
+        for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
+            ifaddrs* cur = p;
+            
+            // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+            // @see: https://github.com/ossrs/srs/issues/141
+            bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
+            bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
+            bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC);
+            if (ipv4 && ready && !ignored) {
+                discover_network_iface(cur, ips, ss0, ss1, false);
+            }
         }
     }
     
@@ -216,6 +218,11 @@ string srs_get_public_internet_address()
     // find the best match public address.
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
+        // TODO: FIXME: Support ipv6.
+        if (ip.find(".") == string::npos) {
+            continue;
+        }
+        
         in_addr_t addr = inet_addr(ip.c_str());
         uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
@@ -247,6 +254,11 @@ string srs_get_public_internet_address()
     // no public address, use private address.
     for (int i = 0; i < (int)ips.size(); i++) {
         std::string ip = ips[i];
+        // TODO: FIXME: Support ipv6.
+        if (ip.find(".") == string::npos) {
+            continue;
+        }
+        
         in_addr_t addr = inet_addr(ip.c_str());
         uint32_t addr_h = ntohl(addr);
         // lo, 127.0.0.0-127.0.0.1
@@ -261,9 +273,12 @@ string srs_get_public_internet_address()
     }
     
     // Finally, use first whatever kind of address.
-    if (!ips.empty()) {
-        _public_internet_address = ips.at(0);
-        return _public_internet_address;
+    if (!ips.empty() && _public_internet_address.empty()) {
+        string ip = ips.at(0);
+        srs_warn("use first address as ip: %s", ip.c_str());
+        
+        _public_internet_address = ip;
+        return ip;
     }
     
     return "";

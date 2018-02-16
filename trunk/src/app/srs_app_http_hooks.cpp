@@ -407,6 +407,61 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     return srs_success;
 }
 
+srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& port)
+{
+    srs_error_t err = srs_success;
+    
+    std::string res;
+    int status_code;
+    
+    SrsHttpClient http;
+    if ((err = do_post(&http, url, "", status_code, res)) != srs_success) {
+        return srs_error_wrap(err, "http: post %s, status=%d, res=%s", url.c_str(), status_code, res.c_str());
+    }
+    
+    SrsJsonObject* robj = NULL;
+    SrsAutoFree(SrsJsonObject, robj);
+    
+    if (true) {
+        SrsJsonAny* jr = NULL;
+        if ((jr = SrsJsonAny::loads(res)) == NULL) {
+            return srs_error_new(ERROR_OCLUSTER_DISCOVER, "load json from %s", res.c_str());
+        }
+        
+        if (!jr->is_object()) {
+            srs_freep(jr);
+            return srs_error_new(ERROR_OCLUSTER_DISCOVER, "response %s", res.c_str());
+        }
+        
+        robj = jr->to_object();
+    }
+    
+    SrsJsonAny* prop = NULL;
+    if ((prop = robj->ensure_property_object("data")) == NULL) {
+        return srs_error_new(ERROR_OCLUSTER_DISCOVER, "parse data %s", res.c_str());
+    }
+    
+    SrsJsonObject* p = prop->to_object();
+    if ((prop = p->ensure_property_object("origin")) == NULL) {
+        return srs_error_new(ERROR_OCLUSTER_DISCOVER, "parse data %s", res.c_str());
+    }
+    p = prop->to_object();
+    
+    if ((prop = p->ensure_property_string("ip")) == NULL) {
+        return srs_error_new(ERROR_OCLUSTER_DISCOVER, "parse data %s", res.c_str());
+    }
+    host = prop->to_str();
+    
+    if ((prop = p->ensure_property_integer("port")) == NULL) {
+        return srs_error_new(ERROR_OCLUSTER_DISCOVER, "parse data %s", res.c_str());
+    }
+    port = (int)prop->to_integer();
+    
+    srs_trace("http: on_hls ok, url=%s, response=%s", url.c_str(), res.c_str());
+    
+    return err;
+}
+
 srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
     srs_error_t err = srs_success;
@@ -420,8 +475,13 @@ srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::strin
         return srs_error_wrap(err, "http: init client");
     }
     
+    string path = uri.get_path();
+    if (!uri.get_query().empty()) {
+        path += "?" + uri.get_query();
+    }
+    
     ISrsHttpMessage* msg = NULL;
-    if ((err = hc->post(uri.get_path(), req, &msg)) != srs_success) {
+    if ((err = hc->post(path, req, &msg)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
     SrsAutoFree(ISrsHttpMessage, msg);

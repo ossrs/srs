@@ -113,6 +113,10 @@ public:
      * @param cid the source connection cid, for the on_dvr is async call.
      */
     static srs_error_t on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
+    /**
+     * Discover co-workers for origin cluster.
+     */
+    static srs_error_t discover_co_workers(std::string url, std::string& host, int& port);
 private:
     static srs_error_t do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };

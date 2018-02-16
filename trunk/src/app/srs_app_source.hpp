@@ -606,11 +606,9 @@ private:
     // The metadata cache.
     SrsMetaCache* meta;
 private:
-    /**
-     * can publish, true when is not streaming
-     */
+    // Whether source is avaiable for publishing.
     bool _can_publish;
-    // last die time, when all consumers quit and no publisher,
+    // The last die time, when all consumers quit and no publisher,
     // we will remove the source when source die.
     int64_t die_at;
 public:
@@ -621,23 +619,24 @@ public:
     virtual srs_error_t cycle();
     // remove source when expired.
     virtual bool expired();
-    // initialize, get and setter.
+// initialize, get and setter.
 public:
-    /**
-     * initialize the hls with handlers.
-     */
+    // initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
-    // for the tools callback
+// for the tools callback
 public:
     // source id changed.
     virtual srs_error_t on_source_id_changed(int id);
     // get current source id.
     virtual int source_id();
     virtual int pre_source_id();
-    // logic data methods
+    // Whether source is inactive, which means there is no publishing stream source.
+    // @remark For edge, it's inactive util stream has been pulled from origin.
+    virtual bool inactive();
+// logic data methods
 public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
@@ -658,7 +657,7 @@ public:
      */
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    // consumer methods
+// consumer methods
 public:
     /**
      * create consumer and dumps packets in cache.
@@ -671,7 +670,7 @@ public:
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
-    // internal
+// internal
 public:
     // for edge, when publish edge stream, check the state
     virtual srs_error_t on_edge_start_publish();

@@ -273,6 +273,8 @@
 #define ERROR_DASH_WRITE_FAILED             3087
 #define ERROR_TS_CONTEXT_NOT_READY          3088
 #define ERROR_MP4_ILLEGAL_MOOF              3089
+#define ERROR_OCLUSTER_DISCOVER             3090
+#define ERROR_OCLUSTER_REDIRECT             3091
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster/KAFKA protocol error.

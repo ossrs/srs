@@ -5195,13 +5195,8 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
     }
 
     conf = conf->get("coworkers");
-    for (int i = 0; i < (int)conf->directives.size(); i++) {
-        SrsConfDirective* option = conf->directives[i];
-        if (!option) {
-            continue;
-        }
-
-        coworkers.push_back(option->arg0());
+    for (int i = 0; i < (int)conf->args.size(); i++) {
+        coworkers.push_back(conf->args.at(i));
     }
 
     return coworkers;

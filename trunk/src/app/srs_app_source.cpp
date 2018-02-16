@@ -2004,6 +2004,11 @@ int SrsSource::pre_source_id()
     return _pre_source_id;
 }
 
+bool SrsSource::inactive()
+{
+    return _can_publish;
+}
+
 bool SrsSource::can_publish(bool is_edge)
 {
     if (is_edge) {

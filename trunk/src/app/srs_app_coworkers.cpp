@@ -73,9 +73,13 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string app, string stream)
     string service_ip = srs_get_public_internet_address();
     string service_hostport = service_ports.at(0);
     
-    string service_host;
     int service_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    srs_parse_hostport(service_hostport, service_host, service_port);
+    if (service_hostport.find(":") != string::npos) {
+        string service_host;
+        srs_parse_hostport(service_hostport, service_host, service_port);
+    } else {
+        service_port = ::atoi(service_hostport.c_str());
+    }
     
     string backend = _srs_config->get_http_api_listen();
     if (backend.find(":") == string::npos) {

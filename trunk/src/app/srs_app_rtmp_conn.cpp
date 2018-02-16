@@ -227,6 +227,11 @@ srs_error_t SrsRtmpConn::do_cycle()
         srs_freep(r0);
     }
     
+    // If client is redirect to other servers, we already logged the event.
+    if (srs_error_code(err) == ERROR_CONTROL_REDIRECT) {
+        srs_error_reset(err);
+    }
+    
     return err;
 }
 
@@ -622,6 +627,31 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
         if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
             return srs_error_wrap(err, "rtmp: referer check");
         }
+    }
+    
+    // When origin cluster enabled, try to redirect to the origin which is active.
+    // A active origin is a server which is delivering stream.
+    if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost) && source->inactive()) {
+        vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
+        for (int i = 0; i < (int)coworkers.size(); i++) {
+            int port;
+            string host;
+            string url = "http://" + coworkers.at(i) + "/api/v1/clusters?"
+                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream;
+            if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
+                return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
+            }
+            srs_trace("rtmp: redirect in cluster, url=%s, target=%s:%d", url.c_str(), host.c_str(), port);
+            
+            bool accepted = false;
+            if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
+                srs_error_reset(err);
+            } else {
+                return srs_error_new(ERROR_CONTROL_REDIRECT, "redirected");
+            }
+        }
+        
+        return srs_error_new(ERROR_OCLUSTER_REDIRECT, "no origin");
     }
     
     // Set the socket options for transport.
