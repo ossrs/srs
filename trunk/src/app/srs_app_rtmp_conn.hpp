@@ -103,6 +103,7 @@ private:
     SrsBandwidth* bandwidth;
     SrsSecurity* security;
     // the wakable handler, maybe NULL.
+    // TODO: FIXME: Should refine the state for receiving thread.
     ISrsWakable* wakable;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.

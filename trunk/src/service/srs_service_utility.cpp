@@ -260,6 +260,12 @@ string srs_get_public_internet_address()
         return ip;
     }
     
+    // Finally, use first whatever kind of address.
+    if (!ips.empty()) {
+        _public_internet_address = ips.at(0);
+        return _public_internet_address;
+    }
+    
     return "";
 }
 

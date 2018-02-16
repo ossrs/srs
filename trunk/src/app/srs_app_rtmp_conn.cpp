@@ -616,31 +616,40 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
 {
     srs_error_t err = srs_success;
     
-    // create consumer of souce.
+    // Check page referer of player.
+    SrsRequest* req = info->req;
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
+        }
+    }
+    
+    // Set the socket options for transport.
+    set_sock_options();
+    
+    // Create a consumer of source.
     SrsConsumer* consumer = NULL;
     if ((err = source->create_consumer(this, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtmp: create consumer");
     }
     SrsAutoFree(SrsConsumer, consumer);
     
-    // use isolate thread to recv,
+    // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
     
-    // start isolate recv thread.
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
     }
     
-    // delivery messages for clients playing stream.
+    // Deliver packets to peer.
     wakable = consumer;
     err = do_playing(source, consumer, &trd);
     wakable = NULL;
     
-    // stop isolate recv thread
     trd.stop();
     
-    // warn for the message is dropped.
+    // Drop all packets in receiving thread.
     if (!trd.empty()) {
         srs_warn("drop the received %d messages", trd.size());
     }
@@ -652,14 +661,9 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
 {
     srs_error_t err = srs_success;
     
-    srs_assert(consumer != NULL);
-    
     SrsRequest* req = info->req;
-    if (_srs_config->get_refer_enabled(req->vhost)) {
-        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
+    srs_assert(req);
+    srs_assert(consumer);
     
     // initialize other components
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
@@ -677,9 +681,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
-    
-    // set the sock options.
-    set_sock_options();
     
     srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
         send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
@@ -800,6 +801,7 @@ srs_error_t SrsRtmpConn::publishing(SrsSource* source)
         return srs_error_wrap(err, "rtmp: callback on publish");
     }
     
+    // TODO: FIXME: Should refine the state of publishing.
     if ((err = acquire_publish(source)) == srs_success) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237

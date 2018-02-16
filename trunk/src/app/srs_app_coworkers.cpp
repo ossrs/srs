@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsCoWorkers* SrsCoWorkers::_instance = NULL;
 
@@ -64,20 +65,32 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string app, string stream)
         return SrsJsonAny::null();
     }
     
-    vector<string>& ips = srs_get_local_ips();
-    if (ips.empty()) {
+    vector<string> service_ports = _srs_config->get_listens();
+    if (service_ports.empty()) {
         return SrsJsonAny::null();
     }
     
-    SrsJsonArray* arr = SrsJsonAny::array();
-    for (int i = 0; i < (int)ips.size(); i++) {
-        arr->append(SrsJsonAny::object()
-                    ->set("ip", SrsJsonAny::str(ips.at(i).c_str()))
-                    ->set("vhost", SrsJsonAny::str(r->vhost.c_str()))
-                    ->set("self", SrsJsonAny::boolean(true)));
+    string service_ip = srs_get_public_internet_address();
+    string service_hostport = service_ports.at(0);
+    
+    string service_host;
+    int service_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    srs_parse_hostport(service_hostport, service_host, service_port);
+    
+    string backend = _srs_config->get_http_api_listen();
+    if (backend.find(":") == string::npos) {
+        backend = service_ip + ":" + backend;
     }
     
-    return arr;
+    // The routers to detect loop and identify path.
+    SrsJsonArray* routers = SrsJsonAny::array()->append(SrsJsonAny::str(backend.c_str()));
+    
+    return SrsJsonAny::object()
+        ->set("ip", SrsJsonAny::str(service_ip.c_str()))
+        ->set("port", SrsJsonAny::integer(service_port))
+        ->set("vhost", SrsJsonAny::str(r->vhost.c_str()))
+        ->set("api", SrsJsonAny::str(backend.c_str()))
+        ->set("routers", routers);
 }
 
 SrsRequest* SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
