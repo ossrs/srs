@@ -182,11 +182,11 @@ Please select according to languages:
 - [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(200kbps), CPU 82%, 203MB.
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
 - [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
+- [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [ ] Support source cleanup for idle streams.
-- [ ] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
 
@@ -197,6 +197,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-02-16, Fix [#464][bug #464], support RTMP origin cluster. 3.0.29
 * v3.0, 2018-02-13, Fix [#1057][bug #1057], switch to simple handshake. 3.0.28
 * v3.0, 2018-02-13, Fix [#1059][bug #1059], merge from 2.0, supports url with vhost in stream. 3.0.27
 * v3.0, 2018-01-01, Fix [#913][bug #913], support complex error. 3.0.26
