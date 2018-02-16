@@ -41,11 +41,11 @@ SrsCoWorkers::SrsCoWorkers()
 SrsCoWorkers::~SrsCoWorkers()
 {
     map<string, SrsRequest*>::iterator it;
-    for (it = vhosts.begin(); it != vhosts.end(); ++it) {
+    for (it = streams.begin(); it != streams.end(); ++it) {
         SrsRequest* r = it->second;
         srs_freep(r);
     }
-    vhosts.clear();
+    streams.clear();
 }
 
 SrsCoWorkers* SrsCoWorkers::instance()
@@ -90,8 +90,8 @@ SrsRequest* SrsCoWorkers::find_stream_info(string vhost, string app, string stre
     
     // Get stream information from local cache.
     string url = srs_generate_stream_url(conf->arg0(), app, stream);
-    map<string, SrsRequest*>::iterator it = vhosts.find(url);
-    if (it == vhosts.end()) {
+    map<string, SrsRequest*>::iterator it = streams.find(url);
+    if (it == streams.end()) {
         return NULL;
     }
     
@@ -105,13 +105,13 @@ srs_error_t SrsCoWorkers::on_publish(SrsSource* s, SrsRequest* r)
     string url = r->get_stream_url();
     
     // Delete the previous stream informations.
-    map<string, SrsRequest*>::iterator it = vhosts.find(url);
-    if (it != vhosts.end()) {
+    map<string, SrsRequest*>::iterator it = streams.find(url);
+    if (it != streams.end()) {
         srs_freep(it->second);
     }
     
     // Always use the latest one.
-    vhosts[url] = r->copy();
+    streams[url] = r->copy();
     
     return err;
 }
@@ -120,10 +120,10 @@ void SrsCoWorkers::on_unpublish(SrsSource* s, SrsRequest* r)
 {
     string url = r->get_stream_url();
     
-    map<string, SrsRequest*>::iterator it = vhosts.find(url);
-    if (it != vhosts.end()) {
+    map<string, SrsRequest*>::iterator it = streams.find(url);
+    if (it != streams.end()) {
         srs_freep(it->second);
-        vhosts.erase(it);
+        streams.erase(it);
     }
 }
 
