@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <map>
@@ -100,6 +101,33 @@ bool srs_net_device_is_internet(const sockaddr* addr)
 
 vector<string> _srs_system_ips;
 
+void discover_network_iface(ifaddrs* cur, vector<string>& ips, stringstream& ss0, stringstream& ss1, bool ipv6)
+{
+    char saddr[64];
+    char* h = (char*)saddr;
+    socklen_t nbh = (socklen_t)sizeof(saddr);
+    const int r0 = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), h, nbh, NULL, 0, NI_NUMERICHOST);
+    if(r0 != 0) {
+        srs_warn("convert local ip failed: %s", gai_strerror(r0));
+        return;
+    }
+    
+    std::string ip(saddr, strlen(saddr));
+    ss0 << ", iface[" << (int)ips.size() << "] " << cur->ifa_name << " " << (ipv6? "ipv6":"ipv4")
+    << " 0x" << std::hex << cur->ifa_flags  << std::dec << " " << ip;
+    ips.push_back(ip);
+    
+    // set the device internet status.
+    if (!srs_net_device_is_internet(cur->ifa_addr)) {
+        ss1 << ", intranet ";
+        _srs_device_ifs[cur->ifa_name] = false;
+    } else {
+        ss1 << ", internet ";
+        _srs_device_ifs[cur->ifa_name] = true;
+    }
+    ss1 << cur->ifa_name << " " << ip;
+}
+
 void retrieve_local_ips()
 {
     vector<string>& ips = _srs_system_ips;
@@ -118,42 +146,48 @@ void retrieve_local_ips()
     stringstream ss1;
     ss1 << "devices";
     
-    ifaddrs* p = ifap;
-    while (p != NULL) {
+    // Discover IPv4 first.
+    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
         ifaddrs* cur = p;
-        p = p->ifa_next;
         
-        // retrieve IP address
-        // ignore the tun0 network device,
-        // which addr is NULL.
+        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
         // @see: https://github.com/ossrs/srs/issues/141
-        if ((cur->ifa_addr) && ((cur->ifa_addr->sa_family == AF_INET) || (cur->ifa_addr->sa_family == AF_INET6))) {
-            char saddr[64];
-            char* h = (char*)saddr;
-            socklen_t nbh = (socklen_t)sizeof(saddr);
-            const int r0 = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), h, nbh, NULL, 0, NI_NUMERICHOST);
-            if(r0 != 0) {
-                srs_warn("convert local ip failed: %s", gai_strerror(r0));
-                break;
-            }
-            
-            std::string ip = saddr;
-            if (ip != SRS_CONSTS_LOCALHOST) {
-                ss0 << ", local[" << (int)ips.size() << "] ipv4 " << ip;
-                ips.push_back(ip);
-            }
-            
-            // set the device internet status.
-            if (!srs_net_device_is_internet(cur->ifa_addr)) {
-                ss1 << ", intranet ";
-                _srs_device_ifs[cur->ifa_name] = false;
-            } else {
-                ss1 << ", internet ";
-                _srs_device_ifs[cur->ifa_name] = true;
-            }
-            ss1 << cur->ifa_name << " " << ip;
+        bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
+        bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
+        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC) || (cur->ifa_flags & IFF_LOOPBACK);
+        if (ipv4 && ready && !ignored) {
+            discover_network_iface(cur, ips, ss0, ss1, false);
         }
     }
+    
+    // Then, discover IPv6 addresses.
+    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
+        ifaddrs* cur = p;
+        
+        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+        // @see: https://github.com/ossrs/srs/issues/141
+        bool ipv6 = (cur->ifa_addr->sa_family == AF_INET6);
+        bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
+        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC) || (cur->ifa_flags & IFF_LOOPBACK);
+        if (ipv6 && ready && !ignored) {
+            discover_network_iface(cur, ips, ss0, ss1, true);
+        }
+    }
+    
+    // If empty, disover IPv4 loopback.
+    for (ifaddrs* p = ifap; p ; p = p->ifa_next) {
+        ifaddrs* cur = p;
+        
+        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+        // @see: https://github.com/ossrs/srs/issues/141
+        bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
+        bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
+        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC);
+        if (ipv4 && ready && !ignored) {
+            discover_network_iface(cur, ips, ss0, ss1, false);
+        }
+    }
+    
     srs_trace(ss0.str().c_str());
     srs_trace(ss1.str().c_str());
     

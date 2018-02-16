@@ -27,6 +27,10 @@ using namespace std;
 
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_app_config.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_service_utility.hpp>
 
 SrsCoWorkers* SrsCoWorkers::_instance = NULL;
 
@@ -36,6 +40,12 @@ SrsCoWorkers::SrsCoWorkers()
 
 SrsCoWorkers::~SrsCoWorkers()
 {
+    map<string, SrsRequest*>::iterator it;
+    for (it = vhosts.begin(); it != vhosts.end(); ++it) {
+        SrsRequest* r = it->second;
+        srs_freep(r);
+    }
+    vhosts.clear();
 }
 
 SrsCoWorkers* SrsCoWorkers::instance()
@@ -48,16 +58,72 @@ SrsCoWorkers* SrsCoWorkers::instance()
 
 SrsJsonAny* SrsCoWorkers::dumps(string vhost, string app, string stream)
 {
-    return SrsJsonAny::null();
+    SrsRequest* r = find_stream_info(vhost, app, stream);
+    if (!r) {
+        // TODO: FIXME: Find stream from our origin util return to the start point.
+        return SrsJsonAny::null();
+    }
+    
+    vector<string>& ips = srs_get_local_ips();
+    if (ips.empty()) {
+        return SrsJsonAny::null();
+    }
+    
+    SrsJsonArray* arr = SrsJsonAny::array();
+    for (int i = 0; i < (int)ips.size(); i++) {
+        arr->append(SrsJsonAny::object()
+                    ->set("ip", SrsJsonAny::str(ips.at(i).c_str()))
+                    ->set("vhost", SrsJsonAny::str(r->vhost.c_str()))
+                    ->set("self", SrsJsonAny::boolean(true)));
+    }
+    
+    return arr;
+}
+
+SrsRequest* SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
+{
+    // First, we should parse the vhost, if not exists, try default vhost instead.
+    SrsConfDirective* conf = _srs_config->get_vhost(vhost, true);
+    if (!conf) {
+        return NULL;
+    }
+    
+    // Get stream information from local cache.
+    string url = srs_generate_stream_url(conf->arg0(), app, stream);
+    map<string, SrsRequest*>::iterator it = vhosts.find(url);
+    if (it == vhosts.end()) {
+        return NULL;
+    }
+    
+    return it->second;
 }
 
 srs_error_t SrsCoWorkers::on_publish(SrsSource* s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
+    
+    string url = r->get_stream_url();
+    
+    // Delete the previous stream informations.
+    map<string, SrsRequest*>::iterator it = vhosts.find(url);
+    if (it != vhosts.end()) {
+        srs_freep(it->second);
+    }
+    
+    // Always use the latest one.
+    vhosts[url] = r->copy();
+    
     return err;
 }
 
 void SrsCoWorkers::on_unpublish(SrsSource* s, SrsRequest* r)
 {
+    string url = r->get_stream_url();
+    
+    map<string, SrsRequest*>::iterator it = vhosts.find(url);
+    if (it != vhosts.end()) {
+        srs_freep(it->second);
+        vhosts.erase(it);
+    }
 }
 

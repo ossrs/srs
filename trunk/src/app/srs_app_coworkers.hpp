@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <map>
 
 class SrsJsonAny;
 class SrsRequest;
@@ -37,12 +38,16 @@ class SrsCoWorkers
 private:
     static SrsCoWorkers* _instance;
 private:
+    std::map<std::string, SrsRequest*> vhosts;
+private:
     SrsCoWorkers();
     virtual ~SrsCoWorkers();
 public:
     static SrsCoWorkers* instance();
 public:
     virtual SrsJsonAny* dumps(std::string vhost, std::string app, std::string stream);
+private:
+    virtual SrsRequest* find_stream_info(std::string vhost, std::string app, std::string stream);
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
