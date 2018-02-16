@@ -940,6 +940,11 @@ public:
      */
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     /**
+     * Whether enable the origin cluster.
+     * @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
+     */
+    virtual bool get_vhost_origin_cluster(std::string vhost);
+    /**
      * Get the co-workers of origin cluster.
      * @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
      */
