@@ -209,16 +209,16 @@ Please select according to languages:
 * v3.0, 2017-03-02, Fix [#786][bug #786], simply don't reuse object. 3.0.20
 * v3.0, 2017-03-01, For [#110][bug #110], refine thread object. 3.0.19
 * v3.0, 2017-02-12, Fix [#301][bug #301], user must config the codec in right way for HLS. 3.0.18
-* v3.0, 2017-02-07, fix [#738][bug #738] support DVR general mp4. 3.0.17
-* v3.0, 2017-01-19, for [#742][bug #742] refine source, meta and origin hub. 3.0.16
-* v3.0, 2017-01-17, for [#742][bug #742] refine source, timeout, live cycle. 3.0.15
-* v3.0, 2017-01-11, fix [#735][bug #735] config transform refer_publish invalid. 3.0.14
-* v3.0, 2017-01-06, for [#730][bug #730] support config in/out ack size. 3.0.13
-* v3.0, 2017-01-06, for [#711][bug #711] support perfile for transcode. 3.0.12
-* v3.0, 2017-01-05, patch ST for valgrind and ARM. 3.0.11
+* v3.0, 2017-02-07, fix [#738][bug #738], support DVR general mp4. 3.0.17
+* v3.0, 2017-01-19, for [#742][bug #742], refine source, meta and origin hub. 3.0.16
+* v3.0, 2017-01-17, for [#742][bug #742], refine source, timeout, live cycle. 3.0.15
+* v3.0, 2017-01-11, fix [#735][bug #735], config transform refer_publish invalid. 3.0.14
+* v3.0, 2017-01-06, for [#730][bug #730], support config in/out ack size. 3.0.13
+* v3.0, 2017-01-06, for [#711][bug #711], support perfile for transcode. 3.0.12
+* v3.0, 2017-01-05, Fix [#727][bug #727], patch ST for valgrind and ARM. 3.0.11
 * v3.0, 2017-01-05, for [#324][bug #324], always enable hstrs. 3.0.10
 * v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
-* v3.0, 2016-12-08, support log rotate signal SIGUSR1. 3.0.8
+* v3.0, 2016-12-08, Fix [#105][bug #105], support log rotate signal SIGUSR1. 3.0.8
 * v3.0, 2016-12-07, fix typo and refine grammar. 3.0.7
 * v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
 * v3.0, 2015-10-20, fix [#502][bug #502], support snapshot with http-callback or transcoder. 3.0.5
@@ -1443,6 +1443,8 @@ Winlin
 [bug #913]: https://github.com/ossrs/srs/issues/913
 [bug #460]: https://github.com/ossrs/srs/issues/460
 [bug #1057]: https://github.com/ossrs/srs/issues/1057
+[bug #105]: https://github.com/ossrs/srs/issues/105
+[bug #727]: https://github.com/ossrs/srs/issues/727
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
