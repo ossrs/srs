@@ -479,7 +479,7 @@ int srs_librtmp_context_parse_uri(Context* context)
     int ret = ERROR_SUCCESS;
     
     std::string schema;
-    
+
     srs_parse_rtmp_url(context->url, context->tcUrl, context->stream);
     
     // when connect, we only need to parse the tcUrl

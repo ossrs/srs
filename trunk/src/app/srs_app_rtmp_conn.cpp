@@ -172,7 +172,7 @@ srs_error_t SrsRtmpConn::do_cycle()
     
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TMMS);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TMMS);
-    
+
     if ((err = rtmp->handshake()) != srs_success) {
         return srs_error_wrap(err, "rtmp handshake");
     }
@@ -472,28 +472,28 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     req->strip();
     srs_trace("client identified, type=%s, vhost=%s, app=%s, stream_name=%s, duration=%.2f",
         srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->duration);
-    
+
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
         req->vhost = parsed_vhost->arg0();
     }
-    
+
     if (req->schema.empty() || req->vhost.empty() || req->port == 0 || req->app.empty()) {
         return srs_error_new(ERROR_RTMP_REQ_TCURL, "discovery tcUrl failed, tcUrl=%s, schema=%s, vhost=%s, port=%d, app=%s",
             req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port, req->app.c_str());
     }
-    
+
     // check vhost, allow default vhost.
     if ((err = check_vhost(true)) != srs_success) {
         return srs_error_wrap(err, "check vhost");
     }
-    
+
     srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, args=%s",
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
         req->schema.c_str(), req->vhost.c_str(), req->port,
         req->app.c_str(), req->stream.c_str(), (req->args? "(obj)":"null"));
-    
+
     // do token traverse before serve it.
     // @see https://github.com/ossrs/srs/pull/239
     if (true) {
@@ -505,7 +505,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             }
         }
     }
-    
+
     // security check
     if ((err = security->check(info->type, ip, req)) != srs_success) {
         return srs_error_wrap(err, "rtmp: security check");

@@ -1011,7 +1011,7 @@ srs_error_t SrsHls::initialize(SrsOriginHub* h, SrsRequest* r)
 srs_error_t SrsHls::on_publish()
 {
     srs_error_t err = srs_success;
-    
+
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time_ms();
     

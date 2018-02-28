@@ -643,7 +643,7 @@ srs_error_t SrsRtspConn::connect()
         std::string schema, host, vhost, app, param;
         int port;
         srs_discovery_tc_url(rtsp_tcUrl, schema, host, vhost, app, rtsp_stream, port, param);
-        
+
         // generate output by template.
         std::string output = output_template;
         output = srs_string_replace(output, "[app]", app);
