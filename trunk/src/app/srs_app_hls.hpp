@@ -391,7 +391,7 @@ public:
     /**
     * initialize the hls by handler and source.
     */
-    virtual int initialize(SrsSource* s);
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     /**
      * publish stream event, continue to write the m3u8,
      * for the muxer object not destroyed.
