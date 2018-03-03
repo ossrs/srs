@@ -89,7 +89,7 @@ cd srs/trunk
 
 > Remark: Recommend Centos6 64bits, for other OS please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
-> Note: For multiple cores such as 4CPUs, please use `./configure --jobs=4 && make --jobs=4` to speeed up.
+> Note: If you have multiple cores such as 4 cores CPU, please use `./configure --jobs=4 && make --jobs=4` to speeed up the build.
 
 <strong>Step 3:</strong> Run SRS 
 
@@ -100,7 +100,8 @@ cd srs/trunk
 <strong>From here, </strong> strongly recommend to try other main use-scenarios:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* Usage: How to delivery RTMP Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* Usage: How to delivery RTMP Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* Usage: How to create a RTMP Origin Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
 * Usage: How to delivery HTTP FLV Live Streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
 * Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
@@ -1065,6 +1066,8 @@ Winlin
 [v1_EN_SampleRTMP]: https://github.com/ossrs/srs/wiki/v1_EN_SampleRTMP
 [v3_CN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v3_CN_SampleRTMPCluster
 [v3_EN_SampleRTMPCluster]: https://github.com/ossrs/srs/wiki/v3_EN_SampleRTMPCluster
+[v3_CN_SampleOriginCluster]: https://github.com/ossrs/srs/wiki/v3_CN_SampleOriginCluster
+[v3_EN_SampleOriginCluster]: https://github.com/ossrs/srs/wiki/v3_EN_SampleOriginCluster
 [v3_CN_SampleHLS]: https://github.com/ossrs/srs/wiki/v3_CN_SampleHLS
 [v3_EN_SampleHLS]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHLS
 [v3_CN_SampleTranscode2HLS]: https://github.com/ossrs/srs/wiki/v3_CN_SampleTranscode2HLS
