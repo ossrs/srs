@@ -18,9 +18,7 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 * [About](#about)
 * [Usage](#usage)
-* [Wiki for v3.0](#srs-30-wiki)
-* [Wiki for v2.0](#srs-20-wiki)
-* [Wiki for v1.0](#srs-10-wiki)
+* [Wiki](#srs-30-wiki)
 * [Features](#features)
 * [v3.0 changes](#v3-changes)
 * [v2.0 changes](#v2-changes)
@@ -116,18 +114,6 @@ cd srs/trunk
 * Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
 * Usage: Who are using SRS?([CN][v1_CN_Sample])
 * Usage: Why choose SRS? About the milestone and product plan? ([CN][v1_CN_Product], [EN][v1_EN_Product])
-
-### SRS 1.0 wiki
-
-Please select according to languages:
-* [SRS 1.0 English][v1-wiki-en]
-* [SRS 1.0 Chinese][v1-wiki-cn]
-
-### SRS 2.0 wiki
-
-Please select according to languages:
-* [SRS 2.0 English][v2-wiki-en]
-* [SRS 2.0 Chinese][v2-wiki-cn]
 
 ### SRS 3.0 wiki
 
