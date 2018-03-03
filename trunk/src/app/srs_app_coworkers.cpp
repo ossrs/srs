@@ -23,6 +23,7 @@
 
 #include <srs_app_coworkers.hpp>
 
+#include <stdlib.h>
 using namespace std;
 
 #include <srs_protocol_json.hpp>
