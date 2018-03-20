@@ -164,7 +164,7 @@ string srs_dns_resolve(string host, int& family)
     addrinfo* r = NULL;
     SrsAutoFree(addrinfo, r);
     
-    if(getaddrinfo(host.c_str(), NULL, NULL, &r) != 0) {
+    if(getaddrinfo(host.c_str(), NULL, NULL, &r)) {
         return "";
     }
     
@@ -173,7 +173,7 @@ string srs_dns_resolve(string host, int& family)
     socklen_t nbh = sizeof(saddr);
     const int r0 = getnameinfo(r->ai_addr, r->ai_addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
 
-    if(r0) {
+    if(!r0) {
        family = r->ai_family;
        return string(saddr);
     }

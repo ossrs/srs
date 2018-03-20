@@ -107,7 +107,7 @@ void discover_network_iface(ifaddrs* cur, vector<string>& ips, stringstream& ss0
     char* h = (char*)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
     const int r0 = getnameinfo(cur->ifa_addr, sizeof(sockaddr_storage), h, nbh, NULL, 0, NI_NUMERICHOST);
-    if(r0 != 0) {
+    if(r0) {
         srs_warn("convert local ip failed: %s", gai_strerror(r0));
         return;
     }

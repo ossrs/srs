@@ -23,6 +23,8 @@
 
 #include <srs_lib_simple_socket.hpp>
 
+#include <netinet/tcp.h>
+
 #include <srs_kernel_error.hpp>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
@@ -119,6 +121,10 @@ int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
     if (!SOCKET_VALID(skt->fd)) {
         return ERROR_SOCKET_CREATE;
     }
+    
+    // No TCP cache.
+    int v = 1;
+    setsockopt(skt->fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 
     return ERROR_SUCCESS;
 }
@@ -133,14 +139,15 @@ int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port)
     memset(&hints, 0, sizeof(hints));
     hints.ai_family   = skt->family;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_NUMERICHOST;
     
     addrinfo* r  = NULL;
     SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(server_ip, sport, (const addrinfo*)&hints, &r) == 0) {
-        if(::connect(skt->fd, r->ai_addr, r->ai_addrlen) < 0){
-            return ERROR_SOCKET_CONNECT;
-        }
+    if(getaddrinfo(server_ip, sport, (const addrinfo*)&hints, &r)) {
+        return ERROR_SOCKET_CONNECT;
+    }
+    
+    if(::connect(skt->fd, r->ai_addr, r->ai_addrlen) < 0){
+        return ERROR_SOCKET_CONNECT;
     }
     
     return ERROR_SUCCESS;

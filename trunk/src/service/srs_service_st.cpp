@@ -124,7 +124,7 @@ srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t*
     
     addrinfo* r  = NULL;
     SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r) != 0) {
+    if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
     

@@ -124,7 +124,7 @@ srs_error_t SrsUdpListener::listen()
     
     addrinfo* r  = NULL;
     SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r) != 0) {
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
     
@@ -220,7 +220,7 @@ srs_error_t SrsTcpListener::listen()
     
     addrinfo* r = NULL;
     SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r) != 0) {
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
     

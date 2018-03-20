@@ -1117,7 +1117,7 @@ string srs_get_local_ip(int fd)
     char* h = (char*)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
     const int r0 = getnameinfo((const sockaddr*)&addr, addrlen, h, nbh,NULL, 0, NI_NUMERICHOST);
-    if(r0 != 0) {
+    if(r0) {
         return "";
     }
 
@@ -1159,7 +1159,7 @@ string srs_get_peer_ip(int fd)
     char* h = (char*)saddr;
     socklen_t nbh = (socklen_t)sizeof(saddr);
     const int r0 = getnameinfo((const sockaddr*)&addr, addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
-    if(r0 != 0) {
+    if(r0) {
         return "";
     }
 
