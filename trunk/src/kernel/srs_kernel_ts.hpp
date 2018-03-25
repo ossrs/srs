@@ -31,8 +31,11 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <openssl/aes.h>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_file.hpp>
+
 
 class SrsBuffer;
 class SrsTsMessageCache;
@@ -1569,6 +1572,36 @@ public:
      * get the video codec of ts muxer.
      */
     virtual SrsVideoCodecId video_codec();
+};
+
+/*
+* Used for HLS Encryption
+*/
+
+#define HLS_AES_ENCRYPT_BLOCK_LENGTH 188*4
+
+static char tmpbuf[HLS_AES_ENCRYPT_BLOCK_LENGTH] = {0};
+static int buflength = 0;
+
+
+class SrsEncFileWriter: public SrsFileWriter
+{
+public:
+    SrsEncFileWriter()
+    {
+        memset(iv,0,16);
+    }
+    virtual ~SrsEncFileWriter(){}
+
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+
+    srs_error_t SetEncCfg(unsigned char* key,unsigned char *iv);
+   
+    virtual void close();
+
+private:
+    AES_KEY key;
+    unsigned char iv[16];
 };
 
 /**

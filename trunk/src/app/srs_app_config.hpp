@@ -1237,6 +1237,26 @@ public:
      */
     virtual bool get_hls_wait_keyframe(std::string vhost);
     /**
+     * encrypt ts or not
+     */
+    virtual bool get_hls_keys(std::string vhost);
+    /**
+     * how many fragments can one key encrypted.
+     */
+    virtual int get_hls_fragments_per_key(std::string vhost);
+    /**
+     * get the HLS key file path template.
+     */
+    virtual std::string get_hls_key_file(std::string vhost);
+    /**
+     * get the HLS key file store path.
+     */
+    virtual std::string get_hls_key_file_path(std::string vhost);
+    /**
+     * get the HLS key file url which will be put in m3u8
+     */
+    virtual std::string get_hls_key_url(std::string vhost);
+    /**
      * get the size of bytes to read from cdn network, for the on_hls_notify callback,
      * that is, to read max bytes of the bytes from the callback, or timeout or error.
      */

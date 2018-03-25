@@ -67,9 +67,19 @@ public:
     SrsFileWriter* writer;
     // The TS context writer to write TS to file.
     SrsTsContextWriter* tscw;
+    // Will be saved in m3u8 file.
+    unsigned char iv[16];
+    // The full key path.
+    std::string keypath;
+
 public:
-    SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
+    SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc,bool needenc);
     virtual ~SrsHlsSegment();
+public:
+
+    void SrsSetEncCfg(unsigned char* keyval,unsigned char * ivval);
+
+
 };
 
 /**
@@ -146,6 +156,22 @@ private:
     // used to detect the dup or jmp or ts.
     int64_t accept_floor_ts;
     int64_t previous_floor_ts;
+
+private:
+    //encrypted or not
+    bool hls_keys;
+    int  hls_fragments_per_key;
+    //key file name
+    std::string hls_key_file;
+    //key file path
+    std::string hls_key_file_path;
+    //key file url
+    std::string hls_key_url;
+
+    unsigned char key[16];
+    unsigned char iv[16];
+  
+
 private:
     int _sequence_no;
     int max_td;
@@ -182,7 +208,8 @@ public:
     virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
         double fragment, double window, bool ts_floor, double aof_ratio,
-        bool cleanup, bool wait_keyframe);
+        bool cleanup, bool wait_keyframe , bool keys, int fragments_per_key,
+        std::string key_file , std::string key_file_path,std::string key_url);
     /**
      * open a new segment(a new ts file)
      */
