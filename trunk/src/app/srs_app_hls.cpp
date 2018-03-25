@@ -688,7 +688,14 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         ss << "#EXTINF:" << segment->duration() / 1000.0 << ", no desc" << SRS_CONSTS_LF;
         
         // {file name}\n
-        ss << segment->uri << SRS_CONSTS_LF;
+        std::string seg_uri = segment->uri;
+        if (true) {
+	        std::stringstream stemp;
+	        stemp << (int)(segment->duration());
+	        seg_uri = srs_string_replace(seg_uri, "[duration]", stemp.str());
+        }
+        //ss << segment->uri << SRS_CONSTS_LF;
+        ss << seg_uri << SRS_CONSTS_LF;
     }
     
     // write m3u8 to writer.

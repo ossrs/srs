@@ -546,7 +546,7 @@ int srs_do_create_dir_recursively(string dir)
     {
         int ret = srs_do_create_dir_recursively(dir);
         
-        if (ret == ERROR_SYSTEM_DIR_EXISTS) {
+        if (ret == ERROR_SYSTEM_DIR_EXISTS || ret == ERROR_SUCCESS) {
             return srs_success;
         }
         
