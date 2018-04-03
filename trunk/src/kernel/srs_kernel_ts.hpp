@@ -1578,11 +1578,8 @@ public:
 * Used for HLS Encryption
 */
 
+
 #define HLS_AES_ENCRYPT_BLOCK_LENGTH 188*4
-
-static char tmpbuf[HLS_AES_ENCRYPT_BLOCK_LENGTH] = {0};
-static int buflength = 0;
-
 
 class SrsEncFileWriter: public SrsFileWriter
 {
@@ -1590,6 +1587,8 @@ public:
     SrsEncFileWriter()
     {
         memset(iv,0,16);
+        memset(tmpbuf,0,HLS_AES_ENCRYPT_BLOCK_LENGTH);
+        buflength = 0;
     }
     virtual ~SrsEncFileWriter(){}
 
@@ -1602,6 +1601,12 @@ public:
 private:
     AES_KEY key;
     unsigned char iv[16];
+
+private:
+
+    char tmpbuf[HLS_AES_ENCRYPT_BLOCK_LENGTH];
+    int buflength;
+  
 };
 
 /**

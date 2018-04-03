@@ -62,18 +62,11 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc,bool needenc)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter *srswriter)
 {
     sequence_no = 0;
  
-    if(needenc)
-    {
-        writer = new SrsEncFileWriter();
-    }
-    else
-    {
-        writer = new SrsFileWriter();
-    }
+    writer = srswriter;
     
     tscw = new SrsTsContextWriter(writer, c, ac, vc);
 }
@@ -87,7 +80,7 @@ void SrsHlsSegment::SrsSetEncCfg(unsigned char* keyval,unsigned char *ivval)
 SrsHlsSegment::~SrsHlsSegment()
 {
     srs_freep(tscw);
-    srs_freep(writer);
+    //srs_freep(writer);
 }
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
@@ -223,6 +216,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(req);
     srs_freep(async);
     srs_freep(context);
+    srs_freep(writer);
 }
 
 void SrsHlsMuxer::dispose()
@@ -335,6 +329,15 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         }
     }
 
+    if(hls_keys)
+    {
+        writer = new SrsEncFileWriter();
+    }
+    else
+    {
+        writer = new SrsFileWriter();
+    }
+
     return err;
 }
 
@@ -379,7 +382,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     }
     
     // new segment.
-    current = new SrsHlsSegment(context, default_acodec, default_vcodec, hls_keys);
+    current = new SrsHlsSegment(context, default_acodec, default_vcodec,writer);
     current->sequence_no = _sequence_no++;
 
     if(hls_keys){

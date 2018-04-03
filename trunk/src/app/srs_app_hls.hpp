@@ -73,7 +73,7 @@ public:
     std::string keypath;
 
 public:
-    SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc,bool needenc);
+    SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter *srswriter);
     virtual ~SrsHlsSegment();
 public:
 
@@ -170,6 +170,8 @@ private:
 
     unsigned char key[16];
     unsigned char iv[16];
+
+    SrsFileWriter *writer;
   
 
 private:
