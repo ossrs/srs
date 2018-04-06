@@ -181,6 +181,10 @@ extern char* srs_av_base64_encode(char* out, int out_size, const uint8_t* in, in
  * output hex to data={0x13, 0x90, 0x56, 0xe5, 0xa0}
  */
 extern int ff_hex_to_data(uint8_t* data, const char* p);
+/**
+ * convert data string to hex.
+ */
+extern char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase);
 
 /**
  * generate the c0 chunk header for msg.

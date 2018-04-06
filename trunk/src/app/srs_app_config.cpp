@@ -2606,6 +2606,16 @@ srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj
                 hls->set("hls_nb_notify", sdir->dumps_arg0_to_integer());
             } else if (sdir->name == "hls_wait_keyframe") {
                 hls->set("hls_wait_keyframe", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hls_keys") {
+                hls->set("hls_keys", sdir->dumps_arg0_to_boolean());
+            } else if (sdir->name == "hls_fragments_per_key") {
+                hls->set("hls_fragments_per_key", sdir->dumps_arg0_to_number());
+            } else if (sdir->name == "hls_key_file") {
+                hls->set("hls_key_file", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_key_file_path") {
+                hls->set("hls_key_file_path", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "hls_key_url") {
+                hls->set("hls_key_url", sdir->dumps_arg0_to_str());
             }
         }
     }
@@ -3773,7 +3783,8 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
-                        && m != "hls_wait_keyframe" && m != "hls_dispose") {
+                        && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
+                        && m != "hls_key_file_path" && m != "hls_key_url") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -6276,6 +6287,93 @@ bool SrsConfig::get_hls_wait_keyframe(string vhost)
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_hls_keys(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_keys");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_hls_fragments_per_key(string vhost)
+{
+    static int DEFAULT = 0;
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_fragments_per_key");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_hls_key_file(string vhost)
+{
+    static string DEFAULT = "[app]/[stream].key";
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_key_file_path(std::string vhost)
+{
+     //put the key in ts path defaultly.
+    static string DEFAULT = get_hls_path(vhost);
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_file_path");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_key_url(std::string vhost)
+{
+     //put the key in ts path defaultly.
+    static string DEFAULT = get_hls_path(vhost);
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_url");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
 }
 
 SrsConfDirective *SrsConfig::get_hds(const string &vhost)
