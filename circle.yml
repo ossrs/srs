@@ -17,6 +17,6 @@ dependencies:
 
 test:
     override:
-        - (cd trunk && ./configure --without-ssl --without-valgrind && make)
+        - (cd trunk && ./configure --with-ssl=openssl --without-valgrind && make)
         - (cd trunk && ./objs/srs_utest)
 
