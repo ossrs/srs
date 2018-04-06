@@ -32,6 +32,7 @@
 #include <map>
 #include <vector>
 #include <openssl/aes.h>
+#include <cstring>
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
