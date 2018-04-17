@@ -902,7 +902,8 @@ int SrsIngestSrsOutput::parse_message_queue()
             nb_videos--;
         }
         queue.erase(it);
-        
+        //release detached ts msg
+        srs_freep(msg);
         // parse the stream.
         SrsStream avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
@@ -921,6 +922,7 @@ int SrsIngestSrsOutput::parse_message_queue()
                 return ret;
             }
         }
+        
     }
     
     return ret;
@@ -936,7 +938,8 @@ int SrsIngestSrsOutput::flush_message_queue()
         
         SrsTsMessage* msg = it->second;
         queue.erase(it);
-        
+        //release detached ts msg
+        srs_freep(msg);
         // parse the stream.
         SrsStream avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
