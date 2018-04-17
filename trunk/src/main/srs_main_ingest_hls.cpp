@@ -902,27 +902,29 @@ int SrsIngestSrsOutput::parse_message_queue()
             nb_videos--;
         }
         queue.erase(it);
-        //release detached ts msg
-        srs_freep(msg);
         // parse the stream.
         SrsStream avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
+            srs_freep(msg);
             return ret;
         }
         
         // publish audio or video.
         if (msg->channel->stream == SrsTsStreamVideoH264) {
             if ((ret = on_ts_video(msg, &avs)) != ERROR_SUCCESS) {
+                srs_freep(msg);
                 return ret;
             }
         }
         if (msg->channel->stream == SrsTsStreamAudioAAC) {
             if ((ret = on_ts_audio(msg, &avs)) != ERROR_SUCCESS) {
+                srs_freep(msg);
                 return ret;
             }
         }
-        
+        //release detached ts msg
+        srs_freep(msg);
     }
     
     return ret;
@@ -938,26 +940,29 @@ int SrsIngestSrsOutput::flush_message_queue()
         
         SrsTsMessage* msg = it->second;
         queue.erase(it);
-        //release detached ts msg
-        srs_freep(msg);
         // parse the stream.
         SrsStream avs;
         if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
             srs_error("mpegts: initialize av stream failed. ret=%d", ret);
+            srs_freep(msg);
             return ret;
         }
         
         // publish audio or video.
         if (msg->channel->stream == SrsTsStreamVideoH264) {
             if ((ret = on_ts_video(msg, &avs)) != ERROR_SUCCESS) {
+                srs_freep(msg);
                 return ret;
             }
         }
         if (msg->channel->stream == SrsTsStreamAudioAAC) {
             if ((ret = on_ts_audio(msg, &avs)) != ERROR_SUCCESS) {
+                srs_freep(msg);
                 return ret;
             }
         }
+        //release detached ts msg
+        srs_freep(msg);
     }
     
     return ret;
