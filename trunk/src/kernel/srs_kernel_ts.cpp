@@ -184,6 +184,8 @@ SrsTsMessage* SrsTsMessage::detach()
     cp->sid = sid;
     cp->PES_packet_length = PES_packet_length;
     cp->continuity_counter = continuity_counter;
+    //use the origin msg's payload, just free ours
+    srs_freep(cp->payload);
     cp->payload = payload;
     payload = NULL;
     return cp;
