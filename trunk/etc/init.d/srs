@@ -76,9 +76,9 @@ start() {
     
     # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
     if [[ -z $log_file ]]; then
-        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
+        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1 &)
     else
-        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file 2>&1)
+        (ulimit -c unlimited && cd ${ROOT}; ${APP} -c ${CONFIG} >> $log_file 2>&1 &)
     fi
     
     # check again after start server
