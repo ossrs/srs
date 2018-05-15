@@ -6308,7 +6308,7 @@ bool SrsConfig::get_hls_keys(string vhost)
 
 int SrsConfig::get_hls_fragments_per_key(string vhost)
 {
-    static int DEFAULT = 0;
+    static int DEFAULT = 10;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6325,7 +6325,7 @@ int SrsConfig::get_hls_fragments_per_key(string vhost)
 
 string SrsConfig::get_hls_key_file(string vhost)
 {
-    static string DEFAULT = "[app]/[stream].key";
+    static string DEFAULT = "[app]/[stream]-[seq].key";
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
