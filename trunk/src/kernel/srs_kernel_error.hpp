@@ -154,6 +154,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTMP_STREAM_NOT_FOUND         2048
 #define ERROR_RTMP_CLIENT_NOT_FOUND         2049
 #define ERROR_RTMP_STREAM_NAME_EMPTY        2050
+#define ERROR_RTMP_EDGE_ORIGIN_NOT_FOUND    2051
 //                                           
 // system control message, 
 // not an error, but special control logic.

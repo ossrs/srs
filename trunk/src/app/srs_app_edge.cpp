@@ -600,7 +600,11 @@ int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
     close_underlayer_socket();
     
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
-    srs_assert(conf);
+    if (!conf) {
+        ret = ERROR_RTMP_EDGE_ORIGIN_NOT_FOUND;
+        srs_warn("vhost %s origin not found. ret=%d", _req->vhost.c_str(), ret);
+        return ret;
+    }
     
     // select the origin.
     std::string server = conf->args.at(origin_index % conf->args.size());
