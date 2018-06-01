@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <openssl/aes.h>
+#include <cstring>
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
@@ -93,6 +95,43 @@ public:
     virtual std::string cache();
 };
 
+/*
+* Used for HLS Encryption
+*/
+
+
+#define HLS_AES_ENCRYPT_BLOCK_LENGTH 188*4
+
+class SrsEncFileWriter: public SrsFileWriter
+{
+public:
+    SrsEncFileWriter()
+    {
+        memset(iv,0,16);
+        memset(tmpbuf,0,HLS_AES_ENCRYPT_BLOCK_LENGTH);
+        buflength = 0;
+    }
+    virtual ~SrsEncFileWriter(){}
+
+    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+
+    int SetEncCfg(unsigned char* key,unsigned char *iv);
+   
+    virtual void close();
+
+private:
+    AES_KEY key;
+    unsigned char iv[16];
+
+private:
+
+    char tmpbuf[HLS_AES_ENCRYPT_BLOCK_LENGTH];
+    int buflength;
+  
+};
+
+
+
 /**
 * the wrapper of m3u8 segment from specification:
 *
@@ -111,14 +150,18 @@ public:
     // ts full file to write.
     std::string full_path;
     // the muxer to write ts.
-    SrsHlsCacheWriter* writer;
+    SrsFileWriter* writer;
     SrsTSMuxer* muxer;
     // current segment start dts for m3u8
     int64_t segment_start_dts;
     // whether current segement is sequence header.
     bool is_sequence_header;
+    // Will be saved in m3u8 file.
+    unsigned char iv[16];
+    // The full key path.
+    std::string key_full_path;
 public:
-    SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc, SrsFileWriter *srswriter);
     virtual ~SrsHlsSegment();
 public:
     /**
@@ -126,6 +169,9 @@ public:
     * @current_frame_dts the dts of frame, in tbn of ts.
     */
     virtual void update_duration(int64_t current_frame_dts);
+public:
+
+    void SrsSetEncCfg(unsigned char* keyval,unsigned char * ivval);
 };
 
 /**
@@ -201,6 +247,22 @@ private:
     int64_t accept_floor_ts;
     int64_t previous_floor_ts;
 private:
+    //encrypted or not
+    bool hls_keys;
+    int  hls_fragments_per_key;
+    //key file name
+    std::string hls_key_file;
+    //key file path
+    std::string hls_key_file_path;
+    //key file url
+    std::string hls_key_url;
+    //media server address
+
+    unsigned char key[16];
+    unsigned char iv[16];
+
+    SrsFileWriter *writer;
+private:
     int _sequence_no;
     int max_td;
     std::string m3u8;
@@ -250,7 +312,8 @@ public:
     virtual int update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
         double fragment, double window, bool ts_floor, double aof_ratio,
-        bool cleanup, bool wait_keyframe);
+        bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
+        std::string key_file , std::string key_file_path,std::string key_url);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
