@@ -169,7 +169,7 @@ string srs_codec_avc_level2str(SrsAvcLevel level)
 // 1 = 11 kHz = 11025 Hz
 // 2 = 22 kHz = 22050 Hz
 // 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+int flv_sample_rates[] = {5512, 11025, 22050, 44100, 0};
 
 // the sample rates in the codec,
 // in the sequence header.
