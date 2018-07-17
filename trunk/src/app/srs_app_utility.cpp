@@ -71,6 +71,7 @@ int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pst
     if(stfd == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        ::close(sock);
         return ret;
     }
     
@@ -94,12 +95,14 @@ int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pst
     srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
     
     *pstfd = stfd;
+    ::close(sock);
     return ret;
     
 failed:
     if (stfd) {
         srs_close_stfd(stfd);
     }
+    ::close(sock);
     return ret;
 }
 
