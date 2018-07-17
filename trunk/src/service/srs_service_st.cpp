@@ -136,6 +136,7 @@ srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t*
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
+        ::close(sock);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
     

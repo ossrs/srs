@@ -220,6 +220,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-07-17, Merge [#1176][bug #1176], fix scaned issues. 2.0.248
 * v2.0, 2018-02-28, Merge [#1077][bug #1077], fix crash for edge HLS. 2.0.247
 * v2.0, 2018-02-13, Fix [#1059][bug #1059], support vhost in stream parameters. 2.0.246
 * v2.0, 2018-01-07, Merge [#1045][bug #1045], fix [#1044][bug #1044], TCP connection alive detection. 2.0.245
@@ -1421,6 +1422,7 @@ Winlin
 [bug #1045]: https://github.com/ossrs/srs/issues/1045
 [bug #1059]: https://github.com/ossrs/srs/issues/1059
 [bug #1077]: https://github.com/ossrs/srs/issues/1077
+[bug #1176]: https://github.com/ossrs/srs/issues/1176
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
