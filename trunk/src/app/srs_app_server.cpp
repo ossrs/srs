@@ -690,7 +690,6 @@ int SrsServer::acquire_pid_file()
         if(errno == EACCES || errno == EAGAIN) {
             ret = ERROR_SYSTEM_PID_ALREADY_RUNNING;
             srs_error("srs is already running! ret=%#x", ret);
-            ::close(fd);
             return ret;
         }
         
