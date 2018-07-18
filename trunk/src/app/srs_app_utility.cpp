@@ -95,7 +95,6 @@ int srs_socket_connect(string server, int port, int64_t timeout, st_netfd_t* pst
     srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
     
     *pstfd = stfd;
-    ::close(sock);
     return ret;
     
 failed:
