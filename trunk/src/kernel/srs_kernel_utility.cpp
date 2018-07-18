@@ -652,7 +652,7 @@ int srs_av_base64_decode(u_int8_t* out, const char* in_str, int out_size)
     // no sign extension
     const u_int8_t *in = (const u_int8_t*)in_str;
     unsigned bits = 0xff;
-    unsigned v = 0;
+    unsigned v;
 
     while (end - dst > 3) {
         BASE64_DEC_STEP(0);
