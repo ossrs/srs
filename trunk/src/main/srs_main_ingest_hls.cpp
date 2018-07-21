@@ -898,10 +898,12 @@ int SrsIngestSrsOutput::parse_message_queue()
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;
+        SrsAutoFree(SrsTsMessage, msg);
+        queue.erase(it);
+        
         if (msg->channel->stream == SrsTsStreamVideoH264) {
             nb_videos--;
         }
-        queue.erase(it);
         
         // parse the stream.
         SrsStream avs;
@@ -935,6 +937,7 @@ int SrsIngestSrsOutput::flush_message_queue()
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;
+        SrsAutoFree(SrsTsMessage, msg);
         queue.erase(it);
         
         // parse the stream.
