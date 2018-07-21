@@ -1523,5 +1523,24 @@ VOID TEST(KernelUtility, AvcUev)
     }
 }
 
+VOID TEST(KernelUtility, CRC32IEEE)
+{
+    string datas[] = {
+        "123456789", "srs", "ossrs.net",
+        "SRS's a simplest, conceptual integrated, industrial-strength live streaming origin cluster."
+    };
+    
+    uint32_t checksums[] = {
+        0xcbf43926, 0x7df334e9, 0x2f52242b,
+        0x7e8677bd
+    };
+    
+    for (int i = 0; i < (int)(sizeof(datas)/sizeof(string)); i++) {
+        string data = datas[i];
+        uint32_t checksum = checksums[i];
+        EXPECT_EQ(checksum, srs_crc32_ieee(data.data(), data.length(), 0));
+    }
+}
+
 #endif
 
