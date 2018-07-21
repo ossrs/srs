@@ -1540,6 +1540,13 @@ VOID TEST(KernelUtility, CRC32IEEE)
         uint32_t checksum = checksums[i];
         EXPECT_EQ(checksum, srs_crc32_ieee(data.data(), data.length(), 0));
     }
+    
+    uint32_t previous = 0;
+    for (int i = 0; i < (int)(sizeof(datas)/sizeof(string)); i++) {
+        string data = datas[i];
+        previous = srs_crc32_ieee(data.data(), data.length(), previous);
+    }
+    EXPECT_EQ((uint32_t)0x431b8785, previous);
 }
 
 #endif
