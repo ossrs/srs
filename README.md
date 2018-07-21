@@ -220,6 +220,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-07-21, Merge [#1119][bug #1119], fix memory leak. 2.0.249
 * <strong>v2.0, 2018-07-18, [2.0 release3(2.0.248)][r2.0r3] released. 86775 lines.</strong>
 * v2.0, 2018-07-17, Merge [#1176][bug #1176], fix scaned issues. 2.0.248
 * v2.0, 2018-02-28, Merge [#1077][bug #1077], fix crash for edge HLS. 2.0.247
@@ -1424,6 +1425,7 @@ Winlin
 [bug #1059]: https://github.com/ossrs/srs/issues/1059
 [bug #1077]: https://github.com/ossrs/srs/issues/1077
 [bug #1176]: https://github.com/ossrs/srs/issues/1176
+[bug #1119]: https://github.com/ossrs/srs/issues/1119
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
