@@ -1674,5 +1674,15 @@ VOID TEST(KernelUtility, CRC32MPEGTS)
     }
 }
 
+VOID TEST(KernelUtility, Base64Decode)
+{
+    string cipher = "dXNlcjpwYXNzd29yZA==";
+    string expect = "user:password";
+    
+    string plaintext;
+    EXPECT_TRUE(srs_success == srs_av_base64_decode(cipher, plaintext));
+    EXPECT_TRUE(expect == plaintext);
+}
+
 #endif
 

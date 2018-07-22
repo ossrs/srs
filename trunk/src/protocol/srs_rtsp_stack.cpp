@@ -583,23 +583,16 @@ srs_error_t SrsRtspSdp::parse_control_attribute(string attr)
     return err;
 }
 
-string SrsRtspSdp::base64_decode(string value)
+string SrsRtspSdp::base64_decode(string cipher)
 {
-    if (value.empty()) {
+    if (cipher.empty()) {
         return "";
     }
     
-    int nb_output = (int)(value.length() * 2);
-    uint8_t* output = new uint8_t[nb_output];
-    SrsAutoFreeA(uint8_t, output);
+    string plaintext;
+    srs_error_t err = srs_av_base64_decode(cipher, plaintext);
+    srs_freep(err);
     
-    int ret = srs_av_base64_decode(output, (char*)value.c_str(), nb_output);
-    if (ret <= 0) {
-        return "";
-    }
-    
-    std::string plaintext;
-    plaintext.append((char*)output, ret);
     return plaintext;
 }
 

@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-07-22, Replace base64 to match MIT license. 3.0.32
 * v3.0, 2018-07-22, Replace crc32 IEEE and MPEG by pycrc to match MIT license. 3.0.31
 * v3.0, 2018-07-21, Replace crc32 IEEE by golang to match MIT license. 3.0.30
 * v3.0, 2018-02-16, Fix [#464][bug #464], support RTMP origin cluster. 3.0.29
