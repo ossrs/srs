@@ -161,7 +161,7 @@ extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plainte
  * for example, p=config='139056E5A0'
  * output hex to data={0x13, 0x90, 0x56, 0xe5, 0xa0}
  */
-extern int ff_hex_to_data(uint8_t* data, const char* p);
+extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
 
 /**
  * generate the c0 chunk header for msg.

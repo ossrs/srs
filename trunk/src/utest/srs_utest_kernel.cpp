@@ -1684,5 +1684,28 @@ VOID TEST(KernelUtility, Base64Decode)
     EXPECT_TRUE(expect == plaintext);
 }
 
+VOID TEST(KernelUtility, StringToHex)
+{
+    if (true) {
+        uint8_t h[16];
+        EXPECT_EQ(-1, srs_hex_to_data(h, NULL, 0));
+        EXPECT_EQ(-1, srs_hex_to_data(h, "0", 1));
+        EXPECT_EQ(-1, srs_hex_to_data(h, "0g", 2));
+    }
+    
+    if (true) {
+        string s = "139056E5A0";
+        uint8_t h[16];
+        
+        int n = srs_hex_to_data(h, s.data(), s.length());
+        EXPECT_EQ(n, 5);
+        EXPECT_EQ(0x13, h[0]);
+        EXPECT_EQ(0x90, h[1]);
+        EXPECT_EQ(0x56, h[2]);
+        EXPECT_EQ(0xe5, h[3]);
+        EXPECT_EQ(0xa0, h[4]);
+    }
+}
+
 #endif
 

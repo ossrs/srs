@@ -948,33 +948,44 @@ int av_toupper(int c)
     }
     return c;
 }
-
-int ff_hex_to_data(uint8_t* data, const char* p)
-{
-    int c, len, v;
     
-    len = 0;
-    v = 1;
-    for (;;) {
-        p += strspn(p, SPACE_CHARS);
-        if (*p == '\0')
-            break;
-        c = av_toupper((unsigned char) *p++);
-        if (c >= '0' && c <= '9')
-            c = c - '0';
-        else if (c >= 'A' && c <= 'F')
-            c = c - 'A' + 10;
-        else
-            break;
-        v = (v << 4) | c;
-        if (v & 0x100) {
-            if (data)
-                data[len] = v;
-            len++;
-            v = 1;
-        }
+// fromHexChar converts a hex character into its value and a success flag.
+uint8_t srs_from_hex_char(uint8_t c)
+{
+    if ('0' <= c && c <= '9') {
+        return c - '0';
     }
-    return len;
+    if ('a' <= c && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if ('A' <= c && c <= 'F') {
+        return c - 'A' + 10;
+    }
+    
+    return -1;
+}
+
+int srs_hex_to_data(uint8_t* data, const char* p, int size)
+{
+    if (size <= 0 || (size%2) == 1) {
+        return -1;
+    }
+    
+    for (int i = 0; i < size / 2; i++) {
+        uint8_t a = srs_from_hex_char(p[i*2]);
+        if (a == (uint8_t)-1) {
+            return -1;
+        }
+        
+        uint8_t b = srs_from_hex_char(p[i*2 + 1]);
+        if (b == (uint8_t)-1) {
+            return -1;
+        }
+        
+        data[i] = (a << 4) | b;
+    }
+    
+    return size / 2;
 }
 
 int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char* cache, int nb_cache)

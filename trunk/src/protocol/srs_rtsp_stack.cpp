@@ -537,8 +537,12 @@ srs_error_t SrsRtspSdp::parse_fmtp_attribute(string attr)
                 
                 char* tmp_sh = new char[item_value.length()];
                 SrsAutoFreeA(char, tmp_sh);
-                int nb_tmp_sh = ff_hex_to_data((uint8_t*)tmp_sh, item_value.c_str());
-                srs_assert(nb_tmp_sh > 0);
+                
+                int nb_tmp_sh = srs_hex_to_data((uint8_t*)tmp_sh, item_value.c_str(), item_value.length());
+                if (nb_tmp_sh <= 0) {
+                    return srs_error_new(ERROR_RTSP_AUDIO_CONFIG, "audio config");
+                }
+                
                 audio_sh.append(tmp_sh, nb_tmp_sh);
             }
         }
