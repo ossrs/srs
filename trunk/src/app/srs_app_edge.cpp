@@ -472,6 +472,14 @@ srs_error_t SrsEdgeForwarder::start()
         url = srs_generate_rtmp_url(server, port, vhost, req->app, req->stream);
     }
     
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    if (!req->param.empty()) {
+        if (req->param.find("?") != 0) {
+            url += "?";
+        }
+        url += req->param;
+    }
+    
     // open socket.
     srs_freep(sdk);
     int64_t cto = SRS_EDGE_FORWARDER_TMMS;
@@ -492,6 +500,7 @@ srs_error_t SrsEdgeForwarder::start()
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
     }
+    srs_trace("edge-fwr publish url %s", url.c_str());
     
     return err;
 }

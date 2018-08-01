@@ -154,9 +154,19 @@ srs_error_t SrsBasicRtmpClient::publish()
 {
     srs_error_t err = srs_success;
     
+    string stream = req->stream;
+    
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    if (!req->param.empty()) {
+        if (req->param.find("?") != 0) {
+            stream += "?";
+        }
+        stream += req->param;
+    }
+    
     // publish.
-    if ((err = client->publish(req->stream, stream_id)) != srs_success) {
-        return srs_error_wrap(err, "publish failed, stream=%s, stream_id=%d", req->stream.c_str(), stream_id);
+    if ((err = client->publish(stream, stream_id)) != srs_success) {
+        return srs_error_wrap(err, "publish failed, stream=%s, stream_id=%d", stream.c_str(), stream_id);
     }
     
     return err;
@@ -166,8 +176,18 @@ srs_error_t SrsBasicRtmpClient::play()
 {
     srs_error_t err = srs_success;
     
-    if ((err = client->play(req->stream, stream_id)) != srs_success) {
-        return srs_error_wrap(err, "connect with server failed, stream=%s, stream_id=%d", req->stream.c_str(), stream_id);
+    string stream = req->stream;
+    
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    if (!req->param.empty()) {
+        if (req->param.find("?") != 0) {
+            stream += "?";
+        }
+        stream += req->param;
+    }
+    
+    if ((err = client->play(stream, stream_id)) != srs_success) {
+        return srs_error_wrap(err, "connect with server failed, stream=%s, stream_id=%d", stream.c_str(), stream_id);
     }
     
     return err;
