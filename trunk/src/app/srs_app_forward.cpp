@@ -248,9 +248,17 @@ int SrsForwarder::cycle()
         return ret;
     }
     
-    if ((ret = client->publish(_req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
-            _req->stream.c_str(), stream_id, ret);
+    string stream = _req->stream;
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    if (!_req->param.empty()) {
+        if (_req->param.find("?") != 0) {
+            stream += "?";
+        }
+        stream += _req->param;
+    }
+    
+    if ((ret = client->publish(stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", stream.c_str(), stream_id, ret);
         return ret;
     }
     
