@@ -94,42 +94,6 @@ srs_error_t SrsForwarder::on_publish()
 {
     srs_error_t err = srs_success;
     
-    // discovery the server port and tcUrl from req and ep_forward.
-    std::string server;
-    std::string tcUrl;
-    int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    if (true) {
-        // parse host:port from hostport.
-        srs_parse_hostport(ep_forward, server, port);
-        
-        // generate tcUrl
-        tcUrl = srs_generate_tc_url(server, req->vhost, req->app, port, req->param);
-    }
-    
-    // dead loop check
-    std::string source_ep = "rtmp://";
-    source_ep += req->host;
-    source_ep += ":";
-    source_ep += req->port;
-    source_ep += "?vhost=";
-    source_ep += req->vhost;
-    
-    std::string dest_ep = "rtmp://";
-    if (ep_forward == SRS_CONSTS_LOCALHOST) {
-        dest_ep += req->host;
-    } else {
-        dest_ep += server;
-    }
-    dest_ep += ":";
-    dest_ep += port;
-    dest_ep += "?vhost=";
-    dest_ep += req->vhost;
-    
-    if (source_ep == dest_ep) {
-        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "forward loop detected. src=%s, dest=%s", source_ep.c_str(), dest_ep.c_str());
-    }
-    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s", source_ep.c_str(), dest_ep.c_str(), tcUrl.c_str(), req->stream.c_str());
-    
     srs_freep(trd);
     trd = new SrsSTCoroutine("forward", this);
     if ((err = trd->start()) != srs_success) {
@@ -245,7 +209,7 @@ srs_error_t SrsForwarder::do_cycle()
         srs_parse_hostport(ep_forward, server, port);
         
         // generate url
-        url = srs_generate_rtmp_url(server, port, req->vhost, req->app, req->stream);
+        url = srs_generate_rtmp_url(server, port, req->host, req->vhost, req->app, req->stream, req->param);
     }
     
     srs_freep(sdk);
@@ -257,7 +221,7 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "sdk connect url=%s, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((err = sdk->publish()) != srs_success) {
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
     

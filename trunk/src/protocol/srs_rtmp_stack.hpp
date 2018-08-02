@@ -729,12 +729,12 @@ public:
     /**
      * start play stream.
      */
-    virtual srs_error_t play(std::string stream, int stream_id);
+    virtual srs_error_t play(std::string stream, int stream_id, int chunk_size);
     /**
      * start publish stream. use flash publish workflow:
      *       connect-app => create-stream => flash-publish
      */
-    virtual srs_error_t publish(std::string stream, int stream_id);
+    virtual srs_error_t publish(std::string stream, int stream_id, int chunk_size);
     /**
      * start publish stream. use FMLE publish workflow:
      *       connect-app => FMLE publish

@@ -1482,8 +1482,8 @@ srs_error_t SrsOriginHub::create_forwarders()
         }
         
         // TODO: FIXME: support queue size.
-        //double queue_size = _srs_config->get_queue_length(req->vhost);
-        //forwarder->set_queue_size(queue_size);
+        double queue_size = _srs_config->get_queue_length(req->vhost);
+        forwarder->set_queue_size(queue_size);
         
         if ((err = forwarder->on_publish()) != srs_success) {
             return srs_error_wrap(err, "start forwarder failed, vhost=%s, app=%s, stream=%s, forward-to=%s",

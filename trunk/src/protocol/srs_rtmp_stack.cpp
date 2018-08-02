@@ -2053,7 +2053,7 @@ srs_error_t SrsRtmpClient::create_stream(int& stream_id)
     return err;
 }
 
-srs_error_t SrsRtmpClient::play(string stream, int stream_id)
+srs_error_t SrsRtmpClient::play(string stream, int stream_id, int chunk_size)
 {
     srs_error_t err = srs_success;
     
@@ -2081,27 +2081,27 @@ srs_error_t SrsRtmpClient::play(string stream, int stream_id)
     }
     
     // SetChunkSize
-    if (true) {
+    if (chunk_size != SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE) {
         SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
-        pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
+        pkt->chunk_size = chunk_size;
         if ((err = protocol->send_and_free_packet(pkt, 0)) != srs_success) {
-            return srs_error_wrap(err, "send set chunk size failed. stream=%s, chunk_size=%d", stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE);
+            return srs_error_wrap(err, "send set chunk size failed. stream=%s, chunk_size=%d", stream.c_str(), chunk_size);
         }
     }
     
     return err;
 }
 
-srs_error_t SrsRtmpClient::publish(string stream, int stream_id)
+srs_error_t SrsRtmpClient::publish(string stream, int stream_id, int chunk_size)
 {
     srs_error_t err = srs_success;
     
     // SetChunkSize
-    if (true) {
+    if (chunk_size != SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE) {
         SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
-        pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
+        pkt->chunk_size = chunk_size;
         if ((err = protocol->send_and_free_packet(pkt, 0)) != srs_success) {
-            return srs_error_wrap(err, "send set chunk size failed. stream=%s, chunk_size=%d", stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE);
+            return srs_error_wrap(err, "send set chunk size failed. stream=%s, chunk_size=%d", stream.c_str(), chunk_size);
         }
     }
     
@@ -2407,7 +2407,7 @@ srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& 
     srs_error_t err = srs_success;
     
     if (true) {
-        string url = srs_generate_rtmp_url(host, port, r->vhost, r->app, "");
+        string url = srs_generate_rtmp_url(host, port, r->host, r->vhost, r->app, r->stream, r->param);
         
         SrsAmf0Object* ex = SrsAmf0Any::object();
         ex->set("code", SrsAmf0Any::number(302));

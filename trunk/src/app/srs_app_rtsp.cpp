@@ -661,7 +661,7 @@ srs_error_t SrsRtspConn::connect()
     }
     
     // publish.
-    if ((err = sdk->publish()) != srs_success) {
+    if ((err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
         close();
         return srs_error_wrap(err, "publish %s failed", url.c_str());
     }

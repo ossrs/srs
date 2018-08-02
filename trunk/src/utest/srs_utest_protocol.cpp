@@ -559,15 +559,15 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
     string ip; string vhost; string app; int port; string tcUrl; string param;
     
     ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://127.0.0.1/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 19351;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
 

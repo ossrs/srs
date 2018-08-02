@@ -74,8 +74,8 @@ protected:
     virtual srs_error_t connect_app();
     virtual srs_error_t do_connect_app(std::string local_ip, bool debug);
 public:
-    virtual srs_error_t publish();
-    virtual srs_error_t play();
+    virtual srs_error_t publish(int chunk_size);
+    virtual srs_error_t play(int chunk_size);
     virtual void kbps_sample(const char* label, int64_t age);
     virtual void kbps_sample(const char* label, int64_t age, int msgs);
     virtual int sid();

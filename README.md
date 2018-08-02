@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-02, Always use vhost in stream query, the unify uri. 3.0.35
 * v3.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 3.0.34
 * v3.0, 2018-07-22, Replace hex to string to match MIT license. 3.0.33
 * v3.0, 2018-07-22, Replace base64 to match MIT license. 3.0.32

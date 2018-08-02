@@ -151,43 +151,59 @@ void srs_random_generate(char* bytes, int size)
     }
 }
 
-string srs_generate_tc_url(string ip, string vhost, string app, int port, string param)
+string srs_generate_tc_url(string host, string vhost, string app, int port)
 {
     string tcUrl = "rtmp://";
     
     if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
-        tcUrl += ip;
+        tcUrl += host;
     } else {
         tcUrl += vhost;
     }
     
     if (port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
-        tcUrl += ":";
-        tcUrl += srs_int2str(port);
+        tcUrl += ":" + srs_int2str(port);
     }
     
-    tcUrl += "/";
-    tcUrl += app;
-    if (!param.empty()) {
-        tcUrl += "?" + param;
-    }
+    tcUrl += "/" + app;
     
     return tcUrl;
 }
 
-string srs_generate_normal_tc_url(string ip, string vhost, string app, int port, string param)
+string srs_generate_stream_with_query(string host, string vhost, string stream, string param)
 {
-    return "rtmp://" + vhost + ":" + srs_int2str(port) + "/" + app + (param.empty() ? "" : "?" + param);
-}
-
-string srs_generate_via_tc_url(string ip, string vhost, string app, int port, string param)
-{
-    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + vhost + "/" + app + (param.empty() ? "" : "?" + param);
-}
-
-string srs_generate_vis_tc_url(string ip, string vhost, string app, int port, string param)
-{
-    return "rtmp://" + ip + ":" + srs_int2str(port) + "/" + app + (param.empty() ? "" : "?" + param);
+    string url = stream;
+    string query = param;
+    
+    // If no vhost in param, try to append one.
+    string guessVhost;
+    if (query.find("vhost=") == string::npos) {
+        if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+            guessVhost = vhost;
+        } else if (!srs_is_ipv4(host)) {
+            guessVhost = host;
+        }
+    }
+    
+    // Well, if vhost exists, always append in query string.
+    if (!guessVhost.empty()) {
+        query += "&vhost=" + guessVhost;
+    }
+    
+    // Remove the start & when param is empty.
+    srs_string_trim_start(query, "&");
+    
+    // Prefix query with ?.
+    if (!srs_string_starts_with(query, "?")) {
+        url += "?";
+    }
+    
+    // Append query to url.
+    if (!query.empty()) {
+        url += query;
+    }
+    
+    return url;
 }
 
 template<typename T>
@@ -287,22 +303,12 @@ void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
     }
 }
 
-string srs_generate_rtmp_url(string server, int port, string vhost, string app, string stream)
+string srs_generate_rtmp_url(string server, int port, string host, string vhost, string app, string stream, string param)
 {
-    std::stringstream ss;
-    
-    ss << "rtmp://" << server << ":" << std::dec << port << "/" << app;
-    
-    // when default or server is vhost, donot specifies the vhost in params.
-    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost && server != vhost) {
-        ss << "...vhost..." << vhost;
-    }
-    
-    if (!stream.empty()) {
-        ss << "/" << stream;
-    }
-    
-    return ss.str();
+    string tcUrl = "rtmp://" + server + ":" + srs_int2str(port) + "/"  + app;
+    string streamWithQuery = srs_generate_stream_with_query(host, vhost, stream, param);
+    string url = tcUrl + "/" + streamWithQuery;
+    return url;
 }
 
 srs_error_t srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)

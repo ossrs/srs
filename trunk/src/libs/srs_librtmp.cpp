@@ -750,16 +750,12 @@ extern "C"{
         
         string tcUrl;
         switch(context->schema) {
+            // For SRS3, only use one format url.
             case srs_url_schema_normal:
-                tcUrl=srs_generate_normal_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
-                break;
             case srs_url_schema_via:
-                tcUrl=srs_generate_via_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
-                break;
             case srs_url_schema_vis:
             case srs_url_schema_vis2:
-                tcUrl=srs_generate_vis_tc_url(context->ip, context->vhost, context->app, context->port, context->param);
-                break;
+                tcUrl = srs_generate_tc_url(context->ip, context->vhost, context->app, context->port);
             default:
                 break;
         }
@@ -823,7 +819,10 @@ extern "C"{
             return ret;
         }
         
-        if ((err = context->rtmp->play(context->stream, context->stream_id)) != srs_success) {
+        // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+        string stream = srs_generate_stream_with_query(context->host, context->vhost, context->stream, context->param);
+        
+        if ((err = context->rtmp->play(stream, context->stream_id, SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
             ret = srs_error_code(err);
             srs_freep(err);
             return ret;
@@ -840,7 +839,10 @@ extern "C"{
         srs_assert(rtmp != NULL);
         Context* context = (Context*)rtmp;
         
-        if ((err = context->rtmp->fmle_publish(context->stream, context->stream_id)) != srs_success) {
+        // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+        string stream = srs_generate_stream_with_query(context->host, context->vhost, context->stream, context->param);
+        
+        if ((err = context->rtmp->fmle_publish(stream, context->stream_id)) != srs_success) {
             ret = srs_error_code(err);
             srs_freep(err);
             return ret;

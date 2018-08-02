@@ -110,7 +110,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
-        url = srs_generate_rtmp_url(server, port, vhost, req->app, req->stream);
+        url = srs_generate_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
     }
     
     srs_freep(sdk);
@@ -122,7 +122,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         return srs_error_wrap(err, "edge pull %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((err = sdk->play()) != srs_success) {
+    if ((err = sdk->play(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
         return srs_error_wrap(err, "edge pull %s stream failed", url.c_str());
     }
     
@@ -469,15 +469,7 @@ srs_error_t SrsEdgeForwarder::start()
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
-        url = srs_generate_rtmp_url(server, port, vhost, req->app, req->stream);
-    }
-    
-    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
-    if (!req->param.empty()) {
-        if (req->param.find("?") != 0) {
-            url += "?";
-        }
-        url += req->param;
+        url = srs_generate_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
     }
     
     // open socket.
@@ -490,7 +482,7 @@ srs_error_t SrsEdgeForwarder::start()
         return srs_error_wrap(err, "sdk connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
     }
     
-    if ((err = sdk->publish()) != srs_success) {
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
     
