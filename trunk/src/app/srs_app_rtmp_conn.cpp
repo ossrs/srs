@@ -470,9 +470,9 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
-    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream_name=%s, duration=%.2f",
-        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->duration);
-
+    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%.2f",
+        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), req->duration);
+    
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
@@ -489,11 +489,10 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return srs_error_wrap(err, "check vhost");
     }
 
-    srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, args=%s",
-        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
-        req->schema.c_str(), req->vhost.c_str(), req->port,
-        req->app.c_str(), req->stream.c_str(), (req->args? "(obj)":"null"));
-
+    srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, param=%s, args=%s",
+        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port,
+        req->app.c_str(), req->stream.c_str(), req->param.c_str(), (req->args? "(obj)":"null"));
+    
     // do token traverse before serve it.
     // @see https://github.com/ossrs/srs/pull/239
     if (true) {

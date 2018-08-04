@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 3.0.36
 * v3.0, 2018-08-02, Always use vhost in stream query, the unify uri. 3.0.35
 * v3.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 3.0.34
 * v3.0, 2018-07-22, Replace hex to string to match MIT license. 3.0.33
@@ -226,6 +227,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 2.0.251
 * v2.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 2.0.250
 * v2.0, 2018-07-21, Merge [#1119][bug #1119], fix memory leak. 2.0.249
 * <strong>v2.0, 2018-07-18, [2.0 release3(2.0.248)][r2.0r3] released. 86775 lines.</strong>
@@ -1434,6 +1436,7 @@ Winlin
 [bug #1176]: https://github.com/ossrs/srs/issues/1176
 [bug #1119]: https://github.com/ossrs/srs/issues/1119
 [bug #1031]: https://github.com/ossrs/srs/issues/1031
+[bug #1110]: https://github.com/ossrs/srs/issues/1110
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
