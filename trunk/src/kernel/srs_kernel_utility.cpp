@@ -761,25 +761,17 @@ string srs_int2str(int64_t value)
 }
 
 
-char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase)
+char *srs_data_to_hex(char *des,const u_int8_t *src,int len)
 {
-    int i;
-    static const char hex_table_uc[16] = { '0', '1', '2', '3',
-                                           '4', '5', '6', '7',
-                                           '8', '9', 'A', 'B',
-                                           'C', 'D', 'E', 'F' };
-    static const char hex_table_lc[16] = { '0', '1', '2', '3',
-                                           '4', '5', '6', '7',
-                                           '8', '9', 'a', 'b',
-                                           'c', 'd', 'e', 'f' };
-    const char *hex_table = lowercase ? hex_table_lc : hex_table_uc;
-
-    for (i = 0; i < s; i++) {
-        buff[i * 2]     = hex_table[src[i] >> 4];
-        buff[i * 2 + 1] = hex_table[src[i] & 0xF];
+    if(src == NULL || len == 0 || des == NULL){
+        return NULL;
+    }
+    for (int i=0; i<len; i++) {
+        des[i * 2]     = "0123456789ABCDEF"[src[i] >> 4];
+        des[i * 2 + 1] = "0123456789ABCDEF"[src[i] & 0x0F];
     }
 
-    return buff;
+    return des;
 }
 
 int ff_hex_to_data(u_int8_t* data, const char* p)

@@ -143,7 +143,7 @@ extern int ff_hex_to_data(u_int8_t* data, const char* p);
 /**
  * convert data string to hex.
  */
-extern char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase);
+extern char *srs_data_to_hex(char *des,const u_int8_t *src,int len);
 
 // parse the int64 value to string.
 extern std::string srs_int2str(int64_t value);
