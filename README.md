@@ -333,6 +333,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 2.0.251
 * v2.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 2.0.250
 * v2.0, 2018-07-21, Merge [#1119][bug #1119], fix memory leak. 2.0.249
 * <strong>v2.0, 2018-07-18, [2.0 release3(2.0.248)][r2.0r3] released. 86775 lines.</strong>
@@ -1315,6 +1316,7 @@ Winlin
 [bug #1176]: https://github.com/ossrs/srs/issues/1176
 [bug #1119]: https://github.com/ossrs/srs/issues/1119
 [bug #1031]: https://github.com/ossrs/srs/issues/1031
+[bug #1110]: https://github.com/ossrs/srs/issues/1110
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
