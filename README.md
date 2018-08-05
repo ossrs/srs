@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-05, Fix [#1087][bug #1087], Ignore iface without address. 3.0.37
 * v3.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 3.0.36
 * v3.0, 2018-08-02, Always use vhost in stream query, the unify uri. 3.0.35
 * v3.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 3.0.34
@@ -1452,6 +1453,7 @@ Winlin
 [bug #1057]: https://github.com/ossrs/srs/issues/1057
 [bug #105]: https://github.com/ossrs/srs/issues/105
 [bug #727]: https://github.com/ossrs/srs/issues/727
+[bug #1087]: https://github.com/ossrs/srs/issues/1087
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
