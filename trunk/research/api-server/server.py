@@ -176,7 +176,7 @@ class RESTStreams(object):
                   "action": "on_publish",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream"
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
     on_unpublish:
         when client(encoder) stop publish to vhost/app/stream, call the hook,
@@ -185,7 +185,7 @@ class RESTStreams(object):
                   "action": "on_unpublish",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream"
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
     if valid, the hook must return HTTP code 200(Stauts OK) and response
     an int value specifies the error code(0 corresponding to success):
@@ -223,8 +223,8 @@ class RESTStreams(object):
     def __on_publish(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"]
         ))
 
         # TODO: process the on_publish event
@@ -234,8 +234,8 @@ class RESTStreams(object):
     def __on_unpublish(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"]
         ))
 
         # TODO: process the on_unpublish event
@@ -263,7 +263,7 @@ class RESTDvrs(object):
                   "action": "on_dvr",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream",
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy",
                   "cwd": "/usr/local/srs",
                   "file": "./objs/nginx/html/live/livestream.1420254068776.flv"
               }
@@ -301,8 +301,8 @@ class RESTDvrs(object):
     def __on_dvr(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, cwd=%s, file=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"],
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s, cwd=%s, file=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"],
             req["cwd"], req["file"]
         ))
 
@@ -325,6 +325,7 @@ class RESTProxy(object):
         so we use HTTP GET and use the variable following:
               [app], replace with the app.
               [stream], replace with the stream.
+              [param], replace with the param.
               [ts_url], replace with the ts url.
         ignore any return data of server.
     '''
@@ -359,6 +360,7 @@ class RESTHls(object):
         so we use HTTP GET and use the variable following:
               [app], replace with the app.
               [stream], replace with the stream.
+              [param], replace with the param.
               [ts_url], replace with the ts url.
         ignore any return data of server.
     '''
@@ -382,7 +384,7 @@ class RESTHls(object):
                   "ip": "192.168.1.10", 
                   "vhost": "video.test.com", 
                   "app": "live",
-                  "stream": "livestream",
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy",
                   "duration": 9.68, // in seconds
                   "cwd": "/usr/local/srs",
                   "file": "./objs/nginx/html/live/livestream.1420254068776-100.ts",
@@ -422,8 +424,8 @@ class RESTHls(object):
     def __on_hls(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, duration=%s, cwd=%s, file=%s, seq_no=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["duration"],
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%s, cwd=%s, file=%s, seq_no=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"], req["duration"],
             req["cwd"], req["file"], req["seq_no"]
         ))
 
@@ -452,7 +454,7 @@ class RESTSessions(object):
                   "action": "on_play",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream",
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy",
                   "pageUrl": "http://www.test.com/live.html"
               }
     on_stop:
@@ -462,7 +464,7 @@ class RESTSessions(object):
                   "action": "on_stop",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-                  "stream": "livestream"
+                  "stream": "livestream", "param":"?token=xxx&salt=yyy"
               }
     if valid, the hook must return HTTP code 200(Stauts OK) and response
     an int value specifies the error code(0 corresponding to success):
@@ -500,8 +502,8 @@ class RESTSessions(object):
     def __on_play(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, pageUrl=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["pageUrl"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s, pageUrl=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"], req["pageUrl"]
         ))
 
         # TODO: process the on_play event
@@ -511,8 +513,8 @@ class RESTSessions(object):
     def __on_stop(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, param=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["param"]
         ))
 
         # TODO: process the on_stop event
