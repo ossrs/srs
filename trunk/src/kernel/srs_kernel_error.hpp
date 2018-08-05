@@ -112,6 +112,8 @@
 #define ERROR_ASPROCESS_PPID                1073
 #define ERROR_EXCEED_CONNECTIONS            1074
 #define ERROR_SOCKET_SETKEEPALIVE           1075
+#define ERROR_SOCKET_NO_NODELAY             1076
+#define ERROR_SOCKET_SNDBUF                 1077
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

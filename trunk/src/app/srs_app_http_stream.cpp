@@ -487,6 +487,7 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 {
     srs_error_t err = srs_success;
     
+    string enc_desc;
     ISrsBufferEncoder* enc = NULL;
     
     srs_assert(entry);
@@ -495,21 +496,27 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 #ifdef SRS_PERF_FAST_FLV_ENCODER
         bool realtime = _srs_config->get_realtime_enabled(req->vhost);
         if (realtime) {
+            enc_desc = "FLV";
             enc = new SrsFlvStreamEncoder();
         } else {
+            enc_desc = "FastFLV";
             enc = new SrsFastFlvStreamEncoder();
         }
 #else
+        enc_desc = "FLV";
         enc = new SrsFlvStreamEncoder();
 #endif
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
+        enc_desc = "AAC";
         enc = new SrsAacStreamEncoder();
     } else if (srs_string_ends_with(entry->pattern, ".mp3")) {
         w->header()->set_content_type("audio/mpeg");
+        enc_desc = "MP3";
         enc = new SrsMp3StreamEncoder();
     } else if (srs_string_ends_with(entry->pattern, ".ts")) {
         w->header()->set_content_type("video/MP2T");
+        enc_desc = "TS";
         enc = new SrsTsStreamEncoder();
     } else {
         return srs_error_new(ERROR_HTTP_LIVE_STREAM_EXT, "invalid pattern=%s", entry->pattern.c_str());
@@ -557,7 +564,18 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
     
+    // Set the socket options for transport.
+    bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);
+    if (tcp_nodelay) {
+        if ((err = hc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
+            return srs_error_wrap(err, "set tcp nodelay");
+        }
+    }
+    
     int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+    if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
+        return srs_error_wrap(err, "set mw_sleep");
+    }
     
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
@@ -565,6 +583,9 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start recv thread");
     }
+    
+    srs_trace("FLV %s, encoder=%s, nodelay=%d, mw_sleep=%dms, cache=%d, msgs=%d",
+        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, mw_sleep, enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     while (entry->enabled) {
@@ -583,16 +604,14 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         }
         
         if (count <= 0) {
-            srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
-            // directly use sleep, donot use consumer wait.
-            srs_usleep(mw_sleep);
-            
+            // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
+            srs_usleep(mw_sleep * 1000);
             // ignore when nothing got.
             continue;
         }
         
         if (pprint->can_print()) {
-            srs_trace("-> "SRS_CONSTS_LOG_HTTP_STREAM" http: got %d msgs, age=%d, min=%d, mw=%d",
+            srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
                 count, pprint->age(), SRS_PERF_MW_MIN_MSGS, mw_sleep);
         }
         

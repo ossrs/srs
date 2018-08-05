@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-05, Refine HTTP-FLV latency, support realtime mode.3.0.38
 * v3.0, 2018-08-05, Fix [#1087][bug #1087], Ignore iface without address. 3.0.37
 * v3.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 3.0.36
 * v3.0, 2018-08-02, Always use vhost in stream query, the unify uri. 3.0.35
