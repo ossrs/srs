@@ -776,7 +776,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         if ((err = entry->cache->start()) != srs_success) {
             return srs_error_wrap(err, "http: start stream cache failed");
         }
-        srs_trace("http: mount flv stream for vhost=%s, mount=%s", sid.c_str(), mount.c_str());
+        srs_trace("http: mount flv stream for sid=%s, mount=%s", sid.c_str(), mount.c_str());
     } else {
         entry = sflvs[sid];
         entry->stream->update(s, r);
