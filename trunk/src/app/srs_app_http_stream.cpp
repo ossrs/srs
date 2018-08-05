@@ -493,7 +493,12 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-        enc = new SrsFastFlvStreamEncoder();
+        bool realtime = _srs_config->get_realtime_enabled(req->vhost);
+        if (realtime) {
+            enc = new SrsFlvStreamEncoder();
+        } else {
+            enc = new SrsFastFlvStreamEncoder();
+        }
 #else
         enc = new SrsFlvStreamEncoder();
 #endif
@@ -552,6 +557,8 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
     
+    int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+    
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
@@ -578,15 +585,15 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
             // directly use sleep, donot use consumer wait.
-            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+            srs_usleep(mw_sleep);
             
             // ignore when nothing got.
             continue;
         }
         
         if (pprint->can_print()) {
-            srs_info("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
-                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TMMS);
+            srs_trace("-> "SRS_CONSTS_LOG_HTTP_STREAM" http: got %d msgs, age=%d, min=%d, mw=%d",
+                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, mw_sleep);
         }
         
         // sendout all messages.
