@@ -229,6 +229,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-08-11, For [#1110][bug #1110], Refine params in http callback. 2.0.253
 * v2.0, 2018-08-05, Refine HTTP-FLV latency, support realtime mode. 2.0.252
 * v2.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 2.0.251
 * v2.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 2.0.250
