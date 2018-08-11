@@ -243,8 +243,8 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     }
     
     // drop all request body.
+    char body[4096];
     while (!br->eof()) {
-        char body[4096];
         if ((err = br->read(body, 4096, NULL)) != srs_success) {
             return srs_error_wrap(err, "read response");
         }
