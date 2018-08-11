@@ -864,10 +864,8 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     req->pageUrl = get_request_header("Referer");
     req->objectEncoding = 0;
     
-    srs_discovery_tc_url(req->tcUrl,
-                         req->schema, req->host, req->vhost, req->app, req->stream, req->port,
-                         req->param);
-    req->strip();
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
+    req->as_http();
     
     return req;
 }
