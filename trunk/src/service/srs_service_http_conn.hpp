@@ -30,10 +30,10 @@
 
 #include <srs_http_stack.hpp>
 
-class ISrsProtocolReaderWriter;
 class SrsConnection;
 class SrsFastStream;
 class SrsRequest;
+class ISrsReader;
 class SrsHttpResponseReader;
 class SrsStSocket;
 
@@ -77,12 +77,12 @@ public:
      * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
      * @remark user must free the ppmsg if not NULL.
      */
-    virtual srs_error_t parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg);
+    virtual srs_error_t parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg);
 private:
     /**
      * parse the HTTP message to member field: msg.
      */
-    virtual srs_error_t parse_message_imp(ISrsProtocolReaderWriter* io);
+    virtual srs_error_t parse_message_imp(ISrsReader* reader);
 private:
     static int on_message_begin(http_parser* parser);
     static int on_headers_complete(http_parser* parser);
@@ -149,13 +149,13 @@ private:
     // the query map
     std::map<std::string, std::string> _query;
     // the transport connection, can be NULL.
-    SrsConnection* conn;
+    SrsConnection* owner_conn;
     // whether request is jsonp.
     bool jsonp;
     // the method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c);
+    SrsHttpMessage(ISrsReader* io);
     virtual ~SrsHttpMessage();
 public:
     /**
@@ -163,7 +163,9 @@ public:
      */
     virtual srs_error_t update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
 public:
+    // Get the owner connection, maybe NULL.
     virtual SrsConnection* connection();
+    virtual void set_connection(SrsConnection* conn);
 public:
     virtual uint8_t method();
     virtual uint16_t status_code();
@@ -295,7 +297,7 @@ public:
 class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
 {
 private:
-    ISrsProtocolReaderWriter* skt;
+    ISrsReader* skt;
     SrsHttpMessage* owner;
     SrsFastStream* buffer;
     bool is_eof;
@@ -306,7 +308,7 @@ private:
     // already read total bytes.
     int64_t nb_total_read;
 public:
-    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io);
+    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader);
     virtual ~SrsHttpResponseReader();
 public:
     /**

@@ -123,19 +123,21 @@ srs_error_t SrsHttpConn::do_cycle()
         ISrsHttpMessage* req = NULL;
         
         // get a http message
-        if ((err = parser->parse_message(skt, this, &req)) != srs_success) {
+        if ((err = parser->parse_message(skt, &req)) != srs_success) {
             break;
         }
         
         // if SUCCESS, always NOT-NULL.
-        srs_assert(req);
-        
         // always free it in this scope.
+        srs_assert(req);
         SrsAutoFree(ISrsHttpMessage, req);
+        
+        // Attach owner connection to message.
+        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
+        hreq->set_connection(this);
         
         // copy request to last request object.
         srs_freep(last_req);
-        SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(req);
         last_req = hreq->to_request(hreq->host());
         
         // may should discard the body.
@@ -218,9 +220,13 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
         return srs_error_wrap(err, "init socket");
     }
     
-    if ((err = parser->parse_message(&skt, this, preq)) != srs_success) {
+    if ((err = parser->parse_message(&skt, preq)) != srs_success) {
         return srs_error_wrap(err, "parse message");
     }
+    
+    // Attach owner connection to message.
+    SrsHttpMessage* hreq = (SrsHttpMessage*)(*preq);
+    hreq->set_connection(this);
     
     return err;
 }
