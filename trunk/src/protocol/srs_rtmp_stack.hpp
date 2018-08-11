@@ -602,6 +602,9 @@ public:
      * strip url, user must strip when update the url.
      */
     virtual void strip();
+public:
+    // Transform it as HTTP request.
+    virtual SrsRequest* as_http();
 };
 
 /**

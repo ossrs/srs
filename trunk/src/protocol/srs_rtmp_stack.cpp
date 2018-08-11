@@ -1624,6 +1624,12 @@ void SrsRequest::strip()
     stream = srs_string_trim_start(stream, "/");
 }
 
+SrsRequest* SrsRequest::as_http()
+{
+    schema = "http";
+    return this;
+}
+
 SrsResponse::SrsResponse()
 {
     stream_id = SRS_DEFAULT_SID;
