@@ -752,6 +752,28 @@ int av_toupper(int c)
     return c;
 }
 
+string srs_int2str(int64_t value)
+{
+    // len(max int64_t) is 20, plus one "+-."
+    char tmp[22];
+    snprintf(tmp, 22, "%" PRId64, value);
+    return tmp;
+}
+
+
+char *srs_data_to_hex(char *des,const u_int8_t *src,int len)
+{
+    if(src == NULL || len == 0 || des == NULL){
+        return NULL;
+    }
+    for (int i=0; i<len; i++) {
+        des[i * 2]     = "0123456789ABCDEF"[src[i] >> 4];
+        des[i * 2 + 1] = "0123456789ABCDEF"[src[i] & 0x0F];
+    }
+
+    return des;
+}
+
 int ff_hex_to_data(u_int8_t* data, const char* p)
 {
     int c, len, v;

@@ -1898,8 +1898,8 @@ int SrsConfig::check_config()
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
-                        && m != "hls_wait_keyframe" && m != "hls_dispose"
-                        ) {
+                        && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
+                        && m != "hls_key_file_path" && m != "hls_key_url") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3896,6 +3896,93 @@ bool SrsConfig::get_hls_wait_keyframe(string vhost)
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_hls_keys(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_keys");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_hls_fragments_per_key(string vhost)
+{
+    static int DEFAULT = 10;
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_fragments_per_key");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_hls_key_file(string vhost)
+{
+    static string DEFAULT = "[app]/[stream]-[seq].key";
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_file");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_key_file_path(std::string vhost)
+{
+     //put the key in ts path defaultly.
+    static string DEFAULT = get_hls_path(vhost);
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_file_path");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_key_url(std::string vhost)
+{
+     //put the key in ts path defaultly.
+    static string DEFAULT = get_hls_path(vhost);
+    
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("hls_key_url");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0();
 }
 
 SrsConfDirective *SrsConfig::get_hds(const string &vhost)
