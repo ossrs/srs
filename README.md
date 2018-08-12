@@ -294,7 +294,8 @@ Remark:
 
 ## Releases
 
-* 2018-07-18, [Release v2.0-r3][r2.0r3], 2.0 release2, 2.0.248, 86775 lines.
+* 2018-08-12, [Release v2.0-r4][r2.0r4], 2.0 release4, 2.0.255, 86915 lines.
+* 2018-07-18, [Release v2.0-r3][r2.0r3], 2.0 release3, 2.0.248, 86775 lines.
 * 2017-06-10, [Release v2.0-r2][r2.0r2], 2.0 release2, 2.0.243, 86670 lines.
 * 2017-04-18, [Release v2.0-r1][r2.0r1], 2.0 release1, 2.0.239, 86515 lines.
 * 2017-03-03, [Release v2.0-r0][r2.0r0], 2.0 release0, 2.0.234, 86373 lines.
@@ -333,6 +334,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2018-08-12, [2.0 release4(2.0.255)][r2.0r4] released. 86915 lines.</strong>
 * v2.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 2.0.255 
 * v2.0, 2018-08-11, For [#910][bug #910], Support HTTP FLV with HTTP callback. 2.0.254
 * v2.0, 2018-08-11, For [#1110][bug #1110], Refine params in http callback. 2.0.253
@@ -1329,6 +1331,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r4]: https://github.com/ossrs/srs/releases/tag/v2.0-r4
 [r2.0r3]: https://github.com/ossrs/srs/releases/tag/v2.0-r3
 [r2.0r2]: https://github.com/ossrs/srs/releases/tag/v2.0-r2
 [r2.0r1]: https://github.com/ossrs/srs/releases/tag/v2.0-r1
