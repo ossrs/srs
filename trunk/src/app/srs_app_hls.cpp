@@ -771,7 +771,7 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         {
             string filename = req->stream+"-"+srs_int2str(segment->sequence_no)+".key";
             char hexiv[33];
-            ff_data_to_hex(hexiv,segment->iv,16,0);
+            srs_data_to_hex(hexiv,segment->iv,16);
             hexiv[32] = '\0';
             string key_path;
             //if key_url is not set,only use the file name

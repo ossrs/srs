@@ -184,7 +184,7 @@ extern int ff_hex_to_data(uint8_t* data, const char* p);
 /**
  * convert data string to hex.
  */
-extern char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase);
+extern char *srs_data_to_hex(char *buff, const uint8_t *src, int s);
 
 /**
  * generate the c0 chunk header for msg.
