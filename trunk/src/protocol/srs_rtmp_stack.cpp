@@ -1581,6 +1581,7 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    param = req->param;
     
     ip = req->ip;
     vhost = req->vhost;
