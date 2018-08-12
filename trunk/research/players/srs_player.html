@@ -643,6 +643,11 @@
             if (query.buffer) {
                 url += "&buffer=" + query.buffer;
             }
+
+            var queries = user_extra_params(query);
+            if (queries && queries.length) {
+                url += '&' + queries.join('&');
+            }
             $("#player_url").text($("#txt_url").val()).attr("href", url);
 
             $("#link_server").text(rtmp.server);
