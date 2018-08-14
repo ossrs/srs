@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_st.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_service_http_conn.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -103,6 +104,12 @@ MockBufferIO::MockBufferIO()
 
 MockBufferIO::~MockBufferIO()
 {
+}
+
+MockBufferIO* MockBufferIO::append(string data)
+{
+    in_buffer.append(data.data(), data.length());
+    return this;
 }
 
 bool MockBufferIO::is_never_timeout(int64_t tm)
@@ -559,15 +566,15 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
     string ip; string vhost; string app; int port; string tcUrl; string param;
     
     ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://127.0.0.1/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 1935;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = 19351;
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
 
@@ -5521,6 +5528,92 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     
     EXPECT_TRUE(ERROR_SUCCESS == bytes.read_s0s1s2(&bio));
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
+}
+
+VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
+{
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+        
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        
+        if (true) {
+            ISrsHttpMessage* req = NULL;
+            SrsAutoFree(ISrsHttpMessage, req);
+            ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
+            
+            // We should read body, or next parsing message will fail.
+            // @see https://github.com/ossrs/srs/issues/1181
+            EXPECT_FALSE(req->body_reader()->eof());
+        }
+        
+        if (true) {
+            bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+            
+            // Should fail because there is body which not read.
+            // @see https://github.com/ossrs/srs/issues/1181
+            
+            ISrsHttpMessage* req = NULL;
+            SrsAutoFree(ISrsHttpMessage, req);
+            ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        }
+    }
+    
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+        
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        
+        ISrsHttpMessage* req = NULL;
+        SrsAutoFree(ISrsHttpMessage, req);
+        ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
+        
+        char v[64] = {0};
+        EXPECT_TRUE(0 == req->body_reader()->read(v, sizeof(v), NULL));
+        EXPECT_TRUE(string("Hello") == string(v));
+        
+        EXPECT_TRUE(req->body_reader()->eof());
+    }
+    
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+        
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 0\r\n\r\n");
+        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        
+        ISrsHttpMessage* req = NULL;
+        SrsAutoFree(ISrsHttpMessage, req);
+        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+    }
+    
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+        
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
+        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        
+        ISrsHttpMessage* req = NULL;
+        SrsAutoFree(ISrsHttpMessage, req);
+        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+    }
+    
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+        
+        bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
+        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        
+        ISrsHttpMessage* req = NULL;
+        SrsAutoFree(ISrsHttpMessage, req);
+        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+    }
 }
 
 #endif

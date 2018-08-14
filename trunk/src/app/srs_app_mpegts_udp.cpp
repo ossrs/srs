@@ -626,7 +626,7 @@ srs_error_t SrsMpegtsOverUdp::connect()
         return srs_error_wrap(err, "connect %s failed, cto=%" PRId64 ", sto=%" PRId64, output.c_str(), cto, sto);
     }
     
-    if ((err = sdk->publish()) != srs_success) {
+    if ((err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
         close();
         return srs_error_wrap(err, "publish");
     }

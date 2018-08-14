@@ -1404,15 +1404,18 @@ srs_error_t SrsHttpApi::do_cycle()
         ISrsHttpMessage* req = NULL;
         
         // get a http message
-        if ((err = parser->parse_message(skt, this, &req)) != srs_success) {
+        if ((err = parser->parse_message(skt, &req)) != srs_success) {
             return srs_error_wrap(err, "parse message");
         }
         
         // if SUCCESS, always NOT-NULL.
-        srs_assert(req);
-        
         // always free it in this scope.
+        srs_assert(req);
         SrsAutoFree(ISrsHttpMessage, req);
+        
+        // Attach owner connection to message.
+        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
+        hreq->set_connection(this);
         
         // ok, handle http request.
         SrsHttpResponseWriter writer(skt);

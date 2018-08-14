@@ -34,9 +34,7 @@ class SrsFlvTransmuxer;
 class SrsTsTransmuxer;
 
 /**
- * for the srs http stream cache,
- * for example, the audio stream cache to make android(weixin) happy.
- * we start a thread to shrink the queue.
+ * A cache for HTTP Live Streaming encoder, to make android(weixin) happy.
  */
 class SrsBufferCache : public ISrsCoroutineHandler
 {
@@ -60,7 +58,7 @@ public:
 };
 
 /**
- * the stream encoder in some codec, for example, flv or aac.
+ * The encoder to transmux RTMP stream.
  */
 class ISrsBufferEncoder
 {
@@ -94,7 +92,7 @@ public:
 };
 
 /**
- * the flv stream encoder, remux rtmp stream to flv stream.
+ * Transmux RTMP to HTTP Live Streaming.
  */
 class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
@@ -115,7 +113,7 @@ public:
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
 /**
- * the fast flv stream encoder.
+ * A Fast HTTP FLV Live Streaming, to write multiple tags by writev.
  * @see https://github.com/ossrs/srs/issues/405
  */
 class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
@@ -132,7 +130,7 @@ public:
 #endif
 
 /**
- * the ts stream encoder, remux rtmp stream to ts stream.
+ * Transmux RTMP to HTTP TS Streaming.
  */
 class SrsTsStreamEncoder : public ISrsBufferEncoder
 {
@@ -152,7 +150,7 @@ public:
 };
 
 /**
- * the aac stream encoder, remux rtmp stream to aac stream.
+ * Transmux RTMP with AAC stream to HTTP AAC Streaming.
  */
 class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
@@ -173,7 +171,7 @@ public:
 };
 
 /**
- * the mp3 stream encoder, remux rtmp stream to mp3 stream.
+ * Transmux RTMP with MP3 stream to HTTP MP3 Streaming.
  */
 class SrsMp3StreamEncoder : public ISrsBufferEncoder
 {
@@ -215,8 +213,7 @@ public:
 };
 
 /**
- * the flv live stream supports access rtmp in flv over http.
- * srs will remux rtmp to flv streaming.
+ * HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
  */
 class SrsLiveStream : public ISrsHttpHandler
 {
@@ -231,11 +228,14 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t http_hooks_on_play();
+    virtual void http_hooks_on_stop();
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**
- * the srs live entry
+ * The Live Entry, to handle HTTP Live Streaming.
  */
 struct SrsLiveEntry
 {
@@ -264,8 +264,7 @@ public:
 };
 
 /**
- * the http stream server instance,
- * serve http stream, for example, flv/ts/mp3/aac live stream.
+ * The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
  */
 // TODO: Support multiple stream.
 class SrsHttpStreamServer : virtual public ISrsReloadHandler

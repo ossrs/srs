@@ -28,6 +28,7 @@
 #include <srs_kernel_error.hpp>
 
 #include <unistd.h>
+#include <sstream>
 using namespace std;
 
 SrsFragment::SrsFragment()
@@ -126,11 +127,16 @@ srs_error_t SrsFragment::rename()
     
     string full_path = fullpath();
     string tmp_file = tmppath();
-    
+    int tempdur = (int)duration();
+    if (true) {
+	   std::stringstream ss;
+	   ss << tempdur;
+	   full_path = srs_string_replace(full_path, "[duration]", ss.str());
+    }
     if (::rename(tmp_file.c_str(), full_path.c_str()) < 0) {
         return srs_error_new(ERROR_SYSTEM_FRAGMENT_RENAME, "rename %s to %s", tmp_file.c_str(), full_path.c_str());
     }
-    
+    filepath = full_path;
     return err;
 }
 

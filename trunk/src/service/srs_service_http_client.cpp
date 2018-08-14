@@ -124,7 +124,7 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((err = parser->parse_message(transport, NULL, &msg)) != srs_success) {
+    if ((err = parser->parse_message(transport, &msg)) != srs_success) {
         return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);
@@ -170,7 +170,7 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((err = parser->parse_message(transport, NULL, &msg)) != srs_success) {
+    if ((err = parser->parse_message(transport, &msg)) != srs_success) {
         return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);

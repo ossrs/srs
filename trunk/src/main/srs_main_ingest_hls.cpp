@@ -906,10 +906,12 @@ int SrsIngestHlsOutput::parse_message_queue()
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;
+        SrsAutoFree(SrsTsMessage, msg);
+        queue.erase(it);
+        
         if (msg->channel->stream == SrsTsStreamVideoH264) {
             nb_videos--;
         }
-        queue.erase(it);
         
         // parse the stream.
         SrsBuffer avs(msg->payload->bytes(), msg->payload->length());
@@ -939,6 +941,7 @@ int SrsIngestHlsOutput::flush_message_queue()
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;
+        SrsAutoFree(SrsTsMessage, msg);
         queue.erase(it);
         
         // parse the stream.
@@ -1286,7 +1289,7 @@ int SrsIngestHlsOutput::connect()
     }
     
     // publish.
-    if ((err = sdk->publish()) != srs_success) {
+    if ((err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
         // TODO: FIXME: Use error
         ret = srs_error_code(err);
         srs_freep(err);

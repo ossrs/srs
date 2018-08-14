@@ -134,7 +134,7 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     // generate the tcUrl
     std::string param = "";
     std::string target_vhost = req->vhost;
-    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port, param);
+    std::string tc_url = srs_generate_tc_url(req->host, req->vhost, req->app, req->port);
     
     // replace the tcUrl in request,
     // which will replace the tc_url in client.connect_app().
@@ -150,24 +150,30 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     return err;
 }
 
-srs_error_t SrsBasicRtmpClient::publish()
+srs_error_t SrsBasicRtmpClient::publish(int chunk_size)
 {
     srs_error_t err = srs_success;
     
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    string stream = srs_generate_stream_with_query(req->host, req->vhost, req->stream, req->param);
+    
     // publish.
-    if ((err = client->publish(req->stream, stream_id)) != srs_success) {
-        return srs_error_wrap(err, "publish failed, stream=%s, stream_id=%d", req->stream.c_str(), stream_id);
+    if ((err = client->publish(stream, stream_id, chunk_size)) != srs_success) {
+        return srs_error_wrap(err, "publish failed, stream=%s, stream_id=%d", stream.c_str(), stream_id);
     }
     
     return err;
 }
 
-srs_error_t SrsBasicRtmpClient::play()
+srs_error_t SrsBasicRtmpClient::play(int chunk_size)
 {
     srs_error_t err = srs_success;
     
-    if ((err = client->play(req->stream, stream_id)) != srs_success) {
-        return srs_error_wrap(err, "connect with server failed, stream=%s, stream_id=%d", req->stream.c_str(), stream_id);
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    string stream = srs_generate_stream_with_query(req->host, req->vhost, req->stream, req->param);
+    
+    if ((err = client->play(stream, stream_id, chunk_size)) != srs_success) {
+        return srs_error_wrap(err, "connect with server failed, stream=%s, stream_id=%d", stream.c_str(), stream_id);
     }
     
     return err;

@@ -184,6 +184,17 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 3.0.40
+* v3.0, 2018-08-11, For [#910][bug #910], Support HTTP FLV with HTTP callback. 3.0.39
+* v3.0, 2018-08-05, Refine HTTP-FLV latency, support realtime mode.3.0.38
+* v3.0, 2018-08-05, Fix [#1087][bug #1087], Ignore iface without address. 3.0.37
+* v3.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 3.0.36
+* v3.0, 2018-08-02, Always use vhost in stream query, the unify uri. 3.0.35
+* v3.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 3.0.34
+* v3.0, 2018-07-22, Replace hex to string to match MIT license. 3.0.33
+* v3.0, 2018-07-22, Replace base64 to match MIT license. 3.0.32
+* v3.0, 2018-07-22, Replace crc32 IEEE and MPEG by pycrc to match MIT license. 3.0.31
+* v3.0, 2018-07-21, Replace crc32 IEEE by golang to match MIT license. 3.0.30
 * v3.0, 2018-02-16, Fix [#464][bug #464], support RTMP origin cluster. 3.0.29
 * v3.0, 2018-02-13, Fix [#1057][bug #1057], switch to simple handshake. 3.0.28
 * v3.0, 2018-02-13, Fix [#1059][bug #1059], merge from 2.0, supports url with vhost in stream. 3.0.27
@@ -220,6 +231,16 @@ Please select according to languages:
 
 ### V2 changes
 
+* <strong>v2.0, 2018-08-12, [2.0 release4(2.0.255)][r2.0r4] released. 86915 lines.</strong>
+* v2.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 2.0.255 
+* v2.0, 2018-08-11, For [#910][bug #910], Support HTTP FLV with HTTP callback. 2.0.254
+* v2.0, 2018-08-11, For [#1110][bug #1110], Refine params in http callback. 2.0.253
+* v2.0, 2018-08-05, Refine HTTP-FLV latency, support realtime mode. 2.0.252
+* v2.0, 2018-08-04, For [#1110][bug #1110], Support params in http callback. 2.0.251
+* v2.0, 2018-08-02, For [#1031][bug #1031], SRS edge support douyu.com. 2.0.250
+* v2.0, 2018-07-21, Merge [#1119][bug #1119], fix memory leak. 2.0.249
+* <strong>v2.0, 2018-07-18, [2.0 release3(2.0.248)][r2.0r3] released. 86775 lines.</strong>
+* v2.0, 2018-07-17, Merge [#1176][bug #1176], fix scaned issues. 2.0.248
 * v2.0, 2018-02-28, Merge [#1077][bug #1077], fix crash for edge HLS. 2.0.247
 * v2.0, 2018-02-13, Fix [#1059][bug #1059], support vhost in stream parameters. 2.0.246
 * v2.0, 2018-01-07, Merge [#1045][bug #1045], fix [#1044][bug #1044], TCP connection alive detection. 2.0.245
@@ -821,6 +842,8 @@ The latency between encoder and player with realtime config([CN][v3_CN_LowLatenc
 |   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
 |   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
 
+> 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
+
 We used FMLE as encoder for benchmark. The latency of server was 0.1s+, 
 and the bottleneck was the encoder. For more information, read 
 [bug #257][bug #257-c0].
@@ -1421,6 +1444,12 @@ Winlin
 [bug #1045]: https://github.com/ossrs/srs/issues/1045
 [bug #1059]: https://github.com/ossrs/srs/issues/1059
 [bug #1077]: https://github.com/ossrs/srs/issues/1077
+[bug #1176]: https://github.com/ossrs/srs/issues/1176
+[bug #1119]: https://github.com/ossrs/srs/issues/1119
+[bug #1031]: https://github.com/ossrs/srs/issues/1031
+[bug #1110]: https://github.com/ossrs/srs/issues/1110
+[bug #910]: https://github.com/ossrs/srs/issues/910
+[bug #1202]: https://github.com/ossrs/srs/issues/1202
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
@@ -1436,10 +1465,13 @@ Winlin
 [bug #1057]: https://github.com/ossrs/srs/issues/1057
 [bug #105]: https://github.com/ossrs/srs/issues/105
 [bug #727]: https://github.com/ossrs/srs/issues/727
+[bug #1087]: https://github.com/ossrs/srs/issues/1087
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r4]: https://github.com/ossrs/srs/releases/tag/v2.0-r4
+[r2.0r3]: https://github.com/ossrs/srs/releases/tag/v2.0-r3
 [r2.0r2]: https://github.com/ossrs/srs/releases/tag/v2.0-r2
 [r2.0r1]: https://github.com/ossrs/srs/releases/tag/v2.0-r1
 [r2.0r0]: https://github.com/ossrs/srs/releases/tag/v2.0-r0

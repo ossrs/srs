@@ -68,7 +68,7 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
     return err;
 }
 
-srs_error_t SrsHttpParser::parse_message(ISrsProtocolReaderWriter* io, SrsConnection* conn, ISrsHttpMessage** ppmsg)
+srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
@@ -85,12 +85,12 @@ srs_error_t SrsHttpParser::parse_message(ISrsProtocolReaderWriter* io, SrsConnec
     header_parsed = 0;
     
     // do parse
-    if ((err = parse_message_imp(io)) != srs_success) {
+    if ((err = parse_message_imp(reader)) != srs_success) {
         return srs_error_wrap(err, "parse message");
     }
     
     // create msg
-    SrsHttpMessage* msg = new SrsHttpMessage(io, conn);
+    SrsHttpMessage* msg = new SrsHttpMessage(reader);
     
     // initalize http msg, parse url.
     if ((err = msg->update(url, jsonp, &header, buffer, headers)) != srs_success) {
@@ -104,7 +104,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsProtocolReaderWriter* io, SrsConnec
     return err;
 }
 
-srs_error_t SrsHttpParser::parse_message_imp(ISrsProtocolReaderWriter* io)
+srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
 {
     srs_error_t err = srs_success;
     
@@ -138,7 +138,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsProtocolReaderWriter* io)
         // when nothing parsed, read more to parse.
         if (nparsed == 0) {
             // when requires more, only grow 1bytes, but the buffer will cache more.
-            if ((err = buffer->grow(io, buffer->size() + 1)) != srs_success) {
+            if ((err = buffer->grow(reader, buffer->size() + 1)) != srs_success) {
                 return srs_error_wrap(err, "grow buffer");
             }
         }
@@ -254,14 +254,14 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-SrsHttpMessage::SrsHttpMessage(ISrsProtocolReaderWriter* io, SrsConnection* c) : ISrsHttpMessage()
+SrsHttpMessage::SrsHttpMessage(ISrsReader* reader) : ISrsHttpMessage()
 {
-    conn = c;
+    owner_conn = NULL;
     chunked = false;
     infinite_chunked = false;
     keep_alive = true;
     _uri = new SrsHttpUri();
-    _body = new SrsHttpResponseReader(this, io);
+    _body = new SrsHttpResponseReader(this, reader);
     _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
     jsonp = false;
 }
@@ -329,7 +329,12 @@ srs_error_t SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* he
 
 SrsConnection* SrsHttpMessage::connection()
 {
-    return conn;
+    return owner_conn;
+}
+
+void SrsHttpMessage::set_connection(SrsConnection* conn)
+{
+    owner_conn = conn;
 }
 
 uint8_t SrsHttpMessage::method()
@@ -842,9 +847,9 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
 }
 
-SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsProtocolReaderWriter* io)
+SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader)
 {
-    skt = io;
+    skt = reader;
     owner = msg;
     is_eof = false;
     nb_total_read = 0;

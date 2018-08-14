@@ -203,7 +203,7 @@ bool SrsFlvAudio::aac(char* data, int size)
 // 1 = 11 kHz = 11025 Hz
 // 2 = 22 kHz = 22050 Hz
 // 3 = 44 kHz = 44100 Hz
-int srs_flv_srates[] = {5512, 11025, 22050, 44100};
+int srs_flv_srates[] = {5512, 11025, 22050, 44100, 0};
 
 // the sample rates in the codec,
 // in the sequence header.

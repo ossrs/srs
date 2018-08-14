@@ -112,6 +112,8 @@
 #define ERROR_ASPROCESS_PPID                1073
 #define ERROR_EXCEED_CONNECTIONS            1074
 #define ERROR_SOCKET_SETKEEPALIVE           1075
+#define ERROR_SOCKET_NO_NODELAY             1076
+#define ERROR_SOCKET_SNDBUF                 1077
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
@@ -318,6 +320,7 @@
 #define ERROR_KAFKA_CODEC_MESSAGE           4036
 #define ERROR_KAFKA_CODEC_PRODUCER          4037
 #define ERROR_HTTP_302_INVALID              4038
+#define ERROR_BASE64_DECODE                 4039
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

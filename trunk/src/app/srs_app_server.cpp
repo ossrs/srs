@@ -653,6 +653,7 @@ srs_error_t SrsServer::acquire_pid_file()
     
     if (fcntl(fd, F_SETLK, &lock) == -1) {
         if(errno == EACCES || errno == EAGAIN) {
+            ::close(fd);
             srs_error("srs is already running!");
             return srs_error_new(ERROR_SYSTEM_PID_ALREADY_RUNNING, "srs is already running");
         }

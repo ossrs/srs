@@ -470,9 +470,9 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
-    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream_name=%s, duration=%.2f",
-        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->duration);
-
+    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%.2f",
+        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), req->duration);
+    
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
@@ -489,11 +489,10 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return srs_error_wrap(err, "check vhost");
     }
 
-    srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, args=%s",
-        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(),
-        req->schema.c_str(), req->vhost.c_str(), req->port,
-        req->app.c_str(), req->stream.c_str(), (req->args? "(obj)":"null"));
-
+    srs_trace("connected stream, tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%d, app=%s, stream=%s, param=%s, args=%s",
+        req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port,
+        req->app.c_str(), req->stream.c_str(), req->param.c_str(), (req->args? "(obj)":"null"));
+    
     // do token traverse before serve it.
     // @see https://github.com/ossrs/srs/pull/239
     if (true) {
@@ -1137,48 +1136,7 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
         return;
     }
     
-    // get the sock buffer size.
-    int fd = srs_netfd_fileno(stfd);
-    int onb_sbuf = 0;
-    socklen_t sock_buf_size = sizeof(int);
-    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
-    
-#ifdef SRS_PERF_MW_SO_SNDBUF
-    // the bytes:
-    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
-    //      128KB=131072, 256KB=262144, 512KB=524288
-    // the buffer should set to sleep*kbps/8,
-    // for example, your system delivery stream in 1000kbps,
-    // sleep 800ms for small bytes, the buffer should set to:
-    //      800*1000/8=100000B(about 128KB).
-    // other examples:
-    //      2000*3000/8=750000B(about 732KB).
-    //      2000*5000/8=1250000B(about 1220KB).
-    int kbps = 5000;
-    int socket_buffer_size = sleep_ms * kbps / 8;
-    
-    // socket send buffer, system will double it.
-    int nb_sbuf = socket_buffer_size / 2;
-    
-    // override the send buffer by macro.
-#ifdef SRS_PERF_SO_SNDBUF_SIZE
-    nb_sbuf = SRS_PERF_SO_SNDBUF_SIZE / 2;
-#endif
-    
-    // set the socket send buffer when required larger buffer
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, sock_buf_size) < 0) {
-        srs_warn("set sock SO_SENDBUF=%d failed.", nb_sbuf);
-    }
-    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
-    
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d, realtime=%d",
-              mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
-              onb_sbuf, nb_sbuf, realtime);
-#else
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d, realtime=%d",
-              mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf, realtime);
-#endif
-    
+    set_socket_buffer(sleep_ms);
     mw_sleep = sleep_ms;
 }
 
@@ -1189,25 +1147,12 @@ void SrsRtmpConn::set_sock_options()
     bool nvalue = _srs_config->get_tcp_nodelay(req->vhost);
     if (nvalue != tcp_nodelay) {
         tcp_nodelay = nvalue;
-#ifdef SRS_PERF_TCP_NODELAY
-        int fd = srs_netfd_fileno(stfd);
         
-        socklen_t nb_v = sizeof(int);
-        
-        int ov = 0;
-        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v);
-        
-        int v = tcp_nodelay;
-        // set the socket send buffer when required larger buffer
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, nb_v) < 0) {
-            srs_warn("set sock TCP_NODELAY=%d failed.", v);
+        srs_error_t err = set_tcp_nodelay(tcp_nodelay);
+        if (err != srs_success) {
+            srs_warn("ignore err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
-        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, &nb_v);
-        
-        srs_trace("set TCP_NODELAY %d=>%d", ov, v);
-#else
-        srs_warn("SRS_PERF_TCP_NODELAY is disabled but tcp_nodelay configed.");
-#endif
     }
 }
 

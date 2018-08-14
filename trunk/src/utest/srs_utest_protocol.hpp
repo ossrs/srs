@@ -86,6 +86,8 @@ public:
 public:
     MockBufferIO();
     virtual ~MockBufferIO();
+public:
+    virtual MockBufferIO* append(std::string data);
 // for protocol
 public:
     virtual bool is_never_timeout(int64_t tm);

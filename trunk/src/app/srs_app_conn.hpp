@@ -100,6 +100,10 @@ public:
      * to remove the client by server->remove(this).
      */
     virtual srs_error_t start();
+    // Set socket option TCP_NODELAY.
+    virtual srs_error_t set_tcp_nodelay(bool v);
+    // Set socket option SO_SNDBUF in ms.
+    virtual srs_error_t set_socket_buffer(int buffer_ms);
 // interface ISrsOneCycleThreadHandler
 public:
     /**
