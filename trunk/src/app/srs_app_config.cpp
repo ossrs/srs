@@ -6308,7 +6308,7 @@ bool SrsConfig::get_hls_keys(string vhost)
 
 int SrsConfig::get_hls_fragments_per_key(string vhost)
 {
-    static int DEFAULT = 10;
+    static int DEFAULT = 5;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {

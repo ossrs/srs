@@ -207,7 +207,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     _sequence_no = 0;
     current = NULL;
     hls_keys = false;
-    hls_fragments_per_key = 10;
+    hls_fragments_per_key = 0;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
@@ -325,10 +325,9 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     }
 
     if (hls_keys && (hls_path != hls_key_file_path)) {
-        string key_file = hls_key_file;
-        key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
-
-        string key_dir = srs_path_dirname(hls_key_file_path + "/" + key_file);
+        string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+        string key_url = hls_key_file_path + "/" + key_file;
+        string key_dir = srs_path_dirname(key_url);
         if ((err = srs_create_dir_recursively(key_dir)) != srs_success) {
             return srs_error_wrap(err, "create dir");
         }
@@ -665,36 +664,28 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     
 #ifdef SRS_AUTO_SSL
     if (hls_keys && current->sequence_no % hls_fragments_per_key == 0) {
-        string key_file = hls_key_file;
-        key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
-        
-        if (true) {
-            std::stringstream ss;
-            ss << current->sequence_no;
-            key_file = srs_string_replace(key_file, "[seq]", ss.str());
-        }
-        
-        string key_full_path = hls_key_file_path + "/" + key_file;
-        
         if (RAND_bytes(key, 16) < 0) {
-            srs_error_wrap(err, "rand key failed.");
+            return srs_error_wrap(err, "rand key failed.");
+        }
+        if (RAND_bytes(iv, 16) < 0) {
+            return srs_error_wrap(err, "rand iv failed.");
         }
         
-        if (RAND_bytes(iv, 16) < 0) {
-            srs_error_wrap(err, "rand iv failed.");
-        }
+        string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+        key_file = srs_string_replace(key_file, "[seq]", srs_int2str(current->sequence_no));
+        string key_url = hls_key_file_path + "/" + key_file;
         
         SrsFileWriter fw;
-        
-        if ((err = fw.open(key_full_path)) != srs_success) {
-            return srs_error_wrap(err, "open file %s", key_full_path.c_str());
+        if ((err = fw.open(key_url)) != srs_success) {
+            return srs_error_wrap(err, "open file %s", key_url.c_str());
         }
         
-        if ((err = fw.write(key, 16, NULL)) != srs_success) {
+        err = fw.write(key, 16, NULL);
+        fw.close();
+        
+        if (err != srs_success) {
             return srs_error_wrap(err, "write key");
         }
-        
-        fw.close();
     }
     
     if (hls_keys) {
@@ -784,21 +775,24 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
             ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
         }
 
-        if(hls_keys && (segment->sequence_no%hls_fragments_per_key == 0))
-        {
-            string filename = req->stream+"-"+srs_int2str(segment->sequence_no)+".key";
+#ifdef SRS_AUTO_SSL
+        if(hls_keys && ((segment->sequence_no % hls_fragments_per_key) == 0)) {
             char hexiv[33];
-            srs_data_to_hex(hexiv,segment->iv,16);
+            srs_data_to_hex(hexiv, segment->iv, 16);
             hexiv[32] = '\0';
-            string key_path;
+            
+            string key_file = srs_path_build_stream(hls_key_file, req->vhost, req->app, req->stream);
+            key_file = srs_string_replace(key_file, "[seq]", srs_int2str(segment->sequence_no));
+            
+            string key_path = key_file;
             //if key_url is not set,only use the file name
-            if(hls_key_url == hls_key_file_path){
-                key_path = filename;
-            }else{
-                key_path = hls_key_url+"/"+filename;
+            if (!hls_key_url.empty()) {
+                key_path = hls_key_url + key_file;
             }
-            ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\""<< key_path <<"\",IV=0x"<<hexiv<< SRS_CONSTS_LF;
+            
+            ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
         }
+#endif
         
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
