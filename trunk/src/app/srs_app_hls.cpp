@@ -1102,6 +1102,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // Use the diff to guess whether the samples is 1024 or 960.
     int nb_samples_per_frame = 1024;
     int diff = ::abs((int)(audio->timestamp - previous_audio_dts)) * srs_flv_srates[format->acodec->sound_rate];
+    previous_audio_dts = audio->timestamp;
     if (diff > 100 && diff < 950) {
         nb_samples_per_frame = 960;
     }
