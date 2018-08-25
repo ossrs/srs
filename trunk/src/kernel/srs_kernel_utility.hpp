@@ -164,6 +164,11 @@ extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plainte
 extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
 
 /**
+ * convert data string to hex.
+ */
+extern char *srs_data_to_hex(char *des, const uint8_t *src, int len);
+
+/**
  * generate the c0 chunk header for msg.
  * @param cache, the cache to write header.
  * @param nb_cache, the size of cache.

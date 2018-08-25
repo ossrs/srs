@@ -2610,6 +2610,65 @@ SrsVideoCodecId SrsTsContextWriter::video_codec()
     return vcodec;
 }
 
+srs_error_t SrsEncFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+{
+    
+    srs_assert(count == SRS_TS_PACKET_SIZE);
+    srs_error_t err = srs_success;
+
+    if(buflength != HLS_AES_ENCRYPT_BLOCK_LENGTH)
+    {
+        memcpy(tmpbuf+buflength,(char*)buf,SRS_TS_PACKET_SIZE);
+        buflength += SRS_TS_PACKET_SIZE;
+    }
+    if(buflength == HLS_AES_ENCRYPT_BLOCK_LENGTH)
+    {
+        unsigned char encryptedbuf[HLS_AES_ENCRYPT_BLOCK_LENGTH]; 
+        memset(encryptedbuf,0,HLS_AES_ENCRYPT_BLOCK_LENGTH);
+        AES_cbc_encrypt((unsigned char *)tmpbuf, (unsigned char *)encryptedbuf, HLS_AES_ENCRYPT_BLOCK_LENGTH, &key, iv, AES_ENCRYPT);
+        buflength = 0;
+        memset(tmpbuf,0,HLS_AES_ENCRYPT_BLOCK_LENGTH);
+        return SrsFileWriter::write(encryptedbuf,HLS_AES_ENCRYPT_BLOCK_LENGTH,pnwrite);
+    }
+    else
+    {
+        return err;
+    }
+ 
+};
+
+srs_error_t SrsEncFileWriter::SetEncCfg(unsigned char* keyval,unsigned char *ivval)
+{
+    
+    srs_error_t err = srs_success;
+  
+    if (AES_set_encrypt_key(keyval, 16*8, &key)) 
+    {
+        return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "set aes key failed");
+    } 
+
+    memcpy(iv,ivval,16);
+    return err;
+}
+
+void SrsEncFileWriter::close()
+{
+    if(buflength > 0)
+    {
+        int addBytes = 16 - buflength % 16;
+        memset(tmpbuf + buflength, addBytes, addBytes);
+        unsigned char encryptedbuf[buflength+addBytes];
+        memset(encryptedbuf,0,buflength+addBytes); 
+        AES_cbc_encrypt((unsigned char *)tmpbuf, (unsigned char *)encryptedbuf, buflength+addBytes, &key, iv, AES_ENCRYPT);
+        SrsFileWriter::write(encryptedbuf,buflength+addBytes,NULL);
+
+        buflength = 0;
+        memset(tmpbuf,0,HLS_AES_ENCRYPT_BLOCK_LENGTH);
+    }
+    SrsFileWriter::close();
+}
+
+
 SrsTsMessageCache::SrsTsMessageCache()
 {
     audio = NULL;
