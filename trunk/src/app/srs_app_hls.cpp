@@ -52,7 +52,9 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_format.hpp>
 
+#ifdef SRS_AUTO_SSL
 #include <openssl/rand.h>
+#endif
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
@@ -62,25 +64,26 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter *srswriter)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter* w)
 {
     sequence_no = 0;
- 
-    writer = srswriter;
-    
+    writer = w;
     tscw = new SrsTsContextWriter(writer, c, ac, vc);
-}
-
-void SrsHlsSegment::SrsSetEncCfg(unsigned char* keyval,unsigned char *ivval)
-{
-    memcpy(iv,ivval,16);
-    dynamic_cast<SrsEncFileWriter*>(writer)->SetEncCfg(keyval,ivval);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
 {
     srs_freep(tscw);
-    //srs_freep(writer);
+}
+
+void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
+{
+    memcpy(this->iv, iv,16);
+    
+#ifdef SRS_AUTO_SSL
+    SrsEncFileWriter* fw = (SrsEncFileWriter*)writer;
+    fw->config_cipher(key, iv);
+#endif
 }
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
@@ -208,6 +211,9 @@ SrsHlsMuxer::SrsHlsMuxer()
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
+    
+    memset(key, 0, 16);
+    memset(iv, 0, 16);
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -280,7 +286,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     string path, string m3u8_file, string ts_file, double fragment, double window,
     bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
     int fragments_per_key, string key_file ,string key_file_path, string key_url)
- {
+{
     srs_error_t err = srs_success;
     
     srs_freep(req);
@@ -318,8 +324,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         return srs_error_wrap(err, "create dir");
     }
 
-    if(hls_keys && (hls_path != hls_key_file_path) )
-    {
+    if (hls_keys && (hls_path != hls_key_file_path)) {
         string key_file = hls_key_file;
         key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
 
@@ -329,12 +334,13 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         }
     }
 
-    if(hls_keys)
-    {
+    if(hls_keys) {
+#ifdef SRS_AUTO_SSL
         writer = new SrsEncFileWriter();
-    }
-    else
-    {
+#else
+        writer = new SrsFileWriter();
+#endif
+    } else {
         writer = new SrsFileWriter();
     }
 
@@ -382,53 +388,12 @@ srs_error_t SrsHlsMuxer::segment_open()
     }
     
     // new segment.
-    current = new SrsHlsSegment(context, default_acodec, default_vcodec,writer);
+    current = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
     current->sequence_no = _sequence_no++;
 
-    if(hls_keys){
-
-        if(current->sequence_no % hls_fragments_per_key == 0)
-        {
-            string key_file = hls_key_file;
-            key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
-            
-            if (true) {
-                std::stringstream ss;
-                ss << current->sequence_no;
-                key_file = srs_string_replace(key_file, "[seq]", ss.str());
-            }
-
-            string key_full_path = hls_key_file_path + "/" + key_file;
-
-            if (RAND_bytes(key, 16) < 0) {
-                srs_error_wrap(err, "rand key failed.");
-            }
-
-            if (RAND_bytes(iv, 16) < 0) {
-                srs_error_wrap(err, "rand iv failed.");
-            }
-
-            int flags = O_CREAT|O_WRONLY|O_TRUNC;
-            mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-            int fd;
-
-            if ((fd = ::open(key_full_path.c_str(), flags, mode)) < 0) {
-                 return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", key_full_path.c_str());
-            }
-            ssize_t nwrite;
-            if ((nwrite = ::write(fd, key, 16)) != 16) {
-                return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "write to file %s failed", key_full_path.c_str());
-            }
-
-            if (::close(fd) < 0) {
-              srs_warn("close file %s failed",key_full_path.c_str());
-            }
-
-        }
-        current->SrsSetEncCfg(key,iv);
-        
+    if ((err = write_hls_key()) != srs_success) {
+        return srs_error_wrap(err, "write hls key");
     }
-    
     
     // generate filename.
     std::string ts_file = hls_ts_file;
@@ -684,6 +649,58 @@ srs_error_t SrsHlsMuxer::segment_close()
     if (err != srs_success) {
         return srs_error_wrap(err, "hls: refresh m3u8");
     }
+    
+    return err;
+}
+
+srs_error_t SrsHlsMuxer::write_hls_key()
+{
+    srs_error_t err = srs_success;
+    
+#ifndef SRS_AUTO_SSL
+    if (hls_keys) {
+        srs_warn("SSL is disabled, ignore HLS key");
+    }
+#endif
+    
+#ifdef SRS_AUTO_SSL
+    if (hls_keys && current->sequence_no % hls_fragments_per_key == 0) {
+        string key_file = hls_key_file;
+        key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
+        
+        if (true) {
+            std::stringstream ss;
+            ss << current->sequence_no;
+            key_file = srs_string_replace(key_file, "[seq]", ss.str());
+        }
+        
+        string key_full_path = hls_key_file_path + "/" + key_file;
+        
+        if (RAND_bytes(key, 16) < 0) {
+            srs_error_wrap(err, "rand key failed.");
+        }
+        
+        if (RAND_bytes(iv, 16) < 0) {
+            srs_error_wrap(err, "rand iv failed.");
+        }
+        
+        SrsFileWriter fw;
+        
+        if ((err = fw.open(key_full_path)) != srs_success) {
+            return srs_error_wrap(err, "open file %s", key_full_path.c_str());
+        }
+        
+        if ((err = fw.write(key, 16, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write key");
+        }
+        
+        fw.close();
+    }
+    
+    if (hls_keys) {
+        current->config_cipher(key, iv);
+    }
+#endif
     
     return err;
 }
