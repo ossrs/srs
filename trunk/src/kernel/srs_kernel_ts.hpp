@@ -33,6 +33,7 @@
 #include <vector>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_file.hpp>
 
 class SrsBuffer;
 class SrsTsMessageCache;
@@ -1570,6 +1571,29 @@ public:
      */
     virtual SrsVideoCodecId video_codec();
 };
+
+#ifdef SRS_AUTO_SSL
+/*
+ * Used for HLS Encryption
+ */
+class SrsEncFileWriter: public SrsFileWriter
+{
+public:
+    SrsEncFileWriter();
+    virtual ~SrsEncFileWriter();
+public:
+    virtual srs_error_t write(void* data, size_t count, ssize_t* pnwrite);
+    virtual void close();
+public:
+    srs_error_t config_cipher(unsigned char* key, unsigned char* iv);
+private:
+    unsigned char* key;
+    unsigned char iv[16];
+private:
+    char* buf;
+    int nb_buf;
+};
+#endif
 
 /**
  * TS messages cache, to group frames to TS message,

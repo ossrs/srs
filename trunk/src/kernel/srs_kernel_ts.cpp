@@ -34,14 +34,20 @@
 #include <sstream>
 using namespace std;
 
+#ifdef SRS_AUTO_SSL
+#include <openssl/aes.h>
+#include <cstring>
+#endif
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
+
+#define HLS_AES_ENCRYPT_BLOCK_LENGTH SRS_TS_PACKET_SIZE * 4
 
 // in ms, for HLS aac sync time.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
@@ -2609,6 +2615,95 @@ SrsVideoCodecId SrsTsContextWriter::video_codec()
 {
     return vcodec;
 }
+
+#ifdef SRS_AUTO_SSL
+SrsEncFileWriter::SrsEncFileWriter()
+{
+    memset(iv,0,16);
+    
+    buf = new char[HLS_AES_ENCRYPT_BLOCK_LENGTH];
+    memset(buf, 0, HLS_AES_ENCRYPT_BLOCK_LENGTH);
+    
+    nb_buf = 0;
+    key = (unsigned char*)new AES_KEY();
+}
+
+SrsEncFileWriter::~SrsEncFileWriter()
+{
+    srs_freepa(buf);
+    
+    AES_KEY* k = (AES_KEY*)key;
+    srs_freep(k);
+}
+
+srs_error_t SrsEncFileWriter::write(void* data, size_t count, ssize_t* pnwrite)
+{
+    srs_error_t err = srs_success;
+    
+    srs_assert(count == SRS_TS_PACKET_SIZE);
+
+    if (nb_buf < HLS_AES_ENCRYPT_BLOCK_LENGTH) {
+        memcpy(buf + nb_buf, (char*)data, SRS_TS_PACKET_SIZE);
+        nb_buf += SRS_TS_PACKET_SIZE;
+    }
+    
+    if (nb_buf == HLS_AES_ENCRYPT_BLOCK_LENGTH) {
+        nb_buf = 0;
+        
+        char* cipher = new char[HLS_AES_ENCRYPT_BLOCK_LENGTH];
+        SrsAutoFreeA(char, cipher);
+        
+        AES_KEY* k = (AES_KEY*)key;
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
+        
+        if ((err = SrsFileWriter::write(cipher, HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
+            return srs_error_wrap(err, "write cipher");
+        }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsEncFileWriter::config_cipher(unsigned char* key, unsigned char* iv)
+{
+    srs_error_t err = srs_success;
+    
+    memcpy(this->iv, iv, 16);
+  
+    AES_KEY* k = (AES_KEY*)this->key;
+    if (AES_set_encrypt_key(key, 16 * 8, k)) {
+        return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "set aes key failed");
+    }
+    
+    return err;
+}
+
+void SrsEncFileWriter::close()
+{
+    if(nb_buf > 0) {
+        int nb_padding = 16 - (nb_buf % 16);
+        if (nb_padding > 0) {
+            memset(buf + nb_buf, nb_padding, nb_padding);
+        }
+        
+        char* cipher = new char[nb_buf + nb_padding];
+        SrsAutoFreeA(char, cipher);
+        
+        AES_KEY* k = (AES_KEY*)key;
+        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher, nb_buf + nb_padding, k, iv, AES_ENCRYPT);
+        
+        srs_error_t err = srs_success;
+        if ((err = SrsFileWriter::write(cipher, nb_buf + nb_padding, NULL)) != srs_success) {
+            srs_warn("ignore err %s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
+        }
+
+        nb_buf = 0;
+    }
+    
+    SrsFileWriter::close();
+}
+#endif
 
 SrsTsMessageCache::SrsTsMessageCache()
 {

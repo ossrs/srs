@@ -52,6 +52,10 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_format.hpp>
 
+#ifdef SRS_AUTO_SSL
+#include <openssl/rand.h>
+#endif
+
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
@@ -60,17 +64,26 @@ using namespace std;
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
-SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc, SrsFileWriter* w)
 {
     sequence_no = 0;
-    writer = new SrsFileWriter();
+    writer = w;
     tscw = new SrsTsContextWriter(writer, c, ac, vc);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
 {
     srs_freep(tscw);
-    srs_freep(writer);
+}
+
+void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
+{
+    memcpy(this->iv, iv,16);
+    
+#ifdef SRS_AUTO_SSL
+    SrsEncFileWriter* fw = (SrsEncFileWriter*)writer;
+    fw->config_cipher(key, iv);
+#endif
 }
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
@@ -193,9 +206,14 @@ SrsHlsMuxer::SrsHlsMuxer()
     max_td = 0;
     _sequence_no = 0;
     current = NULL;
+    hls_keys = false;
+    hls_fragments_per_key = 10;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
+    
+    memset(key, 0, 16);
+    memset(iv, 0, 16);
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -204,6 +222,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(req);
     srs_freep(async);
     srs_freep(context);
+    srs_freep(writer);
 }
 
 void SrsHlsMuxer::dispose()
@@ -265,8 +284,9 @@ srs_error_t SrsHlsMuxer::initialize()
 
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     string path, string m3u8_file, string ts_file, double fragment, double window,
-    bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe
-) {
+    bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
+    int fragments_per_key, string key_file ,string key_file_path, string key_url)
+{
     srs_error_t err = srs_success;
     
     srs_freep(req);
@@ -284,7 +304,13 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     accept_floor_ts = 0;
     hls_window = window;
     deviation_ts = 0;
-    
+
+    hls_keys = keys;
+    hls_fragments_per_key = fragments_per_key;
+    hls_key_file = key_file;
+    hls_key_file_path = key_file_path;
+    hls_key_url = key_url;
+   
     // generate the m3u8 dir and path.
     m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
     m3u8 = path + "/" + m3u8_url;
@@ -297,7 +323,27 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     if ((err = srs_create_dir_recursively(m3u8_dir)) != srs_success) {
         return srs_error_wrap(err, "create dir");
     }
-    
+
+    if (hls_keys && (hls_path != hls_key_file_path)) {
+        string key_file = hls_key_file;
+        key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
+
+        string key_dir = srs_path_dirname(hls_key_file_path + "/" + key_file);
+        if ((err = srs_create_dir_recursively(key_dir)) != srs_success) {
+            return srs_error_wrap(err, "create dir");
+        }
+    }
+
+    if(hls_keys) {
+#ifdef SRS_AUTO_SSL
+        writer = new SrsEncFileWriter();
+#else
+        writer = new SrsFileWriter();
+#endif
+    } else {
+        writer = new SrsFileWriter();
+    }
+
     return err;
 }
 
@@ -342,8 +388,12 @@ srs_error_t SrsHlsMuxer::segment_open()
     }
     
     // new segment.
-    current = new SrsHlsSegment(context, default_acodec, default_vcodec);
+    current = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
     current->sequence_no = _sequence_no++;
+
+    if ((err = write_hls_key()) != srs_success) {
+        return srs_error_wrap(err, "write hls key");
+    }
     
     // generate filename.
     std::string ts_file = hls_ts_file;
@@ -603,6 +653,58 @@ srs_error_t SrsHlsMuxer::segment_close()
     return err;
 }
 
+srs_error_t SrsHlsMuxer::write_hls_key()
+{
+    srs_error_t err = srs_success;
+    
+#ifndef SRS_AUTO_SSL
+    if (hls_keys) {
+        srs_warn("SSL is disabled, ignore HLS key");
+    }
+#endif
+    
+#ifdef SRS_AUTO_SSL
+    if (hls_keys && current->sequence_no % hls_fragments_per_key == 0) {
+        string key_file = hls_key_file;
+        key_file = srs_path_build_stream(key_file, req->vhost, req->app, req->stream);
+        
+        if (true) {
+            std::stringstream ss;
+            ss << current->sequence_no;
+            key_file = srs_string_replace(key_file, "[seq]", ss.str());
+        }
+        
+        string key_full_path = hls_key_file_path + "/" + key_file;
+        
+        if (RAND_bytes(key, 16) < 0) {
+            srs_error_wrap(err, "rand key failed.");
+        }
+        
+        if (RAND_bytes(iv, 16) < 0) {
+            srs_error_wrap(err, "rand iv failed.");
+        }
+        
+        SrsFileWriter fw;
+        
+        if ((err = fw.open(key_full_path)) != srs_success) {
+            return srs_error_wrap(err, "open file %s", key_full_path.c_str());
+        }
+        
+        if ((err = fw.write(key, 16, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write key");
+        }
+        
+        fw.close();
+    }
+    
+    if (hls_keys) {
+        current->config_cipher(key, iv);
+    }
+#endif
+    
+    return err;
+}
+
 srs_error_t SrsHlsMuxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -680,6 +782,22 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         if (segment->is_sequence_header()) {
             // #EXT-X-DISCONTINUITY\n
             ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
+        }
+
+        if(hls_keys && (segment->sequence_no%hls_fragments_per_key == 0))
+        {
+            string filename = req->stream+"-"+srs_int2str(segment->sequence_no)+".key";
+            char hexiv[33];
+            srs_data_to_hex(hexiv,segment->iv,16);
+            hexiv[32] = '\0';
+            string key_path;
+            //if key_url is not set,only use the file name
+            if(hls_key_url == hls_key_file_path){
+                key_path = filename;
+            }else{
+                key_path = hls_key_url+"/"+filename;
+            }
+            ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\""<< key_path <<"\",IV=0x"<<hexiv<< SRS_CONSTS_LF;
         }
         
         // "#EXTINF:4294967295.208,\n"
@@ -778,13 +896,20 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     bool ts_floor = _srs_config->get_hls_ts_floor(vhost);
     // the seconds to dispose the hls.
     int hls_dispose = _srs_config->get_hls_dispose(vhost);
+
+    bool hls_keys = _srs_config->get_hls_keys(vhost);
+    int hls_fragments_per_key = _srs_config->get_hls_fragments_per_key(vhost);
+    string hls_key_file =  _srs_config->get_hls_key_file(vhost);
+    string hls_key_file_path = _srs_config->get_hls_key_file_path(vhost);
+    string hls_key_url = _srs_config->get_hls_key_url(vhost);
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
     if ((err = muxer->update_config(req, entry_prefix, path, m3u8_file, ts_file, hls_fragment,
-        hls_window, ts_floor, hls_aof_ratio, cleanup, wait_keyframe)) != srs_success ) {
+        hls_window, ts_floor, hls_aof_ratio, cleanup, wait_keyframe,hls_keys,hls_fragments_per_key,
+        hls_key_file, hls_key_file_path, hls_key_url)) != srs_success ) {
         return srs_error_wrap(err, "hls: update config");
     }
     
