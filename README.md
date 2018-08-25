@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-08-25, Fix [#1051][bug #1051], Drop ts when republishing stream. 3.0.41
 * v3.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 3.0.40
 * v3.0, 2018-08-11, For [#910][bug #910], Support HTTP FLV with HTTP callback. 3.0.39
 * v3.0, 2018-08-05, Refine HTTP-FLV latency, support realtime mode.3.0.38
@@ -1466,6 +1467,7 @@ Winlin
 [bug #105]: https://github.com/ossrs/srs/issues/105
 [bug #727]: https://github.com/ossrs/srs/issues/727
 [bug #1087]: https://github.com/ossrs/srs/issues/1087
+[bug #1051]: https://github.com/ossrs/srs/issues/1051
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
