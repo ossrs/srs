@@ -35,10 +35,13 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 
-int64_t srs_gvid = getpid() * 3;
+int64_t srs_gvid = 0;
 
 int64_t srs_generate_id()
 {
+    if (srs_gvid == 0) {
+        srs_gvid = getpid() * 3;
+    }
     return srs_gvid++;
 }
 
@@ -227,7 +230,7 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     return err;
 }
 
-SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
+SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
 {
@@ -271,6 +274,9 @@ SrsStatistic::~SrsStatistic()
 
 SrsStatistic* SrsStatistic::instance()
 {
+    if (_instance == NULL) {
+        _instance = new SrsStatistic();
+    }
     return _instance;
 }
 
@@ -285,6 +291,10 @@ SrsStatisticVhost* SrsStatistic::find_vhost(int vid)
 
 SrsStatisticVhost* SrsStatistic::find_vhost(string name)
 {
+    if (rvhosts.empty()) {
+        return NULL;
+    }
+    
     std::map<string, SrsStatisticVhost*>::iterator it;
     if ((it = rvhosts.find(name)) != rvhosts.end()) {
         return it->second;
