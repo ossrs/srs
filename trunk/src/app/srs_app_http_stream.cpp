@@ -596,7 +596,7 @@ int SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
             // directly use sleep, donot use consumer wait.
-            st_usleep(mw_sleep);
+            st_usleep(mw_sleep * 1000);
             
             // ignore when nothing got.
             continue;
