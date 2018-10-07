@@ -2235,9 +2235,10 @@ void SrsSource::on_unpublish()
     hds->on_unpublish();
 #endif
 
-    // only clear the gop cache,
-    // donot clear the sequence header, for it maybe not changed,
-    // when drop dup sequence header, drop the metadata also.
+    srs_freep(cache_metadata);
+    srs_freep(cache_sh_video);
+    srs_freep(cache_sh_audio);
+    
     gop_cache->clear();
     
     srs_info("clear cache/metadata when unpublish.");
