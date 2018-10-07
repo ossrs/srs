@@ -234,6 +234,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2018-10-08, Merge [#1236][bug #1236], Fix sleep bug in us. 2.0.257
 * v2.0, 2018-10-08, Merge [#1237][bug #1237], Support param for transcoder. 2.0.256
 * <strong>v2.0, 2018-08-12, [2.0 release4(2.0.255)][r2.0r4] released. 86915 lines.</strong>
 * v2.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 2.0.255 
@@ -1455,6 +1456,7 @@ Winlin
 [bug #910]: https://github.com/ossrs/srs/issues/910
 [bug #1202]: https://github.com/ossrs/srs/issues/1202
 [bug #1237]: https://github.com/ossrs/srs/issues/1237
+[bug #1236]: https://github.com/ossrs/srs/issues/1236
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
