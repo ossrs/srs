@@ -334,6 +334,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-10-08, Merge [#1237][bug #1237], Support param for transcoder. 2.0.256
 * <strong>v2.0, 2018-08-12, [2.0 release4(2.0.255)][r2.0r4] released. 86915 lines.</strong>
 * v2.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 2.0.255 
 * v2.0, 2018-08-11, For [#910][bug #910], Support HTTP FLV with HTTP callback. 2.0.254
@@ -1327,6 +1328,7 @@ Winlin
 [bug #1110]: https://github.com/ossrs/srs/issues/1110
 [bug #910]: https://github.com/ossrs/srs/issues/910
 [bug #1202]: https://github.com/ossrs/srs/issues/1202
+[bug #1237]: https://github.com/ossrs/srs/issues/1237
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
