@@ -44,6 +44,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
     // include windows first.
+#pragma   warning(disable:4996) 
+#pragma   warning(disable:4309) 
+#pragma   warning(disable:4244) 
+#pragma   warning(disable:4267) 
+	#include <stdint.h>
+	#include <stdio.h>
+	#include <winsock2.h>
     #include <windows.h>
     // the type used by this header for windows.
     typedef unsigned long long u_int64_t;
@@ -52,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     typedef u_int32_t uint32_t;
     typedef int int32_t;
     typedef unsigned char u_int8_t;
-    typedef char int8_t;
+    //typedef char int8_t;
     typedef unsigned short u_int16_t;
     typedef short int16_t;
     typedef int64_t ssize_t;
@@ -1095,7 +1102,9 @@ typedef void* srs_hijack_io_t;
     int socket_cleanup();
     
     // others.
-    #define snprintf _snprintf
+#ifndef snprintf
+	#define snprintf _snprintf
+#endif
 #endif
 
 #ifdef __cplusplus

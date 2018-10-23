@@ -326,7 +326,12 @@ int SrsBandwidthClient::publish_checking(int duration_ms, int play_kbps)
                 srs_update_system_time_ms();
                 elaps = (int)(srs_get_system_time_ms() - starttime);
                 current_kbps = (int)(_rtmp->get_send_bytes() * 8 / elaps);
+#if defined(WIN32)
+				Sleep(100);
+#else
+
                 usleep(100 * 1000); // TODO: FIXME: magic number.
+#endif
             }
         }
     }

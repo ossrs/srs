@@ -171,9 +171,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         microsec = srs_max(0, microsec);
         
         struct timeval tv = { sec , microsec };
-        if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
-            return SOCKET_ERRNO();
-        }
+
+#ifdef _WIN32
+		if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) == -1) {
+			return SOCKET_ERRNO();
+		}
+#else
+		if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+			return SOCKET_ERRNO();
+		}
+#endif // _WIN32
+
+        
         skt->recv_timeout = timeout_us;
         
         return ERROR_SUCCESS;
@@ -199,9 +208,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         microsec = srs_max(0, microsec);
 
         struct timeval tv = { sec , microsec };
-        if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
-            return SOCKET_ERRNO();
-        }
+#ifdef _WIN32
+		if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv)) == -1) {
+			return SOCKET_ERRNO();
+		}
+#else
+		if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
+			return SOCKET_ERRNO();
+		}
+#endif // _WIN32
 
         skt->send_timeout = timeout_us;
         

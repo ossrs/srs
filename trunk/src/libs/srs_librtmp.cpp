@@ -332,11 +332,16 @@ struct Context
         switch (af) {
         case AF_INET:
             return (inet_ntop4( (unsigned char*)src, (char*)dst, size)); // ****
+#ifdef _WIN32
+		case AF_INET6:
+		    return (char*)(inet_ntop6( (unsigned char*)src, (char*)dst, size));
+#else
     #ifdef AF_INET6
         #error "IPv6 not supported"
         //case AF_INET6:
         //    return (char*)(inet_ntop6( (unsigned char*)src, (char*)dst, size)); // ****
     #endif
+#endif
         default:
             // return (NULL); // ****
             return 0 ; // ****

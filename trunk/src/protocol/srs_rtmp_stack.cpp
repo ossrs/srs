@@ -2567,7 +2567,11 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
     
-    pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
+#ifdef _WIN32
+	pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/" RTMP_SIG_FMS_VER));
+#else
+	pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
+#endif // _WIN32
     pkt->props->set("capabilities", SrsAmf0Any::number(127));
     pkt->props->set("mode", SrsAmf0Any::number(1));
     
