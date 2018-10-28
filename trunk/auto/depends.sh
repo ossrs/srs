@@ -422,6 +422,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
@@ -439,6 +440,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
