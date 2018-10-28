@@ -464,6 +464,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             (
                 rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
                 tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
                 rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
@@ -478,6 +479,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             (
                 rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
                 tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
                 rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
