@@ -556,6 +556,16 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("live", app.c_str());
     EXPECT_STREQ("show", stream.c_str());
     EXPECT_EQ(19351, port);
+
+    // _definst_ at the end of app
+    tcUrl = "rtmp://winlin.cn/live/_definst_"; stream= "show";
+    srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+    EXPECT_STREQ("rtmp", schema.c_str());
+    EXPECT_STREQ("winlin.cn", ip.c_str());
+    EXPECT_STREQ("winlin.cn", vhost.c_str());
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("show", stream.c_str());
+    EXPECT_EQ(1935, port);
 }
 
 /**

@@ -63,6 +63,10 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, "&&", "?");
     app = srs_string_replace(app, "=", "?");
     
+    if (srs_string_ends_with(app, "/_definst_")) {
+        app = srs_erase_last_substr(app, "/_definst_");
+    }
+    
     if ((pos = app.find("?")) != std::string::npos) {
         std::string query = app.substr(pos + 1);
         app = app.substr(0, pos);
