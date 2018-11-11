@@ -269,6 +269,32 @@ string srs_string_remove(string str, string remove_chars)
     return ret;
 }
 
+string srs_erase_first_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.find(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
+}
+
+string srs_erase_last_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.rfind(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
+}
+
 bool srs_string_ends_with(string str, string flag)
 {
     return str.rfind(flag) == str.length() - flag.length();
