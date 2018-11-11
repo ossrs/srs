@@ -1487,6 +1487,15 @@ VOID TEST(KernelUtilityTest, UtilityString)
     
     str1 = srs_string_replace(str, "o", "XX");
     EXPECT_STREQ("HellXX, WXXrld! HellXX, SRS!", str1.c_str());
+
+    str1 = srs_string_trim_start(str, "x");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+
+    str1 = srs_string_trim_start(str, "S!R");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+
+    str1 = srs_string_trim_start(str, "lHe");
+    EXPECT_STREQ("o, World! Hello, SRS!", str1.c_str());
     
     str1 = srs_string_trim_end(str, "x");
     EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
@@ -1494,7 +1503,7 @@ VOID TEST(KernelUtilityTest, UtilityString)
     str1 = srs_string_trim_end(str, "He");
     EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
     
-    str1 = srs_string_trim_end(str, "HeS!R");
+    str1 = srs_string_trim_end(str, "S!R");
     EXPECT_STREQ("Hello, World! Hello, ", str1.c_str());
     
     str1 = srs_string_remove(str, "x");

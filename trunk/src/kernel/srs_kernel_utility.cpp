@@ -222,7 +222,7 @@ string srs_string_trim_end(string str, string trim_chars)
             ret.erase(ret.end() - 1);
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -240,7 +240,7 @@ string srs_string_trim_start(string str, string trim_chars)
             ret.erase(ret.begin());
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -259,7 +259,7 @@ string srs_string_remove(string str, string remove_chars)
                 it = ret.erase(it);
                 
                 // ok, matched, should reset the search
-                i = 0;
+                i = -1;
             } else {
                 ++it;
             }
