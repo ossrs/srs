@@ -866,5 +866,15 @@ function check_option_conflicts() {
     if [ $__check_ok = NO ]; then
         exit 1;
     fi
+
+    if [[ $SRS_OSX == YES ]]; then
+        macOSVersion=`sw_vers -productVersion`
+        macOSVersionMajor=`echo $macOSVersion|awk -F '.' '{print $1}'`
+        macOSVersionMinor=`echo $macOSVersion|awk -F '.' '{print $2}'`
+        if [[ $macOSVersionMajor -ge 10 && $macOSVersionMinor -ge 14 ]]; then
+            echo "macOS $macOSVersion is not supported, read https://github.com/ossrs/srs/issues/1250"
+            exit -1
+        fi
+    fi
 }
 check_option_conflicts
