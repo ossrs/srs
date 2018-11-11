@@ -335,6 +335,7 @@ Remark:
 
 ## History
 
+* v2.0, 2018-11-11, Merge [#1263][bug #1263], Fix string trim bug. 2.0.259
 * <strong>v2.0, 2018-10-28, [2.0 release5(2.0.258)][r2.0r5] released. 86916 lines.</strong>
 * v2.0, 2018-10-28, Fix [#1250][bug #1250], Support build on OSX10.14 Mojave. 2.0.258
 * v2.0, 2018-10-08, Merge [#1236][bug #1236], Fix sleep bug in us. 2.0.257
@@ -1335,6 +1336,7 @@ Winlin
 [bug #1237]: https://github.com/ossrs/srs/issues/1237
 [bug #1236]: https://github.com/ossrs/srs/issues/1236
 [bug #1250]: https://github.com/ossrs/srs/issues/1250
+[bug #1263]: https://github.com/ossrs/srs/issues/1263
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
