@@ -678,13 +678,13 @@ if [ $SRS_SSL = YES ]; then
 fi
 
 #####################################################################################
-# live transcoding, ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
+# live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
 if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-        echo "ffmpeg-2.1 is ok.";
+        echo "ffmpeg-4.1 is ok.";
     else
-        echo "build ffmpeg-2.1"; 
+        echo "build ffmpeg-4.1"; 
         (
             cd ${SRS_OBJS} && pwd_dir=`pwd` && 
             rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
@@ -693,8 +693,8 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-4.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-4.1 failed."; exit -1; fi
 fi
 
 #####################################################################################
