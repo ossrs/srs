@@ -184,6 +184,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 3.0.44
 * v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://ossrs.net:1985/console/ng_index.html) and [English](http://ossrs.net:1985/console/en_index.html).
 * v3.0, 2018-08-25, Fix [#1093][bug #1093], Support HLS encryption. 3.0.42
 * v3.0, 2018-08-25, Fix [#1051][bug #1051], Drop ts when republishing stream. 3.0.41

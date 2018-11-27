@@ -356,10 +356,10 @@ string srs_erase_first_substr(string str, string erase_string)
 
 	size_t pos = ret.find(erase_string);
 
-	if (pos != std::string::npos)
-	{
+	if (pos != std::string::npos) {
 		ret.erase(pos, erase_string.length());
 	}
+    
 	return ret;
 }
 
@@ -369,10 +369,10 @@ string srs_erase_last_substr(string str, string erase_string)
 
 	size_t pos = ret.rfind(erase_string);
 
-	if (pos != std::string::npos)
-	{
+	if (pos != std::string::npos) {
 		ret.erase(pos, erase_string.length());
 	}
+    
 	return ret;
 }
 
