@@ -79,6 +79,10 @@ extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
 extern std::string srs_string_trim_start(std::string str, std::string trim_chars);
 // remove char in remove_chars of str
 extern std::string srs_string_remove(std::string str, std::string remove_chars);
+// remove first substring from str
+extern std::string srs_erase_first_substr(std::string str, std::string erase_string);
+// remove last substring from str
+extern std::string srs_erase_last_substr(std::string str, std::string erase_string);
 // whether string end with
 extern bool srs_string_ends_with(std::string str, std::string flag);
 extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1);

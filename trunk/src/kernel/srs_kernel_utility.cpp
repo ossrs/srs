@@ -303,7 +303,7 @@ string srs_string_trim_end(string str, string trim_chars)
             ret.erase(ret.end() - 1);
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -321,7 +321,7 @@ string srs_string_trim_start(string str, string trim_chars)
             ret.erase(ret.begin());
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -340,7 +340,7 @@ string srs_string_remove(string str, string remove_chars)
                 it = ret.erase(it);
                 
                 // ok, matched, should reset the search
-                i = 0;
+                i = -1;
             } else {
                 ++it;
             }
@@ -348,6 +348,32 @@ string srs_string_remove(string str, string remove_chars)
     }
     
     return ret;
+}
+
+string srs_erase_first_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.find(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
+}
+
+string srs_erase_last_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.rfind(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
 }
 
 bool srs_string_ends_with(string str, string flag)
