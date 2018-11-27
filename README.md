@@ -335,7 +335,7 @@ Remark:
 
 ## History
 
-* v2.0, 2018-11-27, Merge [#1274][bug @1274], upgrade x264 and ffmpeg to newest version
+* v2.0, 2018-11-27, Merge [#1276][bug @1276], upgrade x264 and ffmpeg to newest version
 * v2.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 2.0.260
 * v2.0, 2018-11-11, Merge [#1263][bug #1263], Fix string trim bug. 2.0.259
 * <strong>v2.0, 2018-10-28, [2.0 release5(2.0.258)][r2.0r5] released. 86916 lines.</strong>
