@@ -19,20 +19,20 @@ echo "SRS_JOBS: ${SRS_JOBS}"
 mkdir -p ${ff_build_dir}
 mkdir -p ${ff_release_dir}
 
-# yasm for libx264
-ff_yasm_bin=${ff_release_dir}/bin/yasm
-if [[ -f ${ff_yasm_bin} ]]; then 
-    echo "yasm is ok"
+# nasm for libx264
+ff_nasm_bin=${ff_release_dir}/bin/nasm
+if [[ -f ${ff_nasm_bin} ]]; then 
+    echo "nasm is ok"
 else
-    echo "build yasm-1.2.0"
+    echo "build nasm-2.14"
     cd $ff_current_dir &&
-    rm -rf yasm-1.2.0 && unzip -q ${ff_src_dir}/yasm-1.2.0.zip &&
-    cd yasm-1.2.0 && ./configure --prefix=${ff_release_dir} &&
+    rm -rf nasm-2.14 && unzip -q ${ff_src_dir}/nasm-2.14.zip &&
+    cd nasm-2.14 && ./configure --prefix=${ff_release_dir} &&
     make && make install
-    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build yasm-1.2.0 failed"; exit 1; fi
+    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build nasm-2.14 failed"; exit 1; fi
 fi
-# add yasm to path, for x264 to use yasm directly.
-# ffmpeg can specifies the yasm path when configure it.
+# add nasm to path, for x264 to use nasm directly.
+# ffmpeg can specifies the nasm path when configure it.
 export PATH=${PATH}:${ff_release_dir}/bin
 
 # libfdk-aac
@@ -98,7 +98,7 @@ else
     cd ffmpeg-4.1 && 
     ./configure \
         --enable-gpl --enable-nonfree \
-        --yasmexe=${ff_yasm_bin} \
+        --x86asmexe=${ff_nasm_bin} \
         --prefix=${ff_release_dir} --cc= \
         --enable-static --disable-shared --disable-debug \
         --extra-cflags='-I${ffmpeg_exported_release_dir}/include' \
