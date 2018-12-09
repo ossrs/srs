@@ -69,7 +69,7 @@ stringstream& srs_dumps_array(std::vector<T>&arr, stringstream& ss, SrsMp4DumpCo
         limit = srs_min(SrsSummaryCount, limit);
     }
     
-    for (size_t i = 0; i < limit; i++) {
+    for (size_t i = 0; i < (size_t)limit; i++) {
         T& elem = arr[i];
         
         pfn(elem, ss, dc);
@@ -91,7 +91,7 @@ stringstream& srs_dumps_array(T* arr, int size, stringstream& ss, SrsMp4DumpCont
         limit = srs_min(SrsSummaryCount, limit);
     }
     
-    for (size_t i = 0; i < limit; i++) {
+    for (size_t i = 0; i < (size_t)limit; i++) {
         T& elem = arr[i];
         
         pfn(elem, ss, dc);
@@ -737,7 +737,7 @@ srs_error_t SrsMp4FileTypeBox::encode_header(SrsBuffer* buf)
     buf->write_4bytes(major_brand);
     buf->write_4bytes(minor_version);
     
-    for (size_t i = 0; i < compatible_brands.size(); i++) {
+    for (size_t i = 0; i < (size_t)compatible_brands.size(); i++) {
         buf->write_4bytes(compatible_brands[i]);
     }
     
@@ -2116,7 +2116,7 @@ srs_error_t SrsMp4EditListBox::encode_header(SrsBuffer* buf)
     }
     
     buf->write_4bytes((int)entries.size());
-    for (size_t i = 0; i < entries.size(); i++) {
+    for (size_t i = 0; i < (size_t)entries.size(); i++) {
         SrsMp4ElstEntry& entry = entries[i];
         
         if (version == 1) {
@@ -3946,7 +3946,7 @@ srs_error_t SrsMp4DecodingTime2SampleBox::encode_header(SrsBuffer* buf)
     }
     
     buf->write_4bytes((int)entries.size());
-    for (size_t i = 0; i < entries.size(); i++) {
+    for (size_t i = 0; i < (size_t)entries.size(); i++) {
         SrsMp4SttsEntry& entry = entries[i];
         buf->write_4bytes(entry.sample_count);
         buf->write_4bytes(entry.sample_delta);
@@ -3967,7 +3967,7 @@ srs_error_t SrsMp4DecodingTime2SampleBox::decode_header(SrsBuffer* buf)
     if (entry_count) {
         entries.resize(entry_count);
     }
-    for (size_t i = 0; i < entry_count; i++) {
+    for (size_t i = 0; i < (size_t)entry_count; i++) {
         SrsMp4SttsEntry& entry = entries[i];
         entry.sample_count = buf->read_4bytes();
         entry.sample_delta = buf->read_4bytes();
@@ -4063,7 +4063,7 @@ srs_error_t SrsMp4CompositionTime2SampleBox::encode_header(SrsBuffer* buf)
     }
     
     buf->write_4bytes((int)entries.size());
-    for (size_t i = 0; i < entries.size(); i++) {
+    for (size_t i = 0; i < (size_t)entries.size(); i++) {
         SrsMp4CttsEntry& entry = entries[i];
         buf->write_4bytes(entry.sample_count);
         if (version == 0) {
@@ -4088,7 +4088,7 @@ srs_error_t SrsMp4CompositionTime2SampleBox::decode_header(SrsBuffer* buf)
     if (entry_count) {
         entries.resize(entry_count);
     }
-    for (size_t i = 0; i < entry_count; i++) {
+    for (size_t i = 0; i < (size_t)entry_count; i++) {
         SrsMp4CttsEntry& entry = entries[i];
         entry.sample_count = buf->read_4bytes();
         if (version == 0) {
