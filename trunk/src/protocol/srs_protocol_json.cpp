@@ -1700,7 +1700,7 @@ SrsJsonAny* srs_json_parse_tree(json_value* node)
             return SrsJsonAny::boolean(node->u.boolean != 0);
         case json_object: {
             SrsJsonObject* obj = SrsJsonAny::object();
-            for (int i = 0; i < node->u.object.length; i++) {
+            for (int i = 0; i < (int)node->u.object.length; i++) {
                 json_object_entry& entry = node->u.object.values[i];
                 SrsJsonAny* value = srs_json_parse_tree(entry.value);
                 
@@ -1715,7 +1715,7 @@ SrsJsonAny* srs_json_parse_tree(json_value* node)
         }
         case json_array: {
             SrsJsonArray* arr = SrsJsonAny::array();
-            for (int i = 0; i < node->u.array.length; i++) {
+            for (int i = 0; i < (int)node->u.array.length; i++) {
                 json_value* p = node->u.array.values[i];
                 SrsJsonAny* value = srs_json_parse_tree(p);
                 

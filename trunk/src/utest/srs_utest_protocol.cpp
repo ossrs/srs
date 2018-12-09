@@ -4862,14 +4862,14 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartResPacket)
     args->set("start" , SrsAmf0Any::number(0));
     
     EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
-    char buf[] = {
+    uint8_t buf[] = {
         0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x09, 0x46,
         0x4d, 0x4c, 0x45, 0x53, 0x74, 0x61, 0x72, 0x74,
         0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x05, 0x06
     };
-    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), (char*)buf, sizeof(buf)));
 }
 
 /**
@@ -4887,7 +4887,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPublishPacket)
     pkt->type = "live";
     
     EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
-    char buf[] = {
+    uint8_t buf[] = {
         0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x14,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x07, 0x70,
         0x75, 0x62, 0x6c, 0x69, 0x73, 0x68, 0x00, 0x00,
@@ -4896,7 +4896,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsPublishPacket)
         0x74, 0x72, 0x65, 0x61, 0x6d, 0x02, 0x00, 0x04,
         0x6c, 0x69, 0x76, 0x65
     };
-    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), (char*)buf, sizeof(buf)));
 }
 
 /**
@@ -5097,7 +5097,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
     pkt->metadata = args;
     
     EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
-    char buf[] = {
+    uint8_t buf[] = {
         0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x12,
         0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0a, 0x6f,
         0x6e, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74,
@@ -5107,7 +5107,7 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
         0x68, 0x74, 0x00, 0x40, 0x82, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x09
     };
-    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), (char*)buf, sizeof(buf)));
 }
 
 /**
@@ -5122,11 +5122,11 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsSetWindowAckSizePacket)
     pkt->ackowledgement_window_size = 102400;
     
     EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
-    char buf[] = {
+    uint8_t buf[] = {
         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x90, 0x00
     };
-    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), (char*)buf, sizeof(buf)));
 }
 
 /**

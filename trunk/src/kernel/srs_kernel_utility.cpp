@@ -76,7 +76,7 @@ srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
     }
     
     v = (1 << leadingZeroBits) - 1;
-    for (int i = 0; i < leadingZeroBits; i++) {
+    for (int i = 0; i < (int)leadingZeroBits; i++) {
         int32_t b = stream->read_bit();
         v += b << (leadingZeroBits - 1 - i);
     }
@@ -700,7 +700,7 @@ uint64_t __crc32_reflect(uint64_t data, int width)
 {
     uint64_t res = data & 0x01;
     
-    for (int i = 0; i < width - 1; i++) {
+    for (int i = 0; i < (int)width - 1; i++) {
         data >>= 1;
         res = (res << 1) | (data & 0x01);
     }
@@ -718,7 +718,7 @@ void __crc32_make_table(uint32_t t[256], uint32_t poly, bool reflect_in)
     int tbl_idx_width = 8; // table index size.
     int tbl_width = 0x01 << tbl_idx_width; // table size: 256
     
-    for (int i = 0; i < tbl_width; i++) {
+    for (int i = 0; i < (int)tbl_width; i++) {
         uint64_t reg = uint64_t(i);
         
         if (reflect_in) {
@@ -757,14 +757,14 @@ uint32_t __crc32_table_driven(uint32_t* t, const void* buf, int size, uint32_t p
     if (!reflect_in) {
         reg = xor_in;
         
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < (int)size; i++) {
             uint8_t tblidx = (uint8_t)((reg >> (width - tbl_idx_width)) ^ p[i]);
             reg = t[tblidx] ^ (reg << tbl_idx_width);
         }
     } else {
         reg = previous ^ __crc32_reflect(xor_in, width);
         
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < (int)size; i++) {
             uint8_t tblidx = (uint8_t)(reg ^ p[i]);
             reg = t[tblidx] ^ (reg >> tbl_idx_width);
         }
@@ -870,7 +870,7 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
     uint8_t decodeMap[256];
     memset(decodeMap, 0xff, sizeof(decodeMap));
     
-    for (int i = 0; i < encoder.length(); i++) {
+    for (int i = 0; i < (int)encoder.length(); i++) {
         decodeMap[(uint8_t)encoder.at(i)] = uint8_t(i);
     }
     
@@ -880,19 +880,20 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
     int si = 0;
     
     // skip over newlines
-    for (; si < cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
+    for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
     }
     
-    for (bool end = false; si < cipher.length() && !end;) {
+    for (bool end = false; si < (int)cipher.length() && !end;) {
         // Decode quantum using the base64 alphabet
         uint8_t dbuf[4];
         memset(dbuf, 0x00, sizeof(dbuf));
         
         int dinc = 3;
         int dlen = 4;
+        srs_assert(dinc > 0);
         
-        for (int j = 0; j < sizeof(dbuf); j++) {
-            if (si == cipher.length()) {
+        for (int j = 0; j < (int)sizeof(dbuf); j++) {
+            if (si == (int)cipher.length()) {
                 if (padding != -1 || j < 2) {
                     return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                 }
@@ -907,7 +908,7 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
             
             si++;
             // skip over newlines
-            for (; si < cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
+            for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
             }
             
             if (in == padding) {
@@ -919,7 +920,7 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
                         return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                     case 2:
                         // "==" is expected, the first "=" is already consumed.
-                        if (si == cipher.length()) {
+                        if (si == (int)cipher.length()) {
                             return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                         }
                         if (cipher.at(si) != padding) {
@@ -929,11 +930,11 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
                         
                         si++;
                         // skip over newlines
-                        for (; si < cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
+                        for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
                         }
                 }
                 
-                if (si < cipher.length()) {
+                if (si < (int)cipher.length()) {
                     // trailing garbage
                     err = srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                 }
@@ -1013,7 +1014,7 @@ int srs_hex_to_data(uint8_t* data, const char* p, int size)
         return -1;
     }
     
-    for (int i = 0; i < size / 2; i++) {
+    for (int i = 0; i < (int)size / 2; i++) {
         uint8_t a = srs_from_hex_char(p[i*2]);
         if (a == (uint8_t)-1) {
             return -1;
