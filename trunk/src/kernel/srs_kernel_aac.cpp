@@ -37,13 +37,13 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
-#include <srs_kernel_file.hpp>
+#include <srs_kernel_io.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_core_autofree.hpp>
 
 SrsAacTransmuxer::SrsAacTransmuxer()
 {
-    _fs = NULL;
+    writer = NULL;
     got_sequence_header = false;
     aac_object = SrsAacObjectTypeReserved;
 }
@@ -52,17 +52,13 @@ SrsAacTransmuxer::~SrsAacTransmuxer()
 {
 }
 
-srs_error_t SrsAacTransmuxer::initialize(SrsFileWriter* fs)
+srs_error_t SrsAacTransmuxer::initialize(ISrsStreamWriter* fs)
 {
     srs_error_t err = srs_success;
     
     srs_assert(fs);
     
-    if (!fs->is_open()) {
-        return srs_error_new(ERROR_KERNEL_AAC_STREAM_CLOSED, "stream is not open");
-    }
-    
-    _fs = fs;
+    writer = fs;
     
     return err;
 }
@@ -192,12 +188,12 @@ srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char* data, int siz
     }
     
     // write 7bytes fixed header.
-    if ((err = _fs->write(aac_fixed_header, 7, NULL)) != srs_success) {
+    if ((err = writer->write(aac_fixed_header, 7, NULL)) != srs_success) {
         return srs_error_wrap(err, "write aac header");
     }
     
     // write aac frame body.
-    if ((err = _fs->write(data + stream->pos(), aac_raw_length, NULL)) != srs_success) {
+    if ((err = writer->write(data + stream->pos(), aac_raw_length, NULL)) != srs_success) {
         return srs_error_wrap(err, "write aac frame");
     }
     

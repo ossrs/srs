@@ -2069,6 +2069,10 @@ SrsMp4ElstEntry::SrsMp4ElstEntry() : segment_duration(0), media_time(0), media_r
     media_rate_fraction = 0;
 }
 
+SrsMp4ElstEntry::~SrsMp4ElstEntry()
+{
+}
+
 stringstream& SrsMp4ElstEntry::dumps(stringstream& ss, SrsMp4DumpContext dc)
 {
     return dumps_detail(ss, dc);
@@ -3874,6 +3878,10 @@ SrsMp4SttsEntry::SrsMp4SttsEntry()
     sample_delta = 0;
 }
 
+SrsMp4SttsEntry::~SrsMp4SttsEntry()
+{
+}
+
 stringstream& SrsMp4SttsEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
     ss << "count=" << sample_count << ", delta=" << sample_delta;
@@ -3985,6 +3993,10 @@ SrsMp4CttsEntry::SrsMp4CttsEntry()
 {
     sample_count = 0;
     sample_offset = 0;
+}
+
+SrsMp4CttsEntry::~SrsMp4CttsEntry()
+{
 }
 
 stringstream& SrsMp4CttsEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)

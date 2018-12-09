@@ -33,8 +33,7 @@
 #include <srs_kernel_codec.hpp>
 
 class SrsBuffer;
-class SrsFileWriter;
-class SrsFileReader;
+class ISrsStreamWriter;
 
 /**
  * Transmux the RTMP packets to AAC stream.
@@ -42,7 +41,7 @@ class SrsFileReader;
 class SrsAacTransmuxer
 {
 private:
-    SrsFileWriter* _fs;
+    ISrsStreamWriter* writer;
 private:
     SrsAacObjectType aac_object;
     int8_t aac_sample_rate;
@@ -57,7 +56,7 @@ public:
      * @remark user can initialize multiple times to encode multiple aac files.
      * @remark, user must free the fs, aac encoder never close/free it.
      */
-    virtual srs_error_t initialize(SrsFileWriter* fs);
+    virtual srs_error_t initialize(ISrsStreamWriter* fs);
 public:
     /**
      * write audio/video packet.

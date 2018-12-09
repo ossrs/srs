@@ -946,6 +946,7 @@ public:
     int16_t media_rate_fraction;
 public:
     SrsMp4ElstEntry();
+    virtual ~SrsMp4ElstEntry();
 public:
     virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
@@ -1635,6 +1636,7 @@ struct SrsMp4SttsEntry
     uint32_t sample_delta;
     // Constructor
     SrsMp4SttsEntry();
+    virtual ~SrsMp4SttsEntry();
 public:
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
@@ -1687,6 +1689,7 @@ struct SrsMp4CttsEntry
     int64_t sample_offset;
     // Constructor
     SrsMp4CttsEntry();
+    virtual ~SrsMp4CttsEntry(); 
 public:
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
