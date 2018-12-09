@@ -85,7 +85,7 @@ cd srs/trunk
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, for other OS please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend Centos6 64bits, for other OS recommend [docker][docker], please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: If you have multiple cores such as 4 cores CPU, please use `./configure --jobs=4 && make --jobs=4` to speeed up the build.
 
@@ -1079,6 +1079,7 @@ Winlin
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
+[docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
