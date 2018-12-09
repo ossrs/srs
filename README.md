@@ -97,7 +97,7 @@ cd srs/trunk
 </pre>
 
 <strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, for others OS recommend [docker][docker], see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
 
 <pre>
 ./configure && make
@@ -982,6 +982,7 @@ Winlin
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
+[docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
