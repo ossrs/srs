@@ -43,7 +43,7 @@ using namespace std;
 
 stringstream& srs_padding(stringstream& ss, SrsMp4DumpContext dc, int tab = 4)
 {
-    for (int i = 0; i < dc.level; i++) {
+    for (int i = 0; i < (int)dc.level; i++) {
         for (int j = 0; j < tab; j++) {
             ss << " ";
         }
@@ -167,7 +167,7 @@ stringstream& srs_print_bytes(stringstream& ss, const char* p, int size, SrsMp4D
         max = size;
     }
     
-    for (int i = 0; i < max; i++) {
+    for (int i = 0; i < (int)max; i++) {
         ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)p[i] << std::dec;
          if (i < max -1) {
              ss << ", ";
@@ -1290,7 +1290,7 @@ srs_error_t SrsMp4TrackFragmentRunBox::decode_header(SrsBuffer* buf)
         first_sample_flags = buf->read_4bytes();
     }
     
-    for (int i = 0; i < sample_count; i++) {
+    for (int i = 0; i < (int)sample_count; i++) {
         SrsMp4TrunEntry* entry = new SrsMp4TrunEntry(this);
         entries.push_back(entry);
         
