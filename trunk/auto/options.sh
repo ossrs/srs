@@ -74,6 +74,7 @@ SRS_EXPORT_LIBRTMP_SINGLE=NO
 SRS_X86_X64=NO
 # for osx system
 SRS_OSX=NO
+SRS_ALLOW_OSX=NO
 # armhf(v7cpu) built on ubuntu12
 SRS_ARM_UBUNTU12=NO
 # mips built on ubuntu12
@@ -272,6 +273,7 @@ function parse_user_option() {
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
+        --allow-osx)                    SRS_ALLOW_OSX=YES           ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
         --pi)                           SRS_PI=YES                  ;;
@@ -602,9 +604,9 @@ function apply_user_presets() {
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
-        SRS_LIBRTMP=YES
+        SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
-        SRS_UTEST=NO
+        SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
         SRS_GPERF_MP=NO
@@ -922,7 +924,7 @@ function check_option_conflicts() {
         exit 1;
     fi
 
-    if [[ $SRS_OSX == YES ]]; then
+    if [[ $SRS_OSX == YES && $SRS_ALLOW_OSX == NO ]]; then
         macOSVersion=`sw_vers -productVersion`
         macOSVersionMajor=`echo $macOSVersion|awk -F '.' '{print $1}'`
         macOSVersionMinor=`echo $macOSVersion|awk -F '.' '{print $2}'`
