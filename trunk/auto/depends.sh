@@ -627,6 +627,12 @@ OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
+    if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+        (mkdir -p  ${SRS_OBJS}/openssl/lib && cd ${SRS_OBJS}/openssl/lib && 
+            ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
+        (mkdir -p ${SRS_OBJS}/openssl/include && cd ${SRS_OBJS}/openssl/include &&
+            ln -sf /usr/local/include/openssl)
+    fi
     if [ $SRS_USE_SYS_SSL = YES ]; then
         echo "Warning: Use system libssl, without compiling openssl."
     else
