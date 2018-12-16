@@ -5,8 +5,8 @@
 [<img width="52" alt="Skype" src="https://cloud.githubusercontent.com/assets/2777660/24329166/3821a328-1230-11e7-844a-506a5d17dd3d.png">](https://github.com/ossrs/srs/wiki/v1_EN_Contact#skype-or-gitter)
 
 SRS/3.0, [OuXuli][release3]<br/>
-SRS是大娱乐直播领域广泛应用的野鸡服务器，志存高远不限于色情行业。<br/>
-SRS's a simplest, conceptual integrated, industrial-strength live streaming origin cluster.
+SRS是一个简单的流媒体直播集群。<br/>
+SRS is a simple live streaming cluster.
 
 Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
