@@ -136,13 +136,6 @@ else
     srs_undefine_macro "SRS_AUTO_INGEST" $SRS_AUTO_HEADERS_H
 fi
 
-# for statistic.
-if [ $SRS_STAT = YES ]; then
-    srs_define_macro "SRS_AUTO_STAT" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_STAT" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_GPERF = YES ]; then
     srs_define_macro "SRS_AUTO_GPERF" $SRS_AUTO_HEADERS_H
 else

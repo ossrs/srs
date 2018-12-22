@@ -20,7 +20,6 @@ SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
 SRS_INGEST=RESERVED
-SRS_STAT=RESERVED
 SRS_STREAM_CASTER=RESERVED
 SRS_KAFKA=RESERVED
 SRS_LIBRTMP=RESERVED
@@ -40,6 +39,7 @@ SRS_GPERF_CP=RESERVED
 SRS_GPROF=RESERVED
 #
 # Always enable the bellow features.
+SRS_STAT=YES
 SRS_TRANSCODE=YES
 SRS_HTTP_CALLBACK=YES
 SRS_HTTP_SERVER=YES
@@ -392,7 +392,6 @@ function apply_user_presets() {
         SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
-        SRS_STAT=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
@@ -414,7 +413,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -436,7 +434,6 @@ function apply_user_presets() {
         SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
-        SRS_STAT=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
@@ -458,7 +455,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
-        SRS_STAT=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
@@ -480,7 +476,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -503,7 +498,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -525,7 +519,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -547,7 +540,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -572,7 +564,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -594,7 +585,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=NO
@@ -616,7 +606,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -638,7 +627,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -660,7 +648,6 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
-        SRS_STAT=YES
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
@@ -694,6 +681,7 @@ function apply_user_detail_options() {
 
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
+    if [ $SRS_STAT = NO ]; then SRS_STAT=YES; echo -e "${YELLOW}[WARN] Always enable Statistic.${BLACK}"; fi
     if [ $SRS_TRANSCODE = NO ]; then SRS_TRANSCODE=YES; echo -e "${YELLOW}[WARN] Always enable Transcode.${BLACK}"; fi
     if [ $SRS_HTTP_CALLBACK = NO ]; then SRS_HTTP_CALLBACK=YES; echo -e "${YELLOW}[WARN] Always enable HTTP callback.${BLACK}"; fi
     if [ $SRS_HTTP_SERVER = NO ]; then SRS_HTTP_SERVER=YES; echo -e "${YELLOW}[WARN] Always enable HTTP server.${BLACK}"; fi

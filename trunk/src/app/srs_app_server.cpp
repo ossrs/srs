@@ -903,7 +903,6 @@ srs_error_t SrsServer::do_cycle()
     // find the max loop
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
     
-#ifdef SRS_AUTO_STAT
     max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_DISK_STAT_RESOLUTION_TIMES);
@@ -911,7 +910,6 @@ srs_error_t SrsServer::do_cycle()
     max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES);
-#endif
     
     // for asprocess.
     bool asprocess = _srs_config->get_asprocess();
@@ -988,7 +986,6 @@ srs_error_t SrsServer::do_cycle()
                 srs_update_system_time_ms();
             }
             
-#ifdef SRS_AUTO_STAT
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
                 srs_info("update resource info, rss.");
                 srs_update_system_rusage();
@@ -1023,7 +1020,6 @@ srs_error_t SrsServer::do_cycle()
                     http_heartbeat->heartbeat();
                 }
             }
-#endif
             
             srs_info("server main thread loop");
         }

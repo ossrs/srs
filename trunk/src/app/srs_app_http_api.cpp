@@ -609,11 +609,7 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 #else
     features->set("ingest", SrsJsonAny::boolean(false));
 #endif
-#ifdef SRS_AUTO_STAT
     features->set("stat", SrsJsonAny::boolean(true));
-#else
-    features->set("stat", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_AUTO_NGINX
     features->set("nginx", SrsJsonAny::boolean(true));
 #else
