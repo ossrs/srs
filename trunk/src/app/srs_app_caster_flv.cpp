@@ -23,8 +23,6 @@
 
 #include <srs_app_caster_flv.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 #include <algorithm>
 using namespace std;
 
@@ -324,4 +322,3 @@ srs_error_t SrsHttpFileReader::lseek(off_t offset, int whence, off_t* seeked)
     return srs_success;
 }
 
-#endif

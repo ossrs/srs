@@ -29,8 +29,6 @@
 #include <string>
 #include <vector>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 class SrsConfDirective;
 class SrsHttpServeMux;
 class SrsRtmpClient;
@@ -126,4 +124,3 @@ public:
 
 #endif
 
-#endif

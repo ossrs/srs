@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 struct sockaddr;
 #include <string>
 #include <map>
@@ -123,4 +121,3 @@ private:
 
 #endif
 
-#endif

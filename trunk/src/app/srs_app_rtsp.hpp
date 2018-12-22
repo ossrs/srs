@@ -34,8 +34,6 @@
 #include <srs_app_thread.hpp>
 #include <srs_app_listener.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 class SrsStSocket;
 class SrsRtspConn;
 class SrsRtspStack;
@@ -214,4 +212,3 @@ public:
 
 #endif
 
-#endif

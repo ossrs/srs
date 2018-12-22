@@ -39,8 +39,6 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 #define SRS_RTSP_BUFFER 4096
 
 // get the status text of code.
@@ -1101,8 +1099,6 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
     
     return err;
 }
-
-#endif
 
 #endif
 

@@ -33,8 +33,6 @@
 
 #include <srs_kernel_consts.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 class SrsBuffer;
 class SrsSimpleStream;
 class SrsAudioFrame;
@@ -707,8 +705,6 @@ private:
      */
     virtual srs_error_t recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
 };
-
-#endif
 
 #endif
 

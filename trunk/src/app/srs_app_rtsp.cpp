@@ -46,8 +46,6 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_format.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
 {
     rtsp = r;
@@ -745,6 +743,4 @@ void SrsRtspCaster::remove(SrsRtspConn* conn)
     
     srs_freep(conn);
 }
-
-#endif
 

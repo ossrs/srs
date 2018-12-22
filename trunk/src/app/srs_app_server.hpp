@@ -49,9 +49,7 @@ class ISrsTcpHandler;
 class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
-#ifdef SRS_AUTO_STREAM_CASTER
 class SrsAppCasterFlv;
-#endif
 #ifdef SRS_AUTO_KAFKA
 class SrsKafkaProducer;
 #endif
@@ -111,7 +109,6 @@ public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
 
-#ifdef SRS_AUTO_STREAM_CASTER
 /**
  * the tcp listener, for rtsp server.
  */
@@ -147,7 +144,6 @@ public:
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
-#endif
 
 /**
  * the udp listener, for udp server.
@@ -167,14 +163,12 @@ public:
 /**
  * the udp listener, for udp stream caster server.
  */
-#ifdef SRS_AUTO_STREAM_CASTER
 class SrsUdpCasterListener : public SrsUdpStreamListener
 {
 public:
     SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsUdpCasterListener();
 };
-#endif
 
 /**
  * convert signal to io,

@@ -612,11 +612,7 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 #else
     features->set("ffmpeg", SrsJsonAny::boolean(false));
 #endif
-#ifdef SRS_AUTO_STREAM_CASTER
     features->set("caster", SrsJsonAny::boolean(true));
-#else
-    features->set("caster", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_PERF_COMPLEX_SEND
     features->set("complex_send", SrsJsonAny::boolean(true));
 #else

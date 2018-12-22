@@ -79,12 +79,6 @@ fi
 echo "" >> $SRS_AUTO_HEADERS_H
 
 # auto headers in depends.
-if [ $SRS_STREAM_CASTER = YES ]; then
-    srs_define_macro "SRS_AUTO_STREAM_CASTER" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_STREAM_CASTER" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_KAFKA = YES ]; then
     srs_define_macro "SRS_AUTO_KAFKA" $SRS_AUTO_HEADERS_H
 else

@@ -235,7 +235,7 @@ void show_macro_features()
         // ff(ffmpeg)
         ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);
         // sc(stream-caster)
-        ss << ", sc:" << srs_bool2switch(SRS_AUTO_STREAM_CASTER_BOOL);
+        ss << ", sc:" << srs_bool2switch(true);
         srs_trace(ss.str().c_str());
     }
     

@@ -23,8 +23,6 @@
 
 #include <srs_app_mpegts_udp.hpp>
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -639,4 +637,3 @@ void SrsMpegtsOverUdp::close()
     srs_freep(sdk);
 }
 
-#endif

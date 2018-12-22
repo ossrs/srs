@@ -171,7 +171,6 @@ srs_error_t SrsBufferListener::on_tcp_client(srs_netfd_t stfd)
     return srs_success;
 }
 
-#ifdef SRS_AUTO_STREAM_CASTER
 SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
 {
     listener = NULL;
@@ -281,7 +280,6 @@ srs_error_t SrsHttpFlvListener::on_tcp_client(srs_netfd_t stfd)
     
     return err;
 }
-#endif
 
 SrsUdpStreamListener::SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c) : SrsListener(svr, t)
 {
@@ -323,7 +321,6 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     return err;
 }
 
-#ifdef SRS_AUTO_STREAM_CASTER
 SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
     // the caller already ensure the type is ok,
@@ -338,7 +335,6 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
 {
     srs_freep(caster);
 }
-#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -1096,7 +1092,6 @@ srs_error_t SrsServer::listen_stream_caster()
 {
     srs_error_t err = srs_success;
     
-#ifdef SRS_AUTO_STREAM_CASTER
     close_listeners(SrsListenerMpegTsOverUdp);
     
     std::vector<SrsConfDirective*>::iterator it;
@@ -1134,7 +1129,6 @@ srs_error_t SrsServer::listen_stream_caster()
             return srs_error_wrap(err, "listen at %d", port);
         }
     }
-#endif
     
     return err;
 }

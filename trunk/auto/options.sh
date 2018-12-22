@@ -18,7 +18,6 @@ help=no
 SRS_HDS=RESERVED
 SRS_NGINX=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
-SRS_STREAM_CASTER=RESERVED
 SRS_KAFKA=RESERVED
 SRS_LIBRTMP=RESERVED
 SRS_RESEARCH=RESERVED
@@ -30,6 +29,7 @@ SRS_GPERF_MP=NO # Performance test: gperf memory profile
 SRS_GPERF_CP=NO # Performance test: gperf cpu profile
 SRS_GPROF=NO # Performance test: gprof
 # Always enable the bellow features.
+SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
 SRS_STAT=YES
@@ -383,7 +383,6 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
@@ -396,7 +395,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
@@ -409,7 +407,6 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
@@ -422,7 +419,6 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
@@ -435,7 +431,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -449,7 +444,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -462,7 +456,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -475,7 +468,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -491,7 +483,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
@@ -504,7 +495,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
@@ -517,7 +507,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -530,7 +519,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -543,7 +531,6 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_STREAM_CASTER=NO
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -570,6 +557,7 @@ function apply_user_detail_options() {
 
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
+    if [ $SRS_STREAM_CASTER = NO ]; then SRS_STREAM_CASTER=YES; echo -e "${YELLOW}[WARN] Always enable StreamCaster.${BLACK}"; fi
     if [ $SRS_INGEST = NO ]; then SRS_INGEST=YES; echo -e "${YELLOW}[WARN] Always enable Ingest.${BLACK}"; fi
     if [ $SRS_SSL = NO ]; then SRS_SSL=YES; echo -e "${YELLOW}[WARN] Always enable SSL.${BLACK}"; fi
     if [ $SRS_STAT = NO ]; then SRS_STAT=YES; echo -e "${YELLOW}[WARN] Always enable Statistic.${BLACK}"; fi
