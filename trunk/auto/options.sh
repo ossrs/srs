@@ -23,19 +23,12 @@ SRS_KAFKA=RESERVED
 SRS_LIBRTMP=RESERVED
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
-# tcmalloc
-SRS_GPERF=RESERVED
-# gperf memory check
-SRS_GPERF_MC=RESERVED
-# gperf memory defence
-SRS_GPERF_MD=RESERVED
-# gperf memory profile
-SRS_GPERF_MP=RESERVED
-# gperf cpu profile
-SRS_GPERF_CP=RESERVED
-# gprof
-SRS_GPROF=RESERVED
-#
+SRS_GPERF=NO # Performance test: tcmalloc
+SRS_GPERF_MC=NO # Performance test: gperf memory check
+SRS_GPERF_MD=NO # Performance test: gperf memory defence
+SRS_GPERF_MP=NO # Performance test: gperf memory profile
+SRS_GPERF_CP=NO # Performance test: gperf cpu profile
+SRS_GPROF=NO # Performance test: gprof
 # Always enable the bellow features.
 SRS_INGEST=YES
 SRS_SSL=YES
