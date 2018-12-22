@@ -101,7 +101,9 @@ SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p
 SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpthread"; fi
 # the cxx flag generated.
 CXXFLAGS="${CXXFLAGS} ${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
-if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
+if [ $SRS_GPERF = YES ]; then
+    CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free";
+fi
 # Start to generate the Makefile.
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
@@ -126,19 +128,31 @@ END
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
-if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi
+if [ $SRS_SSL = YES && $SRS_USE_SYS_SSL = NO ]; then
+    LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a";
+fi
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
-if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a"; fi
-if [ $SRS_GPERF_MD = YES ]; then LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a"; fi
+if [ $SRS_GPERF = YES ]; then
+    LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a";
+fi
+if [ $SRS_GPERF_MD = YES ]; then
+    LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a";
+fi
 # the link options, always use static link
 SrsLinkOptions="-ldl";
-if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto"; fi fi
+if [ $SRS_SSL = YES && $SRS_USE_SYS_SSL = YES ]; then
+    SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
+fi
 # if static specified, add static
 # TODO: FIXME: remove static.
-if [ $SRS_STATIC = YES ]; then SrsLinkOptions="${SrsLinkOptions} -static"; fi
+if [ $SRS_STATIC = YES ]; then
+    SrsLinkOptions="${SrsLinkOptions} -static";
+fi
 # if mips, add -lgcc_eh, or stl compile failed.
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lgcc_eh"; fi
+if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+    SrsLinkOptions="${SrsLinkOptions} -lgcc_eh";
+fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary

@@ -389,7 +389,6 @@ function apply_user_presets() {
     if [ $SRS_DISABLE_ALL = YES ]; then
         SRS_HDS=NO
         SRS_NGINX=NO
-        SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
@@ -410,7 +409,6 @@ function apply_user_presets() {
     if [ $SRS_ENABLE_ALL = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=YES
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -431,7 +429,6 @@ function apply_user_presets() {
     if [ $SRS_FAST = YES ]; then
         SRS_HDS=NO
         SRS_NGINX=NO
-        SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
@@ -452,7 +449,6 @@ function apply_user_presets() {
     if [ $SRS_PURE_RTMP = YES ]; then
         SRS_HDS=NO
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
@@ -473,7 +469,6 @@ function apply_user_presets() {
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -495,7 +490,6 @@ function apply_user_presets() {
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -516,7 +510,6 @@ function apply_user_presets() {
     if [ $SRS_X86_X64 = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -537,7 +530,6 @@ function apply_user_presets() {
     if [ $SRS_OSX = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -561,7 +553,6 @@ function apply_user_presets() {
     if [ $SRS_DEV = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -582,7 +573,6 @@ function apply_user_presets() {
     if [ $SRS_FAST_DEV = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -603,7 +593,6 @@ function apply_user_presets() {
     if [ $SRS_DEMO = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -624,7 +613,6 @@ function apply_user_presets() {
     if [ $SRS_PI = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
@@ -645,7 +633,6 @@ function apply_user_presets() {
     if [ $SRS_CUBIE = YES ]; then
         SRS_HDS=YES
         SRS_NGINX=NO
-        SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
         SRS_INGEST=YES
         SRS_STREAM_CASTER=NO
