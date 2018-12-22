@@ -653,10 +653,6 @@ int srs_rtmp_connect_server(srs_rtmp_t rtmp)
 
 int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
 {
-#ifndef SRS_AUTO_SSL
-    // complex handshake requires ssl
-    return ERROR_RTMP_HS_SSL_REQUIRE;
-#else
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
@@ -676,7 +672,6 @@ int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
     }
     
     return ret;
-#endif
 }
 
 int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)

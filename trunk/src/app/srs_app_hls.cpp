@@ -51,10 +51,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_format.hpp>
-
-#ifdef SRS_AUTO_SSL
 #include <openssl/rand.h>
-#endif
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
@@ -80,10 +77,8 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
 {
     memcpy(this->iv, iv,16);
     
-#ifdef SRS_AUTO_SSL
     SrsEncFileWriter* fw = (SrsEncFileWriter*)writer;
     fw->config_cipher(key, iv);
-#endif
 }
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
@@ -334,11 +329,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     }
 
     if(hls_keys) {
-#ifdef SRS_AUTO_SSL
         writer = new SrsEncFileWriter();
-#else
-        writer = new SrsFileWriter();
-#endif
     } else {
         writer = new SrsFileWriter();
     }
@@ -656,13 +647,10 @@ srs_error_t SrsHlsMuxer::write_hls_key()
 {
     srs_error_t err = srs_success;
     
-#ifndef SRS_AUTO_SSL
     if (hls_keys) {
         srs_warn("SSL is disabled, ignore HLS key");
     }
-#endif
     
-#ifdef SRS_AUTO_SSL
     if (hls_keys && current->sequence_no % hls_fragments_per_key == 0) {
         if (RAND_bytes(key, 16) < 0) {
             return srs_error_wrap(err, "rand key failed.");
@@ -691,7 +679,6 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     if (hls_keys) {
         current->config_cipher(key, iv);
     }
-#endif
     
     return err;
 }
@@ -774,8 +761,7 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
             // #EXT-X-DISCONTINUITY\n
             ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
         }
-
-#ifdef SRS_AUTO_SSL
+        
         if(hls_keys && ((segment->sequence_no % hls_fragments_per_key) == 0)) {
             char hexiv[33];
             srs_data_to_hex(hexiv, segment->iv, 16);
@@ -792,7 +778,6 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
             
             ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
         }
-#endif
         
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);

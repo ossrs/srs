@@ -1572,7 +1572,6 @@ public:
     virtual SrsVideoCodecId video_codec();
 };
 
-#ifdef SRS_AUTO_SSL
 /*
  * Used for HLS Encryption
  */
@@ -1593,7 +1592,6 @@ private:
     char* buf;
     int nb_buf;
 };
-#endif
 
 /**
  * TS messages cache, to group frames to TS message,

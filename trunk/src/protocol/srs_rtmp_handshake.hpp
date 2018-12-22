@@ -31,8 +31,6 @@ class SrsComplexHandshake;
 class SrsHandshakeBytes;
 class SrsBuffer;
 
-#ifdef SRS_AUTO_SSL
-
 // for openssl.
 #include <openssl/hmac.h>
 
@@ -498,8 +496,6 @@ namespace _srs_internal
         virtual srs_error_t s2_validate(c1s1* c1, bool& is_valid);
     };
 }
-
-#endif
 
 /**
  * simple handshake.

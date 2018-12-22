@@ -103,12 +103,6 @@ else
     srs_undefine_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
 fi
 
-if [ $SRS_SSL = YES ]; then
-    srs_define_macro "SRS_AUTO_SSL" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_SSL" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_MEM_WATCH = YES ]; then
     srs_define_macro "SRS_AUTO_MEM_WATCH" $SRS_AUTO_HEADERS_H
 else

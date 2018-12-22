@@ -588,11 +588,7 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsJsonObject* features = SrsJsonAny::object();
     data->set("features", features);
     
-#ifdef SRS_AUTO_SSL
     features->set("ssl", SrsJsonAny::boolean(true));
-#else
-    features->set("ssl", SrsJsonAny::boolean(false));
-#endif
     features->set("hls", SrsJsonAny::boolean(true));
 #ifdef SRS_AUTO_HDS
     features->set("hds", SrsJsonAny::boolean(true));

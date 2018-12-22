@@ -212,7 +212,7 @@ void show_macro_features()
         ss << "features";
         
         // rch(rtmp complex handshake)
-        ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
+        ss << ", rch:" << srs_bool2switch(true);
         ss << ", dash:" << "on";
         ss << ", hls:" << srs_bool2switch(true);
         ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
