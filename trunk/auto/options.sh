@@ -15,13 +15,13 @@ help=no
 
 ################################################################
 # feature options
-SRS_HDS=RESERVED
-SRS_NGINX=RESERVED
-SRS_FFMPEG_TOOL=RESERVED
-SRS_KAFKA=RESERVED
-SRS_LIBRTMP=RESERVED
-SRS_RESEARCH=RESERVED
-SRS_UTEST=RESERVED
+SRS_HDS=NO
+SRS_NGINX=NO
+SRS_FFMPEG_TOOL=NO
+SRS_KAFKA=NO
+SRS_LIBRTMP=NO
+SRS_RESEARCH=YES
+SRS_UTEST=YES
 SRS_GPERF=NO # Performance test: tcmalloc
 SRS_GPERF_MC=NO # Performance test: gperf memory check
 SRS_GPERF_MD=NO # Performance test: gperf memory defence
