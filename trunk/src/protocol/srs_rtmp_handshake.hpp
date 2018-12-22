@@ -37,7 +37,7 @@ class SrsBuffer;
 namespace _srs_internal
 {
     // the digest key generate size.
-#define SRS_OpensslHashSize 512
+    #define SRS_OpensslHashSize 512
     extern uint8_t SrsGenuineFMSKey[];
     extern uint8_t SrsGenuineFPKey[];
     srs_error_t openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);

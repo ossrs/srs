@@ -647,10 +647,6 @@ srs_error_t SrsHlsMuxer::write_hls_key()
 {
     srs_error_t err = srs_success;
     
-    if (hls_keys) {
-        srs_warn("SSL is disabled, ignore HLS key");
-    }
-    
     if (hls_keys && current->sequence_no % hls_fragments_per_key == 0) {
         if (RAND_bytes(key, 16) < 0) {
             return srs_error_wrap(err, "rand key failed.");

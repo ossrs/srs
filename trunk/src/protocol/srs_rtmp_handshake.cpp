@@ -106,6 +106,8 @@ static int DH_set_length(DH *dh, long length)
     return 1;
 }
 
+#endif
+
 namespace _srs_internal
 {
     // 68bytes FMS key which is used to sign the sever packet.
@@ -1079,8 +1081,6 @@ namespace _srs_internal
         return err;
     }
 }
-
-#endif
 
 SrsSimpleHandshake::SrsSimpleHandshake()
 {
