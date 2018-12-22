@@ -224,7 +224,7 @@ void show_macro_features()
         ss << ", hs:" << srs_bool2switch(true);
         // hp(http parser)
         ss << ", hp:" << srs_bool2switch(true);
-        ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
+        ss << ", dvr:" << srs_bool2switch(true);
         // trans(transcode)
         ss << ", trans:" << srs_bool2switch(true);
         // inge(ingest)
