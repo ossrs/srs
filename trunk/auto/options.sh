@@ -19,7 +19,6 @@ SRS_HDS=RESERVED
 SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
-SRS_TRANSCODE=RESERVED
 SRS_INGEST=RESERVED
 SRS_STAT=RESERVED
 SRS_STREAM_CASTER=RESERVED
@@ -41,6 +40,7 @@ SRS_GPERF_CP=RESERVED
 SRS_GPROF=RESERVED
 #
 # Always enable the bellow features.
+SRS_TRANSCODE=YES
 SRS_HTTP_CALLBACK=YES
 SRS_HTTP_SERVER=YES
 SRS_HTTP_API=YES
@@ -391,7 +391,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
         SRS_STREAM_CASTER=NO
@@ -414,7 +413,6 @@ function apply_user_presets() {
         SRS_NGINX=YES
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -437,7 +435,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
         SRS_STREAM_CASTER=NO
@@ -460,7 +457,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=NO
         SRS_INGEST=NO
         SRS_STAT=NO
         SRS_STREAM_CASTER=NO
@@ -483,7 +479,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -507,7 +502,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -530,7 +524,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -553,7 +546,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -579,7 +571,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -602,7 +593,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -625,7 +615,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -648,7 +637,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=YES
@@ -671,7 +659,6 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_STAT=YES
         SRS_STREAM_CASTER=NO
@@ -707,6 +694,7 @@ function apply_user_detail_options() {
 
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
+    if [ $SRS_TRANSCODE = NO ]; then SRS_TRANSCODE=YES; echo -e "${YELLOW}[WARN] Always enable Transcode.${BLACK}"; fi
     if [ $SRS_HTTP_CALLBACK = NO ]; then SRS_HTTP_CALLBACK=YES; echo -e "${YELLOW}[WARN] Always enable HTTP callback.${BLACK}"; fi
     if [ $SRS_HTTP_SERVER = NO ]; then SRS_HTTP_SERVER=YES; echo -e "${YELLOW}[WARN] Always enable HTTP server.${BLACK}"; fi
     if [ $SRS_HTTP_API = NO ]; then SRS_HTTP_API=YES; echo -e "${YELLOW}[WARN] Always enable HTTP API.${BLACK}"; fi
@@ -732,6 +720,7 @@ function apply_user_detail_options() {
         SRS_SSL=NO
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
+        SRS_HTTP_CALLBACK=NO
         SRS_INGEST=NO
         SRS_STAT=NO
         SRS_STREAM_CASTER=NO

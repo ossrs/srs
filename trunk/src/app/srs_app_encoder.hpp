@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_TRANSCODE
-
 #include <string>
 #include <vector>
 
@@ -69,8 +67,6 @@ private:
     virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine);
     virtual void show_encode_log_message();
 };
-
-#endif
 
 #endif
 

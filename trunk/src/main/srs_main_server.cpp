@@ -226,7 +226,7 @@ void show_macro_features()
         ss << ", hp:" << srs_bool2switch(true);
         ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
         // trans(transcode)
-        ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
+        ss << ", trans:" << srs_bool2switch(true);
         // inge(ingest)
         ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
         ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);

@@ -3895,11 +3895,6 @@ srs_error_t SrsConfig::check_normal_config()
         if (get_hls_enabled(vhost->arg0())) {
             srs_warn("can't enable vhost.hls of %s", vhost->arg0().c_str());
         }
-#ifndef SRS_AUTO_TRANSCODE
-        if (get_transcode_enabled(get_transcode(vhost->arg0(), ""))) {
-            srs_warn("can't enable vhost.transcode of %s", vhost->arg0().c_str());
-        }
-#endif
 #ifndef SRS_AUTO_INGEST
         vector<SrsConfDirective*> ingesters = get_ingesters(vhost->arg0());
         for (int j = 0; j < (int)ingesters.size(); j++) {

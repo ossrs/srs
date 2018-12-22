@@ -603,11 +603,7 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     features->set("api", SrsJsonAny::boolean(true));
     features->set("httpd", SrsJsonAny::boolean(true));
     features->set("dvr", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_TRANSCODE
     features->set("transcode", SrsJsonAny::boolean(true));
-#else
-    features->set("transcode", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_AUTO_INGEST
     features->set("ingest", SrsJsonAny::boolean(true));
 #else
