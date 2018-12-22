@@ -97,12 +97,6 @@ else
     srs_undefine_macro "SRS_AUTO_NGINX" $SRS_AUTO_HEADERS_H
 fi
 
-if [ $SRS_HLS = YES ]; then
-    srs_define_macro "SRS_AUTO_HLS" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HLS" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_HDS = YES ]; then
     srs_define_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
 else
