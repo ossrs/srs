@@ -228,7 +228,7 @@ void show_macro_features()
         // trans(transcode)
         ss << ", trans:" << srs_bool2switch(true);
         // inge(ingest)
-        ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
+        ss << ", inge:" << srs_bool2switch(true);
         ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);
         ss << ", stat:" << srs_bool2switch(true);
         ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);

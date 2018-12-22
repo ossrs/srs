@@ -3895,16 +3895,6 @@ srs_error_t SrsConfig::check_normal_config()
         if (get_hls_enabled(vhost->arg0())) {
             srs_warn("can't enable vhost.hls of %s", vhost->arg0().c_str());
         }
-#ifndef SRS_AUTO_INGEST
-        vector<SrsConfDirective*> ingesters = get_ingesters(vhost->arg0());
-        for (int j = 0; j < (int)ingesters.size(); j++) {
-            SrsConfDirective* ingest = ingesters[j];
-            if (get_ingest_enabled(ingest)) {
-                srs_warn("cant' enable vhost.ingest.%s of %s",
-                    ingest->arg0().c_str(), vhost->arg0().c_str());
-            }
-        }
-#endif
         // TODO: FIXME: required http server when hls storage is ram or both.
     }
     

@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_INGEST
-
 #include <vector>
 
 #include <srs_app_thread.hpp>
@@ -114,6 +112,5 @@ public:
     virtual srs_error_t on_reload_listen();
 };
 
-#endif
 #endif
 

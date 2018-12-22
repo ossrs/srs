@@ -18,7 +18,6 @@ help=no
 SRS_HDS=RESERVED
 SRS_NGINX=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
-SRS_INGEST=RESERVED
 SRS_STREAM_CASTER=RESERVED
 SRS_KAFKA=RESERVED
 SRS_LIBRTMP=RESERVED
@@ -38,6 +37,7 @@ SRS_GPERF_CP=RESERVED
 SRS_GPROF=RESERVED
 #
 # Always enable the bellow features.
+SRS_INGEST=YES
 SRS_SSL=YES
 SRS_STAT=YES
 SRS_TRANSCODE=YES
@@ -390,18 +390,11 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -410,18 +403,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=YES
         SRS_FFMPEG_TOOL=YES
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -430,18 +416,11 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -450,18 +429,11 @@ function apply_user_presets() {
         SRS_HDS=NO
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=NO
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -470,18 +442,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         # TODO: FIXME: need static? maybe donot.
         SRS_STATIC=YES
     fi
@@ -491,18 +456,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -511,18 +469,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -531,18 +482,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
         # valgrind is not supported by macOS sierra, read
         # https://stackoverflow.com/questions/40650338/valgrind-on-macos-sierra
@@ -554,18 +498,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -574,18 +511,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 	
@@ -594,18 +524,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -614,18 +537,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=NO
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=YES
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 
@@ -634,18 +550,11 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_NGINX=NO
         SRS_FFMPEG_TOOL=YES
-        SRS_INGEST=YES
         SRS_STREAM_CASTER=NO
         SRS_KAFKA=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
         SRS_STATIC=NO
     fi
 }
@@ -668,6 +577,7 @@ function apply_user_detail_options() {
 
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
+    if [ $SRS_INGEST = NO ]; then SRS_INGEST=YES; echo -e "${YELLOW}[WARN] Always enable Ingest.${BLACK}"; fi
     if [ $SRS_SSL = NO ]; then SRS_SSL=YES; echo -e "${YELLOW}[WARN] Always enable SSL.${BLACK}"; fi
     if [ $SRS_STAT = NO ]; then SRS_STAT=YES; echo -e "${YELLOW}[WARN] Always enable Statistic.${BLACK}"; fi
     if [ $SRS_TRANSCODE = NO ]; then SRS_TRANSCODE=YES; echo -e "${YELLOW}[WARN] Always enable Transcode.${BLACK}"; fi

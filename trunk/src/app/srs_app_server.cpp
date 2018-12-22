@@ -485,10 +485,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
-    
-#ifdef SRS_AUTO_INGEST
     ingester = new SrsIngester();
-#endif
 }
 
 SrsServer::~SrsServer()
@@ -505,10 +502,7 @@ void SrsServer::destroy()
     srs_freep(http_api_mux);
     srs_freep(http_server);
     srs_freep(http_heartbeat);
-    
-#ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
-#endif
     
     if (pid_fd > 0) {
         ::close(pid_fd);
@@ -810,11 +804,9 @@ srs_error_t SrsServer::ingest()
 {
     srs_error_t err = srs_success;
     
-#ifdef SRS_AUTO_INGEST
     if ((err = ingester->start()) != srs_success) {
         return srs_error_wrap(err, "ingest start");
     }
-#endif
     
     return err;
 }
