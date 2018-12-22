@@ -23,8 +23,6 @@
 
 #include <srs_app_ingest.hpp>
 
-#ifdef SRS_AUTO_INGEST
-
 #include <stdlib.h>
 using namespace std;
 
@@ -569,6 +567,4 @@ srs_error_t SrsIngester::on_reload_listen()
     expired = true;
     return srs_success;
 }
-
-#endif
 

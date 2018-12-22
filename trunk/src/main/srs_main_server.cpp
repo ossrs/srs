@@ -212,9 +212,9 @@ void show_macro_features()
         ss << "features";
         
         // rch(rtmp complex handshake)
-        ss << ", rch:" << srs_bool2switch(SRS_AUTO_SSL_BOOL);
+        ss << ", rch:" << srs_bool2switch(true);
         ss << ", dash:" << "on";
-        ss << ", hls:" << srs_bool2switch(SRS_AUTO_HLS_BOOL);
+        ss << ", hls:" << srs_bool2switch(true);
         ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
         // hc(http callback)
         ss << ", hc:" << srs_bool2switch(true);
@@ -224,13 +224,13 @@ void show_macro_features()
         ss << ", hs:" << srs_bool2switch(true);
         // hp(http parser)
         ss << ", hp:" << srs_bool2switch(true);
-        ss << ", dvr:" << srs_bool2switch(SRS_AUTO_DVR_BOOL);
+        ss << ", dvr:" << srs_bool2switch(true);
         // trans(transcode)
-        ss << ", trans:" << srs_bool2switch(SRS_AUTO_TRANSCODE_BOOL);
+        ss << ", trans:" << srs_bool2switch(true);
         // inge(ingest)
-        ss << ", inge:" << srs_bool2switch(SRS_AUTO_INGEST_BOOL);
+        ss << ", inge:" << srs_bool2switch(true);
         ss << ", kafka:" << srs_bool2switch(SRS_AUTO_KAFKA_BOOL);
-        ss << ", stat:" << srs_bool2switch(SRS_AUTO_STAT_BOOL);
+        ss << ", stat:" << srs_bool2switch(true);
         ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);
         // ff(ffmpeg)
         ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);

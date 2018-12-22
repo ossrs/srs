@@ -55,9 +55,7 @@ class SrsMessageHeader;
 class SrsHls;
 class SrsDvr;
 class SrsDash;
-#ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
-#endif
 class SrsBuffer;
 #ifdef SRS_AUTO_HDS
 class SrsHds;
@@ -428,9 +426,7 @@ private:
     // dvr handler.
     SrsDvr* dvr;
     // transcoding handler.
-#ifdef SRS_AUTO_TRANSCODE
     SrsEncoder* encoder;
-#endif
 #ifdef SRS_AUTO_HDS
     // adobe hds(http dynamic streaming).
     SrsHds *hds;

@@ -34,8 +34,6 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 
-#ifdef SRS_AUTO_SSL
-
 using namespace _srs_internal;
 
 // for openssl_HMACsha256
@@ -1084,8 +1082,6 @@ namespace _srs_internal
     }
 }
 
-#endif
-
 SrsSimpleHandshake::SrsSimpleHandshake()
 {
 }
@@ -1175,13 +1171,6 @@ SrsComplexHandshake::~SrsComplexHandshake()
 {
 }
 
-#ifndef SRS_AUTO_SSL
-srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
-{
-    srs_trace("directly use simple handshake for ssl disabled.");
-    return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "try simple handshake");
-}
-#else
 srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     srs_error_t err = srs_success;
@@ -1265,14 +1254,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_byt
     
     return err;
 }
-#endif
 
-#ifndef SRS_AUTO_SSL
-srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
-{
-    return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "try simple handshake");
-}
-#else
 srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     srs_error_t err = srs_success;
@@ -1346,6 +1328,4 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_byt
     
     return err;
 }
-#endif
-
 

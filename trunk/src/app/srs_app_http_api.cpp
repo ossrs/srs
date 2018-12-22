@@ -588,11 +588,7 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsJsonObject* features = SrsJsonAny::object();
     data->set("features", features);
     
-#ifdef SRS_AUTO_SSL
     features->set("ssl", SrsJsonAny::boolean(true));
-#else
-    features->set("ssl", SrsJsonAny::boolean(false));
-#endif
     features->set("hls", SrsJsonAny::boolean(true));
 #ifdef SRS_AUTO_HDS
     features->set("hds", SrsJsonAny::boolean(true));
@@ -603,21 +599,9 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     features->set("api", SrsJsonAny::boolean(true));
     features->set("httpd", SrsJsonAny::boolean(true));
     features->set("dvr", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_TRANSCODE
     features->set("transcode", SrsJsonAny::boolean(true));
-#else
-    features->set("transcode", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_INGEST
     features->set("ingest", SrsJsonAny::boolean(true));
-#else
-    features->set("ingest", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_STAT
     features->set("stat", SrsJsonAny::boolean(true));
-#else
-    features->set("stat", SrsJsonAny::boolean(false));
-#endif
 #ifdef SRS_AUTO_NGINX
     features->set("nginx", SrsJsonAny::boolean(true));
 #else

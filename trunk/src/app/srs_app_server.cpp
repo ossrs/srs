@@ -485,10 +485,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
-    
-#ifdef SRS_AUTO_INGEST
     ingester = new SrsIngester();
-#endif
 }
 
 SrsServer::~SrsServer()
@@ -505,10 +502,7 @@ void SrsServer::destroy()
     srs_freep(http_api_mux);
     srs_freep(http_server);
     srs_freep(http_heartbeat);
-    
-#ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
-#endif
     
     if (pid_fd > 0) {
         ::close(pid_fd);
@@ -810,11 +804,9 @@ srs_error_t SrsServer::ingest()
 {
     srs_error_t err = srs_success;
     
-#ifdef SRS_AUTO_INGEST
     if ((err = ingester->start()) != srs_success) {
         return srs_error_wrap(err, "ingest start");
     }
-#endif
     
     return err;
 }
@@ -903,7 +895,6 @@ srs_error_t SrsServer::do_cycle()
     // find the max loop
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
     
-#ifdef SRS_AUTO_STAT
     max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_DISK_STAT_RESOLUTION_TIMES);
@@ -911,7 +902,6 @@ srs_error_t SrsServer::do_cycle()
     max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES);
-#endif
     
     // for asprocess.
     bool asprocess = _srs_config->get_asprocess();
@@ -988,7 +978,6 @@ srs_error_t SrsServer::do_cycle()
                 srs_update_system_time_ms();
             }
             
-#ifdef SRS_AUTO_STAT
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
                 srs_info("update resource info, rss.");
                 srs_update_system_rusage();
@@ -1023,7 +1012,6 @@ srs_error_t SrsServer::do_cycle()
                     http_heartbeat->heartbeat();
                 }
             }
-#endif
             
             srs_info("server main thread loop");
         }

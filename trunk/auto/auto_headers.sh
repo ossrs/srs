@@ -97,28 +97,10 @@ else
     srs_undefine_macro "SRS_AUTO_NGINX" $SRS_AUTO_HEADERS_H
 fi
 
-if [ $SRS_DVR = YES ]; then
-    srs_define_macro "SRS_AUTO_DVR" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_DVR" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HLS = YES ]; then
-    srs_define_macro "SRS_AUTO_HLS" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_HLS" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_HDS = YES ]; then
     srs_define_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_SSL = YES ]; then
-    srs_define_macro "SRS_AUTO_SSL" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_SSL" $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_MEM_WATCH = YES ]; then
@@ -140,25 +122,6 @@ if [ $SRS_FFMPEG_STUB = YES ]; then
     srs_define_macro "SRS_AUTO_FFMPEG_STUB" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_FFMPEG_STUB" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_TRANSCODE = YES ]; then
-    srs_define_macro "SRS_AUTO_TRANSCODE" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_TRANSCODE" $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_INGEST = YES ]; then
-    srs_define_macro "SRS_AUTO_INGEST" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_INGEST" $SRS_AUTO_HEADERS_H
-fi
-
-# for statistic.
-if [ $SRS_STAT = YES ]; then
-    srs_define_macro "SRS_AUTO_STAT" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_STAT" $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_GPERF = YES ]; then

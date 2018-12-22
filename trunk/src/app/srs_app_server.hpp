@@ -243,9 +243,7 @@ private:
     SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
-#ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
-#endif
     SrsCoroutineManager* conn_manager;
 private:
     /**

@@ -34,8 +34,6 @@ using namespace std;
 #include <srs_app_ffmpeg.hpp>
 #include <srs_kernel_utility.hpp>
 
-#ifdef SRS_AUTO_TRANSCODE
-
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
 
@@ -333,7 +331,4 @@ void SrsEncoder::show_encode_log_message()
                   pprint->age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }
-
-#endif
-
 

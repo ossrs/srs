@@ -34,11 +34,8 @@
 #include <sstream>
 using namespace std;
 
-#ifdef SRS_AUTO_SSL
 #include <openssl/aes.h>
 #include <cstring>
-#endif
-
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
@@ -2616,7 +2613,6 @@ SrsVideoCodecId SrsTsContextWriter::video_codec()
     return vcodec;
 }
 
-#ifdef SRS_AUTO_SSL
 SrsEncFileWriter::SrsEncFileWriter()
 {
     memset(iv,0,16);
@@ -2703,7 +2699,6 @@ void SrsEncFileWriter::close()
     
     SrsFileWriter::close();
 }
-#endif
 
 SrsTsMessageCache::SrsTsMessageCache()
 {

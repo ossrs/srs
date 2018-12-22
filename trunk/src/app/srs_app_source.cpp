@@ -824,9 +824,7 @@ SrsOriginHub::SrsOriginHub()
     hls = new SrsHls();
     dash = new SrsDash();
     dvr = new SrsDvr();
-#ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
-#endif
 #ifdef SRS_AUTO_HDS
     hds = new SrsHds();
 #endif
@@ -854,9 +852,7 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(hls);
     srs_freep(dash);
     srs_freep(dvr);
-#ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
-#endif
 #ifdef SRS_AUTO_HDS
     srs_freep(hds);
 #endif
@@ -1116,11 +1112,9 @@ srs_error_t SrsOriginHub::on_publish()
     }
     
     // TODO: FIXME: use initialize to set req.
-#ifdef SRS_AUTO_TRANSCODE
     if ((err = encoder->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "encoder publish");
     }
-#endif
     
     if ((err = hls->on_publish()) != srs_success) {
         return srs_error_wrap(err, "hls publish");
@@ -1158,10 +1152,7 @@ void SrsOriginHub::on_unpublish()
     // destroy all forwarders
     destroy_forwarders();
     
-#ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
-#endif
-    
     hls->on_unpublish();
     dash->on_unpublish();
     dvr->on_unpublish();
@@ -1419,7 +1410,6 @@ srs_error_t SrsOriginHub::on_reload_vhost_transcode(string vhost)
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
-#ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
     
     // Don't start transcode when source is not active.
@@ -1431,7 +1421,6 @@ srs_error_t SrsOriginHub::on_reload_vhost_transcode(string vhost)
         return srs_error_wrap(err, "start encoder failed");
     }
     srs_trace("vhost %s transcode reload success", vhost.c_str());
-#endif
     
     return err;
 }

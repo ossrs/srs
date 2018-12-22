@@ -214,8 +214,6 @@ srs_error_t MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
 
 #ifdef ENABLE_UTEST_PROTOCOL
 
-#ifdef SRS_AUTO_SSL
-
 // verify the sha256
 VOID TEST(ProtocolHandshakeTest, OpensslSha256)
 {
@@ -378,8 +376,6 @@ VOID TEST(ProtocolHandshakeTest, ComplexHandshake)
         ASSERT_TRUE(is_valid);
     }
 }
-
-#endif
 
 VOID TEST(ProtocolHandshakeTest, SimpleHandshake)
 {
