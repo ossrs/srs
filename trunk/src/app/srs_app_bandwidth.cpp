@@ -163,7 +163,8 @@ srs_error_t SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStati
     }
     
     // create a limit object.
-    SrsKbps kbps;
+    SrsWallClock clk;
+    SrsKbps kbps(&clk);
     kbps.set_io(io_stat, io_stat);
     
     int limit_kbps = _srs_config->get_bw_check_limit_kbps(_req->vhost);

@@ -5685,8 +5685,28 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
     }
 }
 
-VOID TEST(ProtocolKbpsTest, ParseHTTPMessage)
+VOID TEST(ProtocolKbpsTest, Connections)
 {
+    if (true) {
+        MockWallClock* clock = new MockWallClock();
+        SrsAutoFree(MockWallClock, clock);
+        MockStatistic* io = new MockStatistic();
+        SrsAutoFree(MockStatistic, io);
+        
+        SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
+        SrsAutoFree(SrsKbps, kbps);
+        kbps->set_io(io, io);
+        
+        kbps->sample();
+        
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+        
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
 }
 
 #endif

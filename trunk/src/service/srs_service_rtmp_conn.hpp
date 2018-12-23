@@ -35,6 +35,7 @@ class SrsCommonMessage;
 class SrsSharedPtrMessage;
 class SrsPacket;
 class SrsKbps;
+class SrsWallClock;
 
 /**
  * The simple RTMP client, provides friendly APIs.
@@ -57,6 +58,7 @@ private:
     SrsTcpClient* transport;
     SrsRtmpClient* client;
     SrsKbps* kbps;
+    SrsWallClock* clk;
     int stream_id;
 public:
     // Constructor.

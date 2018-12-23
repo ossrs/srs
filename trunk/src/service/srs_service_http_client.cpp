@@ -38,7 +38,8 @@ using namespace std;
 SrsHttpClient::SrsHttpClient()
 {
     transport = NULL;
-    kbps = new SrsKbps(new SrsWallClock());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
     parser = NULL;
     timeout = SRS_CONSTS_NO_TMMS;
     port = 0;
@@ -49,6 +50,7 @@ SrsHttpClient::~SrsHttpClient()
     disconnect();
     
     srs_freep(kbps);
+    srs_freep(clk);
     srs_freep(parser);
 }
 

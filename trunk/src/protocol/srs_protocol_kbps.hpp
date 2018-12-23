@@ -28,6 +28,8 @@
 
 #include <srs_protocol_io.hpp>
 
+class SrsWallClock;
+
 /**
  * a kbps sample, for example, 1minute kbps,
  * 10minute kbps sample.
@@ -64,6 +66,7 @@ private:
         ISrsProtocolStatistic* in;
         ISrsProtocolStatistic* out;
     };
+    SrsWallClock* clk;
 public:
     // the slice io used for SrsKbps to invoke,
     // the SrsKbpsSlice itself never use it.
@@ -88,7 +91,7 @@ public:
     // for the delta bytes.
     int64_t delta_bytes;
 public:
-    SrsKbpsSlice();
+    SrsKbpsSlice(SrsWallClock* clk);
     virtual ~SrsKbpsSlice();
 public:
     // Get current total bytes, not depend on sample().
@@ -182,7 +185,7 @@ class SrsKbps : virtual public ISrsProtocolStatistic, virtual public IKbpsDelta
 private:
     SrsKbpsSlice is;
     SrsKbpsSlice os;
-    SrsWallClock* clock;
+    SrsWallClock* clk;
 public:
     // We will free the clock c.
     SrsKbps(SrsWallClock* c);

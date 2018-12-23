@@ -49,7 +49,8 @@ SrsStatisticVhost::SrsStatisticVhost()
 {
     id = srs_generate_id();
     
-    kbps = new SrsKbps(new SrsWallClock());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
@@ -59,6 +60,7 @@ SrsStatisticVhost::SrsStatisticVhost()
 SrsStatisticVhost::~SrsStatisticVhost()
 {
     srs_freep(kbps);
+    srs_freep(clk);
 }
 
 srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
@@ -114,7 +116,8 @@ SrsStatisticStream::SrsStatisticStream()
     width = 0;
     height = 0;
     
-    kbps = new SrsKbps(new SrsWallClock());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
@@ -124,6 +127,7 @@ SrsStatisticStream::SrsStatisticStream()
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps);
+    srs_freep(clk);
 }
 
 srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
@@ -236,13 +240,15 @@ SrsStatistic::SrsStatistic()
 {
     _server_id = srs_generate_id();
     
-    kbps = new SrsKbps(new SrsWallClock());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
 }
 
 SrsStatistic::~SrsStatistic()
 {
     srs_freep(kbps);
+    srs_freep(clk);
     
     if (true) {
         std::map<int64_t, SrsStatisticVhost*>::iterator it;

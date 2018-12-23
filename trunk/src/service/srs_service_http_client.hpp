@@ -37,6 +37,7 @@ class SrsHttpParser;
 class ISrsHttpMessage;
 class SrsStSocket;
 class SrsKbps;
+class SrsWallClock;
 class SrsTcpClient;
 
 // the default timeout for http client.
@@ -60,6 +61,7 @@ private:
     SrsHttpParser* parser;
     std::map<std::string, std::string> headers;
     SrsKbps* kbps;
+    SrsWallClock* clk;
 private:
     // The timeout in ms.
     int64_t timeout;

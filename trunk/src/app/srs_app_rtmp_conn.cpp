@@ -110,8 +110,7 @@ SrsClientInfo::~SrsClientInfo()
     srs_freep(res);
 }
 
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip)
-: SrsConnection(svr, c, cip)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip) : SrsConnection(svr, c, cip)
 {
     server = svr;
     
@@ -120,8 +119,6 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip)
     bandwidth = new SrsBandwidth();
     security = new SrsSecurity();
     duration = 0;
-    kbps = new SrsKbps(new SrsWallClock());
-    kbps->set_io(skt, skt);
     wakable = NULL;
     
     mw_sleep = SRS_PERF_MW_SLEEP;
@@ -143,7 +140,6 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(refer);
     srs_freep(bandwidth);
     srs_freep(security);
-    srs_freep(kbps);
 }
 
 void SrsRtmpConn::dispose()

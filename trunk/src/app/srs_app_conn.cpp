@@ -39,7 +39,8 @@ SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip)
     create_time = srs_get_system_time_ms();
     
     skt = new SrsStSocket();
-    kbps = new SrsKbps(new SrsWallClock());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
     kbps->set_io(skt, skt);
     
     trd = new SrsSTCoroutine("conn", this);
@@ -50,6 +51,7 @@ SrsConnection::~SrsConnection()
     dispose();
     
     srs_freep(kbps);
+    srs_freep(clk);
     srs_freep(skt);
     srs_freep(trd);
     

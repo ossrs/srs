@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_handshake.hpp>
 #include <srs_protocol_stream.hpp>
+#include <srs_protocol_kbps.hpp>
 
 using namespace _srs_internal;
 
@@ -127,13 +128,13 @@ public:
     MockStatistic* add_out(int64_t v);
 };
 
-class MockWallClock
+class MockWallClock : public SrsWallClock
 {
 private:
     int64_t clock;
 public:
     MockWallClock();
-    virtual MockWallClock();
+    virtual ~MockWallClock();
 public:
     virtual int64_t time_ms();
 public:

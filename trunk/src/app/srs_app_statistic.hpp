@@ -34,6 +34,7 @@
 #include <srs_rtmp_stack.hpp>
 
 class SrsKbps;
+class SrsWallClock;
 class SrsRequest;
 class SrsConnection;
 class SrsJsonObject;
@@ -51,6 +52,7 @@ public:
      * vhost total kbps.
      */
     SrsKbps* kbps;
+    SrsWallClock* clk;
 public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
@@ -75,6 +77,7 @@ public:
      * stream total kbps.
      */
     SrsKbps* kbps;
+    SrsWallClock* clk;
 public:
     bool has_video;
     SrsVideoCodecId vcodec;
@@ -152,6 +155,7 @@ private:
     std::map<int, SrsStatisticClient*> clients;
     // server total kbps.
     SrsKbps* kbps;
+    SrsWallClock* clk;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();

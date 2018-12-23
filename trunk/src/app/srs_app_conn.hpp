@@ -34,6 +34,8 @@
 #include <srs_app_reload.hpp>
 #include <srs_service_conn.hpp>
 
+class SrsWallClock;
+
 /**
  * the basic connection of SRS,
  * all connections accept from listener must extends from this base class,
@@ -71,6 +73,7 @@ protected:
      * the SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
      */
     SrsKbps* kbps;
+    SrsWallClock* clk;
     /**
      * the create time in milliseconds.
      * for current connection to log self create time and calculate the living time.

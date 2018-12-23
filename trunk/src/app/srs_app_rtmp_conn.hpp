@@ -109,7 +109,6 @@ private:
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/ossrs/srs/issues/47
     int64_t duration;
-    SrsKbps* kbps;
     // the MR(merged-write) sleep time in ms.
     int mw_sleep;
     // the MR(merged-write) only enabled for play.
