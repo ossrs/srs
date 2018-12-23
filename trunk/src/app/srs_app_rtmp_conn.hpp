@@ -92,7 +92,7 @@ public:
 /**
  * the client provides the main logic control for RTMP clients.
  */
-class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandler
+class SrsRtmpConn : virtual public SrsConnection, virtual public ISrsReloadHandler
 {
     // for the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;

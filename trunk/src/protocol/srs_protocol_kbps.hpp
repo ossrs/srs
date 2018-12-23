@@ -157,12 +157,12 @@ public:
  *      SrsKbps* kbps = ...;
  *      kbps->set_io(in, out);
  *      // both kbps->get_recv_bytes() and kbps->get_send_bytes() are available.
- *       // we can use the kbps as the data source of another kbps:
+ *      // we can use the kbps as the data source of another kbps:
  *      SrsKbps* user = ...;
  *      user->set_io(kbps, kbps);
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
  */
-class SrsKbps : public virtual ISrsProtocolStatistic, public virtual IKbpsDelta
+class SrsKbps : virtual public ISrsProtocolStatistic, virtual public IKbpsDelta
 {
 private:
     SrsKbpsSlice is;
