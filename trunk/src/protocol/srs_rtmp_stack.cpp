@@ -193,7 +193,7 @@ SrsProtocol::AckWindowSize::AckWindowSize()
     sequence_number = nb_recv_bytes = 0;
 }
 
-SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
+SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
 {
     in_buffer = new SrsFastStream();
     skt = io;
@@ -1668,7 +1668,7 @@ SrsHandshakeBytes::~SrsHandshakeBytes()
     srs_freepa(c2);
 }
 
-srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReaderWriter* io)
+srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1686,7 +1686,7 @@ srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReaderWriter* io)
     return err;
 }
 
-srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReaderWriter* io)
+srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1704,7 +1704,7 @@ srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReaderWriter* io)
     return err;
 }
 
-srs_error_t SrsHandshakeBytes::read_c2(ISrsProtocolReaderWriter* io)
+srs_error_t SrsHandshakeBytes::read_c2(ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1802,7 +1802,7 @@ SrsServerInfo::SrsServerInfo()
     major = minor = revision = build = 0;
 }
 
-SrsRtmpClient::SrsRtmpClient(ISrsProtocolReaderWriter* skt)
+SrsRtmpClient::SrsRtmpClient(ISrsProtocolReadWriter* skt)
 {
     io = skt;
     protocol = new SrsProtocol(skt);
@@ -2180,7 +2180,7 @@ srs_error_t SrsRtmpClient::fmle_publish(string stream, int& stream_id)
     return err;
 }
 
-SrsRtmpServer::SrsRtmpServer(ISrsProtocolReaderWriter* skt)
+SrsRtmpServer::SrsRtmpServer(ISrsProtocolReadWriter* skt)
 {
     io = skt;
     protocol = new SrsProtocol(skt);

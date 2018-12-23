@@ -47,11 +47,11 @@ ISrsProtocolWriter::~ISrsProtocolWriter()
 {
 }
 
-ISrsProtocolReaderWriter::ISrsProtocolReaderWriter()
+ISrsProtocolReadWriter::ISrsProtocolReadWriter()
 {
 }
 
-ISrsProtocolReaderWriter::~ISrsProtocolReaderWriter()
+ISrsProtocolReadWriter::~ISrsProtocolReadWriter()
 {
 }
 

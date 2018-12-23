@@ -320,7 +320,7 @@ string srs_generate_rtmp_url(string server, int port, string host, string vhost,
     return url;
 }
 
-srs_error_t srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
+srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite)
 {
     srs_error_t err = srs_success;
     

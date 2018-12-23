@@ -1090,7 +1090,7 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-srs_error_t SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
+srs_error_t SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1122,7 +1122,7 @@ srs_error_t SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_byte
     return err;
 }
 
-srs_error_t SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
+srs_error_t SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1171,7 +1171,7 @@ SrsComplexHandshake::~SrsComplexHandshake()
 {
 }
 
-srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
+srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     
@@ -1255,7 +1255,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_byt
     return err;
 }
 
-srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
+srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io)
 {
     srs_error_t err = srs_success;
     

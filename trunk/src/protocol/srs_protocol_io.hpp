@@ -52,7 +52,7 @@
  *             / \                            |
  *              |                             |
  *           +--+-----------------------------+-+
- *           |       IProtocolReaderWriter      |
+ *           |       IProtocolReadWriter        |
  *           +----------------------------------+
  *           | + is_never_timeout()             |
  *           +----------------------------------+
@@ -66,7 +66,7 @@ class ISrsProtocolStatistic
 public:
     ISrsProtocolStatistic();
     virtual ~ISrsProtocolStatistic();
-    // for protocol
+// for protocol
 public:
     /**
      * get the total recv bytes over underlay fd.
@@ -86,7 +86,7 @@ class ISrsProtocolReader : virtual public ISrsReader, virtual public ISrsProtoco
 public:
     ISrsProtocolReader();
     virtual ~ISrsProtocolReader();
-    // for protocol
+// for protocol
 public:
     /**
      * Set the timeout tm in ms for recv bytes from peer.
@@ -97,7 +97,7 @@ public:
      * Get the timeout in ms for recv bytes from peer.
      */
     virtual int64_t get_recv_timeout() = 0;
-    // for handshake.
+// for handshake.
 public:
     /**
      * read specified size bytes of data
@@ -114,7 +114,7 @@ class ISrsProtocolWriter : virtual public ISrsWriter, virtual public ISrsProtoco
 public:
     ISrsProtocolWriter();
     virtual ~ISrsProtocolWriter();
-    // for protocol
+// for protocol
 public:
     /**
      * Set the timeout tm in ms for send bytes to peer.
@@ -130,12 +130,12 @@ public:
 /**
  * the reader and writer.
  */
-class ISrsProtocolReaderWriter : virtual public ISrsProtocolReader, virtual public ISrsProtocolWriter
+class ISrsProtocolReadWriter : virtual public ISrsProtocolReader, virtual public ISrsProtocolWriter
 {
 public:
-    ISrsProtocolReaderWriter();
-    virtual ~ISrsProtocolReaderWriter();
-    // for protocol
+    ISrsProtocolReadWriter();
+    virtual ~ISrsProtocolReadWriter();
+// for protocol
 public:
     /**
      * Whether the specified tm in ms is never timeout.

@@ -1193,7 +1193,7 @@ SrsKafkaApiKey SrsKafkaCorrelationPool::get(int32_t correlation_id)
     return correlation_ids[correlation_id];
 }
 
-SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReaderWriter* io)
+SrsKafkaProtocol::SrsKafkaProtocol(ISrsProtocolReadWriter* io)
 {
     skt = io;
     reader = new SrsFastStream();
@@ -1310,7 +1310,7 @@ srs_error_t SrsKafkaProtocol::recv_message(SrsKafkaResponse** pmsg)
     return err;
 }
 
-SrsKafkaClient::SrsKafkaClient(ISrsProtocolReaderWriter* io)
+SrsKafkaClient::SrsKafkaClient(ISrsProtocolReadWriter* io)
 {
     protocol = new SrsKafkaProtocol(io);
 }

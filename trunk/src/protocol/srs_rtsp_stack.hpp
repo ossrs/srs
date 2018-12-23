@@ -36,7 +36,7 @@
 class SrsBuffer;
 class SrsSimpleStream;
 class SrsAudioFrame;
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 
 // rtsp specification
 // CR = <US-ASCII CR, carriage return (13)>
@@ -657,9 +657,9 @@ private:
     /**
      * underlayer socket object, send/recv bytes.
      */
-    ISrsProtocolReaderWriter* skt;
+    ISrsProtocolReadWriter* skt;
 public:
-    SrsRtspStack(ISrsProtocolReaderWriter* s);
+    SrsRtspStack(ISrsProtocolReadWriter* s);
     virtual ~SrsRtspStack();
 public:
     /**

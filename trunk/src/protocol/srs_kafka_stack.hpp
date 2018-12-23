@@ -35,7 +35,7 @@
 #include <srs_kernel_log.hpp>
 
 class SrsFastStream;
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsJsonObject;
 
 #ifdef SRS_AUTO_KAFKA
@@ -854,10 +854,10 @@ public:
 class SrsKafkaProtocol
 {
 private:
-    ISrsProtocolReaderWriter* skt;
+    ISrsProtocolReadWriter* skt;
     SrsFastStream* reader;
 public:
-    SrsKafkaProtocol(ISrsProtocolReaderWriter* io);
+    SrsKafkaProtocol(ISrsProtocolReadWriter* io);
     virtual ~SrsKafkaProtocol();
 public:
     /**
@@ -909,7 +909,7 @@ class SrsKafkaClient
 private:
     SrsKafkaProtocol* protocol;
 public:
-    SrsKafkaClient(ISrsProtocolReaderWriter* io);
+    SrsKafkaClient(ISrsProtocolReadWriter* io);
     virtual ~SrsKafkaClient();
 public:
     /**

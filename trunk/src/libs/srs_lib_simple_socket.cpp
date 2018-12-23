@@ -424,7 +424,7 @@ srs_error_t SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* 
     return srs_success;
 }
 
-// ISrsProtocolReaderWriter
+// ISrsProtocolReadWriter
 bool SimpleSocketStream::is_never_timeout(int64_t tm)
 {
     srs_assert(io);

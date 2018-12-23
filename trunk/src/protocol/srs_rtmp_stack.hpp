@@ -41,7 +41,7 @@
 #include <srs_core_performance.hpp>
 #include <srs_kernel_flv.hpp>
 
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsFastStream;
 class SrsPacket;
 class SrsBuffer;
@@ -54,7 +54,7 @@ class SrsSharedPtrMessage;
 class IMergeReadHandler;
 
 class SrsProtocol;
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
@@ -200,7 +200,7 @@ private:
     /**
      * underlayer socket object, send/recv bytes.
      */
-    ISrsProtocolReaderWriter* skt;
+    ISrsProtocolReadWriter* skt;
     /**
      * requests sent out, used to build the response.
      * key: transactionId
@@ -272,7 +272,7 @@ private:
      */
     int32_t out_chunk_size;
 public:
-    SrsProtocol(ISrsProtocolReaderWriter* io);
+    SrsProtocol(ISrsProtocolReadWriter* io);
     virtual ~SrsProtocol();
 public:
     /**
@@ -653,9 +653,9 @@ public:
     SrsHandshakeBytes();
     virtual ~SrsHandshakeBytes();
 public:
-    virtual srs_error_t read_c0c1(ISrsProtocolReaderWriter* io);
-    virtual srs_error_t read_s0s1s2(ISrsProtocolReaderWriter* io);
-    virtual srs_error_t read_c2(ISrsProtocolReaderWriter* io);
+    virtual srs_error_t read_c0c1(ISrsProtocolReadWriter* io);
+    virtual srs_error_t read_s0s1s2(ISrsProtocolReadWriter* io);
+    virtual srs_error_t read_c2(ISrsProtocolReadWriter* io);
     virtual srs_error_t create_c0c1();
     virtual srs_error_t create_s0s1s2(const char* c1 = NULL);
     virtual srs_error_t create_c2();
@@ -687,9 +687,9 @@ private:
     SrsHandshakeBytes* hs_bytes;
 protected:
     SrsProtocol* protocol;
-    ISrsProtocolReaderWriter* io;
+    ISrsProtocolReadWriter* io;
 public:
-    SrsRtmpClient(ISrsProtocolReaderWriter* skt);
+    SrsRtmpClient(ISrsProtocolReadWriter* skt);
     virtual ~SrsRtmpClient();
 // protocol methods proxy
 public:
@@ -778,9 +778,9 @@ class SrsRtmpServer
 private:
     SrsHandshakeBytes* hs_bytes;
     SrsProtocol* protocol;
-    ISrsProtocolReaderWriter* io;
+    ISrsProtocolReadWriter* io;
 public:
-    SrsRtmpServer(ISrsProtocolReaderWriter* skt);
+    SrsRtmpServer(ISrsProtocolReadWriter* skt);
     virtual ~SrsRtmpServer();
 // protocol methods proxy
 public:

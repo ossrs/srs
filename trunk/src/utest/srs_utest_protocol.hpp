@@ -40,7 +40,7 @@ using namespace _srs_internal;
 
 #include <srs_protocol_io.hpp>
 
-class MockEmptyIO : public ISrsProtocolReaderWriter
+class MockEmptyIO : public ISrsProtocolReadWriter
 {
 public:
     MockEmptyIO();
@@ -68,7 +68,7 @@ public:
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 };
 
-class MockBufferIO : public ISrsProtocolReaderWriter
+class MockBufferIO : public ISrsProtocolReadWriter
 {
 public:
     // The send/recv timeout in ms.

@@ -40,7 +40,7 @@ class SrsPublishEdge;
 class SrsRtmpClient;
 class SrsCommonMessage;
 class SrsMessageQueue;
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsKbps;
 class SrsLbRoundRobin;
 class SrsTcpClient;

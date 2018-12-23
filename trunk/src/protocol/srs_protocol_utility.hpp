@@ -40,7 +40,7 @@
 class SrsMessageHeader;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 
 /**
  * parse the tcUrl, output the schema, host, vhost, app and port.
@@ -104,7 +104,7 @@ extern void srs_parse_rtmp_url(std::string url, std::string& tcUrl, std::string&
 extern std::string srs_generate_rtmp_url(std::string server, int port, std::string host, std::string vhost, std::string app, std::string stream, std::string param);
 
 // write large numbers of iovs.
-extern srs_error_t srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
+extern srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
 
 // join string in vector with indicated separator
 extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);

@@ -109,7 +109,7 @@ public:
  * the socket provides TCP socket over st,
  * that is, the sync socket mechanism.
  */
-class SrsStSocket : public ISrsProtocolReaderWriter
+class SrsStSocket : public ISrsProtocolReadWriter
 {
 private:
     // The recv/send timeout in ms.
@@ -158,7 +158,7 @@ public:
  *      client.read(buf, 4096, NULL);
  * @remark User can directly free the object, which will close the fd.
  */
-class SrsTcpClient : public ISrsProtocolReaderWriter
+class SrsTcpClient : public ISrsProtocolReadWriter
 {
 private:
     srs_netfd_t stfd;
@@ -189,7 +189,7 @@ private:
      * @remark User should never use the client when close it.
      */
     virtual void close();
-// interface ISrsProtocolReaderWriter
+// interface ISrsProtocolReadWriter
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);

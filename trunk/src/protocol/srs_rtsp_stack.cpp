@@ -811,7 +811,7 @@ srs_error_t SrsRtspSetupResponse::encode_header(stringstream& ss)
     return srs_success;
 }
 
-SrsRtspStack::SrsRtspStack(ISrsProtocolReaderWriter* s)
+SrsRtspStack::SrsRtspStack(ISrsProtocolReadWriter* s)
 {
     buf = new SrsSimpleStream();
     skt = s;

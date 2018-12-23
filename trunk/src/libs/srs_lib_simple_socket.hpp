@@ -38,7 +38,7 @@
  * simple socket stream,
  * use tcp socket, sync block mode, for client like srs-librtmp.
  */
-class SimpleSocketStream : public ISrsProtocolReaderWriter
+class SimpleSocketStream : public ISrsProtocolReadWriter
 {
 private:
     srs_hijack_io_t io;
@@ -63,7 +63,7 @@ public:
     virtual int64_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
-// ISrsProtocolReaderWriter
+// ISrsProtocolReadWriter
 public:
     virtual bool is_never_timeout(int64_t tm);
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);

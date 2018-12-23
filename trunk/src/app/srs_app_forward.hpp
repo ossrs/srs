@@ -31,7 +31,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsMessageQueue;

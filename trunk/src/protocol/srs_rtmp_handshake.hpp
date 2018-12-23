@@ -26,7 +26,7 @@
 
 #include <srs_core.hpp>
 
-class ISrsProtocolReaderWriter;
+class ISrsProtocolReadWriter;
 class SrsComplexHandshake;
 class SrsHandshakeBytes;
 class SrsBuffer;
@@ -511,8 +511,8 @@ public:
     /**
      * simple handshake.
      */
-    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io);
+    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io);
 };
 
 /**
@@ -533,8 +533,8 @@ public:
      *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
      *     otherwise, disconnect
      */
-    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual srs_error_t handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io);
+    virtual srs_error_t handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReadWriter* io);
 };
 
 #endif
