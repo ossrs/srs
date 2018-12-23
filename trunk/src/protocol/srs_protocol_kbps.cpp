@@ -27,8 +27,20 @@
 
 SrsKbpsSample::SrsKbpsSample()
 {
-    bytes = time = 0;
+    bytes = time = -1;
     kbps = 0;
+}
+
+SrsKbpsSample::~SrsKbpsSample()
+{
+}
+
+SrsKbpsSample* SrsKbpsSample::update(int64_t b, int64_t t, int k)
+{
+    bytes = b;
+    time = t;
+    kbps = k;
+    return this;
 }
 
 SrsKbpsSlice::SrsKbpsSlice(SrsWallClock* c)
@@ -53,46 +65,34 @@ void SrsKbpsSlice::sample()
     int64_t now = clk->time_ms();
     int64_t total_bytes = get_total_bytes();
     
-    if (sample_30s.time <= 0) {
-        sample_30s.kbps = 0;
-        sample_30s.time = now;
-        sample_30s.bytes = total_bytes;
+    if (sample_30s.time < 0) {
+        sample_30s.update(total_bytes, now, 0);
     }
-    if (sample_1m.time <= 0) {
-        sample_1m.kbps = 0;
-        sample_1m.time = now;
-        sample_1m.bytes = total_bytes;
+    if (sample_1m.time < 0) {
+        sample_1m.update(total_bytes, now, 0);
     }
-    if (sample_5m.time <= 0) {
-        sample_5m.kbps = 0;
-        sample_5m.time = now;
-        sample_5m.bytes = total_bytes;
+    if (sample_5m.time < 0) {
+        sample_5m.update(total_bytes, now, 0);
     }
-    if (sample_60m.time <= 0) {
-        sample_60m.kbps = 0;
-        sample_60m.time = now;
-        sample_60m.bytes = total_bytes;
+    if (sample_60m.time < 0) {
+        sample_60m.update(total_bytes, now, 0);
     }
     
-    if (now - sample_30s.time > 30 * 1000) {
-        sample_30s.kbps = (int)((total_bytes - sample_30s.bytes) * 8 / (now - sample_30s.time));
-        sample_30s.time = now;
-        sample_30s.bytes = total_bytes;
+    if (now - sample_30s.time >= 30 * 1000) {
+        int kbps = (int)((total_bytes - sample_30s.bytes) * 8 / (now - sample_30s.time));
+        sample_30s.update(total_bytes, now, kbps);
     }
-    if (now - sample_1m.time > 60 * 1000) {
-        sample_1m.kbps = (int)((total_bytes - sample_1m.bytes) * 8 / (now - sample_1m.time));
-        sample_1m.time = now;
-        sample_1m.bytes = total_bytes;
+    if (now - sample_1m.time >= 60 * 1000) {
+        int kbps = (int)((total_bytes - sample_1m.bytes) * 8 / (now - sample_1m.time));
+        sample_1m.update(total_bytes, now, kbps);
     }
-    if (now - sample_5m.time > 300 * 1000) {
-        sample_5m.kbps = (int)((total_bytes - sample_5m.bytes) * 8 / (now - sample_5m.time));
-        sample_5m.time = now;
-        sample_5m.bytes = total_bytes;
+    if (now - sample_5m.time >= 300 * 1000) {
+        int kbps = (int)((total_bytes - sample_5m.bytes) * 8 / (now - sample_5m.time));
+        sample_5m.update(total_bytes, now, kbps);
     }
-    if (now - sample_60m.time > 3600 * 1000) {
-        sample_60m.kbps = (int)((total_bytes - sample_60m.bytes) * 8 / (now - sample_60m.time));
-        sample_60m.time = now;
-        sample_60m.bytes = total_bytes;
+    if (now - sample_60m.time >= 3600 * 1000) {
+        int kbps = (int)((total_bytes - sample_60m.bytes) * 8 / (now - sample_60m.time));
+        sample_60m.update(total_bytes, now, kbps);
     }
 }
 

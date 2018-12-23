@@ -42,6 +42,9 @@ public:
     int kbps;
 public:
     SrsKbpsSample();
+    virtual ~SrsKbpsSample();
+public:
+    virtual SrsKbpsSample* update(int64_t b, int64_t t, int k);
 };
 
 /**
