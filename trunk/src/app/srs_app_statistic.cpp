@@ -49,7 +49,7 @@ SrsStatisticVhost::SrsStatisticVhost()
 {
     id = srs_generate_id();
     
-    kbps = new SrsKbps();
+    kbps = new SrsKbps(new SrsWallClock());
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
@@ -114,7 +114,7 @@ SrsStatisticStream::SrsStatisticStream()
     width = 0;
     height = 0;
     
-    kbps = new SrsKbps();
+    kbps = new SrsKbps(new SrsWallClock());
     kbps->set_io(NULL, NULL);
     
     nb_clients = 0;
@@ -236,7 +236,7 @@ SrsStatistic::SrsStatistic()
 {
     _server_id = srs_generate_id();
     
-    kbps = new SrsKbps();
+    kbps = new SrsKbps(new SrsWallClock());
     kbps->set_io(NULL, NULL);
 }
 

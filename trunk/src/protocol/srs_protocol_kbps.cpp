@@ -49,7 +49,7 @@ int64_t SrsKbpsSlice::get_total_bytes()
 
 void SrsKbpsSlice::sample()
 {
-    int64_t now = srs_get_system_time_ms();
+    int64_t now = clock->time_ms();
     int64_t total_bytes = get_total_bytes();
     
     if (sample_30s.time <= 0) {
@@ -103,12 +103,27 @@ IKbpsDelta::~IKbpsDelta()
 {
 }
 
-SrsKbps::SrsKbps()
+SrsWallClock::SrsWallClock()
 {
+}
+
+SrsWallClock::~SrsWallClock()
+{
+}
+
+int64_t SrsWallClock::time_ms()
+{
+    return srs_get_system_time_ms();
+}
+
+SrsKbps::SrsKbps(SrsWallClock* c)
+{
+    clock = c;
 }
 
 SrsKbps::~SrsKbps()
 {
+    srs_freep(clock);
 }
 
 void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
@@ -116,7 +131,7 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
     // set input stream
     // now, set start time.
     if (is.starttime == 0) {
-        is.starttime = srs_get_system_time_ms();
+        is.starttime = clock->time_ms();
     }
     // save the old in bytes.
     if (is.io.in) {
@@ -134,7 +149,7 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
     // set output stream
     // now, set start time.
     if (os.starttime == 0) {
-        os.starttime = srs_get_system_time_ms();
+        os.starttime = clock->time_ms();
     }
     // save the old in bytes.
     if (os.io.out) {
@@ -152,7 +167,7 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
 
 int SrsKbps::get_send_kbps()
 {
-    int64_t duration = srs_get_system_time_ms() - is.starttime;
+    int64_t duration = clock->time_ms() - is.starttime;
     if (duration <= 0) {
         return 0;
     }
@@ -162,7 +177,7 @@ int SrsKbps::get_send_kbps()
 
 int SrsKbps::get_recv_kbps()
 {
-    int64_t duration = srs_get_system_time_ms() - os.starttime;
+    int64_t duration = clock->time_ms() - os.starttime;
     if (duration <= 0) {
         return 0;
     }

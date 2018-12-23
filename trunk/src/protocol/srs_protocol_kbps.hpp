@@ -127,6 +127,21 @@ public:
 };
 
 /**
+ * A time source to provide wall clock.
+ */
+class SrsWallClock
+{
+public:
+    SrsWallClock();
+    virtual ~SrsWallClock();
+public:
+    /**
+     * Current time in ms.
+     */
+    virtual int64_t time_ms();
+};
+
+/**
  * to statistic the kbps of io.
  * itself can be a statistic source, for example, used for SRS bytes stat.
  * there are some usage scenarios:
@@ -167,8 +182,10 @@ class SrsKbps : virtual public ISrsProtocolStatistic, virtual public IKbpsDelta
 private:
     SrsKbpsSlice is;
     SrsKbpsSlice os;
+    SrsWallClock* clock;
 public:
-    SrsKbps();
+    // We will free the clock c.
+    SrsKbps(SrsWallClock* c);
     virtual ~SrsKbps();
 public:
     /**

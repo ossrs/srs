@@ -35,7 +35,7 @@ using namespace std;
 
 SrsBasicRtmpClient::SrsBasicRtmpClient(string u, int64_t ctm, int64_t stm)
 {
-    kbps = new SrsKbps();
+    kbps = new SrsKbps(new SrsWallClock());
     
     url = u;
     connect_timeout = ctm;

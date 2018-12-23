@@ -120,7 +120,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip)
     bandwidth = new SrsBandwidth();
     security = new SrsSecurity();
     duration = 0;
-    kbps = new SrsKbps();
+    kbps = new SrsKbps(new SrsWallClock());
     kbps->set_io(skt, skt);
     wakable = NULL;
     

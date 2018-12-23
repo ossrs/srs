@@ -212,6 +212,69 @@ srs_error_t MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
     return srs_success;
 }
 
+MockStatistic::MockStatistic()
+{
+    in = out = 0;
+}
+
+MockStatistic::~MockStatistic()
+{
+}
+
+int64_t MockStatistic::get_recv_bytes()
+{
+    return in;
+}
+
+int64_t MockStatistic::get_send_bytes()
+{
+    return out;
+}
+
+MockStatistic* MockStatistic::set_in(int64_t v)
+{
+    in = v;
+    return this;
+}
+
+MockStatistic* MockStatistic::set_out(int64_t v)
+{
+    out = v;
+    return this;
+}
+
+MockStatistic* MockStatistic::add_in(int64_t v)
+{
+    in += v;
+    return this;
+}
+
+MockStatistic* MockStatistic::add_out(int64_t v)
+{
+    out += v;
+    return this;
+}
+
+MockWallClock::MockWallClock()
+{
+    clock = 0;
+}
+
+MockWallClock::~MockWallClock()
+{
+}
+
+int64_t MockWallClock::time_ms()
+{
+    return clock;
+}
+
+MockWallClock* MockWallClock::set_clock(int64_t ms)
+{
+    clock = ms;
+    return this;
+}
+
 #ifdef ENABLE_UTEST_PROTOCOL
 
 // verify the sha256
@@ -5620,6 +5683,10 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsAutoFree(ISrsHttpMessage, req);
         EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
     }
+}
+
+VOID TEST(ProtocolKbpsTest, ParseHTTPMessage)
+{
 }
 
 #endif

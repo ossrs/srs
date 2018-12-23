@@ -109,5 +109,36 @@ public:
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 };
 
+class MockStatistic : public ISrsProtocolStatistic
+{
+private:
+    int64_t in;
+    int64_t out;
+public:
+    MockStatistic();
+    virtual ~MockStatistic();
+public:
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+public:
+    MockStatistic* set_in(int64_t v);
+    MockStatistic* set_out(int64_t v);
+    MockStatistic* add_in(int64_t v);
+    MockStatistic* add_out(int64_t v);
+};
+
+class MockWallClock
+{
+private:
+    int64_t clock;
+public:
+    MockWallClock();
+    virtual MockWallClock();
+public:
+    virtual int64_t time_ms();
+public:
+    virtual MockWallClock* set_clock(int64_t ms);
+};
+
 #endif
 
