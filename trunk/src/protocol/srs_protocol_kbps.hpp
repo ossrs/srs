@@ -218,16 +218,6 @@ public:
     // 5m
     virtual int get_send_kbps_5m();
     virtual int get_recv_kbps_5m();
-// interface ISrsProtocolStatistic
-public:
-    virtual int64_t get_send_bytes();
-    virtual int64_t get_recv_bytes();
-// interface IKbpsDelta
-public:
-    virtual void resample();
-    virtual int64_t get_send_bytes_delta();
-    virtual int64_t get_recv_bytes_delta();
-    virtual void cleanup();
 public:
     /**
      * add delta to kbps clac mechenism.
@@ -244,6 +234,16 @@ public:
      *       use the add_delta() is better solutions.
      */
     virtual void sample();
+// interface ISrsProtocolStatistic
+public:
+    virtual int64_t get_send_bytes();
+    virtual int64_t get_recv_bytes();
+// interface IKbpsDelta
+public:
+    virtual void resample();
+    virtual int64_t get_send_bytes_delta();
+    virtual int64_t get_recv_bytes_delta();
+    virtual void cleanup();
 // interface ISrsMemorySizer
 public:
     virtual int size_memory();

@@ -205,6 +205,33 @@ int SrsKbps::get_recv_kbps_5m()
     return is.sample_5m.kbps;
 }
 
+void SrsKbps::add_delta(IKbpsDelta* delta)
+{
+    srs_assert(delta);
+    
+    // update the total bytes
+    is.last_bytes += delta->get_recv_bytes_delta();
+    os.last_bytes += delta->get_send_bytes_delta();
+    
+    // we donot sample, please use sample() to do resample.
+}
+
+void SrsKbps::sample()
+{
+    // update the total bytes
+    if (os.io.out) {
+        os.last_bytes = os.io.out->get_send_bytes();
+    }
+    
+    if (is.io.in) {
+        is.last_bytes = is.io.in->get_recv_bytes();
+    }
+    
+    // resample
+    is.sample();
+    os.sample();
+}
+
 int64_t SrsKbps::get_send_bytes()
 {
     // we must calc the send bytes dynamically,
@@ -270,33 +297,6 @@ void SrsKbps::cleanup()
 {
     os.delta_bytes = os.get_total_bytes();
     is.delta_bytes = is.get_total_bytes();
-}
-
-void SrsKbps::add_delta(IKbpsDelta* delta)
-{
-    srs_assert(delta);
-    
-    // update the total bytes
-    is.last_bytes += delta->get_recv_bytes_delta();
-    os.last_bytes += delta->get_send_bytes_delta();
-    
-    // we donot sample, please use sample() to do resample.
-}
-
-void SrsKbps::sample()
-{
-    // update the total bytes
-    if (os.io.out) {
-        os.last_bytes = os.io.out->get_send_bytes();
-    }
-    
-    if (is.io.in) {
-        is.last_bytes = is.io.in->get_recv_bytes();
-    }
-    
-    // resample
-    is.sample();
-    os.sample();
 }
 
 int SrsKbps::size_memory()
