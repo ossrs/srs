@@ -1981,5 +1981,148 @@ VOID TEST(KernelUtility, AdtsUtils)
     }
 }
 
+VOID TEST(KernelUtility, RTMPUtils)
+{
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(0, srs_chunk_header_c0(0, 0, 0, 0, 0, NULL, 0));
+        EXPECT_EQ(12, srs_chunk_header_c0(0, 0, 0, 0, 0, buf, 16));
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(12, srs_chunk_header_c0(1, 0, 0, 0, 0, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(12, srs_chunk_header_c0(1, 0x345678, 0, 0, 0, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+        
+        EXPECT_EQ(0x34, buf[1]);
+        EXPECT_EQ(0x56, buf[2]);
+        EXPECT_EQ(0x78, buf[3]);
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(12, srs_chunk_header_c0(1, 0x345678, 0x123456, 0, 0, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+        
+        EXPECT_EQ(0x34, buf[1]);
+        EXPECT_EQ(0x56, buf[2]);
+        EXPECT_EQ(0x78, buf[3]);
+        
+        EXPECT_EQ(0x12, buf[4]);
+        EXPECT_EQ(0x34, buf[5]);
+        EXPECT_EQ(0x56, buf[6]);
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(12, srs_chunk_header_c0(1, 0x345678, 0x123456, 2, 0, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+        
+        EXPECT_EQ(0x34, buf[1]);
+        EXPECT_EQ(0x56, buf[2]);
+        EXPECT_EQ(0x78, buf[3]);
+        
+        EXPECT_EQ(0x12, buf[4]);
+        EXPECT_EQ(0x34, buf[5]);
+        EXPECT_EQ(0x56, buf[6]);
+        
+        EXPECT_EQ(2, buf[7]);
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(12, srs_chunk_header_c0(1, 0x345678, 0x123456, 2, 0x12345678, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+        
+        EXPECT_EQ(0x34, buf[1]);
+        EXPECT_EQ(0x56, buf[2]);
+        EXPECT_EQ(0x78, buf[3]);
+        
+        EXPECT_EQ(0x12, buf[4]);
+        EXPECT_EQ(0x34, buf[5]);
+        EXPECT_EQ(0x56, buf[6]);
+        
+        EXPECT_EQ(2, buf[7]);
+        
+        EXPECT_EQ(0x78, buf[8]);
+        EXPECT_EQ(0x56, buf[9]);
+        EXPECT_EQ(0x34, buf[10]);
+        EXPECT_EQ(0x12, buf[11]);
+    }
+    
+    if (true) {
+        char buf[16];
+        EXPECT_EQ(16, srs_chunk_header_c0(1, 0x12345678, 0x123456, 2, 0x12345678, buf, 16));
+        
+        EXPECT_EQ(1, buf[0]);
+        
+        EXPECT_EQ((char)0xff, buf[1]);
+        EXPECT_EQ((char)0xff, buf[2]);
+        EXPECT_EQ((char)0xff, buf[3]);
+        
+        EXPECT_EQ(0x12, buf[4]);
+        EXPECT_EQ(0x34, buf[5]);
+        EXPECT_EQ(0x56, buf[6]);
+        
+        EXPECT_EQ(2, buf[7]);
+        
+        EXPECT_EQ(0x78, buf[8]);
+        EXPECT_EQ(0x56, buf[9]);
+        EXPECT_EQ(0x34, buf[10]);
+        EXPECT_EQ(0x12, buf[11]);
+        
+        EXPECT_EQ(0x12, buf[12]);
+        EXPECT_EQ(0x34, buf[13]);
+        EXPECT_EQ(0x56, buf[14]);
+        EXPECT_EQ(0x78, buf[15]);
+    }
+}
+
+VOID TEST(KernelUtility, RTMPUtils2)
+{
+    if (true) {
+        char buf[5];
+        EXPECT_EQ(0, srs_chunk_header_c3(0, 0, NULL, 0));
+        EXPECT_EQ(1, srs_chunk_header_c3(0, 0, buf, 5));
+    }
+    
+    if (true) {
+        char buf[5];
+        EXPECT_EQ(1, srs_chunk_header_c3(1, 0, buf, 5));
+        
+        EXPECT_EQ((char)0xC1, buf[0]);
+    }
+    
+    if (true) {
+        char buf[5];
+        EXPECT_EQ(1, srs_chunk_header_c3(1, 0x234567, buf, 5));
+        
+        EXPECT_EQ((char)0xC1, buf[0]);
+    }
+    
+    if (true) {
+        char buf[5];
+        EXPECT_EQ(5, srs_chunk_header_c3(1, 0x12345678, buf, 5));
+        
+        EXPECT_EQ((char)0xC1, buf[0]);
+        
+        EXPECT_EQ((char)0x12, buf[1]);
+        EXPECT_EQ((char)0x34, buf[2]);
+        EXPECT_EQ((char)0x56, buf[3]);
+        EXPECT_EQ((char)0x78, buf[4]);
+    }
+}
+
 #endif
 
