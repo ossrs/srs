@@ -42,7 +42,7 @@ class SrsWallClock;
  * server will add the connection to manager, and delete it when remove.
  */
 class SrsConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
-    , virtual public IKbpsDelta, virtual public ISrsReloadHandler
+    , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler
 {
 protected:
     /**
@@ -82,12 +82,9 @@ protected:
 public:
     SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip);
     virtual ~SrsConnection();
-// interface IKbpsDelta
+// interface ISrsKbpsDelta
 public:
-    virtual void resample();
-    virtual int64_t get_send_bytes_delta();
-    virtual int64_t get_recv_bytes_delta();
-    virtual void cleanup();
+    virtual void remark(int64_t* in, int64_t* out);
 public:
     /**
      * to dipose the connection.

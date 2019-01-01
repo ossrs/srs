@@ -459,16 +459,14 @@ void SrsStatistic::kbps_add_delta(SrsConnection* conn)
     SrsStatisticClient* client = clients[id];
     
     // resample the kbps to collect the delta.
-    conn->resample();
+    int64_t in, out;
+    conn->remark(&in, &out);
     
     // add delta of connection to kbps.
     // for next sample() of server kbps can get the stat.
-    kbps->add_delta(conn);
-    client->stream->kbps->add_delta(conn);
-    client->stream->vhost->kbps->add_delta(conn);
-    
-    // cleanup the delta.
-    conn->cleanup();
+    kbps->add_delta(in, out);
+    client->stream->kbps->add_delta(in, out);
+    client->stream->vhost->kbps->add_delta(in, out);
 }
 
 SrsKbps* SrsStatistic::kbps_sample()

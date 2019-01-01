@@ -31,7 +31,7 @@
 class SrsWallClock;
 
 /**
- * a kbps sample, for example, 1minute kbps,
+ * a kbps sample, for example, the kbps at time,
  * 10minute kbps sample.
  */
 class SrsKbpsSample
@@ -97,7 +97,7 @@ public:
     SrsKbpsSlice(SrsWallClock* clk);
     virtual ~SrsKbpsSlice();
 public:
-    // Get current total bytes, not depend on sample().
+    // Get current total bytes, it doesn't depend on sample().
     virtual int64_t get_total_bytes();
     // Resample the slice to calculate the kbps.
     virtual void sample();
@@ -106,30 +106,21 @@ public:
 /**
  * the interface which provices delta of bytes.
  * for a delta, for example, a live stream connection, we can got the delta by:
- *       IKbpsDelta* delta = ...;
- *       delta->resample();
- *       kbps->add_delta(delta);
- *       delta->cleanup();
+ *       ISrsKbpsDelta* delta = ...;
+ *       int64_t in, out;
+ *       delta->remark(&in, &out);
+ *       kbps->add_delta(in, out);
  */
-class IKbpsDelta
+class ISrsKbpsDelta
 {
 public:
-    IKbpsDelta();
-    virtual ~IKbpsDelta();
+    ISrsKbpsDelta();
+    virtual ~ISrsKbpsDelta();
 public:
     /**
      * resample to generate the value of delta bytes.
      */
-    virtual void resample() = 0;
-    /**
-     * get the send or recv bytes delta.
-     */
-    virtual int64_t get_send_bytes_delta() = 0;
-    virtual int64_t get_recv_bytes_delta() = 0;
-    /**
-     * cleanup the value of delta bytes.
-     */
-    virtual void cleanup() = 0;
+    virtual void remark(int64_t* in, int64_t* out) = 0;
 };
 
 /**
@@ -161,19 +152,19 @@ public:
  *       SrsKbps* kbps = ...;
  *       kbps->set_io(NULL, NULL)
  *       for each connection in connections:
- *           IKbpsDelta* delta = connection; // where connection implements IKbpsDelta
- *           delta->resample()
- *           kbps->add_delta(delta)
- *           delta->cleanup()
+ *           ISrsKbpsDelta* delta = connection; // where connection implements ISrsKbpsDelta
+ *           int64_t in, out;
+ *           delta->remark(&in, &out)
+ *           kbps->add_delta(in, out)
  *       kbps->sample()
  *       kbps->get_xxx_kbps().
- * 3. kbps used as IKbpsDelta, to provides delta bytes:
+ * 3. kbps used as ISrsKbpsDelta, to provides delta bytes:
  *      SrsKbps* kbps = ...;
  *      kbps->set_io(in, out);
- *      IKbpsDelta* delta = (IKbpsDelta*)kbps;
- *      delta->resample();
- *      printf("delta is %d/%d", delta->get_send_bytes_delta(), delta->get_recv_bytes_delta());
- *      delta->cleanup();
+ *      ISrsKbpsDelta* delta = (ISrsKbpsDelta*)kbps;
+ *      int64_t in, out;
+ *      delta->remark(&in, out);
+ *      printf("delta is %d/%d", in, out);
  * 4. kbps used as ISrsProtocolStatistic, to provides raw bytes:
  *      SrsKbps* kbps = ...;
  *      kbps->set_io(in, out);
@@ -183,7 +174,7 @@ public:
  *      user->set_io(kbps, kbps);
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
  */
-class SrsKbps : virtual public ISrsProtocolStatistic, virtual public IKbpsDelta
+class SrsKbps : virtual public ISrsProtocolStatistic, virtual public ISrsKbpsDelta
 {
 private:
     SrsKbpsSlice is;
@@ -226,7 +217,7 @@ public:
      * @remark user must invoke sample() to calc result after invoke this method.
      * @param delta, assert should never be NULL.
      */
-    virtual void add_delta(IKbpsDelta* delta);
+    virtual void add_delta(int64_t in, int64_t out);
     /**
      * resample all samples, ignore if in/out is NULL.
      * used for user to calc the kbps, to sample new kbps value.
@@ -238,12 +229,9 @@ public:
 public:
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
-// interface IKbpsDelta
+// interface ISrsKbpsDelta
 public:
-    virtual void resample();
-    virtual int64_t get_send_bytes_delta();
-    virtual int64_t get_recv_bytes_delta();
-    virtual void cleanup();
+    virtual void remark(int64_t* in, int64_t* out);
 // interface ISrsMemorySizer
 public:
     virtual int size_memory();

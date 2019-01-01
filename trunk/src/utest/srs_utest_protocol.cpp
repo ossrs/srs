@@ -5832,5 +5832,90 @@ VOID TEST(ProtocolKbpsTest, Connections)
     }
 }
 
+VOID TEST(ProtocolKbpsTest, Delta)
+{
+    if (true) {
+        MockWallClock* clock = new MockWallClock();
+        SrsAutoFree(MockWallClock, clock);
+        MockStatistic* io = new MockStatistic();
+        SrsAutoFree(MockStatistic, io);
+        
+        SrsKbps* conn = new SrsKbps(clock->set_clock(0));
+        SrsAutoFree(SrsKbps, conn);
+        conn->set_io(io, io);
+        
+        // No data.
+        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)conn;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+        
+        // 800kb.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+        
+        // No data.
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+    }
+    
+    if (true) {
+        MockWallClock* clock = new MockWallClock();
+        SrsAutoFree(MockWallClock, clock);
+        MockStatistic* io = new MockStatistic();
+        SrsAutoFree(MockStatistic, io);
+        
+        SrsKbps* conn = new SrsKbps(clock->set_clock(0));
+        SrsAutoFree(SrsKbps, conn);
+        conn->set_io(io, io);
+        
+        // No data.
+        ISrsKbpsDelta* delta = (ISrsKbpsDelta*)conn;
+        int64_t in, out;
+        delta->remark(&in, &out);
+        EXPECT_EQ(0, in);
+        EXPECT_EQ(0, out);
+        
+        // 800kb.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        delta->remark(&in, &out);
+        EXPECT_EQ(100 * 1000, in);
+        EXPECT_EQ(100 * 1000, out);
+        
+        // Kbps without io, gather delta.
+        SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
+        SrsAutoFree(SrsKbps, kbps);
+        kbps->set_io(NULL, NULL);
+        
+        // No data, 0kbps.
+        kbps->sample();
+        
+        EXPECT_EQ(0, kbps->get_recv_kbps());
+        EXPECT_EQ(0, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+        
+        EXPECT_EQ(0, kbps->get_send_kbps());
+        EXPECT_EQ(0, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+        
+        // 800kbps in 30s.
+        clock->set_clock(30 * 1000);
+        kbps->add_delta(30 * in, 30 * out);
+        kbps->sample();
+        
+        EXPECT_EQ(800, kbps->get_recv_kbps());
+        EXPECT_EQ(800, kbps->get_recv_kbps_30s());
+        EXPECT_EQ(0, kbps->get_recv_kbps_5m());
+        
+        EXPECT_EQ(800, kbps->get_send_kbps());
+        EXPECT_EQ(800, kbps->get_send_kbps_30s());
+        EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+}
+
 #endif
 

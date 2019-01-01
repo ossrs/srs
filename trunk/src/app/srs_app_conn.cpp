@@ -58,24 +58,9 @@ SrsConnection::~SrsConnection()
     srs_close_stfd(stfd);
 }
 
-void SrsConnection::resample()
+void SrsConnection::remark(int64_t* in, int64_t* out)
 {
-    kbps->resample();
-}
-
-int64_t SrsConnection::get_send_bytes_delta()
-{
-    return kbps->get_send_bytes_delta();
-}
-
-int64_t SrsConnection::get_recv_bytes_delta()
-{
-    return kbps->get_recv_bytes_delta();
-}
-
-void SrsConnection::cleanup()
-{
-    kbps->cleanup();
+    kbps->remark(in, out);
 }
 
 void SrsConnection::dispose()

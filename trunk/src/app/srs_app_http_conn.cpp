@@ -72,24 +72,7 @@ SrsHttpConn::~SrsHttpConn()
     srs_freep(cors);
 }
 
-void SrsHttpConn::resample()
-{
-    // TODO: FIXME: implements it
-}
-
-int64_t SrsHttpConn::get_send_bytes_delta()
-{
-    // TODO: FIXME: implements it
-    return 0;
-}
-
-int64_t SrsHttpConn::get_recv_bytes_delta()
-{
-    // TODO: FIXME: implements it
-    return 0;
-}
-
-void SrsHttpConn::cleanup()
+void SrsHttpConn::remark(int64_t* in, int64_t* out)
 {
     // TODO: FIXME: implements it
 }

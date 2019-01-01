@@ -334,24 +334,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_publish(string vhost)
     return err;
 }
 
-void SrsRtmpConn::resample()
+void SrsRtmpConn::remark(int64_t* in, int64_t* out)
 {
-    kbps->resample();
-}
-
-int64_t SrsRtmpConn::get_send_bytes_delta()
-{
-    return kbps->get_send_bytes_delta();
-}
-
-int64_t SrsRtmpConn::get_recv_bytes_delta()
-{
-    return kbps->get_recv_bytes_delta();
-}
-
-void SrsRtmpConn::cleanup()
-{
-    kbps->cleanup();
+    kbps->remark(in, out);
 }
 
 srs_error_t SrsRtmpConn::service_cycle()

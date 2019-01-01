@@ -96,11 +96,11 @@ void SrsKbpsSlice::sample()
     }
 }
 
-IKbpsDelta::IKbpsDelta()
+ISrsKbpsDelta::ISrsKbpsDelta()
 {
 }
 
-IKbpsDelta::~IKbpsDelta()
+ISrsKbpsDelta::~ISrsKbpsDelta()
 {
 }
 
@@ -205,13 +205,11 @@ int SrsKbps::get_recv_kbps_5m()
     return is.sample_5m.kbps;
 }
 
-void SrsKbps::add_delta(IKbpsDelta* delta)
+void SrsKbps::add_delta(int64_t in, int64_t out)
 {
-    srs_assert(delta);
-    
     // update the total bytes
-    is.last_bytes += delta->get_recv_bytes_delta();
-    os.last_bytes += delta->get_send_bytes_delta();
+    is.last_bytes += in;
+    os.last_bytes += out;
     
     // we donot sample, please use sample() to do resample.
 }
@@ -276,27 +274,21 @@ int64_t SrsKbps::get_recv_bytes()
     return bytes;
 }
 
-void SrsKbps::resample()
+void SrsKbps::remark(int64_t* in, int64_t* out)
 {
     sample();
-}
-
-int64_t SrsKbps::get_send_bytes_delta()
-{
-    int64_t delta = os.get_total_bytes() - os.delta_bytes;
-    return delta;
-}
-
-int64_t SrsKbps::get_recv_bytes_delta()
-{
-    int64_t delta = is.get_total_bytes() - is.delta_bytes;
-    return delta;
-}
-
-void SrsKbps::cleanup()
-{
-    os.delta_bytes = os.get_total_bytes();
+    
+    int64_t inv = is.get_total_bytes() - is.delta_bytes;
     is.delta_bytes = is.get_total_bytes();
+    if (in) {
+        *in = inv;
+    }
+    
+    int64_t outv = os.get_total_bytes() - os.delta_bytes;
+    os.delta_bytes = os.get_total_bytes();
+    if (out) {
+        *out = outv;
+    }
 }
 
 int SrsKbps::size_memory()

@@ -1336,24 +1336,7 @@ SrsHttpApi::~SrsHttpApi()
     _srs_config->unsubscribe(this);
 }
 
-void SrsHttpApi::resample()
-{
-    // TODO: FIXME: implements it
-}
-
-int64_t SrsHttpApi::get_send_bytes_delta()
-{
-    // TODO: FIXME: implements it
-    return 0;
-}
-
-int64_t SrsHttpApi::get_recv_bytes_delta()
-{
-    // TODO: FIXME: implements it
-    return 0;
-}
-
-void SrsHttpApi::cleanup()
+void SrsHttpApi::remark(int64_t* in, int64_t* out)
 {
     // TODO: FIXME: implements it
 }
