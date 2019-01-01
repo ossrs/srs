@@ -181,7 +181,7 @@ private:
     SrsKbpsSlice os;
     SrsWallClock* clk;
 public:
-    // We will free the clock c.
+    // We won't free the clock c.
     SrsKbps(SrsWallClock* c);
     virtual ~SrsKbps();
 public:

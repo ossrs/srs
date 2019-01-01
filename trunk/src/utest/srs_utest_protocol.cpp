@@ -5929,7 +5929,6 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         SrsAutoFree(SrsKbps, conn);
         conn->set_io(io, io);
         
-        // Kbps without io, gather delta.
         SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
         SrsAutoFree(SrsKbps, kbps);
         kbps->set_io(conn, conn);
@@ -5957,6 +5956,51 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         EXPECT_EQ(800, kbps->get_send_kbps());
         EXPECT_EQ(800, kbps->get_send_kbps_30s());
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
+    }
+    
+    if (true) {
+        MockWallClock* clock = new MockWallClock();
+        SrsAutoFree(MockWallClock, clock);
+        
+        SrsKbps* kbps = new SrsKbps(clock->set_clock(0));
+        SrsAutoFree(SrsKbps, kbps);
+        
+        // No io, no data.
+        kbps->set_io(NULL, NULL);
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+        
+        // With io, zero data.
+        MockStatistic* io = new MockStatistic();
+        SrsAutoFree(MockStatistic, io);
+        
+        kbps->set_io(io, io);
+        EXPECT_EQ(0, kbps->get_recv_bytes());
+        EXPECT_EQ(0, kbps->get_send_bytes());
+        
+        // With io with data.
+        io->set_in(100 * 1000)->set_out(100 * 1000);
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+        
+        // No io, cached data.
+        kbps->set_io(NULL, NULL);
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+        
+        // Use the same IO, but as a fresh io.
+        kbps->set_io(io, io);
+        EXPECT_EQ(100 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(100 * 1000, kbps->get_send_bytes());
+        
+        io->set_in(150 * 1000)->set_out(150 * 1000);
+        EXPECT_EQ(150 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(150 * 1000, kbps->get_send_bytes());
+        
+        // No io, cached data.
+        kbps->set_io(NULL, NULL);
+        EXPECT_EQ(150 * 1000, kbps->get_recv_bytes());
+        EXPECT_EQ(150 * 1000, kbps->get_send_bytes());
     }
 }
 
