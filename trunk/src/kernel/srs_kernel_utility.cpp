@@ -436,6 +436,11 @@ vector<string> srs_string_split(string str, string flag)
 {
     vector<string> arr;
     
+    if (flag.empty()) {
+        arr.push_back(str);
+        return arr;
+    }
+    
     size_t pos;
     string s = str;
     
@@ -456,6 +461,10 @@ vector<string> srs_string_split(string str, string flag)
 string srs_string_min_match(string str, vector<string> flags)
 {
     string match;
+    
+    if (flags.empty()) {
+        return str;
+    }
     
     size_t min_pos = string::npos;
     for (vector<string>::iterator it = flags.begin(); it != flags.end(); ++it) {
@@ -650,6 +659,10 @@ string srs_path_filext(string path)
 
 bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
 {
+    if (!stream) {
+        return false;
+    }
+    
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;
     
@@ -679,6 +692,10 @@ bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code)
 
 bool srs_aac_startswith_adts(SrsBuffer* stream)
 {
+    if (!stream) {
+        return false;
+    }
+    
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;
     

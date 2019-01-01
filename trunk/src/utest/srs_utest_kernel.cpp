@@ -1728,5 +1728,258 @@ VOID TEST(KernelUtility, StringToHex)
     }
 }
 
+VOID TEST(KernelUtility, StringUtils)
+{
+    if (true) {
+        EXPECT_TRUE("srs" == srs_string_replace("srsx", "x", ""));
+        EXPECT_TRUE("srs" == srs_string_replace("srs", "", ""));
+        EXPECT_TRUE("srs" == srs_string_replace("sxs", "x", "r"));
+        EXPECT_TRUE("srs" == srs_string_replace("xrx", "x", "s"));
+        EXPECT_TRUE("srs" == srs_string_replace("xyrxy", "xy", "s"));
+        EXPECT_TRUE("srs" == srs_string_replace("sxys", "xy", "r"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_string_trim_end("srs", ""));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsx", "x"));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsxx", "x"));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsxy", "xy"));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsx ", "x "));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsx yx", "x y"));
+        EXPECT_TRUE("srs" == srs_string_trim_end("srsx yxy", "x y"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_string_trim_start("srs", ""));
+        EXPECT_TRUE("srs" == srs_string_trim_start("xsrs", "x"));
+        EXPECT_TRUE("srs" == srs_string_trim_start("xxsrs", "x"));
+        EXPECT_TRUE("srs" == srs_string_trim_start("xysrs", "xy"));
+        EXPECT_TRUE("srs" == srs_string_trim_start("x srs", "x "));
+        EXPECT_TRUE("srs" == srs_string_trim_start("x yxsrs", "x y"));
+        EXPECT_TRUE("srs" == srs_string_trim_start("x yxysrs", "x y"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_string_remove("srs", ""));
+        EXPECT_TRUE("srs" == srs_string_remove("xsrs", "x"));
+        EXPECT_TRUE("srs" == srs_string_remove("xsrsx", "x"));
+        EXPECT_TRUE("srs" == srs_string_remove("xsxrsx", "x"));
+        EXPECT_TRUE("srs" == srs_string_remove("yxsxrsx", "xy"));
+        EXPECT_TRUE("srs" == srs_string_remove("yxsxrysx", "xy"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_erase_first_substr("srs", ""));
+        EXPECT_TRUE("srs" == srs_erase_first_substr("xsrs", "x"));
+        EXPECT_TRUE("srs" == srs_erase_first_substr("srssrs", "srs"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_erase_last_substr("srs", ""));
+        EXPECT_TRUE("srs" == srs_erase_last_substr("srsx", "x"));
+        EXPECT_TRUE("srs" == srs_erase_last_substr("srssrs", "srs"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_string_ends_with("srs", "s"));
+        EXPECT_TRUE(srs_string_ends_with("srs", "rs"));
+        EXPECT_TRUE(srs_string_ends_with("srs", "srs"));
+        EXPECT_TRUE(!srs_string_ends_with("srs", "x"));
+        EXPECT_TRUE(!srs_string_ends_with("srs", "srx"));
+        
+        EXPECT_TRUE(srs_string_ends_with("srs", "r", "s"));
+        EXPECT_TRUE(srs_string_ends_with("srs", "sr", "s"));
+        EXPECT_TRUE(srs_string_ends_with("srs", "x", "r", "s"));
+        EXPECT_TRUE(srs_string_ends_with("srs", "y", "x", "r", "s"));
+        EXPECT_TRUE(!srs_string_ends_with("srs", "x", "y", "z", "srx"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_string_starts_with("srs", "s"));
+        EXPECT_TRUE(srs_string_starts_with("srs", "sr"));
+        EXPECT_TRUE(srs_string_starts_with("srs", "srs"));
+        EXPECT_TRUE(!srs_string_starts_with("srs", "x"));
+        
+        EXPECT_TRUE(srs_string_starts_with("srs", "r", "s"));
+        EXPECT_TRUE(srs_string_starts_with("srs", "sr", "s"));
+        EXPECT_TRUE(srs_string_starts_with("srs", "x", "r", "s"));
+        EXPECT_TRUE(srs_string_starts_with("srs", "y", "x", "r", "s"));
+        EXPECT_TRUE(!srs_string_starts_with("srs", "x", "y", "z", "srx"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_string_contains("srs", "s"));
+        EXPECT_TRUE(srs_string_contains("srs", "s", "sr"));
+        EXPECT_TRUE(srs_string_contains("srs", "s", "sr", "srs"));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        EXPECT_TRUE("srs" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("s");
+        EXPECT_TRUE("s" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("sr");
+        EXPECT_TRUE("sr" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("rs");
+        EXPECT_TRUE("rs" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("x"); flags.push_back("rs");
+        EXPECT_TRUE("rs" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("x");
+        EXPECT_TRUE("" == srs_string_min_match("srs", flags));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("srs" == srs_string_split("srs", "").at(0));
+        EXPECT_TRUE("s" == srs_string_split("srs", "r").at(0));
+        EXPECT_TRUE("s" == srs_string_split("srs", "rs").at(0));
+    }
+}
+
+VOID TEST(KernelUtility, BytesUtils)
+{
+    if (true) {
+        EXPECT_TRUE(srs_bytes_equals(NULL, NULL, 0));
+        EXPECT_TRUE(srs_bytes_equals((void*)"s", (void*)"s", 0));
+        EXPECT_TRUE(srs_bytes_equals((void*)"s", (void*)"s", 1));
+        EXPECT_TRUE(srs_bytes_equals((void*)"s", (void*)"srs", 1));
+        EXPECT_TRUE(!srs_bytes_equals((void*)"xrs", (void*)"srs", 3));
+    }
+}
+
+VOID TEST(KernelUtility, PathUtils)
+{
+    if (true) {
+        EXPECT_TRUE("" == srs_path_dirname(""));
+        EXPECT_TRUE("/" == srs_path_dirname("/"));
+        EXPECT_TRUE("/" == srs_path_dirname("//"));
+        EXPECT_TRUE("/" == srs_path_dirname("/stream"));
+        EXPECT_TRUE("live" == srs_path_dirname("live/stream"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("" == srs_path_basename(""));
+        EXPECT_TRUE("/" == srs_path_basename("/"));
+        EXPECT_TRUE("stream" == srs_path_basename("/stream"));
+        EXPECT_TRUE("stream" == srs_path_basename("live/stream"));
+        EXPECT_TRUE("stream.flv" == srs_path_basename("live/stream.flv"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("" == srs_path_filename(""));
+        EXPECT_TRUE("stream" == srs_path_filename("stream.flv"));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("" == srs_path_filext(""));
+        EXPECT_TRUE(".flv" == srs_path_filext("stream.flv"));
+    }
+}
+
+VOID TEST(KernelUtility, AnnexbUtils)
+{
+    if (true) {
+        EXPECT_TRUE(!srs_avc_startswith_annexb(NULL, NULL));
+        
+        SrsBuffer buf;
+        EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x00};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x00, 0x02};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x00, 0x01};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x01, 0x00, 00};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x00, 0x01};
+        SrsBuffer buf((char*)data, sizeof(data));
+        
+        int start;
+        EXPECT_TRUE(srs_avc_startswith_annexb(&buf, &start));
+        EXPECT_EQ(3, start);
+    }
+    
+    if (true) {
+        char data[] = {0x00, 0x00, 0x00, 0x01};
+        SrsBuffer buf((char*)data, sizeof(data));
+        
+        int start;
+        EXPECT_TRUE(srs_avc_startswith_annexb(&buf, &start));
+        EXPECT_EQ(4, start);
+    }
+}
+
+VOID TEST(KernelUtility, AdtsUtils)
+{
+    if (true) {
+        EXPECT_TRUE(!srs_aac_startswith_adts(NULL));
+        
+        SrsBuffer buf;
+        EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
+    }
+    
+    if (true) {
+        char data[] = {0x00};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
+    }
+    
+    if (true) {
+        char data[] = {0xFF, 0x00};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
+    }
+    
+    if (true) {
+        char data[] = {0xFF, 0xF0};
+        SrsBuffer buf((char*)data, sizeof(data));
+        EXPECT_TRUE(srs_aac_startswith_adts(&buf));
+    }
+}
+
 #endif
 
