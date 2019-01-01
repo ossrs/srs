@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2018 Winlin
+ * Copyright (c) 2013-2019 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,7 +43,7 @@
 #define RTMP_SIG_SRS_ROLE "cluster"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
-#define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2018 " RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_AUTHROS ")"
+#define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2019 " RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_AUTHROS ")"
 #define RTMP_SIG_SRS_PRIMARY RTMP_SIG_SRS_KEY "/" VERSION_STABLE_BRANCH
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_VERSION ")"
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR) "." SRS_XSTR(VERSION_MINOR) "." SRS_XSTR(VERSION_REVISION)

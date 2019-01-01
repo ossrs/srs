@@ -1,30 +1,38 @@
-There are three types of people that have contributed to the SRS project:
-1. AUTHORS: Contribute important features. Names of all PRIMARY response in NetConnection.connect and metadata.
-2. CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS that much better.
-
-AUTHORS ordered by first contribution.
-* winlin<winlin@vip.126.com> "Plan, arch, implement SRS1.0 and SRS2.0"
-* wenjie.zhao<740936897@qq.com> "The bandwidth test module, HDS and bug fixed."
-
 CONTRIBUTORS ordered by first contribution.
-* xiangcheng.liu<liuxc0116@foxmail.com> "Bug fixed"
-* naijia.liu<youngcow@youngcow.net> "Performance benchmark"
-* alcoholyi<alcoholyi@qq.com> "Bug fixed"
-* byteman<wangchen2011@gmail.com> "Bug fixed"
-* chad.wang<chad.wang.cn@gmail.com> "Bug fixed"
-* suhetao<suhetao@gmail.com> "Bug fixed"
-* Johnny<fengjihu@163.com> "Create domain ossrs.net"
-* karthikeyan<keyanmca@gmail.com> "Bug fixed"
-* StevenLiu<lq@chinaffmpeg.org> "Build SRS on Darwin OSX"
-* zhengfl<zhengfl_1989@126.com> "Bug fixed"
-* tufang14<breadbean1449@gmail.com> "Bug fixed"
-* allspace<allspace@gmail.com> "The srs-librtmp windows support"
-* niesongsong<nie950@gmail.com> "Configure support relative path"
-* rudeb0t<nimrod@themanxgroup.tw> "Bug fixed"
-* CallMeNP<np.liamg@gmail.com> "Bug fixed"
-* synote<synote@qq.com> "Bug fixed"
-* lovecat<littlefawn@163.com> "Bug fixed"
-* panda1986<542638787@qq.com> "Bug fixed"
-* YueHonghui<hongf.yue@hotmail.com> "Bug fixed"
-* ThomasDreibholz<dreibh@simula.no> "IPv6 support"
-* JuntaoLiu<juntliu@gmail.com> "Bug fixed"
+* winlin<winlin@vip.126.com>
+* wenjie.zhao<740936897@qq.com>
+* xiangcheng.liu<liuxc0116@foxmail.com>
+* naijia.liu<youngcow@youngcow.net>
+* alcoholyi<alcoholyi@qq.com>
+* byteman<wangchen2011@gmail.com>
+* chad.wang<chad.wang.cn@gmail.com>
+* suhetao<suhetao@gmail.com>
+* Johnny<fengjihu@163.com>
+* karthikeyan<keyanmca@gmail.com>
+* StevenLiu<lq@chinaffmpeg.org>
+* zhengfl<zhengfl_1989@126.com>
+* tufang14<breadbean1449@gmail.com>
+* allspace<allspace@gmail.com>
+* niesongsong<nie950@gmail.com>
+* rudeb0t<nimrod@themanxgroup.tw>
+* CallMeNP<np.liamg@gmail.com>
+* synote<synote@qq.com>
+* lovecat<littlefawn@163.com>
+* panda1986<542638787@qq.com>
+* YueHonghui<hongf.yue@hotmail.com>
+* ThomasDreibholz<dreibh@simula.no>
+* JuntaoLiu<juntliu@gmail.com>
+* RocFang<fangpeng1986@gmail.com>
+* MakarovYaroslav<yaroslav.makarov.97@mail.ru>
+* MirkoVelic<mvelic@inoxx.net>
+* HuiZhang(huzhang2)<huzhang2@cisco.com>
+* OtterWa<simpleotter23@gmail.com>
+* walkermi<172192667@qq.com>
+* haofz<fuzhuang.hao@vhall.com>
+* ME_Kun_Han<hanvskun@hotmail.com>
+* ljx0305<ljx0305@gmail.com>
+* cenxinwei<censhanhe@163.com>
+* StarBrilliant<m13253@hotmail.com>
+* xubin<xubin@chnvideo.com>
+* intliang<yintiliang@gmail.com>
+* flowerwrong<sysuyangkang@gmail.com>
