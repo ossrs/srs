@@ -176,6 +176,7 @@ Please select according to languages:
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
+- [ ] Support UDP protocol such as QUIC or KCP in cluster.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
