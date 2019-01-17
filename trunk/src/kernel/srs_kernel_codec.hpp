@@ -164,7 +164,7 @@ std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
 /**
  * The audio AAC frame trait(characteristic).
  * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
- * AACPacketType IF SoundFormat == 10 UI8
+ * AACPacketType IF SoundFormat == 10 or 13 UI8
  * The following values are defined:
  *      0 = AAC sequence header
  *      1 = AAC raw
@@ -172,11 +172,16 @@ std::string srs_audio_codec_id2str(SrsAudioCodecId codec);
 enum SrsAudioAacFrameTrait
 {
     // set to the max value to reserved, for array map.
-    SrsAudioAacFrameTraitReserved = 2,
-    SrsAudioAacFrameTraitForbidden = 2,
+    SrsAudioAacFrameTraitReserved = 0xff,
+    SrsAudioAacFrameTraitForbidden = 0xff,
     
     SrsAudioAacFrameTraitSequenceHeader = 0,
     SrsAudioAacFrameTraitRawData = 1,
+    
+    // For Opus, the frame trait, may has more than one traits.
+    SrsAudioOpusFrameTraitRaw = 2,
+    SrsAudioOpusFrameTraitSamplingRate = 4,
+    SrsAudioOpusFrameTraitAudioLevel = 8,
 };
 
 /**

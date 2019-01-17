@@ -2363,7 +2363,7 @@ char srs_utils_flv_audio_sound_format(char* data, int size)
 
 char srs_utils_flv_audio_sound_rate(char* data, int size)
 {
-    if (size < 2) {
+    if (size < 3) {
         return -1;
     }
     
@@ -2372,8 +2372,14 @@ char srs_utils_flv_audio_sound_rate(char* data, int size)
     
     // For Opus, the first UINT8 is sampling rate.
     uint8_t sound_format = (data[0] >> 4) & 0x0f;
-    if (sound_format == 13) {
-        sound_rate = data[1];
+    if (sound_format != SrsAudioCodecIdOpus) {
+        return sound_rate;
+    }
+    
+    // The FrameTrait for AAC or Opus.
+    uint8_t frame_trait = data[1];
+    if ((frame_trait&SrsAudioOpusFrameTraitSamplingRate) == SrsAudioOpusFrameTraitSamplingRate) {
+        sound_rate = data[2];
     }
     
     return sound_rate;
@@ -2409,16 +2415,13 @@ char srs_utils_flv_audio_aac_packet_type(char* data, int size)
         return -1;
     }
     
-    if (srs_utils_flv_audio_sound_format(data, size) != 10) {
+    uint8_t sound_format = srs_utils_flv_audio_sound_format(data, size);
+    if (sound_format != SrsAudioCodecIdAAC && sound_format != SrsAudioCodecIdOpus) {
         return -1;
     }
     
-    uint8_t aac_packet_type = data[1];
-    if (aac_packet_type > 1) {
-        return -1;
-    }
-    
-    return aac_packet_type;
+    uint8_t frame_trait = data[1];
+    return frame_trait;
 }
 
 char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize)
@@ -2624,6 +2627,16 @@ const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type)
     switch (aac_packet_type) {
         case 0: return sps_pps;
         case 1: return raw;
+            
+        // See enum SrsAudioAacFrameTrait
+        // For Opus, the frame trait, may has more than one traits.
+        case 2: return "RAW";
+        case 4: return "SR";
+        case 8: return "AL";
+        case 6: return "RAW|SR";
+        case 10: return "RAW|AL";
+        case 14: return "RAW|SR|AL";
+            
         default: return unknown;
     }
     
