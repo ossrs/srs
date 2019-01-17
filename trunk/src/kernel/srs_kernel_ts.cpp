@@ -320,6 +320,7 @@ srs_error_t SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVi
         case SrsVideoCodecIdOn2VP6:
         case SrsVideoCodecIdOn2VP6WithAlphaChannel:
         case SrsVideoCodecIdScreenVideoVersion2:
+        case SrsVideoCodecIdHEVC:
             vs = SrsTsStreamReserved;
             break;
     }
@@ -348,6 +349,7 @@ srs_error_t SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVi
         case SrsAudioCodecIdSpeex:
         case SrsAudioCodecIdReservedMP3_8kHz:
         case SrsAudioCodecIdReservedDeviceSpecificSound:
+        case SrsAudioCodecIdOpus:
             as = SrsTsStreamReserved;
             break;
     }

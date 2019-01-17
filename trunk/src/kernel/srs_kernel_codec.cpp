@@ -41,6 +41,8 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
         case SrsVideoCodecIdOn2VP6:
         case SrsVideoCodecIdOn2VP6WithAlphaChannel:
             return "VP6";
+        case SrsVideoCodecIdHEVC:
+            return "HEVC";
         case SrsVideoCodecIdReserved:
         case SrsVideoCodecIdReserved1:
         case SrsVideoCodecIdReserved2:
@@ -60,6 +62,8 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
             return "AAC";
         case SrsAudioCodecIdMP3:
             return "MP3";
+        case SrsAudioCodecIdOpus:
+            return "Opus";
         case SrsAudioCodecIdReserved1:
         case SrsAudioCodecIdLinearPCMPlatformEndian:
         case SrsAudioCodecIdADPCM:
@@ -638,7 +642,7 @@ bool SrsFormat::is_aac_sequence_header()
 
 bool SrsFormat::is_avc_sequence_header()
 {
-    return vcodec && vcodec->id == SrsVideoCodecIdAVC
+    return vcodec && (vcodec->id == SrsVideoCodecIdAVC || vcodec->id == SrsVideoCodecIdHEVC)
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 

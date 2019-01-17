@@ -60,6 +60,8 @@ enum SrsVideoCodecId
     SrsVideoCodecIdOn2VP6WithAlphaChannel = 5,
     SrsVideoCodecIdScreenVideoVersion2 = 6,
     SrsVideoCodecIdAVC = 7,
+    // See page 79 at @doc https://github.com/CDN-Union/H265/blob/master/Document/video_file_format_spec_v10_1_ksyun_20170615.doc
+    SrsVideoCodecIdHEVC = 12,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 
@@ -152,6 +154,8 @@ enum SrsAudioCodecId
     SrsAudioCodecIdReserved = 9,
     SrsAudioCodecIdAAC = 10,
     SrsAudioCodecIdSpeex = 11,
+    // For FLV, it's undefined, we define it as Opus for WebRTC.
+    SrsAudioCodecIdOpus = 13,
     SrsAudioCodecIdReservedMP3_8kHz = 14,
     SrsAudioCodecIdReservedDeviceSpecificSound = 15,
 };
