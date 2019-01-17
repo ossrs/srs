@@ -193,13 +193,23 @@ enum SrsAudioAacFrameTrait
 enum SrsAudioSampleRate
 {
     // set to the max value to reserved, for array map.
-    SrsAudioSampleRateReserved = 4,
-    SrsAudioSampleRateForbidden = 4,
+    SrsAudioSampleRateReserved = 0xff,
+    SrsAudioSampleRateForbidden = 0xff,
     
+    // For FLV, only support 5, 11, 22, 44KHz sampling rate.
     SrsAudioSampleRate5512 = 0,
     SrsAudioSampleRate11025 = 1,
     SrsAudioSampleRate22050 = 2,
     SrsAudioSampleRate44100 = 3,
+    
+    // For Opus, support 8, 12, 16, 24, 48KHz
+    // We will write a UINT8 sampling rate after FLV audio tag header.
+    // @doc https://tools.ietf.org/html/rfc6716#section-2
+    SrsAudioSampleRateNB8kHz   = 8,  // NB (narrowband)
+    SrsAudioSampleRateMB12kHz  = 12, // MB (medium-band)
+    SrsAudioSampleRateWB16kHz  = 16, // WB (wideband)
+    SrsAudioSampleRateSWB24kHz = 24, // SWB (super-wideband)
+    SrsAudioSampleRateFB48kHz  = 48, // FB (fullband)
 };
 std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
 

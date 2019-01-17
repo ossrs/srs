@@ -2354,7 +2354,7 @@ char srs_utils_flv_audio_sound_format(char* data, int size)
     
     uint8_t sound_format = data[0];
     sound_format = (sound_format >> 4) & 0x0f;
-    if (sound_format > 15 || sound_format == 12 || sound_format == 13) {
+    if (sound_format > 15 || sound_format == 12) {
         return -1;
     }
     
@@ -2363,12 +2363,18 @@ char srs_utils_flv_audio_sound_format(char* data, int size)
 
 char srs_utils_flv_audio_sound_rate(char* data, int size)
 {
-    if (size < 1) {
+    if (size < 2) {
         return -1;
     }
     
     uint8_t sound_rate = data[0];
     sound_rate = (sound_rate >> 2) & 0x03;
+    
+    // For Opus, the first UINT8 is sampling rate.
+    uint8_t sound_format = (data[0] >> 4) & 0x0f;
+    if (sound_format == 13) {
+        sound_rate = data[1];
+    }
     
     return sound_rate;
 }
@@ -2519,6 +2525,7 @@ const char* srs_human_flv_audio_sound_format2string(char sound_format)
     static const char* aac = "AAC";
     static const char* speex = "Speex";
     static const char* mp3_8khz = "MP3KHz8";
+    static const char* opus = "Opus";
     static const char* device_specific = "DeviceSpecific";
     static const char* unknown = "Unknown";
     
@@ -2535,6 +2542,7 @@ const char* srs_human_flv_audio_sound_format2string(char sound_format)
         case 9: return reserved;
         case 10: return aac;
         case 11: return speex;
+        case 13: return opus;
         case 14: return mp3_8khz;
         case 15: return device_specific;
         default: return unknown;
@@ -2551,11 +2559,26 @@ const char* srs_human_flv_audio_sound_rate2string(char sound_rate)
     static const char* khz_44 = "44KHz";
     static const char* unknown = "Unknown";
     
+    // For Opus, support 8, 12, 16, 24, 48KHz
+    // We will write a UINT8 sampling rate after FLV audio tag header.
+    // @doc https://tools.ietf.org/html/rfc6716#section-2
+    static const char* NB8kHz   = "NB8kHz";
+    static const char* MB12kHz  = "MB12kHz";
+    static const char* WB16kHz  = "WB16kHz";
+    static const char* SWB24kHz = "SWB24kHz";
+    static const char* FB48kHz  = "FB48kHz";
+    
     switch (sound_rate) {
         case 0: return khz_5_5;
         case 1: return khz_11;
         case 2: return khz_22;
         case 3: return khz_44;
+        // For Opus, support 8, 12, 16, 24, 48KHz
+        case 8: return NB8kHz;
+        case 12: return MB12kHz;
+        case 16: return WB16kHz;
+        case 24: return SWB24kHz;
+        case 48: return FB48kHz;
         default: return unknown;
     }
     

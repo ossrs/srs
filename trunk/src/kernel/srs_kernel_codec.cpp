@@ -89,6 +89,11 @@ string srs_audio_sample_rate2str(SrsAudioSampleRate v)
         case SrsAudioSampleRate11025: return "11025";
         case SrsAudioSampleRate22050: return "22050";
         case SrsAudioSampleRate44100: return "44100";
+        case SrsAudioSampleRateNB8kHz: return "NB8kHz";
+        case SrsAudioSampleRateMB12kHz: return "MB12kHz";
+        case SrsAudioSampleRateWB16kHz: return "WB16kHz";
+        case SrsAudioSampleRateSWB24kHz: return "SWB24kHz";
+        case SrsAudioSampleRateFB48kHz: return "FB48kHz";
         default: return "Other";
     }
 }
