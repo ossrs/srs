@@ -232,6 +232,7 @@ private:
 class SrsHttpRecvThread : public ISrsCoroutineHandler
 {
 private:
+    srs_error_t trd_err;
     SrsResponseOnlyHttpConn* conn;
     SrsCoroutine* trd;
 public:
