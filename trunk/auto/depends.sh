@@ -17,7 +17,7 @@
 function require_sudoer()
 {
     sudo echo "" >/dev/null 2>&1
-    
+
     ret=$?; if [[ 0 -ne $ret ]]; then 
         echo "\"$1\" require sudoer failed. ret=$ret";
         exit $ret; 
@@ -45,7 +45,7 @@ function Ubuntu_prepare()
             fi
         fi
     fi
-    
+
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -55,7 +55,7 @@ function Ubuntu_prepare()
             echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi success"
         fi
     fi
-    
+
     # cross build for mips, user must installed the tool chain.
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
         $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -66,35 +66,35 @@ function Ubuntu_prepare()
 
     OS_IS_UBUNTU=YES
     echo "Ubuntu detected, install tools if needed"
-    
+
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo apt-get install -y --force-yes gcc"
         sudo apt-get install -y --force-yes gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc success"
     fi
-    
+
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install g++"
         require_sudoer "sudo apt-get install -y --force-yes g++"
         sudo apt-get install -y --force-yes g++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install g++ success"
     fi
-    
+
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo apt-get install -y --force-yes make"
         sudo apt-get install -y --force-yes make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
     fi
-    
+
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install patch"
         require_sudoer "sudo apt-get install -y --force-yes patch"
         sudo apt-get install -y --force-yes patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install patch success"
     fi
-    
+
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install unzip"
         require_sudoer "sudo apt-get install -y --force-yes unzip"
@@ -110,7 +110,7 @@ function Ubuntu_prepare()
             echo "install libpcre3-dev success"
         fi
     fi
-    
+
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install autoconf"
@@ -118,14 +118,14 @@ function Ubuntu_prepare()
             sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install autoconf success"
         fi
-        
+
         libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install libtool"
             require_sudoer "sudo apt-get install -y --force-yes libtool"
             sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libtool success"
         fi
-        
+
         if [[ ! -f /usr/include/zlib.h ]]; then
             echo "install zlib1g-dev"
             require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
@@ -133,7 +133,7 @@ function Ubuntu_prepare()
             echo "install zlib1g-dev success"
         fi
     fi
-    
+
     echo "Ubuntu install tools success"
     return 0
 }
@@ -150,7 +150,7 @@ function Centos_prepare()
     if [[ ! -f /etc/redhat-release ]]; then
         return 0;
     fi
-    
+
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for CentOS"
@@ -159,35 +159,35 @@ function Centos_prepare()
 
     OS_IS_CENTOS=YES
     echo "Centos detected, install tools if needed"
-    
+
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo yum install -y gcc"
         sudo yum install -y gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc success"
     fi
-    
+
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc-c++"
         require_sudoer "sudo yum install -y gcc-c++"
         sudo yum install -y gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc-c++ success"
     fi
-    
+
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo yum install -y make"
         sudo yum install -y make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
     fi
-    
+
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install patch"
         require_sudoer "sudo yum install -y patch"
         sudo yum install -y patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install patch success"
     fi
-    
+
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install unzip"
         require_sudoer "sudo yum install -y unzip"
@@ -203,7 +203,7 @@ function Centos_prepare()
             echo "install pcre-devel success"
         fi
     fi
-    
+
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install automake"
@@ -211,21 +211,21 @@ function Centos_prepare()
             sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install automake success"
         fi
-        
+
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install autoconf"
             require_sudoer "sudo yum install -y autoconf"
             sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install autoconf success"
         fi
-        
+
         libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install libtool"
             require_sudoer "sudo yum install -y libtool"
             sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libtool success"
         fi
-        
+
         if [[ ! -f /usr/include/zlib.h ]]; then
             echo "install zlib-devel"
             require_sudoer "sudo yum install -y zlib-devel"
@@ -233,7 +233,7 @@ function Centos_prepare()
             echo "install zlib-devel success"
         fi
     fi
-    
+
     echo "Centos install tools success"
     return 0
 }
@@ -255,7 +255,7 @@ function OSX_prepare()
         fi
         return 0;
     fi
-    
+
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
         echo "embeded(arm/mips) is invalid for OSX"
@@ -278,35 +278,35 @@ function OSX_prepare()
         ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install brew success"
     fi
-    
+
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         echo "brew install gcc"
         brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc success"
     fi
-    
+
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc-c++"
         echo "brew install gcc-c++"
         brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc-c++ success"
     fi
-    
+
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         echo "brew install make"
         brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
     fi
-    
+
     patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install patch"
         echo "brew install patch"
         brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install patch success"
     fi
-    
+
     unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install unzip"
         echo "brew install unzip"
@@ -330,14 +330,14 @@ function OSX_prepare()
             brew install automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install automake success"
         fi
-        
+
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install autoconf"
             echo "brew install autoconf"
             brew install autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install autoconf success"
         fi
-        
+
         which libtool >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install libtool"
             echo "brew install libtool"
@@ -352,7 +352,7 @@ function OSX_prepare()
             echo "install zlib success"
         fi
     fi
-    
+
     echo "OSX install tools success"
     return 0
 }
@@ -368,7 +368,7 @@ function sed_utility() {
     else
         sed -i "$@"
     fi
-    
+
     ret=$?; if [[ $ret -ne 0 ]]; then
         if [ $OS_IS_OSX = YES ]; then
             echo "sed -i '' \"$@\""
@@ -482,6 +482,7 @@ if [ $SRS_HTTP_CORE = YES ]; then
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
                 patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
+                patch -p0 < ../../3rdparty/patches/7.http.parser.gcc.patch &&
                 make package &&
                 cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.hp.tmp

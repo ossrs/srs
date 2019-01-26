@@ -1,0 +1,19 @@
+*** http_parser.c	2013-03-27 06:35:20.000000000 +0800
+--- ../http-parser-2.1-patch/http_parser.c	2019-01-26 18:51:55.506229857 +0800
+***************
+*** 2092,2098 ****
+        case s_req_server_with_at:
+          found_at = 1;
+  
+!       /* FALLTROUGH */
+        case s_req_server:
+          uf = UF_HOST;
+          break;
+--- 2092,2098 ----
+        case s_req_server_with_at:
+          found_at = 1;
+  
+!       /* FALLTHROUGH */
+        case s_req_server:
+          uf = UF_HOST;
+          break;
