@@ -5,13 +5,13 @@ jobs:
       - image: ossrs/dev
     steps:
       - checkout
-      - cd trunk && ./configure --without-ssl --without-valgrind && make
+      - run: cd trunk && ./configure --without-ssl --without-valgrind && make
   test:
     docker:
       - image: ossrs/dev
     steps:
       - checkout
-      - cd trunk && ./configure --without-ssl --without-valgrind && make && ./objs/srs_utest
+      - run: cd trunk && ./configure --without-ssl --without-valgrind && make && ./objs/srs_utest
 workflows:
   version: 2
   build_and_test:
