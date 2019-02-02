@@ -65,15 +65,11 @@ public:
 class SrsKbpsSlice
 {
 private:
-    union slice_io {
-        ISrsProtocolStatistic* in;
-        ISrsProtocolStatistic* out;
-    };
     SrsWallClock* clk;
 public:
     // the slice io used for SrsKbps to invoke,
     // the SrsKbpsSlice itself never use it.
-    slice_io io;
+    ISrsProtocolStatistic* io;
     // session startup bytes
     // @remark, use total_bytes() to get the total bytes of slice.
     int64_t bytes;
