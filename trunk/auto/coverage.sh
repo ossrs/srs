@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # In .circleci/config.yml, generate *.gcno with
-#   ./configure --gcov --without-research --without-librtmp
-
-# Generate *.gcda
-./objs/srs_utest
-ret=$?; if [[ $ret -ne 0 ]]; then echo "Run SRS utest failed, ret=$ret"; exit $ret; fi
+#       ./configure --gcov --without-research --without-librtmp
+# and generate *.gcda by
+#       ./objs/srs_utest
 
 # Collect all *.gcno and *.gcda to objs/cover.
 (mkdir -p objs/cover && cd objs/cover &&
