@@ -2380,3 +2380,163 @@ VOID TEST(KernelLBRRTest, CoverAll)
     }
 }
 
+VOID TEST(KernelCodecTest, CoverAll)
+{
+    if (true) {
+        EXPECT_TRUE("H264" == srs_video_codec_id2str(SrsVideoCodecIdAVC));
+        EXPECT_TRUE("VP6" == srs_video_codec_id2str(SrsVideoCodecIdOn2VP6));
+        EXPECT_TRUE("HEVC" == srs_video_codec_id2str(SrsVideoCodecIdHEVC));
+        EXPECT_TRUE("Other" == srs_video_codec_id2str(SrsVideoCodecIdScreenVideo));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("AAC" == srs_audio_codec_id2str(SrsAudioCodecIdAAC));
+        EXPECT_TRUE("MP3" == srs_audio_codec_id2str(SrsAudioCodecIdMP3));
+        EXPECT_TRUE("Opus" == srs_audio_codec_id2str(SrsAudioCodecIdOpus));
+        EXPECT_TRUE("Other" == srs_audio_codec_id2str(SrsAudioCodecIdSpeex));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("5512" == srs_audio_sample_rate2str(SrsAudioSampleRate5512));
+        EXPECT_TRUE("11025" == srs_audio_sample_rate2str(SrsAudioSampleRate11025));
+        EXPECT_TRUE("22050" == srs_audio_sample_rate2str(SrsAudioSampleRate22050));
+        EXPECT_TRUE("44100" == srs_audio_sample_rate2str(SrsAudioSampleRate44100));
+        EXPECT_TRUE("NB8kHz" == srs_audio_sample_rate2str(SrsAudioSampleRateNB8kHz));
+        EXPECT_TRUE("MB12kHz" == srs_audio_sample_rate2str(SrsAudioSampleRateMB12kHz));
+        EXPECT_TRUE("WB16kHz" == srs_audio_sample_rate2str(SrsAudioSampleRateWB16kHz));
+        EXPECT_TRUE("SWB24kHz" == srs_audio_sample_rate2str(SrsAudioSampleRateSWB24kHz));
+        EXPECT_TRUE("FB48kHz" == srs_audio_sample_rate2str(SrsAudioSampleRateFB48kHz));
+        EXPECT_TRUE("Other" == srs_audio_sample_rate2str(SrsAudioSampleRateForbidden));
+    }
+    
+    if (true) {
+        SrsFlvVideo v;
+        EXPECT_TRUE(!v.sh((char*)"\x07", 1));
+        
+        EXPECT_TRUE(!v.acceptable(NULL, 0));
+        EXPECT_TRUE(!v.acceptable((char*)"\x00", 1));
+        EXPECT_TRUE(!v.acceptable((char*)"\xf0", 1));
+        EXPECT_TRUE(!v.acceptable((char*)"\x10", 1));
+        EXPECT_TRUE(!v.acceptable((char*)"\x1f", 1));
+        EXPECT_TRUE(v.acceptable((char*)"\x13", 1));
+    }
+    
+    if (true) {
+        SrsFlvAudio a;
+        EXPECT_TRUE(!a.sh((char*)"\xa0", 1));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("16bits" == srs_audio_sample_bits2str(SrsAudioSampleBits16bit));
+        EXPECT_TRUE("8bits" == srs_audio_sample_bits2str(SrsAudioSampleBits8bit));
+        EXPECT_TRUE("Other" == srs_audio_sample_bits2str(SrsAudioSampleBitsForbidden));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("Stereo" == srs_audio_channels2str(SrsAudioChannelsStereo));
+        EXPECT_TRUE("Mono" == srs_audio_channels2str(SrsAudioChannelsMono));
+        EXPECT_TRUE("Other" == srs_audio_channels2str(SrsAudioChannelsForbidden));
+    }
+    
+    if (true) {
+        EXPECT_TRUE("NonIDR" == srs_avc_nalu2str(SrsAvcNaluTypeNonIDR));
+	    EXPECT_TRUE("DataPartitionA" == srs_avc_nalu2str(SrsAvcNaluTypeDataPartitionA));
+	    EXPECT_TRUE("DataPartitionB" == srs_avc_nalu2str(SrsAvcNaluTypeDataPartitionB));
+	    EXPECT_TRUE("DataPartitionC" == srs_avc_nalu2str(SrsAvcNaluTypeDataPartitionC));
+	    EXPECT_TRUE("IDR" == srs_avc_nalu2str(SrsAvcNaluTypeIDR));
+	    EXPECT_TRUE("SEI" == srs_avc_nalu2str(SrsAvcNaluTypeSEI));
+	    EXPECT_TRUE("SPS" == srs_avc_nalu2str(SrsAvcNaluTypeSPS));
+	    EXPECT_TRUE("PPS" == srs_avc_nalu2str(SrsAvcNaluTypePPS));
+	    EXPECT_TRUE("AccessUnitDelimiter" == srs_avc_nalu2str(SrsAvcNaluTypeAccessUnitDelimiter));
+	    EXPECT_TRUE("EOSequence" == srs_avc_nalu2str(SrsAvcNaluTypeEOSequence));
+	    EXPECT_TRUE("EOStream" == srs_avc_nalu2str(SrsAvcNaluTypeEOStream));
+	    EXPECT_TRUE("FilterData" == srs_avc_nalu2str(SrsAvcNaluTypeFilterData));
+	    EXPECT_TRUE("SPSExt" == srs_avc_nalu2str(SrsAvcNaluTypeSPSExt));
+	    EXPECT_TRUE("PrefixNALU" == srs_avc_nalu2str(SrsAvcNaluTypePrefixNALU));
+	    EXPECT_TRUE("SubsetSPS" == srs_avc_nalu2str(SrsAvcNaluTypeSubsetSPS));
+	    EXPECT_TRUE("LayerWithoutPartition" == srs_avc_nalu2str(SrsAvcNaluTypeLayerWithoutPartition));
+        EXPECT_TRUE("CodedSliceExt" == srs_avc_nalu2str(SrsAvcNaluTypeCodedSliceExt));
+        EXPECT_TRUE("Other" == srs_avc_nalu2str(SrsAvcNaluTypeForbidden));
+    }
+
+    if (true) {
+	    EXPECT_TRUE("Main" == srs_aac_profile2str(SrsAacProfileMain));
+	    EXPECT_TRUE("LC" == srs_aac_profile2str(SrsAacProfileLC));
+        EXPECT_TRUE("SSR" == srs_aac_profile2str(SrsAacProfileSSR));
+        EXPECT_TRUE("Other" == srs_aac_profile2str(SrsAacProfileReserved));
+    }
+
+    if (true) {
+	    EXPECT_TRUE("Main" == srs_aac_object2str(SrsAacObjectTypeAacMain));
+	    EXPECT_TRUE("LC" == srs_aac_object2str(SrsAacObjectTypeAacLC));
+	    EXPECT_TRUE("SSR" == srs_aac_object2str(SrsAacObjectTypeAacSSR));
+	    EXPECT_TRUE("HE" == srs_aac_object2str(SrsAacObjectTypeAacHE));
+        EXPECT_TRUE("HEv2" == srs_aac_object2str(SrsAacObjectTypeAacHEV2));
+        EXPECT_TRUE("Other" == srs_aac_object2str(SrsAacObjectTypeForbidden));
+    }
+
+    if (true) {
+        EXPECT_TRUE(SrsAacObjectTypeAacMain == srs_aac_ts2rtmp(SrsAacProfileMain));
+        EXPECT_TRUE(SrsAacObjectTypeAacLC == srs_aac_ts2rtmp(SrsAacProfileLC));
+        EXPECT_TRUE(SrsAacObjectTypeAacSSR == srs_aac_ts2rtmp(SrsAacProfileSSR));
+        EXPECT_TRUE(SrsAacObjectTypeReserved == srs_aac_ts2rtmp(SrsAacProfileReserved));
+    }
+
+    if (true) {
+        EXPECT_TRUE(SrsAacProfileMain == srs_aac_rtmp2ts(SrsAacObjectTypeAacMain));
+        EXPECT_TRUE(SrsAacProfileLC == srs_aac_rtmp2ts(SrsAacObjectTypeAacHE));
+        EXPECT_TRUE(SrsAacProfileLC == srs_aac_rtmp2ts(SrsAacObjectTypeAacHEV2));
+        EXPECT_TRUE(SrsAacProfileLC == srs_aac_rtmp2ts(SrsAacObjectTypeAacLC));
+        EXPECT_TRUE(SrsAacProfileSSR == srs_aac_rtmp2ts(SrsAacObjectTypeAacSSR));
+        EXPECT_TRUE(SrsAacProfileReserved == srs_aac_rtmp2ts(SrsAacObjectTypeReserved));
+    }
+
+    if (true) {
+	    EXPECT_TRUE("Baseline" == srs_avc_profile2str(SrsAvcProfileBaseline));
+	    EXPECT_TRUE("Baseline(Constrained)" == srs_avc_profile2str(SrsAvcProfileConstrainedBaseline ));
+	    EXPECT_TRUE("Main" == srs_avc_profile2str(SrsAvcProfileMain));
+	    EXPECT_TRUE("Extended" == srs_avc_profile2str(SrsAvcProfileExtended));
+	    EXPECT_TRUE("High" == srs_avc_profile2str(SrsAvcProfileHigh ));
+	    EXPECT_TRUE("High(10)" == srs_avc_profile2str(SrsAvcProfileHigh10 ));
+	    EXPECT_TRUE("High(10+Intra)" == srs_avc_profile2str(SrsAvcProfileHigh10Intra));
+	    EXPECT_TRUE("High(422)" == srs_avc_profile2str(SrsAvcProfileHigh422 ));
+	    EXPECT_TRUE("High(422+Intra)" == srs_avc_profile2str(SrsAvcProfileHigh422Intra));
+	    EXPECT_TRUE("High(444)" == srs_avc_profile2str(SrsAvcProfileHigh444 ));
+	    EXPECT_TRUE("High(444+Predictive)" == srs_avc_profile2str(SrsAvcProfileHigh444Predictive));
+        EXPECT_TRUE("High(444+Intra)" == srs_avc_profile2str(SrsAvcProfileHigh444Intra));
+        EXPECT_TRUE("Other" == srs_avc_profile2str(SrsAvcProfileReserved));
+    }
+
+    if (true) {
+	    EXPECT_TRUE("1" == srs_avc_level2str(SrsAvcLevel_1));
+	    EXPECT_TRUE("1.1" == srs_avc_level2str(SrsAvcLevel_11));
+	    EXPECT_TRUE("1.2" == srs_avc_level2str(SrsAvcLevel_12));
+	    EXPECT_TRUE("1.3" == srs_avc_level2str(SrsAvcLevel_13));
+	    EXPECT_TRUE("2" == srs_avc_level2str(SrsAvcLevel_2));
+	    EXPECT_TRUE("2.1" == srs_avc_level2str(SrsAvcLevel_21));
+	    EXPECT_TRUE("2.2" == srs_avc_level2str(SrsAvcLevel_22));
+	    EXPECT_TRUE("3" == srs_avc_level2str(SrsAvcLevel_3));
+	    EXPECT_TRUE("3.1" == srs_avc_level2str(SrsAvcLevel_31));
+	    EXPECT_TRUE("3.2" == srs_avc_level2str(SrsAvcLevel_32));
+	    EXPECT_TRUE("4" == srs_avc_level2str(SrsAvcLevel_4));
+	    EXPECT_TRUE("4.1" == srs_avc_level2str(SrsAvcLevel_41));
+	    EXPECT_TRUE("5" == srs_avc_level2str(SrsAvcLevel_5));
+        EXPECT_TRUE("5.1" == srs_avc_level2str(SrsAvcLevel_51));
+        EXPECT_TRUE("Other" == srs_avc_level2str(SrsAvcLevelReserved));
+    }
+
+    if (true) {
+        SrsAudioCodecConfig acc;
+        EXPECT_TRUE(!aac.is_aac_codec_ok());
+        
+        acc.aac_extra_data.push_back('\xff');
+        EXPECT_TRUE(aac.is_aac_codec_ok());
+
+        SrsVideoCodecConfig vcc;
+        EXPECT_TRUE(!vcc.is_avc_codec_ok());
+
+        vcc.avc_extra_data.push_back('\xff');
+        EXPECT_TRUE(vcc.is_avc_codec_ok());
+    }
+}
+

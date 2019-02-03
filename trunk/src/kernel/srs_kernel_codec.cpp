@@ -175,6 +175,14 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     return true;
 }
 
+SrsFlvAudio::SrsFlvAudio()
+{
+}
+
+SrsFlvAudio::~SrsFlvAudio()
+{
+}
+
 bool SrsFlvAudio::sh(char* data, int size)
 {
     // sequence header only for aac
