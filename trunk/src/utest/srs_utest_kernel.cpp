@@ -2527,10 +2527,10 @@ VOID TEST(KernelCodecTest, CoverAll)
 
     if (true) {
         SrsAudioCodecConfig acc;
-        EXPECT_TRUE(!aac.is_aac_codec_ok());
+        EXPECT_TRUE(!acc.is_aac_codec_ok());
         
         acc.aac_extra_data.push_back('\xff');
-        EXPECT_TRUE(aac.is_aac_codec_ok());
+        EXPECT_TRUE(acc.is_aac_codec_ok());
 
         SrsVideoCodecConfig vcc;
         EXPECT_TRUE(!vcc.is_avc_codec_ok());
