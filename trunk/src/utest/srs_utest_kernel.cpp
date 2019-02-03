@@ -197,6 +197,29 @@ srs_error_t MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
     return srs_success;
 }
 
+MockSrsCodec::MockSrsCodec()
+{
+}
+
+MockSrsCodec::~MockSrsCodec()
+{
+}
+
+int MockSrsCodec::nb_bytes()
+{
+    return 0;
+}
+
+srs_error_t MockSrsCodec::encode(SrsBuffer* /*buf*/)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrsCodec::decode(SrsBuffer* /*buf*/)
+{
+    return srs_success;
+}
+
 #ifdef ENABLE_UTEST_KERNEL
 
 VOID TEST(KernelBufferTest, DefaultObject)
@@ -1348,6 +1371,26 @@ VOID TEST(KernelStreamTest, StreamWriteBytes)
     EXPECT_EQ(0x13, s.read_1bytes());
     s.skip(5);
     EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+VOID TEST(KernelBufferTest, CoverAll)
+{
+    if (true) {
+        MockSrsCodec codec;
+        EXPECT_TRUE(0 == codec.nb_bytes());
+        EXPECT_TRUE(srs_success == codec.encode(NULL));
+        EXPECT_TRUE(srs_success == codec.decode(NULL));
+    }
+    
+    if (true) {
+        SrsBuffer buf((char*)"hello", 5);
+        EXPECT_EQ(5, buf.size());
+        EXPECT_EQ(5, buf.left());
+        
+        buf.read_1bytes();
+        EXPECT_EQ(5, buf.size());
+        EXPECT_EQ(4, buf.left());
+    }
 }
 
 /**

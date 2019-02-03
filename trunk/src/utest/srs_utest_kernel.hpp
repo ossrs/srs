@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_protocol_stream.hpp>
 
 class MockBufferReader: public ISrsReader
@@ -91,6 +92,17 @@ public:
     // append data to current offset, modify the offset and size.
     void mock_append_data(const char* _data, int _size);
     void mock_reset_offset();
+};
+
+class MockSrsCodec : public ISrsCodec
+{
+public:
+    MockSrsCodec();
+    virtual ~MockSrsCodec();
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
 };
 
 #endif
