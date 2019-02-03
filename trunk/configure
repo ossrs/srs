@@ -510,7 +510,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-    (cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else
