@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_aac.hpp>
+#include <srs_kernel_balance.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -2341,6 +2342,41 @@ VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
         err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
         EXPECT_TRUE(srs_success != err);
         srs_freep(err);
+    }
+}
+
+VOID TEST(KernelLBRRTest, CoverAll)
+{
+    if (true) {
+        SrsLbRoundRobin lb;
+        EXPECT_EQ(0, (int)lb.count);
+        EXPECT_EQ(-1, lb.index);
+        EXPECT_EQ(-1, (int)lb.current());
+        EXPECT_TRUE("" == lb.selected());
+    }
+    
+    if (true) {
+        vector<string> servers;
+        servers.push_back("s0");
+        servers.push_back("s1");
+        servers.push_back("s2");
+        
+        SrsLbRoundRobin lb;
+        lb.select(servers);
+        EXPECT_EQ(0, (int)lb.current());
+        EXPECT_TRUE("s0" == lb.selected());
+        
+        lb.select(servers);
+        EXPECT_EQ(1, (int)lb.current());
+        EXPECT_TRUE("s1" == lb.selected());
+        
+        lb.select(servers);
+        EXPECT_EQ(2, (int)lb.current());
+        EXPECT_TRUE("s2" == lb.selected());
+        
+        lb.select(servers);
+        EXPECT_EQ(0, (int)lb.current());
+        EXPECT_TRUE("s0" == lb.selected());
     }
 }
 
