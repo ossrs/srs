@@ -2199,7 +2199,6 @@ VOID TEST(KernelError, CoverAll)
     
     if (true) {
         EXPECT_TRUE(srs_error_desc(srs_success) == "Success");
-        srs_freep(err);
     }
     
     if (true) {
