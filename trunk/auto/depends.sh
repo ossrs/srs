@@ -713,11 +713,13 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     fi
 fi
 
-if [ $SRS_LIBRTMP = YES ]; then
+if [[ $SRS_LIBRTMP == YES ]]; then
     mkdir -p ${SRS_OBJS}/research
     
     # librtmp
-    (cd ${SRS_WORKDIR}/research/librtmp && mkdir -p objs && ln -sf `pwd`/objs ../../${SRS_OBJS_DIR}/research/librtmp)
+    (cd ${SRS_WORKDIR}/research/librtmp && mkdir -p objs &&
+        rm -rf ../../${SRS_OBJS_DIR}/research/librtmp &&
+        ln -sf `pwd`/objs ../../${SRS_OBJS_DIR}/research/librtmp)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Link research/librtmp failed, ret=$ret"; exit $ret; fi
 fi
 

@@ -106,7 +106,10 @@ if [ $SRS_GPERF = YES ]; then
 fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
-    CXXFLAGS="${CXXFLAGS} -fprofile-arcs -ftest-coverage";
+    SrsGcov="-fprofile-arcs -ftest-coverage"
+fi
+if [[ $SRS_GCOV == YES ]]; then
+    CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
 # Start to generate the Makefile.
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
@@ -159,7 +162,7 @@ if [ $SRS_MIPS_UBUNTU12 = YES ]; then
 fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -fprofile-arcs -ftest-coverage";
+    SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
 
 #####################################################################################
@@ -507,7 +510,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
+    (cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else

@@ -57,15 +57,15 @@ SRS_RESEARCH_DEPS = Makefile
 
 # for x86/x64 platform
 ifeq ($(GCC), gcc)
-    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++ -lm
+    OTHER_FLAGS += -g -O0 -ldl -lstdc++ -lm
 endif
 # for arm.
 ifeq ($(GCC), arm-linux-gnueabi-gcc)
-    EXTRA_CXX_FLAG = -g -O0 -ldl -static -lstdc++ -lm
+    OTHER_FLAGS += -g -O0 -ldl -static -lstdc++ -lm
 endif
 # for mips, add -lgcc_eh, or stl compile failed.
 ifeq ($(GCC), mipsel-openwrt-linux-gcc)
-    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++ -lm -lgcc_eh
+    OTHER_FLAGS += -g -O0 -ldl -lstdc++ -lm -lgcc_eh
 endif
 # for ssl or nossl
 ifeq ($(HANDSHAKE), SSL)
@@ -82,42 +82,44 @@ nossl:
 	@mkdir -p objs
 	$(MAKE) HANDSHAKE="NOSSL"
 
+CXXFLAGS += $(OTHER_FLAGS) $(EXTRA_CXXFLAGS)
+
 objs/srs_flv_parser: srs_flv_parser.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_flv_parser.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_flv_parser
+	$(GCC) srs_flv_parser.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_flv_parser
 
 objs/srs_flv_injecter: srs_flv_injecter.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_flv_injecter.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_flv_injecter
+	$(GCC) srs_flv_injecter.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_flv_injecter
 
 objs/srs_publish: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_publish
+	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_publish
 
 objs/srs_h264_raw_publish: srs_h264_raw_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_h264_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_h264_raw_publish
+	$(GCC) srs_h264_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_h264_raw_publish
 
 objs/srs_audio_raw_publish: srs_audio_raw_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_audio_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_audio_raw_publish
+	$(GCC) srs_audio_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_audio_raw_publish
 
 objs/srs_aac_raw_publish: srs_aac_raw_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_aac_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_aac_raw_publish
+	$(GCC) srs_aac_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_aac_raw_publish
 
 objs/srs_play: srs_play.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_play
+	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_play
 
 objs/srs_ingest_flv: srs_ingest_flv.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_flv
+	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_ingest_flv
 
 objs/srs_ingest_mp4: srs_ingest_mp4.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_ingest_mp4.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_mp4
+	$(GCC) srs_ingest_mp4.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_ingest_mp4
 
 objs/srs_ingest_rtmp: srs_ingest_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_ingest_rtmp
+	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_ingest_rtmp
 
 objs/srs_detect_rtmp: srs_detect_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_detect_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_detect_rtmp
+	$(GCC) srs_detect_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_detect_rtmp
 
 objs/srs_bandwidth_check: srs_bandwidth_check.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_bandwidth_check.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_bandwidth_check
+	$(GCC) srs_bandwidth_check.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_bandwidth_check
 
 objs/srs_rtmp_dump: srs_rtmp_dump.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_rtmp_dump.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_dump
+	$(GCC) srs_rtmp_dump.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(CXXFLAGS) -o objs/srs_rtmp_dump
 
