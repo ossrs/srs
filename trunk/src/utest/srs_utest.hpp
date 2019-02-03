@@ -33,33 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_log.hpp>
 
-#define SRS_UTEST_DEV
-#undef SRS_UTEST_DEV
-
-// enable all utest.
-#ifndef SRS_UTEST_DEV
-    #define ENABLE_UTEST_AMF0
-    #define ENABLE_UTEST_CONFIG
-    #define ENABLE_UTEST_CORE
-    #define ENABLE_UTEST_KERNEL
-    #define ENABLE_UTEST_PROTOCOL
-    #define ENABLE_UTEST_RELOAD
-#endif
-
-// disable some for fast dev, compile and startup.
-#ifdef SRS_UTEST_DEV
-    #undef ENABLE_UTEST_AMF0
-    #undef ENABLE_UTEST_CONFIG
-    #undef ENABLE_UTEST_CORE
-    #undef ENABLE_UTEST_KERNEL
-    #undef ENABLE_UTEST_PROTOCOL
-    #undef ENABLE_UTEST_RELOAD
-#endif
-
-#ifdef SRS_UTEST_DEV
-    #define ENABLE_UTEST_RELOAD
-#endif
-
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 

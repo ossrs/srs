@@ -220,8 +220,6 @@ srs_error_t MockSrsCodec::decode(SrsBuffer* /*buf*/)
     return srs_success;
 }
 
-#ifdef ENABLE_UTEST_KERNEL
-
 VOID TEST(KernelBufferTest, DefaultObject)
 {
     SrsSimpleStream b;
@@ -2166,6 +2164,4 @@ VOID TEST(KernelUtility, RTMPUtils2)
         EXPECT_EQ((char)0x78, buf[4]);
     }
 }
-
-#endif
 
