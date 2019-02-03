@@ -2280,9 +2280,19 @@ VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
         EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
         EXPECT_EQ(2, m.aac_channels);
         
-        err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
+        err = m.write_audio(0, (char*)"\xaf\x01\xcb", 3);
         EXPECT_TRUE(srs_success == err);
         srs_freep(err);
+        
+        EXPECT_EQ(8, f.offset);
+        EXPECT_EQ((char)0xff, f.data[0]);
+        EXPECT_EQ((char)0xf1, f.data[1]);
+        EXPECT_EQ((char)0x50, f.data[2]);
+        EXPECT_EQ((char)0x80, f.data[3]);
+        EXPECT_EQ((char)0x01, f.data[4]);
+        EXPECT_EQ((char)0x00, f.data[5]);
+        EXPECT_EQ((char)0xfc, f.data[6]);
+        EXPECT_EQ((char)0xcb, f.data[7]);
     }
     
     if (true) {
