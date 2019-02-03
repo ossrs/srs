@@ -2165,3 +2165,54 @@ VOID TEST(KernelUtility, RTMPUtils2)
     }
 }
 
+VOID TEST(KernelError, CoverAll)
+{
+    if (true) {
+        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_RTMP_CLOSE));
+        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_REPUBLISH));
+        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_REDIRECT));
+    }
+    
+    if (true) {
+        srs_error_t err = srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "control error");
+        EXPECT_TRUE(srs_is_system_control_error(err));
+        srs_freep(err);
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_READ));
+        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_READ_FULLY));
+        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_WRITE));
+    }
+    
+    if (true) {
+        srs_error_t err = srs_error_new(ERROR_SOCKET_READ, "graceful close error");
+        EXPECT_TRUE(srs_is_client_gracefully_close(err));
+        srs_freep(err);
+    }
+    
+    if (true) {
+        srs_error_t err = srs_error_wrap(srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "control error"), "wrapped");
+        EXPECT_TRUE(srs_error_desc(err) != "");
+        srs_freep(err);
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_error_desc(srs_success) == "Success");
+        srs_freep(err);
+    }
+    
+    if (true) {
+        srs_error_t err = srs_success;
+        EXPECT_TRUE(srs_success == srs_error_copy(err));
+    }
+    
+    if (true) {
+        srs_error_t err = srs_error_new(ERROR_SOCKET_READ, "graceful close error");
+        srs_error_t r0 = srs_error_copy(err);
+        EXPECT_TRUE(err != r0);
+        srs_freep(err);
+        srs_freep(r0);
+    }
+}
+
