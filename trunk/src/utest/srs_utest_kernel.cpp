@@ -30,23 +30,31 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_aac.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
 MockSrsFileWriter::MockSrsFileWriter()
 {
     data = new char[MAX_MOCK_DATA_SIZE];
-    offset = -1;
+    offset = 0;
+    err = srs_success;
+    error_offset = 0;
 }
 
 MockSrsFileWriter::~MockSrsFileWriter()
 {
+    srs_freep(err);
     srs_freep(data);
 }
 
 srs_error_t MockSrsFileWriter::open(string /*file*/)
 {
     offset = 0;
+    
+    if (err != srs_success) {
+        return srs_error_copy(err);
+    }
     
     return srs_success;
 }
@@ -68,6 +76,10 @@ int64_t MockSrsFileWriter::tellg()
 
 srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
+    if (err != srs_success) {
+        return srs_error_copy(err);
+    }
+    
     int size = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
     
     memcpy(data + offset, buf, size);
@@ -77,6 +89,10 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     }
     
     offset += size;
+    
+    if (error_offset > 0 && offset >= error_offset) {
+        return srs_error_new(-1, "exceed offset");
+    }
     
     return srs_success;
 }
@@ -2165,7 +2181,7 @@ VOID TEST(KernelUtility, RTMPUtils2)
     }
 }
 
-VOID TEST(KernelError, CoverAll)
+VOID TEST(KernelErrorTest, CoverAll)
 {
     if (true) {
         EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_RTMP_CLOSE));
@@ -2212,6 +2228,109 @@ VOID TEST(KernelError, CoverAll)
         EXPECT_TRUE(err != r0);
         srs_freep(err);
         srs_freep(r0);
+    }
+}
+
+VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
+{
+    if (true) {
+        SrsAacTransmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"", 0);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\x0f", 1);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\xaf", 1);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsAacTransmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        EXPECT_TRUE(!m.got_sequence_header);
+    }
+    
+    if (true) {
+        SrsAacTransmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"\xaf\x00", 2);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\xaf\x00\x12\x10", 4);
+        EXPECT_TRUE(srs_success == err);
+        srs_freep(err);
+        
+        EXPECT_TRUE(m.got_sequence_header);
+        EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
+        EXPECT_EQ(2, m.aac_channels);
+        
+        err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
+        EXPECT_TRUE(srs_success == err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsAacTransmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"\xaf\x00", 2);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\xaf\x00\x12\x10", 4);
+        EXPECT_TRUE(srs_success == err);
+        srs_freep(err);
+        
+        EXPECT_TRUE(m.got_sequence_header);
+        EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
+        EXPECT_EQ(2, m.aac_channels);
+        
+        f.error_offset = 7;
+        
+        err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsAacTransmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"\xaf\x00", 2);
+        EXPECT_TRUE(ERROR_AAC_DECODE_ERROR == srs_error_code(err));
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\xaf\x00\x12\x10", 4);
+        EXPECT_TRUE(srs_success == err);
+        srs_freep(err);
+        
+        EXPECT_TRUE(m.got_sequence_header);
+        EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
+        EXPECT_EQ(2, m.aac_channels);
+        
+        f.error_offset = 8;
+        
+        err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
     }
 }
 

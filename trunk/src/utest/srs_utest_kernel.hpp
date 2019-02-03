@@ -50,6 +50,8 @@ class MockSrsFileWriter : public SrsFileWriter
 public:
     char* data;
     int offset;
+    srs_error_t err;
+    int error_offset;
 public:
     MockSrsFileWriter();
     virtual ~MockSrsFileWriter();
