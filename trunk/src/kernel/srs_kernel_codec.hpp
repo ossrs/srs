@@ -704,7 +704,7 @@ public:
 public:
     // for sequence header, whether parse the h.264 sps.
     // TODO: FIXME: Refine it.
-    bool            avc_parse_sps;
+    bool avc_parse_sps;
 public:
     SrsFormat();
     virtual ~SrsFormat();

@@ -434,7 +434,6 @@ SrsFrame::SrsFrame()
 
 SrsFrame::~SrsFrame()
 {
-    srs_freep(codec);
 }
 
 srs_error_t SrsFrame::initialize(SrsCodecConfig* c)
@@ -1361,10 +1360,10 @@ srs_error_t SrsFormat::audio_aac_sequence_header_demux(char* data, int size)
     // donot force to LC, @see: https://github.com/ossrs/srs/issues/81
     // the source will print the sequence header info.
     //if (aac_profile > 3) {
-    // Mark all extended profiles as LC
-    // to make Android as happy as possible.
-    // @see: ngx_rtmp_hls_parse_aac_header
-    //aac_profile = 1;
+        // Mark all extended profiles as LC
+        // to make Android as happy as possible.
+        // @see: ngx_rtmp_hls_parse_aac_header
+        //aac_profile = 1;
     //}
     
     return err;

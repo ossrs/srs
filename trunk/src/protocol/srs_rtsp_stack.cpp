@@ -232,10 +232,7 @@ srs_error_t SrsRtpPacket::decode_97(SrsBuffer* stream)
     int required_size = 0;
     
     // append left bytes to payload.
-    payload->append(
-                    stream->data() + stream->pos() + au_size,
-                    stream->size() - stream->pos() - au_size
-                    );
+    payload->append(stream->data() + stream->pos() + au_size, stream->size() - stream->pos() - au_size);
     char* p = payload->bytes();
     
     for (int i = 0; i < au_size; i += 2) {
