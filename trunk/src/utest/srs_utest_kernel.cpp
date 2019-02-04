@@ -2905,3 +2905,75 @@ VOID TEST(KernelFileTest, FileWriteReader)
     }
 }
 
+VOID TEST(KernelFLVTest, CoverAll)
+{
+    if (true) {
+        SrsMessageHeader h;
+        h.message_type = RTMP_MSG_SetChunkSize;
+        EXPECT_TRUE(h.is_set_chunk_size());
+        
+        h.message_type = RTMP_MSG_SetPeerBandwidth;
+        EXPECT_TRUE(h.is_set_peer_bandwidth());
+        
+        h.message_type = RTMP_MSG_AggregateMessage;
+        EXPECT_TRUE(h.is_aggregate());
+        
+        h.initialize_amf0_script(10, 20);
+        EXPECT_EQ(RTMP_MSG_AMF0DataMessage, h.message_type);
+        EXPECT_EQ(10, h.payload_length);
+        EXPECT_EQ(20, h.stream_id);
+        
+        h.initialize_audio(10, 30, 20);
+        EXPECT_EQ(RTMP_MSG_AudioMessage, h.message_type);
+        EXPECT_EQ(10, h.payload_length);
+        EXPECT_EQ(20, h.stream_id);
+        EXPECT_EQ(30, h.timestamp_delta);
+        EXPECT_EQ(30, h.timestamp);
+        
+        h.initialize_video(10, 30, 20);
+        EXPECT_EQ(RTMP_MSG_VideoMessage, h.message_type);
+        EXPECT_EQ(10, h.payload_length);
+        EXPECT_EQ(20, h.stream_id);
+        EXPECT_EQ(30, h.timestamp_delta);
+        EXPECT_EQ(30, h.timestamp);
+    }
+    
+    if (true) {
+        SrsMessageHeader h;
+        h.initialize_video(10, 30, 20);
+        
+        SrsCommonMessage m;
+        EXPECT_TRUE(srs_success == m.create(&h, NULL, 0));
+        EXPECT_EQ(RTMP_MSG_VideoMessage, m.header.message_type);
+        EXPECT_EQ(10, m.header.payload_length);
+        EXPECT_EQ(20, m.header.stream_id);
+        EXPECT_EQ(30, m.header.timestamp_delta);
+        EXPECT_EQ(30, m.header.timestamp);
+        
+        SrsSharedPtrMessage s;
+        EXPECT_TRUE(srs_success == s.create(&m));
+        EXPECT_TRUE(s.is_av());
+        EXPECT_TRUE(!s.is_audio());
+        EXPECT_TRUE(s.is_video());
+    }
+    
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+    if (true) {
+        MockSrsFileWriter f;
+        SrsFlvTransmuxer mux;
+        EXPECT_TRUE(srs_success == mux.initialize(&f));
+        
+        SrsMessageHeader h;
+        h.initialize_video(10, 30, 20);
+        
+        SrsSharedPtrMessage m;
+        EXPECT_TRUE(srs_success == m.create(&h, new char[1], 1));
+        
+        SrsSharedPtrMessage* msgs = &m;
+        EXPECT_TRUE(srs_success == mux.write_tags(&msgs, 1));
+        
+        EXPECT_EQ(16, f.offset);
+    }
+#endif
+}
+
