@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_balance.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_log.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -2975,5 +2976,25 @@ VOID TEST(KernelFLVTest, CoverAll)
         EXPECT_EQ(16, f.offset);
     }
 #endif
+}
+
+VOID TEST(KernelLogTest, CoverAll)
+{
+    if (true) {
+        ISrsLog l;
+        EXPECT_TRUE(srs_success == l.initialize());
+        
+        l.reopen();
+        l.verbose("TAG", 0, "log");
+        l.info("TAG", 0, "log");
+        l.trace("TAG", 0, "log");
+        l.warn("TAG", 0, "log");
+        l.error("TAG", 0, "log");
+        
+        ISrsThreadContext ctx;
+        ctx.set_id(10);
+        EXPECT_EQ(0, ctx.get_id());
+        EXPECT_EQ(0, ctx.generate_id());
+    }
 }
 
