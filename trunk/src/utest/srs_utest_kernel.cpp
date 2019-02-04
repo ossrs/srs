@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_balance.hpp>
+#include <srs_kernel_file.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -2839,6 +2840,71 @@ VOID TEST(KernelCodecTest, VideoFormat)
         
         EXPECT_TRUE(srs_success == f.on_video(0, (char*)rawIBMF, sizeof(rawIBMF)));
         EXPECT_EQ(1, f.video->nb_samples);
+    }
+}
+
+VOID TEST(KernelFileTest, FileWriteReader)
+{
+    if (true) {
+        SrsFileWriter f;
+        EXPECT_TRUE(!f.is_open());
+    }
+    
+    if (true) {
+        SrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open("/dev/null"));
+        EXPECT_TRUE(f.is_open());
+        
+        EXPECT_EQ(0, f.tellg());
+        
+        ssize_t nwriten = 0;
+        EXPECT_TRUE(srs_success == f.write((void*)"Hello", 5, &nwriten));
+        EXPECT_EQ(5, nwriten);
+        
+        EXPECT_TRUE(srs_success == f.lseek(0, SEEK_CUR, NULL));
+        EXPECT_EQ(5, f.tellg());
+        
+        f.seek2(0);
+        EXPECT_EQ(0, f.tellg());
+    }
+    
+    if (true) {
+        SrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open_append("/dev/null"));
+        EXPECT_TRUE(f.is_open());
+    }
+    
+    if (true) {
+        SrsFileReader f;
+        EXPECT_TRUE(!f.is_open());
+    }
+    
+    if (true) {
+        SrsFileReader f;
+        EXPECT_TRUE(srs_success == f.open("/dev/null"));
+        EXPECT_TRUE(f.is_open());
+        EXPECT_EQ(0, f.tellg());
+        EXPECT_EQ(0, f.filesize());
+        
+        f.skip(1);
+        EXPECT_EQ(1, f.tellg());
+        
+        f.seek2(0);
+        EXPECT_EQ(0, f.tellg());
+    }
+    
+    if (true) {
+        SrsFileReader f;
+        EXPECT_TRUE(srs_success == f.open("/dev/null"));
+        
+        char buf[16];
+        ssize_t nread = 0;
+        srs_error_t err = f.read((void*)buf, sizeof(buf), &nread);
+        EXPECT_EQ(ERROR_SYSTEM_FILE_EOF, srs_error_code(err));
+        srs_freep(err);
+        
+        f.lseek(1, SEEK_CUR, NULL);
+        EXPECT_EQ(1, f.tellg());
     }
 }
 
