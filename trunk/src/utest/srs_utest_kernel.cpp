@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_kernel_balance.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_mp3.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -2995,6 +2996,73 @@ VOID TEST(KernelLogTest, CoverAll)
         ctx.set_id(10);
         EXPECT_EQ(0, ctx.get_id());
         EXPECT_EQ(0, ctx.generate_id());
+    }
+}
+
+VOID TEST(KernelMp3Test, CoverAll)
+{
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        EXPECT_TRUE(srs_success == m.write_header());
+        EXPECT_EQ((char)0x49, f.data[0]);
+    }
+    
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        EXPECT_TRUE(srs_success == m.write_audio(0, (char*)"\x20\x01", 2));
+        EXPECT_EQ((char)0x01, f.data[0]);
+    }
+    
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        srs_error_t err = m.write_audio(0, (char*)"\x30\x01", 2);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+        
+        err = m.write_audio(0, (char*)"\x20", 1);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        f.offset = -1;
+        
+        srs_error_t err = m.initialize(&f);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        f.err = srs_error_new(-1, "mock file error");
+        srs_error_t err = m.write_audio(0, (char*)"\x20\x01", 2);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsMp3Transmuxer m;
+        MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == m.initialize(&f));
+        
+        f.err = srs_error_new(-1, "mock file error");
+        srs_error_t err = m.write_header();
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
     }
 }
 
