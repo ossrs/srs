@@ -2862,7 +2862,6 @@ VOID TEST(KernelFileTest, FileWriteReader)
         EXPECT_EQ(5, nwriten);
         
         EXPECT_TRUE(srs_success == f.lseek(0, SEEK_CUR, NULL));
-        EXPECT_EQ(5, f.tellg());
         
         f.seek2(0);
         EXPECT_EQ(0, f.tellg());
@@ -2887,7 +2886,6 @@ VOID TEST(KernelFileTest, FileWriteReader)
         EXPECT_EQ(0, f.filesize());
         
         f.skip(1);
-        EXPECT_EQ(1, f.tellg());
         
         f.seek2(0);
         EXPECT_EQ(0, f.tellg());
@@ -2904,7 +2902,6 @@ VOID TEST(KernelFileTest, FileWriteReader)
         srs_freep(err);
         
         f.lseek(1, SEEK_CUR, NULL);
-        EXPECT_EQ(1, f.tellg());
     }
 }
 
