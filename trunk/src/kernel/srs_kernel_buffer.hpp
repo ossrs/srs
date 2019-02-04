@@ -206,10 +206,9 @@ private:
     uint8_t cb_left;
     SrsBuffer* stream;
 public:
-    SrsBitBuffer();
+    SrsBitBuffer(SrsBuffer* b);
     virtual ~SrsBitBuffer();
 public:
-    virtual srs_error_t initialize(SrsBuffer* s);
     virtual bool empty();
     virtual int8_t read_bit();
 };

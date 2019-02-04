@@ -894,10 +894,7 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the level_idc invalid");
     }
     
-    SrsBitBuffer bs;
-    if ((err = bs.initialize(&stream)) != srs_success) {
-        return srs_error_wrap(err, "init bit buffer");
-    }
+    SrsBitBuffer bs(&stream);
     
     int32_t seq_parameter_set_id = -1;
     if ((err = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != srs_success) {

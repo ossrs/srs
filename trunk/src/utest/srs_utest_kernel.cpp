@@ -1517,89 +1517,88 @@ VOID TEST(KernelUtilityTest, UtilityString)
 VOID TEST(KernelUtility, AvcUev)
 {
     int32_t v;
-    SrsBitBuffer bb;
     char data[32];
     
     if (true) {
         data[0] = 0xff;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 1;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 1;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(0, v);
     }
     
     if (true) {
         data[0] = 0x40;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(1, v);
     }
     
     if (true) {
         data[0] = 0x60;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(2, v);
     }
     
     if (true) {
         data[0] = 0x20;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(3, v);
     }
     
     if (true) {
         data[0] = 0x28;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(4, v);
     }
     
     if (true) {
         data[0] = 0x30;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(5, v);
     }
     
     if (true) {
         data[0] = 0x38;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(6, v);
     }
     
     if (true) {
         data[0] = 0x10;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(7, v);
     }
     
     if (true) {
         data[0] = 0x12;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(8, v);
     }
     
     if (true) {
         data[0] = 0x14;
-        SrsBuffer buf((char*)data, 1); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 1); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(9, v);
     }
     
     if (true) {
         data[0] = 0x01; data[1] = 0x12;
-        SrsBuffer buf((char*)data, 2); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 2); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(128-1+9, v);
     }
     
     if (true) {
         data[0] = 0x00; data[1] = 0x91; data[2] = 0x00;
-        SrsBuffer buf((char*)data, 3); bb.initialize(&buf); v = 0;
+        SrsBuffer buf((char*)data, 3); SrsBitBuffer bb(&buf); v = 0;
         srs_avc_nalu_read_uev(&bb, v);
         EXPECT_EQ(256-1+0x22, v);
     }
@@ -3063,6 +3062,128 @@ VOID TEST(KernelMp3Test, CoverAll)
         srs_error_t err = m.write_header();
         EXPECT_TRUE(srs_success != err);
         srs_freep(err);
+    }
+}
+
+VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
+{
+    if (true) {
+        SrsBuffer b(NULL, 0);
+        SrsBitBuffer bb(&b);
+        
+        int32_t v = 0;
+        srs_error_t err = srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsBuffer b((char*)"\x00", 1);
+        SrsBitBuffer bb(&b);
+        
+        int32_t v = 0;
+        srs_error_t err = srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsBuffer b((char*)"\x00\x00\x00\x00", 4);
+        SrsBitBuffer bb(&b);
+        
+        int32_t v = 0;
+        srs_error_t err = srs_avc_nalu_read_uev(&bb, v);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        SrsBuffer b(NULL, 0);
+        SrsBitBuffer bb(&b);
+        
+        int8_t v = 0;
+        srs_error_t err = srs_avc_nalu_read_bit(&bb, v);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+}
+
+extern int64_t _srs_system_time_startup_time;
+extern int64_t _srs_system_time_us_cache;
+extern int av_toupper(int c);
+
+VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
+{
+    _srs_system_time_us_cache = 0;
+    _srs_system_time_startup_time = 0;
+    EXPECT_TRUE(srs_get_system_startup_time_ms() > 0);
+    
+    _srs_system_time_us_cache -= 300*1000 * 1000 + 1;
+    EXPECT_TRUE(srs_update_system_time_ms() > 0);
+    
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[3ffe:dead:beef::1]:1935", host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("3ffe:dead:beef::1", host.c_str());
+    }
+    
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("domain.com", host, port);
+        EXPECT_STREQ("domain.com", host.c_str());
+    }
+    
+    if (true) {
+        string ep = srs_any_address4listener();
+        EXPECT_TRUE(ep == "0.0.0.0" || ep == "::");
+    }
+    
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_endpoint("[3ffe:dead:beef::1]:1935", host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("3ffe:dead:beef::1", host.c_str());
+    }
+    
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_endpoint("domain.com:1935", host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("domain.com", host.c_str());
+    }
+    
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_endpoint("1935", host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_TRUE(host == "0.0.0.0" || host == "::");
+    }
+    
+    if (true) {
+        EXPECT_STREQ("1.00", srs_float2str(1).c_str());
+        EXPECT_STREQ("on", srs_bool2switch(true).c_str());
+        EXPECT_STREQ("off", srs_bool2switch(false).c_str());
+    }
+    
+    if (true) {
+        vector<string> flags;
+        flags.push_back("e");
+        flags.push_back("wo");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("h", ss.at(0).c_str());
+        EXPECT_STREQ("llo, ", ss.at(1).c_str());
+        EXPECT_STREQ("rld", ss.at(2).c_str());
+    }
+    
+    if (true) {
+        EXPECT_EQ('H', av_toupper('h'));
     }
 }
 

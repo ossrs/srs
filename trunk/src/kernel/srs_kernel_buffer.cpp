@@ -251,22 +251,15 @@ void SrsBuffer::write_bytes(char* data, int size)
     p += size;
 }
 
-SrsBitBuffer::SrsBitBuffer()
+SrsBitBuffer::SrsBitBuffer(SrsBuffer* b)
 {
     cb = 0;
     cb_left = 0;
-    stream = NULL;
+    stream = b;
 }
 
 SrsBitBuffer::~SrsBitBuffer()
 {
-}
-
-srs_error_t SrsBitBuffer::initialize(SrsBuffer* s) {
-    stream = s;
-    cb = 0;
-    cb_left = 0;
-    return srs_success;
 }
 
 bool SrsBitBuffer::empty() {
