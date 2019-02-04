@@ -131,6 +131,7 @@ enum SrsTsStream
 {
     // ITU-T | ISO/IEC Reserved
     SrsTsStreamReserved = 0x00,
+    SrsTsStreamForbidden = 0xff,
     // ISO/IEC 11172 Video
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream
     // ISO/IEC 11172 Audio

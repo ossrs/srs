@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_stream.hpp>
+#include <srs_kernel_ts.hpp>
 
 class MockBufferReader: public ISrsReader
 {
@@ -105,6 +106,15 @@ public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
+};
+
+class MockTsHandler : public ISrsTsHandler
+{
+public:
+    MockTsHandler();
+    virtual ~MockTsHandler();
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 };
 
 #endif

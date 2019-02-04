@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_mp3.hpp>
+#include <srs_kernel_ts.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -236,6 +237,19 @@ srs_error_t MockSrsCodec::encode(SrsBuffer* /*buf*/)
 }
 
 srs_error_t MockSrsCodec::decode(SrsBuffer* /*buf*/)
+{
+    return srs_success;
+}
+
+MockTsHandler::MockTsHandler()
+{
+}
+
+MockTsHandler::~MockTsHandler()
+{
+}
+
+srs_error_t MockTsHandler::on_ts_message(SrsTsMessage* /*msg*/)
 {
     return srs_success;
 }
@@ -3184,6 +3198,117 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     
     if (true) {
         EXPECT_EQ('H', av_toupper('h'));
+    }
+}
+
+VOID TEST(KernelTSTest, CoverBasicUtility)
+{
+    if (true) {
+        EXPECT_STREQ("Reserved", srs_ts_stream2string(SrsTsStreamReserved).c_str());
+        EXPECT_STREQ("MP3", srs_ts_stream2string(SrsTsStreamAudioMp3).c_str());
+        EXPECT_STREQ("AAC", srs_ts_stream2string(SrsTsStreamAudioAAC).c_str());
+        EXPECT_STREQ("AC3", srs_ts_stream2string(SrsTsStreamAudioAC3).c_str());
+        EXPECT_STREQ("AudioDTS", srs_ts_stream2string(SrsTsStreamAudioDTS).c_str());
+        EXPECT_STREQ("H.264", srs_ts_stream2string(SrsTsStreamVideoH264).c_str());
+        EXPECT_STREQ("MP4", srs_ts_stream2string(SrsTsStreamVideoMpeg4).c_str());
+        EXPECT_STREQ("MP4A", srs_ts_stream2string(SrsTsStreamAudioMpeg4).c_str());
+        EXPECT_STREQ("Other", srs_ts_stream2string(SrsTsStreamForbidden).c_str());
+    }
+    
+    if (true) {
+        SrsTsContext ctx;
+        SrsTsPacket p(&ctx);
+        
+        SrsTsChannel c;
+        SrsTsMessage m(&c, &p);
+        
+        EXPECT_TRUE(m.fresh());
+        EXPECT_TRUE(!m.is_audio());
+        EXPECT_TRUE(!m.is_video());
+        EXPECT_EQ(-1, m.stream_number());
+        
+        m.sid = SrsTsPESStreamId(0x06<<5 | 0x01);
+        EXPECT_TRUE(m.is_audio());
+        EXPECT_EQ(1, m.stream_number());
+        
+        m.sid = SrsTsPESStreamId(0x0e<<4 | 0x02);
+        EXPECT_TRUE(m.is_video());
+        EXPECT_EQ(2, m.stream_number());
+        
+        SrsTsMessage* cp = m.detach();
+        EXPECT_TRUE(cp != NULL);
+        srs_freep(cp);
+    }
+    
+    if (true) {
+        SrsTsContext ctx;
+        SrsTsPacket p(&ctx);
+        
+        SrsTsChannel c;
+        SrsTsMessage m(&c, &p);
+        
+        m.PES_packet_length = 8;
+        SrsBuffer b;
+        
+        int nb_bytes = 0;
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(0, nb_bytes);
+    }
+    
+    if (true) {
+        SrsTsContext ctx;
+        SrsTsPacket p(&ctx);
+        
+        SrsTsChannel c;
+        SrsTsMessage m(&c, &p);
+        
+        m.PES_packet_length = 8;
+        SrsBuffer b((char*)"\x00\x01\x02\x03", 4);
+        
+        int nb_bytes = 0;
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(4, nb_bytes);
+    }
+    
+    if (true) {
+        SrsTsContext ctx;
+        SrsTsPacket p(&ctx);
+        
+        SrsTsChannel c;
+        SrsTsMessage m(&c, &p);
+        
+        EXPECT_TRUE(m.completed(1));
+        EXPECT_TRUE(!m.completed(0));
+        
+        m.PES_packet_length = 8;
+        SrsBuffer b((char*)"\x00\x01\x02\x03", 4);
+        
+        int nb_bytes = 0;
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(4, nb_bytes);
+        
+        b.skip(-4);
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(4, nb_bytes);
+        
+        EXPECT_TRUE(m.completed(0));
+    }
+    
+    if (true) {
+        MockTsHandler* h = new MockTsHandler();
+        srs_freep(h);
+        
+        SrsTsContext ctx;
+        EXPECT_TRUE(!ctx.is_pure_audio());
+        
+        ctx.set(100, SrsTsPidApplyPAT);
+        ctx.set(101, SrsTsPidApplyPMT);
+        ctx.set(102, SrsTsPidApplyAudio);
+        
+        ctx.on_pmt_parsed();
+        EXPECT_TRUE(ctx.is_pure_audio());
+        
+        EXPECT_EQ(100, ctx.get(100)->pid);
     }
 }
 
