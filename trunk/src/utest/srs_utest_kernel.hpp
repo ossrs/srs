@@ -61,9 +61,11 @@ public:
     virtual void close();
 public:
     virtual bool is_open();
+    virtual void seek2(int64_t offset);
     virtual int64_t tellg();
 public:
     virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 // for mock
 public:
     void mock_reset_offset();
