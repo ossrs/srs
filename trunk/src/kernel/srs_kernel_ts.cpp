@@ -752,8 +752,9 @@ SrsTsPacket* SrsTsPacket::create_pat(SrsTsContext* context, int16_t pmt_number, 
     return pkt;
 }
 
-SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
-{
+SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
+    int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as
+) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
     pkt->transport_error_indicator = 0;
@@ -800,9 +801,9 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
-                                           int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity,
-                                           int64_t pcr, int64_t dts, int64_t pts, int size
-                                           ) {
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity,
+    int64_t pcr, int64_t dts, int64_t pts, int size
+) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
     pkt->transport_error_indicator = 0;
