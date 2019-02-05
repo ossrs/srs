@@ -1550,11 +1550,6 @@ public:
     virtual ~SrsTsContextWriter();
 public:
     /**
-     * open the writer, donot write the PSI of ts.
-     * @param p a string indicates the path of ts file to mux to.
-     */
-    virtual srs_error_t open(std::string p);
-    /**
      * write an audio frame to ts,
      */
     virtual srs_error_t write_audio(SrsTsMessage* audio);
@@ -1562,10 +1557,6 @@ public:
      * write a video frame to ts,
      */
     virtual srs_error_t write_video(SrsTsMessage* video);
-    /**
-     * close the writer.
-     */
-    virtual void close();
 public:
     /**
      * get the video codec of ts muxer.

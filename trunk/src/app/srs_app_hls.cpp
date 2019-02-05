@@ -458,7 +458,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     
     // open temp ts file.
     std::string tmp_file = current->tmppath();
-    if ((err = current->tscw->open(tmp_file.c_str())) != srs_success) {
+    if ((err = current->writer->open(tmp_file)) != srs_success) {
         return srs_error_wrap(err, "open hls muxer");
     }
     

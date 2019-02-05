@@ -2554,28 +2554,6 @@ SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, Srs
 
 SrsTsContextWriter::~SrsTsContextWriter()
 {
-    close();
-}
-
-srs_error_t SrsTsContextWriter::open(string p)
-{
-    srs_error_t err = srs_success;
-    
-    path = p;
-    
-    close();
-    
-    // reset the context for a new ts start.
-    context->reset();
-    
-    SrsFileWriter* fw = dynamic_cast<SrsFileWriter*>(writer);
-    srs_assert(fw);
-    
-    if ((err = fw->open(path)) != srs_success) {
-        return srs_error_wrap(err, "ts: open writer");
-    }
-    
-    return err;
 }
 
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
@@ -2606,14 +2584,6 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     srs_info("hls encode video ok");
     
     return err;
-}
-
-void SrsTsContextWriter::close()
-{
-    SrsFileWriter* fw = dynamic_cast<SrsFileWriter*>(writer);
-    srs_assert(fw);
-    
-    fw->close();
 }
 
 SrsVideoCodecId SrsTsContextWriter::video_codec()
@@ -3032,10 +3002,6 @@ srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
     srs_freep(tscw);
     // TODO: FIXME: Support config the codec.
     tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
-    
-    if ((err = tscw->open("")) != srs_success) {
-        return srs_error_wrap(err, "ts: open writer");
-    }
     
     return err;
 }
