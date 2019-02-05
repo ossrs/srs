@@ -111,10 +111,12 @@ public:
 class MockTsHandler : public ISrsTsHandler
 {
 public:
+    SrsTsMessage* msg;
+public:
     MockTsHandler();
     virtual ~MockTsHandler();
 public:
-    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
+    virtual srs_error_t on_ts_message(SrsTsMessage* m);
 };
 
 #endif

@@ -38,7 +38,7 @@
 class SrsBuffer;
 class SrsTsMessageCache;
 class SrsTsContextWriter;
-class SrsFileWriter;
+class ISrsStreamWriter;
 class SrsFileReader;
 class SrsFormat;
 class SrsSimpleStream;
@@ -403,7 +403,7 @@ public:
      * @param vc the video codec, write the PAT/PMT table when changed.
      * @param ac the audio codec, write the PAT/PMT table when changed.
      */
-    virtual srs_error_t encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
+    virtual srs_error_t encode(ISrsStreamWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
 // drm methods
 public:
     /**
@@ -412,8 +412,8 @@ public:
      */
     virtual void set_sync_byte(int8_t sb);
 private:
-    virtual srs_error_t encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
-    virtual srs_error_t encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
+    virtual srs_error_t encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+    virtual srs_error_t encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
 };
 
 /**
@@ -1543,10 +1543,10 @@ private:
     SrsAudioCodecId acodec;
 private:
     SrsTsContext* context;
-    SrsFileWriter* writer;
+    ISrsStreamWriter* writer;
     std::string path;
 public:
-    SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
+    SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsTsContextWriter();
 public:
     /**
@@ -1628,7 +1628,7 @@ private:
 class SrsTsTransmuxer
 {
 private:
-    SrsFileWriter* writer;
+    ISrsStreamWriter* writer;
 private:
     SrsFormat* format;
     SrsTsMessageCache* tsmc;
@@ -1642,7 +1642,7 @@ public:
      * initialize the underlayer file stream.
      * @param fw the writer to use for ts encoder, user must free it.
      */
-    virtual srs_error_t initialize(SrsFileWriter* fw);
+    virtual srs_error_t initialize(ISrsStreamWriter* fw);
 public:
     /**
      * write audio/video packet.

@@ -243,14 +243,19 @@ srs_error_t MockSrsCodec::decode(SrsBuffer* /*buf*/)
 
 MockTsHandler::MockTsHandler()
 {
+    msg = NULL;
 }
 
 MockTsHandler::~MockTsHandler()
 {
+    srs_freep(msg);
 }
 
-srs_error_t MockTsHandler::on_ts_message(SrsTsMessage* /*msg*/)
+srs_error_t MockTsHandler::on_ts_message(SrsTsMessage* m)
 {
+    srs_freep(msg);
+    msg = m->detach();
+    
     return srs_success;
 }
 
@@ -3201,7 +3206,7 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     }
 }
 
-VOID TEST(KernelTSTest, CoverBasicUtility)
+VOID TEST(KernelTSTest, CoverContextUtility)
 {
     if (true) {
         EXPECT_STREQ("Reserved", srs_ts_stream2string(SrsTsStreamReserved).c_str());
@@ -3238,6 +3243,9 @@ VOID TEST(KernelTSTest, CoverBasicUtility)
         SrsTsMessage* cp = m.detach();
         EXPECT_TRUE(cp != NULL);
         srs_freep(cp);
+        
+        ctx.reset();
+        EXPECT_FALSE(ctx.ready);
     }
     
     if (true) {
@@ -3295,6 +3303,44 @@ VOID TEST(KernelTSTest, CoverBasicUtility)
     }
     
     if (true) {
+        SrsTsMessage m;
+        
+        EXPECT_TRUE(m.completed(1));
+        EXPECT_TRUE(!m.completed(0));
+        
+        m.PES_packet_length = 8;
+        SrsBuffer b((char*)"\x00\x01\x02\x03", 4);
+        
+        int nb_bytes = 0;
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(4, nb_bytes);
+        
+        b.skip(-4);
+        EXPECT_TRUE(srs_success == m.dump(&b, &nb_bytes));
+        EXPECT_EQ(4, nb_bytes);
+        
+        EXPECT_TRUE(m.completed(0));
+    }
+    
+    if (true) {
+        MockTsHandler* h = new MockTsHandler();
+        srs_freep(h);
+        
+        SrsTsContext ctx;
+        EXPECT_TRUE(!ctx.is_pure_audio());
+        
+        ctx.set(100, SrsTsPidApplyPAT);
+        ctx.set(101, SrsTsPidApplyPMT);
+        ctx.set(102, SrsTsPidApplyVideo);
+        ctx.set(102, SrsTsPidApplyVideo);
+        
+        ctx.on_pmt_parsed();
+        EXPECT_TRUE(!ctx.is_pure_audio());
+        
+        EXPECT_EQ(100, ctx.get(100)->pid);
+    }
+    
+    if (true) {
         MockTsHandler* h = new MockTsHandler();
         srs_freep(h);
         
@@ -3309,6 +3355,48 @@ VOID TEST(KernelTSTest, CoverBasicUtility)
         EXPECT_TRUE(ctx.is_pure_audio());
         
         EXPECT_EQ(100, ctx.get(100)->pid);
+        EXPECT_TRUE(NULL == ctx.get(200));
+    }
+    
+    if (true) {
+        SrsTsContext ctx;
+        EXPECT_EQ(0x47, ctx.sync_byte);
+        
+        ctx.set_sync_byte(0x01);
+        EXPECT_EQ(0x01, ctx.sync_byte);
+    }
+}
+
+VOID TEST(KernelTSTest, CoverContextCodec)
+{
+    SrsTsContext ctx;
+    MockTsHandler h;
+    
+    if (true) {
+        SrsBuffer b;
+        EXPECT_TRUE(srs_success == ctx.decode(&b, &h));
+        EXPECT_TRUE(NULL == h.msg);
+    }
+    
+    if (true) {
+        SrsBuffer b((char*)"\x00", 1);
+        
+        srs_error_t err = ctx.decode(&b, &h);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+    }
+    
+    if (true) {
+        MockSrsFileWriter f;
+        SrsTsMessage m;
+        
+        srs_error_t err = ctx.encode(&f, &m, SrsVideoCodecIdDisabled, SrsAudioCodecIdDisabled);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
+        
+        err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
+        EXPECT_TRUE(srs_success != err);
+        srs_freep(err);
     }
 }
 

@@ -298,7 +298,7 @@ srs_error_t SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
     return err;
 }
 
-srs_error_t SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
+srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
 {
     srs_error_t err = srs_success;
     
@@ -380,7 +380,7 @@ void SrsTsContext::set_sync_byte(int8_t sb)
     sync_byte = sb;
 }
 
-srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
+srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     srs_error_t err = srs_success;
     
@@ -441,7 +441,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, Sr
     return err;
 }
 
-srs_error_t SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
+srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
     srs_error_t err = srs_success;
     
@@ -2543,7 +2543,7 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     return err;
 }
 
-SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
+SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     writer = w;
     context = c;
@@ -2568,7 +2568,10 @@ srs_error_t SrsTsContextWriter::open(string p)
     // reset the context for a new ts start.
     context->reset();
     
-    if ((err = writer->open(path)) != srs_success) {
+    SrsFileWriter* fw = dynamic_cast<SrsFileWriter*>(writer);
+    srs_assert(fw);
+    
+    if ((err = fw->open(path)) != srs_success) {
         return srs_error_wrap(err, "ts: open writer");
     }
     
@@ -2607,7 +2610,10 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 
 void SrsTsContextWriter::close()
 {
-    writer->close();
+    SrsFileWriter* fw = dynamic_cast<SrsFileWriter*>(writer);
+    srs_assert(fw);
+    
+    fw->close();
 }
 
 SrsVideoCodecId SrsTsContextWriter::video_codec()
@@ -3011,7 +3017,7 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
     srs_freep(context);
 }
 
-srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
+srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
 {
     srs_error_t err = srs_success;
     
@@ -3020,10 +3026,6 @@ srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
     }
     
     srs_assert(fw);
-    
-    if (!fw->is_open()) {
-        return srs_error_new(ERROR_KERNEL_FLV_STREAM_CLOSED, "ts: stream is not open");
-    }
     
     writer = fw;
     
