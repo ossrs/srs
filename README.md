@@ -7,7 +7,7 @@
 SRS/2.0, [ZhouGuowen][release2]
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
-SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
+SRS is an industrial-strength live streaming cluster, with the best conceptual integrity and the simplest implementation. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
@@ -15,9 +15,9 @@ Website for SRS/2.0, read SRS 2.0 [Chinese][srs_CN] or [English][srs_EN].
 
 ## Why SRS?
 
-1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
-1. High efficient RTMP deliverying support 7k+ concurrency, vhost based, both origin and edge.
-1. Embeded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
+1. We completely rewrote HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
+1. Highly efficient RTMP streaming, supporting 7k+ clients concurrency, vhost based, both origin and edge.
+1. Embedded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
 1. Variety input: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
 1. Popular internet delivery: RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
@@ -38,7 +38,7 @@ Enjoy it!
 
 ## About
 
-SRS(Simple RTMP Server) over state-threads created in 2013.10.
+SRS(Simple RTMP Server) over state-threads created on 2013.10.
 
 SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
