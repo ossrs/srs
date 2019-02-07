@@ -42,7 +42,8 @@ using namespace std;
 
 MockSrsFileWriter::MockSrsFileWriter()
 {
-    data = new char[MAX_MOCK_DATA_SIZE];
+    size = MAX_MOCK_DATA_SIZE;
+    data = new char[size];
     offset = 0;
     err = srs_success;
     error_offset = 0;
@@ -91,15 +92,16 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
         return srs_error_copy(err);
     }
     
-    int size = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
+    int nwriten = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
     
-    memcpy(data + offset, buf, size);
+    memcpy(data + offset, buf, nwriten);
 
     if (pnwrite) {
-        *pnwrite = size;
+        *pnwrite = nwriten;
     }
     
-    offset += size;
+    offset += nwriten;
+    size = srs_max(size, offset);
     
     if (error_offset > 0 && offset >= error_offset) {
         return srs_error_new(-1, "exceed offset");
@@ -108,14 +110,20 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return srs_success;
 }
 
-srs_error_t MockSrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
+srs_error_t MockSrsFileWriter::lseek(off_t _offset, int whence, off_t* seeked)
 {
-    if (seeked) {
-        *seeked = (off_t)this->offset;
+    if (whence == SEEK_SET) {
+        offset = (int)_offset;
+    }
+    if (whence == SEEK_CUR) {
+        offset += (int)_offset;
+    }
+    if (whence == SEEK_END) {
+        offset = (int)(size + _offset);
     }
     
-    if (whence == SEEK_SET) {
-        this->offset = (int)offset;
+    if (seeked) {
+        *seeked = (off_t)offset;
     }
     
     return srs_success;
@@ -130,7 +138,16 @@ MockSrsFileReader::MockSrsFileReader()
 {
     data = new char[MAX_MOCK_DATA_SIZE];
     size = 0;
-    offset = -1;
+    offset = 0;
+}
+
+MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
+{
+    data = new char[nb_src];
+    memcpy(data, src, nb_src);
+    
+    size = nb_src;
+    offset = 0;
 }
 
 MockSrsFileReader::~MockSrsFileReader()
@@ -181,29 +198,35 @@ srs_error_t MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     int s = srs_min(size - offset, (int)count);
     
     if (s <= 0) {
-        return srs_success;
+        return srs_error_new(ERROR_SYSTEM_FILE_EOF, "EOF left=%d", s);
     }
     
     memcpy(buf, data + offset, s);
+    offset += s;
 
     if (pnread) {
         *pnread = s;
     }
-    
-    offset += s;
     
     return srs_success;
 }
 
 srs_error_t MockSrsFileReader::lseek(off_t _offset, int whence, off_t* seeked)
 {
+    if (whence == SEEK_SET) {
+        offset = (int)_offset;
+    }
+    if (whence == SEEK_CUR) {
+        offset += (int)_offset;
+    }
+    if (whence == SEEK_END) {
+        offset = (int)(size + _offset);
+    }
+    
     if (seeked) {
         *seeked = (off_t)offset;
     }
     
-    if (whence == SEEK_SET) {
-        offset = (int)_offset;
-    }
     return srs_success;
 }
 
@@ -211,9 +234,8 @@ void MockSrsFileReader::mock_append_data(const char* _data, int _size)
 {
     int s = srs_min(MAX_MOCK_DATA_SIZE - offset, _size);
     memcpy(data + offset, _data, s);
-    
-    offset += s;
     size += s;
+    offset += s;
 }
 
 void MockSrsFileReader::mock_reset_offset()
@@ -821,7 +843,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 {
     MockSrsFileReader fs;
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
+    ASSERT_TRUE(srs_success == dec.initialize(&fs));
 }
 
 /**
@@ -929,8 +951,8 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
     int64_t start = 0;
     int size = 0;
     EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
-    EXPECT_TRUE(23 == start);
-    EXPECT_TRUE(46 == size);
+    EXPECT_EQ(23, (int)start);
+    EXPECT_EQ(46, size);
 }
 
 /**
@@ -1008,8 +1030,8 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader2)
     int64_t start = 0;
     int size = 0;
     EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
-    EXPECT_TRUE(23 == start);
-    EXPECT_TRUE(46 == size);
+    EXPECT_EQ(23, (int)start);
+    EXPECT_EQ(46, size);
 }
 
 /**
@@ -3580,7 +3602,7 @@ VOID TEST(KernelTSTest, CoverTransmuxer)
     }
 }
 
-VOID TEST(KernelMP4Test, CoverMP4Encoder)
+VOID TEST(KernelMP4Test, CoverMP4Codec)
 {
     SrsMp4Encoder enc;
     MockSrsFileWriter f;
@@ -3647,6 +3669,46 @@ VOID TEST(KernelMP4Test, CoverMP4Encoder)
     }
     
     EXPECT_TRUE(srs_success == enc.flush());
+    
+    if (true) {
+        MockSrsFileReader fr((const char*)f.data, f.size);
+        SrsMp4Decoder dec;
+        EXPECT_TRUE(srs_success == dec.initialize(&fr));
+        
+        SrsMp4HandlerType ht;
+        uint16_t ft, ct;
+        uint32_t dts, pts, nb_sample;
+        uint8_t* sample;
+        EXPECT_TRUE(srs_success == dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
+        EXPECT_EQ(0, (int)dts);
+    }
+    
+    if (true) {
+        SrsMp4BoxReader br;
+        MockSrsFileReader fr((const char*)f.data, f.size);
+        EXPECT_TRUE(srs_success == br.initialize(&fr));
+        
+        SrsSimpleStream stream;
+        
+        for (;;) {
+            SrsMp4Box* box = NULL;
+            srs_error_t err = br.read(&stream, &box);
+            if (err != srs_success) {
+                srs_freep(err);
+                break;
+            }
+            
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            dc.level = 0;
+            dc.summary = false;
+            box->dumps(ss, dc);
+            
+            EXPECT_TRUE(srs_success == br.skip(box, &stream));
+            
+            srs_freep(box);
+        }
+    }
 }
 
 uint8_t* mock_copy_bytes(char* data, int size)

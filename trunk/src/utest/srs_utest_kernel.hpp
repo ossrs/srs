@@ -50,6 +50,7 @@ class MockSrsFileWriter : public SrsFileWriter
 {
 public:
     char* data;
+    int size;
     int offset;
     srs_error_t err;
     int error_offset;
@@ -79,6 +80,7 @@ public:
     int offset;
 public:
     MockSrsFileReader();
+    MockSrsFileReader(const char* data, int nb_data);
     virtual ~MockSrsFileReader();
 public:
     virtual srs_error_t open(std::string file);
