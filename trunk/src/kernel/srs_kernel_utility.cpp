@@ -1013,7 +1013,7 @@ uint8_t srs_from_hex_char(uint8_t c)
     return -1;
 }
 
-char *srs_data_to_hex(char *des,const u_int8_t *src,int len)
+char* srs_data_to_hex(char* des, const u_int8_t* src, int len)
 {
     if(src == NULL || len == 0 || des == NULL){
         return NULL;

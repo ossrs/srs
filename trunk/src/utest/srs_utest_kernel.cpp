@@ -3229,6 +3229,22 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     if (true) {
         EXPECT_EQ('H', av_toupper('h'));
     }
+    
+    if (true) {
+        int family = 0;
+        string ip = srs_dns_resolve("localhost", family);
+        EXPECT_TRUE(ip == "127.0.0.1" || ip == "::1");
+    }
+    
+    if (true) {
+        EXPECT_TRUE(srs_path_exists("."));
+        EXPECT_TRUE(srs_success == srs_create_dir_recursively("."));
+    }
+    
+    if (true) {
+        char buf[16] = {0};
+        EXPECT_STREQ("FE", srs_data_to_hex(buf, (const uint8_t*)"\xfe", 1));
+    }
 }
 
 VOID TEST(KernelTSTest, CoverContextUtility)
