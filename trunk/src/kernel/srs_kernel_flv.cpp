@@ -908,6 +908,10 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart
             av_sequence_offset_end = reader->tellg() + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
             reader->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
         }
+        
+        if (got_audio && got_video) {
+            break;
+        }
     }
     
     // seek to the sequence header start offset.

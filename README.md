@@ -1,12 +1,13 @@
 # Simple-RTMP-Server
 
 [![CircleCI](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/develop)
+[![codecov](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![Wechat](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 [<img width="52" alt="Skype" src="https://cloud.githubusercontent.com/assets/2777660/24329166/3821a328-1230-11e7-844a-506a5d17dd3d.png">](https://github.com/ossrs/srs/wiki/v1_EN_Contact#skype-or-gitter)
 
 SRS/3.0, [OuXuli][release3]<br/>
-SRS是一个简单的流媒体直播集群。<br/>
-SRS is a simple live streaming cluster.
+SRS是一个简单的流媒体直播集群，简单的快乐。<br/>
+SRS, created on 2013.10, a simple joy, is a simple live streaming cluster.
 
 Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
@@ -14,9 +15,18 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
 > Remark: SRS3 hasn't been released and it's really unstable, please use stable branches such as [SRS2](https://github.com/ossrs/srs/tree/2.0release) or [SRS1](https://github.com/ossrs/srs/tree/1.0release) instead, unless you can fix bugs and debug it.
 
+> Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+
+> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
+
+> Remark: The origin-edge cluster is released, while the origin-origin cluster is coming soon.
+
+> Remark: We are working on utest now.
+
+Enjoy it!
+
 ## Content
 
-* [About](#about)
 * [Usage](#usage)
 * [Wiki](#srs-30-wiki)
 * [Features](#features)
@@ -33,38 +43,6 @@ About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 * [Authors](#authors)
 * [Mirrors](#mirrors)
 * [System Requirements](#system-requirements)
-
-## About
-
-SRS's a simplest, conceptual integrated, industrial-strength live streaming origin cluster.
-
-It's created in 2013.10, by winlin, patched by many developers.
-
-> Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries
-which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
-
-We always choose the best arch to write simplest code.
-It's easy to use for the English and Chinese wikis.
-The embeded HTTP API and tracable log is useful to integrate.
-
-All features are conceptual integrated.
-The live streaming features include RTMP, HTTP-FLV, HLS, HDS and MPEG-DASH, covering major protocols.
-The transform features include DVR, Transcode, Forward and Ingest, which is powerful and convenient.
-The origin-edge and origin-origin clusters provide strong fault-tolerance and load-balance feature.
-User can run SRS on LINUX and OSX, with CPUs such as X86, X64, ARM and MIPS.
-
-> Remark: The origin-edge cluster is released, while the origin-origin cluster is coming soon.
-
-The goal is industrial-strength live streaming origin cluster.
-The utests will cover full use-scenarios to avoid bugs from new code.
-Complex error logs the stack and message from each level.
-The FT and LB cluster make the servies robust.
-
-> Remark: We are working on utest now.
-
-> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
-
-Enjoy it!
 
 <a name="product"></a>
 

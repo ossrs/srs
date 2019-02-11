@@ -299,8 +299,6 @@ srs_error_t MockSrsReloadConfig::do_reload(string buf)
     return err;
 }
 
-#ifdef ENABLE_UTEST_RELOAD
-
 VOID TEST(ConfigReloadTest, ReloadEmpty)
 {
     MockReloadHandler handler;
@@ -919,6 +917,4 @@ VOID TEST(ConfigReloadTest, ReloadVhostIngestUpdated)
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
-
-#endif
 

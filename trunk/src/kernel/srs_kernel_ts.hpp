@@ -38,7 +38,7 @@
 class SrsBuffer;
 class SrsTsMessageCache;
 class SrsTsContextWriter;
-class SrsFileWriter;
+class ISrsStreamWriter;
 class SrsFileReader;
 class SrsFormat;
 class SrsSimpleStream;
@@ -131,6 +131,7 @@ enum SrsTsStream
 {
     // ITU-T | ISO/IEC Reserved
     SrsTsStreamReserved = 0x00,
+    SrsTsStreamForbidden = 0xff,
     // ISO/IEC 11172 Video
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 Video or ISO/IEC 11172-2 constrained parameter video stream
     // ISO/IEC 11172 Audio
@@ -402,7 +403,7 @@ public:
      * @param vc the video codec, write the PAT/PMT table when changed.
      * @param ac the audio codec, write the PAT/PMT table when changed.
      */
-    virtual srs_error_t encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
+    virtual srs_error_t encode(ISrsStreamWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac);
 // drm methods
 public:
     /**
@@ -411,8 +412,8 @@ public:
      */
     virtual void set_sync_byte(int8_t sb);
 private:
-    virtual srs_error_t encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
-    virtual srs_error_t encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
+    virtual srs_error_t encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+    virtual srs_error_t encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
 };
 
 /**
@@ -1542,17 +1543,12 @@ private:
     SrsAudioCodecId acodec;
 private:
     SrsTsContext* context;
-    SrsFileWriter* writer;
+    ISrsStreamWriter* writer;
     std::string path;
 public:
-    SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
+    SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsTsContextWriter();
 public:
-    /**
-     * open the writer, donot write the PSI of ts.
-     * @param p a string indicates the path of ts file to mux to.
-     */
-    virtual srs_error_t open(std::string p);
     /**
      * write an audio frame to ts,
      */
@@ -1561,10 +1557,6 @@ public:
      * write a video frame to ts,
      */
     virtual srs_error_t write_video(SrsTsMessage* video);
-    /**
-     * close the writer.
-     */
-    virtual void close();
 public:
     /**
      * get the video codec of ts muxer.
@@ -1627,7 +1619,7 @@ private:
 class SrsTsTransmuxer
 {
 private:
-    SrsFileWriter* writer;
+    ISrsStreamWriter* writer;
 private:
     SrsFormat* format;
     SrsTsMessageCache* tsmc;
@@ -1641,7 +1633,7 @@ public:
      * initialize the underlayer file stream.
      * @param fw the writer to use for ts encoder, user must free it.
      */
-    virtual srs_error_t initialize(SrsFileWriter* fw);
+    virtual srs_error_t initialize(ISrsStreamWriter* fw);
 public:
     /**
      * write audio/video packet.

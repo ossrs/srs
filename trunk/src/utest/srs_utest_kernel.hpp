@@ -31,7 +31,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_protocol_stream.hpp>
+#include <srs_kernel_ts.hpp>
 
 class MockBufferReader: public ISrsReader
 {
@@ -48,7 +50,10 @@ class MockSrsFileWriter : public SrsFileWriter
 {
 public:
     char* data;
+    int size;
     int offset;
+    srs_error_t err;
+    int error_offset;
 public:
     MockSrsFileWriter();
     virtual ~MockSrsFileWriter();
@@ -57,9 +62,11 @@ public:
     virtual void close();
 public:
     virtual bool is_open();
+    virtual void seek2(int64_t offset);
     virtual int64_t tellg();
 public:
     virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 // for mock
 public:
     void mock_reset_offset();
@@ -73,6 +80,7 @@ public:
     int offset;
 public:
     MockSrsFileReader();
+    MockSrsFileReader(const char* data, int nb_data);
     virtual ~MockSrsFileReader();
 public:
     virtual srs_error_t open(std::string file);
@@ -91,6 +99,28 @@ public:
     // append data to current offset, modify the offset and size.
     void mock_append_data(const char* _data, int _size);
     void mock_reset_offset();
+};
+
+class MockSrsCodec : public ISrsCodec
+{
+public:
+    MockSrsCodec();
+    virtual ~MockSrsCodec();
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+};
+
+class MockTsHandler : public ISrsTsHandler
+{
+public:
+    SrsTsMessage* msg;
+public:
+    MockTsHandler();
+    virtual ~MockTsHandler();
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage* m);
 };
 
 #endif

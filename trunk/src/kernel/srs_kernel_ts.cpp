@@ -298,7 +298,7 @@ srs_error_t SrsTsContext::decode(SrsBuffer* stream, ISrsTsHandler* handler)
     return err;
 }
 
-srs_error_t SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
+srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, SrsVideoCodecId vc, SrsAudioCodecId ac)
 {
     srs_error_t err = srs_success;
     
@@ -380,7 +380,7 @@ void SrsTsContext::set_sync_byte(int8_t sb)
     sync_byte = sb;
 }
 
-srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
+srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
 {
     srs_error_t err = srs_success;
     
@@ -441,7 +441,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, Sr
     return err;
 }
 
-srs_error_t SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
+srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
     srs_error_t err = srs_success;
     
@@ -752,8 +752,9 @@ SrsTsPacket* SrsTsPacket::create_pat(SrsTsContext* context, int16_t pmt_number, 
     return pkt;
 }
 
-SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
-{
+SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
+    int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as
+) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
     pkt->transport_error_indicator = 0;
@@ -800,9 +801,9 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
 }
 
 SrsTsPacket* SrsTsPacket::create_pes_first(SrsTsContext* context,
-                                           int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity,
-                                           int64_t pcr, int64_t dts, int64_t pts, int size
-                                           ) {
+    int16_t pid, SrsTsPESStreamId sid, uint8_t continuity_counter, bool discontinuity,
+    int64_t pcr, int64_t dts, int64_t pts, int size
+) {
     SrsTsPacket* pkt = new SrsTsPacket(context);
     pkt->sync_byte = 0x47;
     pkt->transport_error_indicator = 0;
@@ -2543,7 +2544,7 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
     return err;
 }
 
-SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
+SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc)
 {
     writer = w;
     context = c;
@@ -2554,25 +2555,6 @@ SrsTsContextWriter::SrsTsContextWriter(SrsFileWriter* w, SrsTsContext* c, SrsAud
 
 SrsTsContextWriter::~SrsTsContextWriter()
 {
-    close();
-}
-
-srs_error_t SrsTsContextWriter::open(string p)
-{
-    srs_error_t err = srs_success;
-    
-    path = p;
-    
-    close();
-    
-    // reset the context for a new ts start.
-    context->reset();
-    
-    if ((err = writer->open(path)) != srs_success) {
-        return srs_error_wrap(err, "ts: open writer");
-    }
-    
-    return err;
 }
 
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
@@ -2603,11 +2585,6 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     srs_info("hls encode video ok");
     
     return err;
-}
-
-void SrsTsContextWriter::close()
-{
-    writer->close();
 }
 
 SrsVideoCodecId SrsTsContextWriter::video_codec()
@@ -3011,7 +2988,7 @@ SrsTsTransmuxer::~SrsTsTransmuxer()
     srs_freep(context);
 }
 
-srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
+srs_error_t SrsTsTransmuxer::initialize(ISrsStreamWriter* fw)
 {
     srs_error_t err = srs_success;
     
@@ -3021,19 +2998,11 @@ srs_error_t SrsTsTransmuxer::initialize(SrsFileWriter* fw)
     
     srs_assert(fw);
     
-    if (!fw->is_open()) {
-        return srs_error_new(ERROR_KERNEL_FLV_STREAM_CLOSED, "ts: stream is not open");
-    }
-    
     writer = fw;
     
     srs_freep(tscw);
     // TODO: FIXME: Support config the codec.
     tscw = new SrsTsContextWriter(fw, context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
-    
-    if ((err = tscw->open("")) != srs_success) {
-        return srs_error_wrap(err, "ts: open writer");
-    }
     
     return err;
 }

@@ -104,6 +104,13 @@ CXXFLAGS="${CXXFLAGS} ${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGpro
 if [ $SRS_GPERF = YES ]; then
     CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free";
 fi
+# For coverage.
+if [[ $SRS_GCOV == YES ]]; then
+    SrsGcov="-fprofile-arcs -ftest-coverage"
+fi
+if [[ $SRS_GCOV == YES ]]; then
+    CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
+fi
 # Start to generate the Makefile.
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
@@ -152,6 +159,10 @@ fi
 # if mips, add -lgcc_eh, or stl compile failed.
 if [ $SRS_MIPS_UBUNTU12 = YES ]; then
     SrsLinkOptions="${SrsLinkOptions} -lgcc_eh";
+fi
+# For coverage.
+if [[ $SRS_GCOV == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
 
 #####################################################################################
@@ -499,7 +510,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else

@@ -84,8 +84,6 @@ srs_error_t MockSrsConfig::parse(string buf)
     return err;
 }
 
-#ifdef ENABLE_UTEST_CONFIG
-
 VOID TEST(ConfigTest, CheckMacros)
 {
 #ifndef SRS_CONSTS_LOCALHOST
@@ -1805,6 +1803,4 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_ingest_id)
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest id{} ingest id{}}"));
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{} ingest{}}"));
 }
-
-#endif
 

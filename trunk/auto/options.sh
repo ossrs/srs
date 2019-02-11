@@ -43,16 +43,18 @@ SRS_DVR=YES
 # 
 ################################################################
 # libraries
-SRS_FFMPEG_STUB=RESERVED
+SRS_FFMPEG_STUB=NO
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
-SRS_STATIC=RESERVED
+SRS_STATIC=NO
+# whether enable the gcov
+SRS_GCOV=NO
 # whether enable the log verbose/info/trace level.
 # always enable the warn/error level.
-SRS_LOG_VERBOSE=RESERVED
-SRS_LOG_INFO=RESERVED
-SRS_LOG_TRACE=RESERVED
+SRS_LOG_VERBOSE=NO
+SRS_LOG_INFO=NO
+SRS_LOG_TRACE=NO
 #
 ################################################################
 # experts
@@ -154,7 +156,8 @@ Options:
   --without-mips-ubuntu12   do not cross build srs on ubuntu12 for mips.
                           
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
-  --static                  whether add '-static' to link options.
+  --static                  Whether add '-static' to link options.
+  --gcov                    Whether enable the GCOV compiler options.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             used for make in the configure, for example, to make ffmpeg.
   --log-verbose             whether enable the log verbose level. default: no.
@@ -267,6 +270,7 @@ function parse_user_option() {
         --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
         --log-info)                     SRS_LOG_INFO=YES            ;;
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
+        --gcov)                         SRS_GCOV=YES                ;;
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
@@ -640,6 +644,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_LOG_VERBOSE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
+    if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
     echo "User config: $SRS_AUTO_USER_CONFIGURE"
     echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }

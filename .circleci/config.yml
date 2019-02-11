@@ -11,7 +11,7 @@ jobs:
       - image: ossrs/dev
     steps:
       - checkout
-      - run: cd trunk && ./configure && make && ./objs/srs_utest
+      - run: cd trunk && ./configure --gcov && make && ./objs/srs_utest && bash auto/coverage.sh
 workflows:
   version: 2
   build_and_test:

@@ -77,6 +77,10 @@ srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v)
     
     v = (1 << leadingZeroBits) - 1;
     for (int i = 0; i < (int)leadingZeroBits; i++) {
+        if (stream->empty()) {
+            return srs_error_new(ERROR_AVC_NALU_UEV, "no bytes for leadingZeroBits=%d", leadingZeroBits);
+        }
+        
         int32_t b = stream->read_bit();
         v += b << (leadingZeroBits - 1 - i);
     }
@@ -97,8 +101,8 @@ srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v)
     return err;
 }
 
-static int64_t _srs_system_time_us_cache = 0;
-static int64_t _srs_system_time_startup_time = 0;
+int64_t _srs_system_time_us_cache = 0;
+int64_t _srs_system_time_startup_time = 0;
 
 int64_t srs_get_system_time_ms()
 {
@@ -1009,7 +1013,7 @@ uint8_t srs_from_hex_char(uint8_t c)
     return -1;
 }
 
-char *srs_data_to_hex(char *des,const u_int8_t *src,int len)
+char* srs_data_to_hex(char* des, const u_int8_t* src, int len)
 {
     if(src == NULL || len == 0 || des == NULL){
         return NULL;

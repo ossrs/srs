@@ -34,4 +34,7 @@
 /test/
 .DS_Store
 srs
+*.dSYM/
+*.gcov
+*.ts
 

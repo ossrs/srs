@@ -175,6 +175,14 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     return true;
 }
 
+SrsFlvAudio::SrsFlvAudio()
+{
+}
+
+SrsFlvAudio::~SrsFlvAudio()
+{
+}
+
 bool SrsFlvAudio::sh(char* data, int size)
 {
     // sequence header only for aac
@@ -426,7 +434,6 @@ SrsFrame::SrsFrame()
 
 SrsFrame::~SrsFrame()
 {
-    srs_freep(codec);
 }
 
 srs_error_t SrsFrame::initialize(SrsCodecConfig* c)
@@ -887,10 +894,7 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the level_idc invalid");
     }
     
-    SrsBitBuffer bs;
-    if ((err = bs.initialize(&stream)) != srs_success) {
-        return srs_error_wrap(err, "init bit buffer");
-    }
+    SrsBitBuffer bs(&stream);
     
     int32_t seq_parameter_set_id = -1;
     if ((err = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != srs_success) {
@@ -1353,10 +1357,10 @@ srs_error_t SrsFormat::audio_aac_sequence_header_demux(char* data, int size)
     // donot force to LC, @see: https://github.com/ossrs/srs/issues/81
     // the source will print the sequence header info.
     //if (aac_profile > 3) {
-    // Mark all extended profiles as LC
-    // to make Android as happy as possible.
-    // @see: ngx_rtmp_hls_parse_aac_header
-    //aac_profile = 1;
+        // Mark all extended profiles as LC
+        // to make Android as happy as possible.
+        // @see: ngx_rtmp_hls_parse_aac_header
+        //aac_profile = 1;
     //}
     
     return err;

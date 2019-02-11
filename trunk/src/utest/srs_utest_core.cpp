@@ -22,8 +22,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest_core.hpp>
 
-#ifdef ENABLE_UTEST_CORE
-
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -65,6 +63,4 @@ VOID TEST(CoreMacroseTest, Check)
     EXPECT_TRUE(false);
 #endif
 }
-
-#endif
 

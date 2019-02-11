@@ -275,8 +275,6 @@ MockWallClock* MockWallClock::set_clock(int64_t ms)
     return this;
 }
 
-#ifdef ENABLE_UTEST_PROTOCOL
-
 // verify the sha256
 VOID TEST(ProtocolHandshakeTest, OpensslSha256)
 {
@@ -6003,6 +6001,4 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         EXPECT_EQ(150 * 1000, kbps->get_send_bytes());
     }
 }
-
-#endif
 
