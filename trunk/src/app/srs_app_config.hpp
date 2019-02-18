@@ -1080,7 +1080,7 @@ private:
     /**
     * get the heartbeat directive.
     */
-    virtual SrsConfDirective*   get_heartbeart();
+    virtual SrsConfDirective*   get_heartbeat();
 public:
     /**
     * whether heartbeat enabled.
