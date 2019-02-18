@@ -1602,7 +1602,7 @@ int SrsConfig::check_config()
         }
     }
     if (true) {
-        SrsConfDirective* conf = get_heartbeart();
+        SrsConfDirective* conf = get_heartbeat();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "interval" && n != "url"
@@ -4367,14 +4367,14 @@ bool SrsConfig::get_vhost_http_remux_hstrs(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-SrsConfDirective* SrsConfig::get_heartbeart()
+SrsConfDirective* SrsConfig::get_heartbeat()
 {
     return root->get("heartbeat");
 }
 
 bool SrsConfig::get_heartbeat_enabled()
 {
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     
     if (!conf) {
         return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED;
@@ -4390,7 +4390,7 @@ bool SrsConfig::get_heartbeat_enabled()
 
 int64_t SrsConfig::get_heartbeat_interval()
 {
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     
     if (!conf) {
         return (int64_t)(SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL * 1000);
@@ -4405,7 +4405,7 @@ int64_t SrsConfig::get_heartbeat_interval()
 
 string SrsConfig::get_heartbeat_url()
 {
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     
     if (!conf) {
         return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL;
@@ -4421,7 +4421,7 @@ string SrsConfig::get_heartbeat_url()
 
 string SrsConfig::get_heartbeat_device_id()
 {
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     
     if (!conf) {
         return "";
@@ -4437,7 +4437,7 @@ string SrsConfig::get_heartbeat_device_id()
 
 bool SrsConfig::get_heartbeat_summaries()
 {
-    SrsConfDirective* conf = get_heartbeart();
+    SrsConfDirective* conf = get_heartbeat();
     
     if (!conf) {
         return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES;
