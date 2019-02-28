@@ -54,17 +54,17 @@ class SrsSharedPtrMessage;
 class IMergeReadHandler;
 
 class SrsProtocol;
-class ISrsProtocolReaderWriter;
-class SrsCommonMessage;
+//class ISrsProtocolReaderWriter;
+//class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsPublishPacket;
 class SrsOnMetaDataPacket;
 class SrsPlayPacket;
-class SrsCommonMessage;
-class SrsPacket;
-class SrsAmf0Object;
-class IMergeReadHandler;
+//class SrsCommonMessage;
+//class SrsPacket;
+//class SrsAmf0Object;
+//class IMergeReadHandler;
 class SrsCallPacket;
 
 /****************************************************************************
