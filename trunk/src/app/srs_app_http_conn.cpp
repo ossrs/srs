@@ -861,6 +861,10 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     }
     
     req->tcUrl = "rtmp://" + vhost + req->app;
+    std::string query = _uri->get_query();
+    if (!query.empty()) {
+        req->tcUrl = req->tcUrl + "?" + query;
+    }
     req->pageUrl = get_request_header("Referer");
     req->objectEncoding = 0;
     
