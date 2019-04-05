@@ -482,6 +482,8 @@ if [ $SRS_HTTP_CORE = YES ]; then
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
                 patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
+                # Patch build error for https://github.com/ossrs/srs/pull/1312#issuecomment-480243404
+                patch -p0 < ../../3rdparty/patches/7.http.parser.patch &&
                 make package &&
                 cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.hp.tmp
