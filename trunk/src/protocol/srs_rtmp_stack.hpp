@@ -41,21 +41,15 @@
 #include <srs_core_performance.hpp>
 #include <srs_kernel_flv.hpp>
 
-class ISrsProtocolReadWriter;
 class SrsFastStream;
-class SrsPacket;
 class SrsBuffer;
-class SrsAmf0Object;
 class SrsAmf0Any;
 class SrsMessageHeader;
-class SrsCommonMessage;
 class SrsChunkStream;
 class SrsSharedPtrMessage;
-class IMergeReadHandler;
 
 class SrsProtocol;
 class ISrsProtocolReadWriter;
-class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsPublishPacket;

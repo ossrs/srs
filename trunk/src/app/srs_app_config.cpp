@@ -4083,8 +4083,6 @@ string SrsConfig::get_work_dir() {
     }
     
     return conf->arg0();
-    
-    return conf->arg0();
 }
 
 bool SrsConfig::get_asprocess()
