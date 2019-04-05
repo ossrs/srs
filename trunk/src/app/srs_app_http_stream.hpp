@@ -229,8 +229,8 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-    virtual srs_error_t http_hooks_on_play();
-    virtual void http_hooks_on_stop();
+    virtual srs_error_t http_hooks_on_play(ISrsHttpMessage* r);
+    virtual void http_hooks_on_stop(ISrsHttpMessage* r);
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
