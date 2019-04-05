@@ -213,6 +213,7 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 2.0.262
 * v2.0, 2018-12-01, Merge [#1274][bug #1274], Upgrade to FFMPEG 4.1 and X264 157. 2.0.261
 * v2.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 2.0.260
 * v2.0, 2018-11-11, Merge [#1263][bug #1263], Fix string trim bug. 2.0.259
@@ -1446,6 +1447,7 @@ Winlin
 [bug #1263]: https://github.com/ossrs/srs/issues/1263
 [bug #1261]: https://github.com/ossrs/srs/issues/1261
 [bug #1274]: https://github.com/ossrs/srs/pull/1274
+[bug #1339]: https://github.com/ossrs/srs/pull/1339
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
