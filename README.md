@@ -294,7 +294,7 @@ Remark:
 
 ## Releases
 
-* 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release5, 2.0.263, 86994 lines.
+* 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release6, 2.0.263, 86994 lines.
 * 2018-10-28, [Release v2.0-r5][r2.0r5], 2.0 release5, 2.0.258, 86916 lines.
 * 2018-08-12, [Release v2.0-r4][r2.0r4], 2.0 release4, 2.0.255, 86915 lines.
 * 2018-07-18, [Release v2.0-r3][r2.0r3], 2.0 release3, 2.0.248, 86775 lines.
@@ -336,7 +336,7 @@ Remark:
 
 ## History
 
-* <strong>v2.0, 2019-04-05, [2.0 release5(2.0.263)][r2.0r6] released. 86994 lines.</strong>
+* <strong>v2.0, 2019-04-05, [2.0 release6(2.0.263)][r2.0r6] released. 86994 lines.</strong>
 * v2.0, 2019-04-05, Merge [#1312][bug #1312], Fix GCC7 build error, this statement may fall through. 2.0.263
 * v2.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 2.0.262
 * v2.0, 2018-12-01, Merge [#1274][bug #1274], Upgrade to FFMPEG 4.1 and X264 157. 2.0.261
