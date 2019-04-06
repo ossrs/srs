@@ -2095,13 +2095,13 @@ VOID TEST(KernelUtility, AdtsUtils)
     }
     
     if (true) {
-        char data[] = {0xFF, 0x00};
+        uint8_t data[] = {0xFF, 0x00};
         SrsBuffer buf((char*)data, sizeof(data));
         EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
     }
     
     if (true) {
-        char data[] = {0xFF, 0xF0};
+        uint8_t data[] = {0xFF, 0xF0};
         SrsBuffer buf((char*)data, sizeof(data));
         EXPECT_TRUE(srs_aac_startswith_adts(&buf));
     }
