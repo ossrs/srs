@@ -101,8 +101,7 @@ srs_error_t SrsSTCoroutine::start()
     srs_error_t err = srs_success;
     
     if (started || disposed) {
-        err = srs_error_new(ERROR_THREAD_DISPOSED,
-            "failed for disposed=%d, started=%d", disposed, started);
+        err = srs_error_new(ERROR_THREAD_DISPOSED, "failed for disposed=%d, started=%d", disposed, started);
         
         if (trd_err == srs_success) {
             trd_err = srs_error_copy(err);
@@ -139,9 +138,11 @@ void SrsSTCoroutine::stop()
     srs_assert(!r0);
     
     // Always override the error by the error from worker.
-    if ((srs_error_t)res != srs_success) {
+    srs_error_t err_res = (srs_error_t)res;
+    if (err_res != srs_success && trd_err != err_res) {
         srs_freep(trd_err);
-        trd_err = (srs_error_t)res;
+        // It's ok to directly use it, because it's returned by st_thread_join.
+        trd_err = err_res;
         return;
     }
     
@@ -198,7 +199,17 @@ srs_error_t SrsSTCoroutine::cycle()
 void* SrsSTCoroutine::pfn(void* arg)
 {
     SrsSTCoroutine* p = (SrsSTCoroutine*)arg;
-    void* res = (void*)p->cycle();
-    return res;
+
+    srs_error_t err = p->cycle();
+
+    // Set the err for function pull to fetch it.
+    // @see https://github.com/ossrs/srs/pull/1304#issuecomment-480484151
+    if (err != srs_success) {
+        srs_freep(p->trd_err);
+        // It's ok to directly use it, because it's returned by st_thread_join.
+        p->trd_err = err;
+    }
+
+    return (void*)err;
 }
 
