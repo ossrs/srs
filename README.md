@@ -162,6 +162,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 3.0.46
 * v3.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 3.0.44
 * v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://ossrs.net:1985/console/ng_index.html) and [English](http://ossrs.net:1985/console/en_index.html).
 * v3.0, 2018-08-25, Fix [#1093][bug #1093], Support HLS encryption. 3.0.42
@@ -213,6 +214,9 @@ Please select according to languages:
 
 ### V2 changes
 
+* v2.0, 2019-04-06, For [#1304][bug #1304], Default HSTRS to on. 2.0.264
+* <strong>v2.0, 2019-04-05, [2.0 release6(2.0.263)][r2.0r6] released. 86994 lines.</strong>
+* v2.0, 2019-04-05, Merge [#1312][bug #1312], Fix GCC7 build error, this statement may fall through. 2.0.263
 * v2.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 2.0.262
 * v2.0, 2018-12-01, Merge [#1274][bug #1274], Upgrade to FFMPEG 4.1 and X264 157. 2.0.261
 * v2.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 2.0.260
@@ -1448,6 +1452,8 @@ Winlin
 [bug #1261]: https://github.com/ossrs/srs/issues/1261
 [bug #1274]: https://github.com/ossrs/srs/pull/1274
 [bug #1339]: https://github.com/ossrs/srs/pull/1339
+[bug #1312]: https://github.com/ossrs/srs/pull/1312
+[bug #1304]: https://github.com/ossrs/srs/pull/1304
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
@@ -1470,6 +1476,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5
 [r2.0r4]: https://github.com/ossrs/srs/releases/tag/v2.0-r4
 [r2.0r3]: https://github.com/ossrs/srs/releases/tag/v2.0-r3
