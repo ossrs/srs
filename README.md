@@ -336,6 +336,7 @@ Remark:
 
 ## History
 
+* v2.0, 2019-04-06, For [#1304][bug #1304], Default HSTRS to on. 2.0.264
 * <strong>v2.0, 2019-04-05, [2.0 release6(2.0.263)][r2.0r6] released. 86994 lines.</strong>
 * v2.0, 2019-04-05, Merge [#1312][bug #1312], Fix GCC7 build error, this statement may fall through. 2.0.263
 * v2.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 2.0.262
@@ -1348,6 +1349,7 @@ Winlin
 [bug #1274]: https://github.com/ossrs/srs/pull/1274
 [bug #1339]: https://github.com/ossrs/srs/pull/1339
 [bug #1312]: https://github.com/ossrs/srs/pull/1312
+[bug #1304]: https://github.com/ossrs/srs/pull/1304
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

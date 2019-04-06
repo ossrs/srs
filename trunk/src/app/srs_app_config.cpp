@@ -4351,20 +4351,20 @@ bool SrsConfig::get_vhost_http_remux_hstrs(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return false;
+        return true;
     }
     
     conf = conf->get("http_remux");
     if (!conf) {
-        return false;
+        return true;
     }
     
     conf = conf->get("hstrs");
     if (!conf || conf->arg0().empty()) {
-        return false;
+        return true;
     }
     
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_heartbeart()
