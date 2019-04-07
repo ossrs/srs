@@ -285,4 +285,25 @@ VOID TEST(AppCoroutineTest, Cycle)
     }
 }
 
+void* mock_st_thread_create(void *(*/*start*/)(void *arg), void */*arg*/, int /*joinable*/, int /*stack_size*/) {
+    return NULL;
+}
+
+VOID TEST(AppCoroutineTest, StartThread)
+{
+    MockCoroutineHandler ch;
+    SrsSTCoroutine sc("test", &ch);
+    ch.trd = &sc;
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)mock_st_thread_create;
+    
+    srs_error_t err = sc.start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_TRUE(srs_success != err);
+    EXPECT_TRUE(ERROR_ST_CREATE_CYCLE_THREAD == srs_error_code(err));
+    srs_freep(err);
+}
+
 #endif
