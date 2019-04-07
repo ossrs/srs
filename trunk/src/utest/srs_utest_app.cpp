@@ -87,10 +87,9 @@ public:
     SrsSTCoroutine* trd;
     srs_error_t err;
     srs_cond_t running;
+    int cid;
 public:
-    MockCoroutineHandler() {
-        trd = NULL;
-        err = srs_success;
+    MockCoroutineHandler() : trd(NULL), err(srs_success), cid(0) {
         running = srs_cond_new();
     }
     virtual ~MockCoroutineHandler() {
@@ -101,12 +100,15 @@ public:
         srs_error_t r0 = srs_success;
 
         srs_cond_signal(running);
+        cid = _srs_context->get_id();
 
-        while ((r0 = trd->pull()) == srs_success) {
-            if (err != srs_success) {
-                return err;
-            }
+        while ((r0 = trd->pull()) == srs_success && err == srs_success) {
             srs_usleep(10 * 1000);
+        }
+
+        if (err != srs_success) {
+            srs_freep(r0);
+            return err;
         }
 
         return r0;
@@ -162,6 +164,90 @@ VOID TEST(AppCoroutineTest, StartStop)
         err = sc.start();
         EXPECT_TRUE(srs_success != err);
         EXPECT_TRUE(ERROR_THREAD_DISPOSED == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+        EXPECT_EQ(0, sc.cid());
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        // Error when start multiple times.
+        srs_error_t err = sc.start();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_STARTED == srs_error_code(err));
+        srs_freep(err);
+
+        err = sc.pull();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_STARTED == srs_error_code(err));
+        srs_freep(err);
+    }
+}
+
+VOID TEST(AppCoroutineTest, Cycle)
+{
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        // Set cycle to error.
+        ch.err = srs_error_new(-1, "cycle");
+
+        srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
+
+        // The cycle error should be pulled.
+        srs_error_t err = sc.pull();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(-1 == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch, 250);
+        ch.trd = &sc;
+        EXPECT_EQ(250, sc.cid());
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        // After running, the cid in cycle should equal to the thread.
+        srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
+        EXPECT_EQ(250, ch.cid);
+    }
+
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
+
+        // Interrupt thread, set err to interrupted.
+        sc.interrupt();
+
+        // Set cycle to error.
+        ch.err = srs_error_new(-1, "cycle");
+
+        // Override the error by cycle error.
+        sc.stop();
+
+        // Should be cycle error.
+        srs_error_t err = sc.pull();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(-1 == srs_error_code(err));
         srs_freep(err);
     }
 }

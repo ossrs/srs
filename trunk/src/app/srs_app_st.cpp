@@ -101,8 +101,12 @@ srs_error_t SrsSTCoroutine::start()
     srs_error_t err = srs_success;
     
     if (started || disposed) {
-        err = srs_error_new(ERROR_THREAD_DISPOSED, "failed for disposed=%d, started=%d", disposed, started);
-        
+        if (disposed) {
+            err = srs_error_new(ERROR_THREAD_DISPOSED, "disposed");
+        } else {
+            err = srs_error_new(ERROR_THREAD_STARTED, "started");
+        }
+
         if (trd_err == srs_success) {
             trd_err = srs_error_copy(err);
         }
