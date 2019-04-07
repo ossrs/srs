@@ -108,7 +108,7 @@ public:
         cid = _srs_context->get_id();
 
         while (!quit && (r0 = trd->pull()) == srs_success && err == srs_success) {
-            srs_usleep(10 * 1000);
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
         }
 
         srs_cond_signal(exited);
@@ -297,7 +297,7 @@ VOID TEST(AppCoroutineTest, StartThread)
 
     _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
     _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)mock_st_thread_create;
-    
+
     srs_error_t err = sc.start();
     _pfn_st_thread_create = ov;
 

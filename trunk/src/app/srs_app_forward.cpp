@@ -174,7 +174,7 @@ srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 }
 
 // when error, forwarder sleep for a while and retry.
-#define SRS_FORWARDER_CIMS (3000)
+#define SRS_FORWARDER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
 
 srs_error_t SrsForwarder::cycle()
 {
@@ -190,7 +190,7 @@ srs_error_t SrsForwarder::cycle()
             return srs_error_wrap(err, "forwarder");
         }
     
-        srs_usleep(SRS_FORWARDER_CIMS * 1000);
+        srs_usleep(SRS_FORWARDER_CIMS);
     }
     
     return err;
@@ -213,7 +213,7 @@ srs_error_t SrsForwarder::do_cycle()
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_FORWARDER_CIMS;
+    int64_t cto = SRS_FORWARDER_CIMS / SRS_UTIME_MILLISECONDS;
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     

@@ -48,10 +48,10 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when edge timeout, retry next.
-#define SRS_EDGE_INGESTER_TMMS (5*1000)
+#define SRS_EDGE_INGESTER_TMMS (5 * SRS_UTIME_MILLISECONDS)
 
 // when edge error, wait for quit
-#define SRS_EDGE_FORWARDER_TMMS (150)
+#define SRS_EDGE_FORWARDER_TMMS (150 * SRS_UTIME_MILLISECONDS)
 
 SrsEdgeUpstream::SrsEdgeUpstream()
 {
@@ -114,7 +114,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_INGESTER_TMMS;
+    int64_t cto = SRS_EDGE_INGESTER_TMMS / SRS_UTIME_MILLISECONDS;
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
@@ -218,7 +218,7 @@ string SrsEdgeIngester::get_curr_origin()
 }
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_INGESTER_CIMS (3*1000)
+#define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_MILLISECONDS)
 
 srs_error_t SrsEdgeIngester::cycle()
 {
@@ -234,7 +234,7 @@ srs_error_t SrsEdgeIngester::cycle()
             return srs_error_wrap(err, "edge ingester");
         }
         
-        srs_usleep(SRS_EDGE_INGESTER_CIMS * 1000);
+        srs_usleep(SRS_EDGE_INGESTER_CIMS);
     }
     
     return err;
@@ -294,7 +294,7 @@ srs_error_t SrsEdgeIngester::ingest()
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // set to larger timeout to read av data from origin.
-    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS);
+    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS / SRS_UTIME_MILLISECONDS);
     
     while (true) {
         srs_error_t err = srs_success;
@@ -474,7 +474,7 @@ srs_error_t SrsEdgeForwarder::start()
     
     // open socket.
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_FORWARDER_TMMS;
+    int64_t cto = SRS_EDGE_FORWARDER_TMMS / SRS_UTIME_MILLISECONDS;
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
@@ -505,7 +505,7 @@ void SrsEdgeForwarder::stop()
 }
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_FORWARDER_CIMS (3*1000)
+#define SRS_EDGE_FORWARDER_CIMS (3 * SRS_UTIME_MILLISECONDS)
 
 srs_error_t SrsEdgeForwarder::cycle()
 {
@@ -520,7 +520,7 @@ srs_error_t SrsEdgeForwarder::cycle()
             return srs_error_wrap(err, "thread pull");
         }
     
-        srs_usleep(SRS_EDGE_FORWARDER_CIMS * 1000);
+        srs_usleep(SRS_EDGE_FORWARDER_CIMS);
     }
     
     return err;
@@ -545,7 +545,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
         
         if (send_error_code != ERROR_SUCCESS) {
-            srs_usleep(SRS_EDGE_FORWARDER_TMMS * 1000);
+            srs_usleep(SRS_EDGE_FORWARDER_TMMS);
             continue;
         }
         

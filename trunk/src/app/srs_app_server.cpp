@@ -60,7 +60,7 @@ using namespace std;
 // the meminfo canbe 6*x, for instance, 6*1=6s,
 // for performance refine, @see: https://github.com/ossrs/srs/issues/194
 // @remark, recomment to 1000ms.
-#define SRS_SYS_CYCLE_INTERVAL 1000
+#define SRS_SYS_CYCLE_INTERVAL (1000 * SRS_UTIME_MILLISECONDS)
 
 // update time interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
@@ -910,13 +910,13 @@ srs_error_t SrsServer::do_cycle()
         }
         
         // the interval in config.
-        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
+        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() * SRS_UTIME_MILLISECONDS / SRS_SYS_CYCLE_INTERVAL);
         
         // dynamic fetch the max.
         int dynamic_max = srs_max(max, heartbeat_max_resolution);
         
         for (int i = 0; i < dynamic_max; i++) {
-            srs_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+            srs_usleep(SRS_SYS_CYCLE_INTERVAL);
             
             // asprocess check.
             if (asprocess && ::getppid() != ppid) {

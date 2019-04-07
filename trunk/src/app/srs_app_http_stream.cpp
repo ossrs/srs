@@ -23,7 +23,7 @@
 
 #include <srs_app_http_stream.hpp>
 
-#define SRS_STREAM_CACHE_CYCLE_SECONDS 30
+#define SRS_STREAM_CACHE_CYCLE (30 * SRS_UTIME_SECONDS)
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -119,7 +119,7 @@ srs_error_t SrsBufferCache::cycle()
     
     // TODO: FIXME: support reload.
     if (fast_cache <= 0) {
-        srs_usleep(SRS_STREAM_CACHE_CYCLE_SECONDS * 1000 * 1000);
+        srs_usleep(SRS_STREAM_CACHE_CYCLE);
         return err;
     }
     
@@ -157,7 +157,7 @@ srs_error_t SrsBufferCache::cycle()
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
             // directly use sleep, donot use consumer wait.
-            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * SRS_UTIME_MILLISECONDS);
             
             // ignore when nothing got.
             continue;
@@ -622,7 +622,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         
         if (count <= 0) {
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
-            srs_usleep(mw_sleep * 1000);
+            srs_usleep(mw_sleep * SRS_UTIME_MILLISECONDS);
             // ignore when nothing got.
             continue;
         }

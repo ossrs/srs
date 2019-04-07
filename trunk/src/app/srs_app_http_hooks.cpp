@@ -46,7 +46,7 @@ using namespace std;
 #define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
 // the timeout for hls notify, in ms.
-#define SRS_HLS_NOTIFY_TMMS (10 * 1000)
+#define SRS_HLS_NOTIFY_TMMS (10 * SRS_UTIME_MILLISECONDS)
 
 SrsHttpHooks::SrsHttpHooks()
 {

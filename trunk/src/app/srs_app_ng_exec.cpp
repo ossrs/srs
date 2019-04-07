@@ -76,7 +76,7 @@ void SrsNgExec::on_unpublish()
 }
 
 // when error, ng-exec sleep for a while and retry.
-#define SRS_RTMP_EXEC_CIMS (3000)
+#define SRS_RTMP_EXEC_CIMS (3000 * SRS_UTIME_MILLISECONDS)
 srs_error_t SrsNgExec::cycle()
 {
     srs_error_t err = srs_success;
@@ -92,7 +92,7 @@ srs_error_t SrsNgExec::cycle()
             break;
         }
     
-        srs_usleep(SRS_RTMP_EXEC_CIMS * 1000);
+        srs_usleep(SRS_RTMP_EXEC_CIMS);
     }
     
     std::vector<SrsProcess*>::iterator it;

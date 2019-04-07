@@ -216,7 +216,7 @@ int SrsIngestHlsInput::connect()
     int64_t now = srs_update_system_time_ms();
     if (now < next_connect_time) {
         srs_trace("input hls wait for %dms", next_connect_time - now);
-        srs_usleep((next_connect_time - now) * 1000);
+        srs_usleep((next_connect_time - now) * SRS_UTIME_MILLISECONDS);
     }
     
     // set all ts to dirty.
@@ -559,7 +559,7 @@ int SrsIngestHlsInput::fetch_all_ts(bool fresh_m3u8)
         
         // only wait for a duration of last piece.
         if (i == (int)pieces.size() - 1) {
-            next_connect_time = srs_update_system_time_ms() + (int)tp->duration * 1000;
+            next_connect_time = srs_update_system_time_ms() + (int)tp->duration * SRS_UTIME_MILLISECONDS;
         }
     }
     

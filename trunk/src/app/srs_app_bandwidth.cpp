@@ -37,17 +37,17 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_st.hpp>
 
-#define _SRS_BANDWIDTH_LIMIT_INTERVAL_MS 100
+#define _SRS_BANDWIDTH_LIMIT_INTERVAL 100 * SRS_UTIME_MILLISECONDS
 
 // default sample duration, in ms
-#define _SRS_BANDWIDTH_SAMPLE_DURATION_MS 3000
+#define _SRS_BANDWIDTH_SAMPLE_DURATION 3000 * SRS_UTIME_MILLISECONDS
 
 // wait for a while for flash to got all packets.
-#define _SRS_BANDWIDTH_FINAL_WAIT_MS 600
+#define _SRS_BANDWIDTH_FINAL_WAIT 600 * SRS_UTIME_MILLISECONDS
 
 SrsBandwidthSample::SrsBandwidthSample()
 {
-    duration_ms = _SRS_BANDWIDTH_SAMPLE_DURATION_MS;
+    duration_ms = _SRS_BANDWIDTH_SAMPLE_DURATION;
     kbps = interval_ms = actual_duration_ms = bytes = 0;
 }
 
@@ -223,7 +223,7 @@ srs_error_t SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
         return srs_error_wrap(err, "final");
     }
     
-    srs_usleep(_SRS_BANDWIDTH_FINAL_WAIT_MS * 1000);
+    srs_usleep(_SRS_BANDWIDTH_FINAL_WAIT);
     
     return err;
 }
@@ -457,7 +457,7 @@ void SrsKbpsLimit::recv_limit()
     while (_kbps->get_recv_kbps() > _limit_kbps) {
         _kbps->sample();
         
-        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL);
     }
 }
 
@@ -468,7 +468,7 @@ void SrsKbpsLimit::send_limit()
     while (_kbps->get_send_kbps() > _limit_kbps) {
         _kbps->sample();
         
-        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+        srs_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL);
     }
 }
 

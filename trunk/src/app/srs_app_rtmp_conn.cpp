@@ -64,15 +64,15 @@ using namespace std;
 
 // the timeout in ms to wait encoder to republish
 // if timeout, close the connection.
-#define SRS_REPUBLISH_SEND_TMMS (3 * 60 * 1000)
+#define SRS_REPUBLISH_SEND_TMMS (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
-#define SRS_REPUBLISH_RECV_TMMS (3 * 60 * 1000)
+#define SRS_REPUBLISH_RECV_TMMS (3 * SRS_UTIME_MINUTES)
 
 // the timeout in ms to wait client data, when client paused
 // if timeout, close the connection.
-#define SRS_PAUSED_SEND_TMMS (3 * 60 * 1000)
+#define SRS_PAUSED_SEND_TMMS (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
-#define SRS_PAUSED_RECV_TMMS (3 * 60 * 1000)
+#define SRS_PAUSED_RECV_TMMS (3 * SRS_UTIME_MINUTES)
 
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TMMS (3000)
