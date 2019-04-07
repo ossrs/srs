@@ -133,6 +133,8 @@ private:
     bool started;
     bool interrupted;
     bool disposed;
+    // Cycle done, no need to interrupt it.
+    bool cycle_done;
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.

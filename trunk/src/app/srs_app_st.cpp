@@ -86,7 +86,7 @@ SrsSTCoroutine::SrsSTCoroutine(const string& n, ISrsCoroutineHandler* h, int cid
     context = cid;
     trd = NULL;
     trd_err = srs_success;
-    started = interrupted = disposed = false;
+    started = interrupted = disposed = cycle_done = false;
 }
 
 SrsSTCoroutine::~SrsSTCoroutine()
@@ -153,8 +153,8 @@ void SrsSTCoroutine::stop()
         return;
     }
     
-    // If there's no error occur from worker, try to set to interrupted error.
-    if (trd_err == srs_success) {
+    // If there's no error occur from worker, try to set to terminated error.
+    if (trd_err == srs_success && !cycle_done) {
         trd_err = srs_error_new(ERROR_THREAD_TERMINATED, "terminated");
     }
     
@@ -163,7 +163,7 @@ void SrsSTCoroutine::stop()
 
 void SrsSTCoroutine::interrupt()
 {
-    if (!started || interrupted) {
+    if (!started || interrupted || cycle_done) {
         return;
     }
     interrupted = true;
@@ -199,6 +199,9 @@ srs_error_t SrsSTCoroutine::cycle()
     if (err != srs_success) {
         return srs_error_wrap(err, "coroutine cycle");
     }
+
+    // Set cycle done, no need to interrupt it.
+    cycle_done = true;
     
     return err;
 }

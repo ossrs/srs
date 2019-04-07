@@ -87,13 +87,18 @@ public:
     SrsSTCoroutine* trd;
     srs_error_t err;
     srs_cond_t running;
+    srs_cond_t exited;
     int cid;
+    // Quit without error.
+    bool quit;
 public:
-    MockCoroutineHandler() : trd(NULL), err(srs_success), cid(0) {
+    MockCoroutineHandler() : trd(NULL), err(srs_success), cid(0), quit(false) {
         running = srs_cond_new();
+        exited = srs_cond_new();
     }
     virtual ~MockCoroutineHandler() {
         srs_cond_destroy(running);
+        srs_cond_destroy(exited);
     }
 public:
     virtual srs_error_t cycle() {
@@ -102,9 +107,11 @@ public:
         srs_cond_signal(running);
         cid = _srs_context->get_id();
 
-        while ((r0 = trd->pull()) == srs_success && err == srs_success) {
+        while (!quit && (r0 = trd->pull()) == srs_success && err == srs_success) {
             srs_usleep(10 * 1000);
         }
+
+        srs_cond_signal(exited);
 
         if (err != srs_success) {
             srs_freep(r0);
@@ -241,6 +248,9 @@ VOID TEST(AppCoroutineTest, Cycle)
         // Set cycle to error.
         ch.err = srs_error_new(-1, "cycle");
 
+        // When thread terminated, thread will get its error.
+        srs_cond_timedwait(ch.exited, 100 * SRS_UTIME_MILLISECONDS);
+
         // Override the error by cycle error.
         sc.stop();
 
@@ -248,6 +258,29 @@ VOID TEST(AppCoroutineTest, Cycle)
         srs_error_t err = sc.pull();
         EXPECT_TRUE(srs_success != err);
         EXPECT_TRUE(-1 == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        // Quit without error.
+        ch.quit = true;
+
+        // Wait for thread to done.
+        srs_cond_timedwait(ch.exited, 100 * SRS_UTIME_MILLISECONDS);
+
+        // Override the error by cycle error.
+        sc.stop();
+
+        // Should be cycle error.
+        srs_error_t err = sc.pull();
+        EXPECT_TRUE(srs_success == err);
         srs_freep(err);
     }
 }
