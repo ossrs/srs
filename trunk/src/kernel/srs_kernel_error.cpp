@@ -83,9 +83,13 @@ std::string SrsCplxError::description() {
         while (next) {
             ss << "thread #" << next->cid << ": "
             << next->func << "() [" << next->file << ":" << next->line << "]"
-            << "[errno=" << next->rerrno << "]"
-            << endl;
+            << "[errno=" << next->rerrno << "]";
+
             next = next->wrapped;
+
+            if (next) {
+                ss << endl;
+            }
         }
         
         desc = ss.str();

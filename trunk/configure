@@ -315,7 +315,7 @@ fi
 if [ $SRS_UTEST = YES ]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
             "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
-            "srs_utest_reload")
+            "srs_utest_reload" "srs_utest_service" "srs_utest_app")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")

@@ -110,7 +110,7 @@ srs_error_t SrsSTCoroutine::start()
         return err;
     }
     
-    if((trd = (srs_thread_t)st_thread_create(pfn, this, 1, 0)) == NULL){
+    if ((trd = (srs_thread_t)st_thread_create(pfn, this, 1, 0)) == NULL) {
         err = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create failed");
         
         srs_freep(trd_err);
@@ -126,7 +126,7 @@ srs_error_t SrsSTCoroutine::start()
 
 void SrsSTCoroutine::stop()
 {
-    if (!started || disposed) {
+    if (disposed) {
         return;
     }
     disposed = true;
@@ -134,8 +134,11 @@ void SrsSTCoroutine::stop()
     interrupt();
     
     void* res = NULL;
-    int r0 = st_thread_join((st_thread_t)trd, &res);
-    srs_assert(!r0);
+    // When not started, the rd is NULL.
+    if (trd) {
+        int r0 = st_thread_join((st_thread_t)trd, &res);
+        srs_assert(!r0);
+    }
     
     // Always override the error by the error from worker.
     srs_error_t err_res = (srs_error_t)res;

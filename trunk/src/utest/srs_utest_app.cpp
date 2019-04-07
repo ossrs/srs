@@ -1,0 +1,169 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2013-2019 Winlin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+#include <srs_utest_app.hpp>
+
+using namespace std;
+
+#include <srs_kernel_error.hpp>
+
+// Disable coroutine test for OSX.
+#if !defined(SRS_OSX)
+
+#include <srs_app_st.hpp>
+
+VOID TEST(AppCoroutineTest, Dummy)
+{
+    SrsDummyCoroutine dc;
+
+    if (true) {
+        EXPECT_EQ(0, dc.cid());
+
+        srs_error_t err = dc.pull();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+
+        err = dc.start();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        dc.stop();
+
+        EXPECT_EQ(0, dc.cid());
+
+        srs_error_t err = dc.pull();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+
+        err = dc.start();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        dc.interrupt();
+
+        EXPECT_EQ(0, dc.cid());
+
+        srs_error_t err = dc.pull();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+
+        err = dc.start();
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_TRUE(ERROR_THREAD_DUMMY == srs_error_code(err));
+        srs_freep(err);
+    }
+}
+
+class MockCoroutineHandler : public ISrsCoroutineHandler {
+public:
+    SrsSTCoroutine* trd;
+    srs_error_t err;
+    srs_cond_t running;
+public:
+    MockCoroutineHandler() {
+        trd = NULL;
+        err = srs_success;
+        running = srs_cond_new();
+    }
+    virtual ~MockCoroutineHandler() {
+        srs_cond_destroy(running);
+    }
+public:
+    virtual srs_error_t cycle() {
+        srs_error_t r0 = srs_success;
+
+        srs_cond_signal(running);
+
+        while ((r0 = trd->pull()) == srs_success) {
+            if (err != srs_success) {
+                return err;
+            }
+            srs_usleep(10 * 1000);
+        }
+
+        return r0;
+    }
+};
+
+VOID TEST(AppCoroutineTest, StartStop)
+{
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+        EXPECT_EQ(0, sc.cid());
+
+        // Thread stop after created.
+        sc.stop();
+
+        EXPECT_EQ(0, sc.cid());
+
+        srs_error_t err = sc.pull();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_TERMINATED == srs_error_code(err));
+        srs_freep(err);
+
+        // Should never reuse a disposed thread.
+        err = sc.start();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_DISPOSED == srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockCoroutineHandler ch;
+        SrsSTCoroutine sc("test", &ch);
+        ch.trd = &sc;
+        EXPECT_EQ(0, sc.cid());
+
+        EXPECT_TRUE(srs_success == sc.start());
+        EXPECT_TRUE(srs_success == sc.pull());
+
+        srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
+        EXPECT_TRUE(sc.cid() > 0);
+
+        // Thread stop after started.
+        sc.stop();
+
+        srs_error_t err = sc.pull();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_INTERRUPED == srs_error_code(err));
+        srs_freep(err);
+
+        // Should never reuse a disposed thread.
+        err = sc.start();
+        EXPECT_TRUE(srs_success != err);
+        EXPECT_TRUE(ERROR_THREAD_DISPOSED == srs_error_code(err));
+        srs_freep(err);
+    }
+}
+
+#endif
