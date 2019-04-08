@@ -1804,3 +1804,12 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_ingest_id)
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{} ingest{}}"));
 }
 
+VOID TEST(ConfigUnitTest, CheckDefaultValues)
+{
+    MockSrsConfig conf;
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_bw_check_interval_ms(""));
+    }
+}
+

@@ -3959,7 +3959,12 @@ srs_error_t SrsConfig::check_number_connections()
 srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
 {
     srs_error_t err = srs_success;
-    
+
+	// We use a new root to parse buffer, to allow parse multiple times.
+    srs_freep(root);
+    root = new SrsConfDirective();
+
+    // Parse root tree from buffer.
     if ((err = root->parse(buffer)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
