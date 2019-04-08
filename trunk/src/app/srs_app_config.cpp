@@ -5912,9 +5912,9 @@ srs_utime_t SrsConfig::get_dash_fragment(string vhost)
     return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_dash_update_period(string vhost)
+srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 {
-    static int DEFAULT = 30 * 1000;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5926,7 +5926,7 @@ int SrsConfig::get_dash_update_period(string vhost)
         return DEFAULT;
     }
     
-    return (int)(1000 * ::atof(conf->arg0().c_str()));
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_dash_timeshift(string vhost)

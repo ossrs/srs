@@ -1818,9 +1818,11 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(3 * SRS_UTIME_SECONDS, conf.get_dash_fragment(""));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_dash_update_period(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dash{dash_fragment 4;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dash{dash_fragment 4;dash_update_period 40;}}"));
 	    EXPECT_EQ(4 * SRS_UTIME_SECONDS, conf.get_dash_fragment("v"));
+	    EXPECT_EQ(40 * SRS_UTIME_SECONDS, conf.get_dash_update_period("v"));
     }
 }
 

@@ -86,10 +86,10 @@ private:
     SrsRequest* req;
     int64_t last_update_mpd;
 private:
-    // The duration of fragment in ms.
+    // The duration of fragment in srs_utime_t.
     srs_utime_t fragment;
-    // The period to update the mpd in ms.
-    int update_period;
+    // The period to update the mpd in srs_utime_t.
+    srs_utime_t update_period;
     // The timeshift buffer depth.
     int timeshit;
     // The base or home dir for dash to write files.

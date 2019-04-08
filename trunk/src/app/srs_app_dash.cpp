@@ -181,7 +181,7 @@ srs_error_t SrsMpdWriter::initialize(SrsRequest* r)
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
     
-    srs_trace("DASH: Config fragment=%d, period=%d", fragment, update_period);
+    srs_trace("DASH: Config fragment=%" PRId64 ", period=%" PRId64, fragment, update_period);
     return srs_success;
 }
 
@@ -190,7 +190,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // MPD is not expired?
-    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < update_period) {
+    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < update_period / SRS_UTIME_MILLISECONDS) {
         return err;
     }
     last_update_mpd = srs_get_system_time_ms();
@@ -210,7 +210,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     << "<MPD profiles=\"urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple\" " << endl
     << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
     << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
-    << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
+    << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / SRS_UTIME_SECONDS << "S\" " << endl
     << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
     << "    maxSegmentDuration=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" minBufferTime=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" >" << endl
     << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
