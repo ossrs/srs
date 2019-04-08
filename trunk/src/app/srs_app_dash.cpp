@@ -190,7 +190,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // MPD is not expired?
-    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < update_period / SRS_UTIME_MILLISECONDS) {
+    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < int64_t(update_period / SRS_UTIME_MILLISECONDS)) {
         return err;
     }
     last_update_mpd = srs_get_system_time_ms();
@@ -211,7 +211,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
     << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
     << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / SRS_UTIME_SECONDS << "S\" " << endl
-    << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
+    << "    timeShiftBufferDepth=\"PT" << timeshit / SRS_UTIME_SECONDS << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
     << "    maxSegmentDuration=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" minBufferTime=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" >" << endl
     << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
     << "    <Period start=\"PT0S\">" << endl;
@@ -335,7 +335,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         return refresh_init_mp4(shared_audio, format);
     }
     
-    if (acurrent->duration() >= fragment / SRS_UTIME_MILLISECONDS) {
+    if (acurrent->duration() >= int64_t(fragment / SRS_UTIME_MILLISECONDS)) {
         if ((err = acurrent->reap(audio_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
@@ -367,7 +367,7 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         return refresh_init_mp4(shared_video, format);
     }
     
-    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= fragment / SRS_UTIME_MILLISECONDS;
+    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= int64_t(fragment / SRS_UTIME_MILLISECONDS);
     if (reopen) {
         if ((err = vcurrent->reap(video_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");

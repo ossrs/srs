@@ -1155,8 +1155,8 @@ public:
     virtual srs_utime_t get_dash_fragment(std::string vhost);
     // Get the period to update MPD in srs_utime_t.
     virtual srs_utime_t get_dash_update_period(std::string vhost);
-    // Get the depth of timeshift buffer in milliseconds.
-    virtual int get_dash_timeshift(std::string vhost);
+    // Get the depth of timeshift buffer in srs_utime_t.
+    virtual srs_utime_t get_dash_timeshift(std::string vhost);
     // Get the base/home dir/path for dash, into which write files.
     virtual std::string get_dash_path(std::string vhost);
     // Get the path for DASH MPD, to generate the MPD file.

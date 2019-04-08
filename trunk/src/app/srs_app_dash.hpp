@@ -90,8 +90,8 @@ private:
     srs_utime_t fragment;
     // The period to update the mpd in srs_utime_t.
     srs_utime_t update_period;
-    // The timeshift buffer depth.
-    int timeshit;
+    // The timeshift buffer depth in srs_utime_t.
+    srs_utime_t timeshit;
     // The base or home dir for dash to write files.
     std::string home;
     // The MPD path template, from which to build the file path.
