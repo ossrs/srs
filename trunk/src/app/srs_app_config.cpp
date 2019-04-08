@@ -5026,9 +5026,9 @@ string SrsConfig::get_bw_check_key(string vhost)
     return conf->arg0();
 }
 
-int SrsConfig::get_bw_check_interval_ms(string vhost)
+srs_utime_t SrsConfig::get_bw_check_interval(string vhost)
 {
-    static int DEFAULT = 30 * 1000;
+    static int64_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -5045,7 +5045,7 @@ int SrsConfig::get_bw_check_interval_ms(string vhost)
         return DEFAULT;
     }
     
-    return (int)(::atof(conf->arg0().c_str()) * 1000);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_bw_check_limit_kbps(string vhost)

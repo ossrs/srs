@@ -34,6 +34,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_thread.hpp>
+#include <srs_service_st.hpp>
 
 class SrsRequest;
 class SrsFileWriter;
@@ -896,12 +897,12 @@ public:
      */
     virtual std::string get_bw_check_key(std::string vhost);
     /**
-     * the check interval, in ms.
+     * the check interval, in srs_utime_t.
      * if the client request check in very short time(in the interval),
      * SRS will reject client.
      * @remark this is used to prevent the bandwidth check attack.
      */
-    virtual int get_bw_check_interval_ms(std::string vhost);
+    virtual srs_utime_t get_bw_check_interval(std::string vhost);
     /**
      * the max kbps that user can test,
      * if exceed the kbps, server will slowdown the send-recv.
