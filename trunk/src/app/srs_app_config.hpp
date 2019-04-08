@@ -34,7 +34,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_thread.hpp>
-#include <srs_service_st.hpp>
+#include <srs_service_time.hpp>
 
 class SrsRequest;
 class SrsFileWriter;
@@ -1152,7 +1152,7 @@ public:
     // Whether DASH is enabled.
     virtual bool get_dash_enabled(std::string vhost);
     // Get the duration of segment in milliseconds.
-    virtual int get_dash_fragment(std::string vhost);
+    virtual srs_utime_t get_dash_fragment(std::string vhost);
     // Get the period to update MPD in milliseconds.
     virtual int get_dash_update_period(std::string vhost);
     // Get the depth of timeshift buffer in milliseconds.

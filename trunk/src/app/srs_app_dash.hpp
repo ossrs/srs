@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <srs_app_fragment.hpp>
+#include <srs_service_time.hpp>
 
 class SrsRequest;
 class SrsOriginHub;
@@ -86,7 +87,7 @@ private:
     int64_t last_update_mpd;
 private:
     // The duration of fragment in ms.
-    int fragment;
+    srs_utime_t fragment;
     // The period to update the mpd in ms.
     int update_period;
     // The timeshift buffer depth.
@@ -128,7 +129,7 @@ private:
     uint64_t video_dts;
 private:
     // The fragment duration in ms to reap it.
-    int fragment;
+    srs_utime_t fragment;
 private:
     std::string home;
     int video_tack_id;

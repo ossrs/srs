@@ -203,7 +203,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
-    MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
+    MODULE_FILES=("srs_service_log" "srs_service_time" "srs_service_st" "srs_service_http_client"
         "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
         "srs_service_conn")
     DEFINES=""

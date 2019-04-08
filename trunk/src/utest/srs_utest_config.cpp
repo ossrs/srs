@@ -1811,14 +1811,16 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_bw_check_interval(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{}"));
-	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_bw_check_interval("v"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{interval 4;}}"));
+	    EXPECT_EQ(4 * SRS_UTIME_SECONDS, conf.get_bw_check_interval("v"));
+    }
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{}}"));
-	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_bw_check_interval("v"));
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(3 * SRS_UTIME_SECONDS, conf.get_dash_fragment(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{interval 1.1;}}"));
-	    EXPECT_EQ(srs_utime_t(1.1 * SRS_UTIME_SECONDS), conf.get_bw_check_interval("v"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dash{dash_fragment 4;}}"));
+	    EXPECT_EQ(4 * SRS_UTIME_SECONDS, conf.get_dash_fragment("v"));
     }
 }
 

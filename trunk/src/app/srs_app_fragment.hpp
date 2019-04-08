@@ -52,6 +52,7 @@ public:
     // @dts The dts of frame in ms.
     virtual void append(int64_t dts);
     // Get the duration of fragment in ms.
+    // TODO: FIXME: Refine to time unit.
     virtual int64_t duration();
     // Whether the fragment contains any sequence header.
     virtual bool is_sequence_header();

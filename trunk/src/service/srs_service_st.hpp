@@ -29,6 +29,7 @@
 #include <string>
 
 #include <srs_protocol_io.hpp>
+#include <srs_service_time.hpp>
 
 // Wrap for coroutine.
 typedef void* srs_netfd_t;

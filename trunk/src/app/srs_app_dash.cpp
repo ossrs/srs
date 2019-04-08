@@ -212,12 +212,12 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
     << "    type=\"dynamic\" minimumUpdatePeriod=\"PT" << update_period / 1000 << "S\" " << endl
     << "    timeShiftBufferDepth=\"PT" << timeshit / 1000 << "S\" availabilityStartTime=\"1970-01-01T00:00:00Z\" " << endl
-    << "    maxSegmentDuration=\"PT" << fragment / 1000 << "S\" minBufferTime=\"PT" << fragment / 1000 << "S\" >" << endl
+    << "    maxSegmentDuration=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" minBufferTime=\"PT" << fragment / SRS_UTIME_SECONDS << "S\" >" << endl
     << "    <BaseURL>" << req->stream << "/" << "</BaseURL>" << endl
     << "    <Period start=\"PT0S\">" << endl;
     if (format->acodec) {
         ss  << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
+        ss  << "            <SegmentTemplate duration=\"" << fragment / SRS_UTIME_SECONDS << "\" "
         << "initialization=\"$RepresentationID$-init.mp4\" "
         << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
         ss  << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\" />" << endl;
@@ -227,7 +227,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
         int w = format->vcodec->width;
         int h = format->vcodec->height;
         ss  << "        <AdaptationSet mimeType=\"video/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss  << "            <SegmentTemplate duration=\"" << fragment / 1000 << "\" "
+        ss  << "            <SegmentTemplate duration=\"" << fragment / SRS_UTIME_SECONDS << "\" "
         << "initialization=\"$RepresentationID$-init.mp4\" "
         << "media=\"$RepresentationID$-$Number$.m4s\" />" << endl;
         ss  << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" "
@@ -265,8 +265,8 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
     
     home = fragment_home;
     
-    sn = srs_update_system_time_ms() / fragment;
-    basetime = sn * fragment;
+    sn = srs_update_system_time_ms() * SRS_UTIME_MILLISECONDS / fragment;
+    basetime = sn * fragment / SRS_UTIME_MILLISECONDS;
     
     if (video) {
         file_name = "video-" + srs_int2str(sn) + ".m4s";
@@ -335,7 +335,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         return refresh_init_mp4(shared_audio, format);
     }
     
-    if (acurrent->duration() >= fragment) {
+    if (acurrent->duration() >= fragment / SRS_UTIME_MILLISECONDS) {
         if ((err = acurrent->reap(audio_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
@@ -367,7 +367,7 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         return refresh_init_mp4(shared_video, format);
     }
     
-    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= fragment;
+    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= fragment / SRS_UTIME_MILLISECONDS;
     if (reopen) {
         if ((err = vcurrent->reap(video_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
