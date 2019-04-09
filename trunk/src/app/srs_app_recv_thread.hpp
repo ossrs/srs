@@ -132,6 +132,7 @@ private:
     srs_error_t recv_error;
     SrsConsumer* _consumer;
 public:
+	// TODO: FIXME: Refine timeout in time unit.
     SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
 public:

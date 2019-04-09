@@ -4676,24 +4676,26 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_mw_sleep_ms(string vhost)
+srs_utime_t SrsConfig::get_mw_sleep(string vhost)
 {
+	static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("play");
     if (!conf) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("mw_latency");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsConfig::get_realtime_enabled(string vhost)

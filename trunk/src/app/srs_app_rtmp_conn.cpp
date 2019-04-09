@@ -646,7 +646,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
-    SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
+    SrsQueueRecvThread trd(consumer, rtmp, int(SRS_PERF_MW_SLEEP / SRS_UTIME_MILLISECONDS));
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -688,12 +688,12 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     // setup the mw config.
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
-    change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
+    change_mw_sleep(_srs_config->get_mw_sleep(req->vhost));
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
     srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        send_min_interval, mw_sleep, mw_enabled, realtime, tcp_nodelay);
+        send_min_interval, int(mw_sleep / SRS_UTIME_MILLISECONDS), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
         // collect elapse for pithy print.
@@ -725,10 +725,10 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // @see https://github.com/ossrs/srs/issues/257
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, mw_sleep);
+            consumer->wait(0, int(mw_sleep / SRS_UTIME_MILLISECONDS));
         } else {
             // for no-realtime, got some msgs then send.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+            consumer->wait(SRS_PERF_MW_MIN_MSGS, int(mw_sleep / SRS_UTIME_MILLISECONDS));
         }
 #endif
         
@@ -745,12 +745,12 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
             kbps->sample();
             srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
                 (int)pprint->age(), count, kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mw_sleep);
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), int(mw_sleep / SRS_UTIME_MILLISECONDS));
         }
         
         if (count <= 0) {
 #ifndef SRS_PERF_QUEUE_COND_WAIT
-            srs_usleep(mw_sleep * 1000);
+            srs_usleep(mw_sleep);
 #endif
             // ignore when nothing got.
             continue;
@@ -1111,14 +1111,14 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsComm
     return err;
 }
 
-void SrsRtmpConn::change_mw_sleep(int sleep_ms)
+void SrsRtmpConn::change_mw_sleep(srs_utime_t sleep_v)
 {
     if (!mw_enabled) {
         return;
     }
     
-    set_socket_buffer(sleep_ms * SRS_UTIME_MILLISECONDS);
-    mw_sleep = sleep_ms;
+    set_socket_buffer(sleep_v);
+    mw_sleep = sleep_v;
 }
 
 void SrsRtmpConn::set_sock_options()

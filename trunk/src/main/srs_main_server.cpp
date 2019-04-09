@@ -287,7 +287,7 @@ void show_macro_features()
         stringstream ss;
         
         // mw(merged-write)
-        ss << "mw sleep:" << SRS_PERF_MW_SLEEP << "ms";
+        ss << "mw sleep:" << SRS_PERF_MW_SLEEP / SRS_UTIME_MILLISECONDS << "ms";
         
         // mr(merged-read)
         ss << ". mr ";
@@ -343,7 +343,7 @@ void show_macro_features()
     possible_mr_latency = SRS_PERF_MR_SLEEP / SRS_UTIME_MILLISECONDS;
 #endif
     srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
-              SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
+              SRS_PERF_MW_SLEEP / SRS_UTIME_MILLISECONDS, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
     
 #ifdef SRS_AUTO_MEM_WATCH
 #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."

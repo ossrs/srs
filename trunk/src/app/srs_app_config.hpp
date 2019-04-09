@@ -781,11 +781,11 @@ public:
     // TODO: FIXME: add utest for mr config.
     virtual srs_utime_t get_mr_sleep(std::string vhost);
     /**
-     * get the mw sleep time in ms for vhost.
+     * get the mw sleep time in srs_utime_t for vhost.
      * @param vhost, the vhost to get the mw sleep time.
      */
     // TODO: FIXME: add utest for mw config.
-    virtual int get_mw_sleep_ms(std::string vhost);
+    virtual srs_utime_t get_mw_sleep(std::string vhost);
     /**
      * whether min latency mode enabled.
      * @param vhost, the vhost to get the min_latency.

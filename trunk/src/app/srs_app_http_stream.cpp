@@ -589,9 +589,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
     
-    int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost) * SRS_UTIME_MILLISECONDS;
+    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
     if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
-        return srs_error_wrap(err, "set mw_sleep");
+        return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
     
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
@@ -602,7 +602,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     }
     
     srs_trace("FLV %s, encoder=%s, nodelay=%d, mw_sleep=%dms, cache=%d, msgs=%d",
-        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, mw_sleep, enc->has_cache(), msgs.max);
+        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, int(mw_sleep / SRS_UTIME_MILLISECONDS),
+        enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     while (entry->enabled) {
@@ -622,14 +623,14 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         
         if (count <= 0) {
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
-            srs_usleep(mw_sleep * SRS_UTIME_MILLISECONDS);
+            srs_usleep(mw_sleep);
             // ignore when nothing got.
             continue;
         }
         
         if (pprint->can_print()) {
             srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
-                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, mw_sleep);
+                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, int(mw_sleep / SRS_UTIME_MILLISECONDS));
         }
         
         // sendout all messages.

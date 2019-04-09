@@ -92,7 +92,7 @@
  *       2000            150         300
  */
 // the default config of mw.
-#define SRS_PERF_MW_SLEEP 350
+#define SRS_PERF_MW_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 /**
  * how many msgs can be send entirely.
  * for play clients to get msgs then totally send out.

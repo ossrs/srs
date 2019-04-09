@@ -1847,9 +1847,11 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep(""));
+	    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{publish{mr_latency 1000;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{publish{mr_latency 1000;} play{mw_latency 1000;}}"));
 	    EXPECT_EQ(1000 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("v"));
+	    EXPECT_EQ(1000 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep("v"));
     }
 }
 
