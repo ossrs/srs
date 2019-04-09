@@ -25,33 +25,17 @@
 #define SRS_SERVICE_ST_HPP
 
 #include <srs_core.hpp>
+#include <srs_core_time.hpp>
 
 #include <string>
 
 #include <srs_protocol_io.hpp>
-#include <srs_service_time.hpp>
 
 // Wrap for coroutine.
 typedef void* srs_netfd_t;
 typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
-typedef uint64_t srs_utime_t;
-
-// The time unit in ms, for example 100 * SRS_UTIME_MILLISECONDS means 100ms.
-#define SRS_UTIME_MILLISECONDS 1000
-
-// The time unit in ms, for example 120 * SRS_UTIME_SECONDS means 120s.
-#define SRS_UTIME_SECONDS 1000000
-
-// The time unit in minutes, for example 3 * SRS_UTIME_MINUTES means 3m.
-#define SRS_UTIME_MINUTES 60000000LL
-
-// The time unit in hours, for example 2 * SRS_UTIME_HOURS means 2h.
-#define SRS_UTIME_HOURS 3600000000LL
-
-// Never timeout.
-#define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
 
 // initialize st, requires epoll.
 extern srs_error_t srs_st_init();

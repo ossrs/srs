@@ -172,7 +172,7 @@ private:
     // @see https://github.com/ossrs/srs/issues/241
     bool mr;
     int mr_fd;
-    int mr_sleep;
+    srs_utime_t mr_sleep;
     // for realtime
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
@@ -220,7 +220,7 @@ public:
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 private:
-    virtual void set_socket_buffer(int sleep_ms);
+    virtual void set_socket_buffer(srs_utime_t sleep_v);
 };
 
 /**

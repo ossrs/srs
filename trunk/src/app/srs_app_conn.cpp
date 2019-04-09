@@ -114,7 +114,7 @@ srs_error_t SrsConnection::set_tcp_nodelay(bool v)
     return err;
 }
 
-srs_error_t SrsConnection::set_socket_buffer(int buffer_ms)
+srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
 {
     srs_error_t err = srs_success;
     
@@ -143,7 +143,7 @@ srs_error_t SrsConnection::set_socket_buffer(int buffer_ms)
     //      2000*3000/8=750000B(about 732KB).
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 4000;
-    int iv = buffer_ms * kbps / 8;
+    int iv = (buffer_v / SRS_UTIME_MILLISECONDS) * kbps / 8;
     
     // socket send buffer, system will double it.
     iv = iv / 2;
@@ -161,7 +161,7 @@ srs_error_t SrsConnection::set_socket_buffer(int buffer_ms)
         return srs_error_new(ERROR_SOCKET_SNDBUF, "getsockopt fd=%d, r0=%d", fd, r0);
     }
     
-    srs_trace("set fd=%d, SO_SNDBUF=%d=>%d, buffer=%dms", fd, ov, iv, buffer_ms);
+    srs_trace("set fd=%d, SO_SNDBUF=%d=>%d, buffer=%dms", fd, ov, iv, buffer_v / SRS_UTIME_MILLISECONDS);
     
     return err;
 }

@@ -33,6 +33,7 @@
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_service_conn.hpp>
+#include <srs_core_time.hpp>
 
 class SrsWallClock;
 
@@ -103,7 +104,7 @@ public:
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in ms.
-    virtual srs_error_t set_socket_buffer(int buffer_ms);
+    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
 // interface ISrsOneCycleThreadHandler
 public:
     /**

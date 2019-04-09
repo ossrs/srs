@@ -30,7 +30,7 @@
 #include <vector>
 
 #include <srs_app_fragment.hpp>
-#include <srs_service_time.hpp>
+#include <srs_core_time.hpp>
 
 class SrsRequest;
 class SrsOriginHub;

@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_time.hpp>
 
 // pre-declare
 srs_error_t run(SrsServer* svr);
@@ -295,7 +296,7 @@ void show_macro_features()
 #else
         ss << "enabled:off";
 #endif
-        ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP << "ms";
+        ss << ", default:" << SRS_PERF_MR_ENABLED << ", sleep:" << SRS_PERF_MR_SLEEP / SRS_UTIME_MILLISECONDS << "ms";
         
         srs_trace(ss.str().c_str());
     }
@@ -339,7 +340,7 @@ void show_macro_features()
     // others
     int possible_mr_latency = 0;
 #ifdef SRS_PERF_MERGED_READ
-    possible_mr_latency = SRS_PERF_MR_SLEEP;
+    possible_mr_latency = SRS_PERF_MR_SLEEP / SRS_UTIME_MILLISECONDS;
 #endif
     srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
               SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);

@@ -589,7 +589,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
     
-    int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+    int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost) * SRS_UTIME_MILLISECONDS;
     if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep");
     }

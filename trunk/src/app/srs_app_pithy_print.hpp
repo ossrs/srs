@@ -27,7 +27,7 @@
 #include <srs_core.hpp>
 
 #include <srs_app_reload.hpp>
-#include <srs_service_time.hpp>
+#include <srs_core_time.hpp>
 
 /**
  * the stage info to calc the age.

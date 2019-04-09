@@ -34,7 +34,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_thread.hpp>
-#include <srs_service_time.hpp>
+#include <srs_core_time.hpp>
 
 class SrsRequest;
 class SrsFileWriter;
@@ -775,11 +775,11 @@ public:
      */
     virtual bool get_mr_enabled(std::string vhost);
     /**
-     * get the mr sleep time in ms for vhost.
+     * get the mr sleep time in srs_utime_t for vhost.
      * @param vhost, the vhost to get the mr sleep time.
      */
     // TODO: FIXME: add utest for mr config.
-    virtual int get_mr_sleep_ms(std::string vhost);
+    virtual srs_utime_t get_mr_sleep(std::string vhost);
     /**
      * get the mw sleep time in ms for vhost.
      * @param vhost, the vhost to get the mw sleep time.

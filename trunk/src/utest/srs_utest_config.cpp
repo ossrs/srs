@@ -1843,5 +1843,13 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print_ms 20000;"));
 	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_pithy_print());
     }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{publish{mr_latency 1000;}}"));
+	    EXPECT_EQ(1000 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("v"));
+    }
 }
 

@@ -861,7 +861,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
-        int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
+        int mr_sleep = _srs_config->get_mr_sleep(req->vhost) / SRS_UTIME_MILLISECONDS;
         srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
             mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay, receive_thread_cid);
     }
@@ -908,7 +908,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         if (pprint->can_print()) {
             kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
-            int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
+            int mr_sleep = _srs_config->get_mr_sleep(req->vhost) / SRS_UTIME_MILLISECONDS;
             srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
                 (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout);
@@ -1117,7 +1117,7 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
         return;
     }
     
-    set_socket_buffer(sleep_ms);
+    set_socket_buffer(sleep_ms * SRS_UTIME_MILLISECONDS);
     mw_sleep = sleep_ms;
 }
 
