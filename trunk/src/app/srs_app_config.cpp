@@ -6944,9 +6944,9 @@ bool SrsConfig::get_heartbeat_enabled()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int64_t SrsConfig::get_heartbeat_interval()
+srs_utime_t SrsConfig::get_heartbeat_interval()
 {
-    static int64_t DEFAULT = (int64_t)(9.9 * 1000);
+    static srs_utime_t DEFAULT = (srs_utime_t)(9.9 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_heartbeart();
     if (!conf) {
@@ -6958,7 +6958,7 @@ int64_t SrsConfig::get_heartbeat_interval()
         return DEFAULT;
     }
     
-    return (int64_t)(::atof(conf->arg0().c_str()) * 1000);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_heartbeat_url()

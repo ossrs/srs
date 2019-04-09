@@ -910,7 +910,7 @@ srs_error_t SrsServer::do_cycle()
         }
         
         // the interval in config.
-        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() * SRS_UTIME_MILLISECONDS / SRS_SYS_CYCLE_INTERVAL);
+        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
         // dynamic fetch the max.
         int dynamic_max = srs_max(max, heartbeat_max_resolution);

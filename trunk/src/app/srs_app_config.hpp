@@ -1423,9 +1423,9 @@ public:
      */
     virtual bool get_heartbeat_enabled();
     /**
-     * get the heartbeat interval, in ms.
+     * get the heartbeat interval, in srs_utime_t.
      */
-    virtual int64_t get_heartbeat_interval();
+    virtual srs_utime_t get_heartbeat_interval();
     /**
      * get the heartbeat report url.
      */
