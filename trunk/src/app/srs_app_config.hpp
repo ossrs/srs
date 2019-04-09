@@ -604,11 +604,11 @@ public:
      */
     virtual std::string get_pid_file();
     /**
-     * get pithy print pulse ms,
+     * get pithy print pulse in srs_utime_t,
      * for example, all rtmp connections only print one message
      * every this interval in ms.
      */
-    virtual int get_pithy_print_ms();
+    virtual srs_utime_t get_pithy_print();
     /**
      * whether use utc-time to format the time.
      */

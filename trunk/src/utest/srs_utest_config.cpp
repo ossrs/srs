@@ -1835,5 +1835,13 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{interval 10;}"));
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_heartbeat_interval());
     }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_pithy_print());
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print_ms 20000;"));
+	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_pithy_print());
+    }
 }
 

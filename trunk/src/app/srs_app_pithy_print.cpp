@@ -49,17 +49,17 @@ SrsStageInfo::~SrsStageInfo()
 
 void SrsStageInfo::update_print_time()
 {
-    pithy_print_time_ms = _srs_config->get_pithy_print_ms();
+    interval = _srs_config->get_pithy_print();
 }
 
-void SrsStageInfo::elapse(int64_t diff)
+void SrsStageInfo::elapse(srs_utime_t diff)
 {
     age += diff;
 }
 
 bool SrsStageInfo::can_print()
 {
-    int64_t can_print_age = nb_clients * pithy_print_time_ms;
+    srs_utime_t can_print_age = nb_clients * interval;
     
     bool can_print = age >= can_print_age;
     if (can_print) {
@@ -211,7 +211,7 @@ void SrsPithyPrint::elapse()
     int64_t diff = srs_get_system_time_ms() - previous_tick;
     diff = srs_max(0, diff);
     
-    stage->elapse(diff);
+    stage->elapse(diff * SRS_UTIME_MILLISECONDS);
     _age += diff;
     previous_tick = srs_get_system_time_ms();
 }

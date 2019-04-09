@@ -4055,16 +4055,16 @@ string SrsConfig::get_pid_file()
     return conf->arg0();
 }
 
-int SrsConfig::get_pithy_print_ms()
+srs_utime_t SrsConfig::get_pithy_print()
 {
-    static int DEFAULT = 10000;
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = root->get("pithy_print_ms");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsConfig::get_utc_time()
