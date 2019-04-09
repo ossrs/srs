@@ -805,9 +805,9 @@ public:
      */
     virtual bool get_reduce_sequence_header(std::string vhost);
     /**
-     * the 1st packet timeout in ms for encoder.
+     * the 1st packet timeout in srs_utime_t for encoder.
      */
-    virtual int get_publish_1stpkt_timeout(std::string vhost);
+    virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     /**
      * the normal packet timeout in ms for encoder.
      */

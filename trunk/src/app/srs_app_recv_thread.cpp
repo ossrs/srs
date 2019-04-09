@@ -539,7 +539,7 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     //      2000*3000/8=750000B(about 732KB).
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 5000;
-    int socket_buffer_size = (sleep_v / SRS_UTIME_MILLISECONDS) * kbps / 8;
+    int socket_buffer_size = srsu2msi(sleep_v) * kbps / 8;
     
     int fd = mr_fd;
     int onb_rbuf = 0;
@@ -554,7 +554,7 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
     
     srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d, realtime=%d",
-              mr_sleep / SRS_UTIME_MILLISECONDS, sleep_v / SRS_UTIME_MILLISECONDS, socket_buffer_size, onb_rbuf, nb_rbuf,
+              srsu2msi(mr_sleep), srsu2msi(sleep_v), socket_buffer_size, onb_rbuf, nb_rbuf,
               SRS_MR_SMALL_BYTES, realtime);
     
     rtmp->set_recv_buffer(nb_rbuf);

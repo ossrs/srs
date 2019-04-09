@@ -213,7 +213,7 @@ srs_error_t SrsForwarder::do_cycle()
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_FORWARDER_CIMS / SRS_UTIME_MILLISECONDS;
+    int64_t cto = srsu2ms(SRS_FORWARDER_CIMS);
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     

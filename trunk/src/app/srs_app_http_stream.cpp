@@ -602,7 +602,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     }
     
     srs_trace("FLV %s, encoder=%s, nodelay=%d, mw_sleep=%dms, cache=%d, msgs=%d",
-        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, int(mw_sleep / SRS_UTIME_MILLISECONDS),
+        entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, srsu2msi(mw_sleep),
         enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
@@ -630,7 +630,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         
         if (pprint->can_print()) {
             srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
-                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, int(mw_sleep / SRS_UTIME_MILLISECONDS));
+                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, srsu2msi(mw_sleep));
         }
         
         // sendout all messages.

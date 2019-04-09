@@ -190,7 +190,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // MPD is not expired?
-    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < int64_t(update_period / SRS_UTIME_MILLISECONDS)) {
+    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < int64_t(srsu2ms(update_period))) {
         return err;
     }
     last_update_mpd = srs_get_system_time_ms();
@@ -266,7 +266,7 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
     home = fragment_home;
     
     sn = srs_update_system_time_ms() * SRS_UTIME_MILLISECONDS / fragment;
-    basetime = sn * fragment / SRS_UTIME_MILLISECONDS;
+    basetime = sn * srsu2ms(fragment);
     
     if (video) {
         file_name = "video-" + srs_int2str(sn) + ".m4s";
@@ -335,7 +335,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         return refresh_init_mp4(shared_audio, format);
     }
     
-    if (acurrent->duration() >= int64_t(fragment / SRS_UTIME_MILLISECONDS)) {
+    if (acurrent->duration() >= int64_t(srsu2ms(fragment))) {
         if ((err = acurrent->reap(audio_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
@@ -367,7 +367,7 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         return refresh_init_mp4(shared_video, format);
     }
     
-    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= int64_t(fragment / SRS_UTIME_MILLISECONDS);
+    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= int64_t(srsu2ms(fragment));
     if (reopen) {
         if ((err = vcurrent->reap(video_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");

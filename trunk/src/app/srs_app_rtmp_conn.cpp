@@ -319,9 +319,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_publish(string vhost)
         return err;
     }
     
-    int p1stpt = _srs_config->get_publish_1stpkt_timeout(req->vhost);
+    srs_utime_t p1stpt = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     if (p1stpt != publish_1stpkt_timeout) {
-        srs_trace("p1stpt changed %d=>%d", publish_1stpkt_timeout, p1stpt);
+        srs_trace("p1stpt changed %d=>%d", srsu2msi(publish_1stpkt_timeout), srsu2msi(p1stpt));
         publish_1stpkt_timeout = p1stpt;
     }
     
@@ -646,7 +646,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
-    SrsQueueRecvThread trd(consumer, rtmp, int(SRS_PERF_MW_SLEEP / SRS_UTIME_MILLISECONDS));
+    SrsQueueRecvThread trd(consumer, rtmp, srsu2msi(SRS_PERF_MW_SLEEP));
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -693,7 +693,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
     srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        send_min_interval, int(mw_sleep / SRS_UTIME_MILLISECONDS), mw_enabled, realtime, tcp_nodelay);
+        send_min_interval, srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
         // collect elapse for pithy print.
@@ -725,10 +725,10 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // @see https://github.com/ossrs/srs/issues/257
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, int(mw_sleep / SRS_UTIME_MILLISECONDS));
+            consumer->wait(0, srsu2msi(mw_sleep));
         } else {
             // for no-realtime, got some msgs then send.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS, int(mw_sleep / SRS_UTIME_MILLISECONDS));
+            consumer->wait(SRS_PERF_MW_MIN_MSGS, srsu2msi(mw_sleep));
         }
 #endif
         
@@ -745,7 +745,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
             kbps->sample();
             srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
                 (int)pprint->age(), count, kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), int(mw_sleep / SRS_UTIME_MILLISECONDS));
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), srsu2msi(mw_sleep));
         }
         
         if (count <= 0) {
@@ -861,9 +861,9 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
-        int mr_sleep = _srs_config->get_mr_sleep(req->vhost) / SRS_UTIME_MILLISECONDS;
+        srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
         srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
-            mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout, tcp_nodelay, receive_thread_cid);
+            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), publish_normal_timeout, tcp_nodelay, receive_thread_cid);
     }
     
     int64_t nb_msgs = 0;
@@ -879,7 +879,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             // @see https://github.com/ossrs/srs/issues/441
-            rtrd->wait(publish_1stpkt_timeout);
+            rtrd->wait(srsu2msi(publish_1stpkt_timeout));
         } else {
             rtrd->wait(publish_normal_timeout);
         }
@@ -892,7 +892,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         // when not got any messages, timeout.
         if (rtrd->nb_msgs() <= nb_msgs) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "rtmp: publish timeout %dms, nb_msgs=%d",
-                nb_msgs? publish_normal_timeout : publish_1stpkt_timeout, (int)nb_msgs);
+                nb_msgs? publish_normal_timeout : srsu2msi(publish_1stpkt_timeout), (int)nb_msgs);
         }
         nb_msgs = rtrd->nb_msgs();
         
@@ -908,10 +908,11 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         if (pprint->can_print()) {
             kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
-            int mr_sleep = _srs_config->get_mr_sleep(req->vhost) / SRS_UTIME_MILLISECONDS;
+            srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
             srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
                 (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, mr_sleep, publish_1stpkt_timeout, publish_normal_timeout);
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
+                srsu2msi(publish_1stpkt_timeout), publish_normal_timeout);
         }
     }
     

@@ -118,8 +118,8 @@ private:
     bool realtime;
     // the minimal interval in ms for delivery stream.
     double send_min_interval;
-    // publish 1st packet timeout in ms
-    int publish_1stpkt_timeout;
+    // publish 1st packet timeout in srs_utime_t
+    srs_utime_t publish_1stpkt_timeout;
     // publish normal packet timeout in ms
     int publish_normal_timeout;
     // whether enable the tcp_nodelay.

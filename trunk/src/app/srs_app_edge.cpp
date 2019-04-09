@@ -114,7 +114,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     }
     
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_INGESTER_TMMS / SRS_UTIME_MILLISECONDS;
+    int64_t cto = srsu2ms(SRS_EDGE_INGESTER_TMMS);
     int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
@@ -294,7 +294,7 @@ srs_error_t SrsEdgeIngester::ingest()
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // set to larger timeout to read av data from origin.
-    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS / SRS_UTIME_MILLISECONDS);
+    upstream->set_recv_timeout(srsu2ms(SRS_EDGE_INGESTER_TMMS));
     
     while (true) {
         srs_error_t err = srs_success;
@@ -474,7 +474,7 @@ srs_error_t SrsEdgeForwarder::start()
     
     // open socket.
     srs_freep(sdk);
-    int64_t cto = SRS_EDGE_FORWARDER_TMMS / SRS_UTIME_MILLISECONDS;
+    int64_t cto = srsu2ms(SRS_EDGE_FORWARDER_TMMS);
     int64_t sto = SRS_CONSTS_RTMP_TMMS;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
