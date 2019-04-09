@@ -809,9 +809,9 @@ public:
      */
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     /**
-     * the normal packet timeout in ms for encoder.
+     * the normal packet timeout in srs_utime_t for encoder.
      */
-    virtual int get_publish_normal_timeout(std::string vhost);
+    virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
 private:
     /**
      * get the global chunk size.

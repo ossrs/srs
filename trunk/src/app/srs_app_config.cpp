@@ -4797,12 +4797,12 @@ srs_utime_t SrsConfig::get_publish_1stpkt_timeout(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_publish_normal_timeout(string vhost)
+srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 {
     // the timeout for publish recv.
     // we must use more smaller timeout, for the recv never know the status
     // of underlayer socket.
-    static int DEFAULT = 5000;
+    static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4819,7 +4819,7 @@ int SrsConfig::get_publish_normal_timeout(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 int SrsConfig::get_global_chunk_size()

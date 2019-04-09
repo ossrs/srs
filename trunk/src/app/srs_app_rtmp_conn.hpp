@@ -120,8 +120,8 @@ private:
     double send_min_interval;
     // publish 1st packet timeout in srs_utime_t
     srs_utime_t publish_1stpkt_timeout;
-    // publish normal packet timeout in ms
-    int publish_normal_timeout;
+    // publish normal packet timeout in srs_utime_t
+    srs_utime_t publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
     // About the rtmp client.

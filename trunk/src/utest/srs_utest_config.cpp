@@ -1849,10 +1849,12 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep(""));
 	    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep(""));
 	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_publish_1stpkt_timeout(""));
+	    EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_publish_normal_timeout(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{publish{mr_latency 1000; firstpkt_timeout 100;} play{mw_latency 1000;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{publish{mr_latency 1000; firstpkt_timeout 100; normal_timeout 100;} play{mw_latency 1000;}}"));
 	    EXPECT_EQ(1000 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("v"));
 	    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, conf.get_publish_1stpkt_timeout("v"));
+	    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, conf.get_publish_normal_timeout("v"));
     }
 }
 

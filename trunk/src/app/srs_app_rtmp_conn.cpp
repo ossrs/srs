@@ -325,9 +325,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_publish(string vhost)
         publish_1stpkt_timeout = p1stpt;
     }
     
-    int pnt = _srs_config->get_publish_normal_timeout(req->vhost);
+    srs_utime_t pnt = _srs_config->get_publish_normal_timeout(req->vhost);
     if (pnt != publish_normal_timeout) {
-        srs_trace("pnt changed %d=>%d", publish_normal_timeout, pnt);
+        srs_trace("pnt changed %d=>%d", srsu2msi(publish_normal_timeout), srsu2msi(pnt));
         publish_normal_timeout = pnt;
     }
     
@@ -863,7 +863,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
         srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
-            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), publish_normal_timeout, tcp_nodelay, receive_thread_cid);
+            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout),
+            tcp_nodelay, receive_thread_cid);
     }
     
     int64_t nb_msgs = 0;
@@ -881,7 +882,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
             // @see https://github.com/ossrs/srs/issues/441
             rtrd->wait(srsu2msi(publish_1stpkt_timeout));
         } else {
-            rtrd->wait(publish_normal_timeout);
+            rtrd->wait(srsu2msi(publish_normal_timeout));
         }
         
         // check the thread error code.
@@ -892,7 +893,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         // when not got any messages, timeout.
         if (rtrd->nb_msgs() <= nb_msgs) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "rtmp: publish timeout %dms, nb_msgs=%d",
-                nb_msgs? publish_normal_timeout : srsu2msi(publish_1stpkt_timeout), (int)nb_msgs);
+                nb_msgs? srsu2msi(publish_normal_timeout) : srsu2msi(publish_1stpkt_timeout), (int)nb_msgs);
         }
         nb_msgs = rtrd->nb_msgs();
         
@@ -912,7 +913,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
             srs_trace("<- " SRS_CONSTS_LOG_CLIENT_PUBLISH " time=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d, p1stpt=%d, pnt=%d",
                 (int)pprint->age(), kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
-                srsu2msi(publish_1stpkt_timeout), publish_normal_timeout);
+                srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout));
         }
     }
     
