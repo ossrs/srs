@@ -312,7 +312,7 @@ int SrsBandwidthClient::publish_checking(int duration_ms, int play_kbps)
     
     int data_count = 1;
     int64_t starttime = srsu2ms(srs_update_system_time());
-    while ((srsu2ms(srs_get_system_time()) - starttime) < duration_ms) {
+    while (int64_t(srsu2ms(srs_get_system_time()) - starttime) < duration_ms) {
         // TODO: FIXME: use shared ptr message.
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_publishing();
         

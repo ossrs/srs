@@ -260,7 +260,7 @@ srs_error_t SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit
     
     int data_count = 1;
     srs_utime_t starttime = srs_update_system_time();
-    while (srsu2ms(srs_get_system_time() - starttime) < sample->duration_ms) {
+    while (int64_t(srsu2ms(srs_get_system_time() - starttime)) < sample->duration_ms) {
         srs_usleep(sample->interval_ms * SRS_UTIME_MILLISECONDS);
         
         // TODO: FIXME: use shared ptr message.
@@ -342,7 +342,7 @@ srs_error_t SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLi
     
     // recv publish msgs until @duration_ms ms
     srs_utime_t starttime = srs_update_system_time();
-    while (srsu2ms(srs_get_system_time() - starttime) < sample->duration_ms) {
+    while (int64_t(srsu2ms(srs_get_system_time() - starttime)) < sample->duration_ms) {
         SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((err = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != srs_success) {
