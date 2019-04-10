@@ -162,7 +162,7 @@ SrsMpdWriter::SrsMpdWriter()
 {
     req = NULL;
     timeshit = update_period = fragment = 0;
-    last_update_mpd = -1;
+    last_update_mpd = 0;
 }
 
 SrsMpdWriter::~SrsMpdWriter()
@@ -190,10 +190,10 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     srs_error_t err = srs_success;
     
     // MPD is not expired?
-    if (last_update_mpd != -1 && srs_get_system_time_ms() - last_update_mpd < int64_t(srsu2ms(update_period))) {
+    if (last_update_mpd != 0 && srs_get_system_time() - last_update_mpd < update_period) {
         return err;
     }
-    last_update_mpd = srs_get_system_time_ms();
+    last_update_mpd = srs_get_system_time();
     
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     string full_path = home + "/" + mpd_path;

@@ -61,8 +61,8 @@ using namespace std;
 // when got these videos or audios, pure audio or video, mix ok.
 #define SRS_MIX_CORRECT_PURE_AV 10
 
-// the time to cleanup source in ms.
-#define SRS_SOURCE_CLEANUP 30000
+// the time to cleanup source.
+#define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
 
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -1767,7 +1767,7 @@ SrsSource::SrsSource()
     
     _can_publish = true;
     _pre_source_id = _source_id = -1;
-    die_at = -1;
+    die_at = 0;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1821,7 +1821,7 @@ srs_error_t SrsSource::cycle()
 bool SrsSource::expired()
 {
     // unknown state?
-    if (die_at == -1) {
+    if (die_at == 0) {
         return false;
     }
     
@@ -1835,7 +1835,7 @@ bool SrsSource::expired()
         return false;
     }
     
-    int64_t now = srs_get_system_time_ms();
+    srs_utime_t now = srs_get_system_time();
     if (now > die_at + SRS_SOURCE_CLEANUP) {
         return true;
     }
@@ -2433,7 +2433,7 @@ void SrsSource::on_unpublish()
     
     // no consumer, stream is die.
     if (consumers.empty()) {
-        die_at = srs_get_system_time_ms();
+        die_at = srs_get_system_time();
     }
 }
 
@@ -2498,7 +2498,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
     
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
-        die_at = srs_get_system_time_ms();
+        die_at = srs_get_system_time();
     }
 }
 

@@ -681,7 +681,7 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     server->set("sigature", SrsJsonAny::str(RTMP_SIG_SRS_KEY));
     server->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
     server->set("link", SrsJsonAny::str(RTMP_SIG_SRS_URL));
-    server->set("time", SrsJsonAny::integer(srs_get_system_time_ms()));
+    server->set("time", SrsJsonAny::integer(srsu2ms(srs_get_system_time())));
     
     return srs_api_response(w, r, obj->dumps());
 }

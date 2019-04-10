@@ -1230,9 +1230,9 @@ public:
      */
     virtual bool get_hls_cleanup(std::string vhost);
     /**
-     * the timeout to dispose the hls.
+     * the timeout in srs_utime_t to dispose the hls.
      */
-    virtual int get_hls_dispose(std::string vhost);
+    virtual srs_utime_t get_hls_dispose(std::string vhost);
     /**
      * whether reap the ts when got keyframe.
      */

@@ -52,7 +52,7 @@ srs_error_t SrsIngesterFFMPEG::initialize(SrsFFMPEG* ff, string v, string i)
     ffmpeg = ff;
     vhost = v;
     id = i;
-    starttime = srs_get_system_time_ms();
+    starttime = srs_get_system_time();
     
     return err;
 }
@@ -64,7 +64,7 @@ string SrsIngesterFFMPEG::uri()
 
 int SrsIngesterFFMPEG::alive()
 {
-    return (int)(srs_get_system_time_ms() - starttime);
+    return srsu2msi(srs_get_system_time() - starttime);
 }
 
 bool SrsIngesterFFMPEG::equals(string v)

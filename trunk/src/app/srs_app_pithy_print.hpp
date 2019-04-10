@@ -76,9 +76,8 @@ class SrsPithyPrint
 private:
     int client_id;
     int stage_id;
-    // in ms.
-    int64_t _age;
-    int64_t previous_tick;
+    srs_utime_t _age;
+    srs_utime_t previous_tick;
 private:
     SrsPithyPrint(int _stage_id);
 public:

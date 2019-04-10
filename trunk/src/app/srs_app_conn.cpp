@@ -36,7 +36,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip)
     manager = cm;
     stfd = c;
     ip = cip;
-    create_time = srs_get_system_time_ms();
+    create_time = srsu2ms(srs_get_system_time());
     
     skt = new SrsStSocket();
     clk = new SrsWallClock();

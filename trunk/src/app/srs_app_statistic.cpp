@@ -138,7 +138,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("name", SrsJsonAny::str(stream.c_str()));
     obj->set("vhost", SrsJsonAny::integer(vhost->id));
     obj->set("app", SrsJsonAny::str(app.c_str()));
-    obj->set("live_ms", SrsJsonAny::integer(srs_get_system_time_ms()));
+    obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_get_system_time())));
     obj->set("clients", SrsJsonAny::integer(nb_clients));
     obj->set("frames", SrsJsonAny::integer(nb_frames));
     obj->set("send_bytes", SrsJsonAny::integer(kbps->get_send_bytes()));
@@ -208,7 +208,7 @@ SrsStatisticClient::SrsStatisticClient()
     conn = NULL;
     req = NULL;
     type = SrsRtmpConnUnknown;
-    create = srs_get_system_time_ms();
+    create = srs_get_system_time();
 }
 
 SrsStatisticClient::~SrsStatisticClient()
@@ -229,7 +229,7 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     obj->set("url", SrsJsonAny::str(req->get_stream_url().c_str()));
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type)));
-    obj->set("alive", SrsJsonAny::number((srs_get_system_time_ms() - create) / 1000.0));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_get_system_time() - create) / 1000.0));
     
     return err;
 }

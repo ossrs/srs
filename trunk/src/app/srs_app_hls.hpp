@@ -33,6 +33,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_fragment.hpp>
+#include <srs_core_time.hpp>
 
 class SrsFormat;
 class SrsSharedPtrMessage;
@@ -319,7 +320,7 @@ private:
     SrsRequest* req;
     bool enabled;
     bool disposable;
-    int64_t last_update_time;
+    srs_utime_t last_update_time;
 private:
     // If the diff=dts-previous_audio_dts is about 23,
     // that's the AAC samples is 1024, and we use the samples to calc the dts.

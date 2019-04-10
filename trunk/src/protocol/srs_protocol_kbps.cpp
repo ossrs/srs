@@ -113,7 +113,7 @@ SrsWallClock::~SrsWallClock()
 
 int64_t SrsWallClock::time_ms()
 {
-    return srs_get_system_time_ms();
+    return srsu2ms(srs_get_system_time());
 }
 
 SrsKbps::SrsKbps(SrsWallClock* c) : is(c), os(c)

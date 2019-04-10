@@ -84,7 +84,7 @@ class SrsMpdWriter
 {
 private:
     SrsRequest* req;
-    int64_t last_update_mpd;
+    srs_utime_t last_update_mpd;
 private:
     // The duration of fragment in srs_utime_t.
     srs_utime_t fragment;

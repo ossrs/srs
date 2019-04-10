@@ -870,7 +870,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     // whether use floor(timestamp/hls_fragment) for variable timestamp
     bool ts_floor = _srs_config->get_hls_ts_floor(vhost);
     // the seconds to dispose the hls.
-    int hls_dispose = _srs_config->get_hls_dispose(vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(vhost);
 
     bool hls_keys = _srs_config->get_hls_keys(vhost);
     int hls_fragments_per_key = _srs_config->get_hls_fragments_per_key(vhost);
@@ -891,9 +891,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%d",
+    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
         hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, hls_dispose);
+        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
     
     return err;
 }
@@ -1061,7 +1061,7 @@ void SrsHls::dispose()
     
     // Ignore when hls_dispose disabled.
     // @see https://github.com/ossrs/srs/issues/865
-    int hls_dispose = _srs_config->get_hls_dispose(req->vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (!hls_dispose) {
         return;
     }
@@ -1074,21 +1074,21 @@ srs_error_t SrsHls::cycle()
     srs_error_t err = srs_success;
     
     if (last_update_time <= 0) {
-        last_update_time = srs_get_system_time_ms();
+        last_update_time = srs_get_system_time();
     }
     
     if (!req) {
         return err;
     }
     
-    int hls_dispose = _srs_config->get_hls_dispose(req->vhost) * 1000;
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
         return err;
     }
-    if (srs_get_system_time_ms() - last_update_time <= hls_dispose) {
+    if (srs_get_system_time() - last_update_time <= hls_dispose) {
         return err;
     }
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     if (!disposable) {
         return err;
@@ -1120,7 +1120,7 @@ srs_error_t SrsHls::on_publish()
     srs_error_t err = srs_success;
 
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     // support multiple publish.
     if (enabled) {
@@ -1170,7 +1170,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     }
     
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
@@ -1227,7 +1227,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     }
     
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);

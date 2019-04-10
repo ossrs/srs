@@ -124,7 +124,7 @@ public:
     SrsRequest* req;
     SrsRtmpConnType type;
     int id;
-    int64_t create;
+    srs_utime_t create;
 public:
     SrsStatisticClient();
     virtual ~SrsStatisticClient();

@@ -1868,11 +1868,27 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
     }
 
     if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(0, conf.get_hls_dispose(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_dispose 10;}}"));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_dispose("v"));
+    }
+
+    if (true) {
         srs_utime_t t0 = srs_update_system_time();
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);
         srs_utime_t t1 = srs_update_system_time();
 
         EXPECT_TRUE(t1 - t0 >= 10 * SRS_UTIME_MILLISECONDS);
+    }
+
+    if (true) {
+        srs_utime_t t0 = srs_get_system_time();
+        srs_utime_t t1 = srs_update_system_time();
+
+        EXPECT_TRUE(t0 > 0);
+        EXPECT_TRUE(t1 >= t0);
     }
 }
 

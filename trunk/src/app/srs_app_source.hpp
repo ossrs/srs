@@ -33,6 +33,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_core_time.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -606,7 +607,7 @@ private:
     bool _can_publish;
     // The last die time, when all consumers quit and no publisher,
     // we will remove the source when source die.
-    int64_t die_at;
+    srs_utime_t die_at;
 public:
     SrsSource();
     virtual ~SrsSource();

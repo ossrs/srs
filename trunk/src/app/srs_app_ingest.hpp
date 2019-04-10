@@ -30,6 +30,7 @@
 
 #include <srs_app_thread.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_core_time.hpp>
 
 class SrsFFMPEG;
 class SrsConfDirective;
@@ -44,7 +45,7 @@ private:
     std::string vhost;
     std::string id;
     SrsFFMPEG* ffmpeg;
-    int64_t starttime;
+    srs_utime_t starttime;
 public:
     SrsIngesterFFMPEG();
     virtual ~SrsIngesterFFMPEG();

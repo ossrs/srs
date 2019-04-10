@@ -6247,9 +6247,9 @@ bool SrsConfig::get_hls_cleanup(string vhost)
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-int SrsConfig::get_hls_dispose(string vhost)
+srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
-    static int DEFAULT = 0;
+    static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6261,7 +6261,7 @@ int SrsConfig::get_hls_dispose(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_hls_wait_keyframe(string vhost)
