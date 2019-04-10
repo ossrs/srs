@@ -6524,9 +6524,9 @@ string SrsConfig::get_dvr_plan(string vhost)
     return conf->arg0();
 }
 
-int SrsConfig::get_dvr_duration(string vhost)
+srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 {
-    static int DEFAULT = 30;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dvr(vhost);
     if (!conf) {
@@ -6538,7 +6538,7 @@ int SrsConfig::get_dvr_duration(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_dvr_wait_keyframe(string vhost)

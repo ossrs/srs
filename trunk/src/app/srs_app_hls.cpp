@@ -390,7 +390,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t current_floor_ts = (int64_t)(srs_update_system_time_ms() / (1000 * hls_fragment));
+        int64_t current_floor_ts = (int64_t)(srsu2ms(srs_update_system_time()) / (1000 * hls_fragment));
         if (!accept_floor_ts) {
             accept_floor_ts = current_floor_ts - 1;
         } else {

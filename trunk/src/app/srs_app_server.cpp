@@ -542,7 +542,7 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
     srs_error_t err = srs_success;
     
     // ensure the time is ok.
-    srs_update_system_time_ms();
+    srs_update_system_time();
     
     // for the main objects(server, config, log, context),
     // never subscribe handler in constructor,
@@ -971,7 +971,7 @@ srs_error_t SrsServer::do_cycle()
             // update the cache time
             if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
                 srs_info("update current time cache.");
-                srs_update_system_time_ms();
+                srs_update_system_time();
             }
             
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {

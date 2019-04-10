@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include <srs_core_time.hpp>
+
 class SrsBuffer;
 class SrsBitBuffer;
 
@@ -44,7 +46,7 @@ extern srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v);
 extern int64_t srs_get_system_time_ms();
 extern int64_t srs_get_system_startup_time_ms();
 // the deamon st-thread will update it.
-extern int64_t srs_update_system_time_ms();
+extern srs_utime_t srs_update_system_time();
 
 // the any address for listener,
 // it's "0.0.0.0" for ipv4, and "::" for ipv6.

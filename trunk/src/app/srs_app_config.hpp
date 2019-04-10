@@ -1313,7 +1313,7 @@ public:
     /**
      * get the duration of dvr flv.
      */
-    virtual int get_dvr_duration(std::string vhost);
+    virtual srs_utime_t get_dvr_duration(std::string vhost);
     /**
      * whether wait keyframe to reap segment.
      */

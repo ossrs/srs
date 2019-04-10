@@ -740,7 +740,7 @@ void SrsDvrSessionPlan::on_unpublish()
 
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
-    cduration = -1;
+    cduration = 0;
     wait_keyframe = false;
 }
 
@@ -759,8 +759,6 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, S
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
     cduration = _srs_config->get_dvr_duration(req->vhost);
-    // to ms
-    cduration *= 1000;
     
     return srs_success;
 }
@@ -833,7 +831,7 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // ignore if duration ok.
     SrsFragment* fragment = segment->current();
-    if (cduration <= 0 || fragment->duration() < cduration) {
+    if (cduration <= 0 || fragment->duration() < int64_t(srsu2ms(cduration))) {
         return err;
     }
     
@@ -881,8 +879,6 @@ srs_error_t SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
     cduration = _srs_config->get_dvr_duration(req->vhost);
-    // to ms
-    cduration *= 1000;
     
     return err;
 }

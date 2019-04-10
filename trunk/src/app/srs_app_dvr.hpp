@@ -227,8 +227,8 @@ public:
 class SrsDvrSegmentPlan : public SrsDvrPlan
 {
 private:
-    // in config, in ms
-    int cduration;
+    // in config, in srs_utime_t
+    srs_utime_t cduration;
     bool wait_keyframe;
 public:
     SrsDvrSegmentPlan();

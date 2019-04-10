@@ -29,6 +29,8 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_service_st.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -1855,6 +1857,22 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_EQ(1000 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("v"));
 	    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, conf.get_publish_1stpkt_timeout("v"));
 	    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, conf.get_publish_normal_timeout("v"));
+    }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_dvr_duration(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_duration 10;}}"));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_dvr_duration("v"));
+    }
+
+    if (true) {
+        srs_utime_t t0 = srs_update_system_time();
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        srs_utime_t t1 = srs_update_system_time();
+
+        EXPECT_TRUE(t1 - t0 >= 10 * SRS_UTIME_MILLISECONDS);
     }
 }
 

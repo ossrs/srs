@@ -381,7 +381,7 @@ srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     
     // log to show the time of recv thread.
     srs_verbose("recv thread now=%" PRId64 "us, got msg time=%" PRId64 "ms, size=%d",
-                srs_update_system_time_ms(), msg->header.timestamp, msg->size);
+                srs_update_system_time(), msg->header.timestamp, msg->size);
     
     // the rtmp connection will handle this message
     err = _conn->handle_publish_message(_source, msg);

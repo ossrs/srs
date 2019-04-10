@@ -265,7 +265,7 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
     
     home = fragment_home;
     
-    sn = srs_update_system_time_ms() * SRS_UTIME_MILLISECONDS / fragment;
+    sn = srs_update_system_time() / fragment;
     basetime = sn * srsu2ms(fragment);
     
     if (video) {

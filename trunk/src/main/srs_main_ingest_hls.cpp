@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_service_http_conn.hpp>
 #include <srs_service_rtmp_conn.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_core_time.hpp>
 
 // pre-declare
 srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -154,7 +155,7 @@ private:
 private:
     SrsHttpUri* in_hls;
     std::vector<SrsTsPiece*> pieces;
-    int64_t next_connect_time;
+    srs_utime_t next_connect_time;
 private:
     SrsTsContext* context;
 public:
@@ -213,10 +214,10 @@ int SrsIngestHlsInput::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    int64_t now = srs_update_system_time_ms();
+    srs_utime_t now = srs_update_system_time();
     if (now < next_connect_time) {
-        srs_trace("input hls wait for %dms", next_connect_time - now);
-        srs_usleep((next_connect_time - now) * SRS_UTIME_MILLISECONDS);
+        srs_trace("input hls wait for %dms", srsu2msi(next_connect_time - now));
+        srs_usleep(next_connect_time - now);
     }
     
     // set all ts to dirty.
@@ -559,7 +560,7 @@ int SrsIngestHlsInput::fetch_all_ts(bool fresh_m3u8)
         
         // only wait for a duration of last piece.
         if (i == (int)pieces.size() - 1) {
-            next_connect_time = srs_update_system_time_ms() + (int)tp->duration * SRS_UTIME_MILLISECONDS;
+            next_connect_time = srs_update_system_time() + tp->duration * SRS_UTIME_SECONDS;
         }
     }
     
@@ -696,7 +697,7 @@ SrsIngestHlsOutput::SrsIngestHlsOutput(SrsHttpUri* rtmp)
 {
     out_rtmp = rtmp;
     disconnected = false;
-    raw_aac_dts = srs_update_system_time_ms();
+    raw_aac_dts = srsu2ms(srs_update_system_time());
     
     req = NULL;
     sdk = NULL;

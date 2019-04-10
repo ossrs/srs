@@ -137,7 +137,7 @@ int SrsBandwidthClient::bandwidth_check(
 ) {
     int ret = ERROR_SUCCESS;
     
-    srs_update_system_time_ms();
+    srs_update_system_time();
     *start_time = srs_get_system_time_ms();
     
     // play
@@ -193,7 +193,7 @@ int SrsBandwidthClient::bandwidth_check(
         }
     }
     
-    srs_update_system_time_ms();
+    srs_update_system_time();
     *end_time = srs_get_system_time_ms();
     
     return ret;
@@ -313,7 +313,7 @@ int SrsBandwidthClient::publish_checking(int duration_ms, int play_kbps)
     }
     
     int data_count = 1;
-    srs_update_system_time_ms();
+    srs_update_system_time();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < duration_ms) {
         // TODO: FIXME: use shared ptr message.
@@ -336,12 +336,12 @@ int SrsBandwidthClient::publish_checking(int duration_ms, int play_kbps)
         }
         
         // use the play kbps to control the publish
-        srs_update_system_time_ms();
+        srs_update_system_time();
         int elaps = (int)(srs_get_system_time_ms() - starttime);
         if (elaps > 0) {
             int current_kbps = (int)(_rtmp->get_send_bytes() * 8 / elaps);
             while (current_kbps > play_kbps) {
-                srs_update_system_time_ms();
+                srs_update_system_time();
                 elaps = (int)(srs_get_system_time_ms() - starttime);
                 current_kbps = (int)(_rtmp->get_send_bytes() * 8 / elaps);
                 usleep(100 * 1000); // TODO: FIXME: magic number.

@@ -1489,7 +1489,7 @@ VOID TEST(KernelUtilityTest, UtilityTime)
     EXPECT_EQ(time, time1);
     
     usleep(1000);
-    srs_update_system_time_ms();
+    srs_update_system_time();
     time1 = srs_get_system_time_ms();
     EXPECT_TRUE(time1 > time);
 }
@@ -1506,7 +1506,7 @@ VOID TEST(KernelUtilityTest, UtilityStartupTime)
     EXPECT_EQ(time, time1);
     
     usleep(1000);
-    srs_update_system_time_ms();
+    srs_update_system_time();
     time1 = srs_get_system_startup_time_ms();
     EXPECT_EQ(time, time1);
 }
@@ -3185,7 +3185,7 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     EXPECT_TRUE(srs_get_system_startup_time_ms() > 0);
     
     _srs_system_time_us_cache -= 300*1000 * 1000 + 1;
-    EXPECT_TRUE(srs_update_system_time_ms() > 0);
+    EXPECT_TRUE(srs_update_system_time() > 0);
     
     if (true) {
         string host;

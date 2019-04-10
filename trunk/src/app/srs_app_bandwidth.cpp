@@ -147,7 +147,7 @@ srs_error_t SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStati
     static srs_utime_t last_check_time = 0;
     srs_utime_t interval = _srs_config->get_bw_check_interval(_req->vhost);
     
-    srs_utime_t time_now = srs_update_system_time_ms() * SRS_UTIME_MILLISECONDS;
+    srs_utime_t time_now = srs_update_system_time();
     // reject the connection in the interval window.
     if (last_check_time > 0 && time_now - last_check_time < interval) {
         _rtmp->response_connect_reject(_req, "bandcheck rejected");
@@ -184,7 +184,7 @@ srs_error_t SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     _rtmp->set_recv_timeout(publish_sample.duration_ms * 2);
     
     // start test.
-    srs_update_system_time_ms();
+    srs_update_system_time();
     int64_t start_time = srs_get_system_time_ms();
     
     // sample play
@@ -210,7 +210,7 @@ srs_error_t SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     }
     
     // stop test.
-    srs_update_system_time_ms();
+    srs_update_system_time();
     int64_t end_time = srs_get_system_time_ms();
     
     srs_trace("bandwidth ok. duartion=%dms(%d+%d), play=%dkbps, publish=%dkbps",
@@ -261,7 +261,7 @@ srs_error_t SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit
     memset(random_data, 'A', size);
     
     int data_count = 1;
-    srs_update_system_time_ms();
+    srs_update_system_time();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
         srs_usleep(sample->interval_ms);
@@ -284,7 +284,7 @@ srs_error_t SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit
         
         limit->send_limit();
     }
-    srs_update_system_time_ms();
+    srs_update_system_time();
     sample->calc_kbps((int)_rtmp->get_send_bytes(), (int)(srs_get_system_time_ms() - starttime));
     
     return err;
@@ -344,7 +344,7 @@ srs_error_t SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLi
     srs_error_t err = srs_success;
     
     // recv publish msgs until @duration_ms ms
-    srs_update_system_time_ms();
+    srs_update_system_time();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
         SrsCommonMessage* msg = NULL;
@@ -363,7 +363,7 @@ srs_error_t SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLi
         
         limit->recv_limit();
     }
-    srs_update_system_time_ms();
+    srs_update_system_time();
     sample->calc_kbps((int)_rtmp->get_recv_bytes(), (int)(srs_get_system_time_ms() - starttime));
     
     return err;
