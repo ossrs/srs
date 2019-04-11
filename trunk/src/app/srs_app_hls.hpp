@@ -33,7 +33,6 @@
 #include <srs_kernel_file.hpp>
 #include <srs_app_async_call.hpp>
 #include <srs_app_fragment.hpp>
-#include <srs_core_time.hpp>
 
 class SrsFormat;
 class SrsSharedPtrMessage;

@@ -33,7 +33,6 @@
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
-#include <srs_core_time.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;

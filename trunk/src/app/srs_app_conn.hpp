@@ -33,7 +33,6 @@
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_service_conn.hpp>
-#include <srs_core_time.hpp>
 
 class SrsWallClock;
 

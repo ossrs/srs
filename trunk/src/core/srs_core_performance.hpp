@@ -24,9 +24,6 @@
 #ifndef SRS_CORE_PERFORMANCE_HPP
 #define SRS_CORE_PERFORMANCE_HPP
 
-#include <srs_core.hpp>
-#include <srs_core_time.hpp>
-
 /**
  * this file defines the perfromance options.
  */

@@ -30,7 +30,6 @@
 
 #include <srs_app_thread.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_core_time.hpp>
 
 class SrsFFMPEG;
 class SrsConfDirective;

@@ -46,7 +46,6 @@ using namespace std;
 #include <srs_service_http_conn.hpp>
 #include <srs_service_rtmp_conn.hpp>
 #include <srs_service_utility.hpp>
-#include <srs_core_time.hpp>
 
 // pre-declare
 srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);

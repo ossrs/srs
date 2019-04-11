@@ -29,7 +29,6 @@
 #include <string>
 #include <vector>
 
-#include <srs_core_time.hpp>
 
 class SrsBuffer;
 class SrsBitBuffer;

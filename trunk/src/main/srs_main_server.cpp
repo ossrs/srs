@@ -48,7 +48,6 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_core_time.hpp>
 
 // pre-declare
 srs_error_t run(SrsServer* svr);

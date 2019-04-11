@@ -86,7 +86,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-// important performance options.
+// Time defines.
+#include <srs_core_time.hpp>
+
+// Some important performance options.
 #include <srs_core_performance.hpp>
 
 // free the p and set to NULL.
