@@ -1939,7 +1939,7 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
-        if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
+        if (!srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
             
             // unpublish, ignore ret.
