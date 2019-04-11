@@ -108,7 +108,7 @@ srs_error_t SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgor
         return srs_error_wrap(err, "dump packets");
     }
     
-    srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", queue->size(), queue->duration(), fast_cache);
+    srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", queue->size(), srsu2msi(queue->duration()), fast_cache);
     
     return err;
 }

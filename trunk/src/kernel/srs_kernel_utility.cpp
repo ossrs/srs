@@ -161,6 +161,7 @@ srs_utime_t srs_update_system_time()
     return _srs_system_time_us_cache;
 }
 
+// TODO: FIXME: Replace by ST dns resolve.
 string srs_dns_resolve(string host, int& family)
 {
     addrinfo hints;

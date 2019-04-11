@@ -135,10 +135,14 @@ public:
 class SrsMessageQueue
 {
 private:
+    // The start and end time.
+    srs_utime_t av_start_time;
+    srs_utime_t av_end_time;
+private:
+	// Whether do logging when shrinking.
     bool _ignore_shrink;
-    int64_t av_start_time;
-    int64_t av_end_time;
-    int queue_size_ms;
+    // The max queue size, shrink if exceed it.
+    srs_utime_t max_queue_size;
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
     SrsFastVector msgs;
 #else
@@ -155,7 +159,7 @@ public:
     /**
      * get the duration of queue.
      */
-    virtual int duration();
+    virtual srs_utime_t duration();
     /**
      * set the queue size
      * @param queue_size the queue size in seconds.
@@ -231,7 +235,7 @@ private:
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
-    int mw_duration;
+    srs_utime_t mw_duration;
 #endif
 public:
     SrsConsumer(SrsSource* s, SrsConnection* c);
@@ -268,9 +272,9 @@ public:
     /**
      * wait for messages incomming, atleast nb_msgs and in duration.
      * @param nb_msgs the messages count to wait.
-     * @param duration the messgae duration to wait.
+     * @param msgs_duration the messages duration to wait.
      */
-    virtual void wait(int nb_msgs, int duration);
+    virtual void wait(int nb_msgs, srs_utime_t msgs_duration);
 #endif
     /**
      * when client send the pause message.
