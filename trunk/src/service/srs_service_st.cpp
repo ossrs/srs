@@ -104,6 +104,7 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
+// TODO: FXIME: Refine tm in time unit.
 srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;

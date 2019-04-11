@@ -307,6 +307,7 @@ public:
      * set/get the recv timeout in ms.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
+     // TODO: FIXME: Refine tm in time unit.
     virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**

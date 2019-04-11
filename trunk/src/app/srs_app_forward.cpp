@@ -213,8 +213,9 @@ srs_error_t SrsForwarder::do_cycle()
     }
     
     srs_freep(sdk);
+    // TODO: FIXME: Should switch cto with sto?
     int64_t cto = srsu2ms(SRS_FORWARDER_CIMS);
-    int64_t sto = SRS_CONSTS_RTMP_TMMS;
+    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {

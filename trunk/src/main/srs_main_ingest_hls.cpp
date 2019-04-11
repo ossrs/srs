@@ -1276,7 +1276,7 @@ int SrsIngestHlsOutput::connect()
     srs_trace("connect output=%s", url.c_str());
     
     // connect host.
-    int64_t cto = SRS_CONSTS_RTMP_TMMS;
+    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
     int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsBasicRtmpClient(url, cto, sto);
     
