@@ -115,7 +115,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     
     srs_freep(sdk);
     int64_t cto = srsu2ms(SRS_EDGE_INGESTER_TMMS);
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
@@ -532,7 +532,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    sdk->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TMMS);
+    sdk->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_PULSE));
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);

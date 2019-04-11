@@ -155,9 +155,9 @@ srs_error_t SrsBufferCache::cycle()
         }
         
         if (count <= 0) {
-            srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TMMS);
+            srs_info("http: sleep %dms for no msg", srsu2msi(SRS_CONSTS_RTMP_PULSE));
             // directly use sleep, donot use consumer wait.
-            srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * SRS_UTIME_MILLISECONDS);
+            srs_usleep(SRS_CONSTS_RTMP_PULSE);
             
             // ignore when nothing got.
             continue;
@@ -165,7 +165,7 @@ srs_error_t SrsBufferCache::cycle()
         
         if (pprint->can_print()) {
             srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM_CACHE " http: got %d msgs, age=%d, min=%d, mw=%d",
-                      count, pprint->age(), SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TMMS);
+                      count, pprint->age(), SRS_PERF_MW_MIN_MSGS, srsu2msi(SRS_CONSTS_RTMP_PULSE));
         }
         
         // free the messages.

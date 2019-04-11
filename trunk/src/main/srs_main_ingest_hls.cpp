@@ -1277,7 +1277,7 @@ int SrsIngestHlsOutput::connect()
     
     // connect host.
     int64_t cto = SRS_CONSTS_RTMP_TMMS;
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsBasicRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
