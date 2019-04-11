@@ -24,6 +24,8 @@
 #ifndef SRS_CORE_TIME_HPP
 #define SRS_CORE_TIME_HPP
 
+#include <srs_core.hpp>
+
 // Time and duration unit, in us.
 typedef int64_t srs_utime_t;
 
