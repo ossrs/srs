@@ -107,7 +107,7 @@ srs_error_t SrsRecvThread::cycle()
     // to use isolate thread to recv, can improve about 33% performance.
     // @see https://github.com/ossrs/srs/issues/194
     // @see: https://github.com/ossrs/srs/issues/217
-    rtmp->set_recv_timeout(SRS_CONSTS_NO_TMMS);
+    rtmp->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     
     pumper->on_start();
     

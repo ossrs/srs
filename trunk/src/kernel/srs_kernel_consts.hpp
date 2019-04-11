@@ -64,11 +64,6 @@
 // the following is the timeout for rtmp protocol,
 // to avoid death connection.
 
-// Never timeout in ms
-// @remake Rename from SRS_CONSTS_NO_TIMEOUT
-// @see ST_UTIME_NO_TIMEOUT
-#define SRS_CONSTS_NO_TMMS ((int64_t) -1LL)
-
 // the common io timeout, for connect, recv or send.
 // TODO: FIXME: Maybe change to larger value, such as 90ms?
 #define SRS_CONSTS_RTMP_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)

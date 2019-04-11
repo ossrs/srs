@@ -108,7 +108,7 @@ srs_thread_t srs_thread_self()
 srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
-    if (tm != SRS_CONSTS_NO_TMMS) {
+    if (tm != SRS_UTIME_NO_TIMEOUT) {
         timeout = (st_utime_t)(tm * 1000);
     }
     
@@ -233,7 +233,7 @@ ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
 SrsStSocket::SrsStSocket()
 {
     stfd = NULL;
-    stm = rtm = SRS_CONSTS_NO_TMMS;
+    stm = rtm = SRS_UTIME_NO_TIMEOUT;
     rbytes = sbytes = 0;
 }
 
@@ -249,7 +249,7 @@ srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
 
 bool SrsStSocket::is_never_timeout(int64_t tm)
 {
-    return tm == SRS_CONSTS_NO_TMMS;
+    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
 void SrsStSocket::set_recv_timeout(int64_t tm)
@@ -287,7 +287,7 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     srs_error_t err = srs_success;
     
     ssize_t nb_read;
-    if (rtm == SRS_CONSTS_NO_TMMS) {
+    if (rtm == SRS_UTIME_NO_TIMEOUT) {
         nb_read = st_read((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_read = st_read((st_netfd_t)stfd, buf, size, rtm * 1000);
@@ -323,7 +323,7 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     srs_error_t err = srs_success;
     
     ssize_t nb_read;
-    if (rtm == SRS_CONSTS_NO_TMMS) {
+    if (rtm == SRS_UTIME_NO_TIMEOUT) {
         nb_read = st_read_fully((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_read = st_read_fully((st_netfd_t)stfd, buf, size, rtm * 1000);
@@ -359,7 +359,7 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     srs_error_t err = srs_success;
     
     ssize_t nb_write;
-    if (stm == SRS_CONSTS_NO_TMMS) {
+    if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_write((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_write = st_write((st_netfd_t)stfd, buf, size, stm * 1000);
@@ -390,7 +390,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     srs_error_t err = srs_success;
     
     ssize_t nb_write;
-    if (stm == SRS_CONSTS_NO_TMMS) {
+    if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
     } else {
         nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, stm * 1000);

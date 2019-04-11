@@ -86,7 +86,7 @@ struct SrsBlockSyncSocket
     int64_t stm;
     
     SrsBlockSyncSocket() {
-        stm = rtm = SRS_CONSTS_NO_TMMS;
+        stm = rtm = SRS_UTIME_NO_TIMEOUT;
         rbytes = sbytes = 0;
         
         SOCKET_RESET(fd);
@@ -191,7 +191,7 @@ int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm)
     int32_t sec = 0;
     int32_t usec = 0;
     
-    if (tm != SRS_CONSTS_NO_TMMS) {
+    if (tm != SRS_UTIME_NO_TIMEOUT) {
         sec = (int32_t)(tm / 1000);
         usec = (int32_t)((tm % 1000)*1000);
     }
@@ -224,7 +224,7 @@ int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm)
     int32_t sec = 0;
     int32_t usec = 0;
     
-    if (tm != SRS_CONSTS_NO_TMMS) {
+    if (tm != SRS_UTIME_NO_TIMEOUT) {
         sec = (int32_t)(tm / 1000);
         usec = (int32_t)((tm % 1000)*1000);
     }
@@ -278,7 +278,7 @@ int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ss
 }
 int srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm)
 {
-    return tm == SRS_CONSTS_NO_TMMS;
+    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 int srs_hijack_io_read_fully(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread)
 {
