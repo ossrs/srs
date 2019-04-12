@@ -286,7 +286,7 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     }
     
     // duration to buf
-    SrsAmf0Any* dur = SrsAmf0Any::number((double)fragment->duration() / 1000.0);
+    SrsAmf0Any* dur = SrsAmf0Any::number((double)srsu2ms(fragment->duration()) / 1000.0);
     SrsAutoFree(SrsAmf0Any, dur);
     
     stream.skip(-1 * stream.pos());
@@ -831,7 +831,7 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // ignore if duration ok.
     SrsFragment* fragment = segment->current();
-    if (cduration <= 0 || fragment->duration() < int64_t(srsu2ms(cduration))) {
+    if (cduration <= 0 || fragment->duration() < cduration) {
         return err;
     }
     

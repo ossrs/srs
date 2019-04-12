@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
+#include <srs_app_fragment.hpp>
 
 // Disable coroutine test for OSX.
 #if !defined(SRS_OSX)
@@ -307,3 +308,72 @@ VOID TEST(AppCoroutineTest, StartThread)
 }
 
 #endif
+
+VOID TEST(AppFragmentTest, CheckDuration)
+{
+	if (true) {
+		SrsFragment frg;
+		EXPECT_EQ(-1, frg.start_dts);
+		EXPECT_EQ(0, frg.dur);
+		EXPECT_FALSE(frg.sequence_header);
+	}
+
+	if (true) {
+		SrsFragment frg;
+
+		frg.append(0);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(10);
+		EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
+
+		frg.append(99);
+		EXPECT_EQ(99 * SRS_UTIME_MILLISECONDS, frg.duration());
+
+		frg.append(0x7fffffffLL);
+		EXPECT_EQ(0x7fffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
+
+		frg.append(0xffffffffLL);
+		EXPECT_EQ(0xffffffffLL * SRS_UTIME_MILLISECONDS, frg.duration());
+
+		frg.append(0x20c49ba5e353f7LL);
+		EXPECT_EQ(0x20c49ba5e353f7LL * SRS_UTIME_MILLISECONDS, frg.duration());
+	}
+
+	if (true) {
+		SrsFragment frg;
+
+		frg.append(0);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(0x7fffffffffffffffLL);
+		EXPECT_EQ(0, frg.duration());
+	}
+
+	if (true) {
+		SrsFragment frg;
+
+		frg.append(100);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(10);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(100);
+		EXPECT_EQ(90 * SRS_UTIME_MILLISECONDS, frg.duration());
+	}
+
+	if (true) {
+		SrsFragment frg;
+
+		frg.append(-10);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(-5);
+		EXPECT_EQ(0, frg.duration());
+
+		frg.append(10);
+		EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
+	}
+}
+

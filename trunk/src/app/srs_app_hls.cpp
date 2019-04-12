@@ -54,6 +54,7 @@ using namespace std;
 #include <openssl/rand.h>
 
 // drop the segment when duration of ts too small.
+// TODO: FIXME: Refine to time unit.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
 // fragment plus the deviation percent.
@@ -253,7 +254,7 @@ string SrsHlsMuxer::ts_url()
 
 double SrsHlsMuxer::duration()
 {
-    return current? current->duration()/1000.0:0;
+    return current? srsu2ms(current->duration())/1000.0:0;
 }
 
 int SrsHlsMuxer::deviation()
@@ -483,14 +484,14 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
-    return current->duration() >= (hls_fragment + deviation) * 1000;
+    return srsu2msi(current->duration()) >= (hls_fragment + deviation) * 1000;
 }
 
 bool SrsHlsMuxer::wait_keyframe()
@@ -504,14 +505,14 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
-    return current->duration() >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
+    return srsu2msi(current->duration()) >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
 }
 
 bool SrsHlsMuxer::pure_audio()
@@ -591,10 +592,10 @@ srs_error_t SrsHlsMuxer::segment_close()
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    if (current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration() <= max_td * 2 * 1000) {
+    if (srsu2msi(current->duration()) >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
-            current->uri, m3u8, m3u8_url, current->sequence_no, current->duration() / 1000.0))) != srs_success) {
+            current->uri, m3u8, m3u8_url, current->sequence_no, srsu2msi(current->duration()) / 1000.0))) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
         
@@ -617,7 +618,8 @@ srs_error_t SrsHlsMuxer::segment_close()
         // reuse current segment index.
         _sequence_no--;
         
-        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%" PRId64 "ms", current->sequence_no, current->uri.c_str(), current->duration());
+        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%dms",
+            current->sequence_no, current->uri.c_str(), srsu2msi(current->duration()));
         
         // rename from tmp to real path
         if ((err = current->unlink_tmpfile()) != srs_success) {
@@ -778,13 +780,13 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
         ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << segment->duration() / 1000.0 << ", no desc" << SRS_CONSTS_LF;
+        ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
         
         // {file name}\n
         std::string seg_uri = segment->uri;
         if (true) {
 	        std::stringstream stemp;
-	        stemp << (int)(segment->duration());
+	        stemp << srsu2msi(segment->duration());
 	        seg_uri = srs_string_replace(seg_uri, "[duration]", stemp.str());
         }
         //ss << segment->uri << SRS_CONSTS_LF;

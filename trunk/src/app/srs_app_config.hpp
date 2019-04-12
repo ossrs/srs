@@ -1279,6 +1279,7 @@ public:
     /**
      * get the hds fragment time, in seconds.
      */
+     // TODO: FIXME: Refine to time unit.
     virtual double get_hds_fragment(const std::string &vhost);
     /**
      * get the hds window time, in seconds.

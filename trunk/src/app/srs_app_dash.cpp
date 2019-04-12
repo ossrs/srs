@@ -335,7 +335,7 @@ srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFo
         return refresh_init_mp4(shared_audio, format);
     }
     
-    if (acurrent->duration() >= int64_t(srsu2ms(fragment))) {
+    if (acurrent->duration() >= fragment) {
         if ((err = acurrent->reap(audio_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
@@ -367,7 +367,7 @@ srs_error_t SrsDashController::on_video(SrsSharedPtrMessage* shared_video, SrsFo
         return refresh_init_mp4(shared_video, format);
     }
     
-    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= int64_t(srsu2ms(fragment));
+    bool reopen = format->video->frame_type == SrsVideoAvcFrameTypeKeyFrame && vcurrent->duration() >= fragment;
     if (reopen) {
         if ((err = vcurrent->reap(video_dts)) != srs_success) {
             return srs_error_wrap(err, "reap current");
