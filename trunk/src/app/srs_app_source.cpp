@@ -274,7 +274,7 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
             av_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
         }
         
-        av_end_time = msg->timestamp;
+        av_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
     }
     
     msgs.push_back(msg);
@@ -375,11 +375,11 @@ void SrsMessageQueue::shrink()
     av_start_time = av_end_time;
     //push_back secquence header and update timestamp
     if (video_sh) {
-        video_sh->timestamp = av_end_time;
+        video_sh->timestamp = srsu2ms(av_end_time);
         msgs.push_back(video_sh);
     }
     if (audio_sh) {
-        audio_sh->timestamp = av_end_time;
+        audio_sh->timestamp = srsu2ms(av_end_time);
         msgs.push_back(audio_sh);
     }
     
