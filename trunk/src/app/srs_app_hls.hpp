@@ -91,10 +91,10 @@ private:
     std::string m3u8_url;
     int seq_no;
     SrsRequest* req;
-    double duration;
+    srs_utime_t duration;
 public:
     // TODO: FIXME: Use TBN 1000.
-    SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
+    SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, srs_utime_t d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual srs_error_t call();

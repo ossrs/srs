@@ -82,7 +82,7 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
     fw->config_cipher(key, iv);
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
 {
     req = r->copy();
     cid = c;
@@ -595,7 +595,7 @@ srs_error_t SrsHlsMuxer::segment_close()
     if (srsu2msi(current->duration()) >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
-            current->uri, m3u8, m3u8_url, current->sequence_no, srsu2msi(current->duration()) / 1000.0))) != srs_success) {
+            current->uri, m3u8, m3u8_url, current->sequence_no, current->duration()))) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
         
