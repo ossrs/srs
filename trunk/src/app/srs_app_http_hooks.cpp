@@ -46,7 +46,7 @@ using namespace std;
 #define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
 // the timeout for hls notify, in ms.
-#define SRS_HLS_NOTIFY_TMMS (10 * 1000)
+#define SRS_HLS_NOTIFY_TMMS (10 * SRS_UTIME_MILLISECONDS)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -363,7 +363,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     url = srs_string_replace(url, "[ts_url]", ts_url);
     url = srs_string_replace(url, "[param]", req->param);
     
-    int64_t starttime = srs_update_system_time_ms();
+    int64_t starttime = srsu2ms(srs_update_system_time());
     
     SrsHttpUri uri;
     if ((err = uri.initialize(url)) != srs_success) {
@@ -405,7 +405,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
         nb_read += nb_bytes;
     }
     
-    int spenttime = (int)(srs_update_system_time_ms() - starttime);
+    int spenttime = (int)(srsu2ms(srs_update_system_time()) - starttime);
     srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, err=%s",
         client_id, url.c_str(), msg->status_code(), spenttime, nb_read, srs_error_desc(err).c_str());
     

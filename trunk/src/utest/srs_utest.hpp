@@ -24,6 +24,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_UTEST_PUBLIC_SHARED_HPP
 #define SRS_UTEST_PUBLIC_SHARED_HPP
 
+// Public all private and protected members.
+#define private public
+#define protected public
+
 /*
 #include <srs_utest.hpp>
 */
@@ -35,10 +39,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // we add an empty macro for upp to show the smart tips.
 #define VOID
-
-// Public all private and protected members.
-#define private public
-#define protected public
 
 // the asserts of gtest:
 //    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual

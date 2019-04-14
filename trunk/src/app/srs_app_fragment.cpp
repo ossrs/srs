@@ -44,16 +44,24 @@ SrsFragment::~SrsFragment()
 
 void SrsFragment::append(int64_t dts)
 {
+	// The max positive ms is 0x7fffffffffffffff/1000.
+    static const int64_t maxMS = 0x20c49ba5e353f7LL;
+
+    // We reset negative or overflow dts to zero.
+    if (dts > maxMS || dts < 0) {
+        dts = 0;
+    }
+
     if (start_dts == -1) {
         start_dts = dts;
     }
     
     // TODO: FIXME: Use cumulus dts.
     start_dts = srs_min(start_dts, dts);
-    dur = dts - start_dts;
+    dur = srs_utime_t(dts - start_dts) * SRS_UTIME_MILLISECONDS;
 }
 
-int64_t SrsFragment::duration()
+srs_utime_t SrsFragment::duration()
 {
     return dur;
 }
@@ -127,7 +135,7 @@ srs_error_t SrsFragment::rename()
     
     string full_path = fullpath();
     string tmp_file = tmppath();
-    int tempdur = (int)duration();
+    int tempdur = srsu2msi(duration());
     if (true) {
 	   std::stringstream ss;
 	   ss << tempdur;
@@ -195,7 +203,7 @@ void SrsFragmentWindow::append(SrsFragment* fragment)
 
 void SrsFragmentWindow::shrink(int64_t window)
 {
-    int64_t duration = 0;
+    srs_utime_t duration = 0;
     
     int remove_index = -1;
     
@@ -203,7 +211,7 @@ void SrsFragmentWindow::shrink(int64_t window)
         SrsFragment* fragment = fragments[i];
         duration += fragment->duration();
         
-        if (duration > window) {
+        if (srsu2ms(duration) > window) {
             remove_index = i;
             break;
         }
@@ -242,7 +250,7 @@ int64_t SrsFragmentWindow::max_duration()
     
     for (it = fragments.begin(); it != fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        v = srs_max(v, fragment->duration());
+        v = srs_max(v, srsu2ms(fragment->duration()));
     }
     
     return v;

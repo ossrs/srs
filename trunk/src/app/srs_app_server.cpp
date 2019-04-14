@@ -60,7 +60,7 @@ using namespace std;
 // the meminfo canbe 6*x, for instance, 6*1=6s,
 // for performance refine, @see: https://github.com/ossrs/srs/issues/194
 // @remark, recomment to 1000ms.
-#define SRS_SYS_CYCLE_INTERVAL 1000
+#define SRS_SYS_CYCLE_INTERVAL (1000 * SRS_UTIME_MILLISECONDS)
 
 // update time interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
@@ -542,7 +542,7 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
     srs_error_t err = srs_success;
     
     // ensure the time is ok.
-    srs_update_system_time_ms();
+    srs_update_system_time();
     
     // for the main objects(server, config, log, context),
     // never subscribe handler in constructor,
@@ -916,7 +916,7 @@ srs_error_t SrsServer::do_cycle()
         int dynamic_max = srs_max(max, heartbeat_max_resolution);
         
         for (int i = 0; i < dynamic_max; i++) {
-            srs_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+            srs_usleep(SRS_SYS_CYCLE_INTERVAL);
             
             // asprocess check.
             if (asprocess && ::getppid() != ppid) {
@@ -971,7 +971,7 @@ srs_error_t SrsServer::do_cycle()
             // update the cache time
             if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
                 srs_info("update current time cache.");
-                srs_update_system_time_ms();
+                srs_update_system_time();
             }
             
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {

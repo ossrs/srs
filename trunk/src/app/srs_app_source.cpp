@@ -61,8 +61,8 @@ using namespace std;
 // when got these videos or audios, pure audio or video, mix ok.
 #define SRS_MIX_CORRECT_PURE_AV 10
 
-// the time to cleanup source in ms.
-#define SRS_SOURCE_CLEANUP 30000
+// the time to cleanup source.
+#define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
 
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -241,7 +241,7 @@ void SrsFastVector::free()
 SrsMessageQueue::SrsMessageQueue(bool ignore_shrink)
 {
     _ignore_shrink = ignore_shrink;
-    queue_size_ms = 0;
+    max_queue_size = 0;
     av_start_time = av_end_time = -1;
 }
 
@@ -255,14 +255,14 @@ int SrsMessageQueue::size()
     return (int)msgs.size();
 }
 
-int SrsMessageQueue::duration()
+srs_utime_t SrsMessageQueue::duration()
 {
-    return (int)(av_end_time - av_start_time);
+    return (av_end_time - av_start_time);
 }
 
 void SrsMessageQueue::set_queue_size(double queue_size)
 {
-    queue_size_ms = (int)(queue_size * 1000);
+	max_queue_size = srs_utime_t(queue_size * SRS_UTIME_SECONDS);
 }
 
 srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
@@ -271,15 +271,15 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
     
     if (msg->is_av()) {
         if (av_start_time == -1) {
-            av_start_time = msg->timestamp;
+            av_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
         }
         
-        av_end_time = msg->timestamp;
+        av_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
     }
     
     msgs.push_back(msg);
     
-    while (av_end_time - av_start_time > queue_size_ms) {
+    while (av_end_time - av_start_time > max_queue_size) {
         // notice the caller queue already overflow and shrinked.
         if (is_overflow) {
             *is_overflow = true;
@@ -309,7 +309,7 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** p
     }
     
     SrsSharedPtrMessage* last = omsgs[count - 1];
-    av_start_time = last->timestamp;
+    av_start_time = srs_utime_t(last->timestamp * SRS_UTIME_MILLISECONDS);
     
     if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
@@ -375,17 +375,16 @@ void SrsMessageQueue::shrink()
     av_start_time = av_end_time;
     //push_back secquence header and update timestamp
     if (video_sh) {
-        video_sh->timestamp = av_end_time;
+        video_sh->timestamp = srsu2ms(av_end_time);
         msgs.push_back(video_sh);
     }
     if (audio_sh) {
-        audio_sh->timestamp = av_end_time;
+        audio_sh->timestamp = srsu2ms(av_end_time);
         msgs.push_back(audio_sh);
     }
     
     if (!_ignore_shrink) {
-        srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f",
-                  (int)msgs.size(), msgs_size - (int)msgs.size(), queue_size_ms / 1000.0);
+        srs_trace("shrinking, size=%d, removed=%d, max=%dms", (int)msgs.size(), msgs_size - (int)msgs.size(), srsu2msi(max_queue_size));
     }
 }
 
@@ -477,20 +476,20 @@ srs_error_t SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsR
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // fire the mw when msgs is enough.
     if (mw_waiting) {
-        int duration_ms = queue->duration();
+        srs_utime_t duration = queue->duration();
         bool match_min_msgs = queue->size() > mw_min_msgs;
         
         // For ATC, maybe the SH timestamp bigger than A/V packet,
         // when encoder republish or overflow.
         // @see https://github.com/ossrs/srs/pull/749
-        if (atc && duration_ms < 0) {
+        if (atc && duration < 0) {
             srs_cond_signal(mw_wait);
             mw_waiting = false;
             return err;
         }
         
         // when duration ok, signal to flush.
-        if (match_min_msgs && duration_ms > mw_duration) {
+        if (match_min_msgs && duration > mw_duration) {
             srs_cond_signal(mw_wait);
             mw_waiting = false;
             return err;
@@ -534,21 +533,21 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 }
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-void SrsConsumer::wait(int nb_msgs, int duration)
+void SrsConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
 {
     if (paused) {
-        srs_usleep(SRS_CONSTS_RTMP_PULSE_TMMS * 1000);
+        srs_usleep(SRS_CONSTS_RTMP_PULSE);
         return;
     }
     
     mw_min_msgs = nb_msgs;
-    mw_duration = duration;
+    mw_duration = msgs_duration;
     
-    int duration_ms = queue->duration();
+    srs_utime_t duration = queue->duration();
     bool match_min_msgs = queue->size() > mw_min_msgs;
     
     // when duration ok, signal to flush.
-    if (match_min_msgs && duration_ms > mw_duration) {
+    if (match_min_msgs && duration > mw_duration) {
         return;
     }
     
@@ -1767,7 +1766,7 @@ SrsSource::SrsSource()
     
     _can_publish = true;
     _pre_source_id = _source_id = -1;
-    die_at = -1;
+    die_at = 0;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1821,7 +1820,7 @@ srs_error_t SrsSource::cycle()
 bool SrsSource::expired()
 {
     // unknown state?
-    if (die_at == -1) {
+    if (die_at == 0) {
         return false;
     }
     
@@ -1835,7 +1834,7 @@ bool SrsSource::expired()
         return false;
     }
     
-    int64_t now = srs_get_system_time_ms();
+    srs_utime_t now = srs_get_system_time();
     if (now > die_at + SRS_SOURCE_CLEANUP) {
         return true;
     }
@@ -2433,7 +2432,7 @@ void SrsSource::on_unpublish()
     
     // no consumer, stream is die.
     if (consumers.empty()) {
-        die_at = srs_get_system_time_ms();
+        die_at = srs_get_system_time();
     }
 }
 
@@ -2498,7 +2497,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
     
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
-        die_at = srs_get_system_time_ms();
+        die_at = srs_get_system_time();
     }
 }
 

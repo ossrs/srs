@@ -41,7 +41,7 @@ SrsHttpClient::SrsHttpClient()
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     parser = NULL;
-    timeout = SRS_CONSTS_NO_TMMS;
+    timeout = SRS_UTIME_NO_TIMEOUT;
     port = 0;
 }
 

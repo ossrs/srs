@@ -162,6 +162,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-04-07, Cover ST Coroutine and time unit. 3.0.48
 * v3.0, 2019-04-06, Merge [#1304][bug #1304], Fix ST coroutine pull error. 3.0.47
 * v3.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 3.0.46
 * v3.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 3.0.44

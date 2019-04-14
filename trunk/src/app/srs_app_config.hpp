@@ -603,11 +603,11 @@ public:
      */
     virtual std::string get_pid_file();
     /**
-     * get pithy print pulse ms,
+     * get pithy print pulse in srs_utime_t,
      * for example, all rtmp connections only print one message
      * every this interval in ms.
      */
-    virtual int get_pithy_print_ms();
+    virtual srs_utime_t get_pithy_print();
     /**
      * whether use utc-time to format the time.
      */
@@ -774,17 +774,17 @@ public:
      */
     virtual bool get_mr_enabled(std::string vhost);
     /**
-     * get the mr sleep time in ms for vhost.
+     * get the mr sleep time in srs_utime_t for vhost.
      * @param vhost, the vhost to get the mr sleep time.
      */
     // TODO: FIXME: add utest for mr config.
-    virtual int get_mr_sleep_ms(std::string vhost);
+    virtual srs_utime_t get_mr_sleep(std::string vhost);
     /**
-     * get the mw sleep time in ms for vhost.
+     * get the mw sleep time in srs_utime_t for vhost.
      * @param vhost, the vhost to get the mw sleep time.
      */
     // TODO: FIXME: add utest for mw config.
-    virtual int get_mw_sleep_ms(std::string vhost);
+    virtual srs_utime_t get_mw_sleep(std::string vhost);
     /**
      * whether min latency mode enabled.
      * @param vhost, the vhost to get the min_latency.
@@ -804,13 +804,13 @@ public:
      */
     virtual bool get_reduce_sequence_header(std::string vhost);
     /**
-     * the 1st packet timeout in ms for encoder.
+     * the 1st packet timeout in srs_utime_t for encoder.
      */
-    virtual int get_publish_1stpkt_timeout(std::string vhost);
+    virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     /**
-     * the normal packet timeout in ms for encoder.
+     * the normal packet timeout in srs_utime_t for encoder.
      */
-    virtual int get_publish_normal_timeout(std::string vhost);
+    virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
 private:
     /**
      * get the global chunk size.
@@ -896,12 +896,12 @@ public:
      */
     virtual std::string get_bw_check_key(std::string vhost);
     /**
-     * the check interval, in ms.
+     * the check interval, in srs_utime_t.
      * if the client request check in very short time(in the interval),
      * SRS will reject client.
      * @remark this is used to prevent the bandwidth check attack.
      */
-    virtual int get_bw_check_interval_ms(std::string vhost);
+    virtual srs_utime_t get_bw_check_interval(std::string vhost);
     /**
      * the max kbps that user can test,
      * if exceed the kbps, server will slowdown the send-recv.
@@ -1150,12 +1150,12 @@ private:
 public:
     // Whether DASH is enabled.
     virtual bool get_dash_enabled(std::string vhost);
-    // Get the duration of segment in milliseconds.
-    virtual int get_dash_fragment(std::string vhost);
-    // Get the period to update MPD in milliseconds.
-    virtual int get_dash_update_period(std::string vhost);
-    // Get the depth of timeshift buffer in milliseconds.
-    virtual int get_dash_timeshift(std::string vhost);
+    // Get the duration of segment in srs_utime_t.
+    virtual srs_utime_t get_dash_fragment(std::string vhost);
+    // Get the period to update MPD in srs_utime_t.
+    virtual srs_utime_t get_dash_update_period(std::string vhost);
+    // Get the depth of timeshift buffer in srs_utime_t.
+    virtual srs_utime_t get_dash_timeshift(std::string vhost);
     // Get the base/home dir/path for dash, into which write files.
     virtual std::string get_dash_path(std::string vhost);
     // Get the path for DASH MPD, to generate the MPD file.
@@ -1229,9 +1229,9 @@ public:
      */
     virtual bool get_hls_cleanup(std::string vhost);
     /**
-     * the timeout to dispose the hls.
+     * the timeout in srs_utime_t to dispose the hls.
      */
-    virtual int get_hls_dispose(std::string vhost);
+    virtual srs_utime_t get_hls_dispose(std::string vhost);
     /**
      * whether reap the ts when got keyframe.
      */
@@ -1279,6 +1279,7 @@ public:
     /**
      * get the hds fragment time, in seconds.
      */
+     // TODO: FIXME: Refine to time unit.
     virtual double get_hds_fragment(const std::string &vhost);
     /**
      * get the hds window time, in seconds.
@@ -1312,7 +1313,7 @@ public:
     /**
      * get the duration of dvr flv.
      */
-    virtual int get_dvr_duration(std::string vhost);
+    virtual srs_utime_t get_dvr_duration(std::string vhost);
     /**
      * whether wait keyframe to reap segment.
      */
@@ -1422,9 +1423,9 @@ public:
      */
     virtual bool get_heartbeat_enabled();
     /**
-     * get the heartbeat interval, in ms.
+     * get the heartbeat interval, in srs_utime_t.
      */
-    virtual int64_t get_heartbeat_interval();
+    virtual srs_utime_t get_heartbeat_interval();
     /**
      * get the heartbeat report url.
      */

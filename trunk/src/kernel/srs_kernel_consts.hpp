@@ -64,20 +64,15 @@
 // the following is the timeout for rtmp protocol,
 // to avoid death connection.
 
-// Never timeout in ms
-// @remake Rename from SRS_CONSTS_NO_TIMEOUT
-// @see ST_UTIME_NO_TIMEOUT
-#define SRS_CONSTS_NO_TMMS ((int64_t) -1LL)
-
-// the common io timeout, for both recv and send.
-// TODO: FIXME: use ms for timeout.
-#define SRS_CONSTS_RTMP_TMMS (30*1000)
+// the common io timeout, for connect, recv or send.
+// TODO: FIXME: Maybe change to smaller value, such as 3s?
+#define SRS_CONSTS_RTMP_TIMEOUT (30 * SRS_UTIME_SECONDS)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
 // @remark, recomment to 500ms.
-#define SRS_CONSTS_RTMP_PULSE_TMMS (500)
+#define SRS_CONSTS_RTMP_PULSE (500 * SRS_UTIME_MILLISECONDS)
 
 /**
  * max rtmp header size:
@@ -226,7 +221,7 @@
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // the default recv timeout.
-#define SRS_HTTP_RECV_TMMS (60 * 1000)
+#define SRS_HTTP_RECV_TMMS (60 * SRS_UTIME_SECONDS)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100

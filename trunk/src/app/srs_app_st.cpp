@@ -79,6 +79,8 @@ int SrsDummyCoroutine::cid()
     return 0;
 }
 
+_ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
+
 SrsSTCoroutine::SrsSTCoroutine(const string& n, ISrsCoroutineHandler* h, int cid)
 {
     name = n;
@@ -86,7 +88,7 @@ SrsSTCoroutine::SrsSTCoroutine(const string& n, ISrsCoroutineHandler* h, int cid
     context = cid;
     trd = NULL;
     trd_err = srs_success;
-    started = interrupted = disposed = false;
+    started = interrupted = disposed = cycle_done = false;
 }
 
 SrsSTCoroutine::~SrsSTCoroutine()
@@ -101,8 +103,12 @@ srs_error_t SrsSTCoroutine::start()
     srs_error_t err = srs_success;
     
     if (started || disposed) {
-        err = srs_error_new(ERROR_THREAD_DISPOSED, "failed for disposed=%d, started=%d", disposed, started);
-        
+        if (disposed) {
+            err = srs_error_new(ERROR_THREAD_DISPOSED, "disposed");
+        } else {
+            err = srs_error_new(ERROR_THREAD_STARTED, "started");
+        }
+
         if (trd_err == srs_success) {
             trd_err = srs_error_copy(err);
         }
@@ -110,7 +116,7 @@ srs_error_t SrsSTCoroutine::start()
         return err;
     }
     
-    if((trd = (srs_thread_t)st_thread_create(pfn, this, 1, 0)) == NULL){
+    if ((trd = (srs_thread_t)_pfn_st_thread_create(pfn, this, 1, 0)) == NULL) {
         err = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create failed");
         
         srs_freep(trd_err);
@@ -126,28 +132,29 @@ srs_error_t SrsSTCoroutine::start()
 
 void SrsSTCoroutine::stop()
 {
-    if (!started || disposed) {
+    if (disposed) {
         return;
     }
     disposed = true;
     
     interrupt();
-    
-    void* res = NULL;
-    int r0 = st_thread_join((st_thread_t)trd, &res);
-    srs_assert(!r0);
-    
-    // Always override the error by the error from worker.
-    srs_error_t err_res = (srs_error_t)res;
-    if (err_res != srs_success && trd_err != err_res) {
-        srs_freep(trd_err);
-        // It's ok to directly use it, because it's returned by st_thread_join.
-        trd_err = err_res;
-        return;
+
+    // When not started, the rd is NULL.
+    if (trd) {
+        void* res = NULL;
+        int r0 = st_thread_join((st_thread_t)trd, &res);
+        srs_assert(!r0);
+
+        srs_error_t err_res = (srs_error_t)res;
+        if (err_res != srs_success) {
+            // When worker cycle done, the error has already been overrided,
+            // so the trd_err should be equal to err_res.
+            srs_assert(trd_err == err_res);
+        }
     }
     
-    // If there's no error occur from worker, try to set to interrupted error.
-    if (trd_err == srs_success) {
+    // If there's no error occur from worker, try to set to terminated error.
+    if (trd_err == srs_success && !cycle_done) {
         trd_err = srs_error_new(ERROR_THREAD_TERMINATED, "terminated");
     }
     
@@ -156,7 +163,7 @@ void SrsSTCoroutine::stop()
 
 void SrsSTCoroutine::interrupt()
 {
-    if (!started || interrupted) {
+    if (!started || interrupted || cycle_done) {
         return;
     }
     interrupted = true;
@@ -192,6 +199,9 @@ srs_error_t SrsSTCoroutine::cycle()
     if (err != srs_success) {
         return srs_error_wrap(err, "coroutine cycle");
     }
+
+    // Set cycle done, no need to interrupt it.
+    cycle_done = true;
     
     return err;
 }

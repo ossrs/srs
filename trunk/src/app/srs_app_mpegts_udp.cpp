@@ -615,8 +615,8 @@ srs_error_t SrsMpegtsOverUdp::connect()
         return err;
     }
     
-    int64_t cto = SRS_CONSTS_RTMP_TMMS;
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
+    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {

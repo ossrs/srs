@@ -35,9 +35,6 @@ typedef void* srs_netfd_t;
 typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
-typedef uint64_t srs_utime_t;
-
-#define SRS_UTIME_NO_TIMEOUT ((srs_utime_t) -1LL)
 
 // initialize st, requires epoll.
 extern srs_error_t srs_st_init();
@@ -113,7 +110,7 @@ class SrsStSocket : public ISrsProtocolReadWriter
 {
 private:
     // The recv/send timeout in ms.
-    // @remark Use SRS_CONSTS_NO_TMMS for never timeout in ms.
+    // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout in ms.
     int64_t rtm;
     int64_t stm;
     // The recv/send data in bytes

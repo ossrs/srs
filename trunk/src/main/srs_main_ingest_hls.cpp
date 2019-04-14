@@ -154,7 +154,7 @@ private:
 private:
     SrsHttpUri* in_hls;
     std::vector<SrsTsPiece*> pieces;
-    int64_t next_connect_time;
+    srs_utime_t next_connect_time;
 private:
     SrsTsContext* context;
 public:
@@ -213,10 +213,10 @@ int SrsIngestHlsInput::connect()
 {
     int ret = ERROR_SUCCESS;
     
-    int64_t now = srs_update_system_time_ms();
+    srs_utime_t now = srs_update_system_time();
     if (now < next_connect_time) {
-        srs_trace("input hls wait for %dms", next_connect_time - now);
-        srs_usleep((next_connect_time - now) * 1000);
+        srs_trace("input hls wait for %dms", srsu2msi(next_connect_time - now));
+        srs_usleep(next_connect_time - now);
     }
     
     // set all ts to dirty.
@@ -559,7 +559,7 @@ int SrsIngestHlsInput::fetch_all_ts(bool fresh_m3u8)
         
         // only wait for a duration of last piece.
         if (i == (int)pieces.size() - 1) {
-            next_connect_time = srs_update_system_time_ms() + (int)tp->duration * 1000;
+            next_connect_time = srs_update_system_time() + tp->duration * SRS_UTIME_SECONDS;
         }
     }
     
@@ -696,7 +696,7 @@ SrsIngestHlsOutput::SrsIngestHlsOutput(SrsHttpUri* rtmp)
 {
     out_rtmp = rtmp;
     disconnected = false;
-    raw_aac_dts = srs_update_system_time_ms();
+    raw_aac_dts = srsu2ms(srs_update_system_time());
     
     req = NULL;
     sdk = NULL;
@@ -1275,8 +1275,8 @@ int SrsIngestHlsOutput::connect()
     srs_trace("connect output=%s", url.c_str());
     
     // connect host.
-    int64_t cto = SRS_CONSTS_RTMP_TMMS;
-    int64_t sto = SRS_CONSTS_RTMP_PULSE_TMMS;
+    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
+    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsBasicRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {

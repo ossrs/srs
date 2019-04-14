@@ -56,7 +56,7 @@
 #define SRS_PERF_MERGED_READ
 // the default config of mr.
 #define SRS_PERF_MR_ENABLED false
-#define SRS_PERF_MR_SLEEP 350
+#define SRS_PERF_MR_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 
 /**
  * the MW(merged-write) send cache time in ms.
@@ -91,7 +91,7 @@
  *       2000            150         300
  */
 // the default config of mw.
-#define SRS_PERF_MW_SLEEP 350
+#define SRS_PERF_MW_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 /**
  * how many msgs can be send entirely.
  * for play clients to get msgs then totally send out.

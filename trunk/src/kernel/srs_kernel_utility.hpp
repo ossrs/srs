@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+
 class SrsBuffer;
 class SrsBitBuffer;
 
@@ -40,11 +41,11 @@ class SrsBitBuffer;
 extern srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v);
 extern srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v);
 
-// get current system time in ms, use cache to avoid performance problem
-extern int64_t srs_get_system_time_ms();
-extern int64_t srs_get_system_startup_time_ms();
+// get current system time in srs_utime_t, use cache to avoid performance problem
+extern srs_utime_t srs_get_system_time();
+extern srs_utime_t srs_get_system_startup_time();
 // the deamon st-thread will update it.
-extern int64_t srs_update_system_time_ms();
+extern srs_utime_t srs_update_system_time();
 
 // the any address for listener,
 // it's "0.0.0.0" for ipv4, and "::" for ipv6.

@@ -286,7 +286,7 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     }
     
     // duration to buf
-    SrsAmf0Any* dur = SrsAmf0Any::number((double)fragment->duration() / 1000.0);
+    SrsAmf0Any* dur = SrsAmf0Any::number((double)srsu2ms(fragment->duration()) / 1000.0);
     SrsAutoFree(SrsAmf0Any, dur);
     
     stream.skip(-1 * stream.pos());
@@ -740,7 +740,7 @@ void SrsDvrSessionPlan::on_unpublish()
 
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
-    cduration = -1;
+    cduration = 0;
     wait_keyframe = false;
 }
 
@@ -759,8 +759,6 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, S
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
     cduration = _srs_config->get_dvr_duration(req->vhost);
-    // to ms
-    cduration *= 1000;
     
     return srs_success;
 }
@@ -881,8 +879,6 @@ srs_error_t SrsDvrSegmentPlan::on_reload_vhost_dvr(string vhost)
     wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
     
     cduration = _srs_config->get_dvr_duration(req->vhost);
-    // to ms
-    cduration *= 1000;
     
     return err;
 }

@@ -36,8 +36,8 @@
 class SrsFragment
 {
 private:
-    // The duration in ms.
-    int64_t dur;
+    // The duration in srs_utime_t.
+    srs_utime_t dur;
     // The full file path of fragment.
     std::string filepath;
     // The start DTS in ms of segment.
@@ -51,8 +51,8 @@ public:
     // Append a frame with dts into fragment.
     // @dts The dts of frame in ms.
     virtual void append(int64_t dts);
-    // Get the duration of fragment in ms.
-    virtual int64_t duration();
+    // Get the duration of fragment in srs_utime_t.
+    virtual srs_utime_t duration();
     // Whether the fragment contains any sequence header.
     virtual bool is_sequence_header();
     // Set whether contains sequence header.

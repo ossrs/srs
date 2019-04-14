@@ -35,16 +35,16 @@ class SrsStageInfo : public ISrsReloadHandler
 {
 public:
     int stage_id;
-    int pithy_print_time_ms;
+    srs_utime_t interval;
     int nb_clients;
 public:
-    int64_t age;
+    srs_utime_t age;
 public:
     SrsStageInfo(int _stage_id);
     virtual ~SrsStageInfo();
     virtual void update_print_time();
 public:
-    virtual void elapse(int64_t diff);
+    virtual void elapse(srs_utime_t diff);
     virtual bool can_print();
 public:
     virtual srs_error_t on_reload_pithy_print();
@@ -75,9 +75,8 @@ class SrsPithyPrint
 private:
     int client_id;
     int stage_id;
-    // in ms.
-    int64_t _age;
-    int64_t previous_tick;
+    srs_utime_t _age;
+    srs_utime_t previous_tick;
 private:
     SrsPithyPrint(int _stage_id);
 public:

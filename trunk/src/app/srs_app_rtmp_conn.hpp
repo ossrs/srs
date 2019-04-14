@@ -110,7 +110,7 @@ private:
     // @see https://github.com/ossrs/srs/issues/47
     int64_t duration;
     // the MR(merged-write) sleep time in ms.
-    int mw_sleep;
+    srs_utime_t mw_sleep;
     // the MR(merged-write) only enabled for play.
     int mw_enabled;
     // for realtime
@@ -118,10 +118,10 @@ private:
     bool realtime;
     // the minimal interval in ms for delivery stream.
     double send_min_interval;
-    // publish 1st packet timeout in ms
-    int publish_1stpkt_timeout;
-    // publish normal packet timeout in ms
-    int publish_normal_timeout;
+    // publish 1st packet timeout in srs_utime_t
+    srs_utime_t publish_1stpkt_timeout;
+    // publish normal packet timeout in srs_utime_t
+    srs_utime_t publish_normal_timeout;
     // whether enable the tcp_nodelay.
     bool tcp_nodelay;
     // About the rtmp client.
@@ -158,7 +158,7 @@ private:
     virtual srs_error_t handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
     virtual srs_error_t process_publish_message(SrsSource* source, SrsCommonMessage* msg);
     virtual srs_error_t process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
-    virtual void change_mw_sleep(int sleep_ms);
+    virtual void change_mw_sleep(srs_utime_t sleep_v);
     virtual void set_sock_options();
 private:
     virtual srs_error_t check_edge_token_traverse_auth();

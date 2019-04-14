@@ -106,6 +106,10 @@ public:
     virtual int cid();
 };
 
+// For utest to mock the thread create.
+typedef void* (*_ST_THREAD_CREATE_PFN)(void *(*start)(void *arg), void *arg, int joinable, int stack_size);
+extern _ST_THREAD_CREATE_PFN _pfn_st_thread_create;
+
 /**
  * A ST-coroutine is a lightweight thread, just like the goroutine.
  * But the goroutine maybe run on different thread, while ST-coroutine only
@@ -133,6 +137,8 @@ private:
     bool started;
     bool interrupted;
     bool disposed;
+    // Cycle done, no need to interrupt it.
+    bool cycle_done;
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.

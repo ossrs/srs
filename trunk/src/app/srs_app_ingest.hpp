@@ -44,7 +44,7 @@ private:
     std::string vhost;
     std::string id;
     SrsFFMPEG* ffmpeg;
-    int64_t starttime;
+    srs_utime_t starttime;
 public:
     SrsIngesterFFMPEG();
     virtual ~SrsIngesterFFMPEG();

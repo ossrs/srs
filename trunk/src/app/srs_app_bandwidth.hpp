@@ -193,7 +193,7 @@ private:
      * for flash client, the sent queue is fullfill with publishing call messages,
      *       so server never expect the final packet from it.
      */
-    virtual srs_error_t do_final(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
+    virtual srs_error_t do_final(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, srs_utime_t start_time, srs_utime_t& end_time);
 };
 
 /**

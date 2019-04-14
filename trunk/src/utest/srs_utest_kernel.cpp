@@ -1482,15 +1482,14 @@ VOID TEST(KernelBufferTest, CoverAll)
 */
 VOID TEST(KernelUtilityTest, UtilityTime)
 {
-    int64_t time = srs_get_system_time_ms();
+    srs_utime_t time = srs_get_system_time();
     EXPECT_TRUE(time > 0);
     
-    int64_t time1 = srs_get_system_time_ms();
+    srs_utime_t time1 = srs_get_system_time();
     EXPECT_EQ(time, time1);
     
-    usleep(1000);
-    srs_update_system_time_ms();
-    time1 = srs_get_system_time_ms();
+    usleep(1 * SRS_UTIME_MILLISECONDS);
+    time1 = srs_update_system_time();
     EXPECT_TRUE(time1 > time);
 }
 
@@ -1499,15 +1498,15 @@ VOID TEST(KernelUtilityTest, UtilityTime)
 */
 VOID TEST(KernelUtilityTest, UtilityStartupTime)
 {
-    int64_t time = srs_get_system_startup_time_ms();
+    srs_utime_t time = srs_get_system_startup_time();
     EXPECT_TRUE(time > 0);
     
-    int64_t time1 = srs_get_system_startup_time_ms();
+    srs_utime_t time1 = srs_get_system_startup_time();
     EXPECT_EQ(time, time1);
     
-    usleep(1000);
-    srs_update_system_time_ms();
-    time1 = srs_get_system_startup_time_ms();
+    usleep(1 * SRS_UTIME_MILLISECONDS);
+    srs_update_system_time();
+    time1 = srs_get_system_startup_time();
     EXPECT_EQ(time, time1);
 }
 
@@ -3182,10 +3181,10 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
 {
     _srs_system_time_us_cache = 0;
     _srs_system_time_startup_time = 0;
-    EXPECT_TRUE(srs_get_system_startup_time_ms() > 0);
+    EXPECT_TRUE(srs_get_system_startup_time() > 0);
     
     _srs_system_time_us_cache -= 300*1000 * 1000 + 1;
-    EXPECT_TRUE(srs_update_system_time_ms() > 0);
+    EXPECT_TRUE(srs_update_system_time() > 0);
     
     if (true) {
         string host;

@@ -129,7 +129,7 @@ struct Context
         h264_sps_pps_sent = false;
         h264_sps_changed = false;
         h264_pps_changed = false;
-        rtimeout = stimeout = SRS_CONSTS_NO_TMMS;
+        rtimeout = stimeout = SRS_UTIME_NO_TIMEOUT;
         schema = srs_url_schema_normal;
     }
     virtual ~Context() {
@@ -635,11 +635,11 @@ int srs_rtmp_connect_server(srs_rtmp_t rtmp)
     Context* context = (Context*)rtmp;
     
     // set timeout if user not set.
-    if (context->stimeout == SRS_CONSTS_NO_TMMS) {
+    if (context->stimeout == SRS_UTIME_NO_TIMEOUT) {
         context->stimeout = SRS_SOCKET_DEFAULT_TMMS;
         context->skt->set_send_timeout(context->stimeout);
     }
-    if (context->rtimeout == SRS_CONSTS_NO_TMMS) {
+    if (context->rtimeout == SRS_UTIME_NO_TIMEOUT) {
         context->rtimeout = SRS_SOCKET_DEFAULT_TMMS;
         context->skt->set_recv_timeout(context->rtimeout);
     }
@@ -2212,7 +2212,7 @@ void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
 
 int64_t srs_utils_time_ms()
 {
-    return srs_update_system_time_ms();
+    return srs_update_system_time();
 }
 
 int64_t srs_utils_send_bytes(srs_rtmp_t rtmp)

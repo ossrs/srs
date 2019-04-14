@@ -54,6 +54,7 @@ using namespace std;
 #include <openssl/rand.h>
 
 // drop the segment when duration of ts too small.
+// TODO: FIXME: Refine to time unit.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
 // fragment plus the deviation percent.
@@ -253,7 +254,7 @@ string SrsHlsMuxer::ts_url()
 
 double SrsHlsMuxer::duration()
 {
-    return current? current->duration()/1000.0:0;
+    return current? srsu2ms(current->duration())/1000.0:0;
 }
 
 int SrsHlsMuxer::deviation()
@@ -390,7 +391,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t current_floor_ts = (int64_t)(srs_update_system_time_ms() / (1000 * hls_fragment));
+        int64_t current_floor_ts = (int64_t)(srsu2ms(srs_update_system_time()) / (1000 * hls_fragment));
         if (!accept_floor_ts) {
             accept_floor_ts = current_floor_ts - 1;
         } else {
@@ -483,14 +484,14 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
-    return current->duration() >= (hls_fragment + deviation) * 1000;
+    return srsu2msi(current->duration()) >= (hls_fragment + deviation) * 1000;
 }
 
 bool SrsHlsMuxer::wait_keyframe()
@@ -504,14 +505,14 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
-    return current->duration() >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
+    return srsu2msi(current->duration()) >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
 }
 
 bool SrsHlsMuxer::pure_audio()
@@ -591,10 +592,10 @@ srs_error_t SrsHlsMuxer::segment_close()
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    if (current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)current->duration() <= max_td * 2 * 1000) {
+    if (srsu2msi(current->duration()) >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
-            current->uri, m3u8, m3u8_url, current->sequence_no, current->duration() / 1000.0))) != srs_success) {
+            current->uri, m3u8, m3u8_url, current->sequence_no, srsu2msi(current->duration()) / 1000.0))) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
         
@@ -617,7 +618,8 @@ srs_error_t SrsHlsMuxer::segment_close()
         // reuse current segment index.
         _sequence_no--;
         
-        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%" PRId64 "ms", current->sequence_no, current->uri.c_str(), current->duration());
+        srs_trace("Drop ts segment, sequence_no=%d, uri=%s, duration=%dms",
+            current->sequence_no, current->uri.c_str(), srsu2msi(current->duration()));
         
         // rename from tmp to real path
         if ((err = current->unlink_tmpfile()) != srs_success) {
@@ -778,13 +780,13 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
         ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << segment->duration() / 1000.0 << ", no desc" << SRS_CONSTS_LF;
+        ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
         
         // {file name}\n
         std::string seg_uri = segment->uri;
         if (true) {
 	        std::stringstream stemp;
-	        stemp << (int)(segment->duration());
+	        stemp << srsu2msi(segment->duration());
 	        seg_uri = srs_string_replace(seg_uri, "[duration]", stemp.str());
         }
         //ss << segment->uri << SRS_CONSTS_LF;
@@ -870,7 +872,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     // whether use floor(timestamp/hls_fragment) for variable timestamp
     bool ts_floor = _srs_config->get_hls_ts_floor(vhost);
     // the seconds to dispose the hls.
-    int hls_dispose = _srs_config->get_hls_dispose(vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(vhost);
 
     bool hls_keys = _srs_config->get_hls_keys(vhost);
     int hls_fragments_per_key = _srs_config->get_hls_fragments_per_key(vhost);
@@ -891,9 +893,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%d",
+    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
         hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, hls_dispose);
+        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
     
     return err;
 }
@@ -1061,7 +1063,7 @@ void SrsHls::dispose()
     
     // Ignore when hls_dispose disabled.
     // @see https://github.com/ossrs/srs/issues/865
-    int hls_dispose = _srs_config->get_hls_dispose(req->vhost);
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (!hls_dispose) {
         return;
     }
@@ -1074,21 +1076,21 @@ srs_error_t SrsHls::cycle()
     srs_error_t err = srs_success;
     
     if (last_update_time <= 0) {
-        last_update_time = srs_get_system_time_ms();
+        last_update_time = srs_get_system_time();
     }
     
     if (!req) {
         return err;
     }
     
-    int hls_dispose = _srs_config->get_hls_dispose(req->vhost) * 1000;
+    srs_utime_t hls_dispose = _srs_config->get_hls_dispose(req->vhost);
     if (hls_dispose <= 0) {
         return err;
     }
-    if (srs_get_system_time_ms() - last_update_time <= hls_dispose) {
+    if (srs_get_system_time() - last_update_time <= hls_dispose) {
         return err;
     }
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     if (!disposable) {
         return err;
@@ -1120,7 +1122,7 @@ srs_error_t SrsHls::on_publish()
     srs_error_t err = srs_success;
 
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     // support multiple publish.
     if (enabled) {
@@ -1170,7 +1172,7 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     }
     
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
@@ -1227,7 +1229,7 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     }
     
     // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time_ms();
+    last_update_time = srs_get_system_time();
     
     SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);

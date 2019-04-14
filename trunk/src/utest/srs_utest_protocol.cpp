@@ -98,7 +98,7 @@ srs_error_t MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/
 
 MockBufferIO::MockBufferIO()
 {
-    rtm = stm = SRS_CONSTS_NO_TMMS;
+    rtm = stm = SRS_UTIME_NO_TIMEOUT;
     rbytes = sbytes = 0;
 }
 
@@ -114,7 +114,7 @@ MockBufferIO* MockBufferIO::append(string data)
 
 bool MockBufferIO::is_never_timeout(int64_t tm)
 {
-    return tm == SRS_CONSTS_NO_TMMS;
+    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
 srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
@@ -690,8 +690,8 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     MockBufferIO bio;
     SrsProtocol proto(&bio);
     
-    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_recv_timeout());
-    EXPECT_TRUE(SRS_CONSTS_NO_TMMS == proto.get_send_timeout());
+    EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
+    EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_send_timeout());
     
     proto.set_recv_timeout(10);
     EXPECT_TRUE(10 == proto.get_recv_timeout());

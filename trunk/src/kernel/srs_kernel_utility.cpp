@@ -101,28 +101,28 @@ srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v)
     return err;
 }
 
-int64_t _srs_system_time_us_cache = 0;
-int64_t _srs_system_time_startup_time = 0;
+srs_utime_t _srs_system_time_us_cache = 0;
+srs_utime_t _srs_system_time_startup_time = 0;
 
-int64_t srs_get_system_time_ms()
+srs_utime_t srs_get_system_time()
 {
     if (_srs_system_time_us_cache <= 0) {
-        srs_update_system_time_ms();
+        srs_update_system_time();
     }
     
-    return _srs_system_time_us_cache / 1000;
+    return _srs_system_time_us_cache;
 }
 
-int64_t srs_get_system_startup_time_ms()
+srs_utime_t srs_get_system_startup_time()
 {
     if (_srs_system_time_startup_time <= 0) {
-        srs_update_system_time_ms();
+        srs_update_system_time();
     }
     
-    return _srs_system_time_startup_time / 1000;
+    return _srs_system_time_startup_time;
 }
 
-int64_t srs_update_system_time_ms()
+srs_utime_t srs_update_system_time()
 {
     timeval now;
     
@@ -143,7 +143,7 @@ int64_t srs_update_system_time_ms()
     // so we use relative time.
     if (_srs_system_time_us_cache <= 0) {
         _srs_system_time_startup_time = _srs_system_time_us_cache = now_us;
-        return _srs_system_time_us_cache / 1000;
+        return _srs_system_time_us_cache;
     }
     
     // use relative time.
@@ -158,9 +158,10 @@ int64_t srs_update_system_time_ms()
     _srs_system_time_us_cache = now_us;
     srs_info("clock updated, startup=%" PRId64 "us, now=%" PRId64 "us", _srs_system_time_startup_time, _srs_system_time_us_cache);
     
-    return _srs_system_time_us_cache / 1000;
+    return _srs_system_time_us_cache;
 }
 
+// TODO: FIXME: Replace by ST dns resolve.
 string srs_dns_resolve(string host, int& family)
 {
     addrinfo hints;

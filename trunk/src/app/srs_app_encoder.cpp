@@ -87,7 +87,7 @@ void SrsEncoder::on_unpublish()
 }
 
 // when error, encoder sleep for a while and retry.
-#define SRS_RTMP_ENCODER_CIMS (3000)
+#define SRS_RTMP_ENCODER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
 
 srs_error_t SrsEncoder::cycle()
 {
@@ -104,7 +104,7 @@ srs_error_t SrsEncoder::cycle()
             break;
         }
     
-        srs_usleep(SRS_RTMP_ENCODER_CIMS * 1000);
+        srs_usleep(SRS_RTMP_ENCODER_CIMS);
     }
     
     // kill ffmpeg when finished and it alive

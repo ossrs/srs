@@ -52,7 +52,7 @@ srs_error_t SrsIngesterFFMPEG::initialize(SrsFFMPEG* ff, string v, string i)
     ffmpeg = ff;
     vhost = v;
     id = i;
-    starttime = srs_get_system_time_ms();
+    starttime = srs_get_system_time();
     
     return err;
 }
@@ -64,7 +64,7 @@ string SrsIngesterFFMPEG::uri()
 
 int SrsIngesterFFMPEG::alive()
 {
-    return (int)(srs_get_system_time_ms() - starttime);
+    return srsu2msi(srs_get_system_time() - starttime);
 }
 
 bool SrsIngesterFFMPEG::equals(string v)
@@ -168,7 +168,7 @@ void SrsIngester::fast_stop()
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_AUTO_INGESTER_CIMS (3000)
+#define SRS_AUTO_INGESTER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
 
 srs_error_t SrsIngester::cycle()
 {
@@ -184,7 +184,7 @@ srs_error_t SrsIngester::cycle()
             return srs_error_wrap(err, "ingester");
         }
     
-        srs_usleep(SRS_AUTO_INGESTER_CIMS * 1000);
+        srs_usleep(SRS_AUTO_INGESTER_CIMS);
     }
     
     return err;

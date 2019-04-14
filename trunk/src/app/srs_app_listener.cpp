@@ -174,7 +174,7 @@ srs_error_t SrsUdpListener::cycle()
         }
         
         if (SrsUdpPacketRecvCycleMS > 0) {
-            srs_usleep(SrsUdpPacketRecvCycleMS * 1000);
+            srs_usleep(SrsUdpPacketRecvCycleMS * SRS_UTIME_MILLISECONDS);
         }
     }
     

@@ -3959,7 +3959,12 @@ srs_error_t SrsConfig::check_number_connections()
 srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
 {
     srs_error_t err = srs_success;
-    
+
+	// We use a new root to parse buffer, to allow parse multiple times.
+    srs_freep(root);
+    root = new SrsConfDirective();
+
+    // Parse root tree from buffer.
     if ((err = root->parse(buffer)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
@@ -4050,16 +4055,16 @@ string SrsConfig::get_pid_file()
     return conf->arg0();
 }
 
-int SrsConfig::get_pithy_print_ms()
+srs_utime_t SrsConfig::get_pithy_print()
 {
-    static int DEFAULT = 10000;
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = root->get("pithy_print_ms");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsConfig::get_utc_time()
@@ -4649,44 +4654,48 @@ bool SrsConfig::get_mr_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int SrsConfig::get_mr_sleep_ms(string vhost)
+srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 {
+	static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return SRS_PERF_MR_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("publish");
     if (!conf) {
-        return SRS_PERF_MR_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("mr_latency");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_MR_SLEEP;
+        return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_mw_sleep_ms(string vhost)
+srs_utime_t SrsConfig::get_mw_sleep(string vhost)
 {
+	static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("play");
     if (!conf) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
     conf = conf->get("mw_latency");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_MW_SLEEP;
+        return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsConfig::get_realtime_enabled(string vhost)
@@ -4765,10 +4774,10 @@ bool SrsConfig::get_reduce_sequence_header(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int SrsConfig::get_publish_1stpkt_timeout(string vhost)
+srs_utime_t SrsConfig::get_publish_1stpkt_timeout(string vhost)
 {
     // when no msg recevied for publisher, use larger timeout.
-    static int DEFAULT = 20000;
+    static srs_utime_t DEFAULT = 20 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4785,15 +4794,15 @@ int SrsConfig::get_publish_1stpkt_timeout(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_publish_normal_timeout(string vhost)
+srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 {
     // the timeout for publish recv.
     // we must use more smaller timeout, for the recv never know the status
     // of underlayer socket.
-    static int DEFAULT = 5000;
+    static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4810,7 +4819,7 @@ int SrsConfig::get_publish_normal_timeout(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 int SrsConfig::get_global_chunk_size()
@@ -5021,9 +5030,9 @@ string SrsConfig::get_bw_check_key(string vhost)
     return conf->arg0();
 }
 
-int SrsConfig::get_bw_check_interval_ms(string vhost)
+srs_utime_t SrsConfig::get_bw_check_interval(string vhost)
 {
-    static int DEFAULT = 30 * 1000;
+    static int64_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -5040,7 +5049,7 @@ int SrsConfig::get_bw_check_interval_ms(string vhost)
         return DEFAULT;
     }
     
-    return (int)(::atof(conf->arg0().c_str()) * 1000);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_bw_check_limit_kbps(string vhost)
@@ -5890,9 +5899,9 @@ bool SrsConfig::get_dash_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int SrsConfig::get_dash_fragment(string vhost)
+srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 {
-    static int DEFAULT = 3 * 1000;
+    static int DEFAULT = 3 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5904,12 +5913,12 @@ int SrsConfig::get_dash_fragment(string vhost)
         return DEFAULT;
     }
     
-    return (int)(1000 * ::atof(conf->arg0().c_str()));
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_dash_update_period(string vhost)
+srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 {
-    static int DEFAULT = 30 * 1000;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5921,12 +5930,12 @@ int SrsConfig::get_dash_update_period(string vhost)
         return DEFAULT;
     }
     
-    return (int)(1000 * ::atof(conf->arg0().c_str()));
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_dash_timeshift(string vhost)
+srs_utime_t SrsConfig::get_dash_timeshift(string vhost)
 {
-    static int DEFAULT = 60 * 1000;
+    static srs_utime_t DEFAULT = 60 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5938,7 +5947,7 @@ int SrsConfig::get_dash_timeshift(string vhost)
         return DEFAULT;
     }
     
-    return (int)(1000 * ::atof(conf->arg0().c_str()));
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_dash_path(string vhost)
@@ -6238,9 +6247,9 @@ bool SrsConfig::get_hls_cleanup(string vhost)
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-int SrsConfig::get_hls_dispose(string vhost)
+srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
-    static int DEFAULT = 0;
+    static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6252,7 +6261,7 @@ int SrsConfig::get_hls_dispose(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_hls_wait_keyframe(string vhost)
@@ -6515,9 +6524,9 @@ string SrsConfig::get_dvr_plan(string vhost)
     return conf->arg0();
 }
 
-int SrsConfig::get_dvr_duration(string vhost)
+srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 {
-    static int DEFAULT = 30;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dvr(vhost);
     if (!conf) {
@@ -6529,7 +6538,7 @@ int SrsConfig::get_dvr_duration(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_dvr_wait_keyframe(string vhost)
@@ -6939,9 +6948,9 @@ bool SrsConfig::get_heartbeat_enabled()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int64_t SrsConfig::get_heartbeat_interval()
+srs_utime_t SrsConfig::get_heartbeat_interval()
 {
-    static int64_t DEFAULT = (int64_t)(9.9 * 1000);
+    static srs_utime_t DEFAULT = (srs_utime_t)(9.9 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_heartbeart();
     if (!conf) {
@@ -6953,7 +6962,7 @@ int64_t SrsConfig::get_heartbeat_interval()
         return DEFAULT;
     }
     
-    return (int64_t)(::atof(conf->arg0().c_str()) * 1000);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_heartbeat_url()

@@ -36,6 +36,44 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
+// Disable coroutine test for OSX.
+#if !defined(SRS_OSX)
+#include <srs_app_st.hpp>
+#endif
+
+// Initialize global settings.
+srs_error_t prepare_main() {
+    srs_error_t err = srs_success;
+
+    #if !defined(SRS_OSX)
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "init st");
+    }
+
+    srs_freep(_srs_context);
+    _srs_context = new SrsThreadContext();
+    #endif
+
+    return err;
+}
+
+// We could do something in the main of utest.
+// Copy from gtest-1.6.0/src/gtest_main.cc
+GTEST_API_ int main(int argc, char **argv) {
+    srs_error_t err = srs_success;
+
+    if ((err = prepare_main()) != srs_success) {
+        fprintf(stderr, "Failed, %s\n", srs_error_desc(err).c_str());
+
+        int ret = srs_error_code(err);
+        srs_freep(err);
+        return ret;
+    }
+
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
 MockEmptyLog::MockEmptyLog(SrsLogLevel l)
 {
     level = l;

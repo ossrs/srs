@@ -83,14 +83,14 @@ class SrsMpdWriter
 {
 private:
     SrsRequest* req;
-    int64_t last_update_mpd;
+    srs_utime_t last_update_mpd;
 private:
-    // The duration of fragment in ms.
-    int fragment;
-    // The period to update the mpd in ms.
-    int update_period;
-    // The timeshift buffer depth.
-    int timeshit;
+    // The duration of fragment in srs_utime_t.
+    srs_utime_t fragment;
+    // The period to update the mpd in srs_utime_t.
+    srs_utime_t update_period;
+    // The timeshift buffer depth in srs_utime_t.
+    srs_utime_t timeshit;
     // The base or home dir for dash to write files.
     std::string home;
     // The MPD path template, from which to build the file path.
@@ -128,7 +128,7 @@ private:
     uint64_t video_dts;
 private:
     // The fragment duration in ms to reap it.
-    int fragment;
+    srs_utime_t fragment;
 private:
     std::string home;
     int video_tack_id;
