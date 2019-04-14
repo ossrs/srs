@@ -55,7 +55,7 @@ using namespace std;
 
 // drop the segment when duration of ts too small.
 // TODO: FIXME: Refine to time unit.
-#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
+#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION (100 * SRS_UTIME_MILLISECONDS)
 
 // fragment plus the deviation percent.
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.3
@@ -484,7 +484,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
@@ -505,7 +505,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
@@ -592,7 +592,7 @@ srs_error_t SrsHlsMuxer::segment_close()
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    if (srsu2msi(current->duration()) >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
+    if (current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
             current->uri, m3u8, m3u8_url, current->sequence_no, current->duration()))) != srs_success) {
