@@ -189,7 +189,7 @@ public:
 public:
     virtual int sequence_no();
     virtual std::string ts_url();
-    virtual double duration();
+    virtual srs_utime_t duration();
     virtual int deviation();
 public:
     /**
@@ -274,7 +274,7 @@ public:
     virtual void dispose();
     virtual int sequence_no();
     virtual std::string ts_url();
-    virtual double duration();
+    virtual srs_utime_t duration();
     virtual int deviation();
 public:
     /**

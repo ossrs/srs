@@ -252,9 +252,9 @@ string SrsHlsMuxer::ts_url()
     return current? current->uri:"";
 }
 
-double SrsHlsMuxer::duration()
+srs_utime_t SrsHlsMuxer::duration()
 {
-    return current? srsu2ms(current->duration())/1000.0:0;
+    return current? current->duration():0;
 }
 
 int SrsHlsMuxer::deviation()
@@ -838,7 +838,7 @@ string SrsHlsController::ts_url()
     return muxer->ts_url();
 }
 
-double SrsHlsController::duration()
+srs_utime_t SrsHlsController::duration()
 {
     return muxer->duration();
 }
@@ -1278,9 +1278,9 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%" PRId64 ", sno=%d, ts=%s, dur=%.2f, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%.2f, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
-              controller->duration(), controller->deviation());
+              srsu2msi(controller->duration()), controller->deviation());
 }
 
 
