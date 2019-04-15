@@ -85,7 +85,7 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     return err;
 }
 
-void SrsForwarder::set_queue_size(double queue_size)
+void SrsForwarder::set_queue_size(srs_utime_t queue_size)
 {
     queue->set_queue_size(queue_size);
 }

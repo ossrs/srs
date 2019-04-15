@@ -4459,9 +4459,9 @@ bool SrsConfig::get_mix_correct(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_queue_length(string vhost)
+srs_utime_t SrsConfig::get_queue_length(string vhost)
 {
-    static double DEFAULT = SRS_PERF_PLAY_QUEUE;
+    static srs_utime_t DEFAULT = SRS_PERF_PLAY_QUEUE;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4478,7 +4478,7 @@ double SrsConfig::get_queue_length(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return srs_utime_t(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_refer_enabled(string vhost)

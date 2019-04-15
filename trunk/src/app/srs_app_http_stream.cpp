@@ -64,7 +64,7 @@ SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
     trd = new SrsSTCoroutine("http-stream", this);
     
     // TODO: FIXME: support reload.
-    fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
+    fast_cache = srs_utime_t(_srs_config->get_vhost_http_remux_fast_cache(req->vhost) * SRS_UTIME_SECONDS);
 }
 
 SrsBufferCache::~SrsBufferCache()
@@ -108,7 +108,8 @@ srs_error_t SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgor
         return srs_error_wrap(err, "dump packets");
     }
     
-    srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", queue->size(), srsu2msi(queue->duration()), fast_cache);
+    srs_trace("http: dump cache %d msgs, duration=%dms, cache=%dms",
+        queue->size(), srsu2msi(queue->duration()), srsu2msi(fast_cache));
     
     return err;
 }

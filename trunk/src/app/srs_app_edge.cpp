@@ -433,7 +433,7 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
     srs_freep(queue);
 }
 
-void SrsEdgeForwarder::set_queue_size(double queue_size)
+void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
 {
     return queue->set_queue_size(queue_size);
 }
@@ -710,7 +710,7 @@ SrsPublishEdge::~SrsPublishEdge()
     srs_freep(forwarder);
 }
 
-void SrsPublishEdge::set_queue_size(double queue_size)
+void SrsPublishEdge::set_queue_size(srs_utime_t queue_size)
 {
     return forwarder->set_queue_size(queue_size);
 }

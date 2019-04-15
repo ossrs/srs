@@ -39,7 +39,7 @@ class SrsTsTransmuxer;
 class SrsBufferCache : public ISrsCoroutineHandler
 {
 private:
-    double fast_cache;
+    srs_utime_t fast_cache;
 private:
     SrsMessageQueue* queue;
     SrsSource* source;

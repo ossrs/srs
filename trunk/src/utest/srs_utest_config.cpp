@@ -1806,7 +1806,7 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_ingest_id)
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{} ingest{}}"));
 }
 
-VOID TEST(ConfigUnitTest, CheckDefaultValues)
+VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 {
     MockSrsConfig conf;
 
@@ -1875,6 +1875,17 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_dispose("v"));
     }
 
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{play{queue_length 100;}}"));
+	    EXPECT_EQ(100 * SRS_UTIME_SECONDS, conf.get_queue_length("v"));
+    }
+}
+
+VOID TEST(ConfigUnitTest, CheckDefaultValuesGlobal)
+{
     if (true) {
         srs_utime_t t0 = srs_update_system_time();
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);

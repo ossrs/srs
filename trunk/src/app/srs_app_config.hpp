@@ -729,11 +729,11 @@ public:
      */
     virtual bool get_mix_correct(std::string vhost);
     /**
-     * get the cache queue length, in seconds.
+     * get the cache queue length, in srs_utime_t.
      * when exceed the queue length, drop packet util I frame.
-     * @remark, default 10.
+     * @remark, default 10s.
      */
-    virtual double get_queue_length(std::string vhost);
+    virtual srs_utime_t get_queue_length(std::string vhost);
     /**
      * whether the refer hotlink-denial enabled.
      */

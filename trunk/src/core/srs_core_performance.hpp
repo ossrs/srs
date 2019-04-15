@@ -148,8 +148,8 @@
  */
 // whether gop cache is on.
 #define SRS_PERF_GOP_CACHE true
-// in seconds, the live queue length.
-#define SRS_PERF_PLAY_QUEUE 30
+// in srs_utime_t, the live queue length.
+#define SRS_PERF_PLAY_QUEUE (30 * SRS_UTIME_SECONDS)
 
 /**
  * whether always use complex send algorithm.

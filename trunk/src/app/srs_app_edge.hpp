@@ -170,7 +170,7 @@ public:
     SrsEdgeForwarder();
     virtual ~SrsEdgeForwarder();
 public:
-    virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(srs_utime_t queue_size);
 public:
     virtual srs_error_t initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual srs_error_t start();
@@ -232,7 +232,7 @@ public:
     SrsPublishEdge();
     virtual ~SrsPublishEdge();
 public:
-    virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(srs_utime_t queue_size);
 public:
     virtual srs_error_t initialize(SrsSource* source, SrsRequest* req);
     virtual bool can_publish();
