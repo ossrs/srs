@@ -1878,9 +1878,11 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length(""));
+	    EXPECT_EQ(0, conf.get_send_min_interval(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{play{queue_length 100;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{play{queue_length 100;send_min_interval 10;}}"));
 	    EXPECT_EQ(100 * SRS_UTIME_SECONDS, conf.get_queue_length("v"));
+	    EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, conf.get_send_min_interval("v"));
     }
 }
 

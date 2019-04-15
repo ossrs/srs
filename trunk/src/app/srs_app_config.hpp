@@ -796,9 +796,9 @@ public:
      */
     virtual bool get_tcp_nodelay(std::string vhost);
     /**
-     * the minimal send interval in ms.
+     * the minimal send interval in srs_utime_t.
      */
-    virtual double get_send_min_interval(std::string vhost);
+    virtual srs_utime_t get_send_min_interval(std::string vhost);
     /**
      * whether reduce the sequence header.
      */

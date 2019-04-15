@@ -265,9 +265,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_play(string vhost)
     
     // send_min_interval
     if (true) {
-        double v = _srs_config->get_send_min_interval(vhost);
+        srs_utime_t v = _srs_config->get_send_min_interval(vhost);
         if (v != send_min_interval) {
-            srs_trace("apply smi %.2f=>%.2f", send_min_interval, v);
+            srs_trace("apply smi %d=>%d ms", srsu2msi(send_min_interval), srsu2msi(v));
             send_min_interval = v;
         }
     }
@@ -692,8 +692,8 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
-    srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        send_min_interval, srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
+    srs_trace("start play smi=%dms, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
+        srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
         // collect elapse for pithy print.
@@ -788,7 +788,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         
         // apply the minimal interval for delivery stream in ms.
         if (send_min_interval > 0) {
-            srs_usleep((int64_t)(send_min_interval * 1000));
+            srs_usleep(send_min_interval);
         }
     }
     

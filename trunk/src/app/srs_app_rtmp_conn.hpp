@@ -116,8 +116,8 @@ private:
     // for realtime
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
-    // the minimal interval in ms for delivery stream.
-    double send_min_interval;
+    // the minimal interval in srs_utime_t for delivery stream.
+    srs_utime_t send_min_interval;
     // publish 1st packet timeout in srs_utime_t
     srs_utime_t publish_1stpkt_timeout;
     // publish normal packet timeout in srs_utime_t
