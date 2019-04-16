@@ -1898,6 +1898,14 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 	    EXPECT_EQ(100 * SRS_UTIME_SECONDS, conf.get_queue_length("v"));
 	    EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, conf.get_send_min_interval("v"));
     }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(0, conf.get_vhost_http_remux_fast_cache(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_remux{fast_cache 10;}}"));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_vhost_http_remux_fast_cache("v"));
+    }
 }
 
 VOID TEST(ConfigUnitTest, CheckDefaultValuesGlobal)

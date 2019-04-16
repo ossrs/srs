@@ -1404,7 +1404,7 @@ public:
     /**
      * get the fast cache duration for http audio live stream.
      */
-    virtual double get_vhost_http_remux_fast_cache(std::string vhost);
+    virtual srs_utime_t get_vhost_http_remux_fast_cache(std::string vhost);
     /**
      * get the http flv live stream mount point for vhost.
      * used to generate the flv stream mount path.

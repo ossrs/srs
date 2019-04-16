@@ -6882,9 +6882,9 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
+srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 {
-    static double DEFAULT = 0;
+    static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -6901,7 +6901,7 @@ double SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_vhost_http_remux_mount(string vhost)
