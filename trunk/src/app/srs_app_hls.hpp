@@ -139,7 +139,7 @@ private:
     std::string m3u8_dir;
     double hls_aof_ratio;
     // TODO: FIXME: Use TBN 1000.
-    double hls_fragment;
+    srs_utime_t hls_fragment;
     double hls_window;
     SrsAsyncCallWorker* async;
 private:
@@ -201,7 +201,7 @@ public:
      */
     virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
-        double fragment, double window, bool ts_floor, double aof_ratio,
+        srs_utime_t fragment, double window, bool ts_floor, double aof_ratio,
         bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
         std::string key_file, std::string key_file_path, std::string key_url);
     /**

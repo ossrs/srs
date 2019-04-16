@@ -6093,9 +6093,9 @@ bool SrsConfig::get_hls_ts_floor(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_hls_fragment(string vhost)
+srs_utime_t SrsConfig::get_hls_fragment(string vhost)
 {
-    static double DEFAULT = 10;
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6107,7 +6107,7 @@ double SrsConfig::get_hls_fragment(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 double SrsConfig::get_hls_td_ratio(string vhost)

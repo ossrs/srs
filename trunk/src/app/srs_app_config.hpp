@@ -1192,9 +1192,9 @@ public:
      */
     virtual bool get_hls_ts_floor(std::string vhost);
     /**
-     * get the hls fragment time, in seconds.
+     * get the hls fragment time, in srs_utime_t.
      */
-    virtual double get_hls_fragment(std::string vhost);
+    virtual srs_utime_t get_hls_fragment(std::string vhost);
     /**
      * get the hls td(target duration) ratio.
      */

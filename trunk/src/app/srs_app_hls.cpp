@@ -279,7 +279,7 @@ srs_error_t SrsHlsMuxer::initialize()
 }
 
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
-    string path, string m3u8_file, string ts_file, double fragment, double window,
+    string path, string m3u8_file, string ts_file, srs_utime_t fragment, double window,
     bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
     int fragments_per_key, string key_file ,string key_file_path, string key_url)
 {
@@ -391,7 +391,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t current_floor_ts = (int64_t)(srsu2ms(srs_update_system_time()) / (1000 * hls_fragment));
+        int64_t current_floor_ts = srs_update_system_time() / hls_fragment;
         if (!accept_floor_ts) {
             accept_floor_ts = current_floor_ts - 1;
         } else {
@@ -489,9 +489,8 @@ bool SrsHlsMuxer::is_segment_overflow()
     }
     
     // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    
-    return srsu2msi(current->duration()) >= (hls_fragment + deviation) * 1000;
+    srs_utime_t deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0;
+    return current->duration() >= hls_fragment + deviation;
 }
 
 bool SrsHlsMuxer::wait_keyframe()
@@ -510,9 +509,8 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     }
     
     // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    
-    return srsu2msi(current->duration()) >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
+    srs_utime_t deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0;
+    return current->duration() >= hls_aof_ratio * hls_fragment + deviation;
 }
 
 bool SrsHlsMuxer::pure_audio()
@@ -856,7 +854,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     std::string stream = req->stream;
     std::string app = req->app;
     
-    double hls_fragment = _srs_config->get_hls_fragment(vhost);
+    srs_utime_t hls_fragment = _srs_config->get_hls_fragment(vhost);
     double hls_window = _srs_config->get_hls_window(vhost);
     
     // get the hls m3u8 ts list entry prefix config
@@ -893,8 +891,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
-        hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
+    srs_trace("hls: win=%.2f, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
+        hls_window, srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
         ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
     
     return err;
