@@ -6413,9 +6413,9 @@ string SrsConfig::get_hds_path(const string &vhost)
     return conf->arg0();
 }
 
-double SrsConfig::get_hds_fragment(const string &vhost)
+srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
 {
-    static double DEFAULT = 10;
+    static srs_utime_t DEFAULT = (10 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
     if (!conf) {
@@ -6427,12 +6427,12 @@ double SrsConfig::get_hds_fragment(const string &vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-double SrsConfig::get_hds_window(const string &vhost)
+srs_utime_t SrsConfig::get_hds_window(const string &vhost)
 {
-    static double DEFAULT = 60;
+    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
     if (!conf) {
@@ -6444,7 +6444,7 @@ double SrsConfig::get_hds_window(const string &vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective* SrsConfig::get_dvr(string vhost)

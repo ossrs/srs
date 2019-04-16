@@ -1277,15 +1277,14 @@ public:
      */
     virtual std::string get_hds_path(const std::string &vhost);
     /**
-     * get the hds fragment time, in seconds.
+     * get the hds fragment time, in srs_utime_t.
      */
-     // TODO: FIXME: Refine to time unit.
-    virtual double get_hds_fragment(const std::string &vhost);
+    virtual srs_utime_t get_hds_fragment(const std::string &vhost);
     /**
-     * get the hds window time, in seconds.
+     * get the hds window time, in srs_utime_t.
      * a window is a set of hds fragments.
      */
-    virtual double get_hds_window(const std::string &vhost);
+    virtual srs_utime_t get_hds_window(const std::string &vhost);
 // dvr section
 private:
     /**

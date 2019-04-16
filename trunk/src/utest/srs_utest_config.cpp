@@ -1881,6 +1881,16 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment(""));
+	    EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hds{hds_fragment 20;hds_window 30;}}"));
+	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("v"));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("v"));
+    }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length(""));
 	    EXPECT_EQ(0, conf.get_send_min_interval(""));
 
