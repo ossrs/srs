@@ -310,21 +310,32 @@ srs_error_t SrsDashController::initialize(SrsRequest* r)
         return srs_error_wrap(err, "mpd");
     }
     
-    string home, path;
-    
+    return err;
+}
+
+srs_error_t SrsDashController::on_publish()
+{
+    srs_error_t err = srs_success;
+
     srs_freep(vcurrent);
     vcurrent = new SrsFragmentedMp4();
     if ((err = vcurrent->initialize(req, true, mpd, video_tack_id)) != srs_success) {
         return srs_error_wrap(err, "video fragment");
     }
-    
+
     srs_freep(acurrent);
     acurrent = new SrsFragmentedMp4();
     if ((err = acurrent->initialize(req, false, mpd, audio_track_id)) != srs_success) {
         return srs_error_wrap(err, "audio fragment");
     }
-    
+
     return err;
+}
+
+void SrsDashController::on_unpublish()
+{
+    srs_freep(vcurrent);
+    srs_freep(acurrent);
 }
 
 srs_error_t SrsDashController::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
@@ -490,6 +501,10 @@ srs_error_t SrsDash::on_publish()
         return err;
     }
     enabled = true;
+
+    if ((err = controller->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "controller");
+    }
     
     return err;
 }
@@ -532,5 +547,7 @@ void SrsDash::on_unpublish()
     }
     
     enabled = false;
+
+    controller->on_unpublish();
 }
 
