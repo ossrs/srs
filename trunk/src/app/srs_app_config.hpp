@@ -1204,11 +1204,11 @@ public:
      */
     virtual double get_hls_aof_ratio(std::string vhost);
     /**
-     * get the hls window time, in seconds.
+     * get the hls window time, in srs_utime_t.
      * a window is a set of ts, the ts collection in m3u8.
      * @remark SRS will delete the ts exceed the window.
      */
-    virtual double get_hls_window(std::string vhost);
+    virtual srs_utime_t get_hls_window(std::string vhost);
     /**
      * get the hls hls_on_error config.
      * the ignore will ignore error and disable hls.

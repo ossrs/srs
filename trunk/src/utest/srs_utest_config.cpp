@@ -1871,10 +1871,12 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(0, conf.get_hls_dispose(""));
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_fragment(""));
+	    EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hls_window(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_dispose 10;hls_fragment 20;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_dispose 10;hls_fragment 20;hls_window 30;}}"));
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_dispose("v"));
 	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hls_fragment("v"));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hls_window("v"));
     }
 
     if (true) {

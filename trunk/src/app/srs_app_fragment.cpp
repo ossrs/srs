@@ -201,7 +201,7 @@ void SrsFragmentWindow::append(SrsFragment* fragment)
     fragments.push_back(fragment);
 }
 
-void SrsFragmentWindow::shrink(int64_t window)
+void SrsFragmentWindow::shrink(srs_utime_t window)
 {
     srs_utime_t duration = 0;
     
@@ -211,7 +211,7 @@ void SrsFragmentWindow::shrink(int64_t window)
         SrsFragment* fragment = fragments[i];
         duration += fragment->duration();
         
-        if (srsu2ms(duration) > window) {
+        if (duration > window) {
             remove_index = i;
             break;
         }

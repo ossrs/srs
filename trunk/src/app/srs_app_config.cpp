@@ -6144,9 +6144,9 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
     return ::atof(conf->arg0().c_str());
 }
 
-double SrsConfig::get_hls_window(string vhost)
+srs_utime_t SrsConfig::get_hls_window(string vhost)
 {
-    static double DEFAULT = 60;
+    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6158,7 +6158,7 @@ double SrsConfig::get_hls_window(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_hls_on_error(string vhost)

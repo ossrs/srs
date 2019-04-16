@@ -279,7 +279,7 @@ srs_error_t SrsHlsMuxer::initialize()
 }
 
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
-    string path, string m3u8_file, string ts_file, srs_utime_t fragment, double window,
+    string path, string m3u8_file, string ts_file, srs_utime_t fragment, srs_utime_t window,
     bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
     int fragments_per_key, string key_file ,string key_file_path, string key_url)
 {
@@ -627,7 +627,7 @@ srs_error_t SrsHlsMuxer::segment_close()
     }
     
     // shrink the segments.
-    segments->shrink(hls_window * 1000);
+    segments->shrink(hls_window);
     
     // refresh the m3u8, donot contains the removed ts
     err = refresh_m3u8();
@@ -855,7 +855,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     std::string app = req->app;
     
     srs_utime_t hls_fragment = _srs_config->get_hls_fragment(vhost);
-    double hls_window = _srs_config->get_hls_window(vhost);
+    srs_utime_t hls_window = _srs_config->get_hls_window(vhost);
     
     // get the hls m3u8 ts list entry prefix config
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
@@ -891,8 +891,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%.2f, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
-        hls_window, srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
+        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
         ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
     
     return err;
