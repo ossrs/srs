@@ -242,15 +242,15 @@ void SrsFragmentWindow::clear_expired(bool delete_files)
     expired_fragments.clear();
 }
 
-int64_t SrsFragmentWindow::max_duration()
+srs_utime_t SrsFragmentWindow::max_duration()
 {
-    int64_t v = 0;
+    srs_utime_t v = 0;
     
     std::vector<SrsFragment*>::iterator it;
     
     for (it = fragments.begin(); it != fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        v = srs_max(v, srsu2ms(fragment->duration()));
+        v = srs_max(v, fragment->duration());
     }
     
     return v;

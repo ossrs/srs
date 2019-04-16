@@ -168,7 +168,7 @@ private:
     SrsFileWriter *writer;
 private:
     int _sequence_no;
-    int max_td;
+    srs_utime_t max_td;
     std::string m3u8;
     std::string m3u8_url;
 private:

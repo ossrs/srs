@@ -312,7 +312,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     m3u8 = path + "/" + m3u8_url;
     
     // when update config, reset the history target duration.
-    max_td = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
+    max_td = fragment * _srs_config->get_hls_td_ratio(r->vhost);
     
     // create m3u8 dir once.
     m3u8_dir = srs_path_dirname(m3u8);
@@ -585,12 +585,19 @@ srs_error_t SrsHlsMuxer::segment_close()
     
     // when close current segment, the current segment must not be NULL.
     srs_assert(current);
+
+    // We should always close the underlayer writer.
+    if (current && current->writer) {
+        current->writer->close();
+    }
     
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    if (current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
+    bool matchMinDuration = current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION;
+    bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
+    if (matchMinDuration && matchMaxDuration) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
             current->uri, m3u8, m3u8_url, current->sequence_no, current->duration()))) != srs_success) {
@@ -607,6 +614,7 @@ srs_error_t SrsHlsMuxer::segment_close()
         
         // rename from tmp to real path
         if ((err = current->rename()) != srs_success) {
+            srs_freep(current);
             return srs_error_wrap(err, "rename");
         }
         
@@ -744,8 +752,8 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
      * typical target duration is 10 seconds.
      */
     // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
-    int target_duration = (int)ceil(segments->max_duration() / 1000.0);
-    target_duration = srs_max(target_duration, max_td);
+    srs_utime_t max_duration = segments->max_duration();
+    int target_duration = (int)ceil(srsu2msi(srs_max(max_duration, max_td)) / 1000.0);
     
     ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
     
