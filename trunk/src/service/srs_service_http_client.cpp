@@ -220,7 +220,7 @@ srs_error_t SrsHttpClient::connect()
         return err;
     }
     
-    transport = new SrsTcpClient(host, port, timeout);
+    transport = new SrsTcpClient(host, port, srs_utime_t(timeout * SRS_UTIME_MILLISECONDS));
     if ((err = transport->connect()) != srs_success) {
         disconnect();
         return srs_error_wrap(err, "http: tcp connect %s:%d to=%d", host.c_str(), port, (int)timeout);

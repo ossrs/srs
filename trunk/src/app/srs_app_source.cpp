@@ -2515,6 +2515,7 @@ srs_error_t SrsSource::on_edge_start_publish()
     return publish_edge->on_client_publish();
 }
 
+// TODO: FIXME: Use edge strategy pattern.
 srs_error_t SrsSource::on_edge_proxy_publish(SrsCommonMessage* msg)
 {
     return publish_edge->on_proxy_publish(msg);

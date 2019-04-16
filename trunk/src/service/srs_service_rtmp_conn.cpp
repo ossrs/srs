@@ -65,7 +65,7 @@ srs_error_t SrsBasicRtmpClient::connect()
     
     close();
     
-    transport = new SrsTcpClient(req->host, req->port, connect_timeout);
+    transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout * SRS_UTIME_MILLISECONDS));
     client = new SrsRtmpClient(transport);
     kbps->set_io(transport, transport);
     

@@ -406,7 +406,7 @@
 #define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
 
 // the common io timeout, for both recv and send.
-#define SRS_CONSTS_KAFKA_TMMS (30*1000)
+#define SRS_CONSTS_KAFKA_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)
 
 #endif
 

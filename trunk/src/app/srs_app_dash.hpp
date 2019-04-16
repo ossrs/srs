@@ -103,6 +103,8 @@ public:
     virtual ~SrsMpdWriter();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
     // Write MPD according to parsed format of stream.
     virtual srs_error_t write(SrsFormat* format);
 public:

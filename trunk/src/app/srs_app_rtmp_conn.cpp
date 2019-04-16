@@ -75,7 +75,7 @@ using namespace std;
 #define SRS_PAUSED_RECV_TMMS (3 * SRS_UTIME_MINUTES)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_TOKEN_TRAVERSE_TMMS (3000)
+#define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
 SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm) : SrsBasicRtmpClient(u, ctm, stm)
 {
@@ -1159,7 +1159,7 @@ srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_parse_hostport(hostport, server, port);
         
-        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TMMS);
+        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT);
         SrsAutoFree(SrsTcpClient, transport);
         
         if ((err = transport->connect()) != srs_success) {

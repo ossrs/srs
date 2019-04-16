@@ -172,17 +172,29 @@ SrsMpdWriter::~SrsMpdWriter()
 srs_error_t SrsMpdWriter::initialize(SrsRequest* r)
 {
     req = r;
+    return srs_success;
+}
+
+srs_error_t SrsMpdWriter::on_publish()
+{
+    SrsRequest* r = req;
+
     fragment = _srs_config->get_dash_fragment(r->vhost);
     update_period = _srs_config->get_dash_update_period(r->vhost);
     timeshit = _srs_config->get_dash_timeshift(r->vhost);
     home = _srs_config->get_dash_path(r->vhost);
     mpd_file = _srs_config->get_dash_mpd_file(r->vhost);
-    
+
     string mpd_path = srs_path_build_stream(mpd_file, req->vhost, req->app, req->stream);
     fragment_home = srs_path_dirname(mpd_path) + "/" + req->stream;
-    
+
     srs_trace("DASH: Config fragment=%" PRId64 ", period=%" PRId64, fragment, update_period);
+
     return srs_success;
+}
+
+void SrsMpdWriter::on_unpublish()
+{
 }
 
 srs_error_t SrsMpdWriter::write(SrsFormat* format)
@@ -303,8 +315,6 @@ srs_error_t SrsDashController::initialize(SrsRequest* r)
     srs_error_t err = srs_success;
     
     req = r;
-    fragment = _srs_config->get_dash_fragment(r->vhost);
-    home = _srs_config->get_dash_path(r->vhost);
     
     if ((err = mpd->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "mpd");
@@ -316,6 +326,11 @@ srs_error_t SrsDashController::initialize(SrsRequest* r)
 srs_error_t SrsDashController::on_publish()
 {
     srs_error_t err = srs_success;
+
+    SrsRequest* r = req;
+
+    fragment = _srs_config->get_dash_fragment(r->vhost);
+    home = _srs_config->get_dash_path(r->vhost);
 
     srs_freep(vcurrent);
     vcurrent = new SrsFragmentedMp4();
@@ -329,11 +344,17 @@ srs_error_t SrsDashController::on_publish()
         return srs_error_wrap(err, "audio fragment");
     }
 
+    if ((err = mpd->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "mpd");
+    }
+
     return err;
 }
 
 void SrsDashController::on_unpublish()
 {
+    mpd->on_unpublish();
+
     srs_freep(vcurrent);
     srs_freep(acurrent);
 }

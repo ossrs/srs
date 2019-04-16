@@ -104,12 +104,11 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-// TODO: FXIME: Refine tm in time unit.
-srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
-        timeout = (st_utime_t)(tm * 1000);
+        timeout = tm;
     }
     
     *pstfd = NULL;
@@ -416,7 +415,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     return err;
 }
 
-SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
+SrsTcpClient::SrsTcpClient(string h, int p, srs_utime_t tm)
 {
     stfd = NULL;
     io = new SrsStSocket();
@@ -441,7 +440,7 @@ srs_error_t SrsTcpClient::connect()
     
     srs_assert(stfd == NULL);
     if ((err = srs_socket_connect(host, port, timeout, &stfd)) != srs_success) {
-        return srs_error_wrap(err, "tcp: connect %s:%d to=%d", host.c_str(), port, (int)timeout);
+        return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }
     
     if ((err = io->initialize(stfd)) != srs_success) {

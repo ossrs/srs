@@ -53,8 +53,8 @@ extern void srs_socket_reuse_addr(int fd);
 extern srs_thread_t srs_thread_self();
 
 // client open socket and connect to server.
-// @param tm The timeout in ms.
-extern srs_error_t srs_socket_connect(std::string server, int port, int64_t tm, srs_netfd_t* pstfd);
+// @param tm The timeout in srs_utime_t.
+extern srs_error_t srs_socket_connect(std::string server, int port, srs_utime_t tm, srs_netfd_t* pstfd);
 
 // Wrap for coroutine.
 extern srs_cond_t srs_cond_new();
@@ -149,7 +149,7 @@ public:
  * The client to connect to server over TCP.
  * User must never reuse the client when close it.
  * Usage:
- *      SrsTcpClient client("127.0.0.1", 1935,9000);
+ *      SrsTcpClient client("127.0.0.1", 1935, 9 * SRS_UTIME_SECONDS);
  *      client.connect();
  *      client.write("Hello world!", 12, NULL);
  *      client.read(buf, 4096, NULL);
@@ -163,16 +163,16 @@ private:
 private:
     std::string host;
     int port;
-    // The timeout in ms.
-    int64_t timeout;
+    // The timeout in srs_utime_t.
+    srs_utime_t timeout;
 public:
     /**
      * Constructor.
      * @param h the ip or hostname of server.
      * @param p the port to connect to.
-     * @param tm the timeout in ms.
+     * @param tm the timeout in srs_utime_t.
      */
-    SrsTcpClient(std::string h, int p, int64_t tm);
+    SrsTcpClient(std::string h, int p, srs_utime_t tm);
     virtual ~SrsTcpClient();
 public:
     /**
