@@ -174,7 +174,7 @@ srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 }
 
 // when error, forwarder sleep for a while and retry.
-#define SRS_FORWARDER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_FORWARDER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsForwarder::cycle()
 {

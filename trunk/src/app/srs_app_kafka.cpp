@@ -485,7 +485,7 @@ srs_error_t SrsKafkaProducer::on_close(int key)
     return worker->execute(new SrsKafkaMessage(this, key, obj));
 }
 
-#define SRS_KAKFA_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_KAKFA_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsKafkaProducer::cycle()
 {

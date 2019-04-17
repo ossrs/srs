@@ -168,7 +168,7 @@ void SrsIngester::fast_stop()
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_AUTO_INGESTER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_AUTO_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsIngester::cycle()
 {

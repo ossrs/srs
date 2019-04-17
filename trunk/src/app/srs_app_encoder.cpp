@@ -87,7 +87,7 @@ void SrsEncoder::on_unpublish()
 }
 
 // when error, encoder sleep for a while and retry.
-#define SRS_RTMP_ENCODER_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_RTMP_ENCODER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEncoder::cycle()
 {

@@ -76,7 +76,7 @@ void SrsNgExec::on_unpublish()
 }
 
 // when error, ng-exec sleep for a while and retry.
-#define SRS_RTMP_EXEC_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_RTMP_EXEC_CIMS (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsNgExec::cycle()
 {
     srs_error_t err = srs_success;

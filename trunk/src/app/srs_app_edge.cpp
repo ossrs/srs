@@ -48,7 +48,7 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when edge timeout, retry next.
-#define SRS_EDGE_INGESTER_TMMS (5 * SRS_UTIME_MILLISECONDS)
+#define SRS_EDGE_INGESTER_TMMS (5 * SRS_UTIME_SECONDS)
 
 // when edge error, wait for quit
 #define SRS_EDGE_FORWARDER_TMMS (150 * SRS_UTIME_MILLISECONDS)
@@ -218,7 +218,7 @@ string SrsEdgeIngester::get_curr_origin()
 }
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_MILLISECONDS)
+#define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEdgeIngester::cycle()
 {
@@ -506,7 +506,7 @@ void SrsEdgeForwarder::stop()
 }
 
 // when error, edge ingester sleep for a while and retry.
-#define SRS_EDGE_FORWARDER_CIMS (3 * SRS_UTIME_MILLISECONDS)
+#define SRS_EDGE_FORWARDER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEdgeForwarder::cycle()
 {
