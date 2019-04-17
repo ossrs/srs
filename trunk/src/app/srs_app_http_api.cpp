@@ -1354,7 +1354,7 @@ srs_error_t SrsHttpApi::do_cycle()
     
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
-    skt->set_recv_timeout(SRS_HTTP_RECV_TMMS);
+    skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT);
     
     // initialize the cors, which will proxy to mux.
     bool crossdomain_enabled = _srs_config->get_http_api_crossdomain();

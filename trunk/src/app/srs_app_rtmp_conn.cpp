@@ -64,15 +64,15 @@ using namespace std;
 
 // the timeout in ms to wait encoder to republish
 // if timeout, close the connection.
-#define SRS_REPUBLISH_SEND_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_REPUBLISH_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
-#define SRS_REPUBLISH_RECV_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_REPUBLISH_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
 // the timeout in ms to wait client data, when client paused
 // if timeout, close the connection.
-#define SRS_PAUSED_SEND_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_PAUSED_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
-#define SRS_PAUSED_RECV_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_PAUSED_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
@@ -410,8 +410,8 @@ srs_error_t SrsRtmpConn::service_cycle()
         // for republish, continue service
         if (srs_error_code(err) == ERROR_CONTROL_REPUBLISH) {
             // set timeout to a larger value, wait for encoder to republish.
-            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TMMS);
-            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TMMS);
+            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT);
+            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT);
             
             srs_trace("rtmp: retry for republish");
             srs_freep(err);
@@ -424,8 +424,8 @@ srs_error_t SrsRtmpConn::service_cycle()
             // TODO: FIXME: use ping message to anti-death of socket.
             // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
-            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TMMS);
-            rtmp->set_send_timeout(SRS_PAUSED_SEND_TMMS);
+            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT);
+            rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT);
             
             srs_trace("rtmp: retry for close");
             srs_freep(err);

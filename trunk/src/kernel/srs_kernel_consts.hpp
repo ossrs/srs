@@ -221,7 +221,7 @@
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // the default recv timeout.
-#define SRS_HTTP_RECV_TMMS (60 * SRS_UTIME_SECONDS)
+#define SRS_HTTP_RECV_TIMEOUT (60 * SRS_UTIME_SECONDS)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100

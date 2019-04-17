@@ -2408,7 +2408,7 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     return err;
 }
 
-#define SRS_RTMP_REDIRECT_TMMS (3 * SRS_UTIME_SECONDS)
+#define SRS_RTMP_REDIRECT_TIMEOUT (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
 {
     srs_error_t err = srs_success;
@@ -2434,7 +2434,7 @@ srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& 
     
     // client must response a call message.
     // or we never know whether the client is ok to redirect.
-    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TMMS);
+    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TIMEOUT);
     if (true) {
         SrsCommonMessage* msg = NULL;
         SrsCallPacket* pkt = NULL;

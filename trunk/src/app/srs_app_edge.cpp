@@ -48,10 +48,10 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 
 // when edge timeout, retry next.
-#define SRS_EDGE_INGESTER_TMMS (5 * SRS_UTIME_SECONDS)
+#define SRS_EDGE_INGESTER_TIMEOUT (5 * SRS_UTIME_SECONDS)
 
 // when edge error, wait for quit
-#define SRS_EDGE_FORWARDER_TMMS (150 * SRS_UTIME_MILLISECONDS)
+#define SRS_EDGE_FORWARDER_TIMEOUT (150 * SRS_UTIME_MILLISECONDS)
 
 SrsEdgeUpstream::SrsEdgeUpstream()
 {
@@ -114,7 +114,7 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     }
     
     srs_freep(sdk);
-    int64_t cto = srsu2ms(SRS_EDGE_INGESTER_TMMS);
+    int64_t cto = srsu2ms(SRS_EDGE_INGESTER_TIMEOUT);
     int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
@@ -294,7 +294,7 @@ srs_error_t SrsEdgeIngester::ingest()
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // set to larger timeout to read av data from origin.
-    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TMMS);
+    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT);
     
     while (true) {
         srs_error_t err = srs_success;
@@ -475,7 +475,7 @@ srs_error_t SrsEdgeForwarder::start()
     // open socket.
     srs_freep(sdk);
     // TODO: FIXME: Should switch cto with sto?
-    int64_t cto = srsu2ms(SRS_EDGE_FORWARDER_TMMS);
+    int64_t cto = srsu2ms(SRS_EDGE_FORWARDER_TIMEOUT);
     int64_t sto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
@@ -546,7 +546,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         }
         
         if (send_error_code != ERROR_SUCCESS) {
-            srs_usleep(SRS_EDGE_FORWARDER_TMMS);
+            srs_usleep(SRS_EDGE_FORWARDER_TIMEOUT);
             continue;
         }
         
