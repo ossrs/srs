@@ -228,7 +228,7 @@ srs_error_t SrsHttpClient::connect()
     
     // Set the recv/send timeout in ms.
     transport->set_recv_timeout(timeout);
-    transport->set_send_timeout(timeout);
+    transport->set_send_timeout(timeout * SRS_UTIME_MILLISECONDS);
     
     kbps->set_io(transport, transport);
     

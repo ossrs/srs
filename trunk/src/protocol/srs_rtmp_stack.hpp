@@ -311,10 +311,10 @@ public:
     virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-     * set/get the send timeout in ms.
+     * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     /**
      * get recv/send bytes.
@@ -689,7 +689,7 @@ public:
 // protocol methods proxy
 public:
     virtual void set_recv_timeout(int64_t tm);
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
@@ -811,10 +811,10 @@ public:
     virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
     /**
-     * set/get the send timeout in ms.
+     * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     /**
      * get recv/send bytes.

@@ -72,7 +72,7 @@ int64_t MockEmptyIO::get_recv_bytes()
     return -1;
 }
 
-void MockEmptyIO::set_send_timeout(int64_t /*tm*/)
+void MockEmptyIO::set_send_timeout(srs_utime_t /*tm*/)
 {
 }
 
@@ -157,7 +157,7 @@ int64_t MockBufferIO::get_recv_bytes()
     return rbytes;
 }
 
-void MockBufferIO::set_send_timeout(int64_t tm)
+void MockBufferIO::set_send_timeout(srs_utime_t tm)
 {
     stm = tm;
 }
@@ -696,8 +696,8 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     proto.set_recv_timeout(10);
     EXPECT_TRUE(10 == proto.get_recv_timeout());
     
-    proto.set_send_timeout(10);
-    EXPECT_TRUE(10 == proto.get_send_timeout());
+    proto.set_send_timeout(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(10 * SRS_UTIME_MILLISECONDS == proto.get_send_timeout());
 }
 
 /**

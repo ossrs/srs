@@ -128,7 +128,7 @@ public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
@@ -191,7 +191,7 @@ public:
     virtual bool is_never_timeout(int64_t tm);
     virtual void set_recv_timeout(int64_t tm);
     virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();

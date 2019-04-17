@@ -261,7 +261,7 @@ int64_t SrsStSocket::get_recv_timeout()
     return rtm;
 }
 
-void SrsStSocket::set_send_timeout(int64_t tm)
+void SrsStSocket::set_send_timeout(srs_utime_t tm)
 {
     stm = tm;
 }
@@ -475,7 +475,7 @@ int64_t SrsTcpClient::get_recv_timeout()
     return io->get_recv_timeout();
 }
 
-void SrsTcpClient::set_send_timeout(int64_t tm)
+void SrsTcpClient::set_send_timeout(srs_utime_t tm)
 {
     io->set_send_timeout(tm);
 }

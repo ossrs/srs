@@ -60,7 +60,7 @@ public:
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
@@ -74,7 +74,7 @@ class MockBufferIO : public ISrsProtocolReadWriter
 public:
     // The send/recv timeout in ms.
     int64_t rtm;
-    int64_t stm;
+    srs_utime_t stm;
     // The send/recv data in bytes.
     int64_t rbytes;
     int64_t sbytes;
@@ -101,7 +101,7 @@ public:
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);

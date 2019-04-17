@@ -75,7 +75,7 @@ srs_error_t SrsBasicRtmpClient::connect()
     }
     
     client->set_recv_timeout(stream_timeout);
-    client->set_send_timeout(stream_timeout);
+    client->set_send_timeout(stream_timeout * SRS_UTIME_MILLISECONDS);
     
     // connect to vhost/app
     if ((err = client->handshake()) != srs_success) {

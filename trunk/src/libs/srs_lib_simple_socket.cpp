@@ -396,10 +396,10 @@ int64_t SimpleSocketStream::get_recv_bytes()
 }
 
 // ISrsProtocolWriter
-void SimpleSocketStream::set_send_timeout(int64_t tm)
+void SimpleSocketStream::set_send_timeout(srs_utime_t tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_send_timeout(io, tm);
+    srs_hijack_io_set_send_timeout(io, srsu2ms(tm));
 }
 
 int64_t SimpleSocketStream::get_send_timeout()
