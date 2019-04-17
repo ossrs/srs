@@ -102,7 +102,7 @@ public:
     virtual srs_error_t start();
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
-    // Set socket option SO_SNDBUF in ms.
+    // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
 // interface ISrsOneCycleThreadHandler
 public:

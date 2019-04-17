@@ -88,7 +88,7 @@ srs_error_t SrsFragmentedMp4::initialize(SrsRequest* r, bool video, SrsMpdWriter
     string file_home;
     string file_name;
     int64_t sequence_number;
-    uint64_t basetime;
+    srs_utime_t basetime;
     if ((err = mpd->get_fragment(video, file_home, file_name, sequence_number, basetime)) != srs_success) {
         return srs_error_wrap(err, "get fragment");
     }
@@ -271,14 +271,14 @@ srs_error_t SrsMpdWriter::write(SrsFormat* format)
     return err;
 }
 
-srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::string& file_name, int64_t& sn, uint64_t& basetime)
+srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::string& file_name, int64_t& sn, srs_utime_t& basetime)
 {
     srs_error_t err = srs_success;
     
     home = fragment_home;
     
     sn = srs_update_system_time() / fragment;
-    basetime = sn * srsu2ms(fragment);
+    basetime = sn * fragment;
     
     if (video) {
         file_name = "video-" + srs_int2str(sn) + ".m4s";

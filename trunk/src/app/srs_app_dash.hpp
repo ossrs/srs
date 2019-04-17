@@ -109,8 +109,8 @@ public:
     virtual srs_error_t write(SrsFormat* format);
 public:
     // Get the fragment relative home and filename.
-    // The basetime is the absolute time in ms, while the sn(sequence number) is basetime/fragment.
-    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, uint64_t& basetime);
+    // The basetime is the absolute time in srs_utime_t, while the sn(sequence number) is basetime/fragment.
+    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, srs_utime_t& basetime);
 };
 
 /**

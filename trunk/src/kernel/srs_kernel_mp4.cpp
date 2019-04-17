@@ -6144,7 +6144,7 @@ SrsMp4M2tsSegmentEncoder::~SrsMp4M2tsSegmentEncoder()
     srs_freep(buffer);
 }
 
-srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequence, uint64_t basetime, uint32_t tid)
+srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t tid)
 {
     srs_error_t err = srs_success;
     
@@ -6252,7 +6252,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         traf->set_tfdt(tfdt);
         
         tfdt->version = 1;
-        tfdt->base_media_decode_time = decode_basetime;
+        tfdt->base_media_decode_time = srsu2ms(decode_basetime);
         
         SrsMp4TrackFragmentRunBox* trun = new SrsMp4TrackFragmentRunBox();
         traf->set_trun(trun);
