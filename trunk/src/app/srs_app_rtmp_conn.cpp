@@ -646,7 +646,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
-    SrsQueueRecvThread trd(consumer, rtmp, srsu2msi(SRS_PERF_MW_SLEEP));
+    SrsQueueRecvThread trd(consumer, rtmp, srsu2msi(SRS_PERF_MW_SLEEP), _srs_context->get_id());
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -815,7 +815,7 @@ srs_error_t SrsRtmpConn::publishing(SrsSource* source)
     if ((err = acquire_publish(source)) == srs_success) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
-        SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source);
+        SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source, _srs_context->get_id());
         err = do_publishing(source, &rtrd);
         rtrd.stop();
     }
@@ -847,11 +847,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         return srs_error_wrap(err, "rtmp: receive thread");
     }
     
-    // change the isolate recv thread context id,
-    // merge its log to current thread.
-    int receive_thread_cid = rtrd->get_cid();
-    rtrd->set_cid(_srs_context->get_id());
-    
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
@@ -862,9 +857,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
-        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
-            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout),
-            tcp_nodelay, receive_thread_cid);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d",
+            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout), tcp_nodelay);
     }
     
     int64_t nb_msgs = 0;

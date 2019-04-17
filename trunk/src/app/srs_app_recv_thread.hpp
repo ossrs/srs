@@ -96,12 +96,13 @@ protected:
     SrsCoroutine* trd;
     ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
+    int _parent_cid;
     // The recv timeout in ms.
     int timeout;
 public:
     // Constructor.
     // @param tm The receive timeout in ms.
-    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm);
+    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm, int parent_cid);
     virtual ~SrsRecvThread();
 public:
     virtual int cid();
@@ -133,7 +134,7 @@ private:
     SrsConsumer* _consumer;
 public:
 	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
+    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms, int parent_cid);
     virtual ~SrsQueueRecvThread();
 public:
     virtual srs_error_t start();
@@ -189,7 +190,8 @@ private:
     int cid;
     int ncid;
 public:
-    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req, int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source);
+    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
+        int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source, int parent_cid);
     virtual ~SrsPublishRecvThread();
 public:
     /**

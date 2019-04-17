@@ -488,7 +488,7 @@ srs_error_t SrsEdgeForwarder::start()
     }
     
     srs_freep(trd);
-    trd = new SrsSTCoroutine("edge-fwr", this);
+    trd = new SrsSTCoroutine("edge-fwr", this, _srs_context->get_id());
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
