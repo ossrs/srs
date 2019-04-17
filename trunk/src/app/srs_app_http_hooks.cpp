@@ -46,7 +46,7 @@ using namespace std;
 #define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
 // the timeout for hls notify, in ms.
-#define SRS_HLS_NOTIFY_TMMS (10 * SRS_UTIME_SECONDS)
+#define SRS_HLS_NOTIFY_TIMEOUT (10 * SRS_UTIME_SECONDS)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -371,7 +371,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     }
     
     SrsHttpClient http;
-    if ((err = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TMMS)) != srs_success) {
+    if ((err = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
         return srs_error_wrap(err, "http: init client for %s", url.c_str());
     }
     
