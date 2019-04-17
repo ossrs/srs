@@ -60,7 +60,7 @@ public:
 // ISrsProtocolWriter
 public:
     virtual void set_send_timeout(srs_utime_t tm);
-    virtual int64_t get_send_timeout();
+    virtual srs_utime_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // ISrsProtocolReadWriter

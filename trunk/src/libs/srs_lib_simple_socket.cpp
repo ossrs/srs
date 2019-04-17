@@ -402,10 +402,10 @@ void SimpleSocketStream::set_send_timeout(srs_utime_t tm)
     srs_hijack_io_set_send_timeout(io, srsu2ms(tm));
 }
 
-int64_t SimpleSocketStream::get_send_timeout()
+srs_utime_t SimpleSocketStream::get_send_timeout()
 {
     srs_assert(io);
-    return srs_hijack_io_get_send_timeout(io);
+    return srs_hijack_io_get_send_timeout(io) * SRS_UTIME_MILLISECONDS;
 }
 
 int64_t SimpleSocketStream::get_send_bytes()

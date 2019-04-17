@@ -266,7 +266,7 @@ void SrsStSocket::set_send_timeout(srs_utime_t tm)
     stm = tm;
 }
 
-int64_t SrsStSocket::get_send_timeout()
+srs_utime_t SrsStSocket::get_send_timeout()
 {
     return stm;
 }
@@ -480,7 +480,7 @@ void SrsTcpClient::set_send_timeout(srs_utime_t tm)
     io->set_send_timeout(tm);
 }
 
-int64_t SrsTcpClient::get_send_timeout()
+srs_utime_t SrsTcpClient::get_send_timeout()
 {
     return io->get_send_timeout();
 }

@@ -319,7 +319,7 @@ void SrsProtocol::set_send_timeout(srs_utime_t tm)
     return skt->set_send_timeout(tm);
 }
 
-int64_t SrsProtocol::get_send_timeout()
+srs_utime_t SrsProtocol::get_send_timeout()
 {
     return skt->get_send_timeout();
 }
@@ -2225,7 +2225,7 @@ void SrsRtmpServer::set_send_timeout(srs_utime_t tm)
     protocol->set_send_timeout(tm);
 }
 
-int64_t SrsRtmpServer::get_send_timeout()
+srs_utime_t SrsRtmpServer::get_send_timeout()
 {
     return protocol->get_send_timeout();
 }

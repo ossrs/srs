@@ -76,7 +76,7 @@ void MockEmptyIO::set_send_timeout(srs_utime_t /*tm*/)
 {
 }
 
-int64_t MockEmptyIO::get_send_timeout()
+srs_utime_t MockEmptyIO::get_send_timeout()
 {
     return 0;
 }
@@ -162,7 +162,7 @@ void MockBufferIO::set_send_timeout(srs_utime_t tm)
     stm = tm;
 }
 
-int64_t MockBufferIO::get_send_timeout()
+srs_utime_t MockBufferIO::get_send_timeout()
 {
     return stm;
 }
