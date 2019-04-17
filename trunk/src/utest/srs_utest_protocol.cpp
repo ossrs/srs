@@ -43,7 +43,7 @@ MockEmptyIO::~MockEmptyIO()
 {
 }
 
-bool MockEmptyIO::is_never_timeout(int64_t /*tm*/)
+bool MockEmptyIO::is_never_timeout(srs_utime_t /*tm*/)
 {
     return true;
 }
@@ -62,7 +62,7 @@ void MockEmptyIO::set_recv_timeout(srs_utime_t /*tm*/)
 {
 }
 
-int64_t MockEmptyIO::get_recv_timeout()
+srs_utime_t MockEmptyIO::get_recv_timeout()
 {
     return -1;
 }
@@ -112,7 +112,7 @@ MockBufferIO* MockBufferIO::append(string data)
     return this;
 }
 
-bool MockBufferIO::is_never_timeout(int64_t tm)
+bool MockBufferIO::is_never_timeout(srs_utime_t tm)
 {
     return tm == SRS_UTIME_NO_TIMEOUT;
 }
@@ -147,7 +147,7 @@ void MockBufferIO::set_recv_timeout(srs_utime_t tm)
     rtm = tm;
 }
 
-int64_t MockBufferIO::get_recv_timeout()
+srs_utime_t MockBufferIO::get_recv_timeout()
 {
     return rtm;
 }

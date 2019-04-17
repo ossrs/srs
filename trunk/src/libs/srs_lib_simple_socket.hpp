@@ -55,7 +55,7 @@ public:
 // ISrsProtocolReader
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // ISrsProtocolWriter
 public:
@@ -65,7 +65,7 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // ISrsProtocolReadWriter
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };

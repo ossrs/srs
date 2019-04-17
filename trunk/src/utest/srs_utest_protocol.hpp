@@ -48,7 +48,7 @@ public:
     virtual ~MockEmptyIO();
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
@@ -56,7 +56,7 @@ public:
 // for protocol
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
@@ -89,7 +89,7 @@ public:
     virtual MockBufferIO* append(std::string data);
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
@@ -97,7 +97,7 @@ public:
 // for protocol
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:

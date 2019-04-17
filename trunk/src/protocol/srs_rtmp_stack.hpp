@@ -308,7 +308,7 @@ public:
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     /**
      * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
@@ -808,7 +808,7 @@ public:
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     /**
      * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.

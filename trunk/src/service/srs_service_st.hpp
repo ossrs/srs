@@ -125,9 +125,9 @@ public:
     // Initialize the socket with stfd, user must manage it.
     virtual srs_error_t initialize(srs_netfd_t fd);
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
     virtual int64_t get_recv_bytes();
@@ -188,9 +188,9 @@ private:
     virtual void close();
 // interface ISrsProtocolReadWriter
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual srs_utime_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
     virtual int64_t get_recv_bytes();

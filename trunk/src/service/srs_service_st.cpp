@@ -246,7 +246,7 @@ srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
     return srs_success;
 }
 
-bool SrsStSocket::is_never_timeout(int64_t tm)
+bool SrsStSocket::is_never_timeout(srs_utime_t tm)
 {
     return tm == SRS_UTIME_NO_TIMEOUT;
 }
@@ -256,7 +256,7 @@ void SrsStSocket::set_recv_timeout(srs_utime_t tm)
     rtm = tm;
 }
 
-int64_t SrsStSocket::get_recv_timeout()
+srs_utime_t SrsStSocket::get_recv_timeout()
 {
     return rtm;
 }
@@ -460,7 +460,7 @@ void SrsTcpClient::close()
     srs_close_stfd(stfd);
 }
 
-bool SrsTcpClient::is_never_timeout(int64_t tm)
+bool SrsTcpClient::is_never_timeout(srs_utime_t tm)
 {
     return io->is_never_timeout(tm);
 }
@@ -470,7 +470,7 @@ void SrsTcpClient::set_recv_timeout(srs_utime_t tm)
     io->set_recv_timeout(tm);
 }
 
-int64_t SrsTcpClient::get_recv_timeout()
+srs_utime_t SrsTcpClient::get_recv_timeout()
 {
     return io->get_recv_timeout();
 }
