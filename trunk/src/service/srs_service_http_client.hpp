@@ -101,7 +101,7 @@ public:
      */
     virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
 private:
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
 public:
     virtual void kbps_sample(const char* label, int64_t age);
 private:

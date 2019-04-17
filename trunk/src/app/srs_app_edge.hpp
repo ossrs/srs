@@ -86,7 +86,7 @@ public:
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
     virtual void close() = 0;
 public:
-    virtual void set_recv_timeout(int64_t tm) = 0;
+    virtual void set_recv_timeout(srs_utime_t tm) = 0;
     virtual void kbps_sample(const char* label, int64_t age) = 0;
 };
 
@@ -107,7 +107,7 @@ public:
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual void close();
 public:
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual void kbps_sample(const char* label, int64_t age);
 };
 

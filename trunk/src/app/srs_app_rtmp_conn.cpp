@@ -166,7 +166,7 @@ srs_error_t SrsRtmpConn::do_cycle()
     }
 #endif
     
-    rtmp->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
 
     if ((err = rtmp->handshake()) != srs_success) {
@@ -411,7 +411,7 @@ srs_error_t SrsRtmpConn::service_cycle()
         if (srs_error_code(err) == ERROR_CONTROL_REPUBLISH) {
             // set timeout to a larger value, wait for encoder to republish.
             rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TMMS);
-            rtmp->set_recv_timeout(srsu2ms(SRS_REPUBLISH_SEND_TMMS));
+            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TMMS);
             
             srs_trace("rtmp: retry for republish");
             srs_freep(err);
@@ -425,7 +425,7 @@ srs_error_t SrsRtmpConn::service_cycle()
             // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
             rtmp->set_recv_timeout(SRS_PAUSED_RECV_TMMS);
-            rtmp->set_send_timeout(srsu2ms(SRS_PAUSED_SEND_TMMS));
+            rtmp->set_send_timeout(SRS_PAUSED_SEND_TMMS);
             
             srs_trace("rtmp: retry for close");
             srs_freep(err);
@@ -498,7 +498,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     // find a source to serve.
@@ -1183,7 +1183,7 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     SrsRequest* req = info->req;
     srs_assert(client);
     
-    client->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     if ((err = client->handshake()) != srs_success) {

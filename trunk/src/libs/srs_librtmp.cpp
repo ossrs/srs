@@ -572,7 +572,7 @@ int srs_rtmp_set_timeout(srs_rtmp_t rtmp, int recv_timeout_ms, int send_timeout_
     context->stimeout = send_timeout_ms;
     context->rtimeout = recv_timeout_ms;
     
-    context->skt->set_recv_timeout(context->rtimeout);
+    context->skt->set_recv_timeout(context->rtimeout * SRS_UTIME_MILLISECONDS);
     context->skt->set_send_timeout(context->stimeout * SRS_UTIME_MILLISECONDS);
     
     return ret;
@@ -641,7 +641,7 @@ int srs_rtmp_connect_server(srs_rtmp_t rtmp)
     }
     if (context->rtimeout == SRS_UTIME_NO_TIMEOUT) {
         context->rtimeout = SRS_SOCKET_DEFAULT_TMMS;
-        context->skt->set_recv_timeout(context->rtimeout);
+        context->skt->set_recv_timeout(context->rtimeout * SRS_UTIME_MILLISECONDS);
     }
     
     if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {

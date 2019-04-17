@@ -181,7 +181,7 @@ srs_error_t SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     
     // timeout for a packet.
     _rtmp->set_send_timeout(play_sample.duration_ms * 2 * SRS_UTIME_MILLISECONDS);
-    _rtmp->set_recv_timeout(publish_sample.duration_ms * 2);
+    _rtmp->set_recv_timeout(publish_sample.duration_ms * 2 * SRS_UTIME_MILLISECONDS);
     
     // start test.
     srs_utime_t start_time = srs_update_system_time();

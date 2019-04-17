@@ -186,7 +186,7 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     return err;
 }
 
-void SrsHttpClient::set_recv_timeout(int64_t tm)
+void SrsHttpClient::set_recv_timeout(srs_utime_t tm)
 {
     transport->set_recv_timeout(tm);
 }
@@ -227,7 +227,7 @@ srs_error_t SrsHttpClient::connect()
     }
     
     // Set the recv/send timeout in ms.
-    transport->set_recv_timeout(timeout);
+    transport->set_recv_timeout(timeout * SRS_UTIME_MILLISECONDS);
     transport->set_send_timeout(timeout * SRS_UTIME_MILLISECONDS);
     
     kbps->set_io(transport, transport);

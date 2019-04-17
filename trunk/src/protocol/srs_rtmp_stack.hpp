@@ -304,11 +304,10 @@ public:
 #endif
 public:
     /**
-     * set/get the recv timeout in ms.
+     * set/get the recv timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-     // TODO: FIXME: Refine tm in time unit.
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     /**
      * set/get the send timeout in srs_utime_t.
@@ -688,7 +687,7 @@ public:
     virtual ~SrsRtmpClient();
 // protocol methods proxy
 public:
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
@@ -805,10 +804,10 @@ public:
     virtual void set_recv_buffer(int buffer_size);
 #endif
     /**
-     * set/get the recv timeout in ms.
+     * set/get the recv timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     /**
      * set/get the send timeout in srs_utime_t.

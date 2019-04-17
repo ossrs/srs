@@ -74,7 +74,7 @@ srs_error_t SrsBasicRtmpClient::connect()
         return srs_error_wrap(err, "connect");
     }
     
-    client->set_recv_timeout(stream_timeout);
+    client->set_recv_timeout(stream_timeout * SRS_UTIME_MILLISECONDS);
     client->set_send_timeout(stream_timeout * SRS_UTIME_MILLISECONDS);
     
     // connect to vhost/app
@@ -234,7 +234,7 @@ srs_error_t SrsBasicRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg)
     return client->send_and_free_message(msg, stream_id);
 }
 
-void SrsBasicRtmpClient::set_recv_timeout(int64_t timeout)
+void SrsBasicRtmpClient::set_recv_timeout(srs_utime_t timeout)
 {
     transport->set_recv_timeout(timeout);
 }

@@ -58,7 +58,7 @@ srs_error_t MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite
     return srs_success;
 }
 
-void MockEmptyIO::set_recv_timeout(int64_t /*tm*/)
+void MockEmptyIO::set_recv_timeout(srs_utime_t /*tm*/)
 {
 }
 
@@ -142,7 +142,7 @@ srs_error_t MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
     return srs_success;
 }
 
-void MockBufferIO::set_recv_timeout(int64_t tm)
+void MockBufferIO::set_recv_timeout(srs_utime_t tm)
 {
     rtm = tm;
 }
@@ -693,8 +693,8 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
     EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_send_timeout());
     
-    proto.set_recv_timeout(10);
-    EXPECT_TRUE(10 == proto.get_recv_timeout());
+    proto.set_recv_timeout(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(10 * SRS_UTIME_MILLISECONDS == proto.get_recv_timeout());
     
     proto.set_send_timeout(10 * SRS_UTIME_MILLISECONDS);
     EXPECT_TRUE(10 * SRS_UTIME_MILLISECONDS == proto.get_send_timeout());

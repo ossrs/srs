@@ -304,7 +304,7 @@ void SrsProtocol::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsProtocol::set_recv_timeout(int64_t tm)
+void SrsProtocol::set_recv_timeout(srs_utime_t tm)
 {
     return skt->set_recv_timeout(tm);
 }
@@ -1815,7 +1815,7 @@ SrsRtmpClient::~SrsRtmpClient()
     srs_freep(hs_bytes);
 }
 
-void SrsRtmpClient::set_recv_timeout(int64_t tm)
+void SrsRtmpClient::set_recv_timeout(srs_utime_t tm)
 {
     protocol->set_recv_timeout(tm);
 }
@@ -2210,7 +2210,7 @@ void SrsRtmpServer::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsRtmpServer::set_recv_timeout(int64_t tm)
+void SrsRtmpServer::set_recv_timeout(srs_utime_t tm)
 {
     protocol->set_recv_timeout(tm);
 }
@@ -2408,7 +2408,7 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     return err;
 }
 
-#define SRS_RTMP_REDIRECT_TMMS 3000
+#define SRS_RTMP_REDIRECT_TMMS (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
 {
     srs_error_t err = srs_success;

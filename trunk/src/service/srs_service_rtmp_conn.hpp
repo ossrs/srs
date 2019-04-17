@@ -87,7 +87,7 @@ public:
     virtual srs_error_t send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
     virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
 public:
-    virtual void set_recv_timeout(int64_t timeout);
+    virtual void set_recv_timeout(srs_utime_t timeout);
 };
 
 #endif

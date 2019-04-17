@@ -377,10 +377,10 @@ srs_error_t SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 }
 
 // ISrsProtocolReader
-void SimpleSocketStream::set_recv_timeout(int64_t tm)
+void SimpleSocketStream::set_recv_timeout(SrsQueueRecvThread tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_recv_timeout(io, tm);
+    srs_hijack_io_set_recv_timeout(io, srsu2ms(tm));
 }
 
 int64_t SimpleSocketStream::get_recv_timeout()

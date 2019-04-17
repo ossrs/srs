@@ -116,7 +116,7 @@ srs_error_t SrsRecvThread::cycle()
     }
     
     // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(timeout * 1000);
+    rtmp->set_recv_timeout(timeout * SRS_UTIME_MILLISECONDS);
     
     pumper->on_stop();
     

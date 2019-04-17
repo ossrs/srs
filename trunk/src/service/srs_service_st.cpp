@@ -251,7 +251,7 @@ bool SrsStSocket::is_never_timeout(int64_t tm)
     return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
-void SrsStSocket::set_recv_timeout(int64_t tm)
+void SrsStSocket::set_recv_timeout(srs_utime_t tm)
 {
     rtm = tm;
 }
@@ -465,7 +465,7 @@ bool SrsTcpClient::is_never_timeout(int64_t tm)
     return io->is_never_timeout(tm);
 }
 
-void SrsTcpClient::set_recv_timeout(int64_t tm)
+void SrsTcpClient::set_recv_timeout(srs_utime_t tm)
 {
     io->set_recv_timeout(tm);
 }

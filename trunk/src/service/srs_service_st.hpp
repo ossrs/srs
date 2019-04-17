@@ -126,7 +126,7 @@ public:
     virtual srs_error_t initialize(srs_netfd_t fd);
 public:
     virtual bool is_never_timeout(int64_t tm);
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();
@@ -189,7 +189,7 @@ private:
 // interface ISrsProtocolReadWriter
 public:
     virtual bool is_never_timeout(int64_t tm);
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);
     virtual srs_utime_t get_send_timeout();

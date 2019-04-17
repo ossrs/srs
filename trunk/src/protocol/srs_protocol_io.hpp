@@ -84,9 +84,9 @@ public:
     virtual ~ISrsProtocolReader();
 // for protocol
 public:
-    // Set the timeout tm in ms for recv bytes from peer.
+    // Set the timeout tm in srs_utime_t for recv bytes from peer.
     // @remark Use SRS_UTIME_NO_TIMEOUT to never timeout.
-    virtual void set_recv_timeout(int64_t tm) = 0;
+    virtual void set_recv_timeout(srs_utime_t tm) = 0;
     // Get the timeout in ms for recv bytes from peer.
     virtual int64_t get_recv_timeout() = 0;
 // For handshake.

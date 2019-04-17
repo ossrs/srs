@@ -55,7 +55,7 @@ public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
@@ -96,7 +96,7 @@ public:
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
     virtual int64_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
