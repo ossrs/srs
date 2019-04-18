@@ -236,6 +236,7 @@ public:
      */
     virtual srs_error_t segment_close();
 private:
+    virtual srs_error_t do_segment_close();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t _refresh_m3u8(std::string m3u8_file);

@@ -576,6 +576,16 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 
 srs_error_t SrsHlsMuxer::segment_close()
 {
+    srs_error_t err = do_segment_close();
+
+    // We always cleanup current segment.
+    srs_freep(current);
+
+    return err;
+}
+
+srs_error_t SrsHlsMuxer::do_segment_close()
+{
     srs_error_t err = srs_success;
     
     if (!current) {
@@ -614,7 +624,6 @@ srs_error_t SrsHlsMuxer::segment_close()
         
         // rename from tmp to real path
         if ((err = current->rename()) != srs_success) {
-            srs_freep(current);
             return srs_error_wrap(err, "rename");
         }
         
@@ -631,7 +640,6 @@ srs_error_t SrsHlsMuxer::segment_close()
         if ((err = current->unlink_tmpfile()) != srs_success) {
             return srs_error_wrap(err, "rename");
         }
-        srs_freep(current);
     }
     
     // shrink the segments.
@@ -1013,6 +1021,13 @@ srs_error_t SrsHlsController::reap_segment()
     
     // close current ts.
     if ((err = muxer->segment_close()) != srs_success) {
+        // When close segment error, we must reopen it for next packet to write.
+        srs_error_t r0 = muxer->segment_open();
+        if (r0 != srs_success) {
+            srs_warn("close segment err %s", srs_error_desc(r0).c_str());
+            srs_freep(r0);
+        }
+
         return srs_error_wrap(err, "hls: segment close");
     }
     
