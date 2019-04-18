@@ -101,7 +101,7 @@ protected:
     srs_utime_t timeout;
 public:
     // Constructor.
-    // @param tm The receive timeout in ms.
+    // @param tm The receive timeout in srs_utime_t.
     SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid);
     virtual ~SrsRecvThread();
 public:

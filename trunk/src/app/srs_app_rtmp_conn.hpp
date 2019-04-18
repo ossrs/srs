@@ -105,10 +105,10 @@ private:
     // the wakable handler, maybe NULL.
     // TODO: FIXME: Should refine the state for receiving thread.
     ISrsWakable* wakable;
-    // elapse duration in ms
+    // elapse duration in srs_utime_t
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/ossrs/srs/issues/47
-    int64_t duration;
+    srs_utime_t duration;
     // the MR(merged-write) sleep time in ms.
     srs_utime_t mw_sleep;
     // the MR(merged-write) only enabled for play.

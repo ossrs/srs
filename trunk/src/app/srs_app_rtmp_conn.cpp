@@ -57,18 +57,13 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_kafka.hpp>
 
-// when stream is busy, for example, streaming is already
-// publishing, when a new client to request to publish,
-// sleep a while and close the connection.
-#define SRS_STREAM_BUSY_CIMS (3000)
-
-// the timeout in ms to wait encoder to republish
+// the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
 #define SRS_REPUBLISH_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
 #define SRS_REPUBLISH_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
-// the timeout in ms to wait client data, when client paused
+// the timeout in srs_utime_t to wait client data, when client paused
 // if timeout, close the connection.
 #define SRS_PAUSED_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
@@ -767,7 +762,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
                 if (starttime < 0 || starttime > msg->timestamp) {
                     starttime = msg->timestamp;
                 }
-                duration += msg->timestamp - starttime;
+                duration += (msg->timestamp - starttime) * SRS_UTIME_MILLISECONDS;
                 starttime = msg->timestamp;
             }
         }
@@ -781,12 +776,12 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/ossrs/srs/issues/45
         if (user_specified_duration_to_stop) {
-            if (duration >= (int64_t)req->duration) {
-                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", (int)duration, (int)req->duration);
+            if (srsu2ms(duration) >= (int64_t)req->duration) {
+                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", srsu2msi(duration), (int)req->duration);
             }
         }
         
-        // apply the minimal interval for delivery stream in ms.
+        // apply the minimal interval for delivery stream in srs_utime_t.
         if (send_min_interval > 0) {
             srs_usleep(send_min_interval);
         }
