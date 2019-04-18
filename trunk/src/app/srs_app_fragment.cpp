@@ -52,13 +52,15 @@ void SrsFragment::append(int64_t dts)
         dts = 0;
     }
 
+    srs_utime_t dts_in_tbn = dts * SRS_UTIME_MILLISECONDS;
+
     if (start_dts == -1) {
-        start_dts = dts * SRS_UTIME_MILLISECONDS;
+        start_dts = dts_in_tbn;
     }
     
     // TODO: FIXME: Use cumulus dts.
-    start_dts = srs_min(start_dts, dts * SRS_UTIME_MILLISECONDS);
-    dur = dts - start_dts;
+    start_dts = srs_min(start_dts, dts_in_tbn);
+    dur = dts_in_tbn - start_dts;
 }
 
 srs_utime_t SrsFragment::duration()

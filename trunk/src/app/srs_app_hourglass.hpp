@@ -40,7 +40,7 @@ public:
     /**
      * notify the handler, the type and tick.
      */
-    virtual srs_error_t notify(int type, int interval, int64_t tick) = 0;
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick) = 0;
 };
 
 /**
@@ -60,10 +60,10 @@ public:
  * this is used for server and bocar server and other manager.
  *
  * Usage:
- *      SrsHourGlass* hg = new SrsHourGlass(handler, 1000);
- *      hg->tick(1, 3000);
- *      hg->tick(2, 5000);
- *      hg->tick(3, 7000);
+ *      SrsHourGlass* hg = new SrsHourGlass(handler, 1 * SRS_UTIME_MILLISECONDS);
+ *      hg->tick(1, 3 * SRS_UTIME_MILLISECONDS);
+ *      hg->tick(2, 5 * SRS_UTIME_MILLISECONDS);
+ *      hg->tick(3, 7 * SRS_UTIME_MILLISECONDS);
  *      // create a thread to cycle, which will call handerl when ticked.
  *      while (true) {
  *          hg->cycle();
@@ -73,21 +73,21 @@ class SrsHourGlass
 {
 private:
     ISrsHourGlass* handler;
-    int resolution;
+    srs_utime_t _resolution;
     // key: the type of tick.
     // value: the interval of tick.
-    std::map<int, int> ticks;
+    std::map<int, srs_utime_t> ticks;
     // the total elapsed time,
     // for each cycle, we increase it with a resolution.
-    int64_t total_elapse;
+    srs_utime_t total_elapse;
 public:
-    SrsHourGlass(ISrsHourGlass* h, int resolution_ms);
+    SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
 public:
     // add a pair of tick(type, interval).
     // @param type the type of tick.
-    // @param interval the interval in ms of tick.
-    virtual srs_error_t tick(int type, int interval);
+    // @param interval the interval in srs_utime_t of tick.
+    virtual srs_error_t tick(int type, srs_utime_t interval);
 public:
     // cycle the hourglass, which will sleep resolution every time.
     // and call handler when ticked.
