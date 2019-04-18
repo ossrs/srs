@@ -87,7 +87,7 @@ public:
     // Set the timeout tm in srs_utime_t for recv bytes from peer.
     // @remark Use SRS_UTIME_NO_TIMEOUT to never timeout.
     virtual void set_recv_timeout(srs_utime_t tm) = 0;
-    // Get the timeout in ms for recv bytes from peer.
+    // Get the timeout in srs_utime_t for recv bytes from peer.
     virtual srs_utime_t get_recv_timeout() = 0;
 // For handshake.
 public:
@@ -123,7 +123,7 @@ public:
     virtual ~ISrsProtocolReadWriter();
 // For protocol
 public:
-    // Whether the specified tm in ms is never timeout.
+    // Whether the specified tm in srs_utime_t is never timeout.
     virtual bool is_never_timeout(srs_utime_t tm) = 0;
 };
 
