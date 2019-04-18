@@ -111,9 +111,9 @@ public:
      */
     virtual bool can_print();
     /**
-     * get the elapsed time in ms.
+     * get the elapsed time in srs_utime_t.
      */
-    virtual int64_t age();
+    virtual srs_utime_t age();
 };
 
 #endif

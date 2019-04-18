@@ -52,8 +52,8 @@ public:
     virtual srs_error_t initialize(SrsFFMPEG* ff, std::string v, std::string i);
     // the ingest uri, [vhost]/[ingest id]
     virtual std::string uri();
-    // the alive in ms.
-    virtual int alive();
+    // the alive in srs_utime_t.
+    virtual srs_utime_t alive();
     virtual bool equals(std::string v, std::string i);
     virtual bool equals(std::string v);
 public:
