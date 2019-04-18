@@ -56,7 +56,7 @@ ISrsMessagePumper::~ISrsMessagePumper()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm, int parent_cid)
+SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid)
 {
     rtmp = r;
     pumper = p;
@@ -117,7 +117,7 @@ srs_error_t SrsRecvThread::cycle()
     }
     
     // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(timeout * SRS_UTIME_MILLISECONDS);
+    rtmp->set_recv_timeout(timeout);
     
     pumper->on_stop();
     
@@ -135,7 +135,7 @@ srs_error_t SrsRecvThread::do_cycle()
         
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
-            srs_usleep(timeout * 1000);
+            srs_usleep(timeout);
             continue;
         }
         
@@ -160,8 +160,8 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms, int parent_cid)
-	: trd(this, rtmp_sdk, timeout_ms, parent_cid)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, int parent_cid)
+	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;
     rtmp = rtmp_sdk;
@@ -274,8 +274,8 @@ void SrsQueueRecvThread::on_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-	int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source, int parent_cid)
-    : trd(this, rtmp_sdk, timeout_ms, parent_cid)
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, int parent_cid)
+    : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
     
@@ -310,14 +310,14 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     srs_freep(recv_error);
 }
 
-srs_error_t SrsPublishRecvThread::wait(uint64_t timeout_ms)
+srs_error_t SrsPublishRecvThread::wait(srs_utime_t tm)
 {
     if (recv_error != srs_success) {
         return srs_error_copy(recv_error);
     }
     
     // ignore any return of cond wait.
-    srs_cond_timedwait(error, timeout_ms * 1000);
+    srs_cond_timedwait(error, tm);
     
     return srs_success;
 }

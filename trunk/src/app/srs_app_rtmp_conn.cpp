@@ -646,7 +646,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
-    SrsQueueRecvThread trd(consumer, rtmp, srsu2msi(SRS_PERF_MW_SLEEP), _srs_context->get_id());
+    SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP, _srs_context->get_id());
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -874,9 +874,9 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             // @see https://github.com/ossrs/srs/issues/441
-            rtrd->wait(srsu2msi(publish_1stpkt_timeout));
+            rtrd->wait(publish_1stpkt_timeout);
         } else {
-            rtrd->wait(srsu2msi(publish_normal_timeout));
+            rtrd->wait(publish_normal_timeout);
         }
         
         // check the thread error code.

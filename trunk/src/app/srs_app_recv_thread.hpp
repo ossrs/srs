@@ -97,12 +97,12 @@ protected:
     ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
     int _parent_cid;
-    // The recv timeout in ms.
-    int timeout;
+    // The recv timeout in srs_utime_t.
+    srs_utime_t timeout;
 public:
     // Constructor.
     // @param tm The receive timeout in ms.
-    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm, int parent_cid);
+    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid);
     virtual ~SrsRecvThread();
 public:
     virtual int cid();
@@ -134,7 +134,7 @@ private:
     SrsConsumer* _consumer;
 public:
 	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms, int parent_cid);
+    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, int parent_cid);
     virtual ~SrsQueueRecvThread();
 public:
     virtual srs_error_t start();
@@ -191,13 +191,13 @@ private:
     int ncid;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-        int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source, int parent_cid);
+        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, int parent_cid);
     virtual ~SrsPublishRecvThread();
 public:
     /**
      * wait for error for some timeout.
      */
-    virtual srs_error_t wait(uint64_t timeout_ms);
+    virtual srs_error_t wait(srs_utime_t tm);
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual srs_error_t error_code();
