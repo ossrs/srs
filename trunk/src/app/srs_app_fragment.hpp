@@ -40,8 +40,8 @@ private:
     srs_utime_t dur;
     // The full file path of fragment.
     std::string filepath;
-    // The start DTS in ms of segment.
-    int64_t start_dts;
+    // The start DTS in srs_utime_t of segment.
+    srs_utime_t start_dts;
     // Whether current segement contains sequence header.
     bool sequence_header;
 public:

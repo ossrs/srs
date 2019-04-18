@@ -129,7 +129,7 @@ private:
     uint64_t audio_dts;
     uint64_t video_dts;
 private:
-    // The fragment duration in ms to reap it.
+    // The fragment duration in srs_utime_t to reap it.
     srs_utime_t fragment;
 private:
     std::string home;
