@@ -46,14 +46,6 @@ using namespace std;
 
 #define HLS_AES_ENCRYPT_BLOCK_LENGTH SRS_TS_PACKET_SIZE * 4
 
-// in ms, for HLS aac sync time.
-#define SRS_CONF_DEFAULT_AAC_SYNC 100
-
-// @see: ngx_rtmp_hls_audio
-/* We assume here AAC frame size is 1024
- * Need to handle AAC frames with frame size of 960 */
-#define _SRS_AAC_SAMPLE_SIZE 1024
-
 // the mpegts header specifed the video/audio pid.
 #define TS_PMT_NUMBER 1
 #define TS_PMT_PID 0x1001
