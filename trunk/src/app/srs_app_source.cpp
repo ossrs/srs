@@ -698,7 +698,7 @@ bool SrsGopCache::empty()
     return gop_cache.empty();
 }
 
-int64_t SrsGopCache::start_time()
+srs_utime_t SrsGopCache::start_time()
 {
     if (empty()) {
         return 0;
@@ -707,7 +707,7 @@ int64_t SrsGopCache::start_time()
     SrsSharedPtrMessage* msg = gop_cache[0];
     srs_assert(msg);
     
-    return msg->timestamp;
+    return srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsGopCache::pure_audio()
@@ -2448,13 +2448,13 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
         if (meta->data()) {
-            meta->data()->timestamp = gop_cache->start_time();
+            meta->data()->timestamp = srsu2ms(gop_cache->start_time());
         }
         if (meta->vsh()) {
-            meta->vsh()->timestamp = gop_cache->start_time();
+            meta->vsh()->timestamp = srsu2ms(gop_cache->start_time());
         }
         if (meta->ash()) {
-            meta->ash()->timestamp = gop_cache->start_time();
+            meta->ash()->timestamp = srsu2ms(gop_cache->start_time());
         }
     }
     

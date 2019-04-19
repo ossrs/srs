@@ -358,10 +358,10 @@ public:
      */
     virtual bool empty();
     /**
-     * get the start time of gop cache, in ms.
+     * get the start time of gop cache, in srs_utime_t.
      * @return 0 if no packets.
      */
-    virtual int64_t start_time();
+    virtual srs_utime_t start_time();
     /**
      * whether current stream is pure audio,
      * when no video in gop cache, the stream is pure audio right now.
