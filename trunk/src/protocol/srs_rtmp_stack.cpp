@@ -2485,7 +2485,7 @@ srs_error_t SrsRtmpServer::on_bw_done()
     return err;
 }
 
-srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     type = SrsRtmpConnUnknown;
     srs_error_t err = srs_success;
@@ -2887,7 +2887,7 @@ srs_error_t SrsRtmpServer::start_flash_publish(int stream_id)
     return err;
 }
 
-srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     srs_error_t err = srs_success;
     
@@ -2986,11 +2986,11 @@ srs_error_t SrsRtmpServer::identify_flash_publish_client(SrsPublishPacket* req, 
     return srs_success;
 }
 
-srs_error_t SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     type = SrsRtmpConnPlay;
     stream_name = req->stream_name;
-    duration = req->duration;
+    duration = srs_utime_t(req->duration) * SRS_UTIME_MILLISECONDS;
     
     return srs_success;
 }
