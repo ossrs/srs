@@ -136,9 +136,9 @@ public:
     MockWallClock();
     virtual ~MockWallClock();
 public:
-    virtual int64_t time_ms();
+    virtual srs_utime_t now();
 public:
-    virtual MockWallClock* set_clock(int64_t ms);
+    virtual MockWallClock* set_clock(srs_utime_t v);
 };
 
 #endif

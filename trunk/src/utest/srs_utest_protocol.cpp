@@ -264,14 +264,14 @@ MockWallClock::~MockWallClock()
 {
 }
 
-int64_t MockWallClock::time_ms()
+srs_utime_t MockWallClock::now()
 {
     return clock;
 }
 
-MockWallClock* MockWallClock::set_clock(int64_t ms)
+MockWallClock* MockWallClock::set_clock(srs_utime_t v)
 {
-    clock = ms;
+    clock = v;
     return this;
 }
 
@@ -5707,7 +5707,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(30 * 100 * 1000)->set_out(30 * 100 * 1000);
         kbps->sample();
         
@@ -5720,7 +5720,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(330 * 100 * 1000)->set_out(330 * 100 * 1000);
         kbps->sample();
         
@@ -5755,7 +5755,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(30 * 100 * 1000);
         kbps->sample();
         
@@ -5768,7 +5768,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(330 * 100 * 1000);
         kbps->sample();
         
@@ -5803,7 +5803,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(30 * 100 * 1000);
         kbps->sample();
         
@@ -5816,7 +5816,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(330 * 100 * 1000);
         kbps->sample();
         
@@ -5901,7 +5901,7 @@ VOID TEST(ProtocolKbpsTest, Delta)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         kbps->add_delta(30 * in, 30 * out);
         kbps->sample();
         
@@ -5943,7 +5943,7 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(30 * 100 * 1000);
         kbps->sample();
         

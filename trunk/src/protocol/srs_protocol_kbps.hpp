@@ -38,13 +38,13 @@ class SrsKbpsSample
 {
 public:
     int64_t bytes;
-    int64_t time;
+    srs_utime_t time;
     int kbps;
 public:
     SrsKbpsSample();
     virtual ~SrsKbpsSample();
 public:
-    virtual SrsKbpsSample* update(int64_t b, int64_t t, int k);
+    virtual SrsKbpsSample* update(int64_t b, srs_utime_t t, int k);
 };
 
 /**
@@ -74,7 +74,7 @@ public:
     // @remark, use total_bytes() to get the total bytes of slice.
     int64_t bytes;
     // slice starttime, the first time to record bytes.
-    int64_t starttime;
+    srs_utime_t starttime;
     // session startup bytes number for io when set it,
     // the base offset of bytes for io.
     int64_t io_bytes_base;
@@ -129,9 +129,9 @@ public:
     virtual ~SrsWallClock();
 public:
     /**
-     * Current time in ms.
+     * Current time in srs_utime_t.
      */
-    virtual int64_t time_ms();
+    virtual srs_utime_t now();
 };
 
 /**
