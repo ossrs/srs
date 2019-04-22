@@ -28,13 +28,13 @@
 
 #include <string>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
+// For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #define ERROR_SUCCESS                       0
 #endif
 
 ///////////////////////////////////////////////////////
-// system error.
+// The system error.
 ///////////////////////////////////////////////////////
 #define ERROR_SOCKET_CREATE                 1000
 #define ERROR_SOCKET_SETREUSE               1001
@@ -173,18 +173,18 @@
 #define ERROR_RTMP_STREAM_NAME_EMPTY        2051
 #define ERROR_HTTP_HIJACK                   2052
 //                                           
-// system control message,
-// not an error, but special control logic.
+// The system control message,
+// It's not an error, but special control logic.
 //
-// connection is redirect to another server.
+// When connection is redirect to another server.
 #define ERROR_CONTROL_REDIRECT              2997
-// sys ctl: rtmp close stream, support replay.
+// For sys ctl: rtmp close stream, support replay.
 #define ERROR_CONTROL_RTMP_CLOSE            2998
-// FMLE stop publish and republish.
+// When FMLE stop publish and republish.
 #define ERROR_CONTROL_REPUBLISH             2999
 
 ///////////////////////////////////////////////////////
-// application level
+// The application level errors.
 ///////////////////////////////////////////////////////
 #define ERROR_HLS_METADATA                  3000
 #define ERROR_HLS_DECODE_ERROR              3001
@@ -329,23 +329,23 @@
 //#define ERROR_API_METHOD_NOT_ALLOWD
 
 ///////////////////////////////////////////////////////
-// user-define error.
+// For user-define error.
 ///////////////////////////////////////////////////////
 #define ERROR_USER_START                    9000
 //#define ERROR_USER_DISCONNECT               9001
 #define ERROR_SOURCE_NOT_FOUND              9002
 #define ERROR_USER_END                      9999
 
-/**
- * whether the error code is an system control error.
- */
+// Whether the error code is an system control error.
 // TODO: FIXME: Remove it from underlayer for confused with error and logger.
 extern bool srs_is_system_control_error(int error_code);
 extern bool srs_is_system_control_error(srs_error_t err);
 extern bool srs_is_client_gracefully_close(int error_code);
 extern bool srs_is_client_gracefully_close(srs_error_t err);
 
-// Use complex errors, @read https://github.com/ossrs/srs/issues/913
+// The complex error carries code, message, callstack and instant variables,
+// which is more strong and easy to locate problem by log,
+// please @read https://github.com/ossrs/srs/issues/913
 class SrsCplxError
 {
 private:

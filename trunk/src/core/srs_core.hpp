@@ -101,7 +101,7 @@
     (void)0
 
 // Checking for st(state-threads), only support the following cpus: i386/amd64/x86_64/arm
-// @reamrk to patch ST for arm, read https://github.com/ossrs/state-threads/issues/1
+// @reamrk To patch ST for arm, read https://github.com/ossrs/state-threads/issues/1
 #if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__)
     #error "only support i386/amd64/x86_64/arm cpu"
 #endif
