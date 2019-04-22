@@ -109,10 +109,10 @@ public:
 class SrsStSocket : public ISrsProtocolReadWriter
 {
 private:
-    // The recv/send timeout in ms.
-    // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout in ms.
-    int64_t rtm;
-    int64_t stm;
+    // The recv/send timeout in srs_utime_t.
+    // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout.
+    srs_utime_t rtm;
+    srs_utime_t stm;
     // The recv/send data in bytes
     int64_t rbytes;
     int64_t sbytes;

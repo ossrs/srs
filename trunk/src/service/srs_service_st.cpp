@@ -302,7 +302,7 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     if (nb_read <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
         
         if (nb_read == 0) {
@@ -338,7 +338,7 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     if (nb_read != (ssize_t)size) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
         
         if (nb_read >= 0) {
@@ -373,7 +373,7 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", stm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", srsu2msi(stm));
         }
         
         return srs_error_new(ERROR_SOCKET_WRITE, "write");
@@ -404,7 +404,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", stm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", srsu2msi(stm));
         }
         
         return srs_error_new(ERROR_SOCKET_WRITE, "writev");
