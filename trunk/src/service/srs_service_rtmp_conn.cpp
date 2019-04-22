@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_service_utility.hpp>
 
-SrsBasicRtmpClient::SrsBasicRtmpClient(string u, int64_t ctm, int64_t stm)
+SrsBasicRtmpClient::SrsBasicRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm)
 {
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
@@ -65,7 +65,7 @@ srs_error_t SrsBasicRtmpClient::connect()
     
     close();
     
-    transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout * SRS_UTIME_MILLISECONDS));
+    transport = new SrsTcpClient(req->host, req->port, srs_utime_t(connect_timeout));
     client = new SrsRtmpClient(transport);
     kbps->set_io(transport, transport);
     
@@ -74,8 +74,8 @@ srs_error_t SrsBasicRtmpClient::connect()
         return srs_error_wrap(err, "connect");
     }
     
-    client->set_recv_timeout(stream_timeout * SRS_UTIME_MILLISECONDS);
-    client->set_send_timeout(stream_timeout * SRS_UTIME_MILLISECONDS);
+    client->set_recv_timeout(stream_timeout);
+    client->set_send_timeout(stream_timeout);
     
     // connect to vhost/app
     if ((err = client->handshake()) != srs_success) {

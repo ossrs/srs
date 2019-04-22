@@ -649,13 +649,13 @@ srs_error_t SrsRtspConn::connect()
     }
     
     // connect host.
-    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
-    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
+    srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
+    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
         close();
-        return srs_error_wrap(err, "connect %s failed, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
+        return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
     
     // publish.

@@ -64,7 +64,7 @@ class ISrsKafkaCluster;
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
 public:
-    SrsSimpleRtmpClient(std::string u, int64_t ctm, int64_t stm);
+    SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsSimpleRtmpClient();
 protected:
     virtual srs_error_t connect_app();

@@ -213,13 +213,12 @@ srs_error_t SrsForwarder::do_cycle()
     }
     
     srs_freep(sdk);
-    // TODO: FIXME: Should switch cto with sto?
-    int64_t cto = srsu2ms(SRS_FORWARDER_CIMS);
-    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
+    srs_utime_t cto = SRS_FORWARDER_CIMS;
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     sdk = new SrsSimpleRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
-        return srs_error_wrap(err, "sdk connect url=%s, cto=%" PRId64 ", sto=%" PRId64, url.c_str(), cto, sto);
+        return srs_error_wrap(err, "sdk connect url=%s, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
     
     if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
