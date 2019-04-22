@@ -224,9 +224,9 @@ bool SrsPithyPrint::can_print()
     return stage->can_print();
 }
 
-int64_t SrsPithyPrint::age()
+srs_utime_t SrsPithyPrint::age()
 {
-    return srsu2ms(_age);
+    return _age;
 }
 
 

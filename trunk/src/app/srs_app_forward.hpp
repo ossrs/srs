@@ -71,7 +71,7 @@ public:
     virtual ~SrsForwarder();
 public:
     virtual srs_error_t initialize(SrsRequest* r, std::string ep);
-    virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(srs_utime_t queue_size);
 public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();

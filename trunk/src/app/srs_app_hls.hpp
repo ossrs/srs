@@ -91,10 +91,10 @@ private:
     std::string m3u8_url;
     int seq_no;
     SrsRequest* req;
-    double duration;
+    srs_utime_t duration;
 public:
     // TODO: FIXME: Use TBN 1000.
-    SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
+    SrsDvrAsyncCallOnHls(int c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, srs_utime_t d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual srs_error_t call();
@@ -139,8 +139,8 @@ private:
     std::string m3u8_dir;
     double hls_aof_ratio;
     // TODO: FIXME: Use TBN 1000.
-    double hls_fragment;
-    double hls_window;
+    srs_utime_t hls_fragment;
+    srs_utime_t hls_window;
     SrsAsyncCallWorker* async;
 private:
     // whether use floor algorithm for timestamp.
@@ -168,7 +168,7 @@ private:
     SrsFileWriter *writer;
 private:
     int _sequence_no;
-    int max_td;
+    srs_utime_t max_td;
     std::string m3u8;
     std::string m3u8_url;
 private:
@@ -189,7 +189,7 @@ public:
 public:
     virtual int sequence_no();
     virtual std::string ts_url();
-    virtual double duration();
+    virtual srs_utime_t duration();
     virtual int deviation();
 public:
     /**
@@ -201,7 +201,7 @@ public:
      */
     virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
-        double fragment, double window, bool ts_floor, double aof_ratio,
+        srs_utime_t fragment, srs_utime_t window, bool ts_floor, double aof_ratio,
         bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
         std::string key_file, std::string key_file_path, std::string key_url);
     /**
@@ -236,6 +236,7 @@ public:
      */
     virtual srs_error_t segment_close();
 private:
+    virtual srs_error_t do_segment_close();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t _refresh_m3u8(std::string m3u8_file);
@@ -274,7 +275,7 @@ public:
     virtual void dispose();
     virtual int sequence_no();
     virtual std::string ts_url();
-    virtual double duration();
+    virtual srs_utime_t duration();
     virtual int deviation();
 public:
     /**

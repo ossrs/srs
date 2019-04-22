@@ -1275,8 +1275,8 @@ int SrsIngestHlsOutput::connect()
     srs_trace("connect output=%s", url.c_str());
     
     // connect host.
-    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
-    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
+    srs_utime_t cto =SRS_CONSTS_RTMP_TIMEOUT;
+    srs_utime_t sto =SRS_CONSTS_RTMP_PULSE;
     sdk = new SrsBasicRtmpClient(url, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
@@ -1284,7 +1284,7 @@ int SrsIngestHlsOutput::connect()
         ret = srs_error_code(err);
         srs_freep(err);
         close();
-        srs_error("mpegts: connect %s failed, cto=%" PRId64 ", sto=%" PRId64 ". ret=%d", url.c_str(), cto, sto, ret);
+        srs_error("mpegts: connect %s failed, cto=%dms, sto=%dms. ret=%d", url.c_str(), srsu2msi(cto), srsu2msi(sto), ret);
         return ret;
     }
     

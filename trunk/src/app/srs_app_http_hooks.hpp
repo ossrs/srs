@@ -99,11 +99,11 @@ public:
      * @param m3u8 the m3u8 file path, can be relative or absolute path.
      * @param m3u8_url the m3u8 url, which is used for the http mount path.
      * @param sn the seq_no, the sequence number of ts in hls/m3u8.
-     * @param duration the segment duration in seconds.
+     * @param duration the segment duration in srs_utime_t.
      * @param cid the source connection cid, for the on_dvr is async call.
      */
     static srs_error_t on_hls(int cid, std::string url, SrsRequest* req, std::string file, std::string ts_url,
-        std::string m3u8, std::string m3u8_url, int sn, double duration);
+        std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     /**
      * when hls reap segment, callback.
      * @param url the api server url, to process the event.

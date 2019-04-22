@@ -304,18 +304,17 @@ public:
 #endif
 public:
     /**
-     * set/get the recv timeout in ms.
+     * set/get the recv timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-     // TODO: FIXME: Refine tm in time unit.
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
     /**
-     * set/get the send timeout in ms.
+     * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     /**
      * get recv/send bytes.
      */
@@ -567,8 +566,8 @@ public:
     // for play live stream,
     // used to specified the stop when exceed the duration.
     // @see https://github.com/ossrs/srs/issues/45
-    // in ms.
-    double duration;
+    // in srs_utime_t.
+    srs_utime_t duration;
     // the token in the connect request,
     // used for edge traverse to origin authentication,
     // @see https://github.com/ossrs/srs/issues/104
@@ -688,8 +687,8 @@ public:
     virtual ~SrsRtmpClient();
 // protocol methods proxy
 public:
-    virtual void set_recv_timeout(int64_t tm);
-    virtual void set_send_timeout(int64_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual void set_send_timeout(srs_utime_t tm);
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
@@ -805,17 +804,17 @@ public:
     virtual void set_recv_buffer(int buffer_size);
 #endif
     /**
-     * set/get the recv timeout in ms.
+     * set/get the recv timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
     /**
-     * set/get the send timeout in ms.
+     * set/get the send timeout in srs_utime_t.
      * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
      */
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     /**
      * get recv/send bytes.
      */
@@ -912,7 +911,7 @@ public:
      * @stream_name, output the client publish/play stream name. @see: SrsRequest.stream
      * @duration, output the play client duration. @see: SrsRequest.duration
      */
-    virtual srs_error_t identify_client(int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
+    virtual srs_error_t identify_client(int stream_id, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
     /**
      * set the chunk size when client type identified.
      */
@@ -984,12 +983,12 @@ public:
         return protocol->expect_message<T>(pmsg, ppacket);
     }
 private:
-    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
+    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
     virtual srs_error_t identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);
 private:
-    virtual srs_error_t identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name, double& duration);
+    virtual srs_error_t identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
 };
 
 /**

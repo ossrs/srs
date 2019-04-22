@@ -52,13 +52,15 @@ void SrsFragment::append(int64_t dts)
         dts = 0;
     }
 
+    srs_utime_t dts_in_tbn = dts * SRS_UTIME_MILLISECONDS;
+
     if (start_dts == -1) {
-        start_dts = dts;
+        start_dts = dts_in_tbn;
     }
     
     // TODO: FIXME: Use cumulus dts.
-    start_dts = srs_min(start_dts, dts);
-    dur = srs_utime_t(dts - start_dts) * SRS_UTIME_MILLISECONDS;
+    start_dts = srs_min(start_dts, dts_in_tbn);
+    dur = dts_in_tbn - start_dts;
 }
 
 srs_utime_t SrsFragment::duration()
@@ -141,9 +143,12 @@ srs_error_t SrsFragment::rename()
 	   ss << tempdur;
 	   full_path = srs_string_replace(full_path, "[duration]", ss.str());
     }
-    if (::rename(tmp_file.c_str(), full_path.c_str()) < 0) {
+
+    int r0 = ::rename(tmp_file.c_str(), full_path.c_str());
+    if (r0 < 0) {
         return srs_error_new(ERROR_SYSTEM_FRAGMENT_RENAME, "rename %s to %s", tmp_file.c_str(), full_path.c_str());
     }
+
     filepath = full_path;
     return err;
 }
@@ -201,7 +206,7 @@ void SrsFragmentWindow::append(SrsFragment* fragment)
     fragments.push_back(fragment);
 }
 
-void SrsFragmentWindow::shrink(int64_t window)
+void SrsFragmentWindow::shrink(srs_utime_t window)
 {
     srs_utime_t duration = 0;
     
@@ -211,7 +216,7 @@ void SrsFragmentWindow::shrink(int64_t window)
         SrsFragment* fragment = fragments[i];
         duration += fragment->duration();
         
-        if (srsu2ms(duration) > window) {
+        if (duration > window) {
             remove_index = i;
             break;
         }
@@ -242,15 +247,15 @@ void SrsFragmentWindow::clear_expired(bool delete_files)
     expired_fragments.clear();
 }
 
-int64_t SrsFragmentWindow::max_duration()
+srs_utime_t SrsFragmentWindow::max_duration()
 {
-    int64_t v = 0;
+    srs_utime_t v = 0;
     
     std::vector<SrsFragment*>::iterator it;
     
     for (it = fragments.begin(); it != fragments.end(); ++it) {
         SrsFragment* fragment = *it;
-        v = srs_max(v, srsu2ms(fragment->duration()));
+        v = srs_max(v, fragment->duration());
     }
     
     return v;

@@ -90,7 +90,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
     
     hls->set("enabled", SrsJsonAny::boolean(hls_enabled));
     if (hls_enabled) {
-        hls->set("fragment", SrsJsonAny::number(_srs_config->get_hls_fragment(vhost)));
+        hls->set("fragment", SrsJsonAny::number(srsu2msi(_srs_config->get_hls_fragment(vhost))/1000.0));
     }
     
     return err;

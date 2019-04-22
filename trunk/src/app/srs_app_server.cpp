@@ -53,7 +53,7 @@ using namespace std;
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
 
-// system interval in ms,
+// system interval in srs_utime_t,
 // all resolution times should be times togother,
 // for example, system-interval is x=1s(1000ms),
 // then rusage can be 3*x, for instance, 3*1=3s,

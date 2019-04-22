@@ -57,27 +57,22 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_kafka.hpp>
 
-// when stream is busy, for example, streaming is already
-// publishing, when a new client to request to publish,
-// sleep a while and close the connection.
-#define SRS_STREAM_BUSY_CIMS (3000)
+// the timeout in srs_utime_t to wait encoder to republish
+// if timeout, close the connection.
+#define SRS_REPUBLISH_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
+// if timeout, close the connection.
+#define SRS_REPUBLISH_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
-// the timeout in ms to wait encoder to republish
+// the timeout in srs_utime_t to wait client data, when client paused
 // if timeout, close the connection.
-#define SRS_REPUBLISH_SEND_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_PAUSED_SEND_TIMEOUT (3 * SRS_UTIME_MINUTES)
 // if timeout, close the connection.
-#define SRS_REPUBLISH_RECV_TMMS (3 * SRS_UTIME_MINUTES)
-
-// the timeout in ms to wait client data, when client paused
-// if timeout, close the connection.
-#define SRS_PAUSED_SEND_TMMS (3 * SRS_UTIME_MINUTES)
-// if timeout, close the connection.
-#define SRS_PAUSED_RECV_TMMS (3 * SRS_UTIME_MINUTES)
+#define SRS_PAUSED_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_TOKEN_TRAVERSE_TMMS (3000)
+#define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
-SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, int64_t ctm, int64_t stm) : SrsBasicRtmpClient(u, ctm, stm)
+SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm) : SrsBasicRtmpClient(u, ctm, stm)
 {
 }
 
@@ -166,8 +161,8 @@ srs_error_t SrsRtmpConn::do_cycle()
     }
 #endif
     
-    rtmp->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
-    rtmp->set_send_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
 
     if ((err = rtmp->handshake()) != srs_success) {
         return srs_error_wrap(err, "rtmp handshake");
@@ -265,9 +260,9 @@ srs_error_t SrsRtmpConn::on_reload_vhost_play(string vhost)
     
     // send_min_interval
     if (true) {
-        double v = _srs_config->get_send_min_interval(vhost);
+        srs_utime_t v = _srs_config->get_send_min_interval(vhost);
         if (v != send_min_interval) {
-            srs_trace("apply smi %.2f=>%.2f", send_min_interval, v);
+            srs_trace("apply smi %d=>%d ms", srsu2msi(send_min_interval), srsu2msi(v));
             send_min_interval = v;
         }
     }
@@ -410,8 +405,8 @@ srs_error_t SrsRtmpConn::service_cycle()
         // for republish, continue service
         if (srs_error_code(err) == ERROR_CONTROL_REPUBLISH) {
             // set timeout to a larger value, wait for encoder to republish.
-            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TMMS);
-            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TMMS);
+            rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT);
+            rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT);
             
             srs_trace("rtmp: retry for republish");
             srs_freep(err);
@@ -424,8 +419,8 @@ srs_error_t SrsRtmpConn::service_cycle()
             // TODO: FIXME: use ping message to anti-death of socket.
             // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
-            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TMMS);
-            rtmp->set_send_timeout(SRS_PAUSED_SEND_TMMS);
+            rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT);
+            rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT);
             
             srs_trace("rtmp: retry for close");
             srs_freep(err);
@@ -451,8 +446,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->strip();
-    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%.2f",
-        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), req->duration);
+    srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%dms",
+        srs_client_type_string(info->type).c_str(), req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), req->param.c_str(), srsu2msi(req->duration));
     
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
@@ -498,8 +493,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
-    rtmp->set_send_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     // find a source to serve.
     SrsSource* source = NULL;
@@ -646,7 +641,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217
-    SrsQueueRecvThread trd(consumer, rtmp, srsu2msi(SRS_PERF_MW_SLEEP));
+    SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP, _srs_context->get_id());
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -692,8 +687,8 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
-    srs_trace("start play smi=%.2f, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        send_min_interval, srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
+    srs_trace("start play smi=%dms, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
+        srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
         // collect elapse for pithy print.
@@ -767,7 +762,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
                 if (starttime < 0 || starttime > msg->timestamp) {
                     starttime = msg->timestamp;
                 }
-                duration += msg->timestamp - starttime;
+                duration += (msg->timestamp - starttime) * SRS_UTIME_MILLISECONDS;
                 starttime = msg->timestamp;
             }
         }
@@ -781,14 +776,14 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/ossrs/srs/issues/45
         if (user_specified_duration_to_stop) {
-            if (duration >= (int64_t)req->duration) {
-                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", (int)duration, (int)req->duration);
+            if (duration >= req->duration) {
+                return srs_error_new(ERROR_RTMP_DURATION_EXCEED, "rtmp: time %d up %d", srsu2msi(duration), srsu2msi(req->duration));
             }
         }
         
-        // apply the minimal interval for delivery stream in ms.
+        // apply the minimal interval for delivery stream in srs_utime_t.
         if (send_min_interval > 0) {
-            srs_usleep((int64_t)(send_min_interval * 1000));
+            srs_usleep(send_min_interval);
         }
     }
     
@@ -815,7 +810,7 @@ srs_error_t SrsRtmpConn::publishing(SrsSource* source)
     if ((err = acquire_publish(source)) == srs_success) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
-        SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source);
+        SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source, _srs_context->get_id());
         err = do_publishing(source, &rtrd);
         rtrd.stop();
     }
@@ -847,11 +842,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         return srs_error_wrap(err, "rtmp: receive thread");
     }
     
-    // change the isolate recv thread context id,
-    // merge its log to current thread.
-    int receive_thread_cid = rtrd->get_cid();
-    rtrd->set_cid(_srs_context->get_id());
-    
     // initialize the publish timeout.
     publish_1stpkt_timeout = _srs_config->get_publish_1stpkt_timeout(req->vhost);
     publish_normal_timeout = _srs_config->get_publish_normal_timeout(req->vhost);
@@ -862,9 +852,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     if (true) {
         bool mr = _srs_config->get_mr_enabled(req->vhost);
         srs_utime_t mr_sleep = _srs_config->get_mr_sleep(req->vhost);
-        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d, rtcid=%d",
-            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout),
-            tcp_nodelay, receive_thread_cid);
+        srs_trace("start publish mr=%d/%d, p1stpt=%d, pnt=%d, tcp_nodelay=%d",
+            mr, srsu2msi(mr_sleep), srsu2msi(publish_1stpkt_timeout), srsu2msi(publish_normal_timeout), tcp_nodelay);
     }
     
     int64_t nb_msgs = 0;
@@ -880,9 +869,9 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             // @see https://github.com/ossrs/srs/issues/441
-            rtrd->wait(srsu2msi(publish_1stpkt_timeout));
+            rtrd->wait(publish_1stpkt_timeout);
         } else {
-            rtrd->wait(srsu2msi(publish_normal_timeout));
+            rtrd->wait(publish_normal_timeout);
         }
         
         // check the thread error code.
@@ -1159,7 +1148,7 @@ srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_parse_hostport(hostport, server, port);
         
-        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TMMS);
+        SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT);
         SrsAutoFree(SrsTcpClient, transport);
         
         if ((err = transport->connect()) != srs_success) {
@@ -1183,8 +1172,8 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     SrsRequest* req = info->req;
     srs_assert(client);
     
-    client->set_recv_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
-    client->set_send_timeout(srsu2ms(SRS_CONSTS_RTMP_TIMEOUT));
+    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     
     if ((err = client->handshake()) != srs_success) {
         return srs_error_wrap(err, "rtmp: handshake");

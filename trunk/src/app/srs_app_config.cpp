@@ -4459,9 +4459,9 @@ bool SrsConfig::get_mix_correct(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_queue_length(string vhost)
+srs_utime_t SrsConfig::get_queue_length(string vhost)
 {
-    static double DEFAULT = SRS_PERF_PLAY_QUEUE;
+    static srs_utime_t DEFAULT = SRS_PERF_PLAY_QUEUE;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4478,7 +4478,7 @@ double SrsConfig::get_queue_length(string vhost)
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return srs_utime_t(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_refer_enabled(string vhost)
@@ -4730,9 +4730,9 @@ bool SrsConfig::get_tcp_nodelay(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_send_min_interval(string vhost)
+srs_utime_t SrsConfig::get_send_min_interval(string vhost)
 {
-    static double DEFAULT = 0.0;
+    static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4749,7 +4749,7 @@ double SrsConfig::get_send_min_interval(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsConfig::get_reduce_sequence_header(string vhost)
@@ -6093,9 +6093,9 @@ bool SrsConfig::get_hls_ts_floor(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_hls_fragment(string vhost)
+srs_utime_t SrsConfig::get_hls_fragment(string vhost)
 {
-    static double DEFAULT = 10;
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6107,7 +6107,7 @@ double SrsConfig::get_hls_fragment(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 double SrsConfig::get_hls_td_ratio(string vhost)
@@ -6144,9 +6144,9 @@ double SrsConfig::get_hls_aof_ratio(string vhost)
     return ::atof(conf->arg0().c_str());
 }
 
-double SrsConfig::get_hls_window(string vhost)
+srs_utime_t SrsConfig::get_hls_window(string vhost)
 {
-    static double DEFAULT = 60;
+    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6158,7 +6158,7 @@ double SrsConfig::get_hls_window(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_hls_on_error(string vhost)
@@ -6413,9 +6413,9 @@ string SrsConfig::get_hds_path(const string &vhost)
     return conf->arg0();
 }
 
-double SrsConfig::get_hds_fragment(const string &vhost)
+srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
 {
-    static double DEFAULT = 10;
+    static srs_utime_t DEFAULT = (10 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
     if (!conf) {
@@ -6427,12 +6427,12 @@ double SrsConfig::get_hds_fragment(const string &vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-double SrsConfig::get_hds_window(const string &vhost)
+srs_utime_t SrsConfig::get_hds_window(const string &vhost)
 {
-    static double DEFAULT = 60;
+    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_hds(vhost);
     if (!conf) {
@@ -6444,7 +6444,7 @@ double SrsConfig::get_hds_window(const string &vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective* SrsConfig::get_dvr(string vhost)
@@ -6882,9 +6882,9 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-double SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
+srs_utime_t SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
 {
-    static double DEFAULT = 0;
+    static srs_utime_t DEFAULT = 0;
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -6901,7 +6901,7 @@ double SrsConfig::get_vhost_http_remux_fast_cache(string vhost)
         return DEFAULT;
     }
     
-    return ::atof(conf->arg0().c_str());
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_vhost_http_remux_mount(string vhost)

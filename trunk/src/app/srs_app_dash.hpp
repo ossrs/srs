@@ -103,12 +103,14 @@ public:
     virtual ~SrsMpdWriter();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
     // Write MPD according to parsed format of stream.
     virtual srs_error_t write(SrsFormat* format);
 public:
     // Get the fragment relative home and filename.
-    // The basetime is the absolute time in ms, while the sn(sequence number) is basetime/fragment.
-    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, uint64_t& basetime);
+    // The basetime is the absolute time in srs_utime_t, while the sn(sequence number) is basetime/fragment.
+    virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, srs_utime_t& basetime);
 };
 
 /**
@@ -127,7 +129,7 @@ private:
     uint64_t audio_dts;
     uint64_t video_dts;
 private:
-    // The fragment duration in ms to reap it.
+    // The fragment duration in srs_utime_t to reap it.
     srs_utime_t fragment;
 private:
     std::string home;
@@ -138,6 +140,8 @@ public:
     virtual ~SrsDashController();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:

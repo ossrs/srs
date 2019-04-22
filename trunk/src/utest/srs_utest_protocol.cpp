@@ -43,7 +43,7 @@ MockEmptyIO::~MockEmptyIO()
 {
 }
 
-bool MockEmptyIO::is_never_timeout(int64_t /*tm*/)
+bool MockEmptyIO::is_never_timeout(srs_utime_t /*tm*/)
 {
     return true;
 }
@@ -58,11 +58,11 @@ srs_error_t MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite
     return srs_success;
 }
 
-void MockEmptyIO::set_recv_timeout(int64_t /*tm*/)
+void MockEmptyIO::set_recv_timeout(srs_utime_t /*tm*/)
 {
 }
 
-int64_t MockEmptyIO::get_recv_timeout()
+srs_utime_t MockEmptyIO::get_recv_timeout()
 {
     return -1;
 }
@@ -72,11 +72,11 @@ int64_t MockEmptyIO::get_recv_bytes()
     return -1;
 }
 
-void MockEmptyIO::set_send_timeout(int64_t /*tm*/)
+void MockEmptyIO::set_send_timeout(srs_utime_t /*tm*/)
 {
 }
 
-int64_t MockEmptyIO::get_send_timeout()
+srs_utime_t MockEmptyIO::get_send_timeout()
 {
     return 0;
 }
@@ -112,7 +112,7 @@ MockBufferIO* MockBufferIO::append(string data)
     return this;
 }
 
-bool MockBufferIO::is_never_timeout(int64_t tm)
+bool MockBufferIO::is_never_timeout(srs_utime_t tm)
 {
     return tm == SRS_UTIME_NO_TIMEOUT;
 }
@@ -142,12 +142,12 @@ srs_error_t MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
     return srs_success;
 }
 
-void MockBufferIO::set_recv_timeout(int64_t tm)
+void MockBufferIO::set_recv_timeout(srs_utime_t tm)
 {
     rtm = tm;
 }
 
-int64_t MockBufferIO::get_recv_timeout()
+srs_utime_t MockBufferIO::get_recv_timeout()
 {
     return rtm;
 }
@@ -157,12 +157,12 @@ int64_t MockBufferIO::get_recv_bytes()
     return rbytes;
 }
 
-void MockBufferIO::set_send_timeout(int64_t tm)
+void MockBufferIO::set_send_timeout(srs_utime_t tm)
 {
     stm = tm;
 }
 
-int64_t MockBufferIO::get_send_timeout()
+srs_utime_t MockBufferIO::get_send_timeout()
 {
     return stm;
 }
@@ -264,14 +264,14 @@ MockWallClock::~MockWallClock()
 {
 }
 
-int64_t MockWallClock::time_ms()
+srs_utime_t MockWallClock::now()
 {
     return clock;
 }
 
-MockWallClock* MockWallClock::set_clock(int64_t ms)
+MockWallClock* MockWallClock::set_clock(srs_utime_t v)
 {
-    clock = ms;
+    clock = v;
     return this;
 }
 
@@ -693,11 +693,11 @@ VOID TEST(ProtocolStackTest, ProtocolTimeout)
     EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
     EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == proto.get_send_timeout());
     
-    proto.set_recv_timeout(10);
-    EXPECT_TRUE(10 == proto.get_recv_timeout());
+    proto.set_recv_timeout(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(10 * SRS_UTIME_MILLISECONDS == proto.get_recv_timeout());
     
-    proto.set_send_timeout(10);
-    EXPECT_TRUE(10 == proto.get_send_timeout());
+    proto.set_send_timeout(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(10 * SRS_UTIME_MILLISECONDS == proto.get_send_timeout());
 }
 
 /**
@@ -5707,7 +5707,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(30 * 100 * 1000)->set_out(30 * 100 * 1000);
         kbps->sample();
         
@@ -5720,7 +5720,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(330 * 100 * 1000)->set_out(330 * 100 * 1000);
         kbps->sample();
         
@@ -5755,7 +5755,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(30 * 100 * 1000);
         kbps->sample();
         
@@ -5768,7 +5768,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_in(330 * 100 * 1000);
         kbps->sample();
         
@@ -5803,7 +5803,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(30 * 100 * 1000);
         kbps->sample();
         
@@ -5816,7 +5816,7 @@ VOID TEST(ProtocolKbpsTest, Connections)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 300s.
-        clock->set_clock(330 * 1000);
+        clock->set_clock(330 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(330 * 100 * 1000);
         kbps->sample();
         
@@ -5901,7 +5901,7 @@ VOID TEST(ProtocolKbpsTest, Delta)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         kbps->add_delta(30 * in, 30 * out);
         kbps->sample();
         
@@ -5943,7 +5943,7 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         EXPECT_EQ(0, kbps->get_send_kbps_5m());
         
         // 800kbps in 30s.
-        clock->set_clock(30 * 1000);
+        clock->set_clock(30 * 1000 * SRS_UTIME_MILLISECONDS);
         io->set_out(30 * 100 * 1000);
         kbps->sample();
         

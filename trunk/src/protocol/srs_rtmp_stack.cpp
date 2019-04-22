@@ -304,22 +304,22 @@ void SrsProtocol::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsProtocol::set_recv_timeout(int64_t tm)
+void SrsProtocol::set_recv_timeout(srs_utime_t tm)
 {
     return skt->set_recv_timeout(tm);
 }
 
-int64_t SrsProtocol::get_recv_timeout()
+srs_utime_t SrsProtocol::get_recv_timeout()
 {
     return skt->get_recv_timeout();
 }
 
-void SrsProtocol::set_send_timeout(int64_t tm)
+void SrsProtocol::set_send_timeout(srs_utime_t tm)
 {
     return skt->set_send_timeout(tm);
 }
 
-int64_t SrsProtocol::get_send_timeout()
+srs_utime_t SrsProtocol::get_send_timeout()
 {
     return skt->get_send_timeout();
 }
@@ -1815,12 +1815,12 @@ SrsRtmpClient::~SrsRtmpClient()
     srs_freep(hs_bytes);
 }
 
-void SrsRtmpClient::set_recv_timeout(int64_t tm)
+void SrsRtmpClient::set_recv_timeout(srs_utime_t tm)
 {
     protocol->set_recv_timeout(tm);
 }
 
-void SrsRtmpClient::set_send_timeout(int64_t tm)
+void SrsRtmpClient::set_send_timeout(srs_utime_t tm)
 {
     protocol->set_send_timeout(tm);
 }
@@ -2210,22 +2210,22 @@ void SrsRtmpServer::set_recv_buffer(int buffer_size)
 }
 #endif
 
-void SrsRtmpServer::set_recv_timeout(int64_t tm)
+void SrsRtmpServer::set_recv_timeout(srs_utime_t tm)
 {
     protocol->set_recv_timeout(tm);
 }
 
-int64_t SrsRtmpServer::get_recv_timeout()
+srs_utime_t SrsRtmpServer::get_recv_timeout()
 {
     return protocol->get_recv_timeout();
 }
 
-void SrsRtmpServer::set_send_timeout(int64_t tm)
+void SrsRtmpServer::set_send_timeout(srs_utime_t tm)
 {
     protocol->set_send_timeout(tm);
 }
 
-int64_t SrsRtmpServer::get_send_timeout()
+srs_utime_t SrsRtmpServer::get_send_timeout()
 {
     return protocol->get_send_timeout();
 }
@@ -2408,7 +2408,7 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     return err;
 }
 
-#define SRS_RTMP_REDIRECT_TMMS 3000
+#define SRS_RTMP_REDIRECT_TIMEOUT (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
 {
     srs_error_t err = srs_success;
@@ -2434,7 +2434,7 @@ srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& 
     
     // client must response a call message.
     // or we never know whether the client is ok to redirect.
-    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TMMS);
+    protocol->set_recv_timeout(SRS_RTMP_REDIRECT_TIMEOUT);
     if (true) {
         SrsCommonMessage* msg = NULL;
         SrsCallPacket* pkt = NULL;
@@ -2485,7 +2485,7 @@ srs_error_t SrsRtmpServer::on_bw_done()
     return err;
 }
 
-srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     type = SrsRtmpConnUnknown;
     srs_error_t err = srs_success;
@@ -2887,7 +2887,7 @@ srs_error_t SrsRtmpServer::start_flash_publish(int stream_id)
     return err;
 }
 
-srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     srs_error_t err = srs_success;
     
@@ -2986,11 +2986,11 @@ srs_error_t SrsRtmpServer::identify_flash_publish_client(SrsPublishPacket* req, 
     return srs_success;
 }
 
-srs_error_t SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, string& stream_name, double& duration)
+srs_error_t SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     type = SrsRtmpConnPlay;
     stream_name = req->stream_name;
-    duration = req->duration;
+    duration = srs_utime_t(req->duration) * SRS_UTIME_MILLISECONDS;
     
     return srs_success;
 }

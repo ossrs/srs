@@ -40,7 +40,7 @@ using namespace std;
 
 #ifdef SRS_AUTO_KAFKA
 
-#define SRS_KAFKA_PRODUCER_TIMEOUT 30000
+#define SRS_KAFKA_PRODUCER_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)
 #define SRS_KAFKA_PRODUCER_AGGREGATE_SIZE 1
 
 std::string srs_kafka_metadata_summary(SrsKafkaTopicMetadataResponse* metadata)
@@ -485,7 +485,7 @@ srs_error_t SrsKafkaProducer::on_close(int key)
     return worker->execute(new SrsKafkaMessage(this, key, obj));
 }
 
-#define SRS_KAKFA_CIMS (3000 * SRS_UTIME_MILLISECONDS)
+#define SRS_KAKFA_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsKafkaProducer::cycle()
 {
@@ -577,7 +577,7 @@ srs_error_t SrsKafkaProducer::request_metadata()
                   senabled.c_str(), sbrokers.c_str(), lb->current(), server.c_str(), port, topic.c_str());
     }
     
-    SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_CONSTS_KAFKA_TMMS);
+    SrsTcpClient* transport = new SrsTcpClient(server, port, SRS_CONSTS_KAFKA_TIMEOUT);
     SrsAutoFree(SrsTcpClient, transport);
     
     SrsKafkaClient* kafka = new SrsKafkaClient(transport);

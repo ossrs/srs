@@ -43,8 +43,8 @@ using namespace std;
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
-// sleep in ms for udp recv packet.
-#define SrsUdpPacketRecvCycleMS 0
+// sleep in srs_utime_t for udp recv packet.
+#define SrsUdpPacketRecvCycleInterval 0
 
 // nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512
@@ -173,8 +173,8 @@ srs_error_t SrsUdpListener::cycle()
             return srs_error_wrap(err, "handle packet %d bytes", nread);
         }
         
-        if (SrsUdpPacketRecvCycleMS > 0) {
-            srs_usleep(SrsUdpPacketRecvCycleMS * SRS_UTIME_MILLISECONDS);
+        if (SrsUdpPacketRecvCycleInterval > 0) {
+            srs_usleep(SrsUdpPacketRecvCycleInterval);
         }
     }
     

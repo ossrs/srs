@@ -1806,7 +1806,7 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_ingest_id)
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{} ingest{}}"));
 }
 
-VOID TEST(ConfigUnitTest, CheckDefaultValues)
+VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 {
     MockSrsConfig conf;
 
@@ -1870,11 +1870,46 @@ VOID TEST(ConfigUnitTest, CheckDefaultValues)
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
 	    EXPECT_EQ(0, conf.get_hls_dispose(""));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_fragment(""));
+	    EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hls_window(""));
 
-	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_dispose 10;}}"));
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_dispose 10;hls_fragment 20;hls_window 30;}}"));
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_dispose("v"));
+	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hls_fragment("v"));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hls_window("v"));
     }
 
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment(""));
+	    EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hds{hds_fragment 20;hds_window 30;}}"));
+	    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("v"));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("v"));
+    }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length(""));
+	    EXPECT_EQ(0, conf.get_send_min_interval(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{play{queue_length 100;send_min_interval 10;}}"));
+	    EXPECT_EQ(100 * SRS_UTIME_SECONDS, conf.get_queue_length("v"));
+	    EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, conf.get_send_min_interval("v"));
+    }
+
+    if (true) {
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+	    EXPECT_EQ(0, conf.get_vhost_http_remux_fast_cache(""));
+
+	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_remux{fast_cache 10;}}"));
+	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_vhost_http_remux_fast_cache("v"));
+    }
+}
+
+VOID TEST(ConfigUnitTest, CheckDefaultValuesGlobal)
+{
     if (true) {
         srs_utime_t t0 = srs_update_system_time();
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);

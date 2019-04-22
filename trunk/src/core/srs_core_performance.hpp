@@ -59,7 +59,7 @@
 #define SRS_PERF_MR_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 
 /**
- * the MW(merged-write) send cache time in ms.
+ * the MW(merged-write) send cache time in srs_utime_t.
  * the default value, user can override it in config.
  * to improve send performance, cache msgs and send in a time.
  * for example, cache 500ms videos and audios, then convert all these
@@ -148,8 +148,8 @@
  */
 // whether gop cache is on.
 #define SRS_PERF_GOP_CACHE true
-// in seconds, the live queue length.
-#define SRS_PERF_PLAY_QUEUE 30
+// in srs_utime_t, the live queue length.
+#define SRS_PERF_PLAY_QUEUE (30 * SRS_UTIME_SECONDS)
 
 /**
  * whether always use complex send algorithm.

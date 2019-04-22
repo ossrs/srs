@@ -221,7 +221,7 @@
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // the default recv timeout.
-#define SRS_HTTP_RECV_TMMS (60 * SRS_UTIME_SECONDS)
+#define SRS_HTTP_RECV_TIMEOUT (60 * SRS_UTIME_SECONDS)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
@@ -406,7 +406,7 @@
 #define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
 
 // the common io timeout, for both recv and send.
-#define SRS_CONSTS_KAFKA_TMMS (30*1000)
+#define SRS_CONSTS_KAFKA_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)
 
 #endif
 

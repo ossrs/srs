@@ -64,7 +64,7 @@ class ISrsKafkaCluster;
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
 public:
-    SrsSimpleRtmpClient(std::string u, int64_t ctm, int64_t stm);
+    SrsSimpleRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsSimpleRtmpClient();
 protected:
     virtual srs_error_t connect_app();
@@ -105,19 +105,19 @@ private:
     // the wakable handler, maybe NULL.
     // TODO: FIXME: Should refine the state for receiving thread.
     ISrsWakable* wakable;
-    // elapse duration in ms
+    // elapse duration in srs_utime_t
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/ossrs/srs/issues/47
-    int64_t duration;
-    // the MR(merged-write) sleep time in ms.
+    srs_utime_t duration;
+    // the MR(merged-write) sleep time in srs_utime_t.
     srs_utime_t mw_sleep;
     // the MR(merged-write) only enabled for play.
     int mw_enabled;
     // for realtime
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
-    // the minimal interval in ms for delivery stream.
-    double send_min_interval;
+    // the minimal interval in srs_utime_t for delivery stream.
+    srs_utime_t send_min_interval;
     // publish 1st packet timeout in srs_utime_t
     srs_utime_t publish_1stpkt_timeout;
     // publish normal packet timeout in srs_utime_t

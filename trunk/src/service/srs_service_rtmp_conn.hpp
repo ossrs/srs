@@ -50,8 +50,8 @@ class SrsBasicRtmpClient
 {
 private:
     std::string url;
-    int64_t connect_timeout;
-    int64_t stream_timeout;
+    srs_utime_t connect_timeout;
+    srs_utime_t stream_timeout;
 protected:
     SrsRequest* req;
 private:
@@ -63,9 +63,9 @@ private:
 public:
     // Constructor.
     // @param u The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
-    // @param ctm The timeout in ms to connect to server.
-    // @param stm The timeout in ms to delivery A/V stream.
-    SrsBasicRtmpClient(std::string u, int64_t ctm, int64_t stm);
+    // @param ctm The timeout in srs_utime_t to connect to server.
+    // @param stm The timeout in srs_utime_t to delivery A/V stream.
+    SrsBasicRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsBasicRtmpClient();
 public:
     // Connect, handshake and connect app to RTMP server.
@@ -87,7 +87,7 @@ public:
     virtual srs_error_t send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
     virtual srs_error_t send_and_free_message(SrsSharedPtrMessage* msg);
 public:
-    virtual void set_recv_timeout(int64_t timeout);
+    virtual void set_recv_timeout(srs_utime_t timeout);
 };
 
 #endif

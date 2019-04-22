@@ -104,12 +104,11 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-// TODO: FXIME: Refine tm in time unit.
-srs_error_t srs_socket_connect(string server, int port, int64_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
-        timeout = (st_utime_t)(tm * 1000);
+        timeout = tm;
     }
     
     *pstfd = NULL;
@@ -247,27 +246,27 @@ srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
     return srs_success;
 }
 
-bool SrsStSocket::is_never_timeout(int64_t tm)
+bool SrsStSocket::is_never_timeout(srs_utime_t tm)
 {
     return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
-void SrsStSocket::set_recv_timeout(int64_t tm)
+void SrsStSocket::set_recv_timeout(srs_utime_t tm)
 {
     rtm = tm;
 }
 
-int64_t SrsStSocket::get_recv_timeout()
+srs_utime_t SrsStSocket::get_recv_timeout()
 {
     return rtm;
 }
 
-void SrsStSocket::set_send_timeout(int64_t tm)
+void SrsStSocket::set_send_timeout(srs_utime_t tm)
 {
     stm = tm;
 }
 
-int64_t SrsStSocket::get_send_timeout()
+srs_utime_t SrsStSocket::get_send_timeout()
 {
     return stm;
 }
@@ -290,7 +289,7 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     if (rtm == SRS_UTIME_NO_TIMEOUT) {
         nb_read = st_read((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read((st_netfd_t)stfd, buf, size, rtm * 1000);
+        nb_read = st_read((st_netfd_t)stfd, buf, size, rtm);
     }
     
     if (nread) {
@@ -303,7 +302,7 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     if (nb_read <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
         
         if (nb_read == 0) {
@@ -326,7 +325,7 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     if (rtm == SRS_UTIME_NO_TIMEOUT) {
         nb_read = st_read_fully((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, rtm * 1000);
+        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, rtm);
     }
     
     if (nread) {
@@ -339,7 +338,7 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     if (nb_read != (ssize_t)size) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", (int)rtm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
         
         if (nb_read >= 0) {
@@ -362,7 +361,7 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_write((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_write((st_netfd_t)stfd, buf, size, stm * 1000);
+        nb_write = st_write((st_netfd_t)stfd, buf, size, stm);
     }
     
     if (nwrite) {
@@ -374,7 +373,7 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", stm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", srsu2msi(stm));
         }
         
         return srs_error_new(ERROR_SOCKET_WRITE, "write");
@@ -393,7 +392,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (stm == SRS_UTIME_NO_TIMEOUT) {
         nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
     } else {
-        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, stm * 1000);
+        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, stm);
     }
     
     if (nwrite) {
@@ -405,7 +404,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     if (nb_write <= 0) {
         // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
-            return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", stm);
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", srsu2msi(stm));
         }
         
         return srs_error_new(ERROR_SOCKET_WRITE, "writev");
@@ -416,7 +415,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     return err;
 }
 
-SrsTcpClient::SrsTcpClient(string h, int p, int64_t tm)
+SrsTcpClient::SrsTcpClient(string h, int p, srs_utime_t tm)
 {
     stfd = NULL;
     io = new SrsStSocket();
@@ -441,7 +440,7 @@ srs_error_t SrsTcpClient::connect()
     
     srs_assert(stfd == NULL);
     if ((err = srs_socket_connect(host, port, timeout, &stfd)) != srs_success) {
-        return srs_error_wrap(err, "tcp: connect %s:%d to=%d", host.c_str(), port, (int)timeout);
+        return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }
     
     if ((err = io->initialize(stfd)) != srs_success) {
@@ -461,27 +460,27 @@ void SrsTcpClient::close()
     srs_close_stfd(stfd);
 }
 
-bool SrsTcpClient::is_never_timeout(int64_t tm)
+bool SrsTcpClient::is_never_timeout(srs_utime_t tm)
 {
     return io->is_never_timeout(tm);
 }
 
-void SrsTcpClient::set_recv_timeout(int64_t tm)
+void SrsTcpClient::set_recv_timeout(srs_utime_t tm)
 {
     io->set_recv_timeout(tm);
 }
 
-int64_t SrsTcpClient::get_recv_timeout()
+srs_utime_t SrsTcpClient::get_recv_timeout()
 {
     return io->get_recv_timeout();
 }
 
-void SrsTcpClient::set_send_timeout(int64_t tm)
+void SrsTcpClient::set_send_timeout(srs_utime_t tm)
 {
     io->set_send_timeout(tm);
 }
 
-int64_t SrsTcpClient::get_send_timeout()
+srs_utime_t SrsTcpClient::get_send_timeout()
 {
     return io->get_send_timeout();
 }

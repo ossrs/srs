@@ -377,16 +377,16 @@ srs_error_t SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 }
 
 // ISrsProtocolReader
-void SimpleSocketStream::set_recv_timeout(int64_t tm)
+void SimpleSocketStream::set_recv_timeout(srs_utime_t tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_recv_timeout(io, tm);
+    srs_hijack_io_set_recv_timeout(io, srsu2ms(tm));
 }
 
-int64_t SimpleSocketStream::get_recv_timeout()
+srs_utime_t SimpleSocketStream::get_recv_timeout()
 {
     srs_assert(io);
-    return srs_hijack_io_get_recv_timeout(io);
+    return srs_hijack_io_get_recv_timeout(io) * SRS_UTIME_MILLISECONDS;
 }
 
 int64_t SimpleSocketStream::get_recv_bytes()
@@ -396,16 +396,16 @@ int64_t SimpleSocketStream::get_recv_bytes()
 }
 
 // ISrsProtocolWriter
-void SimpleSocketStream::set_send_timeout(int64_t tm)
+void SimpleSocketStream::set_send_timeout(srs_utime_t tm)
 {
     srs_assert(io);
-    srs_hijack_io_set_send_timeout(io, tm);
+    srs_hijack_io_set_send_timeout(io, srsu2ms(tm));
 }
 
-int64_t SimpleSocketStream::get_send_timeout()
+srs_utime_t SimpleSocketStream::get_send_timeout()
 {
     srs_assert(io);
-    return srs_hijack_io_get_send_timeout(io);
+    return srs_hijack_io_get_send_timeout(io) * SRS_UTIME_MILLISECONDS;
 }
 
 int64_t SimpleSocketStream::get_send_bytes()
@@ -425,7 +425,7 @@ srs_error_t SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* 
 }
 
 // ISrsProtocolReadWriter
-bool SimpleSocketStream::is_never_timeout(int64_t tm)
+bool SimpleSocketStream::is_never_timeout(srs_utime_t tm)
 {
     srs_assert(io);
     return srs_hijack_io_is_never_timeout(io, tm);

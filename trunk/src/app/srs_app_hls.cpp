@@ -55,7 +55,7 @@ using namespace std;
 
 // drop the segment when duration of ts too small.
 // TODO: FIXME: Refine to time unit.
-#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
+#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION (100 * SRS_UTIME_MILLISECONDS)
 
 // fragment plus the deviation percent.
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.3
@@ -82,7 +82,7 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
     fw->config_cipher(key, iv);
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, double d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
 {
     req = r->copy();
     cid = c;
@@ -252,9 +252,9 @@ string SrsHlsMuxer::ts_url()
     return current? current->uri:"";
 }
 
-double SrsHlsMuxer::duration()
+srs_utime_t SrsHlsMuxer::duration()
 {
-    return current? srsu2ms(current->duration())/1000.0:0;
+    return current? current->duration():0;
 }
 
 int SrsHlsMuxer::deviation()
@@ -279,7 +279,7 @@ srs_error_t SrsHlsMuxer::initialize()
 }
 
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
-    string path, string m3u8_file, string ts_file, double fragment, double window,
+    string path, string m3u8_file, string ts_file, srs_utime_t fragment, srs_utime_t window,
     bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
     int fragments_per_key, string key_file ,string key_file_path, string key_url)
 {
@@ -312,7 +312,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     m3u8 = path + "/" + m3u8_url;
     
     // when update config, reset the history target duration.
-    max_td = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
+    max_td = fragment * _srs_config->get_hls_td_ratio(r->vhost);
     
     // create m3u8 dir once.
     m3u8_dir = srs_path_dirname(m3u8);
@@ -391,7 +391,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t current_floor_ts = (int64_t)(srsu2ms(srs_update_system_time()) / (1000 * hls_fragment));
+        int64_t current_floor_ts = srs_update_system_time() / hls_fragment;
         if (!accept_floor_ts) {
             accept_floor_ts = current_floor_ts - 1;
         } else {
@@ -484,14 +484,13 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
     // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    
-    return srsu2msi(current->duration()) >= (hls_fragment + deviation) * 1000;
+    srs_utime_t deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0;
+    return current->duration() >= hls_fragment + deviation;
 }
 
 bool SrsHlsMuxer::wait_keyframe()
@@ -505,14 +504,13 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (srsu2msi(current->duration()) < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
     // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
-    
-    return srsu2msi(current->duration()) >= (hls_aof_ratio * hls_fragment + deviation) * 1000;
+    srs_utime_t deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0;
+    return current->duration() >= hls_aof_ratio * hls_fragment + deviation;
 }
 
 bool SrsHlsMuxer::pure_audio()
@@ -578,6 +576,16 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 
 srs_error_t SrsHlsMuxer::segment_close()
 {
+    srs_error_t err = do_segment_close();
+
+    // We always cleanup current segment.
+    srs_freep(current);
+
+    return err;
+}
+
+srs_error_t SrsHlsMuxer::do_segment_close()
+{
     srs_error_t err = srs_success;
     
     if (!current) {
@@ -587,15 +595,22 @@ srs_error_t SrsHlsMuxer::segment_close()
     
     // when close current segment, the current segment must not be NULL.
     srs_assert(current);
+
+    // We should always close the underlayer writer.
+    if (current && current->writer) {
+        current->writer->close();
+    }
     
     // valid, add to segments if segment duration is ok
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    if (srsu2msi(current->duration()) >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS && (int)srsu2msi(current->duration()) <= max_td * 2 * 1000) {
+    bool matchMinDuration = current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION;
+    bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
+    if (matchMinDuration && matchMaxDuration) {
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
-            current->uri, m3u8, m3u8_url, current->sequence_no, srsu2msi(current->duration()) / 1000.0))) != srs_success) {
+            current->uri, m3u8, m3u8_url, current->sequence_no, current->duration()))) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
         
@@ -625,11 +640,10 @@ srs_error_t SrsHlsMuxer::segment_close()
         if ((err = current->unlink_tmpfile()) != srs_success) {
             return srs_error_wrap(err, "rename");
         }
-        srs_freep(current);
     }
     
     // shrink the segments.
-    segments->shrink(hls_window * 1000);
+    segments->shrink(hls_window);
     
     // refresh the m3u8, donot contains the removed ts
     err = refresh_m3u8();
@@ -746,8 +760,8 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
      * typical target duration is 10 seconds.
      */
     // @see https://github.com/ossrs/srs/issues/304#issuecomment-74000081
-    int target_duration = (int)ceil(segments->max_duration() / 1000.0);
-    target_duration = srs_max(target_duration, max_td);
+    srs_utime_t max_duration = segments->max_duration();
+    int target_duration = (int)ceil(srsu2msi(srs_max(max_duration, max_td)) / 1000.0);
     
     ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
     
@@ -838,7 +852,7 @@ string SrsHlsController::ts_url()
     return muxer->ts_url();
 }
 
-double SrsHlsController::duration()
+srs_utime_t SrsHlsController::duration()
 {
     return muxer->duration();
 }
@@ -856,8 +870,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     std::string stream = req->stream;
     std::string app = req->app;
     
-    double hls_fragment = _srs_config->get_hls_fragment(vhost);
-    double hls_window = _srs_config->get_hls_window(vhost);
+    srs_utime_t hls_fragment = _srs_config->get_hls_fragment(vhost);
+    srs_utime_t hls_window = _srs_config->get_hls_window(vhost);
     
     // get the hls m3u8 ts list entry prefix config
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
@@ -893,8 +907,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
-        hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
+        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
         ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
     
     return err;
@@ -1007,6 +1021,13 @@ srs_error_t SrsHlsController::reap_segment()
     
     // close current ts.
     if ((err = muxer->segment_close()) != srs_success) {
+        // When close segment error, we must reopen it for next packet to write.
+        srs_error_t r0 = muxer->segment_open();
+        if (r0 != srs_success) {
+            srs_warn("close segment err %s", srs_error_desc(r0).c_str());
+            srs_freep(r0);
+        }
+
         return srs_error_wrap(err, "hls: segment close");
     }
     
@@ -1278,9 +1299,9 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%" PRId64 ", sno=%d, ts=%s, dur=%.2f, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%.2f, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
-              controller->duration(), controller->deviation());
+              srsu2msi(controller->duration()), controller->deviation());
 }
 
 

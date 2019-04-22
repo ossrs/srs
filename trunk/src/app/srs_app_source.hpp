@@ -161,9 +161,9 @@ public:
     virtual srs_utime_t duration();
     /**
      * set the queue size
-     * @param queue_size the queue size in seconds.
+     * @param queue_size the queue size in srs_utime_t.
      */
-    virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(srs_utime_t queue_size);
 public:
     /**
      * enqueue the message, the timestamp always monotonically.
@@ -243,7 +243,7 @@ public:
     /**
      * set the size of queue.
      */
-    virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(srs_utime_t queue_size);
     /**
      * when source id changed, notice client to print.
      */
@@ -358,10 +358,10 @@ public:
      */
     virtual bool empty();
     /**
-     * get the start time of gop cache, in ms.
+     * get the start time of gop cache, in srs_utime_t.
      * @return 0 if no packets.
      */
-    virtual int64_t start_time();
+    virtual srs_utime_t start_time();
     /**
      * whether current stream is pure audio,
      * when no video in gop cache, the stream is pure audio right now.

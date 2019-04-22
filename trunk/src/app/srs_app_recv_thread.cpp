@@ -56,11 +56,12 @@ ISrsMessagePumper::~ISrsMessagePumper()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, int tm)
+SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid)
 {
     rtmp = r;
     pumper = p;
     timeout = tm;
+    _parent_cid = parent_cid;
     trd = new SrsDummyCoroutine();
 }
 
@@ -79,7 +80,7 @@ srs_error_t SrsRecvThread::start()
     srs_error_t err = srs_success;
     
     srs_freep(trd);
-    trd = new SrsSTCoroutine("recv", this);
+    trd = new SrsSTCoroutine("recv", this, _parent_cid);
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "recv thread");
@@ -116,7 +117,7 @@ srs_error_t SrsRecvThread::cycle()
     }
     
     // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(timeout * 1000);
+    rtmp->set_recv_timeout(timeout);
     
     pumper->on_stop();
     
@@ -134,7 +135,7 @@ srs_error_t SrsRecvThread::do_cycle()
         
         // When the pumper is interrupted, wait then retry.
         if (pumper->interrupted()) {
-            srs_usleep(timeout * 1000);
+            srs_usleep(timeout);
             continue;
         }
         
@@ -159,8 +160,8 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)
-: trd(this, rtmp_sdk, timeout_ms)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, int parent_cid)
+	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;
     rtmp = rtmp_sdk;
@@ -272,8 +273,9 @@ void SrsQueueRecvThread::on_stop()
     rtmp->set_auto_response(true);
 }
 
-SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req, int mr_sock_fd, int timeout_ms, SrsRtmpConn* conn, SrsSource* source)
-    : trd(this, rtmp_sdk, timeout_ms)
+SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, int parent_cid)
+    : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
     
@@ -308,14 +310,14 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
     srs_freep(recv_error);
 }
 
-srs_error_t SrsPublishRecvThread::wait(uint64_t timeout_ms)
+srs_error_t SrsPublishRecvThread::wait(srs_utime_t tm)
 {
     if (recv_error != srs_success) {
         return srs_error_copy(recv_error);
     }
     
     // ignore any return of cond wait.
-    srs_cond_timedwait(error, timeout_ms * 1000);
+    srs_cond_timedwait(error, tm);
     
     return srs_success;
 }

@@ -469,6 +469,7 @@ public:
 class SrsMp4TrackFragmentDecodeTimeBox : public SrsMp4FullBox
 {
 public:
+	// It's in ms.
     uint64_t base_media_decode_time;
 public:
     SrsMp4TrackFragmentDecodeTimeBox();
@@ -2198,7 +2199,7 @@ private:
     ISrsWriter* writer;
     SrsBuffer* buffer;
     uint32_t sequence_number;
-    uint64_t decode_basetime;
+    srs_utime_t decode_basetime;
     uint32_t track_id;
 private:
     uint32_t nb_audios;
@@ -2212,7 +2213,7 @@ public:
     virtual ~SrsMp4M2tsSegmentEncoder();
 public:
     // Initialize the encoder with a writer w.
-    virtual srs_error_t initialize(ISrsWriter* w, uint32_t sequence, uint64_t basetime, uint32_t tid);
+    virtual srs_error_t initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t tid);
     // Cache a sample.
     // @param ht, The sample handler type, audio/soun or video/vide.
     // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.

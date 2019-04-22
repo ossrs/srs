@@ -729,11 +729,11 @@ public:
      */
     virtual bool get_mix_correct(std::string vhost);
     /**
-     * get the cache queue length, in seconds.
+     * get the cache queue length, in srs_utime_t.
      * when exceed the queue length, drop packet util I frame.
-     * @remark, default 10.
+     * @remark, default 10s.
      */
-    virtual double get_queue_length(std::string vhost);
+    virtual srs_utime_t get_queue_length(std::string vhost);
     /**
      * whether the refer hotlink-denial enabled.
      */
@@ -796,9 +796,9 @@ public:
      */
     virtual bool get_tcp_nodelay(std::string vhost);
     /**
-     * the minimal send interval in ms.
+     * the minimal send interval in srs_utime_t.
      */
-    virtual double get_send_min_interval(std::string vhost);
+    virtual srs_utime_t get_send_min_interval(std::string vhost);
     /**
      * whether reduce the sequence header.
      */
@@ -1192,9 +1192,9 @@ public:
      */
     virtual bool get_hls_ts_floor(std::string vhost);
     /**
-     * get the hls fragment time, in seconds.
+     * get the hls fragment time, in srs_utime_t.
      */
-    virtual double get_hls_fragment(std::string vhost);
+    virtual srs_utime_t get_hls_fragment(std::string vhost);
     /**
      * get the hls td(target duration) ratio.
      */
@@ -1204,11 +1204,11 @@ public:
      */
     virtual double get_hls_aof_ratio(std::string vhost);
     /**
-     * get the hls window time, in seconds.
+     * get the hls window time, in srs_utime_t.
      * a window is a set of ts, the ts collection in m3u8.
      * @remark SRS will delete the ts exceed the window.
      */
-    virtual double get_hls_window(std::string vhost);
+    virtual srs_utime_t get_hls_window(std::string vhost);
     /**
      * get the hls hls_on_error config.
      * the ignore will ignore error and disable hls.
@@ -1277,15 +1277,14 @@ public:
      */
     virtual std::string get_hds_path(const std::string &vhost);
     /**
-     * get the hds fragment time, in seconds.
+     * get the hds fragment time, in srs_utime_t.
      */
-     // TODO: FIXME: Refine to time unit.
-    virtual double get_hds_fragment(const std::string &vhost);
+    virtual srs_utime_t get_hds_fragment(const std::string &vhost);
     /**
-     * get the hds window time, in seconds.
+     * get the hds window time, in srs_utime_t.
      * a window is a set of hds fragments.
      */
-    virtual double get_hds_window(const std::string &vhost);
+    virtual srs_utime_t get_hds_window(const std::string &vhost);
 // dvr section
 private:
     /**
@@ -1405,7 +1404,7 @@ public:
     /**
      * get the fast cache duration for http audio live stream.
      */
-    virtual double get_vhost_http_remux_fast_cache(std::string vhost);
+    virtual srs_utime_t get_vhost_http_remux_fast_cache(std::string vhost);
     /**
      * get the http flv live stream mount point for vhost.
      * used to generate the flv stream mount path.

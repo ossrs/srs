@@ -45,8 +45,8 @@ using namespace std;
 #define SRS_HTTP_READ_BUFFER 4096
 #define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
-// the timeout for hls notify, in ms.
-#define SRS_HLS_NOTIFY_TMMS (10 * SRS_UTIME_MILLISECONDS)
+// the timeout for hls notify, in srs_utime_t.
+#define SRS_HLS_NOTIFY_TIMEOUT (10 * SRS_UTIME_SECONDS)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -301,7 +301,7 @@ srs_error_t SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string fi
     return err;
 }
 
-srs_error_t SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, double duration)
+srs_error_t SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, srs_utime_t duration)
 {
     srs_error_t err = srs_success;
     
@@ -324,7 +324,7 @@ srs_error_t SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string fi
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
-    obj->set("duration", SrsJsonAny::number(duration));
+    obj->set("duration", SrsJsonAny::number(srsu2ms(duration)/1000.0));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
     obj->set("url", SrsJsonAny::str(ts_url.c_str()));
@@ -371,7 +371,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     }
     
     SrsHttpClient http;
-    if ((err = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TMMS)) != srs_success) {
+    if ((err = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
         return srs_error_wrap(err, "http: init client for %s", url.c_str());
     }
     

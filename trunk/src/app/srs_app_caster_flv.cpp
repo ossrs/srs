@@ -192,12 +192,12 @@ srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecod
     
     srs_freep(sdk);
     
-    int64_t cto = srsu2ms(SRS_CONSTS_RTMP_TIMEOUT);
-    int64_t sto = srsu2ms(SRS_CONSTS_RTMP_PULSE);
+    srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
+    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
     sdk = new SrsSimpleRtmpClient(output, cto, sto);
     
     if ((err = sdk->connect()) != srs_success) {
-        return srs_error_wrap(err, "connect %s failed, cto=%" PRId64 ", sto=%" PRId64, output.c_str(), cto, sto);
+        return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", output.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
     
     if ((err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {

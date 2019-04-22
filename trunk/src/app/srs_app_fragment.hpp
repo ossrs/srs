@@ -40,8 +40,8 @@ private:
     srs_utime_t dur;
     // The full file path of fragment.
     std::string filepath;
-    // The start DTS in ms of segment.
-    int64_t start_dts;
+    // The start DTS in srs_utime_t of segment.
+    srs_utime_t start_dts;
     // Whether current segement contains sequence header.
     bool sequence_header;
 public:
@@ -93,11 +93,11 @@ public:
     // Append a new fragment, which is ready to delivery to client.
     virtual void append(SrsFragment* fragment);
     // Shrink the window, push the expired fragment to a queue.
-    virtual void shrink(int64_t window);
+    virtual void shrink(srs_utime_t window);
     // Clear the expired fragments.
     virtual void clear_expired(bool delete_files);
-    // Get the max duration in ms of all fragments.
-    virtual int64_t max_duration();
+    // Get the max duration in srs_utime_t of all fragments.
+    virtual srs_utime_t max_duration();
 public:
     virtual bool empty();
     virtual SrsFragment* first();

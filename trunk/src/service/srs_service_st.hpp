@@ -53,8 +53,8 @@ extern void srs_socket_reuse_addr(int fd);
 extern srs_thread_t srs_thread_self();
 
 // client open socket and connect to server.
-// @param tm The timeout in ms.
-extern srs_error_t srs_socket_connect(std::string server, int port, int64_t tm, srs_netfd_t* pstfd);
+// @param tm The timeout in srs_utime_t.
+extern srs_error_t srs_socket_connect(std::string server, int port, srs_utime_t tm, srs_netfd_t* pstfd);
 
 // Wrap for coroutine.
 extern srs_cond_t srs_cond_new();
@@ -109,10 +109,10 @@ public:
 class SrsStSocket : public ISrsProtocolReadWriter
 {
 private:
-    // The recv/send timeout in ms.
-    // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout in ms.
-    int64_t rtm;
-    int64_t stm;
+    // The recv/send timeout in srs_utime_t.
+    // @remark Use SRS_UTIME_NO_TIMEOUT for never timeout.
+    srs_utime_t rtm;
+    srs_utime_t stm;
     // The recv/send data in bytes
     int64_t rbytes;
     int64_t sbytes;
@@ -125,11 +125,11 @@ public:
     // Initialize the socket with stfd, user must manage it.
     virtual srs_error_t initialize(srs_netfd_t fd);
 public:
-    virtual bool is_never_timeout(int64_t tm);
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual bool is_never_timeout(srs_utime_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
 public:
@@ -149,7 +149,7 @@ public:
  * The client to connect to server over TCP.
  * User must never reuse the client when close it.
  * Usage:
- *      SrsTcpClient client("127.0.0.1", 1935,9000);
+ *      SrsTcpClient client("127.0.0.1", 1935, 9 * SRS_UTIME_SECONDS);
  *      client.connect();
  *      client.write("Hello world!", 12, NULL);
  *      client.read(buf, 4096, NULL);
@@ -163,16 +163,16 @@ private:
 private:
     std::string host;
     int port;
-    // The timeout in ms.
-    int64_t timeout;
+    // The timeout in srs_utime_t.
+    srs_utime_t timeout;
 public:
     /**
      * Constructor.
      * @param h the ip or hostname of server.
      * @param p the port to connect to.
-     * @param tm the timeout in ms.
+     * @param tm the timeout in srs_utime_t.
      */
-    SrsTcpClient(std::string h, int p, int64_t tm);
+    SrsTcpClient(std::string h, int p, srs_utime_t tm);
     virtual ~SrsTcpClient();
 public:
     /**
@@ -188,11 +188,11 @@ private:
     virtual void close();
 // interface ISrsProtocolReadWriter
 public:
-    virtual bool is_never_timeout(int64_t tm);
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual bool is_never_timeout(srs_utime_t tm);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);

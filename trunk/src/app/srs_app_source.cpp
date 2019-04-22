@@ -260,9 +260,9 @@ srs_utime_t SrsMessageQueue::duration()
     return (av_end_time - av_start_time);
 }
 
-void SrsMessageQueue::set_queue_size(double queue_size)
+void SrsMessageQueue::set_queue_size(srs_utime_t queue_size)
 {
-	max_queue_size = srs_utime_t(queue_size * SRS_UTIME_SECONDS);
+	max_queue_size = queue_size;
 }
 
 srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
@@ -442,7 +442,7 @@ SrsConsumer::~SrsConsumer()
 #endif
 }
 
-void SrsConsumer::set_queue_size(double queue_size)
+void SrsConsumer::set_queue_size(srs_utime_t queue_size)
 {
     queue->set_queue_size(queue_size);
 }
@@ -698,7 +698,7 @@ bool SrsGopCache::empty()
     return gop_cache.empty();
 }
 
-int64_t SrsGopCache::start_time()
+srs_utime_t SrsGopCache::start_time()
 {
     if (empty()) {
         return 0;
@@ -707,7 +707,7 @@ int64_t SrsGopCache::start_time()
     SrsSharedPtrMessage* msg = gop_cache[0];
     srs_assert(msg);
     
-    return msg->timestamp;
+    return srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
 }
 
 bool SrsGopCache::pure_audio()
@@ -1468,9 +1468,8 @@ srs_error_t SrsOriginHub::create_forwarders()
         if ((err = forwarder->initialize(req, forward_server)) != srs_success) {
             return srs_error_wrap(err, "init forwarder");
         }
-        
-        // TODO: FIXME: support queue size.
-        double queue_size = _srs_config->get_queue_length(req->vhost);
+
+        srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
         forwarder->set_queue_size(queue_size);
         
         if ((err = forwarder->on_publish()) != srs_success) {
@@ -1864,7 +1863,7 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
         return srs_error_wrap(err, "edge(publish)");
     }
     
-    double queue_size = _srs_config->get_queue_length(req->vhost);
+    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
     publish_edge->set_queue_size(queue_size);
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
@@ -1919,7 +1918,7 @@ srs_error_t SrsSource::on_reload_vhost_play(string vhost)
     
     // queue length
     if (true) {
-        double v = _srs_config->get_queue_length(req->vhost);
+        srs_utime_t v = _srs_config->get_queue_length(req->vhost);
         
         if (true) {
             std::vector<SrsConsumer*>::iterator it;
@@ -2443,19 +2442,19 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
     
-    double queue_size = _srs_config->get_queue_length(req->vhost);
+    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
     consumer->set_queue_size(queue_size);
     
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
         if (meta->data()) {
-            meta->data()->timestamp = gop_cache->start_time();
+            meta->data()->timestamp = srsu2ms(gop_cache->start_time());
         }
         if (meta->vsh()) {
-            meta->vsh()->timestamp = gop_cache->start_time();
+            meta->vsh()->timestamp = srsu2ms(gop_cache->start_time());
         }
         if (meta->ash()) {
-            meta->ash()->timestamp = gop_cache->start_time();
+            meta->ash()->timestamp = srsu2ms(gop_cache->start_time());
         }
     }
     
@@ -2516,6 +2515,7 @@ srs_error_t SrsSource::on_edge_start_publish()
     return publish_edge->on_client_publish();
 }
 
+// TODO: FIXME: Use edge strategy pattern.
 srs_error_t SrsSource::on_edge_proxy_publish(SrsCommonMessage* msg)
 {
     return publish_edge->on_proxy_publish(msg);

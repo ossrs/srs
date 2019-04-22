@@ -48,20 +48,20 @@ public:
     virtual ~MockEmptyIO();
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // for protocol/amf0/msg-codec
@@ -72,9 +72,9 @@ public:
 class MockBufferIO : public ISrsProtocolReadWriter
 {
 public:
-    // The send/recv timeout in ms.
-    int64_t rtm;
-    int64_t stm;
+    // The send/recv timeout in srs_utime_t.
+    srs_utime_t rtm;
+    srs_utime_t stm;
     // The send/recv data in bytes.
     int64_t rbytes;
     int64_t sbytes;
@@ -89,20 +89,20 @@ public:
     virtual MockBufferIO* append(std::string data);
 // for protocol
 public:
-    virtual bool is_never_timeout(int64_t tm);
+    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
-    virtual void set_recv_timeout(int64_t tm);
-    virtual int64_t get_recv_timeout();
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
     virtual int64_t get_recv_bytes();
 // for protocol
 public:
-    virtual void set_send_timeout(int64_t tm);
-    virtual int64_t get_send_timeout();
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // for protocol/amf0/msg-codec
@@ -136,9 +136,9 @@ public:
     MockWallClock();
     virtual ~MockWallClock();
 public:
-    virtual int64_t time_ms();
+    virtual srs_utime_t now();
 public:
-    virtual MockWallClock* set_clock(int64_t ms);
+    virtual MockWallClock* set_clock(srs_utime_t v);
 };
 
 #endif
