@@ -41,7 +41,7 @@ class SrsMessageArray
 {
 public:
     /**
-     * when user already send the msg in msgs, please set to NULL,
+     * when user already send all msgs, please set to NULL,
      * for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
      * where send(msg) will always send and free it.
      */

@@ -341,7 +341,7 @@ void show_macro_features()
 #ifdef SRS_PERF_MERGED_READ
     possible_mr_latency = srsu2msi(SRS_PERF_MR_SLEEP);
 #endif
-    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
+    srs_trace("system default latency(ms): mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
               srsu2msi(SRS_PERF_MW_SLEEP), possible_mr_latency, srsu2msi(SRS_PERF_PLAY_QUEUE));
     
 #ifdef SRS_AUTO_MEM_WATCH

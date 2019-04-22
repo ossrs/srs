@@ -72,8 +72,8 @@ public:
 class MockBufferIO : public ISrsProtocolReadWriter
 {
 public:
-    // The send/recv timeout in ms.
-    int64_t rtm;
+    // The send/recv timeout in srs_utime_t.
+    srs_utime_t rtm;
     srs_utime_t stm;
     // The send/recv data in bytes.
     int64_t rbytes;

@@ -154,6 +154,8 @@ Please select according to languages:
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
+- [ ] Support H.264+Opus codec for WebRTC.
+- [ ] Support publishing stream by WebRTC.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
@@ -162,6 +164,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-04-22, Refine in time unit. 3.0.49
 * v3.0, 2019-04-07, Cover ST Coroutine and time unit. 3.0.48
 * v3.0, 2019-04-06, Merge [#1304][bug #1304], Fix ST coroutine pull error. 3.0.47
 * v3.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 3.0.46
