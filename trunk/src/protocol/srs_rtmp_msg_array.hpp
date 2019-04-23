@@ -28,43 +28,31 @@
 
 class SrsSharedPtrMessage;
 
-/**
- * the class to auto free the shared ptr message array.
- * when need to get some messages, for instance, from Consumer queue,
- * create a message array, whose msgs can used to accept the msgs,
- * then send each message and set to NULL.
- *
- * @remark: user must free all msgs in array, for the SRS2.0 protocol stack
- *       provides an api to send messages, @see send_and_free_messages
- */
+// The class to auto free the shared ptr message array.
+// When need to get some messages, for instance, from Consumer queue,
+// create a message array, whose msgs can used to accept the msgs,
+// then send each message and set to NULL.
+//
+// @remark: user must free all msgs in array, for the SRS2.0 protocol stack
+//       provides an api to send messages, @see send_and_free_messages
 class SrsMessageArray
 {
 public:
-    /**
-     * when user already send all msgs, please set to NULL,
-     * for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
-     * where send(msg) will always send and free it.
-     */
+    // When user already send all msgs, please set to NULL,
+    // for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
+    // where send(msg) will always send and free it.
     SrsSharedPtrMessage** msgs;
     int max;
 public:
-    /**
-     * create msg array, initialize array to NULL ptrs.
-     */
+    // Create msg array, initialize array to NULL ptrs.
     SrsMessageArray(int max_msgs);
-    /**
-     * free the msgs not sent out(not NULL).
-     */
+    // Free the msgs not sent out(not NULL).
     virtual ~SrsMessageArray();
 public:
-    /**
-     * free specified count of messages.
-     */
+    // Free specified count of messages.
     virtual void free(int count);
 private:
-    /**
-     * zero initialize the message array.
-     */
+    // Zero initialize the message array.
     virtual void zero(int count);
 };
 

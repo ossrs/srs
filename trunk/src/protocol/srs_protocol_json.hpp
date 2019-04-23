@@ -32,7 +32,7 @@
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-// json decode
+// JSON decode
 // 1. SrsJsonAny: read any from str:char*
 //        SrsJsonAny* any = NULL;
 //        if ((any = SrsJsonAny::loads(str)) == NULL) {
@@ -45,7 +45,7 @@
 //            string v = any->to_str();
 //        }
 //
-// for detail usage, see interfaces of each object.
+// For detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -59,8 +59,8 @@ class SrsJsonAny
 {
 public:
     char marker;
-    // donot directly create this object,
-    // instead, for examle, use SrsJsonAny::str() to create a concreated one.
+    // Don't directly create this object,
+    // please use SrsJsonAny::str() to create a concreated one.
 protected:
     SrsJsonAny();
 public:
@@ -74,35 +74,23 @@ public:
     virtual bool is_array();
     virtual bool is_null();
 public:
-    /**
-     * get the string of any when is_string() indicates true.
-     * user must ensure the type is a string, or assert failed.
-     */
+    // Get the string of any when is_string() indicates true.
+    // user must ensure the type is a string, or assert failed.
     virtual std::string to_str();
-    /**
-     * get the boolean of any when is_boolean() indicates true.
-     * user must ensure the type is a boolean, or assert failed.
-     */
+    // Get the boolean of any when is_boolean() indicates true.
+    // user must ensure the type is a boolean, or assert failed.
     virtual bool to_boolean();
-    /**
-     * get the integer of any when is_integer() indicates true.
-     * user must ensure the type is a integer, or assert failed.
-     */
+    // Get the integer of any when is_integer() indicates true.
+    // user must ensure the type is a integer, or assert failed.
     virtual int64_t to_integer();
-    /**
-     * get the number of any when is_number() indicates true.
-     * user must ensure the type is a number, or assert failed.
-     */
+    // Get the number of any when is_number() indicates true.
+    // user must ensure the type is a number, or assert failed.
     virtual double to_number();
-    /**
-     * get the object of any when is_object() indicates true.
-     * user must ensure the type is a object, or assert failed.
-     */
+    // Get the object of any when is_object() indicates true.
+    // user must ensure the type is a object, or assert failed.
     virtual SrsJsonObject* to_object();
-    /**
-     * get the ecma array of any when is_ecma_array() indicates true.
-     * user must ensure the type is a ecma array, or assert failed.
-     */
+    // Get the ecma array of any when is_ecma_array() indicates true.
+    // user must ensure the type is a ecma array, or assert failed.
     virtual SrsJsonArray* to_array();
 public:
     virtual std::string dumps();
@@ -117,10 +105,8 @@ public:
     static SrsJsonObject* object();
     static SrsJsonArray* array();
 public:
-    /**
-     * read json tree from string.
-     * @return json object. NULL if error.
-     */
+    // Read json tree from string.
+    // @return json object. NULL if error.
     static SrsJsonAny* loads(const std::string& str);
 };
 
@@ -130,7 +116,7 @@ private:
     typedef std::pair<std::string, SrsJsonAny*> SrsJsonObjectPropertyType;
     std::vector<SrsJsonObjectPropertyType> properties;
 private:
-    // use SrsJsonAny::object() to create it.
+    // Use SrsJsonAny::object() to create it.
     friend class SrsJsonAny;
     SrsJsonObject();
 public:
@@ -161,7 +147,7 @@ private:
     std::vector<SrsJsonAny*> properties;
     
 private:
-    // use SrsJsonAny::array() to create it.
+    // Use SrsJsonAny::array() to create it.
     friend class SrsJsonAny;
     SrsJsonArray();
 public:
@@ -181,6 +167,6 @@ public:
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-// json encode, please use JSON.dumps() to encode json object.
+// JSON encode, please use JSON.dumps() to encode json object.
 
 #endif
