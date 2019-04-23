@@ -835,7 +835,7 @@ public:
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
-    virtual std::string get_uri_field(std::string uri, http_parser_url* hp_u, http_parser_url_fields field);
+    virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
 };
 
 #endif

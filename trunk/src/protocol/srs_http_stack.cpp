@@ -3094,8 +3094,11 @@ string SrsHttpUri::get_query()
     return query;
 }
 
-string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_url_fields field)
+string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
 {
+	http_parser_url* hp_u = (http_parser_url*)php_u;
+	http_parser_url_fields field = (http_parser_url_fields)ifield;
+
     if((hp_u->field_set & (1 << field)) == 0){
         return "";
     }
