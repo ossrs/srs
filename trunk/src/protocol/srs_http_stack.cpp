@@ -819,6 +819,96 @@ char* ISrsHttpMessage::http_ts_send_buffer()
     return _http_ts_send_buffer;
 }
 
+SrsHttpUri::SrsHttpUri()
+{
+    port = SRS_DEFAULT_HTTP_PORT;
+}
+
+SrsHttpUri::~SrsHttpUri()
+{
+}
+
+srs_error_t SrsHttpUri::initialize(string _url)
+{
+    srs_error_t err = srs_success;
+
+    schema = host = path = query = "";
+
+    url = _url;
+    const char* purl = url.c_str();
+
+    http_parser_url hp_u;
+    int r0;
+    if((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
+        return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s failed, code=%d", purl, r0);
+    }
+
+    std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
+    if(!field.empty()){
+        schema = field;
+    }
+
+    host = get_uri_field(url, &hp_u, UF_HOST);
+
+    field = get_uri_field(url, &hp_u, UF_PORT);
+    if(!field.empty()){
+        port = atoi(field.c_str());
+    }
+    if(port<=0){
+        port = SRS_DEFAULT_HTTP_PORT;
+    }
+
+    path = get_uri_field(url, &hp_u, UF_PATH);
+    query = get_uri_field(url, &hp_u, UF_QUERY);
+
+    return err;
+}
+
+string SrsHttpUri::get_url()
+{
+    return url;
+}
+
+string SrsHttpUri::get_schema()
+{
+    return schema;
+}
+
+string SrsHttpUri::get_host()
+{
+    return host;
+}
+
+int SrsHttpUri::get_port()
+{
+    return port;
+}
+
+string SrsHttpUri::get_path()
+{
+    return path;
+}
+
+string SrsHttpUri::get_query()
+{
+    return query;
+}
+
+string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
+{
+	http_parser_url* hp_u = (http_parser_url*)php_u;
+	http_parser_url_fields field = (http_parser_url_fields)ifield;
+
+    if((hp_u->field_set & (1 << field)) == 0){
+        return "";
+    }
+
+    int offset = hp_u->field_data[field].off;
+    int len = hp_u->field_data[field].len;
+
+    return uri.substr(offset, len);
+}
+
 #endif
 
 /* Based on src/http/ngx_http_parse.c from NGINX copyright Igor Sysoev
@@ -2996,117 +3086,4 @@ int
 http_body_is_final(const struct http_parser *parser) {
     return parser->state == s_message_done;
 }
-
-/*
- The MIT License (MIT)
- 
- Copyright (c) 2013-2019 Winlin
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy of
- this software and associated documentation files (the "Software"), to deal in
- the Software without restriction, including without limitation the rights to
- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- the Software, and to permit persons to whom the Software is furnished to do so,
- subject to the following conditions:
- 
- The above copyright notice and this permission notice shall be included in all
- copies or substantial portions of the Software.
- 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-SrsHttpUri::SrsHttpUri()
-{
-    port = SRS_DEFAULT_HTTP_PORT;
-}
-
-SrsHttpUri::~SrsHttpUri()
-{
-}
-
-srs_error_t SrsHttpUri::initialize(string _url)
-{
-    srs_error_t err = srs_success;
-    
-    schema = host = path = query = "";
-    
-    url = _url;
-    const char* purl = url.c_str();
-    
-    http_parser_url hp_u;
-    int r0;
-    if((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
-        return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s failed, code=%d", purl, r0);
-    }
-    
-    std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
-    if(!field.empty()){
-        schema = field;
-    }
-    
-    host = get_uri_field(url, &hp_u, UF_HOST);
-    
-    field = get_uri_field(url, &hp_u, UF_PORT);
-    if(!field.empty()){
-        port = atoi(field.c_str());
-    }
-    if(port<=0){
-        port = SRS_DEFAULT_HTTP_PORT;
-    }
-    
-    path = get_uri_field(url, &hp_u, UF_PATH);
-    query = get_uri_field(url, &hp_u, UF_QUERY);
-    
-    return err;
-}
-
-string SrsHttpUri::get_url()
-{
-    return url;
-}
-
-string SrsHttpUri::get_schema()
-{
-    return schema;
-}
-
-string SrsHttpUri::get_host()
-{
-    return host;
-}
-
-int SrsHttpUri::get_port()
-{
-    return port;
-}
-
-string SrsHttpUri::get_path()
-{
-    return path;
-}
-
-string SrsHttpUri::get_query()
-{
-    return query;
-}
-
-string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
-{
-	http_parser_url* hp_u = (http_parser_url*)php_u;
-	http_parser_url_fields field = (http_parser_url_fields)ifield;
-
-    if((hp_u->field_set & (1 << field)) == 0){
-        return "";
-    }
-    
-    int offset = hp_u->field_data[field].off;
-    int len = hp_u->field_data[field].len;
-    
-    return uri.substr(offset, len);
-}
-
 

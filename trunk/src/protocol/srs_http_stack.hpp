@@ -508,10 +508,40 @@ public:
     virtual bool is_jsonp() = 0;
 };
 
+// Used to resolve the http uri.
+class SrsHttpUri
+{
+private:
+    std::string url;
+    std::string schema;
+    std::string host;
+    int port;
+    std::string path;
+    std::string query;
+public:
+    SrsHttpUri();
+    virtual ~SrsHttpUri();
+public:
+    // Initialize the http uri.
+    virtual srs_error_t initialize(std::string _url);
+public:
+    virtual std::string get_url();
+    virtual std::string get_schema();
+    virtual std::string get_host();
+    virtual int get_port();
+    virtual std::string get_path();
+    virtual std::string get_query();
+private:
+    // Get the parsed url field.
+    // @return return empty string if not set.
+    virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
+};
+
 #endif
 
 // The http-parser is license under MIT at https://github.com/nodejs/http-parser/blob/master/LICENSE-MIT
 // Version: 2.1 from https://github.com/nodejs/http-parser/releases/tag/v2.1
+// File: https://github.com/nodejs/http-parser/blob/80819384450b5511a3d1c424dd92a5843c891364/http_parser.h
 
 //Copyright Joyent, Inc. and other Node contributors. All rights reserved.
 //
@@ -808,35 +838,6 @@ extern "C" {
 }
 #endif
 #endif
-
-// Used to resolve the http uri.
-class SrsHttpUri
-{
-private:
-    std::string url;
-    std::string schema;
-    std::string host;
-    int port;
-    std::string path;
-    std::string query;
-public:
-    SrsHttpUri();
-    virtual ~SrsHttpUri();
-public:
-    // Initialize the http uri.
-    virtual srs_error_t initialize(std::string _url);
-public:
-    virtual std::string get_url();
-    virtual std::string get_schema();
-    virtual std::string get_host();
-    virtual int get_port();
-    virtual std::string get_path();
-    virtual std::string get_query();
-private:
-    // Get the parsed url field.
-    // @return return empty string if not set.
-    virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
-};
 
 #endif
 
