@@ -248,6 +248,12 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
+
+    // When got body, but no header-parsed, we update it manually.
+    char* p = obj->buffer->bytes();
+    if (!obj->header_parsed && p < at) {
+        obj->header_parsed = int(at - p);
+    }
     
     srs_info("Body: %.*s", (int)length, at);
     

@@ -5597,8 +5597,282 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }
 
+struct MockStage
+{
+	http_parser parser;
+	const char* at;
+	size_t length;
+
+	MockStage(http_parser* from);
+};
+
+MockStage::MockStage(http_parser* from)
+{
+	parser = *from;
+	at = NULL;
+	length = 0;
+}
+
+class MockParser
+{
+private:
+	http_parser_settings settings;
+	http_parser* parser;
+public:
+	MockStage* message_begin;
+	MockStage* url;
+	MockStage* status;
+	MockStage* header_field;
+	MockStage* header_value;
+	MockStage* headers_complete;
+	MockStage* body;
+	MockStage* message_complete;
+	MockStage* chunk_header;
+	MockStage* chunk_complete;
+public:
+	MockParser();
+	virtual ~MockParser();
+public:
+	srs_error_t parse(string data);
+private:
+    static int on_message_begin(http_parser* parser);
+    static int on_url(http_parser* parser, const char* at, size_t length);
+    static int on_status(http_parser* parser, const char* at, size_t length);
+    static int on_header_field(http_parser* parser, const char* at, size_t length);
+    static int on_header_value(http_parser* parser, const char* at, size_t length);
+    static int on_headers_complete(http_parser* parser);
+    static int on_body(http_parser* parser, const char* at, size_t length);
+    static int on_message_complete(http_parser* parser);
+    static int on_chunk_header(http_parser* parser);
+    static int on_chunk_complete(http_parser* parser);
+};
+
+MockParser::MockParser()
+{
+	parser = new http_parser();
+	http_parser_init(parser, HTTP_REQUEST);
+    parser->data = (void*)this;
+
+    memset(&settings, 0, sizeof(settings));
+    settings.on_message_begin = on_message_begin;
+    settings.on_url = on_url;
+    settings.on_status = on_status;
+    settings.on_header_field = on_header_field;
+    settings.on_header_value = on_header_value;
+    settings.on_headers_complete = on_headers_complete;
+    settings.on_body = on_body;
+    settings.on_message_complete = on_message_complete;
+    settings.on_chunk_header = on_chunk_header;
+    settings.on_chunk_complete = on_chunk_complete;
+
+	message_begin = NULL;
+	url = NULL;
+	status = NULL;
+	header_field = NULL;
+	header_value = NULL;
+	headers_complete = NULL;
+	body = NULL;
+	message_complete = NULL;
+	chunk_header = NULL;
+	chunk_complete = NULL;
+}
+
+MockParser::~MockParser()
+{
+	srs_freep(parser);
+
+	srs_freep(message_begin);
+	srs_freep(url);
+	srs_freep(status);
+	srs_freep(header_field);
+	srs_freep(header_value);
+	srs_freep(headers_complete);
+	srs_freep(body);
+	srs_freep(message_complete);
+	srs_freep(chunk_header);
+	srs_freep(chunk_complete);
+}
+
+srs_error_t MockParser::parse(string data)
+{
+	srs_error_t err = srs_success;
+
+	const char* buf = (const char*)data.data();
+	size_t size = (size_t)data.length();
+	size_t nparsed = http_parser_execute(parser, &settings, buf, size);
+	if (nparsed != size) {
+		return srs_error_new(-1, "nparsed=%d, size=%d", nparsed, size);
+	}
+
+	return err;
+}
+
+int MockParser::on_message_begin(http_parser* parser)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->message_begin);
+    obj->message_begin = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_url(http_parser* parser, const char* at, size_t length)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->url);
+    obj->url = new MockStage(parser);
+    obj->url->at = at;
+    obj->url->length = length;
+
+    return 0;
+}
+
+int MockParser::on_status(http_parser* parser, const char* at, size_t length)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->status);
+    obj->status = new MockStage(parser);
+    obj->status->at = at;
+    obj->status->length = length;
+
+    return 0;
+}
+
+int MockParser::on_header_field(http_parser* parser, const char* at, size_t length)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->header_field);
+    obj->header_field = new MockStage(parser);
+    obj->header_field->at = at;
+    obj->header_field->length = length;
+
+    return 0;
+}
+
+int MockParser::on_header_value(http_parser* parser, const char* at, size_t length)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->header_value);
+    obj->header_value = new MockStage(parser);
+    obj->header_value->at = at;
+    obj->header_value->length = length;
+
+    return 0;
+}
+
+int MockParser::on_headers_complete(http_parser* parser)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->headers_complete);
+    obj->headers_complete = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_body(http_parser* parser, const char* at, size_t length)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->body);
+    obj->body = new MockStage(parser);
+    obj->body->at = at;
+    obj->body->length = length;
+
+    return 0;
+}
+
+int MockParser::on_message_complete(http_parser* parser)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->message_complete);
+    obj->message_complete = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_chunk_header(http_parser* parser)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->chunk_header);
+    obj->chunk_header = new MockStage(parser);
+
+    return 0;
+}
+
+int MockParser::on_chunk_complete(http_parser* parser)
+{
+    MockParser* obj = (MockParser*)parser->data;
+    srs_assert(obj);
+
+	srs_freep(obj->chunk_complete);
+    obj->chunk_complete = new MockStage(parser);
+
+    return 0;
+}
+
+#define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)
+#define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
+
+VOID TEST(ProtocolHTTPTest, HTTPParser)
+{
+	srs_error_t err;
+
+	if (true) {
+		MockParser parser;
+		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		HELPER_EXPECT_FAILED(parser.parse(""));
+	}
+
+	if (true) {
+		MockParser parser;
+		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		HELPER_EXPECT_FAILED(parser.parse("X"));
+	}
+
+	if (true) {
+		MockParser parser;
+		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		HELPER_EXPECT_SUCCESS(parser.parse("T"));
+	}
+
+	if (true) {
+		MockParser parser;
+		HELPER_EXPECT_SUCCESS(parser.parse("GET"));
+	}
+}
+
 VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
 {
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET");
+        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+
+		// Should fail if not completed message.
+        ISrsHttpMessage* req = NULL;
+        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        srs_freep(req);
+    }
+
     if (true) {
         MockBufferIO bio;
         SrsHttpParser hp;
@@ -5606,26 +5880,21 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
         EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
         
-        if (true) {
-            ISrsHttpMessage* req = NULL;
-            SrsAutoFree(ISrsHttpMessage, req);
-            ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
-            
-            // We should read body, or next parsing message will fail.
-            // @see https://github.com/ossrs/srs/issues/1181
-            EXPECT_FALSE(req->body_reader()->eof());
-        }
-        
-        if (true) {
-            bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
-            
-            // Should fail because there is body which not read.
-            // @see https://github.com/ossrs/srs/issues/1181
-            
-            ISrsHttpMessage* req = NULL;
-            SrsAutoFree(ISrsHttpMessage, req);
-            ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
-        }
+        ISrsHttpMessage* req = NULL;
+        ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
+
+        // We should read body, or next parsing message will fail.
+        // @see https://github.com/ossrs/srs/issues/1181
+        EXPECT_FALSE(req->body_reader()->eof());
+        srs_freep(req);
+
+		// Got new packet, notice that previous body still exists in bio.
+        bio.append("GET /gslb/v2/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+
+        // Should fail because there is body which not read.
+        // @see https://github.com/ossrs/srs/issues/1181
+        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        srs_freep(req);
     }
     
     if (true) {
