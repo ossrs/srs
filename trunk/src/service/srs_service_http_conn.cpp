@@ -109,19 +109,16 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     srs_error_t err = srs_success;
     
     while (true) {
-        ssize_t nparsed = 0;
-
-        char* start = buffer->bytes();
         if (buffer->size() > 0) {
-            nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+            ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
 	        if (buffer->size() != nparsed) {
 	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse failed, nparsed=%d, size=%d", nparsed, buffer->size());
 	        }
 
 			// The consumed size, does not include the body.
 	        ssize_t consumed = nparsed;
-	        if (pbody && start < pbody) {
-	           consumed = pbody - start;
+	        if (pbody && buffer->bytes() < pbody) {
+	           consumed = pbody - buffer->bytes();
 	        }
             srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
 
