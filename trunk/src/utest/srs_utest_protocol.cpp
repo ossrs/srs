@@ -5693,20 +5693,6 @@ MockParser::~MockParser()
 	srs_freep(chunk_complete);
 }
 
-srs_error_t MockParser::parse(string data)
-{
-	srs_error_t err = srs_success;
-
-	const char* buf = (const char*)data.data();
-	size_t size = (size_t)data.length();
-	size_t nparsed = http_parser_execute(parser, &settings, buf, size);
-	if (nparsed != size) {
-		return srs_error_new(-1, "nparsed=%d, size=%d", nparsed, size);
-	}
-
-	return err;
-}
-
 int MockParser::on_message_begin(http_parser* parser)
 {
     MockParser* obj = (MockParser*)parser->data;
@@ -5827,8 +5813,19 @@ int MockParser::on_chunk_complete(http_parser* parser)
     return 0;
 }
 
-#define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)
-#define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
+srs_error_t MockParser::parse(string data)
+{
+	srs_error_t err = srs_success;
+
+	const char* buf = (const char*)data.data();
+	size_t size = (size_t)data.length();
+	size_t nparsed = http_parser_execute(parser, &settings, buf, size);
+	if (nparsed != size) {
+		return srs_error_new(-1, "nparsed=%d, size=%d", nparsed, size);
+	}
+
+	return err;
+}
 
 VOID TEST(ProtocolHTTPTest, HTTPParser)
 {

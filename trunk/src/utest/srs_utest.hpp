@@ -40,6 +40,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 
+// For errors.
+#define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)
+#define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
+
 // the asserts of gtest:
 //    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual
 //    * {ASSERT|EXPECT}_NE(v1, v2):           Tests that v1 != v2
