@@ -59,7 +59,7 @@ private:
     http_parser header;
     std::string url;
     std::vector<SrsHttpHeaderField> headers;
-    int header_parsed;
+    const char* pbody;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();

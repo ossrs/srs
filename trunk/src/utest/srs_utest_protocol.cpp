@@ -5618,6 +5618,7 @@ class MockParser
 private:
 	http_parser_settings settings;
 	http_parser* parser;
+	size_t parsed;
 public:
 	MockStage* message_begin;
 	MockStage* url;
@@ -5652,6 +5653,7 @@ MockParser::MockParser()
 	parser = new http_parser();
 	http_parser_init(parser, HTTP_REQUEST);
     parser->data = (void*)this;
+    parsed = 0;
 
     memset(&settings, 0, sizeof(settings));
     settings.on_message_begin = on_message_begin;
@@ -5820,6 +5822,8 @@ srs_error_t MockParser::parse(string data)
 	const char* buf = (const char*)data.data();
 	size_t size = (size_t)data.length();
 	size_t nparsed = http_parser_execute(parser, &settings, buf, size);
+	parsed = nparsed;
+
 	if (nparsed != size) {
 		return srs_error_new(-1, "nparsed=%d, size=%d", nparsed, size);
 	}
@@ -5833,25 +5837,200 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 
 	if (true) {
 		MockParser parser;
+		// size = 70, nparsed = 70, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+		EXPECT_EQ(70, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_TRUE(!parser.body);
+		EXPECT_TRUE(parser.headers_complete);
+		EXPECT_TRUE(!parser.message_complete);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 75, nparsed = 75, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(75, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_TRUE(parser.body && 5 == parser.body->length);
+		EXPECT_TRUE(parser.headers_complete);
+		EXPECT_TRUE(parser.message_complete);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 150, nparsed = 150, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
+		EXPECT_EQ(150, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+		EXPECT_EQ(70, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_EQ(5, parser.parser->content_length);
+
+		// size = 79, nparsed = 5, nread = 1, content_length = -1, Header("Content-Length", 5)
+		HELPER_EXPECT_FAILED(parser.parse("elloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(5, parser.parsed);
+		EXPECT_EQ(1, parser.parser->nread);
+		EXPECT_EQ(-1, (int64_t)parser.parser->content_length);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 70, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
+		EXPECT_EQ(70, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_EQ(5, parser.parser->content_length);
+
+		// size = 80, nparsed = 70, nread = 0, content_length = 0, Header("Content-Length", 5)
+		HELPER_EXPECT_SUCCESS(parser.parse("HelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
+		EXPECT_EQ(80, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_EQ(0, parser.parser->content_length);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 73, nparsed = 73, nread = 0, content_length = 2, Header("Content-Length", 5)
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHel"));
+		EXPECT_EQ(73, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_EQ(2, parser.parser->content_length);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 82, nparsed = 75, nread = 1, content_length = -1, Header("Content-Length", 5)
+		HELPER_EXPECT_FAILED(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello World!"));
+		EXPECT_EQ(75, parser.parsed);
+		EXPECT_EQ(1, parser.parser->nread);
+		EXPECT_EQ(-1, (int64_t)parser.parser->content_length);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 34, nparsed = 34, nread = 34
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHo"));
+		EXPECT_EQ(34, parser.parsed);
+		EXPECT_EQ(34, parser.parser->nread);
+
+		// size = 41, nparsed = 41, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("st: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(41, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 41, nparsed = 41, nread = 41
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: oss"));
+		EXPECT_EQ(41, parser.parsed);
+		EXPECT_EQ(41, parser.parser->nread);
+
+		// size = 34, nparsed = 34, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("rs.net\r\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(34, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 48, nparsed = 48, nread = 48
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r"));
+		EXPECT_EQ(48, parser.parsed);
+		EXPECT_EQ(48, parser.parser->nread);
+
+		// size = 27, nparsed = 27, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(27, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 68, nparsed = 68, nread = 68
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n"));
+		EXPECT_EQ(68, parser.parsed);
+		EXPECT_EQ(68, parser.parser->nread);
+
+		// size = 7, nparsed = 7, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("\r\nHello"));
+		EXPECT_EQ(7, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 69, nparsed = 69, nread = 69
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r"));
+		EXPECT_EQ(69, parser.parsed);
+		EXPECT_EQ(69, parser.parser->nread);
+
+		// size = 6, nparsed = 6, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("\nHello"));
+		EXPECT_EQ(6, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// size = 75, nparsed = 75, nread = 0
+		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
+		EXPECT_EQ(75, parser.parsed);
+		EXPECT_EQ(0, parser.parser->nread);
+	}
+
+	if (true) {
+		MockParser parser;
+		// nparsed = 2, size = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		EXPECT_EQ(2, parser.parsed);
+		EXPECT_EQ(2, parser.parser->nread);
+
+		// size = 0, nparsed = 1, nread=2
 		HELPER_EXPECT_FAILED(parser.parse(""));
+		EXPECT_EQ(1, parser.parsed);
+		EXPECT_EQ(2, parser.parser->nread);
 	}
 
 	if (true) {
 		MockParser parser;
+		// size = 2, nparsed = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		EXPECT_EQ(2, parser.parsed);
+		EXPECT_EQ(2, parser.parser->nread);
+
+		// size = 1, nparsed = 0, nread = 3
 		HELPER_EXPECT_FAILED(parser.parse("X"));
+		EXPECT_EQ(0, parser.parsed);
+		EXPECT_EQ(3, parser.parser->nread);
 	}
 
 	if (true) {
 		MockParser parser;
+		// size = 2, nparsed = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
+		EXPECT_EQ(2, parser.parsed);
+		EXPECT_EQ(2, parser.parser->nread);
+
+		// size = 1, nparsed = 1, nread = 3
 		HELPER_EXPECT_SUCCESS(parser.parse("T"));
+		EXPECT_EQ(1, parser.parsed);
+		EXPECT_EQ(3, parser.parser->nread);
 	}
 
 	if (true) {
 		MockParser parser;
+		// size = 3, nparsed = 3, nread = 3
 		HELPER_EXPECT_SUCCESS(parser.parse("GET"));
+		EXPECT_EQ(3, parser.parsed);
+		EXPECT_EQ(3, parser.parser->nread);
 	}
 }
 
@@ -5861,22 +6040,9 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         MockBufferIO bio;
         SrsHttpParser hp;
 
-        bio.append("GET");
-        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
-
-		// Should fail if not completed message.
-        ISrsHttpMessage* req = NULL;
-        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
-        srs_freep(req);
-    }
-
-    if (true) {
-        MockBufferIO bio;
-        SrsHttpParser hp;
-        
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
         EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
-        
+
         ISrsHttpMessage* req = NULL;
         ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
 
@@ -5890,6 +6056,19 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
 
         // Should fail because there is body which not read.
         // @see https://github.com/ossrs/srs/issues/1181
+        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        srs_freep(req);
+    }
+
+    if (true) {
+        MockBufferIO bio;
+        SrsHttpParser hp;
+
+        bio.append("GET");
+        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+
+		// Should fail if not completed message.
+        ISrsHttpMessage* req = NULL;
         ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
         srs_freep(req);
     }

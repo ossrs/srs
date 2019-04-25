@@ -100,6 +100,7 @@ enum SrsHttpParseState {
     SrsHttpParseStateInit = 0,
     SrsHttpParseStateStart,
     SrsHttpParseStateHeaderComplete,
+    SrsHttpParseStateBody,
     SrsHttpParseStateMessageComplete
 };
 
