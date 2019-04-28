@@ -140,7 +140,7 @@ public:
 // The client to connect to server over TCP.
 // User must never reuse the client when close it.
 // Usage:
-//      SrsTcpClient client("127.0.0.1", 1935, 9// SRS_UTIME_SECONDS);
+//      SrsTcpClient client("127.0.0.1", 1935, 9 * SRS_UTIME_SECONDS);
 //      client.connect();
 //      client.write("Hello world!", 12, NULL);
 //      client.read(buf, 4096, NULL);

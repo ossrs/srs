@@ -41,7 +41,7 @@ class SrsWallClock;
 class SrsTcpClient;
 
 // The default timeout for http client.
-#define SRS_HTTP_CLIENT_TIMEOUT (30// SRS_UTIME_SECONDS)
+#define SRS_HTTP_CLIENT_TIMEOUT (30 * SRS_UTIME_SECONDS)
 
 // The client to GET/POST/PUT/DELETE over HTTP.
 // @remark We will reuse the TCP transport until initialize or channel error,
