@@ -422,6 +422,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
@@ -439,6 +440,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
                 patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
                 patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
                 make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
@@ -480,6 +482,8 @@ if [ $SRS_HTTP_CORE = YES ]; then
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
                 patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
+                # Patch build error for https://github.com/ossrs/srs/pull/1312#issuecomment-480243404
+                patch -p0 < ../../3rdparty/patches/7.http.parser.patch &&
                 make package &&
                 cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.hp.tmp
@@ -676,13 +680,16 @@ if [ $SRS_SSL = YES ]; then
 fi
 
 #####################################################################################
-# live transcoding, ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
+# live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
 if [ $SRS_FFMPEG_TOOL = YES ]; then
+    if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+        mkdir -p ${SRS_OBJS}/ffmpeg/bin && ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/ffmpeg/bin/ffmpeg
+    fi
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-        echo "ffmpeg-2.1 is ok.";
+        echo "ffmpeg-4.1 is ok.";
     else
-        echo "build ffmpeg-2.1"; 
+        echo "build ffmpeg-4.1"; 
         (
             cd ${SRS_OBJS} && pwd_dir=`pwd` && 
             rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
@@ -691,8 +698,8 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-4.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-4.1 failed."; exit -1; fi
 fi
 
 #####################################################################################

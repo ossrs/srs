@@ -43,7 +43,7 @@ using namespace std;
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
-    string& app, string& port, std::string& param
+    string& app, string& stream, string& port, std::string& param
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
@@ -70,6 +70,11 @@ void srs_discovery_tc_url(
     app = url;
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
+    srs_vhost_resolve(vhost, stream, param);
+    
+    if (param == "?vhost="SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+        param = "";
+    }
 }
 
 void srs_vhost_resolve(string& vhost, string& app, string& param)
@@ -85,6 +90,9 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, "...", "?");
     app = srs_string_replace(app, "&&", "?");
     app = srs_string_replace(app, "=", "?");
+    if (srs_string_ends_with(app, "/_definst_")){
+        app = srs_erase_last_substr(app, "/_definst_");
+    }
     
     if ((pos = app.find("?")) != std::string::npos) {
         std::string query = app.substr(pos + 1);

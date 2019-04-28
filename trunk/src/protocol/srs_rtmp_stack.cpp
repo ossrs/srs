@@ -1743,6 +1743,7 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    param = req->param;
     
     if (args) {
         srs_freep(args);
@@ -1774,6 +1775,12 @@ void SrsRequest::strip()
     // remove start slash of app/stream
     app = srs_string_trim_start(app, "/");
     stream = srs_string_trim_start(stream, "/");
+}
+
+SrsRequest* SrsRequest::as_http()
+{
+    schema = "http";
+    return this;
 }
 
 SrsResponse::SrsResponse()
@@ -2515,7 +2522,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     srs_info("get connect app message params success.");
     
     srs_discovery_tc_url(req->tcUrl, 
-        req->schema, req->host, req->vhost, req->app, req->port,
+        req->schema, req->host, req->vhost, req->app, req->stream, req->port,
         req->param);
     req->strip();
     

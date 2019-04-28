@@ -462,11 +462,20 @@ int SrsEdgeForwarder::start()
         return ret;
     }
     
-    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("publish failed, stream=%s, stream_id=%d. ret=%d", 
-            req->stream.c_str(), stream_id, ret);
+    string stream = req->stream;
+    // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
+    if (!req->param.empty()) {
+        if (req->param.find("?") != 0) {
+            stream += "?";
+        }
+        stream += req->param;
+    }
+    
+    if ((ret = client->publish(stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("publish failed, stream=%s, stream_id=%d. ret=%d", stream.c_str(), stream_id, ret);
         return ret;
     }
+    srs_trace("publish stream %s", stream.c_str());
     
     return pthread->start();
 }

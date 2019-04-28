@@ -482,7 +482,7 @@ int srs_librtmp_context_parse_uri(Context* context)
     
     std::string schema;
     srs_discovery_tc_url(context->tcUrl, 
-        schema, context->host, context->vhost, context->app, context->port,
+        schema, context->host, context->vhost, context->app, context->stream, context->port,
         context->param);
     
     return ret;

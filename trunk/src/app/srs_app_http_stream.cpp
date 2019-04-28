@@ -55,14 +55,17 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_recv_thread.hpp>
+#include <srs_app_http_hooks.hpp>
 
 #endif
+
+#include <srs_app_config.hpp>
 
 #ifdef SRS_AUTO_HTTP_SERVER
 
 SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
 {
-    req = r->copy();
+    req = r->copy()->as_http();
     source = s;
     queue = new SrsMessageQueue(true);
     pthread = new SrsEndlessThread("http-stream", this);
@@ -455,7 +458,7 @@ SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)
 {
     source = s;
     cache = c;
-    req = r->copy();
+    req = r->copy()->as_http();
 }
 
 SrsLiveStream::~SrsLiveStream()
@@ -470,11 +473,27 @@ int SrsLiveStream::update(SrsSource* s, SrsRequest* r)
     srs_freep(req);
     source = s;
     req = r->copy();
-
+    
     return ret;
 }
 
 int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = http_hooks_on_play(r)) != ERROR_SUCCESS) {
+        srs_error("http hook on_play failed. ret=%d", ret);
+        return ret;
+    }
+    
+    ret = do_serve_http(w, r);
+    
+    http_hooks_on_stop(r);
+    
+    return ret;
+}
+
+int SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -484,7 +503,12 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-        enc = new SrsFastFlvStreamEncoder();
+        bool realtime = _srs_config->get_realtime_enabled(req->vhost);
+        if (realtime) {
+            enc = new SrsFlvStreamEncoder();
+        } else {
+            enc = new SrsFastFlvStreamEncoder();
+        }
 #else
         enc = new SrsFlvStreamEncoder();
 #endif
@@ -542,6 +566,8 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
     
+    int mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+    
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
@@ -570,15 +596,15 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         if (count <= 0) {
             srs_info("http: sleep %dms for no msg", SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
             // directly use sleep, donot use consumer wait.
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+            st_usleep(mw_sleep * 1000);
             
             // ignore when nothing got.
             continue;
         }
 
         if (pprint->can_print()) {
-            srs_info("-> "SRS_CONSTS_LOG_HTTP_STREAM" http: got %d msgs, age=%d, min=%d, mw=%d", 
-                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+            srs_trace("-> "SRS_CONSTS_LOG_HTTP_STREAM" http: got %d msgs, age=%d, min=%d, mw=%d",
+                count, pprint->age(), SRS_PERF_MW_MIN_MSGS, mw_sleep);
         }
         
         // sendout all messages.
@@ -608,6 +634,85 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
     }
     
     return ret;
+}
+
+int SrsLiveStream::http_hooks_on_play(ISrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return ret;
+    }
+
+    // Create request to report for the specified connection.
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsRequest* nreq = hr->to_request(req->vhost);
+    SrsAutoFree(SrsRequest, nreq);
+    
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+    
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_play(nreq->vhost);
+        
+        if (!conf) {
+            srs_info("ignore the empty http callback: on_play");
+            return ret;
+        }
+        
+        hooks = conf->args;
+    }
+    
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((ret = SrsHttpHooks::on_play(url, nreq)) != ERROR_SUCCESS) {
+            srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
+            return ret;
+        }
+    }
+#endif
+    
+    return ret;
+}
+
+void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage* r)
+{
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return;
+    }
+
+    // Create request to report for the specified connection.
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsRequest* nreq = hr->to_request(req->vhost);
+    SrsAutoFree(SrsRequest, nreq);
+    
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+    
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(nreq->vhost);
+        
+        if (!conf) {
+            srs_info("ignore the empty http callback: on_stop");
+            return;
+        }
+        
+        hooks = conf->args;
+    }
+    
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        SrsHttpHooks::on_stop(url, nreq);
+    }
+#endif
+    
+    return;
 }
 
 int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
@@ -835,7 +940,7 @@ int SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         srs_freep(tmpl->req);
 
         tmpl->source = s;
-        tmpl->req = r->copy();
+        tmpl->req = r->copy()->as_http();
         
         sflvs[sid] = entry;
         
