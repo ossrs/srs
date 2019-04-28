@@ -26,10 +26,7 @@
 
 #include <srs_core.hpp>
 
-/**
- * the http heartbeat to api-server to notice api
- * that the information of SRS.
- */
+// The http heartbeat to api-server to notice api that the information of SRS.
 class SrsHttpHeartbeat
 {
 public:

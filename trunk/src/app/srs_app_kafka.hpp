@@ -42,14 +42,10 @@ class SrsKafkaProducer;
 
 #ifdef SRS_AUTO_KAFKA
 
-/**
- * the partition messages cache.
- */
+// The partition messages cache.
 typedef std::vector<SrsJsonObject*> SrsKafkaPartitionCache;
 
-/**
- * the kafka partition info.
- */
+// The kafka partition info.
 struct SrsKafkaPartition
 {
 private:
@@ -75,9 +71,7 @@ private:
     virtual void disconnect();
 };
 
-/**
- * the following is all types of kafka messages.
- */
+// The following is all types of kafka messages.
 class SrsKafkaMessage : public ISrsAsyncCallTask
 {
 private:
@@ -93,19 +87,17 @@ public:
     virtual std::string to_string();
 };
 
-/**
- * a message cache for kafka.
- */
+// A message cache for kafka.
 class SrsKafkaCache
 {
 public:
-    // the total partitions,
+    // The total partitions,
     // for the key to map to the parition by key%nb_partitions.
     int nb_partitions;
 private:
-    // total messages for all partitions.
+    // Total messages for all partitions.
     int count;
-    // key is the partition id, value is the message set to write to this partition.
+    // The key is the partition id, value is the message set to write to this partition.
     // @remark, when refresh metadata, the partition will increase,
     //      so maybe some message will dispatch to new partition.
     std::map< int32_t, SrsKafkaPartitionCache*> cache;
@@ -115,37 +107,27 @@ public:
 public:
     virtual void append(int key, SrsJsonObject* obj);
     virtual int size();
-    /**
-     * fetch out a available partition cache.
-     * @return true when got a key and pc; otherwise, false.
-     */
+    // Fetch out a available partition cache.
+    // @return true when got a key and pc; otherwise, false.
     virtual bool fetch(int* pkey, SrsKafkaPartitionCache** ppc);
-    /**
-     * flush the specified partition cache.
-     */
+    // Flush the specified partition cache.
     virtual srs_error_t flush(SrsKafkaPartition* partition, int key, SrsKafkaPartitionCache* pc);
 };
 
-/**
- * the kafka cluster interface.
- */
+// The kafka cluster interface.
 class ISrsKafkaCluster
 {
 public:
     ISrsKafkaCluster();
     virtual ~ISrsKafkaCluster();
 public:
-    /**
-     * when got any client connect to SRS, notify kafka.
-     * @param key the partition map key, the client id or hash(ip).
-     * @param type the type of client.
-     * @param ip the peer ip of client.
-     */
+    // When got any client connect to SRS, notify kafka.
+    // @param key the partition map key, the client id or hash(ip).
+    // @param type the type of client.
+    // @param ip the peer ip of client.
     virtual srs_error_t on_client(int key, SrsListenerType type, std::string ip) = 0;
-    /**
-     * when client close or disconnect for error.
-     * @param key the partition map key, the client id or hash(ip).
-     */
+    // When client close or disconnect for error.
+    // @param key the partition map key, the client id or hash(ip).
     virtual srs_error_t on_close(int key) = 0;
 };
 
@@ -155,9 +137,7 @@ extern ISrsKafkaCluster* _srs_kafka;
 extern srs_error_t srs_initialize_kafka();
 extern void srs_dispose_kafka();
 
-/**
- * the kafka producer used to save log to kafka cluster.
- */
+// The kafka producer used to save log to kafka cluster.
 class SrsKafkaProducer : virtual public ISrsCoroutineHandler, virtual public ISrsKafkaCluster
 {
 private:
@@ -183,12 +163,10 @@ public:
     virtual void stop();
 // internal: for worker to call task to send object.
 public:
-    /**
-     * send json object to kafka cluster.
-     * the producer will aggregate message and send in kafka message set.
-     * @param key the key to map to the partition, user can use cid or hash.
-     * @param obj the json object; user must never free it again.
-     */
+    // Send json object to kafka cluster.
+    // The producer will aggregate message and send in kafka message set.
+    // @param key the key to map to the partition, user can use cid or hash.
+    // @param obj the json object; user must never free it again.
     virtual srs_error_t send(int key, SrsJsonObject* obj);
 // interface ISrsKafkaCluster
 public:
@@ -201,7 +179,7 @@ private:
     virtual void clear_metadata();
     virtual srs_error_t do_cycle();
     virtual srs_error_t request_metadata();
-    // set the metadata to invalid and refresh it.
+    // Set the metadata to invalid and refresh it.
     virtual void refresh_metadata();
     virtual srs_error_t flush();
 };

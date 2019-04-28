@@ -41,51 +41,43 @@ class SrsKbps;
 class SrsBuffer;
 class SrsJsonObject;
 
-/**
- * convert level in string to log level in int.
- * @return the log level defined in SrsLogLevel.
- */
+// Convert level in string to log level in int.
+// @return the log level defined in SrsLogLevel.
 extern SrsLogLevel srs_get_log_level(std::string level);
 
-/**
- * build the path according to vhost/app/stream, where replace variables:
- *       [vhost], the vhost of stream.
- *       [app], the app of stream.
- *       [stream], the stream name of stream.
- * @return the replaced path.
- */
+// Build the path according to vhost/app/stream, where replace variables:
+//       [vhost], the vhost of stream.
+//       [app], the app of stream.
+//       [stream], the stream name of stream.
+// @return the replaced path.
 extern std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream);
 
-/**
- * build the path according to timestamp, where replace variables:
- *       [2006], replace this const to current year.
- *       [01], replace this const to current month.
- *       [02], replace this const to current date.
- *       [15], replace this const to current hour.
- *       [04], repleace this const to current minute.
- *       [05], repleace this const to current second.
- *       [999], repleace this const to current millisecond.
- *       [timestamp],replace this const to current UNIX timestamp in ms.
- * @return the replaced path.
- */
+// Build the path according to timestamp, where replace variables:
+//       [2006], replace this const to current year.
+//       [01], replace this const to current month.
+//       [02], replace this const to current date.
+//       [15], replace this const to current hour.
+//       [04], repleace this const to current minute.
+//       [05], repleace this const to current second.
+//       [999], repleace this const to current millisecond.
+//       [timestamp],replace this const to current UNIX timestamp in ms.
+// @return the replaced path.
 extern std::string srs_path_build_timestamp(std::string template_path);
 
-/**
- * kill the pid by SIGINT, then wait to quit,
- * kill the pid by SIGKILL again when exceed the timeout.
- * @param pid the pid to kill. ignore for -1. set to -1 when killed.
- * @return an int error code.
- */
+// Kill the pid by SIGINT, then wait to quit,
+// Kill the pid by SIGKILL again when exceed the timeout.
+// @param pid the pid to kill. ignore for -1. set to -1 when killed.
+// @return an int error code.
 extern srs_error_t srs_kill_forced(int& pid);
 
-// current process resouce usage.
+// Current process resouce usage.
 // @see: man getrusage
 class SrsRusage
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
-    // the time in ms when sample.
+    // The time in ms when sample.
     int64_t sample_time;
     
 public:
@@ -95,21 +87,21 @@ public:
     SrsRusage();
 };
 
-// get system rusage, use cache to avoid performance problem.
+// Get system rusage, use cache to avoid performance problem.
 extern SrsRusage* srs_get_system_rusage();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_system_rusage();
 
-// to stat the process info.
+// To stat the process info.
 // @see: man 5 proc, /proc/[pid]/stat
 class SrsProcSelfStat
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
-    // the time in ms when sample.
+    // The time in ms when sample.
     int64_t sample_time;
-    // the percent of usage. 0.153 is 15.3%.
+    // The percent of usage. 0.153 is 15.3%.
     float percent;
     
     // data of /proc/[pid]/stat
@@ -256,49 +248,47 @@ public:
     SrsProcSelfStat();
 };
 
-// to stat the cpu time.
+// To stat the cpu time.
 // @see: man 5 proc, /proc/stat
-/**
- * about the cpu time, @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
- * for example, for ossrs.net, a single cpu machine:
- *       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
- *           5275153.01 4699624.99
- *           cpu  43506750 973 8545744 466133337 4149365 190852 804666 0 0
- * where the uptime is 5275153.01s
- * generally, USER_HZ sysconf(_SC_CLK_TCK)=100, which means the unit of /proc/stat is "1/100ths seconds"
- *       that is, USER_HZ=1/100 seconds
- * cpu total = 43506750+973+8545744+466133337+4149365+190852+804666+0+0 (USER_HZ)
- *           = 523331687 (USER_HZ)
- *           = 523331687 * 1/100 (seconds)
- *           = 5233316.87 seconds
- * the cpu total seconds almost the uptime, the delta is more precise.
- *
- * we run the command about 26minutes:
- *       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
- *           5276739.83 4701090.76
- *           cpu  43514105 973 8548948 466278556 4150480 190899 804937 0 0
- * where the uptime is 5276739.83s
- * cpu total = 43514105+973+8548948+466278556+4150480+190899+804937+0+0 (USER_HZ)
- *           = 523488898 (USER_HZ)
- *           = 523488898 * 1/100 (seconds)
- *           = 5234888.98 seconds
- * where:
- *       uptime delta = 1586.82s
- *       cpu total delta = 1572.11s
- * the deviation is more smaller.
- */
+// about the cpu time, @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
+// for example, for ossrs.net, a single cpu machine:
+//       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+//           5275153.01 4699624.99
+//           cpu  43506750 973 8545744 466133337 4149365 190852 804666 0 0
+// Where the uptime is 5275153.01s
+// generally, USER_HZ sysconf(_SC_CLK_TCK)=100, which means the unit of /proc/stat is "1/100ths seconds"
+//       that is, USER_HZ=1/100 seconds
+// cpu total = 43506750+973+8545744+466133337+4149365+190852+804666+0+0 (USER_HZ)
+//           = 523331687 (USER_HZ)
+//           = 523331687 * 1/100 (seconds)
+//           = 5233316.87 seconds
+// The cpu total seconds almost the uptime, the delta is more precise.
+//
+// we run the command about 26minutes:
+//       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+//           5276739.83 4701090.76
+//           cpu  43514105 973 8548948 466278556 4150480 190899 804937 0 0
+// Where the uptime is 5276739.83s
+// cpu total = 43514105+973+8548948+466278556+4150480+190899+804937+0+0 (USER_HZ)
+//           = 523488898 (USER_HZ)
+//           = 523488898 * 1/100 (seconds)
+//           = 5234888.98 seconds
+// where:
+//       uptime delta = 1586.82s
+//       cpu total delta = 1572.11s
+// The deviation is more smaller.
 class SrsProcSystemStat
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
-    // the time in ms when sample.
+    // The time in ms when sample.
     int64_t sample_time;
-    // the percent of usage. 0.153 is 15.3%.
-    // the percent is in [0, 1], where 1 is 100%.
+    // The percent of usage. 0.153 is 15.3%.
+    // The percent is in [0, 1], where 1 is 100%.
     // for multiple core cpu, max also is 100%.
     float percent;
-    // the total cpu time units
+    // The total cpu time units
     // @remark, zero for the previous total() is zero.
     //          the usaged_cpu_delta = total_delta * percent
     //          previous cpu total = this->total() - total_delta
@@ -310,7 +300,7 @@ public:
     // (1/100ths  of  a  second  on  most  architectures,  use
     // sysconf(_SC_CLK_TCK)  to  obtain  the  right value)
     //
-    // the system spent in user mode,
+    // The system spent in user mode,
     unsigned long long user;
     // user mode with low priority (nice),
     unsigned long long nice;
@@ -341,18 +331,18 @@ public:
 public:
     SrsProcSystemStat();
     
-    // get total cpu units.
+    // Get total cpu units.
     int64_t total();
 };
 
-// get system cpu stat, use cache to avoid performance problem.
+// Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSelfStat* srs_get_self_proc_stat();
-// get system cpu stat, use cache to avoid performance problem.
+// Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSystemStat* srs_get_system_proc_stat();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_proc_stat();
 
-// stat disk iops
+// Stat disk iops
 // @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed
 // for total disk io, @see: cat /proc/vmstat |grep pgpg
 // for device disk io, @see: cat /proc/diskstats
@@ -364,9 +354,9 @@ extern void srs_update_proc_stat();
 class SrsDiskStat
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
-    // the time in ms when sample.
+    // The time in ms when sample.
     int64_t sample_time;
     
     // input(read) KBytes per seconds
@@ -382,10 +372,10 @@ public:
     
 public:
     // @see: cat /proc/vmstat
-    // the in(read) page count, pgpgin*1024 is the read bytes.
+    // The in(read) page count, pgpgin*1024 is the read bytes.
     // Total number of kilobytes the system paged in from disk per second.
     unsigned long pgpgin;
-    // the out(write) page count, pgpgout*1024 is the write bytes.
+    // The out(write) page count, pgpgout*1024 is the write bytes.
     // Total number of kilobytes the system paged out to disk per second.
     unsigned long pgpgout;
     
@@ -415,7 +405,7 @@ public:
     // Write I/O operations
     unsigned int wr_ios;
     // Number of writes merged Reads and writes which are adjacent
-    // to each other may be merged for efficiency. Thus two 4K
+    // To each other may be merged for efficiency. Thus two 4K
     // reads may become one 8K read before it is ultimately
     // handed to the disk, and so it will be counted (and queued)
     // as only one I/O. This field lets you know how often this was done.
@@ -446,7 +436,7 @@ public:
     // progress (field 9) times the number of milliseconds spent
     // doing I/O since the last update of this field. This can
     // provide an easy measure of both I/O completion time and
-    // the backlog that may be accumulating.
+    // The backlog that may be accumulating.
     // Average queue length
     unsigned int aveq;
     
@@ -454,21 +444,21 @@ public:
     SrsDiskStat();
 };
 
-// get disk stat, use cache to avoid performance problem.
+// Get disk stat, use cache to avoid performance problem.
 extern SrsDiskStat* srs_get_disk_stat();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_disk_stat();
 
-// stat system memory info
+// Stat system memory info
 // @see: cat /proc/meminfo
 class SrsMemInfo
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
-    // the time in ms when sample.
+    // The time in ms when sample.
     int64_t sample_time;
-    // the percent of usage. 0.153 is 15.3%.
+    // The percent of usage. 0.153 is 15.3%.
     float percent_ram;
     float percent_swap;
     
@@ -495,9 +485,9 @@ public:
     SrsMemInfo();
 };
 
-// get system meminfo, use cache to avoid performance problem.
+// Get system meminfo, use cache to avoid performance problem.
 extern SrsMemInfo* srs_get_meminfo();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_meminfo();
 
 // system cpu hardware info.
@@ -506,7 +496,7 @@ extern void srs_update_meminfo();
 class SrsCpuInfo
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
     
     // data of /proc/cpuinfo
@@ -520,14 +510,14 @@ public:
     SrsCpuInfo();
 };
 
-// get system cpu info, use cache to avoid performance problem.
+// Get system cpu info, use cache to avoid performance problem.
 extern SrsCpuInfo* srs_get_cpuinfo();
 
-// platform(os, srs) uptime/load summary
+// The platform(os, srs) uptime/load summary
 class SrsPlatformInfo
 {
 public:
-    // whether the data is ok.
+    // Whether the data is ok.
     bool ok;
     
     // srs startup time, in ms.
@@ -551,22 +541,21 @@ public:
     SrsPlatformInfo();
 };
 
-// get platform info, use cache to avoid performance problem.
+// Get platform info, use cache to avoid performance problem.
 extern SrsPlatformInfo* srs_get_platform_info();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_platform_info();
 
-// network device summary for each network device,
-// for example, eth0, eth1, ethN
+// The network device summary for each network device, for example, eth0, eth1, ethN
 class SrsNetworkDevices
 {
 public:
-    // whether the network device is ok.
+    // Whether the network device is ok.
     bool ok;
     
     // 6-chars interfaces name
     char name[7];
-    // the sample time in ms.
+    // The sample time in ms.
     int64_t sample_time;
     
 public:
@@ -594,20 +583,20 @@ public:
     SrsNetworkDevices();
 };
 
-// get network devices info, use cache to avoid performance problem.
+// Get network devices info, use cache to avoid performance problem.
 extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_network_devices();
 
-// system connections, and srs rtmp network summary
+// The system connections, and srs rtmp network summary
 class SrsNetworkRtmpServer
 {
 public:
-    // whether the network device is ok.
+    // Whether the network device is ok.
     bool ok;
     
-    // the sample time in ms.
+    // The sample time in ms.
     int64_t sample_time;
     
 public:
@@ -638,32 +627,32 @@ public:
     SrsNetworkRtmpServer();
 };
 
-// get network devices info, use cache to avoid performance problem.
+// Get network devices info, use cache to avoid performance problem.
 extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
-// the deamon st-thread will update it.
+// The deamon st-thread will update it.
 extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
-// get local or peer ip.
-// where local ip is the server ip which client connected.
+// Get local or peer ip.
+// Where local ip is the server ip which client connected.
 extern std::string srs_get_local_ip(int fd);
-// get the local id port.
+// Get the local id port.
 extern int srs_get_local_port(int fd);
-// where peer ip is the client public ip which connected to server.
+// Where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
 
-// whether string is digit number
+// Whether string is digit number
 //      is_digit("1234567890")  === true
 //      is_digit("0123456789")  === false
 //      is_digit("1234567890a") === false
 //      is_digit("a1234567890") === false
 extern bool srs_is_digit_number(const std::string& str);
-// whether string is boolean
+// Whether string is boolean
 //      is_bool("true") == true
 //      is_bool("false") == true
 //      otherwise, false.
 extern bool srs_is_boolean(const std::string& str);
 
-// dump summaries for /api/v1/summaries.
+// Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
 
 #endif

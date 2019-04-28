@@ -33,6 +33,7 @@ class SrsJsonAny;
 class SrsRequest;
 class SrsSource;
 
+// For origin cluster.
 class SrsCoWorkers
 {
 private:

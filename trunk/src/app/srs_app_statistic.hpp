@@ -48,9 +48,7 @@ public:
     int nb_streams;
     int nb_clients;
 public:
-    /**
-     * vhost total kbps.
-     */
+    // The vhost total kbps.
     SrsKbps* kbps;
     SrsWallClock* clk;
 public:
@@ -73,19 +71,17 @@ public:
     int nb_clients;
     uint64_t nb_frames;
 public:
-    /**
-     * stream total kbps.
-     */
+    // The stream total kbps.
     SrsKbps* kbps;
     SrsWallClock* clk;
 public:
     bool has_video;
     SrsVideoCodecId vcodec;
-    // profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
+    // The profile_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcProfile avc_profile;
-    // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
+    // The level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
-    // the width and height in codec info.
+    // The width and height in codec info.
     int width;
     int height;
 public:
@@ -93,12 +89,10 @@ public:
     SrsAudioCodecId acodec;
     SrsAudioSampleRate asample_rate;
     SrsAudioChannels asound_type;
-    /**
-     * audio specified
-     * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
-     * 1.5.1.1 Audio object type definition, page 23,
-     *           in ISO_IEC_14496-3-AAC-2001.pdf.
-     */
+    // The audio specified
+    // audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
+    // 1.5.1.1 Audio object type definition, page 23,
+    //           in ISO_IEC_14496-3-AAC-2001.pdf.
     SrsAacObjectType aac_object;
 public:
     SrsStatisticStream();
@@ -106,13 +100,9 @@ public:
 public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
-    /**
-     * publish the stream.
-     */
+    // Publish the stream.
     virtual void publish(int cid);
-    /**
-     * close the stream.
-     */
+    // Close the stream.
     virtual void close();
 };
 
@@ -136,24 +126,24 @@ class SrsStatistic
 {
 private:
     static SrsStatistic *_instance;
-    // the id to identify the sever.
+    // The id to identify the sever.
     int64_t _server_id;
 private:
-    // key: vhost id, value: vhost object.
+    // The key: vhost id, value: vhost object.
     std::map<int64_t, SrsStatisticVhost*> vhosts;
-    // key: vhost url, value: vhost Object.
+    // The key: vhost url, value: vhost Object.
     // @remark a fast index for vhosts.
     std::map<std::string, SrsStatisticVhost*> rvhosts;
 private:
-    // key: stream id, value: stream Object.
+    // The key: stream id, value: stream Object.
     std::map<int64_t, SrsStatisticStream*> streams;
-    // key: stream url, value: stream Object.
+    // The key: stream url, value: stream Object.
     // @remark a fast index for streams.
     std::map<std::string, SrsStatisticStream*> rstreams;
 private:
-    // key: client id, value: stream object.
+    // The key: client id, value: stream object.
     std::map<int, SrsStatisticClient*> clients;
-    // server total kbps.
+    // The server total kbps.
     SrsKbps* kbps;
     SrsWallClock* clk;
 private:
@@ -167,77 +157,51 @@ public:
     virtual SrsStatisticStream* find_stream(int sid);
     virtual SrsStatisticClient* find_client(int cid);
 public:
-    /**
-     * when got video info for stream.
-     */
+    // When got video info for stream.
     virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile,
         SrsAvcLevel avc_level, int width, int height);
-    /**
-     * when got audio info for stream.
-     */
+    // When got audio info for stream.
     virtual srs_error_t on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate,
         SrsAudioChannels asound_type, SrsAacObjectType aac_object);
-    /**
-     * When got videos, update the frames.
-     * We only stat the total number of video frames.
-     */
+    // When got videos, update the frames.
+    // We only stat the total number of video frames.
     virtual srs_error_t on_video_frames(SrsRequest* req, int nb_frames);
-    /**
-     * when publish stream.
-     * @param req the request object of publish connection.
-     * @param cid the cid of publish connection.
-     */
+    // When publish stream.
+    // @param req the request object of publish connection.
+    // @param cid the cid of publish connection.
     virtual void on_stream_publish(SrsRequest* req, int cid);
-    /**
-     * when close stream.
-     */
+    // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
-    /**
-     * when got a client to publish/play stream,
-     * @param id, the client srs id.
-     * @param req, the client request object.
-     * @param conn, the physical absract connection object.
-     * @param type, the type of connection.
-     */
+    // When got a client to publish/play stream,
+    // @param id, the client srs id.
+    // @param req, the client request object.
+    // @param conn, the physical absract connection object.
+    // @param type, the type of connection.
     virtual srs_error_t on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
-    /**
-     * client disconnect
-     * @remark the on_disconnect always call, while the on_client is call when
-     *      only got the request object, so the client specified by id maybe not
-     *      exists in stat.
-     */
+    // Client disconnect
+    // @remark the on_disconnect always call, while the on_client is call when
+    //      only got the request object, so the client specified by id maybe not
+    //      exists in stat.
     virtual void on_disconnect(int id);
-    /**
-     * sample the kbps, add delta bytes of conn.
-     * use kbps_sample() to get all result of kbps stat.
-     */
+    // Sample the kbps, add delta bytes of conn.
+    // Use kbps_sample() to get all result of kbps stat.
     // TODO: FIXME: the add delta must use ISrsKbpsDelta interface instead.
     virtual void kbps_add_delta(SrsConnection* conn);
-    /**
-     * calc the result for all kbps.
-     * @return the server kbps.
-     */
+    // Calc the result for all kbps.
+    // @return the server kbps.
     virtual SrsKbps* kbps_sample();
 public:
-    /**
-     * get the server id, used to identify the server.
-     * for example, when restart, the server id must changed.
-     */
+    // Get the server id, used to identify the server.
+    // For example, when restart, the server id must changed.
     virtual int64_t server_id();
-    /**
-     * dumps the vhosts to amf0 array.
-     */
+    // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
-    /**
-     * dumps the streams to amf0 array.
-     */
+    // Dumps the streams to amf0 array.
     virtual srs_error_t dumps_streams(SrsJsonArray* arr);
-    /**
-     * dumps the clients to amf0 array
-     * @param start the start index, from 0.
-     * @param count the max count of clients to dump.
-     */
+    // Dumps the clients to amf0 array
+    // @param start the start index, from 0.
+    // @param count the max count of clients to dump.
     virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
