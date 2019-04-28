@@ -32,17 +32,17 @@
 
 #include <srs_service_st.hpp>
 
-// whether the url is starts with http:// or https://
+// Whether the url is starts with http:// or https://
 extern bool srs_string_is_http(std::string url);
 extern bool srs_string_is_rtmp(std::string url);
 
-// get local ip, fill to @param ips
+// Get local ip, fill to @param ips
 extern std::vector<std::string>& srs_get_local_ips();
 
-// get local public ip, empty string if no public internet address found.
+// Get local public ip, empty string if no public internet address found.
 extern std::string srs_get_public_internet_address();
 
-// detect whether specified device is internet public address.
+// Detect whether specified device is internet public address.
 extern bool srs_net_device_is_internet(std::string ifname);
 extern bool srs_net_device_is_internet(const sockaddr* addr);
 
