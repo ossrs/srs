@@ -42,6 +42,9 @@ using namespace _srs_internal;
 // for openssl_generate_key
 #include <openssl/dh.h>
 
+// For randomly generate the handshake bytes.
+#define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_VERSION ")"
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 static HMAC_CTX *HMAC_CTX_new(void)
