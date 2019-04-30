@@ -229,7 +229,7 @@ public:
 #endif
     // when client send the pause message.
     virtual srs_error_t on_play_client_pause(bool is_pause);
-    // ISrsWakable
+// Interface ISrsWakable
 public:
     // when the consumer(for player) got msg from recv thread,
     // it must be processed for maybe it's a close msg, so the cond
