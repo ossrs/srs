@@ -119,8 +119,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace(RTMP_SIG_SRS_SERVER ", stable is " RTMP_SIG_SRS_PRIMARY);
-    srs_trace("license: " RTMP_SIG_SRS_LICENSE ", " RTMP_SIG_SRS_COPYRIGHT);
-    srs_trace("authors: " RTMP_SIG_SRS_AUTHROS);
+    srs_trace("license: " RTMP_SIG_SRS_LICENSE);
     srs_trace("contributors: " SRS_AUTO_CONSTRIBUTORS);
     srs_trace("build: %s, configure:%s, uname: %s", SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
     srs_trace("configure detail: " SRS_AUTO_CONFIGURE);

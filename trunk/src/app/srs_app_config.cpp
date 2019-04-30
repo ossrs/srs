@@ -3433,10 +3433,9 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-           RTMP_SIG_SRS_SERVER " " RTMP_SIG_SRS_COPYRIGHT "\n"
+           RTMP_SIG_SRS_SERVER "\n"
            "License: " RTMP_SIG_SRS_LICENSE "\n"
            "Primary: " RTMP_SIG_SRS_PRIMARY "\n"
-           "Authors: " RTMP_SIG_SRS_AUTHROS "\n"
            "Build: " SRS_AUTO_BUILD_DATE " Configuration:" SRS_AUTO_USER_CONFIGURE "\n"
            "Features:" SRS_AUTO_CONFIGURE "\n""\n"
            "Usage: %s [-h?vVgG] [[-t] -c <filename>]\n"
@@ -3448,7 +3447,6 @@ void SrsConfig::print_help(char** argv)
            "   -t                  : test configuration file, exit(error_code).\n"
            "   -c filename         : use configuration file for SRS\n"
            "\n"
-           RTMP_SIG_SRS_WEB "\n"
            RTMP_SIG_SRS_URL "\n"
            "Email: " RTMP_SIG_SRS_EMAIL "\n"
            "\n"
