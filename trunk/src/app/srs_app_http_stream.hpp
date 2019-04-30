@@ -33,9 +33,7 @@ class SrsMp3Transmuxer;
 class SrsFlvTransmuxer;
 class SrsTsTransmuxer;
 
-/**
- * A cache for HTTP Live Streaming encoder, to make android(weixin) happy.
- */
+// A cache for HTTP Live Streaming encoder, to make android(weixin) happy.
 class SrsBufferCache : public ISrsCoroutineHandler
 {
 private:
@@ -57,43 +55,31 @@ public:
     virtual srs_error_t cycle();
 };
 
-/**
- * The encoder to transmux RTMP stream.
- */
+// The encoder to transmux RTMP stream.
 class ISrsBufferEncoder
 {
 public:
     ISrsBufferEncoder();
     virtual ~ISrsBufferEncoder();
 public:
-    /**
-     * initialize the encoder with file writer(to http response) and stream cache.
-     * @param w the writer to write to http response.
-     * @param c the stream cache for audio stream fast startup.
-     */
+    // Initialize the encoder with file writer(to http response) and stream cache.
+    // @param w the writer to write to http response.
+    // @param c the stream cache for audio stream fast startup.
     virtual srs_error_t initialize(SrsFileWriter* w, SrsBufferCache* c) = 0;
-    /**
-     * write rtmp video/audio/metadata.
-     */
+    // Write rtmp video/audio/metadata.
     virtual srs_error_t write_audio(int64_t timestamp, char* data, int size) = 0;
     virtual srs_error_t write_video(int64_t timestamp, char* data, int size) = 0;
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size) = 0;
 public:
-    /**
-     * for some stream, for example, mp3 and aac, the audio stream,
-     * we use large gop cache in encoder, for the gop cache of SrsSource is ignore audio.
-     * @return true to use gop cache of encoder; otherwise, use SrsSource.
-     */
+    // For some stream, for example, mp3 and aac, the audio stream,
+    // we use large gop cache in encoder, for the gop cache of SrsSource is ignore audio.
+    // @return true to use gop cache of encoder; otherwise, use SrsSource.
     virtual bool has_cache() = 0;
-    /**
-     * dumps the cache of encoder to consumer.
-     */
+    // Dumps the cache of encoder to consumer.
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
 };
 
-/**
- * Transmux RTMP to HTTP Live Streaming.
- */
+// Transmux RTMP to HTTP Live Streaming.
 class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
 protected:
@@ -112,26 +98,20 @@ public:
 };
 
 #ifdef SRS_PERF_FAST_FLV_ENCODER
-/**
- * A Fast HTTP FLV Live Streaming, to write multiple tags by writev.
- * @see https://github.com/ossrs/srs/issues/405
- */
+// A Fast HTTP FLV Live Streaming, to write multiple tags by writev.
+// @see https://github.com/ossrs/srs/issues/405
 class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
 {
 public:
     SrsFastFlvStreamEncoder();
     virtual ~SrsFastFlvStreamEncoder();
 public:
-    /**
-     * write the tags in a time.
-     */
+    // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 };
 #endif
 
-/**
- * Transmux RTMP to HTTP TS Streaming.
- */
+// Transmux RTMP to HTTP TS Streaming.
 class SrsTsStreamEncoder : public ISrsBufferEncoder
 {
 private:
@@ -149,9 +129,7 @@ public:
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
-/**
- * Transmux RTMP with AAC stream to HTTP AAC Streaming.
- */
+// Transmux RTMP with AAC stream to HTTP AAC Streaming.
 class SrsAacStreamEncoder : public ISrsBufferEncoder
 {
 private:
@@ -170,9 +148,7 @@ public:
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
-/**
- * Transmux RTMP with MP3 stream to HTTP MP3 Streaming.
- */
+// Transmux RTMP with MP3 stream to HTTP MP3 Streaming.
 class SrsMp3StreamEncoder : public ISrsBufferEncoder
 {
 private:
@@ -191,9 +167,7 @@ public:
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
-/**
- * write stream to http response direclty.
- */
+// Write stream to http response direclty.
 class SrsBufferWriter : public SrsFileWriter
 {
 private:
@@ -212,9 +186,7 @@ public:
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
 };
 
-/**
- * HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
- */
+// HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
 class SrsLiveStream : public ISrsHttpHandler
 {
 private:
@@ -234,9 +206,7 @@ private:
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
-/**
- * The Live Entry, to handle HTTP Live Streaming.
- */
+// The Live Entry, to handle HTTP Live Streaming.
 struct SrsLiveEntry
 {
 private:
@@ -248,8 +218,8 @@ public:
     SrsRequest* req;
     SrsSource* source;
 public:
-    // for template, the mount contains variables.
-    // for concrete stream, the mount is url to access.
+    // For template, the mount contains variables.
+    // For concrete stream, the mount is url to access.
     std::string mount;
     
     SrsLiveStream* stream;
@@ -263,9 +233,7 @@ public:
     bool is_aac();
 };
 
-/**
- * The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
- */
+// The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
 // TODO: Support multiple stream.
 class SrsHttpStreamServer : virtual public ISrsReloadHandler
 , virtual public ISrsHttpMatchHijacker
@@ -274,17 +242,17 @@ private:
     SrsServer* server;
 public:
     SrsHttpServeMux mux;
-    // the http live streaming template, to create streams.
+    // The http live streaming template, to create streams.
     std::map<std::string, SrsLiveEntry*> tflvs;
-    // the http live streaming streams, crote by template.
+    // The http live streaming streams, crote by template.
     std::map<std::string, SrsLiveEntry*> sflvs;
 public:
     SrsHttpStreamServer(SrsServer* svr);
     virtual ~SrsHttpStreamServer();
 public:
     virtual srs_error_t initialize();
-    // http flv/ts/mp3/aac stream
 public:
+    // HTTP flv/ts/mp3/aac stream
     virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
 // interface ISrsReloadHandler.

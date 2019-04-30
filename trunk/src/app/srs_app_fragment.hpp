@@ -29,10 +29,8 @@
 #include <string>
 #include <vector>
 
-/**
- * Represent a fragment, such as HLS segment, DVR segment or DASH segment.
- * It's a media file, for example FLV or MP4, with duration.
- */
+// Represent a fragment, such as HLS segment, DVR segment or DASH segment.
+// It's a media file, for example FLV or MP4, with duration.
 class SrsFragment
 {
 private:
@@ -75,9 +73,7 @@ public:
     virtual srs_error_t rename();
 };
 
-/**
- * The fragment window manage a series of fragment.
- */
+// The fragment window manage a series of fragment.
 class SrsFragmentWindow
 {
 private:

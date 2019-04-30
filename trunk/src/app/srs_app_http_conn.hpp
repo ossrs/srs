@@ -55,9 +55,7 @@ class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
-/**
- * The http connection which request the static or stream content.
- */
+// The http connection which request the static or stream content.
 class SrsHttpConn : public SrsConnection
 {
 protected:
@@ -73,26 +71,22 @@ public:
 protected:
     virtual srs_error_t do_cycle();
 protected:
-    // when got http message,
+    // When got http message,
     // for the static service or api, discard any body.
     // for the stream caster, for instance, http flv streaming, may discard the flv header or not.
     virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg) = 0;
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-    /**
-     * when the connection disconnect, call this method.
-     * e.g. log msg of connection and report to other system.
-     * @param request: request which is converted by the last http message.
-     */
+    // When the connection disconnect, call this method.
+    // e.g. log msg of connection and report to other system.
+    // @param request: request which is converted by the last http message.
     virtual srs_error_t on_disconnect(SrsRequest* req);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_stream_crossdomain();
 };
 
-/**
- * drop body of request, only process the response.
- */
+// Drop body of request, only process the response.
 class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
@@ -109,9 +103,7 @@ public:
     virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
 };
 
-/**
- * the http server, use http stream or static server to serve requests.
- */
+// The http server, use http stream or static server to serve requests.
 class SrsHttpServer : public ISrsHttpServeMux
 {
 private:
@@ -123,10 +115,9 @@ public:
     virtual ~SrsHttpServer();
 public:
     virtual srs_error_t initialize();
-    // ISrsHttpServeMux
+// interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-    // http flv/ts/mp3/aac stream
 public:
     virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);

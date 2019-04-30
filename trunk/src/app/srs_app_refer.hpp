@@ -36,11 +36,9 @@ public:
     SrsRefer();
     virtual ~SrsRefer();
 public:
-    /**
-     * to check the refer.
-     * @param page_url the client page url.
-     * @param refer the refer in config.
-     */
+    // Check the refer.
+    // @param page_url the client page url.
+    // @param refer the refer in config.
     virtual srs_error_t check(std::string page_url, SrsConfDirective* refer);
 private:
     virtual srs_error_t check_single_refer(std::string page_url, std::string refer);

@@ -36,10 +36,8 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsFFMPEG;
 
-/**
- * the encoder for a stream,
- * may use multiple ffmpegs to transcode the specified stream.
- */
+// The encoder for a stream, may use multiple
+// ffmpegs to transcode the specified stream.
 class SrsEncoder : public ISrsCoroutineHandler
 {
 private:

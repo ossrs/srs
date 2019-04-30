@@ -35,10 +35,7 @@ class SrsConfDirective;
 class SrsPithyPrint;
 class SrsProcess;
 
-/**
- * a transcode engine: ffmepg,
- * used to transcode a stream to another.
- */
+// A transcode engine: ffmepg, used to transcode a stream to another.
 class SrsFFMPEG
 {
 private:

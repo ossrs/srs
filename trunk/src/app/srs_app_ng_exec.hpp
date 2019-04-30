@@ -35,11 +35,9 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsProcess;
 
-/**
- * the ng-exec is the exec feature introduced by nginx-rtmp,
- * @see https://github.com/arut/nginx-rtmp-module/wiki/Directives#exec_push
- * @see https://github.com/ossrs/srs/issues/367
- */
+// The ng-exec is the exec feature introduced by nginx-rtmp,
+// @see https://github.com/arut/nginx-rtmp-module/wiki/Directives#exec_push
+// @see https://github.com/ossrs/srs/issues/367
 class SrsNgExec : public ISrsCoroutineHandler
 {
 private:

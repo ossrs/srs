@@ -37,7 +37,7 @@ class SrsServer;
 #include <srs_http_stack.hpp>
 #include <srs_app_reload.hpp>
 
-// for http root.
+// For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {
 public:

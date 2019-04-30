@@ -40,9 +40,7 @@ class SrsMpdWriter;
 class SrsMp4M2tsInitEncoder;
 class SrsMp4M2tsSegmentEncoder;
 
-/**
- * The init mp4 for FMP4.
- */
+// The init mp4 for FMP4.
 class SrsInitMp4 : public SrsFragment
 {
 private:
@@ -56,9 +54,7 @@ public:
     virtual srs_error_t write(SrsFormat* format, bool video, int tid);
 };
 
-/**
- * The FMP4(Fragmented MP4) for DASH streaming.
- */
+// The FMP4(Fragmented MP4) for DASH streaming.
 class SrsFragmentedMp4 : public SrsFragment
 {
 private:
@@ -76,9 +72,7 @@ public:
     virtual srs_error_t reap(uint64_t& dts);
 };
 
-/**
- * The writer to write MPD for DASH.
- */
+// The writer to write MPD for DASH.
 class SrsMpdWriter
 {
 private:
@@ -113,9 +107,7 @@ public:
     virtual srs_error_t get_fragment(bool video, std::string& home, std::string& filename, int64_t& sn, srs_utime_t& basetime);
 };
 
-/**
- * The controller for DASH, control the MPD and FMP4 generating system.
- */
+// The controller for DASH, control the MPD and FMP4 generating system.
 class SrsDashController
 {
 private:
@@ -149,9 +141,7 @@ private:
     virtual srs_error_t refresh_init_mp4(SrsSharedPtrMessage* msg, SrsFormat* format);
 };
 
-/**
- * The MPEG-DASH encoder, transmux RTMP to DASH.
- */
+// The MPEG-DASH encoder, transmux RTMP to DASH.
 class SrsDash
 {
 private:
