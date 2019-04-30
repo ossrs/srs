@@ -125,7 +125,7 @@ public:
     virtual srs_error_t start();
     virtual void stop();
     virtual std::string get_curr_origin();
-// interface ISrsReusableThread2Handler
+// Interface ISrsReusableThread2Handler
 public:
     virtual srs_error_t cycle();
 private:
@@ -161,7 +161,7 @@ public:
     virtual srs_error_t initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual srs_error_t start();
     virtual void stop();
-// interface ISrsReusableThread2Handler
+// Interface ISrsReusableThread2Handler
 public:
     virtual srs_error_t cycle();
 private:

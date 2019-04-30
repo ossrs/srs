@@ -50,7 +50,7 @@ public:
 public:
     virtual srs_error_t start();
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
-// interface ISrsEndlessThreadHandler.
+// Interface ISrsEndlessThreadHandler.
 public:
     virtual srs_error_t cycle();
 };
@@ -255,11 +255,11 @@ public:
     // HTTP flv/ts/mp3/aac stream
     virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
     virtual void http_unmount(SrsSource* s, SrsRequest* r);
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_vhost_added(std::string vhost);
     virtual srs_error_t on_reload_vhost_http_remux_updated(std::string vhost);
-// interface ISrsHttpMatchHijacker
+// Interface ISrsHttpMatchHijacker
 public:
     virtual srs_error_t hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);
 private:

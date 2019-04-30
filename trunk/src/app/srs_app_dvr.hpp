@@ -103,7 +103,7 @@ private:
     virtual std::string generate_path();
     // When update the duration of segment by rtmp msg.
     virtual srs_error_t on_update_duration(SrsSharedPtrMessage* msg);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
@@ -227,7 +227,7 @@ public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual srs_error_t update_duration(SrsSharedPtrMessage* msg);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
@@ -267,7 +267,7 @@ public:
     // mux the video packets to dvr.
     // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr_apply(std::string vhost);
 };

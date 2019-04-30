@@ -46,10 +46,10 @@ public:
     virtual ~SrsCoroutineManager();
 public:
     srs_error_t start();
-// interface ISrsCoroutineHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
-// interface IConnectionManager
+// Interface IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);
 private:

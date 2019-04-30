@@ -392,7 +392,7 @@ public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
     virtual srs_error_t handle(std::string pattern, ISrsHttpHandler* handler);
-// interface ISrsHttpServeMux
+// Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
@@ -415,7 +415,7 @@ public:
     virtual ~SrsHttpCorsMux();
 public:
     virtual srs_error_t initialize(ISrsHttpServeMux* worker, bool cros_enabled);
-// interface ISrsHttpServeMux
+// Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };

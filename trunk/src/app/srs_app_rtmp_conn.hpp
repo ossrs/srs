@@ -127,14 +127,14 @@ public:
     virtual void dispose();
 protected:
     virtual srs_error_t do_cycle();
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
 private:

@@ -60,13 +60,13 @@ public:
     virtual ~SrsAppCasterFlv();
 public:
     virtual srs_error_t initialize();
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
-// interface IConnectionManager
+// Interface IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);
-// interface ISrsHttpHandler
+// Interface ISrsHttpHandler
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };

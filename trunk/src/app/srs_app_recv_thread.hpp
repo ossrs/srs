@@ -94,7 +94,7 @@ public:
     virtual srs_error_t start();
     virtual void stop();
     virtual void stop_loop();
-// interface ISrsReusableThread2Handler
+// Interface ISrsReusableThread2Handler
 public:
     virtual srs_error_t cycle();
 private:
@@ -126,7 +126,7 @@ public:
     virtual int size();
     virtual SrsCommonMessage* pump();
     virtual srs_error_t error_code();
-// interface ISrsMessagePumper
+// Interface ISrsMessagePumper
 public:
     virtual srs_error_t consume(SrsCommonMessage* msg);
     virtual bool interrupted();
@@ -184,19 +184,19 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
-// interface ISrsMessagePumper
+// Interface ISrsMessagePumper
 public:
     virtual srs_error_t consume(SrsCommonMessage* msg);
     virtual bool interrupted();
     virtual void interrupt(srs_error_t err);
     virtual void on_start();
     virtual void on_stop();
-// interface IMergeReadHandler
+// Interface IMergeReadHandler
 public:
 #ifdef SRS_PERF_MERGED_READ
     virtual void on_read(ssize_t nread);
 #endif
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
@@ -220,7 +220,7 @@ public:
     virtual srs_error_t start();
 public:
     virtual srs_error_t pull();
-// interface ISrsOneCycleThreadHandler
+// Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 };

@@ -79,7 +79,7 @@ public:
     // Forward the video packet.
     // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video);
-// interface ISrsReusableThread2Handler.
+// Interface ISrsReusableThread2Handler.
 public:
     virtual srs_error_t cycle();
 private:

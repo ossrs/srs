@@ -51,7 +51,7 @@ private:
 public:
     SrsFastLog();
     virtual ~SrsFastLog();
-// interface ISrsLog
+// Interface ISrsLog
 public:
     virtual srs_error_t initialize();
     virtual void reopen();
@@ -60,7 +60,7 @@ public:
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);
     virtual void warn(const char* tag, int context_id, const char* fmt, ...);
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_utc_time();
     virtual srs_error_t on_reload_log_tank();

@@ -382,7 +382,7 @@ public:
     virtual srs_error_t on_forwarder_start(SrsForwarder* forwarder);
     // For the SrsDvr to callback to request the sequence headers.
     virtual srs_error_t on_dvr_request_sh();
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_forward(std::string vhost);
     virtual srs_error_t on_reload_vhost_dash(std::string vhost);
@@ -519,7 +519,7 @@ public:
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
 public:

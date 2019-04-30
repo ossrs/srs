@@ -100,7 +100,7 @@ public:
     virtual ~SrsBufferListener();
 public:
     virtual srs_error_t listen(std::string ip, int port);
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
@@ -116,7 +116,7 @@ public:
     virtual ~SrsRtspListener();
 public:
     virtual srs_error_t listen(std::string i, int p);
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
@@ -132,7 +132,7 @@ public:
     virtual ~SrsHttpFlvListener();
 public:
     virtual srs_error_t listen(std::string i, int p);
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
@@ -176,7 +176,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t start();
-// interface ISrsEndlessThreadHandler.
+// Interface ISrsEndlessThreadHandler.
 public:
     virtual srs_error_t cycle();
 private:
@@ -296,13 +296,13 @@ public:
     virtual srs_error_t accept_client(SrsListenerType type, srs_netfd_t stfd);
 private:
     virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
-// interface IConnectionManager
+// Interface IConnectionManager
 public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
     // @see SrsConnection.on_thread_stop().
     virtual void remove(ISrsConnection* c);
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();
     virtual srs_error_t on_reload_pid();
@@ -313,7 +313,7 @@ public:
     virtual srs_error_t on_reload_http_stream_enabled();
     virtual srs_error_t on_reload_http_stream_disabled();
     virtual srs_error_t on_reload_http_stream_updated();
-// interface ISrsSourceHandler
+// Interface ISrsSourceHandler
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);

@@ -66,7 +66,7 @@ protected:
 public:
     SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip);
     virtual ~SrsConnection();
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
 public:
@@ -84,7 +84,7 @@ public:
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-// interface ISrsOneCycleThreadHandler
+// Interface ISrsOneCycleThreadHandler
 public:
     // The thread cycle function,
     // when serve connection completed, terminate the loop which will terminate the thread,

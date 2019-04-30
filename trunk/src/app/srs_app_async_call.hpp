@@ -70,7 +70,7 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
-// interface ISrsReusableThreadHandler
+// Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
 };

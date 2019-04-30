@@ -59,7 +59,7 @@ private:
 public:
     SrsConsoleLog(SrsLogLevel l, bool u);
     virtual ~SrsConsoleLog();
-// interface ISrsLog
+// Interface ISrsLog
 public:
     virtual srs_error_t initialize();
     virtual void reopen();

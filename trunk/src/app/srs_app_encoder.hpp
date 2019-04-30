@@ -52,7 +52,7 @@ public:
 public:
     virtual srs_error_t on_publish(SrsRequest* req);
     virtual void on_unpublish();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 private:

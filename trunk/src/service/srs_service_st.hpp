@@ -170,7 +170,7 @@ private:
     // Close the connection to server.
     // @remark User should never use the client when close it.
     virtual void close();
-// interface ISrsProtocolReadWriter
+// Interface ISrsProtocolReadWriter
 public:
     virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);

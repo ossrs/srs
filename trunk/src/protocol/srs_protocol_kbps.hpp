@@ -221,14 +221,14 @@ public:
      *       use the add_delta() is better solutions.
      */
     virtual void sample();
-// interface ISrsProtocolStatistic
+// Interface ISrsProtocolStatistic
 public:
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
-// interface ISrsMemorySizer
+// Interface ISrsMemorySizer
 public:
     virtual int size_memory();
 };

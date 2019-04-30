@@ -87,7 +87,7 @@ public:
     virtual srs_netfd_t stfd();
 public:
     virtual srs_error_t listen();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };
@@ -110,7 +110,7 @@ public:
     virtual int fd();
 public:
     virtual srs_error_t listen();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };

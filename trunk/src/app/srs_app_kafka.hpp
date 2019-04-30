@@ -81,7 +81,7 @@ private:
 public:
     SrsKafkaMessage(SrsKafkaProducer* p, int k, SrsJsonObject* j);
     virtual ~SrsKafkaMessage();
-// interface ISrsAsyncCallTask
+// Interface ISrsAsyncCallTask
 public:
     virtual srs_error_t call();
     virtual std::string to_string();
@@ -168,11 +168,11 @@ public:
     // @param key the key to map to the partition, user can use cid or hash.
     // @param obj the json object; user must never free it again.
     virtual srs_error_t send(int key, SrsJsonObject* obj);
-// interface ISrsKafkaCluster
+// Interface ISrsKafkaCluster
 public:
     virtual srs_error_t on_client(int key, SrsListenerType type, std::string ip);
     virtual srs_error_t on_close(int key);
-// interface ISrsReusableThreadHandler
+// Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
 private:

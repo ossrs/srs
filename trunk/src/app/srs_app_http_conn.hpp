@@ -65,7 +65,7 @@ protected:
 public:
     SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpConn();
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
 protected:
@@ -81,7 +81,7 @@ private:
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
     virtual srs_error_t on_disconnect(SrsRequest* req);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_stream_crossdomain();
 };
@@ -115,7 +115,7 @@ public:
     virtual ~SrsHttpServer();
 public:
     virtual srs_error_t initialize();
-// interface ISrsHttpServeMux
+// Interface ISrsHttpServeMux
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:

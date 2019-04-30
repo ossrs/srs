@@ -662,10 +662,10 @@ private:
 public:
     SrsIngestHlsOutput(SrsHttpUri* rtmp);
     virtual ~SrsIngestHlsOutput();
-// interface ISrsTsHandler
+// Interface ISrsTsHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
-// interface IAacHandler
+// Interface IAacHandler
 public:
     virtual int on_aac_frame(char* frame, int frame_size, double duration);
 private:

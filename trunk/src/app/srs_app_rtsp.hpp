@@ -68,7 +68,7 @@ public:
 public:
     virtual int port();
     virtual srs_error_t listen();
-// interface ISrsUdpHandler
+// Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
@@ -148,7 +148,7 @@ private:
 // internal methods
 public:
     virtual srs_error_t on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
-// interface ISrsOneCycleThreadHandler
+// Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -188,7 +188,7 @@ public:
     virtual srs_error_t alloc_port(int* pport);
     // Free the alloced rtp port.
     virtual void free_port(int lpmin, int lpmax);
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 // internal methods.

@@ -373,17 +373,13 @@ string srs_getenv(const char* name)
 srs_error_t run(SrsServer* svr)
 {
     srs_error_t err = srs_success;
-    
-    /**
-     * we do nothing in the constructor of server,
-     * and use initialize to create members, set hooks for instance the reload handler,
-     * all initialize will done in this stage.
-     */
+
+    // Initialize the whole system, set hooks to handle server level events.
     if ((err = svr->initialize(NULL)) != srs_success) {
         return srs_error_wrap(err, "server initialize");
     }
     
-    // if not deamon, directly run master.
+    // If not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
         if ((err = run_master(svr)) != srs_success) {
             return srs_error_wrap(err, "run master");

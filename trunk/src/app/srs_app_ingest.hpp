@@ -85,7 +85,7 @@ public:
     virtual void stop();
 private:
     virtual void fast_stop();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 private:
@@ -97,7 +97,7 @@ private:
     virtual srs_error_t parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
     virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
     virtual void show_ingest_log_message();
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_vhost_added(std::string vhost);

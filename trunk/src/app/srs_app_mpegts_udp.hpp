@@ -91,12 +91,12 @@ private:
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();
-// interface ISrsUdpHandler
+// Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 private:
     virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
-// interface ISrsTsHandler
+// Interface ISrsTsHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 private:

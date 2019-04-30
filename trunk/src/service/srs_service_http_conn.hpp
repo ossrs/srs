@@ -253,7 +253,7 @@ public:
 public:
     // Initialize the response reader with buffer.
     virtual srs_error_t initialize(SrsFastStream* buffer);
-// interface ISrsHttpResponseReader
+// Interface ISrsHttpResponseReader
 public:
     virtual bool eof();
     virtual srs_error_t read(char* data, int nb_data, int* nb_read);
