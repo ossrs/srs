@@ -3433,19 +3433,16 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-           RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_URL "\n"
-           "License: " RTMP_SIG_SRS_LICENSE "\n"
-           "Build: " SRS_AUTO_BUILD_DATE " Configuration:" SRS_AUTO_USER_CONFIGURE "\n"
-           "Features:" SRS_AUTO_CONFIGURE "\n""\n"
+           RTMP_SIG_SRS_SERVER ", " RTMP_SIG_SRS_URL ", licensed under " RTMP_SIG_SRS_LICENSE
+           ", built at " SRS_AUTO_BUILD_DATE ", configured by " SRS_AUTO_USER_CONFIGURE
+           ", which means " SRS_AUTO_CONFIGURE "\n""\n"
            "Usage: %s [-h?vVgG] [[-t] -c <filename>]\n"
-           "\n"
            "Options:\n"
            "   -?, -h              : show this help and exit(0)\n"
            "   -v, -V              : show version and exit(0)\n"
            "   -g, -G              : show server signature and exit(0)\n"
            "   -t                  : test configuration file, exit(error_code).\n"
            "   -c filename         : use configuration file for SRS\n"
-           "\n"
            "For example:\n"
            "   %s -v\n"
            "   %s -t -c " SRS_CONF_DEFAULT_COFNIG_FILE "\n"
