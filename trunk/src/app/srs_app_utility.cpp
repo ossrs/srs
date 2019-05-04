@@ -362,7 +362,6 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     fclose(f);
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     r.ok = true;
@@ -401,7 +400,6 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
     fclose(f);
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     r.ok = true;
@@ -520,7 +518,6 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
     fclose(f);
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     r.ok = true;
@@ -606,7 +603,6 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
     fclose(f);
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     r.ok = true;
@@ -728,7 +724,6 @@ void srs_update_meminfo()
     fclose(f);
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     r.sample_time = srsu2ms(srs_get_system_time());
@@ -948,7 +943,6 @@ void srs_update_network_devices()
     }
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
 }
 
@@ -1029,7 +1023,6 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     }
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
     nb_socks = 0;
     nb_tcp4_hashed = 0;
     nb_tcp_orphans = 0;
@@ -1073,7 +1066,6 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     }
 #else
     // TODO: FIXME: impelments it.
-    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
 #endif
     
     // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c

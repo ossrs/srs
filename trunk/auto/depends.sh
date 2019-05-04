@@ -428,15 +428,15 @@ SED="sed_utility" && echo "SED is $SED"
 #####################################################################################
 # check the os.
 #####################################################################################
-# user must specifies something what a fuck, we suppport following os:
-#       centos/ubuntu/osx,
+# Only supports:
+#       linux, centos/ubuntu as such,
 #       cross build for embeded system, for example, mips or arm,
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
 if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
-        echo "What a fuck, your OS `uname -s` is not supported."
+        echo "Your OS `uname -s` is not supported."
         exit 1
     fi
 fi
