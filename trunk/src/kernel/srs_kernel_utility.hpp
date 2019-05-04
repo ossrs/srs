@@ -33,160 +33,132 @@
 class SrsBuffer;
 class SrsBitBuffer;
 
-// compare
+// Basic compare function.
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
 #define srs_max(a, b) (((a) < (b))? (b) : (a))
 
-// read nalu uev.
+// To read H.264 NALU uev.
 extern srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer* stream, int32_t& v);
 extern srs_error_t srs_avc_nalu_read_bit(SrsBitBuffer* stream, int8_t& v);
 
-// get current system time in srs_utime_t, use cache to avoid performance problem
+// Get current system time in srs_utime_t, use cache to avoid performance problem
 extern srs_utime_t srs_get_system_time();
 extern srs_utime_t srs_get_system_startup_time();
-// the deamon st-thread will update it.
+// A daemon st-thread updates it.
 extern srs_utime_t srs_update_system_time();
 
-// the any address for listener,
-// it's "0.0.0.0" for ipv4, and "::" for ipv6.
+// The "ANY" address to listen, it's "0.0.0.0" for ipv4, and "::" for ipv6.
 extern std::string srs_any_address4listener();
 
-// dns resolve utility, return the resolved ip address.
+// The dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host, int& family);
 
-// split the host:port to host and port.
+// Split the host:port to host and port.
 // @remark the hostport format in <host[:port]>, where port is optional.
 extern void srs_parse_hostport(const std::string& hostport, std::string& host, int& port);
 
-// parse the endpoint to ip and port.
-// @remark hostport format in <[ip:]port>, where ip is default to "0.0.0.0".
+// Parse the endpoint to ip and port.
+// @remark The hostport format in <[ip:]port>, where ip is default to "0.0.0.0".
 extern void srs_parse_endpoint(std::string hostport, std::string& ip, int& port);
 
-// parse the int64 value to string.
+// Parse the int64 value to string.
 extern std::string srs_int2str(int64_t value);
-// parse the float value to string, precise is 2.
+// Parse the float value to string, precise is 2.
 extern std::string srs_float2str(double value);
-// convert bool to switch value, true to "on", false to "off".
+// Convert bool to switch value, true to "on", false to "off".
 extern std::string srs_bool2switch(bool v);
 
-// whether system is little endian
+// Whether system is little endian
 extern bool srs_is_little_endian();
 
-// replace old_str to new_str of str
+// Replace old_str to new_str of str
 extern std::string srs_string_replace(std::string str, std::string old_str, std::string new_str);
-// trim char in trim_chars of str
+// Trim char in trim_chars of str
 extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
-// trim char in trim_chars of str
+// Trim char in trim_chars of str
 extern std::string srs_string_trim_start(std::string str, std::string trim_chars);
-// remove char in remove_chars of str
+// Remove char in remove_chars of str
 extern std::string srs_string_remove(std::string str, std::string remove_chars);
-// remove first substring from str
+// Remove first substring from str
 extern std::string srs_erase_first_substr(std::string str, std::string erase_string);
-// remove last substring from str
+// Remove last substring from str
 extern std::string srs_erase_last_substr(std::string str, std::string erase_string);
-// whether string end with
+// Whether string end with
 extern bool srs_string_ends_with(std::string str, std::string flag);
 extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1);
 extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1, std::string flag2);
 extern bool srs_string_ends_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
-// whether string starts with
+// Whether string starts with
 extern bool srs_string_starts_with(std::string str, std::string flag);
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1);
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2);
 extern bool srs_string_starts_with(std::string str, std::string flag0, std::string flag1, std::string flag2, std::string flag3);
-// whether string contains with
+// Whether string contains with
 extern bool srs_string_contains(std::string str, std::string flag);
 extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1);
 extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1, std::string flag2);
-// find the min match in str for flags.
+// Find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
-// split the string by flag to array.
+// Split the string by flag to array.
 extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
 extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
 
-/**
- * compare the memory in bytes.
- * @return true if completely equal; otherwise, false.
- */
+// Compare the memory in bytes.
+// @return true if completely equal; otherwise, false.
 extern bool srs_bytes_equals(void* pa, void* pb, int size);
 
-// create dir recursively
+// Create dir recursively
 extern srs_error_t srs_create_dir_recursively(std::string dir);
 
-// whether path exists.
+// Whether path exists.
 extern bool srs_path_exists(std::string path);
-// get the dirname of path, for instance, dirname("/live/livestream")="/live"
+// Get the dirname of path, for instance, dirname("/live/livestream")="/live"
 extern std::string srs_path_dirname(std::string path);
-// get the basename of path, for instance, basename("/live/livestream")="livestream"
+// Get the basename of path, for instance, basename("/live/livestream")="livestream"
 extern std::string srs_path_basename(std::string path);
-// get the filename of path, for instance, filename("livestream.flv")="livestream"
+// Get the filename of path, for instance, filename("livestream.flv")="livestream"
 extern std::string srs_path_filename(std::string path);
-// get the file extension of path, for instance, filext("live.flv")=".flv"
+// Get the file extension of path, for instance, filext("live.flv")=".flv"
 extern std::string srs_path_filext(std::string path);
 
-/**
- * whether stream starts with the avc NALU in "AnnexB"
- * from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
- * start code must be "N[00] 00 00 01" where N>=0
- * @param pnb_start_code output the size of start code, must >=3.
- *       NULL to ignore.
- */
+// Whether stream starts with the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+// The start code must be "N[00] 00 00 01" where N>=0
+// @param pnb_start_code output the size of start code, must >=3. NULL to ignore.
 extern bool srs_avc_startswith_annexb(SrsBuffer* stream, int* pnb_start_code = NULL);
 
-/**
- * whether stream starts with the aac ADTS
- * from ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS.
- * start code must be '1111 1111 1111'B, that is 0xFFF
- */
+// Whether stream starts with the aac ADTS from ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS.
+// The start code must be '1111 1111 1111'B, that is 0xFFF
 extern bool srs_aac_startswith_adts(SrsBuffer* stream);
 
-/**
- * cacl the crc32 of bytes in buf, for ffmpeg.
- */
+// Cacl the crc32 of bytes in buf, for ffmpeg.
 extern uint32_t srs_crc32_mpegts(const void* buf, int size);
 
-/**
- * calc the crc32 of bytes in buf by IEEE, for zip.
- */
+// Calc the crc32 of bytes in buf by IEEE, for zip.
 extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0);
 
-/**
- * Decode a base64-encoded string.
- */
+// Decode a base64-encoded string.
 extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plaintext);
 
-/**
- * Calculate the output size needed to base64-encode x bytes to a
- * null-terminated string.
- */
+// Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)
 
-/**
- * convert hex string to data.
- * for example, p=config='139056E5A0'
- * output hex to data={0x13, 0x90, 0x56, 0xe5, 0xa0}
- */
+// Convert hex string to data, for example, p=config='139056E5A0'
+// The output data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0} as such.
 extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
 
-/**
- * convert data string to hex.
- */
+// Convert data string to hex.
 extern char *srs_data_to_hex(char *des, const uint8_t *src, int len);
 
-/**
- * generate the c0 chunk header for msg.
- * @param cache, the cache to write header.
- * @param nb_cache, the size of cache.
- * @return the size of header. 0 if cache not enough.
- */
+// Generate the c0 chunk header for msg.
+// @param cache, the cache to write header.
+// @param nb_cache, the size of cache.
+// @return The size of header. 0 if cache not enough.
 extern int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char* cache, int nb_cache);
 
-/**
- * generate the c3 chunk header for msg.
- * @param cache, the cache to write header.
- * @param nb_cache, the size of cache.
- * @return the size of header. 0 if cache not enough.
- */
+// Generate the c3 chunk header for msg.
+// @param cache, the cache to write header.
+// @param nb_cache, the size of cache.
+// @return the size of header. 0 if cache not enough.
 extern int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, int nb_cache);
 
 #endif

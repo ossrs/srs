@@ -49,9 +49,7 @@ class SrsFormat;
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
 
-/**
- * The segmenter for DVR, to write a segment file in flv/mp4.
- */
+// The segmenter for DVR, to write a segment file in flv/mp4.
 class SrsDvrSegmenter : public ISrsReloadHandler
 {
 protected:
@@ -105,14 +103,12 @@ private:
     virtual std::string generate_path();
     // When update the duration of segment by rtmp msg.
     virtual srs_error_t on_update_duration(SrsSharedPtrMessage* msg);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
 
-/**
- * The FLV segmenter to use FLV encoder to write file.
- */
+// The FLV segmenter to use FLV encoder to write file.
 class SrsDvrFlvSegmenter : public SrsDvrSegmenter
 {
 private:
@@ -140,9 +136,7 @@ protected:
     virtual srs_error_t close_encoder();
 };
 
-/**
- * The MP4 segmenter to use MP4 encoder to write file.
- */
+// The MP4 segmenter to use MP4 encoder to write file.
 class SrsDvrMp4Segmenter : public SrsDvrSegmenter
 {
 private:
@@ -161,9 +155,7 @@ protected:
     virtual srs_error_t close_encoder();
 };
 
-/**
- * the dvr async call.
- */
+// the dvr async call.
 class SrsDvrAsyncCallOnDvr : public ISrsAsyncCallTask
 {
 private:
@@ -178,9 +170,7 @@ public:
     virtual std::string to_string();
 };
 
-/**
- * The DVR plan, when and how to reap segment.
- */
+// The DVR plan, when and how to reap segment.
 class SrsDvrPlan : public ISrsReloadHandler
 {
 public:
@@ -208,9 +198,7 @@ public:
     static srs_error_t create_plan(std::string vhost, SrsDvrPlan** pplan);
 };
 
-/**
- * The DVR session plan: reap flv when session complete(unpublish)
- */
+// The DVR session plan: reap flv when session complete(unpublish)
 class SrsDvrSessionPlan : public SrsDvrPlan
 {
 public:
@@ -221,9 +209,7 @@ public:
     virtual void on_unpublish();
 };
 
-/**
- * The DVR segment plan: reap flv when duration exceed.
- */
+// The DVR segment plan: reap flv when duration exceed.
 class SrsDvrSegmentPlan : public SrsDvrPlan
 {
 private:
@@ -241,14 +227,12 @@ public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
     virtual srs_error_t update_duration(SrsSharedPtrMessage* msg);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr(std::string vhost);
 };
 
-/**
- * DVR(Digital Video Recorder) to record RTMP stream to flv/mp4 file.
- */
+// DVR(Digital Video Recorder) to record RTMP stream to flv/mp4 file.
 class SrsDvr : public ISrsReloadHandler
 {
 private:
@@ -264,38 +248,26 @@ public:
     SrsDvr();
     virtual ~SrsDvr();
 public:
-    /**
-     * initialize dvr, create dvr plan.
-     * when system initialize(encoder publish at first time, or reload),
-     * initialize the dvr will reinitialize the plan, the whole dvr framework.
-     */
+    // initialize dvr, create dvr plan.
+    // when system initialize(encoder publish at first time, or reload),
+    // initialize the dvr will reinitialize the plan, the whole dvr framework.
     virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
-    /**
-     * publish stream event,
-     * when encoder start to publish RTMP stream.
-     * @param fetch_sequence_header whether fetch sequence from source.
-     */
+    // publish stream event,
+    // when encoder start to publish RTMP stream.
+    // @param fetch_sequence_header whether fetch sequence from source.
     virtual srs_error_t on_publish();
-    /**
-     * the unpublish event.,
-     * when encoder stop(unpublish) to publish RTMP stream.
-     */
+    // the unpublish event.,
+    // when encoder stop(unpublish) to publish RTMP stream.
     virtual void on_unpublish();
-    /**
-     * get some information from metadata, it's optinal.
-     */
+    // get some information from metadata, it's optinal.
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* metadata);
-    /**
-     * mux the audio packets to dvr.
-     * @param shared_audio, directly ptr, copy it if need to save it.
-     */
+    // mux the audio packets to dvr.
+    // @param shared_audio, directly ptr, copy it if need to save it.
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* foramt);
-    /**
-     * mux the video packets to dvr.
-     * @param shared_video, directly ptr, copy it if need to save it.
-     */
+    // mux the video packets to dvr.
+    // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_dvr_apply(std::string vhost);
 };

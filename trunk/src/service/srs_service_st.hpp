@@ -36,10 +36,10 @@ typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
 
-// initialize st, requires epoll.
+// Initialize st, requires epoll.
 extern srs_error_t srs_st_init();
 
-// close the netfd, and close the underlayer fd.
+// Close the netfd, and close the underlayer fd.
 // @remark when close, user must ensure io completed.
 extern void srs_close_stfd(srs_netfd_t& stfd);
 
@@ -81,9 +81,7 @@ extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addr
 
 extern ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout);
 
-/**
- * The mutex locker.
- */
+// The mutex locker.
 #define SrsLocker(instance) \
     impl__SrsLocker _srs_auto_free_##instance(&instance)
 
@@ -102,10 +100,8 @@ public:
     }
 };
 
-/**
- * the socket provides TCP socket over st,
- * that is, the sync socket mechanism.
- */
+// the socket provides TCP socket over st,
+// that is, the sync socket mechanism.
 class SrsStSocket : public ISrsProtocolReadWriter
 {
 private:
@@ -133,28 +129,22 @@ public:
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
 public:
-    /**
-     * @param nread, the actual read bytes, ignore if NULL.
-     */
+    // @param nread, the actual read bytes, ignore if NULL.
     virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
-    /**
-     * @param nwrite, the actual write bytes, ignore if NULL.
-     */
+    // @param nwrite, the actual write bytes, ignore if NULL.
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
-/**
- * The client to connect to server over TCP.
- * User must never reuse the client when close it.
- * Usage:
- *      SrsTcpClient client("127.0.0.1", 1935, 9 * SRS_UTIME_SECONDS);
- *      client.connect();
- *      client.write("Hello world!", 12, NULL);
- *      client.read(buf, 4096, NULL);
- * @remark User can directly free the object, which will close the fd.
- */
+// The client to connect to server over TCP.
+// User must never reuse the client when close it.
+// Usage:
+//      SrsTcpClient client("127.0.0.1", 1935, 9 * SRS_UTIME_SECONDS);
+//      client.connect();
+//      client.write("Hello world!", 12, NULL);
+//      client.read(buf, 4096, NULL);
+// @remark User can directly free the object, which will close the fd.
 class SrsTcpClient : public ISrsProtocolReadWriter
 {
 private:
@@ -166,27 +156,21 @@ private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
 public:
-    /**
-     * Constructor.
-     * @param h the ip or hostname of server.
-     * @param p the port to connect to.
-     * @param tm the timeout in srs_utime_t.
-     */
+    // Constructor.
+    // @param h the ip or hostname of server.
+    // @param p the port to connect to.
+    // @param tm the timeout in srs_utime_t.
     SrsTcpClient(std::string h, int p, srs_utime_t tm);
     virtual ~SrsTcpClient();
 public:
-    /**
-     * Connect to server over TCP.
-     * @remark We will close the exists connection before do connect.
-     */
+    // Connect to server over TCP.
+    // @remark We will close the exists connection before do connect.
     virtual srs_error_t connect();
 private:
-    /**
-     * Close the connection to server.
-     * @remark User should never use the client when close it.
-     */
+    // Close the connection to server.
+    // @remark User should never use the client when close it.
     virtual void close();
-// interface ISrsProtocolReadWriter
+// Interface ISrsProtocolReadWriter
 public:
     virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);

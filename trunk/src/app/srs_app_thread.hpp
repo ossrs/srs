@@ -31,12 +31,10 @@
 #include <srs_app_st.hpp>
 #include <srs_service_conn.hpp>
 
-/**
- * The coroutine manager use a thread to delete a connection, which will stop the service
- * thread, for example, when the RTMP connection thread cycle terminated, it will notify
- * the manager(the server) to remove the connection from list of server and push it to
- * the manager thread to delete it, finally the thread of connection will stop.
- */
+// The coroutine manager use a thread to delete a connection, which will stop the service
+// thread, for example, when the RTMP connection thread cycle terminated, it will notify
+// the manager(the server) to remove the connection from list of server and push it to
+// the manager thread to delete it, finally the thread of connection will stop.
 class SrsCoroutineManager : virtual public ISrsCoroutineHandler, virtual public IConnectionManager
 {
 private:
@@ -48,10 +46,10 @@ public:
     virtual ~SrsCoroutineManager();
 public:
     srs_error_t start();
-// ISrsCoroutineHandler
+// Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
-// IConnectionManager
+// Interface IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);
 private:

@@ -118,9 +118,8 @@ srs_error_t do_main(int argc, char** argv)
     }
     
     // config already applied to log.
-    srs_trace(RTMP_SIG_SRS_SERVER ", stable is " RTMP_SIG_SRS_PRIMARY);
-    srs_trace("license: " RTMP_SIG_SRS_LICENSE ", " RTMP_SIG_SRS_COPYRIGHT);
-    srs_trace("authors: " RTMP_SIG_SRS_AUTHROS);
+    srs_trace(RTMP_SIG_SRS_SERVER);
+    srs_trace("license: " RTMP_SIG_SRS_LICENSE);
     srs_trace("contributors: " SRS_AUTO_CONSTRIBUTORS);
     srs_trace("build: %s, configure:%s, uname: %s", SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
     srs_trace("configure detail: " SRS_AUTO_CONFIGURE);
@@ -373,17 +372,13 @@ string srs_getenv(const char* name)
 srs_error_t run(SrsServer* svr)
 {
     srs_error_t err = srs_success;
-    
-    /**
-     * we do nothing in the constructor of server,
-     * and use initialize to create members, set hooks for instance the reload handler,
-     * all initialize will done in this stage.
-     */
+
+    // Initialize the whole system, set hooks to handle server level events.
     if ((err = svr->initialize(NULL)) != srs_success) {
         return srs_error_wrap(err, "server initialize");
     }
     
-    // if not deamon, directly run master.
+    // If not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
         if ((err = run_master(svr)) != srs_success) {
             return srs_error_wrap(err, "run master");

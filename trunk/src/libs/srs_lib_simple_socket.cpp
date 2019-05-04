@@ -365,7 +365,7 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
     return srs_hijack_io_connect(io, server_ip, port);
 }
 
-// ISrsReader
+// Interface ISrsReader
 srs_error_t SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);
@@ -376,7 +376,7 @@ srs_error_t SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
     return srs_success;
 }
 
-// ISrsProtocolReader
+// Interface ISrsProtocolReader
 void SimpleSocketStream::set_recv_timeout(srs_utime_t tm)
 {
     srs_assert(io);
@@ -395,7 +395,7 @@ int64_t SimpleSocketStream::get_recv_bytes()
     return srs_hijack_io_get_recv_bytes(io);
 }
 
-// ISrsProtocolWriter
+// Interface ISrsProtocolWriter
 void SimpleSocketStream::set_send_timeout(srs_utime_t tm)
 {
     srs_assert(io);
@@ -424,7 +424,7 @@ srs_error_t SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* 
     return srs_success;
 }
 
-// ISrsProtocolReadWriter
+// Interface ISrsProtocolReadWriter
 bool SimpleSocketStream::is_never_timeout(srs_utime_t tm)
 {
     srs_assert(io);

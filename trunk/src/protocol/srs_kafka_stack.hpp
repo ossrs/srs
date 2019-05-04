@@ -77,7 +77,7 @@ public:
     virtual bool empty();
     virtual std::string to_str();
     virtual void set_value(std::string v);
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -106,7 +106,7 @@ public:
     virtual void set_value(std::string v);
     virtual void set_value(const char* v, int nb_v);
     virtual uint32_t crc32(uint32_t previous);
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -164,7 +164,7 @@ public:
     {
         return elems.at(index);
     }
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes()
     {
@@ -251,7 +251,7 @@ public:
     {
         return elems.at(index);
     }
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes()
     {
@@ -400,7 +400,7 @@ public:
     virtual bool is_offset_commit_request();
     virtual bool is_offset_fetch_request();
     virtual bool is_consumer_metadata_request();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -466,7 +466,7 @@ public:
      * get the correlation id of response message.
      */
     virtual int32_t correlation_id();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -533,7 +533,7 @@ private:
      * get the raw message, bytes after the message_size.
      */
     virtual int raw_message_size();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -554,7 +554,7 @@ public:
     virtual ~SrsKafkaRawMessageSet();
 public:
     virtual void append(SrsKafkaRawMessage* msg);
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -585,7 +585,7 @@ public:
      * get the api key of request.
      */
     virtual SrsKafkaApiKey api_key();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -608,7 +608,7 @@ public:
      * @param s an int value specifies the size of message in header.
      */
     virtual void update_header(int s);
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -638,7 +638,7 @@ public:
     virtual ~SrsKafkaTopicMetadataRequest();
 public:
     virtual void add_topic(std::string topic);
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -658,7 +658,7 @@ public:
 public:
     SrsKafkaBroker();
     virtual ~SrsKafkaBroker();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -675,7 +675,7 @@ public:
 public:
     SrsKafkaPartitionMetadata();
     virtual ~SrsKafkaPartitionMetadata();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -690,7 +690,7 @@ public:
 public:
     SrsKafkaTopicMetadata();
     virtual ~SrsKafkaTopicMetadata();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -713,7 +713,7 @@ public:
 public:
     SrsKafkaTopicMetadataResponse();
     virtual ~SrsKafkaTopicMetadataResponse();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -740,7 +740,7 @@ public:
      * messages in set.
      */
     SrsKafkaRawMessageSet messages;
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -757,7 +757,7 @@ public:
      * messages of partitions.
      */
     SrsKafkaArray<SrsKafkaProducerPartitionMessages> partitions;
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -801,7 +801,7 @@ public:
 public:
     SrsKafkaProducerRequest();
     virtual ~SrsKafkaProducerRequest();
-// interface ISrsCodec
+// Interface ISrsCodec
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);

@@ -58,9 +58,7 @@ class SrsPacket;
 class ISrsKafkaCluster;
 #endif
 
-/**
- * The simple rtmp client for SRS.
- */
+// The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
 {
 public:
@@ -70,9 +68,7 @@ protected:
     virtual srs_error_t connect_app();
 };
 
-/**
- * Some information of client.
- */
+// Some information of client.
 class SrsClientInfo
 {
 public:
@@ -89,12 +85,10 @@ public:
     virtual ~SrsClientInfo();
 };
 
-/**
- * the client provides the main logic control for RTMP clients.
- */
+// The client provides the main logic control for RTMP clients.
 class SrsRtmpConn : virtual public SrsConnection, virtual public ISrsReloadHandler
 {
-    // for the thread to directly access any field of connection.
+    // For the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;
 private:
     SrsServer* server;
@@ -102,27 +96,27 @@ private:
     SrsRefer* refer;
     SrsBandwidth* bandwidth;
     SrsSecurity* security;
-    // the wakable handler, maybe NULL.
+    // The wakable handler, maybe NULL.
     // TODO: FIXME: Should refine the state for receiving thread.
     ISrsWakable* wakable;
-    // elapse duration in srs_utime_t
-    // for live play duration, for instance, rtmpdump to record.
+    // The elapsed duration in srs_utime_t
+    // For live play duration, for instance, rtmpdump to record.
     // @see https://github.com/ossrs/srs/issues/47
     srs_utime_t duration;
-    // the MR(merged-write) sleep time in srs_utime_t.
+    // The MR(merged-write) sleep time in srs_utime_t.
     srs_utime_t mw_sleep;
-    // the MR(merged-write) only enabled for play.
+    // The MR(merged-write) only enabled for play.
     int mw_enabled;
-    // for realtime
+    // For realtime
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
-    // the minimal interval in srs_utime_t for delivery stream.
+    // The minimal interval in srs_utime_t for delivery stream.
     srs_utime_t send_min_interval;
-    // publish 1st packet timeout in srs_utime_t
+    // The publish 1st packet timeout in srs_utime_t
     srs_utime_t publish_1stpkt_timeout;
-    // publish normal packet timeout in srs_utime_t
+    // The publish normal packet timeout in srs_utime_t
     srs_utime_t publish_normal_timeout;
-    // whether enable the tcp_nodelay.
+    // Whether enable the tcp_nodelay.
     bool tcp_nodelay;
     // About the rtmp client.
     SrsClientInfo* info;
@@ -133,20 +127,20 @@ public:
     virtual void dispose();
 protected:
     virtual srs_error_t do_cycle();
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_tcp_nodelay(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
     virtual srs_error_t on_reload_vhost_publish(std::string vhost);
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
 private:
-    // when valid and connected to vhost/app, service the client.
+    // When valid and connected to vhost/app, service the client.
     virtual srs_error_t service_cycle();
-    // stream(play/publish) service cycle, identify client first.
+    // The stream(play/publish) service cycle, identify client first.
     virtual srs_error_t stream_service_cycle();
     virtual srs_error_t check_vhost(bool try_default_vhost);
     virtual srs_error_t playing(SrsSource* source);
@@ -164,10 +158,8 @@ private:
     virtual srs_error_t check_edge_token_traverse_auth();
     virtual srs_error_t do_token_traverse_auth(SrsRtmpClient* client);
 private:
-    /**
-     * when the connection disconnect, call this method.
-     * e.g. log msg of connection and report to other system.
-     */
+    // When the connection disconnect, call this method.
+    // e.g. log msg of connection and report to other system.
     virtual srs_error_t on_disconnect();
 private:
     virtual srs_error_t http_hooks_on_connect();

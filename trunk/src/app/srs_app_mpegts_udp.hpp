@@ -48,15 +48,13 @@ class SrsSimpleRtmpClient;
 #include <srs_kernel_ts.hpp>
 #include <srs_app_listener.hpp>
 
-/**
- * the queue for mpegts over udp to send packets.
- * for the aac in mpegts contains many flv packets in a pes packet,
- * we must recalc the timestamp.
- */
+// The queue for mpegts over udp to send packets.
+// For the aac in mpegts contains many flv packets in a pes packet,
+// we must recalc the timestamp.
 class SrsMpegtsQueue
 {
 private:
-    // key: dts, value: msg.
+    // The key: dts, value: msg.
     std::map<int64_t, SrsSharedPtrMessage*> msgs;
     int nb_audios;
     int nb_videos;
@@ -68,11 +66,8 @@ public:
     virtual SrsSharedPtrMessage* dequeue();
 };
 
-/**
- * the mpegts over udp stream caster.
- */
-class SrsMpegtsOverUdp : virtual public ISrsTsHandler
-, virtual public ISrsUdpHandler
+// The mpegts over udp stream caster.
+class SrsMpegtsOverUdp : virtual public ISrsTsHandler, virtual public ISrsUdpHandler
 {
 private:
     SrsTsContext* context;
@@ -96,12 +91,12 @@ private:
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();
-// interface ISrsUdpHandler
+// Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 private:
     virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
-// interface ISrsTsHandler
+// Interface ISrsTsHandler
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage* msg);
 private:

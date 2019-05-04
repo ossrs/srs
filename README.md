@@ -147,9 +147,9 @@ Please select according to languages:
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
 - [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
+- [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
-- [ ] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
@@ -164,6 +164,8 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-04-30, Refine typo in files. 3.0.51
+* v3.0, 2019-04-25, Upgrade http-parser from 2.1 to 2.9.2 and cover it. 3.0.50
 * v3.0, 2019-04-22, Refine in time unit. 3.0.49
 * v3.0, 2019-04-07, Cover ST Coroutine and time unit. 3.0.48
 * v3.0, 2019-04-06, Merge [#1304][bug #1304], Fix ST coroutine pull error. 3.0.47

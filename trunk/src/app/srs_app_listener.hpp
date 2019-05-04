@@ -33,51 +33,39 @@
 
 struct sockaddr;
 
-/**
- * the udp packet handler.
- */
+// The udp packet handler.
 class ISrsUdpHandler
 {
 public:
     ISrsUdpHandler();
     virtual ~ISrsUdpHandler();
 public:
-    /**
-     * when fd changed, for instance, reload the listen port,
-     * notify the handler and user can do something.
-     */
+    // When fd changed, for instance, reload the listen port,
+    // notify the handler and user can do something.
     virtual srs_error_t on_stfd_change(srs_netfd_t fd);
 public:
-    /**
-     * when udp listener got a udp packet, notice server to process it.
-     * @param type, the client type, used to create concrete connection,
-     *       for instance RTMP connection to serve client.
-     * @param from, the udp packet from address.
-     * @param buf, the udp packet bytes, user should copy if need to use.
-     * @param nb_buf, the size of udp packet bytes.
-     * @remark user should never use the buf, for it's a shared memory bytes.
-     */
+    // When udp listener got a udp packet, notice server to process it.
+    // @param type, the client type, used to create concrete connection,
+    //       for instance RTMP connection to serve client.
+    // @param from, the udp packet from address.
+    // @param buf, the udp packet bytes, user should copy if need to use.
+    // @param nb_buf, the size of udp packet bytes.
+    // @remark user should never use the buf, for it's a shared memory bytes.
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
 };
 
-/**
- * the tcp connection handler.
- */
+// The tcp connection handler.
 class ISrsTcpHandler
 {
 public:
     ISrsTcpHandler();
     virtual ~ISrsTcpHandler();
 public:
-    /**
-     * when got tcp client.
-     */
+    // When got tcp client.
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd) = 0;
 };
 
-/**
- * bind udp port, start thread to recv packet and handler it.
- */
+// Bind udp port, start thread to recv packet and handler it.
 class SrsUdpListener : public ISrsCoroutineHandler
 {
 private:
@@ -99,14 +87,12 @@ public:
     virtual srs_netfd_t stfd();
 public:
     virtual srs_error_t listen();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };
 
-/**
- * bind and listen tcp port, use handler to process the client.
- */
+// Bind and listen tcp port, use handler to process the client.
 class SrsTcpListener : public ISrsCoroutineHandler
 {
 private:
@@ -124,7 +110,7 @@ public:
     virtual int fd();
 public:
     virtual srs_error_t listen();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };

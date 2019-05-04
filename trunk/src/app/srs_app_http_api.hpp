@@ -37,7 +37,7 @@ class SrsServer;
 #include <srs_http_stack.hpp>
 #include <srs_app_reload.hpp>
 
-// for http root.
+// For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {
 public:
@@ -187,7 +187,7 @@ public:
     virtual ~SrsGoApiRaw();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_api_raw_api();
 };
@@ -219,14 +219,14 @@ private:
 public:
     SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
     virtual ~SrsHttpApi();
-// interface ISrsKbpsDelta
+// Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
 protected:
     virtual srs_error_t do_cycle();
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-// interface ISrsReloadHandler
+// Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_api_crossdomain();
 };

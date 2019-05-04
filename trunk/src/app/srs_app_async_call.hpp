@@ -31,38 +31,29 @@
 
 #include <srs_app_thread.hpp>
 
-/**
- * the async call for http hooks,
- * for the http hooks will switch st-thread,
- * so we must use isolate thread to avoid the thread corrupt,
- * for example, when dvr call http hooks, the video receive thread got
- * a video and pass it to the dvr again.
- * futhurmore, the aync call never block the main worker thread.
- */
+// The async call for http hooks, for the http hooks will switch st-thread,
+// so we must use isolate thread to avoid the thread corrupt,
+// for example, when dvr call http hooks, the video receive thread got
+// a video and pass it to the dvr again.
+// Futhurmore, the aync call never block the main worker thread.
 class ISrsAsyncCallTask
 {
 public:
     ISrsAsyncCallTask();
     virtual ~ISrsAsyncCallTask();
 public:
-    /**
-     * execute the task async.
-     * this method is the actual execute method of task,
-     * for example, to notify callback server.
-     */
+    // Execute the task async.
+    // This method is the actual execute method of task,
+    // for example, to notify callback server.
     virtual srs_error_t call() = 0;
-    /**
-     * convert task to string to describe it.
-     * used for logger.
-     */
+    // Convert task to string to describe it.
+    // It's used for logger.
     virtual std::string to_string() = 0;
 };
 
-/**
- * the async callback for dvr, callback and other async worker.
- * when worker call with the task, the worker will do it in isolate thread.
- * that is, the task is execute/call in async mode.
- */
+// The async callback for dvr, callback and other async worker.
+// When worker call with the task, the worker will do it in isolate thread.
+// That is, the task is execute/call in async mode.
 class SrsAsyncCallWorker : public ISrsCoroutineHandler
 {
 private:
@@ -79,7 +70,7 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
-// interface ISrsReusableThreadHandler
+// Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
 };

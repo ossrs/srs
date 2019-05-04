@@ -52,9 +52,7 @@ class SrsSimpleStream;
 class SrsPithyPrint;
 class SrsSimpleRtmpClient;
 
-/**
- * a rtp connection which transport a stream.
- */
+// A rtp connection which transport a stream.
 class SrsRtpConn: public ISrsUdpHandler
 {
 private:
@@ -70,14 +68,12 @@ public:
 public:
     virtual int port();
     virtual srs_error_t listen();
-// interface ISrsUdpHandler
+// Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
-/**
- * audio is group by frames.
- */
+// The audio cache, audio is grouped by frames.
 struct SrsRtspAudioCache
 {
     int64_t dts;
@@ -88,9 +84,7 @@ struct SrsRtspAudioCache
     virtual ~SrsRtspAudioCache();
 };
 
-/**
- * the time jitter correct for rtsp.
- */
+// The time jitter correct for rtsp.
 class SrsRtspJitter
 {
 private:
@@ -105,9 +99,7 @@ public:
     virtual srs_error_t correct(int64_t& ts);
 };
 
-/**
- * the rtsp connection serve the fd.
- */
+// The rtsp connection serve the fd.
 class SrsRtspConn : public ISrsCoroutineHandler
 {
 private:
@@ -156,7 +148,7 @@ private:
 // internal methods
 public:
     virtual srs_error_t on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
-// interface ISrsOneCycleThreadHandler
+// Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 private:
@@ -176,16 +168,14 @@ private:
     virtual void close();
 };
 
-/**
- * the caster for rtsp.
- */
+// The caster for rtsp.
 class SrsRtspCaster : public ISrsTcpHandler
 {
 private:
     std::string output;
     int local_port_min;
     int local_port_max;
-    // key: port, value: whether used.
+    // The key: port, value: whether used.
     std::map<int, bool> used_ports;
 private:
     std::vector<SrsRtspConn*> clients;
@@ -193,19 +183,15 @@ public:
     SrsRtspCaster(SrsConfDirective* c);
     virtual ~SrsRtspCaster();
 public:
-    /**
-     * alloc a rtp port from local ports pool.
-     * @param pport output the rtp port.
-     */
+    // Alloc a rtp port from local ports pool.
+    // @param pport output the rtp port.
     virtual srs_error_t alloc_port(int* pport);
-    /**
-     * free the alloced rtp port.
-     */
+    // Free the alloced rtp port.
     virtual void free_port(int lpmin, int lpmax);
-// interface ISrsTcpHandler
+// Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
-    // internal methods.
+// internal methods.
 public:
     virtual void remove(SrsRtspConn* conn);
 };

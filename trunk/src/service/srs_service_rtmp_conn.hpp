@@ -37,15 +37,13 @@ class SrsPacket;
 class SrsKbps;
 class SrsWallClock;
 
-/**
- * The simple RTMP client, provides friendly APIs.
- * @remark Should never use client when closed.
- * Usage:
- *      SrsBasicRtmpClient client("rtmp://127.0.0.1:1935/live/livestream", 3000, 9000);
- *      client.connect();
- *      client.play();
- *      client.close();
- */
+// The simple RTMP client, provides friendly APIs.
+// @remark Should never use client when closed.
+// Usage:
+//      SrsBasicRtmpClient client("rtmp://127.0.0.1:1935/live/livestream", 3000, 9000);
+//      client.connect();
+//      client.play();
+//      client.close();
 class SrsBasicRtmpClient
 {
 private:

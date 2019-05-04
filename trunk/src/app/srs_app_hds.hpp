@@ -35,6 +35,7 @@ class SrsSharedPtrMessage;
 class SrsHdsFragment;
 class SrsSource;
 
+// Mux RTMP to Adobe HDS streaming.
 class SrsHds
 {
 public:

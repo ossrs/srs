@@ -35,9 +35,7 @@ class SrsFFMPEG;
 class SrsConfDirective;
 class SrsPithyPrint;
 
-/**
- * ingester ffmpeg object.
- */
+// Ingester ffmpeg object.
 class SrsIngesterFFMPEG
 {
 private:
@@ -50,9 +48,9 @@ public:
     virtual ~SrsIngesterFFMPEG();
 public:
     virtual srs_error_t initialize(SrsFFMPEG* ff, std::string v, std::string i);
-    // the ingest uri, [vhost]/[ingest id]
+    // The ingest uri, [vhost]/[ingest id]
     virtual std::string uri();
-    // the alive in srs_utime_t.
+    // The alive in srs_utime_t.
     virtual srs_utime_t alive();
     virtual bool equals(std::string v, std::string i);
     virtual bool equals(std::string v);
@@ -64,11 +62,9 @@ public:
     virtual void fast_stop();
 };
 
-/**
- * ingest file/stream/device,
- * encode with FFMPEG(optional),
- * push to SRS(or any RTMP server) over RTMP.
- */
+// Ingest file/stream/device,
+// encode with FFMPEG(optional),
+// push to SRS(or any RTMP server) over RTMP.
 class SrsIngester : public ISrsCoroutineHandler, public ISrsReloadHandler
 {
 private:
@@ -76,8 +72,7 @@ private:
 private:
     SrsCoroutine* trd;
     SrsPithyPrint* pprint;
-    // whether the ingesters are expired,
-    // for example, the listen port changed,
+    // Whether the ingesters are expired, for example, the listen port changed,
     // all ingesters must be restart.
     bool expired;
 public:
@@ -90,7 +85,7 @@ public:
     virtual void stop();
 private:
     virtual void fast_stop();
-// interface ISrsReusableThreadHandler.
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 private:
@@ -102,7 +97,7 @@ private:
     virtual srs_error_t parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
     virtual srs_error_t initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
     virtual void show_ingest_log_message();
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_vhost_added(std::string vhost);

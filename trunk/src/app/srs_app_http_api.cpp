@@ -550,10 +550,7 @@ srs_error_t SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
     
-    data->set("primary", SrsJsonAny::str(RTMP_SIG_SRS_PRIMARY));
     data->set("license", SrsJsonAny::str(RTMP_SIG_SRS_LICENSE));
-    data->set("copyright", SrsJsonAny::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("authors", SrsJsonAny::str(RTMP_SIG_SRS_AUTHROS));
     data->set("contributors", SrsJsonAny::str(SRS_AUTO_CONSTRIBUTORS));
     
     return srs_api_response(w, r, obj->dumps());

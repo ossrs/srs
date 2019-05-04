@@ -200,12 +200,16 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
-echo "#define SRS_AUTO_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
-for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
-    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
-done
-echo "\"" >> $SRS_AUTO_HEADERS_H
+if [[ -f ../AUTHORS.txt ]]; then
+	SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
+	echo "#define SRS_AUTO_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
+	for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
+	    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
+	done
+	echo "\"" >> $SRS_AUTO_HEADERS_H
+else
+	echo "#define SRS_AUTO_CONSTRIBUTORS \"ossrs\"" >> $SRS_AUTO_HEADERS_H
+fi
 
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H

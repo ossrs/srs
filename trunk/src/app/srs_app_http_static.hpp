@@ -28,12 +28,10 @@
 
 #include <srs_app_http_conn.hpp>
 
-/**
- * the flv vod stream supports flv?start=offset-bytes.
- * for example, http://server/file.flv?start=10240
- * server will write flv header and sequence header,
- * then seek(10240) and response flv tag data.
- */
+// The flv vod stream supports flv?start=offset-bytes.
+// For example, http://server/file.flv?start=10240
+// server will write flv header and sequence header,
+// then seek(10240) and response flv tag data.
 class SrsVodStream : public SrsHttpFileServer
 {
 public:
@@ -44,10 +42,8 @@ protected:
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
 };
 
-/**
- * the http static server instance,
- * serve http static file and flv/mp4 vod stream.
- */
+// The http static server instance,
+// serve http static file and flv/mp4 vod stream.
 class SrsHttpStaticServer : virtual public ISrsReloadHandler
 {
 private:
@@ -61,7 +57,7 @@ public:
     virtual srs_error_t initialize();
 private:
     virtual srs_error_t mount_vhost(std::string vhost, std::string& pmount);
-// interface ISrsReloadHandler.
+// Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_vhost_added(std::string vhost);
     virtual srs_error_t on_reload_vhost_http_updated();

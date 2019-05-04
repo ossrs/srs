@@ -27,7 +27,7 @@
 #include <srs_core.hpp>
 
 /**
- * auto free the instance in the current scope, for instance, MyClass* ptr,
+ * To free the instance in the current scope, for instance, MyClass* ptr,
  * which is a ptr and this class will:
  *       1. free the ptr.
  *       2. set ptr to NULL.
@@ -56,9 +56,6 @@ private:
     T** ptr;
     bool is_array;
 public:
-    /**
-     * auto delete the ptr.
-     */
     impl_SrsAutoFree(T** p, bool array) {
         ptr = p;
         is_array = array;

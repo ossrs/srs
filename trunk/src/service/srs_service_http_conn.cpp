@@ -82,7 +82,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     header = http_parser();
     url = "";
     headers.clear();
-    header_parsed = 0;
+    pbody = NULL;
     
     // do parse
     if ((err = parse_message_imp(reader)) != srs_success) {
@@ -109,38 +109,32 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     srs_error_t err = srs_success;
     
     while (true) {
-        ssize_t nparsed = 0;
-        
-        // when got entire http header, parse it.
-        // @see https://github.com/ossrs/srs/issues/400
-        char* start = buffer->bytes();
-        char* end = start + buffer->size();
-        for (char* p = start; p <= end - 4; p++) {
-            // SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
-            if (p[0] == SRS_CONSTS_CR && p[1] == SRS_CONSTS_LF && p[2] == SRS_CONSTS_CR && p[3] == SRS_CONSTS_LF) {
-                nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
-                srs_info("buffer=%d, nparsed=%d, header=%d", buffer->size(), (int)nparsed, header_parsed);
-                break;
-            }
-        }
-        
-        // consume the parsed bytes.
-        if (nparsed && header_parsed) {
-            buffer->read_slice(header_parsed);
-        }
-        
-        // ok atleast header completed,
-        // never wait for body completed, for maybe chunked.
-        if (state == SrsHttpParseStateHeaderComplete || state == SrsHttpParseStateMessageComplete) {
-            break;
+        if (buffer->size() > 0) {
+            ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+	        if (buffer->size() != nparsed) {
+	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse failed, nparsed=%d, size=%d", nparsed, buffer->size());
+	        }
+
+			// The consumed size, does not include the body.
+	        ssize_t consumed = nparsed;
+	        if (pbody && buffer->bytes() < pbody) {
+	           consumed = pbody - buffer->bytes();
+	        }
+            srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
+
+	        // Only consume the header bytes.
+            buffer->read_slice(consumed);
+
+	        // Done when header completed, never wait for body completed, because it maybe chunked.
+	        if (state >= SrsHttpParseStateHeaderComplete) {
+	            break;
+	        }
         }
         
         // when nothing parsed, read more to parse.
-        if (nparsed == 0) {
-            // when requires more, only grow 1bytes, but the buffer will cache more.
-            if ((err = buffer->grow(reader, buffer->size() + 1)) != srs_success) {
-                return srs_error_wrap(err, "grow buffer");
-            }
+        // when requires more, only grow 1bytes, but the buffer will cache more.
+        if ((err = buffer->grow(reader, buffer->size() + 1)) != srs_success) {
+            return srs_error_wrap(err, "grow buffer");
         }
     }
     
@@ -172,8 +166,7 @@ int SrsHttpParser::on_headers_complete(http_parser* parser)
     obj->header = *parser;
     // save the parser when header parse completed.
     obj->state = SrsHttpParseStateHeaderComplete;
-    obj->header_parsed = (int)parser->nread;
-    
+
     srs_info("***HEADERS COMPLETE***");
     
     // see http_parser.c:1570, return 1 to skip body.
@@ -248,6 +241,12 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
+
+    // save the parser when body parsed.
+    obj->state = SrsHttpParseStateBody;
+
+    // Save the body position.
+    obj->pbody = at;
     
     srs_info("Body: %.*s", (int)length, at);
     
