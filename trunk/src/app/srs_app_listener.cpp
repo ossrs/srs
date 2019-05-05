@@ -132,8 +132,13 @@ srs_error_t SrsUdpListener::listen()
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket. ip=%s, port=%d", ip.c_str(), port);
     }
 
-    srs_fd_close_exec(_fd);
-    srs_socket_reuse_addr(_fd);
+    if ((err = srs_fd_closeexec(_fd)) != srs_success) {
+        return srs_error_wrap(err, "set closeexec");
+    }
+
+    if ((err = srs_fd_reuseaddr(_fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseaddr");
+    }
     
     if (bind(_fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind socket. ep=%s:%d", ip.c_str(), port);;
@@ -230,16 +235,18 @@ srs_error_t SrsTcpListener::listen()
     
     // Detect alive for TCP connection.
     // @see https://github.com/ossrs/srs/issues/1044
-#ifdef SO_KEEPALIVE
-    int tcp_keepalive = 1;
-    if (setsockopt(_fd, SOL_SOCKET, SO_KEEPALIVE, &tcp_keepalive, sizeof(int)) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "setsockopt SO_KEEPALIVE[%d]error. port=%d", tcp_keepalive, port);
+    if ((err = srs_fd_keepalive(_fd)) != srs_success) {
+        return srs_error_wrap(err, "set keepalive");
     }
-#endif
 
-    srs_fd_close_exec(_fd);
-    srs_socket_reuse_addr(_fd);
-    
+    if ((err = srs_fd_closeexec(_fd)) != srs_success) {
+        return srs_error_wrap(err, "set closeexec");
+    }
+
+    if ((err = srs_fd_reuseaddr(_fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseaddr");
+    }
+
     if (bind(_fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind socket. ep=%s:%d", ip.c_str(), port);;
     }
@@ -276,7 +283,10 @@ srs_error_t SrsTcpListener::cycle()
         }
         
         int cfd = srs_netfd_fileno(cstfd);
-        srs_fd_close_exec(cfd);
+
+	    if ((err = srs_fd_closeexec(cfd)) != srs_success) {
+	        return srs_error_wrap(err, "set closeexec");
+	    }
         
         if ((err = handler->on_tcp_client(cstfd)) != srs_success) {
             return srs_error_wrap(err, "handle fd=%d", cfd);

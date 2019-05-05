@@ -86,17 +86,37 @@ void srs_close_stfd(srs_netfd_t& stfd)
     }
 }
 
-void srs_fd_close_exec(int fd)
+srs_error_t srs_fd_closeexec(int fd)
 {
     int flags = fcntl(fd, F_GETFD);
     flags |= FD_CLOEXEC;
-    fcntl(fd, F_SETFD, flags);
+    if (fcntl(fd, F_SETFD, flags) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%v", fd);
+    }
+
+    return srs_success;
 }
 
-void srs_socket_reuse_addr(int fd)
+srs_error_t srs_fd_reuseaddr(int fd)
 {
     int v = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int));
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
+    }
+
+	return srs_success;
+}
+
+srs_error_t srs_fd_keepalive(int fd)
+{
+#ifdef SO_KEEPALIVE
+    int v = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "SO_KEEPALIVE fd=%d", fd);
+    }
+#endif
+
+	return srs_success;
 }
 
 srs_thread_t srs_thread_self()

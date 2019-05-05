@@ -115,6 +115,8 @@
 #define ERROR_SOCKET_NO_NODELAY             1076
 #define ERROR_SOCKET_SNDBUF                 1077
 #define ERROR_THREAD_STARTED                1078
+#define ERROR_SOCKET_SETREUSEADDR           1079
+#define ERROR_SOCKET_SETCLOSEEXEC           1080
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

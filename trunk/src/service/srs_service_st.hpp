@@ -44,10 +44,13 @@ extern srs_error_t srs_st_init();
 extern void srs_close_stfd(srs_netfd_t& stfd);
 
 // Set the FD_CLOEXEC of FD.
-extern void srs_fd_close_exec(int fd);
+extern srs_error_t srs_fd_closeexec(int fd);
 
-// Set the SO_REUSEADDR of socket.
-extern void srs_socket_reuse_addr(int fd);
+// Set the SO_REUSEADDR of fd.
+extern srs_error_t srs_fd_reuseaddr(int fd);
+
+// Set the SO_KEEPALIVE of fd.
+extern srs_error_t srs_fd_keepalive(int fd);
 
 // Get current coroutine/thread.
 extern srs_thread_t srs_thread_self();
