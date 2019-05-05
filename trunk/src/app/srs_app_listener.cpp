@@ -46,9 +46,6 @@ using namespace std;
 // sleep in srs_utime_t for udp recv packet.
 #define SrsUdpPacketRecvCycleInterval 0
 
-// nginx also set to 512
-#define SERVER_LISTEN_BACKLOG 512
-
 ISrsUdpHandler::ISrsUdpHandler()
 {
 }
@@ -75,9 +72,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-    
-    _fd = -1;
-    _stfd = NULL;
+    lfd = NULL;
     
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
@@ -87,65 +82,27 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
 
 SrsUdpListener::~SrsUdpListener()
 {
-    // close the stfd to trigger thread to interrupted.
-    srs_close_stfd(_stfd);
-    
     srs_freep(trd);
-    
-    // st does not close it sometimes,
-    // close it manually.
-    close(_fd);
-    
+    srs_close_stfd(lfd);
     srs_freepa(buf);
 }
 
 int SrsUdpListener::fd()
 {
-    return _fd;
+    return srs_netfd_fileno(lfd);
 }
 
 srs_netfd_t SrsUdpListener::stfd()
 {
-    return _stfd;
+    return lfd;
 }
 
 srs_error_t SrsUdpListener::listen()
 {
     srs_error_t err = srs_success;
-    
-    char sport[8];
-    snprintf(sport, sizeof(sport), "%d", port);
-    
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags    = AI_NUMERICHOST;
-    
-    addrinfo* r  = NULL;
-    SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
-    }
-    
-    if ((_fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket. ip=%s, port=%d", ip.c_str(), port);
-    }
 
-    if ((err = srs_fd_closeexec(_fd)) != srs_success) {
-        return srs_error_wrap(err, "set closeexec");
-    }
-
-    if ((err = srs_fd_reuseaddr(_fd)) != srs_success) {
-        return srs_error_wrap(err, "set reuseaddr");
-    }
-    
-    if (bind(_fd, r->ai_addr, r->ai_addrlen) == -1) {
-        return srs_error_new(ERROR_SOCKET_BIND, "bind socket. ep=%s:%d", ip.c_str(), port);;
-    }
-    
-    if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
-        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open socket");
+    if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
     
     srs_freep(trd);
@@ -165,12 +122,11 @@ srs_error_t SrsUdpListener::cycle()
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
         }
-        
+
+        int nread = 0;
         sockaddr_storage from;
         int nb_from = sizeof(from);
-        int nread = 0;
-        
-        if ((nread = srs_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
+        if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
             return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
         }
         
@@ -191,9 +147,8 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-    
-    _fd = -1;
-    _stfd = NULL;
+
+    lfd = NULL;
     
     trd = new SrsDummyCoroutine();
 }
@@ -201,62 +156,20 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
 SrsTcpListener::~SrsTcpListener()
 {
     srs_freep(trd);
-    
-    srs_close_stfd(_stfd);
+    srs_close_stfd(lfd);
 }
 
 int SrsTcpListener::fd()
 {
-    return _fd;
+    return srs_netfd_fileno(lfd);;
 }
 
 srs_error_t SrsTcpListener::listen()
 {
     srs_error_t err = srs_success;
-    
-    char sport[8];
-    snprintf(sport, sizeof(sport), "%d", port);
-    
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_NUMERICHOST;
-    
-    addrinfo* r = NULL;
-    SrsAutoFree(addrinfo, r);
-    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
-    }
-    
-    if ((_fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket. ip=%s, port=%d", ip.c_str(), port);
-    }
-    
-    // Detect alive for TCP connection.
-    // @see https://github.com/ossrs/srs/issues/1044
-    if ((err = srs_fd_keepalive(_fd)) != srs_success) {
-        return srs_error_wrap(err, "set keepalive");
-    }
 
-    if ((err = srs_fd_closeexec(_fd)) != srs_success) {
-        return srs_error_wrap(err, "set closeexec");
-    }
-
-    if ((err = srs_fd_reuseaddr(_fd)) != srs_success) {
-        return srs_error_wrap(err, "set reuseaddr");
-    }
-
-    if (bind(_fd, r->ai_addr, r->ai_addrlen) == -1) {
-        return srs_error_new(ERROR_SOCKET_BIND, "bind socket. ep=%s:%d", ip.c_str(), port);;
-    }
-
-    if (::listen(_fd, SERVER_LISTEN_BACKLOG) == -1) {
-        return srs_error_new(ERROR_SOCKET_LISTEN, "listen socket");
-    }
-    
-    if ((_stfd = srs_netfd_open_socket(_fd)) == NULL){
-        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open socket");
+    if ((err = srs_tcp_listen(ip, port, &lfd)) != srs_success) {
+        return srs_error_wrap(err, "listen at %s:%d", ip.c_str(), port);
     }
     
     srs_freep(trd);
@@ -277,19 +190,17 @@ srs_error_t SrsTcpListener::cycle()
             return srs_error_wrap(err, "tcp listener");
         }
         
-        srs_netfd_t cstfd = srs_accept(_stfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
-        if(cstfd == NULL){
+        srs_netfd_t fd = srs_accept(lfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+        if(fd == NULL){
             return srs_error_new(ERROR_SOCKET_CREATE, "accept failed");
         }
         
-        int cfd = srs_netfd_fileno(cstfd);
-
-	    if ((err = srs_fd_closeexec(cfd)) != srs_success) {
+	    if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
 	        return srs_error_wrap(err, "set closeexec");
 	    }
         
-        if ((err = handler->on_tcp_client(cstfd)) != srs_success) {
-            return srs_error_wrap(err, "handle fd=%d", cfd);
+        if ((err = handler->on_tcp_client(fd)) != srs_success) {
+            return srs_error_wrap(err, "handle fd=%d", srs_netfd_fileno(fd));
         }
     }
     
