@@ -6,7 +6,7 @@
 [<img width="52" alt="Skype" src="https://cloud.githubusercontent.com/assets/2777660/24329166/3821a328-1230-11e7-844a-506a5d17dd3d.png">](https://github.com/ossrs/srs/wiki/v1_EN_Contact#skype-or-gitter)
 
 SRS/3.0，[OuXuli][release3]，是一个简单的流媒体直播集群，简单的快乐。<br/>
-SRS, a simple joy, created on 2013.10, is a simple live streaming cluster.
+SRS is a simple live streaming cluster, a simple joy.
 
 Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
