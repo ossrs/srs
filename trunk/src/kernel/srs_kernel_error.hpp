@@ -117,6 +117,7 @@
 #define ERROR_THREAD_STARTED                1078
 #define ERROR_SOCKET_SETREUSEADDR           1079
 #define ERROR_SOCKET_SETCLOSEEXEC           1080
+#define ERROR_SOCKET_ACCEPT                 1081
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

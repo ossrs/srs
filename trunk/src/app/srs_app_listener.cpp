@@ -192,7 +192,7 @@ srs_error_t SrsTcpListener::cycle()
         
         srs_netfd_t fd = srs_accept(lfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
         if(fd == NULL){
-            return srs_error_new(ERROR_SOCKET_CREATE, "accept failed");
+            return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd));
         }
         
 	    if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
