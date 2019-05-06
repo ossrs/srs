@@ -69,8 +69,7 @@ public:
 class SrsUdpListener : public ISrsCoroutineHandler
 {
 private:
-    int _fd;
-    srs_netfd_t _stfd;
+    srs_netfd_t lfd;
     SrsCoroutine* trd;
 private:
     char* buf;
@@ -96,8 +95,7 @@ public:
 class SrsTcpListener : public ISrsCoroutineHandler
 {
 private:
-    int _fd;
-    srs_netfd_t _stfd;
+    srs_netfd_t lfd;
     SrsCoroutine* trd;
 private:
     ISrsTcpHandler* handler;

@@ -44,17 +44,26 @@ extern srs_error_t srs_st_init();
 extern void srs_close_stfd(srs_netfd_t& stfd);
 
 // Set the FD_CLOEXEC of FD.
-extern void srs_fd_close_exec(int fd);
+extern srs_error_t srs_fd_closeexec(int fd);
 
-// Set the SO_REUSEADDR of socket.
-extern void srs_socket_reuse_addr(int fd);
+// Set the SO_REUSEADDR of fd.
+extern srs_error_t srs_fd_reuseaddr(int fd);
+
+// Set the SO_KEEPALIVE of fd.
+extern srs_error_t srs_fd_keepalive(int fd);
 
 // Get current coroutine/thread.
 extern srs_thread_t srs_thread_self();
 
-// client open socket and connect to server.
+// For client, to open socket and connect to server.
 // @param tm The timeout in srs_utime_t.
-extern srs_error_t srs_socket_connect(std::string server, int port, srs_utime_t tm, srs_netfd_t* pstfd);
+extern srs_error_t srs_tcp_connect(std::string server, int port, srs_utime_t tm, srs_netfd_t* pstfd);
+
+// For server, listen at TCP endpoint.
+extern srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd);
+
+// For server, listen at UDP endpoint.
+extern srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd);
 
 // Wrap for coroutine.
 extern srs_cond_t srs_cond_new();

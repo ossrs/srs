@@ -157,7 +157,8 @@ private:
     // The key and iv.
     unsigned char key[16];
     unsigned char iv[16];
-    SrsFileWriter *writer;
+    // The underlayer file writer.
+    SrsFileWriter* writer;
 private:
     int _sequence_no;
     srs_utime_t max_td;

@@ -35,6 +35,9 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
+// nginx also set to 512
+#define SERVER_LISTEN_BACKLOG 512
+
 #ifdef __linux__
 #include <sys/epoll.h>
 
@@ -86,17 +89,37 @@ void srs_close_stfd(srs_netfd_t& stfd)
     }
 }
 
-void srs_fd_close_exec(int fd)
+srs_error_t srs_fd_closeexec(int fd)
 {
     int flags = fcntl(fd, F_GETFD);
     flags |= FD_CLOEXEC;
-    fcntl(fd, F_SETFD, flags);
+    if (fcntl(fd, F_SETFD, flags) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%v", fd);
+    }
+
+    return srs_success;
 }
 
-void srs_socket_reuse_addr(int fd)
+srs_error_t srs_fd_reuseaddr(int fd)
 {
     int v = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int));
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
+    }
+
+	return srs_success;
+}
+
+srs_error_t srs_fd_keepalive(int fd)
+{
+#ifdef SO_KEEPALIVE
+    int v = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "SO_KEEPALIVE fd=%d", fd);
+    }
+#endif
+
+	return srs_success;
 }
 
 srs_thread_t srs_thread_self()
@@ -104,7 +127,7 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
@@ -147,6 +170,116 @@ srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netf
     
     *pstfd = stfd;
     return srs_success;
+}
+
+srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    char sport[8];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+
+    addrinfo* r = NULL;
+    SrsAutoFree(addrinfo, r);
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
+            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+    }
+
+    int fd = 0;
+    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
+            r->ai_family, r->ai_socktype, r->ai_protocol);
+    }
+
+    // Detect alive for TCP connection.
+    // @see https://github.com/ossrs/srs/issues/1044
+    if ((err = srs_fd_keepalive(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set keepalive fd=%d", fd);
+    }
+
+    if ((err = srs_fd_closeexec(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set closeexec fd=%d", fd);
+    }
+
+    if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set reuseaddr fd=%d", fd);
+    }
+
+    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+        ::close(fd);
+        return srs_error_new(ERROR_SOCKET_BIND, "bind fd=%d", fd);
+    }
+
+    if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
+        ::close(fd);
+        return srs_error_new(ERROR_SOCKET_LISTEN, "listen fd=%d", fd);
+    }
+
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+        ::close(fd);
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open fd=%d", fd);
+    }
+
+    return err;
+}
+
+srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    char sport[8];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+
+    addrinfo* r  = NULL;
+    SrsAutoFree(addrinfo, r);
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
+            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+    }
+
+	int fd = 0;
+    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
+            r->ai_family, r->ai_socktype, r->ai_protocol);
+    }
+
+    if ((err = srs_fd_closeexec(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set closeexec fd=%d", fd);
+    }
+
+    if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set reuseaddr fd=%d", fd);
+    }
+
+    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+        ::close(fd);
+        return srs_error_new(ERROR_SOCKET_BIND, "bind fd=%d", fd);
+    }
+
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+        ::close(fd);
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open fd=%d", fd);
+    }
+
+    return err;
 }
 
 srs_cond_t srs_cond_new()
@@ -439,7 +572,7 @@ srs_error_t SrsTcpClient::connect()
     close();
     
     srs_assert(stfd == NULL);
-    if ((err = srs_socket_connect(host, port, timeout, &stfd)) != srs_success) {
+    if ((err = srs_tcp_connect(host, port, timeout, &stfd)) != srs_success) {
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }
     
