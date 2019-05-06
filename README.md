@@ -156,6 +156,7 @@ Please select according to languages:
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
 - [ ] Support H.264+Opus codec for WebRTC.
 - [ ] Support publishing stream by WebRTC.
+- [ ] Support change user to run SRS, #1111.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
