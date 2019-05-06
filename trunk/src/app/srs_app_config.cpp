@@ -3890,7 +3890,7 @@ srs_error_t SrsConfig::check_normal_config()
     }
     
     // asprocess conflict with daemon
-    if (get_asprocess() && get_deamon()) {
+    if (get_asprocess() && get_daemon()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "daemon conflicts with asprocess");
     }
     
@@ -3990,7 +3990,7 @@ string SrsConfig::argv()
     return _argv;
 }
 
-bool SrsConfig::get_deamon()
+bool SrsConfig::get_daemon()
 {
     SrsConfDirective* conf = root->get("daemon");
     if (!conf || conf->arg0().empty()) {

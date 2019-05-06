@@ -902,7 +902,7 @@ srs_error_t SrsServer::do_cycle()
     // for asprocess.
     bool asprocess = _srs_config->get_asprocess();
     
-    // the deamon thread, update the time cache
+    // the daemon thread, update the time cache
     // TODO: FIXME: use SrsHourGlass.
     while (true) {
         if (handler && (err = handler->on_cycle()) != srs_success) {
