@@ -462,6 +462,9 @@ srs_error_t SrsHlsMuxer::segment_open()
     if ((err = current->writer->open(tmp_file)) != srs_success) {
         return srs_error_wrap(err, "open hls muxer");
     }
+
+    // reset the context for a new ts start.
+    context->reset();
     
     return err;
 }
