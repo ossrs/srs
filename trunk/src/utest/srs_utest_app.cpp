@@ -377,3 +377,9 @@ VOID TEST(AppFragmentTest, CheckDuration)
 	}
 }
 
+#define MOCK_LISTEN_PORT 11935
+
+VOID TEST(TCPServerTest, PingPong)
+{
+}
+
