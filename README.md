@@ -156,7 +156,7 @@ Please select according to languages:
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
 - [ ] Support H.264+Opus codec for WebRTC.
 - [ ] Support publishing stream by WebRTC.
-- [ ] Support change user to run SRS, #1111.
+- [ ] Support change user to run SRS, [#1111][bug #1111].
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
@@ -1480,6 +1480,9 @@ Winlin
 [bug #1087]: https://github.com/ossrs/srs/issues/1087
 [bug #1051]: https://github.com/ossrs/srs/issues/1051
 [bug #1093]: https://github.com/ossrs/srs/issues/1093
+[bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
+
+[bug #1111]: https://github.com/ossrs/srs/issues/1111
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
