@@ -157,6 +157,7 @@ Please select according to languages:
 - [ ] Support H.264+Opus codec for WebRTC.
 - [ ] Support publishing stream by WebRTC.
 - [ ] Support change user to run SRS, [#1111][bug #1111].
+- [ ] Support HLS variant, [#463][bug #463].
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
@@ -1483,6 +1484,7 @@ Winlin
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
+[bug #463]: https://github.com/ossrs/srs/issues/463
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
