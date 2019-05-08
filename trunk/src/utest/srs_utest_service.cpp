@@ -39,4 +39,10 @@ VOID TEST(ServiceTimeTest, TimeUnit)
     EXPECT_EQ(3600*1000*1000LL, SRS_UTIME_HOURS);
 }
 
+#define MOCK_LISTEN_PORT 11935
+
+VOID TEST(TCPServerTest, PingPong)
+{
+}
+
 #endif
