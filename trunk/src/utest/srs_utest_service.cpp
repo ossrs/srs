@@ -39,7 +39,7 @@ VOID TEST(ServiceTimeTest, TimeUnit)
     EXPECT_EQ(1000*1000, SRS_UTIME_SECONDS);
     EXPECT_EQ(60*1000*1000, SRS_UTIME_MINUTES);
     EXPECT_EQ(3600*1000*1000LL, SRS_UTIME_HOURS);
-    
+
     EXPECT_TRUE(srs_is_never_timeout(SRS_UTIME_NO_TIMEOUT));
     EXPECT_FALSE(srs_is_never_timeout(0));
 }
