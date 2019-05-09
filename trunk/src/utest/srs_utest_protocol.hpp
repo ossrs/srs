@@ -46,9 +46,6 @@ class MockEmptyIO : public ISrsProtocolReadWriter
 public:
     MockEmptyIO();
     virtual ~MockEmptyIO();
-// for protocol
-public:
-    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
@@ -87,9 +84,6 @@ public:
     virtual ~MockBufferIO();
 public:
     virtual MockBufferIO* append(std::string data);
-// for protocol
-public:
-    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);

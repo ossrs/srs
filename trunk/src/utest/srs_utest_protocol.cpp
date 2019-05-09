@@ -43,11 +43,6 @@ MockEmptyIO::~MockEmptyIO()
 {
 }
 
-bool MockEmptyIO::is_never_timeout(srs_utime_t /*tm*/)
-{
-    return true;
-}
-
 srs_error_t MockEmptyIO::read_fully(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
     return srs_success;
@@ -110,11 +105,6 @@ MockBufferIO* MockBufferIO::append(string data)
 {
     in_buffer.append((char*)data.data(), data.length());
     return this;
-}
-
-bool MockBufferIO::is_never_timeout(srs_utime_t tm)
-{
-    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
 srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)

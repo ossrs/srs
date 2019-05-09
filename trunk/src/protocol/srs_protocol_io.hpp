@@ -54,8 +54,6 @@
  *           +--+-----------------------------+-+
  *           |       IProtocolReadWriter        |
  *           +----------------------------------+
- *           | + is_never_timeout()             |
- *           +----------------------------------+
  */
 
 /**
@@ -121,10 +119,6 @@ class ISrsProtocolReadWriter : virtual public ISrsProtocolReader, virtual public
 public:
     ISrsProtocolReadWriter();
     virtual ~ISrsProtocolReadWriter();
-// For protocol
-public:
-    // Whether the specified tm in srs_utime_t is never timeout.
-    virtual bool is_never_timeout(srs_utime_t tm) = 0;
 };
 
 #endif
