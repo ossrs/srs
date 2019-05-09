@@ -25,6 +25,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
+#include <srs_app_listener.hpp>
+#include <srs_service_st.hpp>
 
 // Disable coroutine test for OSX.
 #if !defined(SRS_OSX)
@@ -39,10 +41,46 @@ VOID TEST(ServiceTimeTest, TimeUnit)
     EXPECT_EQ(3600*1000*1000LL, SRS_UTIME_HOURS);
 }
 
+#define MOCK_LISTEN_HOST "127.0.0.1"
 #define MOCK_LISTEN_PORT 11935
+
+class MockTcpHandler : public ISrsTcpHandler
+{
+private:
+	srs_netfd_t fd;
+public:
+	MockTcpHandler();
+	virtual ~MockTcpHandler();
+public:
+    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+};
+
+MockTcpHandler::MockTcpHandler()
+{
+	fd = NULL;
+}
+
+MockTcpHandler::~MockTcpHandler()
+{
+	srs_close_stfd(fd);
+}
+
+srs_error_t MockTcpHandler::on_tcp_client(srs_netfd_t stfd)
+{
+	fd = stfd;
+	return srs_success;
+}
 
 VOID TEST(TCPServerTest, PingPong)
 {
+	srs_error_t err;
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+
+		HELPER_EXPECT_SUCCESS(l.listen());
+		EXPECT_TRUE(l.fd() > 0);
+	}
 }
 
 #endif
