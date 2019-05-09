@@ -43,6 +43,7 @@ VOID TEST(ServiceTimeTest, TimeUnit)
 
 #define MOCK_LISTEN_HOST "127.0.0.1"
 #define MOCK_LISTEN_PORT 11935
+#define MOCK_TCP_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
 
 class MockTcpHandler : public ISrsTcpHandler
 {
@@ -80,6 +81,148 @@ VOID TEST(TCPServerTest, PingPong)
 
 		HELPER_EXPECT_SUCCESS(l.listen());
 		EXPECT_TRUE(l.fd() > 0);
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		EXPECT_TRUE(h.fd != NULL);
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+
+		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+		char buf[16] = {0};
+		HELPER_EXPECT_SUCCESS(skt.read(buf, 5, NULL));
+		EXPECT_STREQ(buf, "Hello");
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+
+		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+		HELPER_EXPECT_SUCCESS(c.write((void*)" ", 1, NULL));
+		HELPER_EXPECT_SUCCESS(c.write((void*)"SRS", 3, NULL));
+
+		char buf[16] = {0};
+		HELPER_EXPECT_SUCCESS(skt.read(buf, 9, NULL));
+		EXPECT_STREQ(buf, "Hello SRS");
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+
+		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello SRS", 9, NULL));
+		EXPECT_EQ(9, c.get_send_bytes());
+		EXPECT_EQ(0, c.get_recv_bytes());
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == c.get_send_timeout());
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == c.get_recv_timeout());
+
+		char buf[16] = {0};
+		HELPER_EXPECT_SUCCESS(skt.read(buf, 9, NULL));
+		EXPECT_STREQ(buf, "Hello SRS");
+		EXPECT_EQ(0, skt.get_send_bytes());
+		EXPECT_EQ(9, skt.get_recv_bytes());
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_send_timeout());
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_recv_timeout());
+	}
+}
+
+VOID TEST(TCPServerTest, PingPongWithTimeout)
+{
+	srs_error_t err;
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
+
+		char buf[16] = {0};
+		HELPER_EXPECT_FAILED(skt.read(buf, 9, NULL));
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_send_timeout());
+		EXPECT_TRUE(1*SRS_UTIME_MILLISECONDS == skt.get_recv_timeout());
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
+
+		char buf[16] = {0};
+		HELPER_EXPECT_FAILED(skt.read_fully(buf, 9, NULL));
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_send_timeout());
+		EXPECT_TRUE(1*SRS_UTIME_MILLISECONDS == skt.get_recv_timeout());
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
+
+		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+		char buf[16] = {0};
+		HELPER_EXPECT_FAILED(skt.read_fully(buf, 9, NULL));
+		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_send_timeout());
+		EXPECT_TRUE(1*SRS_UTIME_MILLISECONDS == skt.get_recv_timeout());
 	}
 }
 
