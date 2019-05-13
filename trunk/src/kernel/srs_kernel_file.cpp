@@ -82,7 +82,7 @@ srs_error_t SrsFileWriter::open_append(string p)
     int flags = O_APPEND|O_WRONLY;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
-    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
