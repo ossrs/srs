@@ -307,8 +307,6 @@ VOID TEST(AppCoroutineTest, StartThread)
     srs_freep(err);
 }
 
-#endif
-
 VOID TEST(AppFragmentTest, CheckDuration)
 {
 	if (true) {
@@ -377,9 +375,5 @@ VOID TEST(AppFragmentTest, CheckDuration)
 	}
 }
 
-#define MOCK_LISTEN_PORT 11935
-
-VOID TEST(TCPServerTest, PingPong)
-{
-}
+#endif
 

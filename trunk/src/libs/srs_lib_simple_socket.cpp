@@ -424,13 +424,6 @@ srs_error_t SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* 
     return srs_success;
 }
 
-// Interface ISrsProtocolReadWriter
-bool SimpleSocketStream::is_never_timeout(srs_utime_t tm)
-{
-    srs_assert(io);
-    return srs_hijack_io_is_never_timeout(io, tm);
-}
-
 srs_error_t SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     srs_assert(io);

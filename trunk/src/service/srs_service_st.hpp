@@ -90,6 +90,8 @@ extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addr
 
 extern ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout);
 
+extern bool srs_is_never_timeout(srs_utime_t tm);
+
 // The mutex locker.
 #define SrsLocker(instance) \
     impl__SrsLocker _srs_auto_free_##instance(&instance)
@@ -130,7 +132,6 @@ public:
     // Initialize the socket with stfd, user must manage it.
     virtual srs_error_t initialize(srs_netfd_t fd);
 public:
-    virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);
@@ -181,7 +182,6 @@ private:
     virtual void close();
 // Interface ISrsProtocolReadWriter
 public:
-    virtual bool is_never_timeout(srs_utime_t tm);
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
     virtual void set_send_timeout(srs_utime_t tm);

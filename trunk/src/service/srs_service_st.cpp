@@ -362,6 +362,11 @@ ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
     return st_read((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
 }
 
+bool srs_is_never_timeout(srs_utime_t tm)
+{
+    return tm == SRS_UTIME_NO_TIMEOUT;
+}
+
 SrsStSocket::SrsStSocket()
 {
     stfd = NULL;
@@ -377,11 +382,6 @@ srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
 {
     stfd = fd;
     return srs_success;
-}
-
-bool SrsStSocket::is_never_timeout(srs_utime_t tm)
-{
-    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
 void SrsStSocket::set_recv_timeout(srs_utime_t tm)
@@ -591,11 +591,6 @@ void SrsTcpClient::close()
     }
     
     srs_close_stfd(stfd);
-}
-
-bool SrsTcpClient::is_never_timeout(srs_utime_t tm)
-{
-    return io->is_never_timeout(tm);
 }
 
 void SrsTcpClient::set_recv_timeout(srs_utime_t tm)

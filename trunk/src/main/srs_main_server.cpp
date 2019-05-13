@@ -378,15 +378,15 @@ srs_error_t run(SrsServer* svr)
         return srs_error_wrap(err, "server initialize");
     }
     
-    // If not deamon, directly run master.
-    if (!_srs_config->get_deamon()) {
+    // If not daemon, directly run master.
+    if (!_srs_config->get_daemon()) {
         if ((err = run_master(svr)) != srs_success) {
             return srs_error_wrap(err, "run master");
         }
         return srs_success;
     }
     
-    srs_trace("start deamon mode...");
+    srs_trace("start daemon mode...");
     
     int pid = fork();
     
@@ -415,7 +415,7 @@ srs_error_t run(SrsServer* svr)
     }
     
     // son
-    srs_trace("son(deamon) process running.");
+    srs_trace("son(daemon) process running.");
     
     if ((err = run_master(svr)) != srs_success) {
         return srs_error_wrap(err, "daemon run master");

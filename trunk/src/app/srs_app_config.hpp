@@ -406,10 +406,10 @@ public:
     // The root directive, no name and args, contains directives.
     // All directive parsed can retrieve from root.
     virtual SrsConfDirective* get_root();
-    // Get the deamon config.
-    // If  true, SRS will run in deamon mode, fork and fork to reap the
+    // Get the daemon config.
+    // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
-    virtual bool get_deamon();
+    virtual bool get_daemon();
     // Get the max connections limit of system.
     // If  exceed the max connection, SRS will disconnect the connection.
     // @remark, linux will limit the connections of each process,
