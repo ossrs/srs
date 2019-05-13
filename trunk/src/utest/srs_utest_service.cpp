@@ -229,4 +229,62 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 	}
 }
 
+VOID TEST(TCPServerTest, WritevIOVC)
+{
+	srs_error_t err;
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+
+		iovec iovs[3];
+		iovs[0].iov_base = (void*)"H";
+		iovs[0].iov_len = 1;
+		iovs[1].iov_base = (void*)"e";
+		iovs[1].iov_len = 1;
+		iovs[2].iov_base = (void*)"llo";
+		iovs[2].iov_len = 3;
+
+		HELPER_EXPECT_SUCCESS(c.writev(iovs, 3, NULL));
+
+		char buf[16] = {0};
+		HELPER_EXPECT_SUCCESS(skt.read(buf, 5, NULL));
+		EXPECT_STREQ(buf, "Hello");
+	}
+
+	if (true) {
+		MockTcpHandler h;
+		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		HELPER_EXPECT_SUCCESS(l.listen());
+
+		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		HELPER_EXPECT_SUCCESS(c.connect());
+
+		SrsStSocket skt;
+		ASSERT_TRUE(h.fd != NULL);
+		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
+
+		iovec iovs[3];
+		iovs[0].iov_base = (void*)"H";
+		iovs[0].iov_len = 1;
+		iovs[1].iov_base = (void*)NULL;
+		iovs[1].iov_len = 0;
+		iovs[2].iov_base = (void*)"llo";
+		iovs[2].iov_len = 3;
+
+		HELPER_EXPECT_SUCCESS(c.writev(iovs, 3, NULL));
+
+		char buf[16] = {0};
+		HELPER_EXPECT_SUCCESS(skt.read(buf, 4, NULL));
+		EXPECT_STREQ(buf, "Hllo");
+	}
+}
+
 #endif
