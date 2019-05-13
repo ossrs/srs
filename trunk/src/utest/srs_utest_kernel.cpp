@@ -2971,6 +2971,141 @@ VOID TEST(KernelFileTest, FileWriteReader)
     }
 }
 
+// Mock the system call hooks.
+extern _srs_open_t _srs_open_fn;
+extern _srs_write_t _srs_write_fn;
+extern _srs_lseek_t _srs_lseek_fn;
+
+int mock_open(const char* /*path*/, int /*oflag*/, ...) {
+	return -1;
+}
+
+ssize_t mock_write(int /*fildes*/, const void* /*buf*/, size_t /*nbyte*/) {
+	return -1;
+}
+
+off_t mock_lseek(int /*fildes*/, off_t /*offset*/, int /*whence*/) {
+	return -1;
+}
+
+class MockSystemIO
+{
+private:
+	_srs_open_t oo;
+	_srs_write_t ow;
+	_srs_lseek_t os;
+public:
+	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_lseek_t s = NULL) {
+		oo = _srs_open_fn;
+		ow = _srs_write_fn;
+		os = _srs_lseek_fn;
+		if (o) {
+			_srs_open_fn = o;
+		}
+		if (w) {
+			_srs_write_fn = w;
+		}
+		if (s) {
+			_srs_lseek_fn = s;
+		}
+	}
+	virtual ~MockSystemIO() {
+		if (oo) {
+			_srs_open_fn = oo;
+		}
+		if (ow) {
+			_srs_write_fn = ow;
+		}
+		if (os) {
+			_srs_lseek_fn = os;
+		}
+	}
+};
+
+VOID TEST(KernelFileTest, WriteSpecialCase)
+{
+	srs_error_t err;
+
+	// Should fail when open multiple times.
+	if (true) {
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+	}
+
+	// Should fail when open multiple times.
+	if (true) {
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open_append("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
+	}
+
+	// Always fail.
+	if (true) {
+		MockSystemIO _mockio(mock_open);
+		SrsFileWriter f;
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+	}
+	if (true) {
+		MockSystemIO _mockio(mock_open);
+		SrsFileWriter f;
+		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
+	}
+
+	// Should ok for write, writev or lseek.
+	if (true) {
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		ssize_t nn = 0;
+		HELPER_EXPECT_SUCCESS(f.write((void*)"Hello", 5, &nn));
+		EXPECT_EQ(5, nn);
+
+		iovec iovs[3];
+		iovs[0].iov_base = (void*)"H";
+		iovs[0].iov_len = 1;
+		iovs[1].iov_base = (void*)"e";
+		iovs[1].iov_len = 1;
+		iovs[2].iov_base = (void*)"llo";
+		iovs[2].iov_len = 3;
+		nn = 0;
+		HELPER_EXPECT_SUCCESS(f.writev(iovs, 3, &nn));
+		EXPECT_EQ(5, nn);
+
+		off_t seeked = 0;
+		HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
+		EXPECT_EQ(0, seeked);
+	}
+
+	// Always fail.
+	if (true) {
+		MockSystemIO _mockio(NULL, mock_write);
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		ssize_t nn = 0;
+		HELPER_EXPECT_FAILED(f.write((void*)"Hello", 5, &nn));
+
+		iovec iovs[3];
+		iovs[0].iov_base = (void*)"H";
+		iovs[0].iov_len = 1;
+		iovs[1].iov_base = (void*)"e";
+		iovs[1].iov_len = 1;
+		iovs[2].iov_base = (void*)"llo";
+		iovs[2].iov_len = 3;
+		HELPER_EXPECT_FAILED(f.writev(iovs, 3, NULL));
+	}
+	if (true) {
+		MockSystemIO _mockio(NULL, NULL, mock_lseek);
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
+	}
+}
+
 VOID TEST(KernelFLVTest, CoverAll)
 {
     if (true) {

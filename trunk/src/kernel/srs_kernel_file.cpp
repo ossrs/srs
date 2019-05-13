@@ -36,6 +36,11 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
+// For utest to mock it.
+_srs_open_t _srs_open_fn = ::open;
+_srs_write_t _srs_write_fn = ::write;
+_srs_lseek_t _srs_lseek_fn = ::lseek;
+
 SrsFileWriter::SrsFileWriter()
 {
     fd = -1;
@@ -57,7 +62,7 @@ srs_error_t SrsFileWriter::open(string p)
     int flags = O_CREAT|O_WRONLY|O_TRUNC;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
-    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -107,13 +112,13 @@ bool SrsFileWriter::is_open()
 
 void SrsFileWriter::seek2(int64_t offset)
 {
-    off_t r0 = ::lseek(fd, (off_t)offset, SEEK_SET);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)offset, SEEK_SET);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileWriter::tellg()
 {
-    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+    return (int64_t)_srs_lseek_fn(fd, 0, SEEK_CUR);
 }
 
 srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
@@ -122,7 +127,7 @@ srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     
     ssize_t nwrite;
     // TODO: FIXME: use st_write.
-    if ((nwrite = ::write(fd, buf, count)) < 0) {
+    if ((nwrite = _srs_write_fn(fd, buf, count)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "write to file %s failed", path.c_str());
     }
     
@@ -156,7 +161,7 @@ srs_error_t SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite
 
 srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
 {
-    off_t sk = ::lseek(fd, offset, whence);
+    off_t sk = _srs_lseek_fn(fd, offset, whence);
     if (sk < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file");
     }
