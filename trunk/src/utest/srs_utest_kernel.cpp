@@ -3797,6 +3797,21 @@ VOID TEST(KernelTSTest, CoverTransmuxer)
     }
 }
 
+VOID TEST(KernelMP4Test, CoverMP4All)
+{
+	if (true) {
+		SrsMp4ElstEntry e;
+		EXPECT_EQ(0, e.media_time);
+		EXPECT_EQ(0, e.segment_duration);
+	}
+
+	if (true) {
+		SrsMp4CttsEntry e;
+		EXPECT_EQ(0, e.sample_count);
+		EXPECT_EQ(0, e.sample_offset);
+	}
+}
+
 VOID TEST(KernelMP4Test, CoverMP4Codec)
 {
     SrsMp4Encoder enc;
