@@ -166,6 +166,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-05-14, Covert Kernel File reader/writer. 3.0.52
 * v3.0, 2019-04-30, Refine typo in files. 3.0.51
 * v3.0, 2019-04-25, Upgrade http-parser from 2.1 to 2.9.2 and cover it. 3.0.50
 * v3.0, 2019-04-22, Refine in time unit. 3.0.49

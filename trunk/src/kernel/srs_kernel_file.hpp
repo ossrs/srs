@@ -111,7 +111,9 @@ public:
 // For utest to mock it.
 typedef int (*_srs_open_t)(const char* path, int oflag, ...);
 typedef ssize_t (*_srs_write_t)(int fildes, const void* buf, size_t nbyte);
+typedef ssize_t (*_srs_read_t)(int fildes, void* buf, size_t nbyte);
 typedef off_t (*_srs_lseek_t)(int fildes, off_t offset, int whence);
+typedef int (*_srs_close_t)(int fildes);
 
 #endif
 
