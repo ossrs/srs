@@ -2976,6 +2976,7 @@ extern _srs_open_t _srs_open_fn;
 extern _srs_write_t _srs_write_fn;
 extern _srs_read_t _srs_read_fn;
 extern _srs_lseek_t _srs_lseek_fn;
+extern _srs_close_t _srs_close_fn;
 
 int mock_open(const char* /*path*/, int /*oflag*/, ...) {
 	return -1;
@@ -2993,6 +2994,10 @@ off_t mock_lseek(int /*fildes*/, off_t /*offset*/, int /*whence*/) {
 	return -1;
 }
 
+int mock_close(int /*fildes*/) {
+	return -1;
+}
+
 class MockSystemIO
 {
 private:
@@ -3000,12 +3005,14 @@ private:
 	_srs_write_t ow;
 	_srs_read_t _or;
 	_srs_lseek_t os;
+	_srs_close_t oc;
 public:
-	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_read_t r = NULL, _srs_lseek_t s = NULL) {
+	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_read_t r = NULL, _srs_lseek_t s = NULL, _srs_close_t c = NULL) {
 		oo = _srs_open_fn;
 		ow = _srs_write_fn;
 		os = _srs_lseek_fn;
 		_or = _srs_read_fn;
+		oc = _srs_close_fn;
 		if (o) {
 			_srs_open_fn = o;
 		}
@@ -3017,6 +3024,9 @@ public:
 		}
 		if (s) {
 			_srs_lseek_fn = s;
+		}
+		if (c) {
+			_srs_close_fn = c;
 		}
 	}
 	virtual ~MockSystemIO() {
@@ -3031,6 +3041,9 @@ public:
 		}
 		if (os) {
 			_srs_lseek_fn = os;
+		}
+		if (oc) {
+			_srs_close_fn = oc;
 		}
 	}
 };
@@ -3117,6 +3130,12 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
 		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
 	}
+	if (true) {
+		MockSystemIO _mockio(NULL, NULL, NULL, NULL, mock_close);
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+		f.close();
+	}
 }
 
 VOID TEST(KernelFileReaderTest, WriteSpecialCase)
@@ -3140,7 +3159,7 @@ VOID TEST(KernelFileReaderTest, WriteSpecialCase)
 
 	// Should ok for lseek.
 	if (true) {
-		SrsFileWriter f;
+		SrsFileReader f;
 		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
 
 		off_t seeked = 0;
@@ -3164,6 +3183,12 @@ VOID TEST(KernelFileReaderTest, WriteSpecialCase)
 		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
 
 		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
+	}
+	if (true) {
+		MockSystemIO _mockio(NULL, NULL, NULL, NULL, mock_close);
+		SrsFileReader f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+		f.close();
 	}
 }
 

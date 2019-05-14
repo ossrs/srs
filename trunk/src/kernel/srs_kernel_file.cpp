@@ -41,6 +41,7 @@ _srs_open_t _srs_open_fn = ::open;
 _srs_write_t _srs_write_fn = ::write;
 _srs_read_t _srs_read_fn = ::read;
 _srs_lseek_t _srs_lseek_fn = ::lseek;
+_srs_close_t _srs_close_fn = ::close;
 
 SrsFileWriter::SrsFileWriter()
 {
@@ -98,7 +99,7 @@ void SrsFileWriter::close()
         return;
     }
     
-    if (::close(fd) < 0) {
+    if (_srs_close_fn(fd) < 0) {
         srs_warn("close file %s failed", path.c_str());
     }
     fd = -1;
@@ -209,7 +210,7 @@ void SrsFileReader::close()
         return;
     }
     
-    if (::close(fd) < 0) {
+    if (_srs_close_fn(fd) < 0) {
         srs_warn("close file %s failed. ret=%d", path.c_str(), ret);
     }
     fd = -1;
