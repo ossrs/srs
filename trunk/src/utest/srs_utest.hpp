@@ -42,11 +42,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define VOID
 
 // Temporary disk config.
-std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
+extern std::string _srs_tmp_file_prefix;
 // Temporary network config.
-std::string _srs_tmp_host = "127.0.0.1";
-int _srs_tmp_port = 11935;
-srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
+extern std::string _srs_tmp_host;
+extern int _srs_tmp_port;
+extern srs_utime_t _srs_tmp_timeout;
 
 // For errors.
 #define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)

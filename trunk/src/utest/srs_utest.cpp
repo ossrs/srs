@@ -29,6 +29,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 
+// Temporary disk config.
+std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
+// Temporary network config.
+std::string _srs_tmp_host = "127.0.0.1";
+int _srs_tmp_port = 11935;
+srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
+
 // kernel module.
 ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
