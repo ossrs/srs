@@ -34,11 +34,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include "gtest/gtest.h"
+#include <string>
 
 #include <srs_app_log.hpp>
 
 // we add an empty macro for upp to show the smart tips.
 #define VOID
+
+// Temporary disk config.
+std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
+// Temporary network config.
+std::string _srs_tmp_host = "127.0.0.1";
+int _srs_tmp_port = 11935;
+srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 
 // For errors.
 #define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)

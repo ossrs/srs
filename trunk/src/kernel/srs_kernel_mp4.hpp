@@ -151,8 +151,9 @@ enum SrsMp4BoxBrand
 };
 
 // The context to dump.
-struct SrsMp4DumpContext
+class SrsMp4DumpContext
 {
+public:
     int level;
     bool summary;
     
@@ -467,8 +468,9 @@ enum SrsMp4TrunFlags
 
 // Entry for trun.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 69
-struct SrsMp4TrunEntry
+class SrsMp4TrunEntry
 {
+public:
     SrsMp4FullBox* owner;
     
     uint32_t sample_duration;
@@ -864,7 +866,7 @@ public:
 
 // 8.6.6 Edit List Box
 // ISO_IEC_14496-12-base-format-2012.pdf, page 55
-struct SrsMp4ElstEntry
+class SrsMp4ElstEntry
 {
 public:
     // An integer that specifies the duration of this edit segment in units of the timescale
@@ -1514,8 +1516,9 @@ public:
 
 // 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 48
-struct SrsMp4SttsEntry
+class SrsMp4SttsEntry
 {
+public:
     // An integer that counts the number of consecutive samples that have the given
     // duration.
     uint32_t sample_count;
@@ -1561,8 +1564,9 @@ public:
 
 // 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 49
-struct SrsMp4CttsEntry
+class SrsMp4CttsEntry
 {
+public:
     // An integer that counts the number of consecutive samples that have the given offset.
     uint32_t sample_count;
     // uint32_t for version=0
@@ -1638,8 +1642,9 @@ public:
 
 // 8.7.4 Sample To Chunk Box (stsc), for Audio/Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 58
-struct SrsMp4StscEntry
+class SrsMp4StscEntry
 {
+public:
     // An integer that gives the index of the first chunk in this run of chunks that share the
     // same samples-per-chunk and sample-description-index; the index of the first chunk in a track has the
     // value 1 (the first_chunk field in the first record of this box has the value 1, identifying that the first

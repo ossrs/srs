@@ -3192,6 +3192,45 @@ VOID TEST(KernelFileReaderTest, WriteSpecialCase)
 	}
 }
 
+class MockFileRemover
+{
+private:
+	string f;
+public:
+	MockFileRemover(string p) {
+		f = p;
+	}
+	virtual ~MockFileRemover() {
+		if (f != "") {
+			::unlink(f.c_str());
+		}
+	}
+};
+
+VOID TEST(KernelFileTest, ReadWriteCase)
+{
+	srs_error_t err;
+
+	string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case";
+	MockFileRemover _mfr(filepath);
+
+	SrsFileWriter w;
+	HELPER_EXPECT_SUCCESS(w.open(filepath.c_str()));
+
+	SrsFileReader r;
+	HELPER_EXPECT_SUCCESS(r.open(filepath.c_str()));
+
+	ssize_t nn = 0;
+	HELPER_EXPECT_SUCCESS(w.write((void*)"Hello", 5, &nn));
+	EXPECT_EQ(5, nn);
+
+	char buf[16] = {0};
+	HELPER_EXPECT_SUCCESS(r.read(buf, sizeof(buf), &nn));
+	EXPECT_EQ(5, nn);
+
+	EXPECT_STREQ("Hello", buf);
+}
+
 VOID TEST(KernelFLVTest, CoverAll)
 {
     if (true) {

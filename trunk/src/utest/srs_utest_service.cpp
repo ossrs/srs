@@ -44,10 +44,6 @@ VOID TEST(ServiceTimeTest, TimeUnit)
     EXPECT_FALSE(srs_is_never_timeout(0));
 }
 
-#define MOCK_LISTEN_HOST "127.0.0.1"
-#define MOCK_LISTEN_PORT 11935
-#define MOCK_TCP_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
-
 class MockTcpHandler : public ISrsTcpHandler
 {
 private:
@@ -80,7 +76,7 @@ VOID TEST(TCPServerTest, PingPong)
 	srs_error_t err;
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 
 		HELPER_EXPECT_SUCCESS(l.listen());
 		EXPECT_TRUE(l.fd() > 0);
@@ -88,10 +84,10 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		EXPECT_TRUE(h.fd != NULL);
@@ -99,10 +95,10 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -118,10 +114,10 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -139,10 +135,10 @@ VOID TEST(TCPServerTest, PingPong)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -171,10 +167,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -190,10 +186,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -209,10 +205,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -234,10 +230,10 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	srs_error_t err;
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
@@ -261,10 +257,10 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 	if (true) {
 		MockTcpHandler h;
-		SrsTcpListener l(&h, MOCK_LISTEN_HOST, MOCK_LISTEN_PORT);
+		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
 		HELPER_EXPECT_SUCCESS(l.listen());
 
-		SrsTcpClient c(MOCK_LISTEN_HOST, MOCK_LISTEN_PORT, MOCK_TCP_TIMEOUT);
+		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
