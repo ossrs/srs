@@ -2974,6 +2974,7 @@ VOID TEST(KernelFileTest, FileWriteReader)
 // Mock the system call hooks.
 extern _srs_open_t _srs_open_fn;
 extern _srs_write_t _srs_write_fn;
+extern _srs_read_t _srs_read_fn;
 extern _srs_lseek_t _srs_lseek_fn;
 
 int mock_open(const char* /*path*/, int /*oflag*/, ...) {
@@ -2981,6 +2982,10 @@ int mock_open(const char* /*path*/, int /*oflag*/, ...) {
 }
 
 ssize_t mock_write(int /*fildes*/, const void* /*buf*/, size_t /*nbyte*/) {
+	return -1;
+}
+
+ssize_t mock_read(int /*fildes*/, void* /*buf*/, size_t /*nbyte*/) {
 	return -1;
 }
 
@@ -2993,17 +2998,22 @@ class MockSystemIO
 private:
 	_srs_open_t oo;
 	_srs_write_t ow;
+	_srs_read_t _or;
 	_srs_lseek_t os;
 public:
-	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_lseek_t s = NULL) {
+	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_read_t r = NULL, _srs_lseek_t s = NULL) {
 		oo = _srs_open_fn;
 		ow = _srs_write_fn;
 		os = _srs_lseek_fn;
+		_or = _srs_read_fn;
 		if (o) {
 			_srs_open_fn = o;
 		}
 		if (w) {
 			_srs_write_fn = w;
+		}
+		if (r) {
+			_srs_read_fn = r;
 		}
 		if (s) {
 			_srs_lseek_fn = s;
@@ -3016,13 +3026,16 @@ public:
 		if (ow) {
 			_srs_write_fn = ow;
 		}
+		if (_or) {
+			_srs_read_fn = _or;
+		}
 		if (os) {
 			_srs_lseek_fn = os;
 		}
 	}
 };
 
-VOID TEST(KernelFileTest, WriteSpecialCase)
+VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 {
 	srs_error_t err;
 
@@ -3098,8 +3111,56 @@ VOID TEST(KernelFileTest, WriteSpecialCase)
 		HELPER_EXPECT_FAILED(f.writev(iovs, 3, NULL));
 	}
 	if (true) {
-		MockSystemIO _mockio(NULL, NULL, mock_lseek);
+		MockSystemIO _mockio(NULL, NULL, NULL, mock_lseek);
 		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
+	}
+}
+
+VOID TEST(KernelFileReaderTest, WriteSpecialCase)
+{
+	srs_error_t err;
+
+	// Should fail when open multiple times.
+	if (true) {
+		SrsFileReader f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+	}
+
+	// Always fail.
+	if (true) {
+		MockSystemIO _mockio(mock_open);
+		SrsFileReader f;
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+		HELPER_EXPECT_FAILED(f.open("/dev/null"));
+	}
+
+	// Should ok for lseek.
+	if (true) {
+		SrsFileWriter f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		off_t seeked = 0;
+		HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
+		EXPECT_EQ(0, seeked);
+	}
+
+	// Always fail.
+	if (true) {
+		MockSystemIO _mockio(NULL, NULL, mock_read);
+		SrsFileReader f;
+		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+
+		ssize_t nn = 0;
+		char buf[16];
+		HELPER_EXPECT_FAILED(f.read(buf, sizeof(buf), &nn));
+	}
+	if (true) {
+		MockSystemIO _mockio(NULL, NULL, NULL, mock_lseek);
+		SrsFileReader f;
 		HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
 
 		HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));

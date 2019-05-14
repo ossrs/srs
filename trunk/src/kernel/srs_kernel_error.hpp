@@ -79,7 +79,7 @@
 #define ERROR_SYSTEM_PID_SET_FILE_INFO      1040
 #define ERROR_SYSTEM_FILE_ALREADY_OPENED    1041
 #define ERROR_SYSTEM_FILE_OPENE             1042
-#define ERROR_SYSTEM_FILE_CLOSE             1043
+//#define ERROR_SYSTEM_FILE_CLOSE             1043
 #define ERROR_SYSTEM_FILE_READ              1044
 #define ERROR_SYSTEM_FILE_WRITE             1045
 #define ERROR_SYSTEM_FILE_EOF               1046

@@ -39,6 +39,7 @@ using namespace std;
 // For utest to mock it.
 _srs_open_t _srs_open_fn = ::open;
 _srs_write_t _srs_write_fn = ::write;
+_srs_read_t _srs_read_fn = ::read;
 _srs_lseek_t _srs_lseek_fn = ::lseek;
 
 SrsFileWriter::SrsFileWriter()
@@ -191,7 +192,7 @@ srs_error_t SrsFileReader::open(string p)
         return srs_error_new(ERROR_SYSTEM_FILE_ALREADY_OPENED, "file %s already opened", path.c_str());
     }
     
-    if ((fd = ::open(p.c_str(), O_RDONLY)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), O_RDONLY)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -209,9 +210,7 @@ void SrsFileReader::close()
     }
     
     if (::close(fd) < 0) {
-        ret = ERROR_SYSTEM_FILE_CLOSE;
-        srs_error("close file %s failed. ret=%d", path.c_str(), ret);
-        return;
+        srs_warn("close file %s failed. ret=%d", path.c_str(), ret);
     }
     fd = -1;
     
@@ -225,26 +224,26 @@ bool SrsFileReader::is_open()
 
 int64_t SrsFileReader::tellg()
 {
-    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+    return (int64_t)_srs_lseek_fn(fd, 0, SEEK_CUR);
 }
 
 void SrsFileReader::skip(int64_t size)
 {
-    off_t r0 = ::lseek(fd, (off_t)size, SEEK_CUR);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)size, SEEK_CUR);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileReader::seek2(int64_t offset)
 {
-    return (int64_t)::lseek(fd, (off_t)offset, SEEK_SET);
+    return (int64_t)_srs_lseek_fn(fd, (off_t)offset, SEEK_SET);
 }
 
 int64_t SrsFileReader::filesize()
 {
     int64_t cur = tellg();
-    int64_t size = (int64_t)::lseek(fd, 0, SEEK_END);
+    int64_t size = (int64_t)_srs_lseek_fn(fd, 0, SEEK_END);
     
-    off_t r0 = ::lseek(fd, (off_t)cur, SEEK_SET);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)cur, SEEK_SET);
     srs_assert(r0 != -1);
     
     return size;
@@ -256,7 +255,7 @@ srs_error_t SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     ssize_t nread;
     // TODO: FIXME: use st_read.
-    if ((nread = ::read(fd, buf, count)) < 0) {
+    if ((nread = _srs_read_fn(fd, buf, count)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_READ, "read from file %s failed", path.c_str());
     }
     
@@ -273,7 +272,7 @@ srs_error_t SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 
 srs_error_t SrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
 {
-    off_t sk = ::lseek(fd, offset, whence);
+    off_t sk = _srs_lseek_fn(fd, offset, whence);
     if (sk < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek %v failed", (int)sk);
     }
