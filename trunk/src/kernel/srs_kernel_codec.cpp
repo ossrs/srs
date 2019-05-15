@@ -553,10 +553,8 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
     
-    // audio decode
-    if (!buffer->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "aac decode sound_format");
-    }
+    // We already checked the size is positive and data is not NULL.
+    srs_assert(buffer->require(1));
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     uint8_t v = buffer->read_1bytes();
@@ -599,10 +597,8 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
     
-    // video decode
-    if (!buffer->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode frame_type");
-    }
+    // We already checked the size is positive and data is not NULL.
+    srs_assert(buffer->require(1));
     
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = buffer->read_1bytes();

@@ -2690,6 +2690,39 @@ VOID TEST(KernelCodecTest, AVFrame)
     }
 }
 
+VOID TEST(KernelCodecTest, IsSequenceHeaderSpecial)
+{
+	if (true) {
+		SrsFormat f;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec = new SrsVideoCodecConfig();
+		f.video = new SrsVideoFrame();
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec->id = SrsVideoCodecIdAVC;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.video->avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+		EXPECT_TRUE(f.is_avc_sequence_header());
+	}
+
+	if (true) {
+		SrsFormat f;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec = new SrsVideoCodecConfig();
+		f.video = new SrsVideoFrame();
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec->id = SrsVideoCodecIdHEVC;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.video->avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+		EXPECT_TRUE(f.is_avc_sequence_header());
+	}
+}
+
 VOID TEST(KernelCodecTest, AudioFormat)
 {
     if (true) {
@@ -2802,6 +2835,137 @@ VOID TEST(KernelCodecTest, AudioFormat)
         EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, f.audio->aac_packet_type);
         EXPECT_TRUE(f.is_aac_sequence_header());
         EXPECT_TRUE(!f.is_avc_sequence_header());
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFormatSepcial)
+{
+	srs_error_t err;
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x17", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x27", 1));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x02, // lengthSizeMinusOne
+            0x00,
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x00, // SPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, // SPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+            0x00, // PPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS
+            0x01, // PPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+            0x01, 0x00, 0x00, // PPS, empty
+        };
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
     }
 }
 
