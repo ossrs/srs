@@ -161,5 +161,9 @@ extern int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t paylo
 // @return the size of header. 0 if cache not enough.
 extern int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, int nb_cache);
 
+// For utest to mock it.
+#include <sys/time.h>
+typedef int (*_srs_gettimeofday_t)(struct timeval* tv, struct timezone* tz);
+
 #endif
 

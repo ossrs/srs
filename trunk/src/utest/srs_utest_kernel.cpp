@@ -3597,6 +3597,37 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
     }
 }
 
+extern _srs_gettimeofday_t _srs_gettimeofday;
+int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
+	return -1;
+}
+
+class MockTime
+{
+private:
+	_srs_gettimeofday_t ot;
+public:
+	MockTime(_srs_gettimeofday_t t = NULL) {
+		ot = _srs_gettimeofday;
+		if (t) {
+			_srs_gettimeofday = t;
+		}
+	}
+	virtual ~MockTime() {
+		if (ot) {
+			_srs_gettimeofday = ot;
+		}
+	}
+};
+
+VOID TEST(KernelUtilityTest, CoverTimeSpecial)
+{
+	if (true) {
+		MockTime _mt(mock_gettimeofday);
+		EXPECT_TRUE(-1 == srs_update_system_time());
+	}
+}
+
 extern int64_t _srs_system_time_startup_time;
 extern int64_t _srs_system_time_us_cache;
 extern int av_toupper(int c);
