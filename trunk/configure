@@ -735,4 +735,6 @@ else
         echo -e "${GREEN}Please use the srs-librtmp project: ${BLACK}"
         echo -e "${GREEN}       cd $SRS_EXPORT_LIBRTMP_PROJECT && make ${BLACK}"
     fi
+    # Change to experiment.
+    echo -e "${YELLOW}Warning: Notice srs-librtmp is deprecated and maybe removed in future.${BLACK}"
 fi
