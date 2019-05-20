@@ -47,6 +47,7 @@ MockSrsFileWriter::MockSrsFileWriter()
     offset = 0;
     err = srs_success;
     error_offset = 0;
+    opened = false;
 }
 
 MockSrsFileWriter::~MockSrsFileWriter()
@@ -62,18 +63,19 @@ srs_error_t MockSrsFileWriter::open(string /*file*/)
     if (err != srs_success) {
         return srs_error_copy(err);
     }
-    
+
+    opened = true;
     return srs_success;
 }
 
 void MockSrsFileWriter::close()
 {
-    offset = 0;
+    opened = false;
 }
 
 bool MockSrsFileWriter::is_open()
 {
-    return offset >= 0;
+    return opened;
 }
 
 void MockSrsFileWriter::seek2(int64_t offset)
@@ -139,6 +141,7 @@ MockSrsFileReader::MockSrsFileReader()
     data = new char[MAX_MOCK_DATA_SIZE];
     size = 0;
     offset = 0;
+    opened = false;
 }
 
 MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
@@ -148,6 +151,7 @@ MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
     
     size = nb_src;
     offset = 0;
+    opened = false;
 }
 
 MockSrsFileReader::~MockSrsFileReader()
@@ -158,6 +162,7 @@ MockSrsFileReader::~MockSrsFileReader()
 srs_error_t MockSrsFileReader::open(string /*file*/)
 {
     offset = 0;
+    opened = true;
     
     return srs_success;
 }
@@ -169,7 +174,7 @@ void MockSrsFileReader::close()
 
 bool MockSrsFileReader::is_open()
 {
-    return offset >= 0;
+    return opened;
 }
 
 int64_t MockSrsFileReader::tellg()
@@ -842,8 +847,10 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
 VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 {
     MockSrsFileReader fs;
+    fs.close();
+
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(srs_success == dec.initialize(&fs));
+    ASSERT_FALSE(srs_success == dec.initialize(&fs));
 }
 
 /**
@@ -1062,6 +1069,22 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 
     EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
     EXPECT_TRUE(5 == fs.offset);
+}
+
+VOID TEST(KernelFLVTest, CoverFLVVodError)
+{
+	srs_error_t err;
+
+	if (true) {
+	    SrsFlvVodStreamDecoder dec;
+	    HELPER_EXPECT_FAILED(dec.initialize((ISrsReader*)&dec));
+    }
+
+	if (true) {
+	    MockSrsFileReader fs;
+	    SrsFlvVodStreamDecoder dec;
+	    HELPER_EXPECT_FAILED(dec.initialize(&fs));
+    }
 }
 
 /**
@@ -3532,8 +3555,10 @@ VOID TEST(KernelLogTest, CoverAll)
 VOID TEST(KernelMp3Test, CoverAll)
 {
     if (true) {
-        SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
+
+        SrsMp3Transmuxer m;
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_header());
@@ -3543,6 +3568,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_audio(0, (char*)"\x20\x01", 2));
@@ -3552,6 +3578,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         srs_error_t err = m.write_audio(0, (char*)"\x30\x01", 2);
@@ -3576,6 +3603,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         f.err = srs_error_new(-1, "mock file error");
@@ -3587,6 +3615,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         f.err = srs_error_new(-1, "mock file error");
