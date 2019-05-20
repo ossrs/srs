@@ -250,12 +250,12 @@ srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
 srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int size)
 {
     srs_error_t err = srs_success;
-    
-    if (ptr) {
-        srs_assert(false);
-        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "should not set the payload twice");
+
+    if (size < 0) {
+        return srs_error_new(ERROR_RTMP_MESSAGE_CREATE, "create message size=%d", size);
     }
-    
+
+    srs_assert(!ptr);
     ptr = new SrsSharedPtrPayload();
     
     // direct attach the data.

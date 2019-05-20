@@ -3467,6 +3467,48 @@ VOID TEST(KernelFLVTest, CoverAll)
 #endif
 }
 
+VOID TEST(KernelFLVTest, CoverSharedPtrMessage)
+{
+	srs_error_t err;
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, new char[1], 1));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_FAILED(m.create(&h, NULL, -1));
+	}
+
+	if (true) {
+		SrsCommonMessage cm;
+		cm.size = -1;
+
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_FAILED(m.create(&cm));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		h.perfer_cid = 1;
+
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));
+
+		EXPECT_FALSE(m.check(1));
+		EXPECT_TRUE(m.check(1));
+	}
+}
+
 VOID TEST(KernelLogTest, CoverAll)
 {
     if (true) {
