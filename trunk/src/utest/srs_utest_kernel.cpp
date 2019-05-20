@@ -47,6 +47,7 @@ MockSrsFileWriter::MockSrsFileWriter()
     offset = 0;
     err = srs_success;
     error_offset = 0;
+    opened = false;
 }
 
 MockSrsFileWriter::~MockSrsFileWriter()
@@ -62,18 +63,19 @@ srs_error_t MockSrsFileWriter::open(string /*file*/)
     if (err != srs_success) {
         return srs_error_copy(err);
     }
-    
+
+    opened = true;
     return srs_success;
 }
 
 void MockSrsFileWriter::close()
 {
-    offset = 0;
+    opened = false;
 }
 
 bool MockSrsFileWriter::is_open()
 {
-    return offset >= 0;
+    return opened;
 }
 
 void MockSrsFileWriter::seek2(int64_t offset)
@@ -139,6 +141,7 @@ MockSrsFileReader::MockSrsFileReader()
     data = new char[MAX_MOCK_DATA_SIZE];
     size = 0;
     offset = 0;
+    opened = false;
 }
 
 MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
@@ -148,6 +151,7 @@ MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
     
     size = nb_src;
     offset = 0;
+    opened = false;
 }
 
 MockSrsFileReader::~MockSrsFileReader()
@@ -158,6 +162,7 @@ MockSrsFileReader::~MockSrsFileReader()
 srs_error_t MockSrsFileReader::open(string /*file*/)
 {
     offset = 0;
+    opened = true;
     
     return srs_success;
 }
@@ -169,7 +174,7 @@ void MockSrsFileReader::close()
 
 bool MockSrsFileReader::is_open()
 {
-    return offset >= 0;
+    return opened;
 }
 
 int64_t MockSrsFileReader::tellg()
@@ -842,8 +847,10 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
 VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 {
     MockSrsFileReader fs;
+    fs.close();
+
     SrsFlvVodStreamDecoder dec;
-    ASSERT_TRUE(srs_success == dec.initialize(&fs));
+    ASSERT_FALSE(srs_success == dec.initialize(&fs));
 }
 
 /**
@@ -1062,6 +1069,22 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 
     EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
     EXPECT_TRUE(5 == fs.offset);
+}
+
+VOID TEST(KernelFLVTest, CoverFLVVodError)
+{
+	srs_error_t err;
+
+	if (true) {
+	    SrsFlvVodStreamDecoder dec;
+	    HELPER_EXPECT_FAILED(dec.initialize((ISrsReader*)&dec));
+    }
+
+	if (true) {
+	    MockSrsFileReader fs;
+	    SrsFlvVodStreamDecoder dec;
+	    HELPER_EXPECT_FAILED(dec.initialize(&fs));
+    }
 }
 
 /**
@@ -2690,6 +2713,39 @@ VOID TEST(KernelCodecTest, AVFrame)
     }
 }
 
+VOID TEST(KernelCodecTest, IsSequenceHeaderSpecial)
+{
+	if (true) {
+		SrsFormat f;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec = new SrsVideoCodecConfig();
+		f.video = new SrsVideoFrame();
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec->id = SrsVideoCodecIdAVC;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.video->avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+		EXPECT_TRUE(f.is_avc_sequence_header());
+	}
+
+	if (true) {
+		SrsFormat f;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec = new SrsVideoCodecConfig();
+		f.video = new SrsVideoFrame();
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec->id = SrsVideoCodecIdHEVC;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.video->avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+		EXPECT_TRUE(f.is_avc_sequence_header());
+	}
+}
+
 VOID TEST(KernelCodecTest, AudioFormat)
 {
     if (true) {
@@ -2802,6 +2858,137 @@ VOID TEST(KernelCodecTest, AudioFormat)
         EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, f.audio->aac_packet_type);
         EXPECT_TRUE(f.is_aac_sequence_header());
         EXPECT_TRUE(!f.is_avc_sequence_header());
+    }
+}
+
+VOID TEST(KernelCodecTest, VideoFormatSepcial)
+{
+	srs_error_t err;
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x17", 1));
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)"\x27", 1));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x02, // lengthSizeMinusOne
+            0x00,
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x00, // SPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, // SPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+            0x00, // PPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS
+            0x01, // PPS
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        EXPECT_TRUE(srs_success == f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x01, 0x00, 0x00, // SPS, empty
+            0x01, 0x00, 0x00, // PPS, empty
+        };
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
     }
 }
 
@@ -3303,6 +3490,48 @@ VOID TEST(KernelFLVTest, CoverAll)
 #endif
 }
 
+VOID TEST(KernelFLVTest, CoverSharedPtrMessage)
+{
+	srs_error_t err;
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, new char[1], 1));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_FAILED(m.create(&h, NULL, -1));
+	}
+
+	if (true) {
+		SrsCommonMessage cm;
+		cm.size = -1;
+
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_FAILED(m.create(&cm));
+	}
+
+	if (true) {
+		SrsMessageHeader h;
+		h.perfer_cid = 1;
+
+		SrsSharedPtrMessage m;
+		HELPER_EXPECT_SUCCESS(m.create(&h, NULL, 0));
+
+		EXPECT_FALSE(m.check(1));
+		EXPECT_TRUE(m.check(1));
+	}
+}
+
 VOID TEST(KernelLogTest, CoverAll)
 {
     if (true) {
@@ -3326,8 +3555,10 @@ VOID TEST(KernelLogTest, CoverAll)
 VOID TEST(KernelMp3Test, CoverAll)
 {
     if (true) {
-        SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
+
+        SrsMp3Transmuxer m;
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_header());
@@ -3337,6 +3568,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_audio(0, (char*)"\x20\x01", 2));
@@ -3346,6 +3578,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         srs_error_t err = m.write_audio(0, (char*)"\x30\x01", 2);
@@ -3370,6 +3603,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         f.err = srs_error_new(-1, "mock file error");
@@ -3381,6 +3615,7 @@ VOID TEST(KernelMp3Test, CoverAll)
     if (true) {
         SrsMp3Transmuxer m;
         MockSrsFileWriter f;
+        EXPECT_TRUE(srs_success == f.open(""));
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         f.err = srs_error_new(-1, "mock file error");
@@ -3431,6 +3666,37 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
         EXPECT_TRUE(srs_success != err);
         srs_freep(err);
     }
+}
+
+extern _srs_gettimeofday_t _srs_gettimeofday;
+int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
+	return -1;
+}
+
+class MockTime
+{
+private:
+	_srs_gettimeofday_t ot;
+public:
+	MockTime(_srs_gettimeofday_t t = NULL) {
+		ot = _srs_gettimeofday;
+		if (t) {
+			_srs_gettimeofday = t;
+		}
+	}
+	virtual ~MockTime() {
+		if (ot) {
+			_srs_gettimeofday = ot;
+		}
+	}
+};
+
+VOID TEST(KernelUtilityTest, CoverTimeSpecial)
+{
+	if (true) {
+		MockTime _mt(mock_gettimeofday);
+		EXPECT_TRUE(-1 == srs_update_system_time());
+	}
 }
 
 extern int64_t _srs_system_time_startup_time;

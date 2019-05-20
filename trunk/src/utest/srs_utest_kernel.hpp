@@ -54,6 +54,7 @@ public:
     int offset;
     srs_error_t err;
     int error_offset;
+    bool opened;
 public:
     MockSrsFileWriter();
     virtual ~MockSrsFileWriter();
@@ -78,6 +79,7 @@ public:
     char* data;
     int size;
     int offset;
+    bool opened;
 public:
     MockSrsFileReader();
     MockSrsFileReader(const char* data, int nb_data);

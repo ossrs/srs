@@ -122,11 +122,14 @@ srs_utime_t srs_get_system_startup_time()
     return _srs_system_time_startup_time;
 }
 
+// For utest to mock it.
+_srs_gettimeofday_t _srs_gettimeofday = ::gettimeofday;
+
 srs_utime_t srs_update_system_time()
 {
     timeval now;
     
-    if (gettimeofday(&now, NULL) < 0) {
+    if (_srs_gettimeofday(&now, NULL) < 0) {
         srs_warn("gettimeofday failed, ignore");
         return -1;
     }
