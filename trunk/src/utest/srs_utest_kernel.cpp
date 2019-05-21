@@ -924,14 +924,14 @@ VOID TEST(KernelFLVTest, CoverVodStreamErrorCase)
 	}
 
 	if (true) {
-		MockSrsFileReader r;
+		MockSrsFileReader r("HELLO", 5);
 		HELPER_EXPECT_SUCCESS(r.open(""));
 		r.seekable = false;
 
 		SrsFlvVodStreamDecoder d;
 		HELPER_EXPECT_SUCCESS(d.initialize(&r));
 
-		HELPER_EXPECT_FAILED(d.seek2(0));
+		HELPER_EXPECT_FAILED(d.seek2(1));
 	}
 }
 
