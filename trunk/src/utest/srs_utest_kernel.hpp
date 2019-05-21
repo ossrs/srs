@@ -53,7 +53,9 @@ public:
     int size;
     int offset;
     srs_error_t err;
+    // Error if exceed this offset.
     int error_offset;
+    // Whether opened.
     bool opened;
 public:
     MockSrsFileWriter();
@@ -80,6 +82,8 @@ public:
     int size;
     int offset;
     bool opened;
+    // Could seek.
+    bool seekable;
 public:
     MockSrsFileReader();
     MockSrsFileReader(const char* data, int nb_data);

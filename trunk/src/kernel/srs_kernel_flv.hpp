@@ -394,10 +394,10 @@ public:
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 #endif
 private:
-    virtual srs_error_t write_metadata_to_cache(char type, char* data, int size, char* cache);
-    virtual srs_error_t write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual srs_error_t write_video_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual srs_error_t write_pts_to_cache(int size, char* cache);
+    virtual void cache_metadata(char type, char* data, int size, char* cache);
+    virtual void cache_audio(int64_t timestamp, char* data, int size, char* cache);
+    virtual void cache_video(int64_t timestamp, char* data, int size, char* cache);
+    virtual void cache_pts(int size, char* cache);
     virtual srs_error_t write_tag(char* header, int header_size, char* tag, int tag_size);
 };
 
