@@ -143,6 +143,7 @@ MockSrsFileReader::MockSrsFileReader()
     size = 0;
     offset = 0;
     opened = false;
+    seekable = true;
 }
 
 MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
@@ -157,6 +158,7 @@ MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
 
     offset = 0;
     opened = false;
+    seekable = true;
 }
 
 MockSrsFileReader::~MockSrsFileReader()
@@ -194,6 +196,10 @@ void MockSrsFileReader::skip(int64_t _size)
 
 int64_t MockSrsFileReader::seek2(int64_t _offset)
 {
+	if (!seekable) {
+		return -1;
+	}
+
     offset = (int)_offset;
     return offset;
 }
@@ -869,6 +875,63 @@ VOID TEST(KernelFLVTest, CoverReaderErrorCase)
 
 		char data[4];
 		HELPER_EXPECT_FAILED(d.read_previous_tag_size(data));
+	}
+}
+
+VOID TEST(KernelFLVTest, CoverVodStreamErrorCase)
+{
+	srs_error_t err;
+
+	if (true) {
+		MockSrsFileReader r;
+		HELPER_EXPECT_SUCCESS(r.open(""));
+
+		SrsFlvVodStreamDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+	}
+
+	if (true) {
+		MockSrsFileReader r;
+		HELPER_EXPECT_SUCCESS(r.open(""));
+
+		SrsFlvVodStreamDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+
+		char header[13];
+		HELPER_EXPECT_FAILED(d.read_header_ext(header));
+	}
+
+	if (true) {
+		MockSrsFileReader r;
+		HELPER_EXPECT_SUCCESS(r.open(""));
+
+		SrsFlvVodStreamDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+
+		int64_t start;
+		int size;
+		HELPER_EXPECT_FAILED(d.read_sequence_header_summary(&start, &size));
+	}
+
+	if (true) {
+		MockSrsFileReader r;
+		HELPER_EXPECT_SUCCESS(r.open(""));
+
+		SrsFlvVodStreamDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+
+		HELPER_EXPECT_FAILED(d.seek2(1));
+	}
+
+	if (true) {
+		MockSrsFileReader r;
+		HELPER_EXPECT_SUCCESS(r.open(""));
+		r.seekable = false;
+
+		SrsFlvVodStreamDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+
+		HELPER_EXPECT_FAILED(d.seek2(0));
 	}
 }
 

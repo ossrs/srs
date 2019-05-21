@@ -82,6 +82,8 @@ public:
     int size;
     int offset;
     bool opened;
+    // Could seek.
+    bool seekable;
 public:
     MockSrsFileReader();
     MockSrsFileReader(const char* data, int nb_data);

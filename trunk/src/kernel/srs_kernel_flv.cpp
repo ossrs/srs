@@ -842,7 +842,7 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart
             reader->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
             continue;
         }
-        
+
         // if video duplicated, no audio
         if (is_video && got_video) {
             break;
@@ -868,7 +868,7 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart
         if (is_audio) {
             srs_assert(!got_audio);
             got_audio = true;
-            
+
             if (av_sequence_offset_start < 0) {
                 av_sequence_offset_start = reader->tellg() - SRS_FLV_TAG_HEADER_SIZE;
             }
