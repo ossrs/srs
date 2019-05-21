@@ -810,35 +810,35 @@ VOID TEST(KernelFLVTest, CoverReaderErrorCase)
 	}
 
 	if (true) {
-		MockSrsFileReader r;
-		HELPER_EXPECT_SUCCESS(r.open(""));
-
-		SrsFlvDecoder d;
-		HELPER_EXPECT_SUCCESS(d.initialize(&r));
-
 		char header[9] = {'T', 'E', 'S', 'T', 0, 0, 0, 0, 0};
-		HELPER_EXPECT_FAILED(d.read_header(header));
-	}
-
-	if (true) {
-		MockSrsFileReader r;
+		MockSrsFileReader r(header, sizeof(header));
 		HELPER_EXPECT_SUCCESS(r.open(""));
 
 		SrsFlvDecoder d;
 		HELPER_EXPECT_SUCCESS(d.initialize(&r));
 
+		HELPER_EXPECT_FAILED(d.read_header(header));
+	}
+
+	if (true) {
 		char header[9] = {'F', 'E', 'S', 'T', 0, 0, 0, 0, 0};
-		HELPER_EXPECT_FAILED(d.read_header(header));
-	}
-
-	if (true) {
-		MockSrsFileReader r;
+		MockSrsFileReader r(header, sizeof(header));
 		HELPER_EXPECT_SUCCESS(r.open(""));
 
 		SrsFlvDecoder d;
 		HELPER_EXPECT_SUCCESS(d.initialize(&r));
 
+		HELPER_EXPECT_FAILED(d.read_header(header));
+	}
+
+	if (true) {
 		char header[9] = {'F', 'L', 'S', 'T', 0, 0, 0, 0, 0};
+		MockSrsFileReader r(header, sizeof(header));
+		HELPER_EXPECT_SUCCESS(r.open(""));
+
+		SrsFlvDecoder d;
+		HELPER_EXPECT_SUCCESS(d.initialize(&r));
+
 		HELPER_EXPECT_FAILED(d.read_header(header));
 	}
 
