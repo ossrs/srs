@@ -46,7 +46,7 @@ MockSrsFileWriter::MockSrsFileWriter()
     data = new char[size];
     offset = 0;
     err = srs_success;
-    error_offset = 0;
+    error_offset = -1;
     opened = false;
 }
 
@@ -95,8 +95,9 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     }
     
     int nwriten = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
-    
-    memcpy(data + offset, buf, nwriten);
+	if (nwriten > 0) {
+	    memcpy(data + offset, buf, nwriten);
+    }
 
     if (pnwrite) {
         *pnwrite = nwriten;
@@ -105,7 +106,7 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     offset += nwriten;
     size = srs_max(size, offset);
     
-    if (error_offset > 0 && offset >= error_offset) {
+    if (error_offset >= 0 && offset > error_offset) {
         return srs_error_new(-1, "exceed offset");
     }
     
@@ -656,6 +657,89 @@ VOID TEST(KernelFlvTest, FlvEncoderSizeTag)
 {
     EXPECT_EQ(11+4+10, SrsFlvTransmuxer::size_tag(10));
     EXPECT_EQ(11+4+0, SrsFlvTransmuxer::size_tag(0));
+}
+
+VOID TEST(KernelFLVTest, CoverErrorCase)
+{
+	srs_error_t err;
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_SUCCESS(m.write_header());
+	}
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 0;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_FAILED(m.write_header());
+	}
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 9;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_FAILED(m.write_header());
+	}
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 0;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_FAILED(m.write_metadata(0, NULL, 0));
+	}
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 0;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_FAILED(m.write_audio(0, NULL, 0));
+	}
+
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 0;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+		HELPER_EXPECT_FAILED(m.write_video(0, NULL, 0));
+	}
+
+#ifdef SRS_PERF_FAST_FLV_ENCODER
+	if (true) {
+		MockSrsFileWriter w;
+		HELPER_EXPECT_SUCCESS(w.open(""));
+		w.error_offset = 0;
+
+		SrsFlvTransmuxer m;
+		HELPER_EXPECT_SUCCESS(m.initialize(&w));
+
+        SrsMessageHeader h;
+        h.initialize_video(10, 30, 20);
+        SrsSharedPtrMessage msg;
+        HELPER_EXPECT_SUCCESS(msg.create(&h, new char[1], 1));
+
+        SrsSharedPtrMessage* msgs = &msg;
+		HELPER_EXPECT_FAILED(m.write_tags(&msgs, 1));
+	}
+#endif
 }
 
 /**
@@ -2403,7 +2487,7 @@ VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
         EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
         EXPECT_EQ(2, m.aac_channels);
         
-        f.error_offset = 7;
+        f.error_offset = 6;
         
         err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
         EXPECT_TRUE(srs_success != err);
@@ -2427,7 +2511,7 @@ VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
         EXPECT_EQ(44100, srs_aac_srates[m.aac_sample_rate]);
         EXPECT_EQ(2, m.aac_channels);
         
-        f.error_offset = 8;
+        f.error_offset = 7;
         
         err = m.write_audio(0, (char*)"\xaf\x01\x00", 3);
         EXPECT_TRUE(srs_success != err);

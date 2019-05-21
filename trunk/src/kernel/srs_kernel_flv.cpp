@@ -420,10 +420,8 @@ srs_error_t SrsFlvTransmuxer::write_metadata(char type, char* data, int size)
 {
     srs_error_t err = srs_success;
     
-    srs_assert(data);
-    
-    if ((err = write_metadata_to_cache(type, data, size, tag_header)) != srs_success) {
-        return srs_error_wrap(err, "cache metadata");
+    if (size > 0) {
+        cache_metadata(type, data, size, tag_header);
     }
     
     if ((err = write_tag(tag_header, sizeof(tag_header), data, size)) != srs_success) {
@@ -437,10 +435,8 @@ srs_error_t SrsFlvTransmuxer::write_audio(int64_t timestamp, char* data, int siz
 {
     srs_error_t err = srs_success;
     
-    srs_assert(data);
-    
-    if ((err = write_audio_to_cache(timestamp, data, size, tag_header)) != srs_success) {
-        return srs_error_wrap(err, "cache audio");
+    if (size > 0) {
+	    cache_audio(timestamp, data, size, tag_header);
     }
     
     if ((err = write_tag(tag_header, sizeof(tag_header), data, size)) != srs_success) {
@@ -454,10 +450,8 @@ srs_error_t SrsFlvTransmuxer::write_video(int64_t timestamp, char* data, int siz
 {
     srs_error_t err = srs_success;
     
-    srs_assert(data);
-    
-    if ((err = write_video_to_cache(timestamp, data, size, tag_header)) != srs_success) {
-        return srs_error_wrap(err, "cache video");
+    if (size > 0) {
+	    cache_video(timestamp, data, size, tag_header);
     }
     
     if ((err = write_tag(tag_header, sizeof(tag_header), data, size)) != srs_success) {
@@ -513,23 +507,15 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
         
         // cache all flv header.
         if (msg->is_audio()) {
-            if ((err = write_audio_to_cache(msg->timestamp, msg->payload, msg->size, cache)) != srs_success) {
-                return srs_error_wrap(err, "cache audio");
-            }
+            cache_audio(msg->timestamp, msg->payload, msg->size, cache);
         } else if (msg->is_video()) {
-            if ((err = write_video_to_cache(msg->timestamp, msg->payload, msg->size, cache)) != srs_success) {
-                return srs_error_wrap(err, "cache video");
-            }
+            cache_video(msg->timestamp, msg->payload, msg->size, cache);
         } else {
-            if ((err = write_metadata_to_cache(SrsFrameTypeScript, msg->payload, msg->size, cache)) != srs_success) {
-                return srs_error_wrap(err, "cache metadata");
-            }
+            cache_metadata(SrsFrameTypeScript, msg->payload, msg->size, cache);
         }
         
         // cache all pts.
-        if ((err = write_pts_to_cache(SRS_FLV_TAG_HEADER_SIZE + msg->size, pts)) != srs_success) {
-            return srs_error_wrap(err, "cache pts");
-        }
+        cache_pts(SRS_FLV_TAG_HEADER_SIZE + msg->size, pts);
         
         // all ioves.
         iovs[0].iov_base = cache;
@@ -553,10 +539,8 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
 }
 #endif
 
-srs_error_t SrsFlvTransmuxer::write_metadata_to_cache(char type, char* data, int size, char* cache)
+void SrsFlvTransmuxer::cache_metadata(char type, char* data, int size, char* cache)
 {
-    srs_error_t err = srs_success;
-    
     srs_assert(data);
     
     // 11 bytes tag header
@@ -577,14 +561,10 @@ srs_error_t SrsFlvTransmuxer::write_metadata_to_cache(char type, char* data, int
     tag_stream->write_3bytes(0x00);
     tag_stream->write_1bytes(0x00);
     tag_stream->write_3bytes(0x00);
-    
-    return err;
 }
 
-srs_error_t SrsFlvTransmuxer::write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache)
+void SrsFlvTransmuxer::cache_audio(int64_t timestamp, char* data, int size, char* cache)
 {
-    srs_error_t err = srs_success;
-    
     srs_assert(data);
     
     timestamp &= 0x7fffffff;
@@ -608,14 +588,10 @@ srs_error_t SrsFlvTransmuxer::write_audio_to_cache(int64_t timestamp, char* data
     // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     tag_stream->write_3bytes(0x00);
-    
-    return err;
 }
 
-srs_error_t SrsFlvTransmuxer::write_video_to_cache(int64_t timestamp, char* data, int size, char* cache)
+void SrsFlvTransmuxer::cache_video(int64_t timestamp, char* data, int size, char* cache)
 {
-    srs_error_t err = srs_success;
-    
     srs_assert(data);
     
     timestamp &= 0x7fffffff;
@@ -639,20 +615,13 @@ srs_error_t SrsFlvTransmuxer::write_video_to_cache(int64_t timestamp, char* data
     // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     tag_stream->write_3bytes(0x00);
-    
-    return err;
 }
 
-srs_error_t SrsFlvTransmuxer::write_pts_to_cache(int size, char* cache)
+void SrsFlvTransmuxer::cache_pts(int size, char* cache)
 {
-    srs_error_t err = srs_success;
-    
     SrsBuffer* tag_stream = new SrsBuffer(cache, 11);
     SrsAutoFree(SrsBuffer, tag_stream);
-    
     tag_stream->write_4bytes(size);
-    
-    return err;
 }
 
 srs_error_t SrsFlvTransmuxer::write_tag(char* header, int header_size, char* tag, int tag_size)
@@ -661,9 +630,7 @@ srs_error_t SrsFlvTransmuxer::write_tag(char* header, int header_size, char* tag
     
     // PreviousTagSizeN UI32 Size of last tag, including its header, in bytes.
     char pre_size[SRS_FLV_PREVIOUS_TAG_SIZE];
-    if ((err = write_pts_to_cache(tag_size + header_size, pre_size)) != srs_success) {
-        return srs_error_wrap(err, "cache pts");
-    }
+    cache_pts(tag_size + header_size, pre_size);
     
     iovec iovs[3];
     iovs[0].iov_base = header;

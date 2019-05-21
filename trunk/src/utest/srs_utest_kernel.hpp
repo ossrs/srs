@@ -53,7 +53,9 @@ public:
     int size;
     int offset;
     srs_error_t err;
+    // Error if exceed this offset.
     int error_offset;
+    // Whether opened.
     bool opened;
 public:
     MockSrsFileWriter();
