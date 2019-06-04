@@ -813,7 +813,19 @@ int SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
         std::stringstream data;
         
         if (!client) {
-            ret = stat->dumps_clients(data, 0, 10);
+            int start = 0;
+            std::string query_start = r->query_get("start");
+            if (!query_start.empty()) {
+                start = ::atoi(query_start.c_str());
+            }
+
+            int count = 10;
+            std:string query_count = r->query_get("count");
+            if (!query_count.empty()) {
+                count = ::atoi(query_count.c_str());
+            }
+
+            ret = stat->dumps_clients(data, start, count);
             
             ss << SRS_JOBJECT_START
                     << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
