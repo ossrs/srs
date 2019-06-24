@@ -308,6 +308,12 @@ public:
 // The context of ts, to decode the ts stream.
 class SrsTsContext
 {
+#ifdef UTEST
+    FRIEND_TEST(KernelUtilityTest, CoverTimeUtilityAll);
+    FRIEND_TEST(KernelAACTest, TransmaxRTMP2AAC);
+    FRIEND_TEST(KernelTSTest, CoverContextUtility);
+    FRIEND_TEST(KernelTSTest, CoverContextEncode);
+#endif
 private:
     // Whether context is ready, failed if try to write data when not ready.
     // When PAT and PMT writen, the context is ready.

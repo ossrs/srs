@@ -35,6 +35,9 @@
  */
 class SrsLbRoundRobin
 {
+#ifdef UTEST
+    FRIEND_TEST(KernelLBRRTest, CoverAll);
+#endif
 private:
     // current selected index.
     int index;

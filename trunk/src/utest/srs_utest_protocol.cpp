@@ -5605,6 +5605,7 @@ MockStage::MockStage(http_parser* from)
 
 class MockParser
 {
+	FRIEND_TEST(ProtocolHTTPTest, HTTPParser);
 private:
 	http_parser_settings settings;
 	http_parser* parser;

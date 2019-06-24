@@ -37,7 +37,7 @@
 // when you want to use different level, override this classs, set the protected _level.
 class SrsFastLog : public ISrsLog, public ISrsReloadHandler
 {
-private:
+protected:
     // Defined in SrsLogLevel.
     SrsLogLevel level;
 private:

@@ -24,10 +24,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_UTEST_PUBLIC_SHARED_HPP
 #define SRS_UTEST_PUBLIC_SHARED_HPP
 
-// Public all private and protected members.
-#define private public
-#define protected public
-
 /*
 #include <srs_utest.hpp>
 */

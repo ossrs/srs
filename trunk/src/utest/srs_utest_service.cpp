@@ -46,6 +46,9 @@ VOID TEST(ServiceTimeTest, TimeUnit)
 
 class MockTcpHandler : public ISrsTcpHandler
 {
+    FRIEND_TEST(TCPServerTest, WritevIOVC);
+    FRIEND_TEST(TCPServerTest, PingPong);
+    FRIEND_TEST(TCPServerTest, PingPongWithTimeout);
 private:
 	srs_netfd_t fd;
 public:

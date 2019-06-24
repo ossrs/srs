@@ -33,6 +33,9 @@
 // It's a media file, for example FLV or MP4, with duration.
 class SrsFragment
 {
+#ifdef UTEST
+    FRIEND_TEST(AppFragmentTest, CheckDuration);
+#endif
 private:
     // The duration in srs_utime_t.
     srs_utime_t dur;

@@ -693,6 +693,10 @@ public:
  */
 class SrsFormat
 {
+#ifdef UTEST
+    FRIEND_TEST(KernelCodecTest, AudioFormat);
+    FRIEND_TEST(KernelCodecTest, VideoFormat);
+#endif
 public:
     SrsAudioFrame* audio;
     SrsAudioCodecConfig* acodec;

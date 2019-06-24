@@ -38,6 +38,9 @@ class ISrsStreamWriter;
 // Transmux the RTMP packets to AAC stream.
 class SrsAacTransmuxer
 {
+#ifdef UTEST
+    FRIEND_TEST(KernelAACTest, TransmaxRTMP2AAC);
+#endif
 private:
     ISrsStreamWriter* writer;
 private:
