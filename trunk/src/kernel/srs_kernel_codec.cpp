@@ -1015,6 +1015,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     srs_info("sps parse profile=%d, level=%d, sps_id=%d", profile_idc, level_idc, seq_parameter_set_id);
     
     int32_t chroma_format_idc = -1;
+    int8_t separate_colour_plane_flag = 0;
     if (profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 244
         || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118
         || profile_idc == 128
@@ -1023,7 +1024,6 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
             return ret;
         }
         if (chroma_format_idc == 3) {
-            int8_t separate_colour_plane_flag = -1;
             if ((ret = srs_avc_nalu_read_bit(&bs, separate_colour_plane_flag)) != ERROR_SUCCESS) {
                 return ret;
             }
@@ -1126,9 +1126,66 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     if ((ret = srs_avc_nalu_read_uev(&bs, pic_height_in_map_units_minus1)) != ERROR_SUCCESS) {
         return ret;
     }
-    
-    width = (int)(pic_width_in_mbs_minus1 + 1) * 16;
-    height = (int)(pic_height_in_map_units_minus1 + 1) * 16;
+        
+    int8_t frame_mbs_only_flag = -1;
+    int8_t mb_adaptive_frame_field_flag = -1;
+    int8_t direct_8x8_inference_flag = -1;
+    if ((ret = srs_avc_nalu_read_bit(&bs, frame_mbs_only_flag)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if(frame_mbs_only_flag &&
+		(ret = srs_avc_nalu_read_bit(&bs, mb_adaptive_frame_field_flag)) != ERROR_SUCCESS ) {
+		return ret;
+	}
+	if ((ret = srs_avc_nalu_read_bit(&bs, direct_8x8_inference_flag)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    int8_t frame_cropping_flag;
+	int32_t frame_crop_left_offset = 0;
+	int32_t frame_crop_right_offset = 0;
+	int32_t frame_crop_top_offset = 0;
+    int32_t frame_crop_bottom_offset = 0;
+    if ((ret = srs_avc_nalu_read_bit(&bs, frame_cropping_flag)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if(frame_cropping_flag) {
+        if ((ret = srs_avc_nalu_read_uev(&bs, frame_crop_left_offset)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = srs_avc_nalu_read_uev(&bs, frame_crop_right_offset)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = srs_avc_nalu_read_uev(&bs, frame_crop_top_offset)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if ((ret = srs_avc_nalu_read_uev(&bs, frame_crop_bottom_offset)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+    }
+
+    width = 16 * (pic_width_in_mbs_minus1 + 1);
+    height = 16 * (2 - frame_mbs_only_flag) * (pic_height_in_map_units_minus1 + 1);
+
+    if (separate_colour_plane_flag || chroma_format_idc == 0) {
+        frame_crop_bottom_offset *= (2 - frame_mbs_only_flag);
+        frame_crop_top_offset *= (2 - frame_mbs_only_flag);
+    } else if (!separate_colour_plane_flag && chroma_format_idc > 0) {
+        // Width multipliers for formats 1 (4:2:0) and 2 (4:2:2).
+        if (chroma_format_idc == 1 || chroma_format_idc == 2) {
+          frame_crop_left_offset *= 2;
+          frame_crop_right_offset *= 2;
+        }
+        // Height multipliers for format 1 (4:2:0).
+        if (chroma_format_idc == 1) {
+          frame_crop_top_offset *= 2;
+          frame_crop_bottom_offset *= 2;
+        }
+    }
+
+    // Subtract the crop for each dimension.
+    width -= (frame_crop_left_offset + frame_crop_right_offset);
+    height -= (frame_crop_top_offset + frame_crop_bottom_offset);
     
     return ret;
 }
