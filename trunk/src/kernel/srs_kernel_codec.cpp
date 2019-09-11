@@ -1133,7 +1133,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     if ((ret = srs_avc_nalu_read_bit(&bs, frame_mbs_only_flag)) != ERROR_SUCCESS) {
         return ret;
     }
-    if(frame_mbs_only_flag &&
+    if(!frame_mbs_only_flag &&
 		(ret = srs_avc_nalu_read_bit(&bs, mb_adaptive_frame_field_flag)) != ERROR_SUCCESS ) {
 		return ret;
 	}
