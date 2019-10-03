@@ -49,7 +49,6 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_app_kafka.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
 
@@ -523,10 +522,6 @@ void SrsServer::dispose()
     
     // @remark don't dispose ingesters, for too slow.
     
-#ifdef SRS_AUTO_KAFKA
-    srs_dispose_kafka();
-#endif
-    
     // dispose the source for hls and dvr.
     SrsSource::dispose_all();
     
@@ -589,13 +584,6 @@ srs_error_t SrsServer::initialize_st()
     
     // set current log id.
     _srs_context->generate_id();
-    
-    // initialize the conponents that depends on st.
-#ifdef SRS_AUTO_KAFKA
-    if ((err = srs_initialize_kafka()) != srs_success) {
-        return srs_error_wrap(err, "initialize kafka");
-    }
-#endif
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();

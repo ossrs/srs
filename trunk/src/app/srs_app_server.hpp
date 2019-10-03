@@ -50,9 +50,6 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
-#ifdef SRS_AUTO_KAFKA
-class SrsKafkaProducer;
-#endif
 class SrsCoroutineManager;
 
 // The listener type for server to identify the connection,

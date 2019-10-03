@@ -54,9 +54,6 @@ class SrsSecurity;
 class ISrsWakable;
 class SrsCommonMessage;
 class SrsPacket;
-#ifdef SRS_AUTO_KAFKA
-class ISrsKafkaCluster;
-#endif
 
 // The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient

@@ -390,13 +390,5 @@
 #define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
 #define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
 
-///////////////////////////////////////////////////////////
-// KAFKA consts values
-///////////////////////////////////////////////////////////
-#define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
-
-// The common io timeout, for both recv and send.
-#define SRS_CONSTS_KAFKA_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)
-
 #endif
 

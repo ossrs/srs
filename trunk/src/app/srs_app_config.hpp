@@ -455,14 +455,6 @@ public:
     virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     // Get the max udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
-// kafka section.
-public:
-    // Whether the kafka enabled.
-    virtual bool get_kafka_enabled();
-    // Get the broker list, each is format in <ip:port>.
-    virtual SrsConfDirective* get_kafka_brokers();
-    // Get the kafka topic to use for srs.
-    virtual std::string get_kafka_topic();
 // vhost specified section
 public:
     // Get the vhost directive by vhost name.
