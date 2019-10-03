@@ -367,7 +367,6 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 SrsConfDirective* hstrs = conf->get("hstrs");
                 conf->remove(hstrs);
                 srs_freep(hstrs);
-                srs_warn("Always enable hstrs, please never config it.");
             }
             
             // SRS3.0, change the refer style
