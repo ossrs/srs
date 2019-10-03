@@ -1095,6 +1095,8 @@ Winlin
 [v1_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_EN_SampleDemo
 [v3_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_CN_SrsLibrtmp#publish-h264-raw-data
 [v3_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_EN_SrsLibrtmp#publish-h264-raw-data
+[v3_CN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v3_CN_REUSEPORT
+[v3_EN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v3_EN_REUSEPORT
 [v1_CN_Sample]: https://github.com/ossrs/srs/wiki/v1_CN_Sample
 [v1_EN_Sample]: https://github.com/ossrs/srs/wiki/v1_EN_Sample
 [v1_CN_Product]: https://github.com/ossrs/srs/wiki/v1_CN_Product
