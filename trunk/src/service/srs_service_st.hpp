@@ -49,6 +49,9 @@ extern srs_error_t srs_fd_closeexec(int fd);
 // Set the SO_REUSEADDR of fd.
 extern srs_error_t srs_fd_reuseaddr(int fd);
 
+// Set the SO_REUSEPORT of fd.
+extern srs_error_t srs_fd_reuseport(int fd);
+
 // Set the SO_KEEPALIVE of fd.
 extern srs_error_t srs_fd_keepalive(int fd);
 
