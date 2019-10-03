@@ -55,7 +55,6 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_app_kafka.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -153,13 +152,6 @@ srs_error_t SrsRtmpConn::do_cycle()
     srs_error_t err = srs_success;
     
     srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
-    
-    // notify kafka cluster.
-#ifdef SRS_AUTO_KAFKA
-    if ((err = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != srs_success) {
-        return srs_error_wrap(err, "kafka on client");
-    }
-#endif
     
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
@@ -1193,12 +1185,6 @@ srs_error_t SrsRtmpConn::on_disconnect()
     srs_error_t err = srs_success;
     
     http_hooks_on_close();
-    
-#ifdef SRS_AUTO_KAFKA
-    if ((err = _srs_kafka->on_close(srs_id())) != srs_success) {
-        return srs_error_wrap(err, "kafka on close");
-    }
-#endif
     
     // TODO: FIXME: Implements it.
     

@@ -1555,7 +1555,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     }
     
     // TODO: FIXME: support reload stream_caster.
-    // TODO: FIXME: support reload kafka.
     
     // merge config: vhost
     if ((err = reload_vhost(old_root)) != srs_success) {
@@ -2135,19 +2134,6 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                 } else if (sdir->name == "listen") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "dir") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
-                }
-            }
-            obj->set(dir->name, sobj);
-        } else if (dir->name == "kafka") {
-            SrsJsonObject* sobj = SrsJsonAny::object();
-            for (int j = 0; j < (int)dir->directives.size(); j++) {
-                SrsConfDirective* sdir = dir->directives.at(j);
-                if (sdir->name == "enabled") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
-                } else if (sdir->name == "brokers") {
-                    sobj->set(sdir->name, sdir->dumps_args());
-                } else if (sdir->name == "topic") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 }
             }
@@ -3511,7 +3497,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster" && n != "kafka"
+            && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
@@ -3542,15 +3528,6 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "crossdomain") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_stream.%s", n.c_str());
-            }
-        }
-    }
-    if (true) {
-        SrsConfDirective* conf = root->get("kafka");
-        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
-            string n = conf->at(i)->name;
-            if (n != "enabled" && n != "brokers" && n != "topic") {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal kafka.%s", n.c_str());
             }
         }
     }
@@ -4206,55 +4183,6 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
-}
-
-bool SrsConfig::get_kafka_enabled()
-{
-    static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = root->get("kafka");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
-
-SrsConfDirective* SrsConfig::get_kafka_brokers()
-{
-    SrsConfDirective* conf = root->get("kafka");
-    if (!conf) {
-        return NULL;
-    }
-    
-    conf = conf->get("brokers");
-    if (!conf || conf->args.empty()) {
-        return NULL;
-    }
-    
-    return conf;
-}
-
-string SrsConfig::get_kafka_topic()
-{
-    static string DEFAULT = "srs";
-    
-    SrsConfDirective* conf = root->get("kafka");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("topic");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    
-    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)

@@ -284,7 +284,7 @@
 #define ERROR_OCLUSTER_REDIRECT             3091
 
 ///////////////////////////////////////////////////////
-// HTTP/StreamCaster/KAFKA protocol error.
+// HTTP/StreamCaster protocol error.
 ///////////////////////////////////////////////////////
 #define ERROR_HTTP_PATTERN_EMPTY            4000
 #define ERROR_HTTP_PATTERN_DUPLICATED       4001
@@ -316,14 +316,6 @@
 #define ERROR_AVC_NALU_UEV                  4027
 #define ERROR_AAC_BYTES_INVALID             4028
 #define ERROR_HTTP_REQUEST_EOF              4029
-#define ERROR_KAFKA_CODEC_STRING            4030
-#define ERROR_KAFKA_CODEC_BYTES             4031
-#define ERROR_KAFKA_CODEC_REQUEST           4032
-#define ERROR_KAFKA_CODEC_RESPONSE          4033
-#define ERROR_KAFKA_CODEC_ARRAY             4034
-#define ERROR_KAFKA_CODEC_METADATA          4035
-#define ERROR_KAFKA_CODEC_MESSAGE           4036
-#define ERROR_KAFKA_CODEC_PRODUCER          4037
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 

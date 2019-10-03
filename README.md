@@ -164,6 +164,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-03, Remove KAFKA. 3.0.53
 * v3.0, 2019-05-14, Covert Kernel File reader/writer. 3.0.52
 * v3.0, 2019-04-30, Refine typo in files. 3.0.51
 * v3.0, 2019-04-25, Upgrade http-parser from 2.1 to 2.9.2 and cover it. 3.0.50
@@ -710,7 +711,6 @@ Comparing with other media servers, SRS is much better and stronger, for details
 |   Reload      |   Stable  |   X       |   X       |   X       |   X       |
 |   Forward     |   Stable  |   X       |   X       |   X       |   X       |
 |   ATC         |   Stable  |   X       |   X       |   X       |   X       |
-|   KAFKA       | Experiment|   X       |   X       |   X       |   X       |
 
 #### Stream Service
 

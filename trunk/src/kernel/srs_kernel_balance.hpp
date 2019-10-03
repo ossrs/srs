@@ -31,7 +31,7 @@
 
 /**
  * the round-robin load balance algorithm,
- * used for edge pull, kafka and other multiple server feature.
+ * used for edge pull and other multiple server feature.
  */
 class SrsLbRoundRobin
 {
