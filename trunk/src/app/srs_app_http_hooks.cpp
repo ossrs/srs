@@ -464,7 +464,7 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     }
     port = (int)prop->to_integer();
     
-    srs_trace("http: on_hls ok, url=%s, response=%s", url.c_str(), res.c_str());
+    srs_trace("http: cluster redirect %s:%d ok, url=%s, response=%s", host.c_str(), port, url.c_str(), res.c_str());
     
     return err;
 }

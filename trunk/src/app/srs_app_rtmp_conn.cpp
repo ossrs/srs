@@ -608,7 +608,8 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
-            srs_trace("rtmp: redirect in cluster, url=%s, target=%s:%d", url.c_str(), host.c_str(), port);
+            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s",
+                req->host.c_str(), req->port, host.c_str(), port, url.c_str());
             
             bool accepted = false;
             if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
