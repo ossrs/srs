@@ -12,15 +12,7 @@ Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
-> Remark: SRS3 hasn't been released and it's really unstable, please use stable branches such as [SRS2](https://github.com/ossrs/srs/tree/2.0release) or [SRS1](https://github.com/ossrs/srs/tree/1.0release) instead, unless you can fix bugs and debug it.
-
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
-
-> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
-
-> Remark: The origin-edge cluster is released, while the origin-origin cluster is coming soon.
-
-> Remark: We are working on utest now.
 
 Enjoy it!
 
