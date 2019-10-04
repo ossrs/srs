@@ -137,7 +137,6 @@ Please select according to languages:
 - [x] [Experimental] Support pushing RTSP, please read [bug #133][bug #133].
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
-- [x] [Experimental] Support big-data by sending messages to KAFKA, please read [#467][bug #467].
 - [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
@@ -157,7 +156,7 @@ Please select according to languages:
 
 * v3.0, 2019-10-04, Support go-oryx rtmplb with [proxy protocol](https://github.com/ossrs/go-oryx/wiki/RtmpProxy). 3.0.56
 * v3.0, 2019-10-03, Fix [#775][bug #775], Support SO_REUSEPORT to improve edge performance. 3.0.54
-* v3.0, 2019-10-03, Remove KAFKA. 3.0.53
+* v3.0, 2019-10-03, For [#467][bug #467], Remove KAFKA producer. 3.0.53
 * v3.0, 2019-05-14, Covert Kernel File reader/writer. 3.0.52
 * v3.0, 2019-04-30, Refine typo in files. 3.0.51
 * v3.0, 2019-04-25, Upgrade http-parser from 2.1 to 2.9.2 and cover it. 3.0.50
@@ -166,7 +165,7 @@ Please select according to languages:
 * v3.0, 2019-04-06, Merge [#1304][bug #1304], Fix ST coroutine pull error. 3.0.47
 * v3.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 3.0.46
 * v3.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 3.0.44
-* v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://ossrs.net:1985/console/ng_index.html) and [English](http://ossrs.net:1985/console/en_index.html).
+* v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://182.92.80.26:1985/console/ng_index.html) and [English](http://182.92.80.26:1985/console/en_index.html).
 * v3.0, 2018-08-25, Fix [#1093][bug #1093], Support HLS encryption. 3.0.42
 * v3.0, 2018-08-25, Fix [#1051][bug #1051], Drop ts when republishing stream. 3.0.41
 * v3.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 3.0.40
@@ -511,7 +510,7 @@ Please select according to languages:
 * v1.0, 2014-05-27, fix [#84][bug #84], unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89][bug #89], config to /dev/null to disable ffmpeg log. 0.9.117
 * v1.0, 2014-05-25, fix [#76][bug #76], allow edge vhost to add or remove. 0.9.114
-* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net). karthikeyan start to translate wiki to English.
+* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://182.92.80.26). karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78][bug #78], st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
@@ -662,7 +661,7 @@ Please select according to languages:
 * 2014-10-09, [Release v0.9.8][r1.0b0], all bug fixed, 1.0.0, 59316 lines.
 * 2014-08-03, [Release v0.9.7][r1.0a7], config utest, all bug fixed. 57432 lines.
 * 2014-07-13, [Release v0.9.6][r1.0a6], core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.
-* 2014-06-27, [Release v0.9.5][r1.0a5], refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.
+* 2014-06-27, [Release v0.9.5][r1.0a5], refine perf 3k+ clients, edge token traverse, 30days online. 41573 lines.
 * 2014-05-28, [Release v0.9.4][r1.0a4], support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.
 * 2014-05-18, [Release v0.9.3][r1.0a3], support mips, fms origin, json(http-api). 37594 lines.
 * 2014-04-28, [Release v0.9.2][r1.0a2], support [dvr][v3_CN_DVR], android, [edge][v3_CN_Edge]. 35255 lines.
@@ -1060,8 +1059,8 @@ Winlin
 [srs-ngb]: https://github.com/ossrs/srs-ngb
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
-[console]: http://ossrs.net:1985/console
-[player]: http://ossrs.net/players/srs_player.html
+[console]: http://182.92.80.26:1985/console
+[player]: http://182.92.80.26/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
 [docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
 
@@ -1108,8 +1107,8 @@ Winlin
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
-[donation1]: http://www.ossrs.net/srs.release/donation/index.html
-[donation2]: http://www.ossrs.net/srs.release/donation/paypal.html
+[donation1]: http://182.92.80.26/srs.release/donation/index.html
+[donation2]: http://182.92.80.26/srs.release/donation/paypal.html
 [donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
 [v1_CN_Compare]: https://github.com/ossrs/srs/wiki/v1_CN_Compare
@@ -1524,7 +1523,7 @@ Winlin
 
 [contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
-[more1]: http://www.ossrs.net/srs.release/releases/
+[more1]: http://182.92.80.26/srs.release/releases/
 
 [LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
@@ -1536,5 +1535,5 @@ Winlin
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.243.zip
-[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.243.zip
+[centos1]: http://182.92.80.26/srs.release/releases/files/SRS-CentOS6-x86_64-2.0.243.zip
 
