@@ -56,8 +56,6 @@ cd srs/trunk
 
 > Remark: Recommend Centos6 64bits, for other OS recommend [docker][docker], please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
-> Note: If you have multiple cores such as 4 cores CPU, please use `./configure --jobs=4 && make --jobs=4` to speeed up the build.
-
 <strong>Step 3:</strong> Run SRS 
 
 ```
