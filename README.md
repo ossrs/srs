@@ -152,6 +152,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-04, Disable SO_REUSEPORT if not supported. 3.0.57
 * <strong>v3.0, 2019-10-04, [3.0 alpha0(3.0.56)][r3.0a0] released. 107946 lines.</strong>
 * v3.0, 2019-10-04, Support go-oryx rtmplb with [proxy protocol](https://github.com/ossrs/go-oryx/wiki/RtmpProxy). 3.0.56
 * v3.0, 2019-10-03, Fix [#775][bug #775], Support SO_REUSEPORT to improve edge performance. 3.0.54
