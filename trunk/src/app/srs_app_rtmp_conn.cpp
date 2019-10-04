@@ -159,6 +159,12 @@ srs_error_t SrsRtmpConn::do_cycle()
     if ((err = rtmp->handshake()) != srs_success) {
         return srs_error_wrap(err, "rtmp handshake");
     }
+
+    uint32_t rip = rtmp->proxy_real_ip();
+    if (rip > 0) {
+        srs_trace("RTMP proxy real client ip=%d.%d.%d.%d",
+            uint8_t(rip>>24), uint8_t(rip>>16), uint8_t(rip>>8), uint8_t(rip));
+    }
     
     SrsRequest* req = info->req;
     if ((err = rtmp->connect_app(req)) != srs_success) {

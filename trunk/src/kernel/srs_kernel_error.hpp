@@ -176,6 +176,7 @@
 #define ERROR_RTMP_STREAM_NAME_EMPTY        2051
 #define ERROR_HTTP_HIJACK                   2052
 #define ERROR_RTMP_MESSAGE_CREATE           2053
+#define ERROR_RTMP_PROXY_EXCEED             2054
 //                                           
 // The system control message,
 // It's not an error, but special control logic.

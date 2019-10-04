@@ -158,6 +158,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-04, Support go-oryx rtmplb with [proxy protocol](https://github.com/ossrs/go-oryx/wiki/RtmpProxy). 3.0.56
 * v3.0, 2019-10-03, Fix [#775][bug #775], Support SO_REUSEPORT to improve edge performance. 3.0.54
 * v3.0, 2019-10-03, Remove KAFKA. 3.0.53
 * v3.0, 2019-05-14, Covert Kernel File reader/writer. 3.0.52

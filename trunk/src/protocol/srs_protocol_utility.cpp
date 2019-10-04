@@ -151,7 +151,6 @@ void srs_random_generate(char* bytes, int size)
     if (!_random_initialized) {
         srand(0);
         _random_initialized = true;
-        srs_trace("srand initialized the random.");
     }
     
     for (int i = 0; i < size; i++) {
