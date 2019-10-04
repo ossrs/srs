@@ -500,6 +500,8 @@ bool srs_client_type_is_publish(SrsRtmpConnType type);
 class SrsHandshakeBytes
 {
 public:
+    // For RTMP proxy, the real IP.
+    uint32_t proxy_real_ip;
     // [1+1536]
     char* c0c1;
     // [1+1536+1536]
@@ -509,6 +511,8 @@ public:
 public:
     SrsHandshakeBytes();
     virtual ~SrsHandshakeBytes();
+public:
+    virtual void dispose();
 public:
     virtual srs_error_t read_c0c1(ISrsProtocolReadWriter* io);
     virtual srs_error_t read_s0s1s2(ISrsProtocolReadWriter* io);
@@ -615,6 +619,10 @@ private:
 public:
     SrsRtmpServer(ISrsProtocolReadWriter* skt);
     virtual ~SrsRtmpServer();
+public:
+    // For RTMP proxy, the real IP. 0 if no proxy.
+    // @doc https://github.com/ossrs/go-oryx/wiki/RtmpProxy
+    virtual uint32_t proxy_real_ip();
 // Protocol methods proxy
 public:
     // Set the auto response message when recv for protocol stack.

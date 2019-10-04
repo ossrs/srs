@@ -1659,9 +1659,15 @@ bool srs_client_type_is_publish(SrsRtmpConnType type)
 SrsHandshakeBytes::SrsHandshakeBytes()
 {
     c0c1 = s0s1s2 = c2 = NULL;
+    proxy_real_ip = 0;
 }
 
 SrsHandshakeBytes::~SrsHandshakeBytes()
+{
+    dispose();
+}
+
+void SrsHandshakeBytes::dispose()
 {
     srs_freepa(c0c1);
     srs_freepa(s0s1s2);
@@ -1681,6 +1687,26 @@ srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReadWriter* io)
     c0c1 = new char[1537];
     if ((err = io->read_fully(c0c1, 1537, &nsize)) != srs_success) {
         return srs_error_wrap(err, "read c0c1");
+    }
+
+    // Whether RTMP proxy, @see https://github.com/ossrs/go-oryx/wiki/RtmpProxy
+    if (uint8_t(c0c1[0]) == 0xF3) {
+        uint16_t nn = uint16_t(c0c1[1])<<8 | uint16_t(c0c1[2]);
+        ssize_t nn_consumed = 3 + nn;
+        if (nn > 1024) {
+            return srs_error_new(ERROR_RTMP_PROXY_EXCEED, "proxy exceed max size, nn=%d", nn);
+        }
+
+        // 4B client real IP.
+        if (nn >= 4) {
+            proxy_real_ip = uint32_t(c0c1[3])<<24 | uint32_t(c0c1[4])<<16 | uint32_t(c0c1[5])<<8 | uint32_t(c0c1[6]);
+            nn -= 4;
+        }
+
+        memmove(c0c1, c0c1 + nn_consumed, 1537 - nn_consumed);
+        if ((err = io->read_fully(c0c1 + 1537 - nn_consumed, nn_consumed, &nsize)) != srs_success) {
+            return srs_error_wrap(err, "read c0c1");
+        }
     }
     
     return err;
@@ -1888,7 +1914,7 @@ srs_error_t SrsRtmpClient::handshake()
         }
     }
     
-    srs_freep(hs_bytes);
+    hs_bytes->dispose();
     
     return err;
 }
@@ -1904,7 +1930,7 @@ srs_error_t SrsRtmpClient::simple_handshake()
         return srs_error_wrap(err, "simple handshake");
     }
     
-    srs_freep(hs_bytes);
+    hs_bytes->dispose();
     
     return err;
 }
@@ -1920,7 +1946,7 @@ srs_error_t SrsRtmpClient::complex_handshake()
         return srs_error_wrap(err, "complex handshake");
     }
     
-    srs_freep(hs_bytes);
+    hs_bytes->dispose();
     
     return err;
 }
@@ -2193,6 +2219,11 @@ SrsRtmpServer::~SrsRtmpServer()
     srs_freep(hs_bytes);
 }
 
+uint32_t SrsRtmpServer::proxy_real_ip()
+{
+    return hs_bytes->proxy_real_ip;
+}
+
 void SrsRtmpServer::set_auto_response(bool v)
 {
     protocol->set_auto_response(v);
@@ -2284,9 +2315,9 @@ srs_error_t SrsRtmpServer::handshake()
             return srs_error_wrap(err, "complex handshake");
         }
     }
-    
-    srs_freep(hs_bytes);
-    
+
+    hs_bytes->dispose();
+
     return err;
 }
 

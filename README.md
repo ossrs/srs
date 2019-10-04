@@ -12,15 +12,7 @@ Download binaries from github.io: [Centos6-x86_64][centos0], [more...][more0]<br
 Download binaries from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
 About the wiki of SRS/3.0, please read [Chinese][srs_CN] or [English][srs_EN].
 
-> Remark: SRS3 hasn't been released and it's really unstable, please use stable branches such as [SRS2](https://github.com/ossrs/srs/tree/2.0release) or [SRS1](https://github.com/ossrs/srs/tree/1.0release) instead, unless you can fix bugs and debug it.
-
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
-
-> Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
-
-> Remark: The origin-edge cluster is released, while the origin-origin cluster is coming soon.
-
-> Remark: We are working on utest now.
 
 Enjoy it!
 
@@ -89,6 +81,7 @@ cd srs/trunk
 * Usage: How to delivery HLS by embeded HTTP server?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
 * Usage: How to run the demostration of SRS? ([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
+* Usage: How to improve edge performance by multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
 * Usage: Who are using SRS?([CN][v1_CN_Sample])
 * Usage: Why choose SRS? About the milestone and product plan? ([CN][v1_CN_Product], [EN][v1_EN_Product])
 
@@ -148,6 +141,7 @@ Please select according to languages:
 - [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
+- [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
@@ -166,6 +160,8 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-04, Support go-oryx rtmplb with [proxy protocol](https://github.com/ossrs/go-oryx/wiki/RtmpProxy). 3.0.56
+* v3.0, 2019-10-03, Fix [#775][bug #775], Support SO_REUSEPORT to improve edge performance. 3.0.54
 * v3.0, 2019-10-03, Remove KAFKA. 3.0.53
 * v3.0, 2019-05-14, Covert Kernel File reader/writer. 3.0.52
 * v3.0, 2019-04-30, Refine typo in files. 3.0.51
@@ -784,7 +780,7 @@ The performance benchmark data and corelative commits are listed here.
 
 * See also: [Performance for x86/x64 Test Guide][v1_CN_Performance].
 * See also: [Performance for RaspberryPi][v1_CN_RaspberryPi].
-* For multiple processes performance, read [go-oryx][oryx].
+* For multiple processes performance, read [#775: REUSEPORT][bug #775] or OriginCluster([CN](v3_EN_OriginCluster)/[EN](v3_EN_OriginCluster)) or [go-oryx][oryx].
 
 #### Play RTMP benchmark
 
@@ -1100,8 +1096,12 @@ Winlin
 [v3_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v3_EN_SampleHTTP
 [v1_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
 [v1_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v1_EN_SampleDemo
+[v3_CN_OriginCluster]: https://github.com/ossrs/srs/wiki/v3_CN_OriginCluster
+[v3_EN_OriginCluster]: https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
 [v3_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_CN_SrsLibrtmp#publish-h264-raw-data
 [v3_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v3_EN_SrsLibrtmp#publish-h264-raw-data
+[v3_CN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v3_CN_REUSEPORT
+[v3_EN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v3_EN_REUSEPORT
 [v1_CN_Sample]: https://github.com/ossrs/srs/wiki/v1_CN_Sample
 [v1_EN_Sample]: https://github.com/ossrs/srs/wiki/v1_EN_Sample
 [v1_CN_Product]: https://github.com/ossrs/srs/wiki/v1_CN_Product
@@ -1476,6 +1476,7 @@ Winlin
 [bug #821]: https://github.com/ossrs/srs/issues/821
 [bug #913]: https://github.com/ossrs/srs/issues/913
 [bug #460]: https://github.com/ossrs/srs/issues/460
+[bug #775]: https://github.com/ossrs/srs/issues/775
 [bug #1057]: https://github.com/ossrs/srs/issues/1057
 [bug #105]: https://github.com/ossrs/srs/issues/105
 [bug #727]: https://github.com/ossrs/srs/issues/727

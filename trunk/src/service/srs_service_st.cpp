@@ -110,6 +110,16 @@ srs_error_t srs_fd_reuseaddr(int fd)
 	return srs_success;
 }
 
+srs_error_t srs_fd_reuseport(int fd)
+{
+    int v = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+    }
+
+	return srs_success;
+}
+
 srs_error_t srs_fd_keepalive(int fd)
 {
 #ifdef SO_KEEPALIVE
@@ -215,6 +225,11 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
         return srs_error_wrap(err, "set reuseaddr fd=%d", fd);
     }
 
+    if ((err = srs_fd_reuseport(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set reuseport fd=%d", fd);
+    }
+
     if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
         ::close(fd);
         return srs_error_new(ERROR_SOCKET_BIND, "bind fd=%d", fd);
@@ -267,6 +282,11 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
     if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
         ::close(fd);
         return srs_error_wrap(err, "set reuseaddr fd=%d", fd);
+    }
+
+    if ((err = srs_fd_reuseport(fd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "set reuseport fd=%d", fd);
     }
 
     if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
