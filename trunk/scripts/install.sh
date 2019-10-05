@@ -69,6 +69,7 @@ ok_msg "copy core components"
     mkdir -p $install_root
     cp -r $work_dir/${INSTALL}/conf $install_root &&
     cp -r $work_dir/${INSTALL}/etc $install_root &&
+    cp -r $work_dir/${INSTALL}/usr $install_root &&
     cp -r $work_dir/${INSTALL}/objs $install_root
 ) >>$log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy core components failed"; exit $ret; fi
