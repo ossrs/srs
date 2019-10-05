@@ -83,6 +83,17 @@ ok_msg "install init.d scripts"
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install init.d scripts failed"; exit $ret; fi
 ok_msg "install init.d scripts success"
 
+# For systemctl
+if [[ -d /usr/lib/systemd/system ]]; then
+    ok_msg "install srs.service for systemctl"
+    (
+        cp -f $install_root/usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service &&
+        systemctl daemon-reload
+    ) >>$log 2>&1
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install srs.service for systemctl failed"; exit $ret; fi
+    ok_msg "install srs.service for systemctl success"
+fi
+
 # install system service
 lsb_release --id|grep "CentOS" >/dev/null 2>&1; os_id_centos=$?
 lsb_release --id|grep "Ubuntu" >/dev/null 2>&1; os_id_ubuntu=$?
@@ -90,7 +101,11 @@ lsb_release --id|grep "Debian" >/dev/null 2>&1; os_id_debian=$?
 lsb_release --id|grep "Raspbian" >/dev/null 2>&1; os_id_rasabian=$?
 if [[ 0 -eq $os_id_centos ]]; then
     ok_msg "install system service for CentOS"
-    /sbin/chkconfig --add srs && /sbin/chkconfig srs on
+    if [[ -d /usr/lib/systemd/system ]]; then
+        systemctl enable srs
+    else
+        /sbin/chkconfig --add srs && /sbin/chkconfig srs on
+    fi
     ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install system service failed"; exit $ret; fi
     ok_msg "install system service success"
 elif [[ 0 -eq $os_id_ubuntu ]]; then
@@ -113,9 +128,11 @@ else
 fi
 
 echo ""
-echo "see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
-echo "install success, you can:"
+echo "see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
+echo "install success, you can start SRS on CentOS6:"
 echo -e "${GREEN}      sudo /etc/init.d/srs start${BLACK}"
+echo "or CentOS7:"
+echo -e "${GREEN}      sudo systemctl start srs${BLACK}"
 echo "srs root is ${INSTALL}"
 
 exit 0

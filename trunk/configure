@@ -484,22 +484,30 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)
 	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
-	@cp research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
 	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
-	@cp objs/srs \$(__REAL_INSTALL)/objs
+	@cp -f objs/srs \$(__REAL_INSTALL)/objs
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
-	@cp conf/*.conf \$(__REAL_INSTALL)/conf
+	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
 	@echo "Now copy init.d script files"
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
-	@cp etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
+	@cp -f etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
+	@echo "Now copy systemctl service files"
+	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
+	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "SRS is installed, to link and start srs:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs"
+	@echo "The api installed, to link and start srs, please"
+	@echo "For CentOS6:"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
 	@echo "     /etc/init.d/srs start"
-	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
+	@echo "For CentOS7:"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
+	@echo "     sudo cp -f \$(SRS_PREFIX)/usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service && sudo systemctl daemon-reload && sudo systemctl enable srs &&"
+	@echo "     sudo systemctl start srs"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
 
 END
 fi
