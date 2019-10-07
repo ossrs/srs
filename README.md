@@ -151,6 +151,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
 * v3.0, 2019-10-06, We prefer ipv4, only use ipv6 if ipv4 is disabled. 3.0.59
 * v3.0, 2019-10-05, Support systemctl service for CentOS7. 3.0.58
 * v3.0, 2019-10-04, Disable SO_REUSEPORT if not supported. 3.0.57
