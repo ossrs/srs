@@ -210,18 +210,29 @@ void srs_parse_hostport(const string& hostport, string& host, int& port)
     }
 }
 
-string srs_any_address4listener()
+string srs_any_address_for_listener()
 {
-    int fd = socket(AF_INET6, SOCK_DGRAM, 0);
-    
-    // socket()
-    // A -1 is returned if an error occurs, otherwise the return value is a
-    // descriptor referencing the socket.
-    if(fd != -1) {
-        close(fd);
+    bool ipv4_active = false;
+    bool ipv6_active = false;
+
+    if (true) {
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if(fd != -1) {
+            ipv4_active = true;
+            close(fd);
+        }
+    }
+    if (true) {
+        int fd = socket(AF_INET6, SOCK_DGRAM, 0);
+        if(fd != -1) {
+            ipv6_active = true;
+            close(fd);
+        }
+    }
+
+    if (ipv6_active && !ipv4_active) {
         return "::";
     }
-    
     return "0.0.0.0";
 }
 
@@ -240,7 +251,7 @@ void srs_parse_endpoint(string hostport, string& ip, int& port)
         const string sport = hostport.substr(pos + 1);
         port = ::atoi(sport.c_str());
     } else {
-        ip   = srs_any_address4listener();
+        ip = srs_any_address_for_listener();
         port = ::atoi(hostport.c_str());
     }
 }

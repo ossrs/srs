@@ -1017,9 +1017,8 @@ srs_error_t SrsServer::listen_rtmp()
     for (int i = 0; i < (int)ip_ports.size(); i++) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerRtmpStream);
         listeners.push_back(listener);
-        
-        std::string ip;
-        int port;
+
+        int port; string ip;
         srs_parse_endpoint(ip_ports[i], ip, port);
         
         if ((err = listener->listen(ip, port)) != srs_success) {
@@ -1113,7 +1112,7 @@ srs_error_t SrsServer::listen_stream_caster()
         }
         
         // TODO: support listen at <[ip:]port>
-        if ((err = listener->listen(srs_any_address4listener(), port)) != srs_success) {
+        if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
         }
     }
