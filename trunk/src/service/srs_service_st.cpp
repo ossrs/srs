@@ -112,10 +112,15 @@ srs_error_t srs_fd_reuseaddr(int fd)
 
 srs_error_t srs_fd_reuseport(int fd)
 {
+#if defined(SO_REUSEPORT)
     int v = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
         return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
     }
+#else
+    #warning "SO_REUSEPORT is not supported by your OS"
+    srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
+#endif
 
 	return srs_success;
 }

@@ -52,7 +52,7 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     _port = p;
     stream_id = sid;
     // TODO: support listen at <[ip:]port>
-    listener = new SrsUdpListener(this, srs_any_address4listener(), p);
+    listener = new SrsUdpListener(this, srs_any_address_for_listener(), p);
     cache = new SrsRtpPacket();
     pprint = SrsPithyPrint::create_caster();
 }

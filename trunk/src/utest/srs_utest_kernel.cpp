@@ -4086,7 +4086,7 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     }
     
     if (true) {
-        string ep = srs_any_address4listener();
+        string ep = srs_any_address_for_listener();
         EXPECT_TRUE(ep == "0.0.0.0" || ep == "::");
     }
     

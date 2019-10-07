@@ -166,6 +166,18 @@ reload() {
     return 0
 }
 
+logrotate() {
+    # not start, exit
+    load_process_info
+    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+
+    ok_msg "Reopen log file of SRS(pid ${srs_pid})..."
+    kill -s SIGUSR1 ${srs_pid}
+
+    ok_msg "Log rotated"
+    return 0
+}
+
 menu() {
     case "$1" in
         start)
@@ -184,8 +196,13 @@ menu() {
         reload)
             reload
             ;;
+        rotate)
+            logrotate
+            ;;
         *)
-            echo "Usage: $0 {start|stop|status|restart|reload}"
+            echo "Usage: $0 {start|stop|status|restart|reload|rotate}"
+            echo "    reload    Apply log file by not restarting SRS"
+            echo "    rotate    For log rotate, to send SIGUSR1 to SRS to reopen the log file."
             return 1
             ;;
     esac

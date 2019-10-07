@@ -87,7 +87,9 @@ ret=$?; if [[ $ret -ne 0 ]]; then
 	failed_msg "lsb_release not found. "
 	failed_msg "to install on centos/debian(ubuntu/respberry-pi):"; 
 	failed_msg "	sudo yum install -y lsb-release"; 
-	failed_msg "	sudo aptitude install -y lsb-release"; 
+	failed_msg "	sudo aptitude install -y lsb-release";
+	failed_msg "or centos7:"
+	failed_msg "  sudo yum install -y redhat-lsb"
 	exit $ret; 
 fi
 

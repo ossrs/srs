@@ -48,7 +48,8 @@ extern srs_utime_t srs_get_system_startup_time();
 extern srs_utime_t srs_update_system_time();
 
 // The "ANY" address to listen, it's "0.0.0.0" for ipv4, and "::" for ipv6.
-extern std::string srs_any_address4listener();
+// @remark We prefer ipv4, only use ipv6 if ipv4 is disabled.
+extern std::string srs_any_address_for_listener();
 
 // The dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host, int& family);

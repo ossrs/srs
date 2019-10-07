@@ -3,7 +3,6 @@
 [![](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/develop)
 [![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
-[<img width="52" alt="Skype" src="https://cloud.githubusercontent.com/assets/2777660/24329166/3821a328-1230-11e7-844a-506a5d17dd3d.png">](https://github.com/ossrs/srs/wiki/v1_EN_Contact#skype-or-gitter)
 
 SRS/3.0，[OuXuli][release3]，是一个简单的流媒体直播集群，简单的快乐。<br/>
 SRS is a simple live streaming cluster, a simple joy.
@@ -154,6 +153,10 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
+* v3.0, 2019-10-06, We prefer ipv4, only use ipv6 if ipv4 is disabled. 3.0.59
+* v3.0, 2019-10-05, Support systemctl service for CentOS7. 3.0.58
+* v3.0, 2019-10-04, Disable SO_REUSEPORT if not supported. 3.0.57
 * <strong>v3.0, 2019-10-04, [3.0 alpha0(3.0.56)][r3.0a0] released. 107946 lines.</strong>
 * v3.0, 2019-10-04, Support go-oryx rtmplb with [proxy protocol](https://github.com/ossrs/go-oryx/wiki/RtmpProxy). 3.0.56
 * v3.0, 2019-10-03, Fix [#775][bug #775], Support SO_REUSEPORT to improve edge performance. 3.0.54
