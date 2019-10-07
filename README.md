@@ -153,6 +153,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* <strong>v3.0, 2019-10-07, [3.0 alpha1(3.0.60)][r3.0a1] released. 107962 lines.</strong>
 * v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
 * v3.0, 2019-10-06, We prefer ipv4, only use ipv6 if ipv4 is disabled. 3.0.59
 * v3.0, 2019-10-05, Support systemctl service for CentOS7. 3.0.58
@@ -648,6 +649,7 @@ Please select according to languages:
 
 ### Releases
 
+* 2019-10-07, [Release v3.0-a1][r3.0a1], 3.0 alpha1, 3.0.60, 107962 lines.
 * 2019-10-04, [Release v3.0-a0][r3.0a0], 3.0 alpha0, 3.0.56, 107946 lines.
 * 2017-03-03, [Release v2.0-r0][r2.0r0], 2.0 release0, 2.0.234, 86373 lines.
 * 2016-11-13, [Release v2.0-b3][r2.0b3], 2.0 beta3, 2.0.223, 86685 lines.
@@ -1490,6 +1492,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
 [r3.0a0]: https://github.com/ossrs/srs/releases/tag/v3.0-a0
 [r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5
