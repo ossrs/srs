@@ -216,6 +216,8 @@ void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
         << "/" << std::hex << any->to_date_time_zone() << endl;
     } else if (any->is_null()) {
         ss << "Null" << endl;
+    } else if (any->is_undefined()) {
+        ss << "Undefined" << endl;
     } else if (any->is_ecma_array()) {
         SrsAmf0EcmaArray* obj = any->to_ecma_array();
         ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
