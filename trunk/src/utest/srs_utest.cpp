@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_amf0.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_kernel_buffer.hpp>
 
 #include <string>
 using namespace std;
@@ -136,8 +137,10 @@ VOID TEST(SampleTest, FastSampleMacrosTest)
     EXPECT_NEAR(10, 15, 5);
 }
 
-VOID TEST(ProtocolAMF0Test, Interfaces)
+VOID TEST(ProtocolAMF0Test, InterfacesString)
 {
+    srs_error_t err;
+
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::str("hello");
         SrsAutoFree(SrsAmf0Any, p);
@@ -164,7 +167,27 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         EXPECT_TRUE(j->is_string());
         EXPECT_TRUE(string("hello") == j->to_str());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_TRUE(string("hello") == pp->to_str());
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::boolean();
@@ -191,7 +214,27 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         EXPECT_TRUE(j->is_boolean());
         EXPECT_FALSE(j->to_boolean());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_FALSE(p->to_boolean());
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesNumber)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::number();
@@ -226,7 +269,27 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         EXPECT_TRUE(j->is_number());
         EXPECT_TRUE(100.1 == j->to_number());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_TRUE(100.1 == p->to_number());
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesDate)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::date();
@@ -249,7 +312,26 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         char* d = p->human_print(NULL, NULL);
         EXPECT_STREQ("Date 0/0\n", d);
         delete[] d;
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesNull)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::null();
@@ -274,7 +356,26 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         SrsJsonAny* j = p->to_json();
         EXPECT_TRUE(j->is_null());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::undefined();
@@ -299,7 +400,26 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         SrsJsonAny* j = p->to_json();
         EXPECT_TRUE(j->is_null());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesObject)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::object();
@@ -325,7 +445,54 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         SrsJsonAny* j = p->to_json();
         EXPECT_TRUE(j->is_object());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_TRUE(NULL != pp->to_object());
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesObject2)
+{
+    if (true) {
+        SrsAmf0Any* p = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Any, p);
+
+        SrsAmf0Object* o = p->to_object();
+        EXPECT_TRUE(NULL != o);
+
+        o->set("version", SrsAmf0Any::number(3.0));
+        o->set("name", SrsAmf0Any::str("srs"));
+
+        SrsAmf0Any* prop = o->get_property("version");
+        EXPECT_TRUE(prop->is_number());
+        EXPECT_TRUE(3.0 == prop->to_number());
+
+        prop = o->ensure_property_number("version");
+        EXPECT_TRUE(NULL != prop);
+
+        prop = o->ensure_property_string("name");
+        EXPECT_TRUE(NULL != prop);
+
+        o->remove("version");
+        EXPECT_TRUE(NULL == o->get_property("version"));
+    }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::object_eof();
@@ -346,7 +513,26 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         SrsJsonAny* j = p->to_json();
         EXPECT_TRUE(j->is_null());
         srs_freep(j);
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::ecma_array();
@@ -368,7 +554,27 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         char* d = p->human_print(NULL, NULL);
         EXPECT_STREQ("EcmaArray (0 items)\n", d);
         delete[] d;
+
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_TRUE(NULL != pp->to_ecma_array());
     }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::strict_array();
@@ -390,8 +596,26 @@ VOID TEST(ProtocolAMF0Test, Interfaces)
         char* d = p->human_print(NULL, NULL);
         EXPECT_STREQ("StrictArray (0 items)\n", d);
         delete[] d;
-    }
 
+        // For marshal and unmarshal.
+        char* bb = new char[p->total_size()];
+        SrsAutoFreeA(char, bb);
+        SrsBuffer b(bb, p->total_size());
+        HELPER_EXPECT_SUCCESS(p->write(&b));
+
+        b.skip(-1 * b.pos());
+        SrsAmf0Any* pp = NULL;
+        SrsAutoFree(SrsAmf0Any, pp);
+        HELPER_EXPECT_SUCCESS(SrsAmf0Any::discovery(&b, &pp));
+
+        b.skip(-1 * b.pos());
+        HELPER_EXPECT_SUCCESS(pp->read(&b));
+        EXPECT_TRUE(NULL != pp->to_strict_array());
+    }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesOthers)
+{
     if (true) {
         SrsAmf0Any* p = SrsAmf0Any::object();
         SrsAutoFree(SrsAmf0Any, p);
