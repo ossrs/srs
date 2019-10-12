@@ -519,7 +519,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
     }
 
     if (true) {
-        uint8_t data[] = {0x00, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03, 's', 'r', 's'};
+        uint8_t data[] = {0x00, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03};
         SrsBuffer b((char*)data, sizeof(data));
         SrsAmf0Object* o = SrsAmf0Any::object();
         o->set("id", SrsAmf0Any::str("srs"));
@@ -532,6 +532,15 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
         SrsBuffer b((char*)data, sizeof(data));
         SrsAmf0Object* o = SrsAmf0Any::object();
         HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03, 's', 'r', 's'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        o->set("id", SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
     }
 }
