@@ -487,6 +487,68 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject2)
 
         o->remove("version");
         EXPECT_TRUE(NULL == o->get_property("version"));
+
+        char* s = p->human_print(NULL, NULL);
+        EXPECT_TRUE(s != NULL);
+        srs_freepa(s);
+    }
+
+    if (true) {
+        SrsAmf0Any* p = SrsAmf0Any::strict_array();
+        SrsAutoFree(SrsAmf0Any, p);
+
+        SrsAmf0StrictArray* o = p->to_strict_array();
+        EXPECT_TRUE(NULL != o);
+
+        o->append(SrsAmf0Any::number(3.0));
+        o->append(SrsAmf0Any::str("srs"));
+
+        SrsAmf0Any* prop = o->at(0);
+        EXPECT_TRUE(prop->is_number());
+        EXPECT_TRUE(3.0 == prop->to_number());
+
+        prop = o->at(0);
+        EXPECT_TRUE(NULL != prop);
+
+        prop = o->at(1);
+        EXPECT_TRUE(NULL != prop);
+
+        char* s = p->human_print(NULL, NULL);
+        EXPECT_TRUE(s != NULL);
+        srs_freepa(s);
+    }
+
+    if (true) {
+        SrsAmf0Any* p = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0Any, p);
+
+        SrsAmf0EcmaArray* o = p->to_ecma_array();
+        EXPECT_TRUE(NULL != o);
+
+        o->set("version", SrsAmf0Any::number(3.0));
+        o->set("name", SrsAmf0Any::str("srs"));
+
+        EXPECT_TRUE(string("version") == o->key_at(0));
+        EXPECT_STREQ("version", o->key_raw_at(0));
+        EXPECT_TRUE(string("name") == o->key_at(1));
+
+        SrsAmf0Any* prop = o->get_property("version");
+        EXPECT_TRUE(prop->is_number());
+        EXPECT_TRUE(3.0 == prop->to_number());
+
+        prop = o->ensure_property_number("version");
+        EXPECT_TRUE(NULL != prop);
+
+        prop = o->ensure_property_string("name");
+        EXPECT_TRUE(NULL != prop);
+
+        prop = o->value_at(1);
+        EXPECT_TRUE(NULL != prop);
+        EXPECT_TRUE(prop->is_string());
+
+        char* s = p->human_print(NULL, NULL);
+        EXPECT_TRUE(s != NULL);
+        srs_freepa(s);
     }
 }
 
@@ -638,6 +700,84 @@ VOID TEST(ProtocolAMF0Test, InterfacesOthers)
         SrsAmf0Any* p = SrsAmf0Any::strict_array();
         SrsAutoFree(SrsAmf0Any, p);
         EXPECT_FALSE(!p->is_complex_object());
+    }
+}
+
+VOID TEST(ProtocolAMF0Test, InterfacesError)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsBuffer b;
+        HELPER_EXPECT_FAILED(SrsAmf0Any::discovery(&b, NULL));
+    }
+
+    if (true) {
+        char data = 0x3f;
+        SrsBuffer b(&data, 1);
+        HELPER_EXPECT_FAILED(SrsAmf0Any::discovery(&b, NULL));
+    }
+
+    if (true) {
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o);
+
+        o->set("name", SrsAmf0Any::number(3.0));
+        o->set("name", SrsAmf0Any::str("srs"));
+
+        SrsAmf0Any* prop;
+        prop = o->ensure_property_number("name");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_string("id");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_string("name");
+        ASSERT_TRUE(prop != NULL);
+        EXPECT_STREQ("srs", prop->to_str_raw());
+    }
+
+    if (true) {
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o);
+
+        o->set("name", SrsAmf0Any::str("srs"));
+        o->set("name", SrsAmf0Any::number(3.0));
+
+        SrsAmf0Any* prop;
+        prop = o->ensure_property_number("id");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_string("name");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_number("name");
+        ASSERT_TRUE(prop != NULL);
+        EXPECT_TRUE(3.0 == prop->to_number());
+    }
+
+    if (true) {
+        SrsAmf0Object* src = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, src);
+
+        SrsAmf0Any* cp = src->copy();
+        SrsAutoFree(SrsAmf0Any, cp);
+
+        SrsAmf0Object* o = cp->to_object();
+
+        o->set("name", SrsAmf0Any::str("srs"));
+        o->set("name", SrsAmf0Any::number(3.0));
+
+        SrsAmf0Any* prop;
+        prop = o->ensure_property_number("id");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_string("name");
+        EXPECT_TRUE(prop == NULL);
+
+        prop = o->ensure_property_number("name");
+        ASSERT_TRUE(prop != NULL);
+        EXPECT_TRUE(3.0 == prop->to_number());
     }
 }
 
