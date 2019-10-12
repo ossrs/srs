@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_buffer.hpp>
+using namespace _srs_internal;
 
 #include <string>
 using namespace std;
@@ -477,6 +478,62 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
         SrsAmf0Any* cp = p->copy();
         EXPECT_TRUE(NULL != cp->to_object());
     }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        o->set("id", SrsAmf0Any::number(3.0));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x03, 0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03, 's', 'r', 's'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        o->set("id", SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x03, 0x00, 0x01, 'a'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
 }
 
 VOID TEST(ProtocolAMF0Test, InterfacesObject2)
@@ -490,6 +547,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject2)
 
         o->set("version", SrsAmf0Any::number(3.0));
         o->set("name", SrsAmf0Any::str("srs"));
+        EXPECT_STREQ("version", o->key_raw_at(0));
 
         SrsAmf0Any* prop = o->get_property("version");
         EXPECT_TRUE(prop->is_number());
@@ -507,6 +565,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject2)
         char* s = p->human_print(NULL, NULL);
         EXPECT_TRUE(s != NULL);
         srs_freepa(s);
+
+        SrsJsonAny* j = o->to_json();
+        EXPECT_TRUE(j != NULL);
+        srs_freep(j);
     }
 
     if (true) {
@@ -605,6 +667,56 @@ VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
 
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(cp->is_object_eof());
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
     }
 }
 
@@ -784,13 +896,13 @@ VOID TEST(ProtocolAMF0Test, InterfacesError)
         SrsAmf0Object* src = SrsAmf0Any::object();
         SrsAutoFree(SrsAmf0Object, src);
 
+        src->set("name", SrsAmf0Any::str("srs"));
+        src->set("name", SrsAmf0Any::number(3.0));
+
         SrsAmf0Any* cp = src->copy();
         SrsAutoFree(SrsAmf0Any, cp);
 
         SrsAmf0Object* o = cp->to_object();
-
-        o->set("name", SrsAmf0Any::str("srs"));
-        o->set("name", SrsAmf0Any::number(3.0));
 
         SrsAmf0Any* prop;
         prop = o->ensure_property_number("id");
