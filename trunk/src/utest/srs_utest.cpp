@@ -182,6 +182,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_TRUE(string("hello") == pp->to_str());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(string("hello") == cp->to_str());
     }
 }
 
@@ -229,6 +233,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_FALSE(p->to_boolean());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_FALSE(cp->to_boolean());
     }
 }
 
@@ -284,6 +292,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_TRUE(100.1 == p->to_number());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(100.1 == cp->to_number());
     }
 }
 
@@ -460,6 +472,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_TRUE(NULL != pp->to_object());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(NULL != cp->to_object());
     }
 }
 
@@ -631,6 +647,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_TRUE(NULL != pp->to_ecma_array());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(NULL != cp->to_ecma_array());
     }
 }
 
@@ -673,6 +693,10 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
         EXPECT_TRUE(NULL != pp->to_strict_array());
+
+        // For copy.
+        SrsAmf0Any* cp = p->copy();
+        EXPECT_TRUE(NULL != cp->to_strict_array());
     }
 }
 
