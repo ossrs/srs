@@ -1783,24 +1783,8 @@ namespace _srs_internal
     
     srs_error_t srs_amf0_write_object_eof(SrsBuffer* stream, SrsAmf0ObjectEOF* value)
     {
-        srs_error_t err = srs_success;
-        
         srs_assert(value != NULL);
-        
-        // value
-        if (!stream->require(2)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
-        }
-        stream->write_2bytes(0x00);
-        
-        // marker
-        if (!stream->require(1)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
-        }
-        
-        stream->write_1bytes(RTMP_AMF0_ObjectEnd);
-        
-        return err;
+        return value->write(stream);
     }
     
     srs_error_t srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value)
