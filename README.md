@@ -152,6 +152,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-13, Use http://ossrs.net:8000 as homepage.
 * v3.0, 2019-10-10, Cover AMF0 codec. 3.0.61
 * <strong>v3.0, 2019-10-07, [3.0 alpha1(3.0.60)][r3.0a1] released. 107962 lines.</strong>
 * v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
@@ -170,7 +171,7 @@ Please select according to languages:
 * v3.0, 2019-04-06, Merge [#1304][bug #1304], Fix ST coroutine pull error. 3.0.47
 * v3.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 3.0.46
 * v3.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 3.0.44
-* v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://182.92.80.26:1985/console/ng_index.html) and [English](http://182.92.80.26:1985/console/en_index.html).
+* v3.0, 2018-08-26, SRS [console](https://github.com/ossrs/srs-ngb) support both [Chinese](http://ossrs.net:1985/console/ng_index.html) and [English](http://ossrs.net:1985/console/en_index.html).
 * v3.0, 2018-08-25, Fix [#1093][bug #1093], Support HLS encryption. 3.0.42
 * v3.0, 2018-08-25, Fix [#1051][bug #1051], Drop ts when republishing stream. 3.0.41
 * v3.0, 2018-08-12, For [#1202][bug #1202], Support edge/forward to Aliyun CDN. 3.0.40
@@ -515,7 +516,7 @@ Please select according to languages:
 * v1.0, 2014-05-27, fix [#84][bug #84], unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89][bug #89], config to /dev/null to disable ffmpeg log. 0.9.117
 * v1.0, 2014-05-25, fix [#76][bug #76], allow edge vhost to add or remove. 0.9.114
-* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://182.92.80.26). karthikeyan start to translate wiki to English.
+* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net:8000). karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78][bug #78], st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
@@ -1066,8 +1067,8 @@ Winlin
 [srs-ngb]: https://github.com/ossrs/srs-ngb
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
-[console]: http://182.92.80.26:1985/console
-[player]: http://182.92.80.26/players/srs_player.html
+[console]: http://ossrs.net:1985/console
+[player]: http://ossrs.net:8000/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
 [docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
 
@@ -1114,8 +1115,8 @@ Winlin
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
-[donation1]: http://182.92.80.26/srs.release/donation/index.html
-[donation2]: http://182.92.80.26/srs.release/donation/paypal.html
+[donation1]: http://ossrs.net:8000/srs.release/donation/index.html
+[donation2]: http://ossrs.net:8000/srs.release/donation/paypal.html
 [donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
 [v1_CN_Compare]: https://github.com/ossrs/srs/wiki/v1_CN_Compare
@@ -1532,7 +1533,7 @@ Winlin
 
 [contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
-[more1]: http://182.92.80.26/srs.release/releases/
+[more1]: http://ossrs.net:8000/srs.release/releases/
 
 [LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
@@ -1544,5 +1545,5 @@ Winlin
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
-[centos1]: http://182.92.80.26/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
+[centos1]: http://ossrs.net:8000/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
 
