@@ -188,6 +188,68 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
         SrsAmf0Any* cp = p->copy();
         EXPECT_TRUE(string("hello") == cp->to_str());
     }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x02};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x02, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x02, 0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::str();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
 }
 
 VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
@@ -238,6 +300,36 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
         // For copy.
         SrsAmf0Any* cp = p->copy();
         EXPECT_FALSE(cp->to_boolean());
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::boolean();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::boolean();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::boolean();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::boolean();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
     }
 }
 
@@ -297,6 +389,36 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
         // For copy.
         SrsAmf0Any* cp = p->copy();
         EXPECT_TRUE(100.1 == cp->to_number());
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::number();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::number();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::number();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::number();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
     }
 }
 
@@ -384,6 +506,28 @@ VOID TEST(ProtocolAMF0Test, InterfacesNull)
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
     }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::null();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::null();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::null();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
 }
 
 VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
@@ -427,6 +571,28 @@ VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
 
         b.skip(-1 * b.pos());
         HELPER_EXPECT_SUCCESS(pp->read(&b));
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::undefined();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0Any* o = SrsAmf0Any::undefined();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0Any* o = SrsAmf0Any::undefined();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
     }
 }
 
@@ -773,6 +939,79 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
         SrsAmf0Any* cp = p->copy();
         EXPECT_TRUE(NULL != cp->to_ecma_array());
     }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        o->set("id", SrsAmf0Any::number(3.0));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x08, 0x00, 0x00, 0x00, 0x01, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        o->set("id", SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 'a'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 'i', 'd', 0x02, 0x00, 0x03, 's', 'r', 's'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        o->set("id", SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
 }
 
 VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
@@ -818,6 +1057,79 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
         // For copy.
         SrsAmf0Any* cp = p->copy();
         EXPECT_TRUE(NULL != cp->to_strict_array());
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x01};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        o->append(SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x0a, 0x00, 0x00, 0x00, 0x01, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x0a, 0x00, 0x00, 0x00, 0x01, 0x02};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x02, 0x02, 0x00, 0x03};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        o->append(SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x0a, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x02, 'a'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x03, 's', 'r'};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        o->append(SrsAmf0Any::str("srs"));
+        HELPER_EXPECT_FAILED(o->write(&b));
+        srs_freep(o);
     }
 }
 
