@@ -28,6 +28,11 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_protocol_json.hpp>
+#include <srs_kernel_buffer.hpp>
+using namespace _srs_internal;
 
 /**
 * main scenario to use amf0.
