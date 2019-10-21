@@ -2126,6 +2126,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
     }
 
     if (true) {
+        uint8_t data[] = {0x08, 0x00, 0x00, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
         uint8_t data[] = {0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 'a'};
         SrsBuffer b((char*)data, sizeof(data));
         SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
@@ -2221,6 +2229,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
 
     if (true) {
         uint8_t data[] = {0x0a, 0x00, 0x00, 0x00, 0x01, 0x00};
+        SrsBuffer b((char*)data, sizeof(data));
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        HELPER_EXPECT_FAILED(o->read(&b));
+        srs_freep(o);
+    }
+
+    if (true) {
+        uint8_t data[] = {0x0a, 0x00, 0x00, 0x00};
         SrsBuffer b((char*)data, sizeof(data));
         SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
         HELPER_EXPECT_FAILED(o->read(&b));
@@ -2364,6 +2380,59 @@ VOID TEST(ProtocolAMF0Test, InterfacesError)
         prop = o->ensure_property_number("name");
         ASSERT_TRUE(prop != NULL);
         EXPECT_TRUE(3.0 == prop->to_number());
+    }
+}
+
+VOID TEST(ProtocolAMF0Test, Amf0Object2)
+{
+    if (true) {
+        SrsAmf0Object* o = SrsAmf0Any::object();
+        o->set("id", SrsAmf0Any::number(3.0));
+        EXPECT_EQ(1, o->count());
+
+        o->clear();
+        EXPECT_EQ(0, o->count());
+
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        o->set("id", SrsAmf0Any::number(3.0));
+        EXPECT_EQ(1, o->count());
+
+        o->clear();
+        EXPECT_EQ(0, o->count());
+
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
+        o->set("id", SrsAmf0Any::number(3.0));
+
+        SrsJsonAny* j = o->to_json();
+        EXPECT_TRUE(j->is_object());
+
+        SrsJsonObject* jo = j->to_object();
+        EXPECT_EQ(1, jo->count());
+
+        srs_freep(j);
+        srs_freep(o);
+    }
+
+    if (true) {
+        SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
+        o->append(SrsAmf0Any::number(3.0));
+
+        SrsJsonAny* j = o->to_json();
+        EXPECT_TRUE(j->is_array());
+
+        SrsJsonArray* ja = j->to_array();
+        EXPECT_EQ(1, ja->count());
+
+        srs_freep(j);
+        srs_freep(o);
     }
 }
 
