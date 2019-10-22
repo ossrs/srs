@@ -2656,13 +2656,13 @@ VOID TEST(ProtocolJSONTest, Parse)
     }
 
     if (true) {
-        SrsJsonAny* p = SrsJsonAny::loads("{}}");
+        SrsJsonAny* p = SrsJsonAny::loads("{}");
         EXPECT_TRUE(p->is_object());
         srs_freep(p);
     }
 
     if (true) {
-        SrsJsonAny* p = SrsJsonAny::loads("[]]");
+        SrsJsonAny* p = SrsJsonAny::loads("[]");
         EXPECT_TRUE(p->is_array());
         srs_freep(p);
     }
