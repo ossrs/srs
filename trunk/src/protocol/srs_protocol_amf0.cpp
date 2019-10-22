@@ -216,6 +216,8 @@ void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
         << "/" << std::hex << any->to_date_time_zone() << endl;
     } else if (any->is_null()) {
         ss << "Null" << endl;
+    } else if (any->is_undefined()) {
+        ss << "Undefined" << endl;
     } else if (any->is_ecma_array()) {
         SrsAmf0EcmaArray* obj = any->to_ecma_array();
         ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
@@ -1781,24 +1783,8 @@ namespace _srs_internal
     
     srs_error_t srs_amf0_write_object_eof(SrsBuffer* stream, SrsAmf0ObjectEOF* value)
     {
-        srs_error_t err = srs_success;
-        
         srs_assert(value != NULL);
-        
-        // value
-        if (!stream->require(2)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
-        }
-        stream->write_2bytes(0x00);
-        
-        // marker
-        if (!stream->require(1)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
-        }
-        
-        stream->write_1bytes(RTMP_AMF0_ObjectEnd);
-        
-        return err;
+        return value->write(stream);
     }
     
     srs_error_t srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value)

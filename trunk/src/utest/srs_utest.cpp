@@ -29,6 +29,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 
+#include <string>
+using namespace std;
+
 // Temporary disk config.
 std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
 // Temporary network config.
