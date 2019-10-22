@@ -1632,11 +1632,9 @@ SrsAmf0Any* SrsJsonAny::to_amf0()
             srs_assert(false);
         }
         default: {
-            break;
+            return SrsAmf0Any::null();
         }
     }
-    
-    return SrsAmf0Any::null();
 }
 
 SrsJsonAny* SrsJsonAny::str(const char* value)
@@ -1729,8 +1727,6 @@ SrsJsonAny* srs_json_parse_tree(json_value* node)
         default:
             return NULL;
     }
-    
-    return NULL;
 }
 
 SrsJsonAny* SrsJsonAny::loads(const string& str)
