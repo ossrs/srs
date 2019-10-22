@@ -2561,5 +2561,17 @@ VOID TEST(ProtocolJSONTest, Dumps)
         EXPECT_STREQ("[]", p->dumps().c_str());
         srs_freep(p);
     }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::object();
+        EXPECT_STREQ("{}", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::array();
+        EXPECT_STREQ("[]", p->dumps().c_str());
+        srs_freep(p);
+    }
 }
 
