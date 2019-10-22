@@ -2493,3 +2493,73 @@ VOID TEST(ProtocolAMF0Test, Amf0Object2)
     }
 }
 
+VOID TEST(ProtocolJSONTest, Interfaces)
+{
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str();
+        EXPECT_TRUE(p->is_string());
+        EXPECT_TRUE(p->to_str().empty());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("hello");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_TRUE(string("hello") == p->to_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("hello", 2);
+        EXPECT_TRUE(p->is_string());
+        EXPECT_TRUE(string("he") == p->to_str());
+        srs_freep(p);
+    }
+}
+
+VOID TEST(ProtocolJSONTest, Dumps)
+{
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("hello");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"hello\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::boolean(true);
+        EXPECT_STREQ("true", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::integer(3);
+        EXPECT_STREQ("3", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::number(3.1);
+        EXPECT_STREQ("3.10", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::null();
+        EXPECT_STREQ("null", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonObject* p = SrsJsonAny::object();
+        EXPECT_STREQ("{}", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonArray* p = SrsJsonAny::array();
+        EXPECT_STREQ("[]", p->dumps().c_str());
+        srs_freep(p);
+    }
+}
+

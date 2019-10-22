@@ -1585,7 +1585,7 @@ string SrsJsonAny::dumps()
         case SRS_JSON_Number: {
             // len(max int64_t) is 20, plus one "+-."
             char tmp[22];
-            snprintf(tmp, 22, "%.6f", to_number());
+            snprintf(tmp, 22, "%.2f", to_number());
             return tmp;
         }
         case SRS_JSON_Null: {
