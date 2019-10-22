@@ -1577,7 +1577,7 @@ string SrsJsonAny::dumps()
             return "\"" + to_str() + "\"";
         }
         case SRS_JSON_Boolean: {
-            return to_boolean()? "true":"false";
+            return to_boolean()? "true" : "false";
         }
         case SRS_JSON_Integer: {
             return srs_int2str(to_integer());
@@ -1600,11 +1600,9 @@ string SrsJsonAny::dumps()
             return arr->dumps();
         }
         default: {
-            break;
+            return "null";
         }
     }
-    
-    return "null";
 }
 
 SrsAmf0Any* SrsJsonAny::to_amf0()
