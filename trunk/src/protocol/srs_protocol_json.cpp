@@ -1970,9 +1970,10 @@ SrsJsonAny* SrsJsonArray::at(int index)
     return elem;
 }
 
-void SrsJsonArray::add(SrsJsonAny* value)
+SrsJsonArray* SrsJsonArray::add(SrsJsonAny* value)
 {
     properties.push_back(value);
+    return this;
 }
 
 SrsJsonArray* SrsJsonArray::append(SrsJsonAny* value)

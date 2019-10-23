@@ -156,7 +156,7 @@ public:
     virtual int count();
     // @remark: max index is count().
     virtual SrsJsonAny* at(int index);
-    virtual void add(SrsJsonAny* value);
+    virtual SrsJsonArray* add(SrsJsonAny* value);
     // alias to add.
     virtual SrsJsonArray* append(SrsJsonAny* value);
 public:
