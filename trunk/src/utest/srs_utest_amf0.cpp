@@ -2625,14 +2625,16 @@ VOID TEST(ProtocolJSONTest, Dumps)
     if (true) {
         SrsJsonObject* p = SrsJsonAny::object();
         p->set("id", SrsJsonAny::integer(3));
-        EXPECT_STREQ("{\"id\":3}", p->dumps().c_str());
+        p->set("year", SrsJsonAny::integer(2019));
+        EXPECT_STREQ("{\"id\":3,\"year\":2019}", p->dumps().c_str());
         srs_freep(p);
     }
 
     if (true) {
         SrsJsonArray* p = SrsJsonAny::array();
         p->add(SrsJsonAny::integer(3));
-        EXPECT_STREQ("[3]", p->dumps().c_str());
+        p->add(SrsJsonAny::integer(2));
+        EXPECT_STREQ("[3,2]", p->dumps().c_str());
         srs_freep(p);
     }
 }
@@ -2767,5 +2769,22 @@ VOID TEST(ProtocolJSONTest, ArrayAPI)
     SrsAmf0StrictArray* a = (SrsAmf0StrictArray*)p->to_amf0();
     EXPECT_EQ(3, a->count());
     srs_freep(a);
+}
+
+VOID TEST(ProtocolJSONTest, ParseSpecial)
+{
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::loads("[\"hello\"\r\n, 2019]");
+        EXPECT_TRUE(p->is_array());
+        EXPECT_EQ(2, p->to_array()->count());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::loads("[\"hello\"\r\n, 2019, \"\\xe6\\xb5\\x81\"]");
+        EXPECT_TRUE(p->is_array());
+        EXPECT_EQ(3, p->to_array()->count());
+        srs_freep(p);
+    }
 }
 
