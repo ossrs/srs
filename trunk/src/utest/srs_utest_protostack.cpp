@@ -34,8 +34,44 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_service_http_conn.hpp>
+#include <srs_kernel_buffer.hpp>
 
-VOID TEST(ProtoStackTest, RTMPTest)
+class MockErrorPacket : public SrsPacket
 {
+protected:
+    virtual int get_size() {
+        return 1024;
+    }
+};
+
+VOID TEST(ProtoStackTest, PacketEncode)
+{
+    srs_error_t err;
+
+    int size;
+    char* payload;
+
+    if (true) {
+        MockErrorPacket pkt;
+        HELPER_EXPECT_FAILED(pkt.encode(size, payload));
+    }
+
+    if (true) {
+        MockErrorPacket pkt;
+        SrsBuffer b;
+        HELPER_EXPECT_FAILED(pkt.decode(&b));
+    }
+
+    if (true) {
+        SrsPacket pkt;
+        EXPECT_EQ(0, pkt.get_prefer_cid());
+        EXPECT_EQ(0, pkt.get_message_type());
+        EXPECT_EQ(0, pkt.get_size());
+    }
+
+    if (true) {
+        MockErrorPacket pkt;
+        EXPECT_EQ(1024, pkt.get_size());
+    }
 }
 
