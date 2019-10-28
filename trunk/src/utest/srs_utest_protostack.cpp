@@ -147,5 +147,31 @@ VOID TEST(ProtoStackTest, ManualFlush)
         HELPER_EXPECT_SUCCESS(p.manual_response_flush());
         EXPECT_EQ(12+6, io.out_buffer.length());
     }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        // Always response ACK message.
+        HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
+
+        // When not auto response, need to flush it manually.
+        p.set_auto_response(false);
+        HELPER_EXPECT_SUCCESS(p.response_ping_message(1024));
+        EXPECT_EQ(0, io.out_buffer.length());
+
+        // If not flushed, the packets will be destroyed.
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        p.set_recv_buffer(0);
+        p.set_recv_buffer(131072 * 10);
+
+        p.set_merge_read(true, NULL);
+        p.set_merge_read(false, NULL);
+    }
 }
 
