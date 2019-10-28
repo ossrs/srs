@@ -154,6 +154,8 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63
+* v3.0, 2019-10-23, Cover JSON codec. 3.0.62
 * v3.0, 2019-10-13, Use http://ossrs.net:8000 as homepage.
 * v3.0, 2019-10-10, Cover AMF0 codec. 3.0.61
 * <strong>v3.0, 2019-10-07, [3.0 alpha1(3.0.60)][r3.0a1] released. 107962 lines.</strong>
