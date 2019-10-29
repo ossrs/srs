@@ -175,3 +175,13 @@ VOID TEST(ProtoStackTest, ManualFlush)
     }
 }
 
+VOID TEST(ProtoStackTest, SendZeroMessages)
+{
+    srs_error_t err;
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+        HELPER_EXPECT_SUCCESS(p.send_and_free_message(NULL, 0));
+    }
+}
+
