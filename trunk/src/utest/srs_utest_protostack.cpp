@@ -183,5 +183,64 @@ VOID TEST(ProtoStackTest, SendZeroMessages)
         SrsProtocol p(&io);
         HELPER_EXPECT_SUCCESS(p.send_and_free_message(NULL, 0));
     }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+        SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+        HELPER_EXPECT_SUCCESS(p.send_and_free_message(msg, 1));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+        SrsSharedPtrMessage* msgs[1024];
+        for (int i = 0; i < 1024; i++) {
+            msgs[i] = new SrsSharedPtrMessage();
+        }
+        HELPER_EXPECT_SUCCESS(p.send_and_free_messages(msgs, 1024, 0));
+    }
+}
+
+VOID TEST(ProtoStackTest, HugeMessages)
+{
+    srs_error_t err;
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCommonMessage pkt;
+        pkt.header.initialize_audio(200, 1000, 1);
+        pkt.create_payload(256);
+        pkt.size = 256;
+
+        SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+        msg->create(&pkt);
+
+        HELPER_EXPECT_SUCCESS(p.send_and_free_message(msg, 1));
+        EXPECT_EQ(269, io.out_buffer.length());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCommonMessage pkt;
+        pkt.header.initialize_audio(200, 1000, 1);
+        pkt.create_payload(256);
+        pkt.size = 256;
+
+        SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+        msg->create(&pkt);
+        SrsAutoFree(SrsSharedPtrMessage, msg);
+
+        SrsSharedPtrMessage* msgs[1024];
+        for (int i = 0; i < 1024; i++) {
+            msgs[i] = msg->copy();
+        }
+
+        HELPER_EXPECT_SUCCESS(p.send_and_free_messages(msgs, 1024, 1));
+        EXPECT_EQ(269*1024, io.out_buffer.length());
+    }
 }
 
