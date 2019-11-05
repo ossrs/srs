@@ -80,6 +80,10 @@ public:
     // data buffer for socket send.
     SrsSimpleStream out_buffer;
 public:
+    // Mock error for io.
+    srs_error_t in_err;
+    srs_error_t out_err;
+public:
     MockBufferIO();
     virtual ~MockBufferIO();
 public:

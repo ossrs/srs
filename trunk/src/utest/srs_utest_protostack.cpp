@@ -38,19 +38,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
-class MockErrorPacket : public SrsPacket
+class MockPacket : public SrsPacket
 {
+public:
+    int size;
+public:
+    MockPacket() {
+        size = 0;
+    }
+    virtual ~MockPacket() {
+    }
 protected:
     virtual int get_size() {
-        return 1024;
+        return size;
     }
 };
 
-class MockPayloadErrorPacket : public SrsPacket
+class MockPacket2 : public MockPacket
 {
-protected:
+public:
+    char* payload;
+public:
+    MockPacket2() {
+        payload = NULL;
+    }
+    virtual ~MockPacket2() {
+        srs_freep(payload);
+    }
     virtual srs_error_t encode(int& size, char*& payload) {
-        size = 1024;
+        size = this->size;
+        payload = this->payload;
+        this->payload = NULL;
         return srs_success;
     }
 };
@@ -63,12 +81,16 @@ VOID TEST(ProtoStackTest, PacketEncode)
     char* payload;
 
     if (true) {
-        MockErrorPacket pkt;
+        MockPacket pkt;
+        pkt.size = 1024;
+
         HELPER_EXPECT_FAILED(pkt.encode(size, payload));
     }
 
     if (true) {
-        MockErrorPacket pkt;
+        MockPacket pkt;
+        pkt.size = 1024;
+
         SrsBuffer b;
         HELPER_EXPECT_FAILED(pkt.decode(&b));
     }
@@ -81,7 +103,9 @@ VOID TEST(ProtoStackTest, PacketEncode)
     }
 
     if (true) {
-        MockErrorPacket pkt;
+        MockPacket pkt;
+        pkt.size = 1024;
+
         EXPECT_EQ(1024, pkt.get_size());
     }
 }
@@ -192,7 +216,8 @@ VOID TEST(ProtoStackTest, SendPacketsError)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        SrsPacket* pkt = new MockErrorPacket();
+        MockPacket* pkt = new MockPacket();
+        pkt->size = 1024;
         HELPER_EXPECT_FAILED(p.send_and_free_packet(pkt, 1));
     }
 
@@ -208,8 +233,36 @@ VOID TEST(ProtoStackTest, SendPacketsError)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        SrsPacket* pkt = new MockPayloadErrorPacket();
+        MockPacket2* pkt = new MockPacket2();
+        pkt->size = 1024;
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
+    }
+}
+
+VOID TEST(ProtoStackTest, SendHugePacket)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        MockPacket2* pkt = new MockPacket2();
+        pkt->size = 1024;
+        pkt->payload = new char[1024];
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        MockPacket2* pkt = new MockPacket2();
+        pkt->size = 16;
+        pkt->payload = new char[16];
+
+        io.out_err = srs_error_new(1, "fail");
+        HELPER_EXPECT_FAILED(p.send_and_free_packet(pkt, 1));
     }
 }
 
