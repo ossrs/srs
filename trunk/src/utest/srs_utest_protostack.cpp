@@ -237,6 +237,56 @@ VOID TEST(ProtoStackTest, SendPacketsError)
         pkt->size = 1024;
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
     }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCommonMessage pkt;
+        pkt.header.initialize_audio(200, 1000, 1);
+        pkt.create_payload(256);
+        pkt.size = 256;
+
+        SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+        msg->create(&pkt);
+        SrsAutoFree(SrsSharedPtrMessage, msg);
+
+        SrsSharedPtrMessage* msgs[10240];
+        for (int i = 0; i < 10240; i++) {
+            msgs[i] = msg->copy();
+        }
+
+        io.out_err = srs_error_new(1, "fail");
+        HELPER_EXPECT_FAILED(p.send_and_free_messages(msgs, 10240, 1));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        // Always response ACK message.
+        HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
+
+        // When not auto response, need to flush it manually.
+        p.set_auto_response(false);
+        HELPER_EXPECT_SUCCESS(p.response_acknowledgement_message());
+        EXPECT_EQ(0, io.out_buffer.length());
+
+        io.out_err = srs_error_new(1, "fail");
+        HELPER_EXPECT_FAILED(p.manual_response_flush());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        MockPacket2* pkt = new MockPacket2();
+        pkt->size = 16;
+        pkt->payload = new char[16];
+
+        io.out_err = srs_error_new(1, "fail");
+        HELPER_EXPECT_FAILED(p.send_and_free_packet(pkt, 1));
+    }
 }
 
 VOID TEST(ProtoStackTest, SendHugePacket)
@@ -251,18 +301,6 @@ VOID TEST(ProtoStackTest, SendHugePacket)
         pkt->size = 1024;
         pkt->payload = new char[1024];
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
-    }
-
-    if (true) {
-        MockBufferIO io;
-        SrsProtocol p(&io);
-
-        MockPacket2* pkt = new MockPacket2();
-        pkt->size = 16;
-        pkt->payload = new char[16];
-
-        io.out_err = srs_error_new(1, "fail");
-        HELPER_EXPECT_FAILED(p.send_and_free_packet(pkt, 1));
     }
 }
 
