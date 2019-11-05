@@ -333,6 +333,28 @@ VOID TEST(ProtoStackTest, HugeMessages)
         HELPER_EXPECT_SUCCESS(p.send_and_free_messages(msgs, 1024, 1));
         EXPECT_EQ(269*1024, io.out_buffer.length());
     }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCommonMessage pkt;
+        pkt.header.initialize_audio(200, 1000, 1);
+        pkt.create_payload(256);
+        pkt.size = 256;
+
+        SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+        msg->create(&pkt);
+        SrsAutoFree(SrsSharedPtrMessage, msg);
+
+        SrsSharedPtrMessage* msgs[10240];
+        for (int i = 0; i < 10240; i++) {
+            msgs[i] = msg->copy();
+        }
+
+        HELPER_EXPECT_SUCCESS(p.send_and_free_messages(msgs, 10240, 1));
+        EXPECT_EQ(269*10240, io.out_buffer.length());
+    }
 }
 
 VOID TEST(ProtoStackTest, DecodeMessages)
