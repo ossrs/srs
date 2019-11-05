@@ -46,6 +46,15 @@ protected:
     }
 };
 
+class MockPayloadErrorPacket : public SrsPacket
+{
+protected:
+    virtual srs_error_t encode(int& size, char*& payload) {
+        size = 1024;
+        return srs_success;
+    }
+};
+
 VOID TEST(ProtoStackTest, PacketEncode)
 {
     srs_error_t err;
@@ -175,6 +184,35 @@ VOID TEST(ProtoStackTest, ManualFlush)
     }
 }
 
+VOID TEST(ProtoStackTest, SendPacketsError)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsPacket* pkt = new MockErrorPacket();
+        HELPER_EXPECT_FAILED(p.send_and_free_packet(pkt, 1));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsPacket* pkt = new SrsPacket();
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsPacket* pkt = new MockPayloadErrorPacket();
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
+    }
+}
+
 VOID TEST(ProtoStackTest, SendZeroMessages)
 {
     srs_error_t err;
@@ -241,6 +279,25 @@ VOID TEST(ProtoStackTest, HugeMessages)
 
         HELPER_EXPECT_SUCCESS(p.send_and_free_messages(msgs, 1024, 1));
         EXPECT_EQ(269*1024, io.out_buffer.length());
+    }
+}
+
+VOID TEST(ProtoStackTest, DecodeMessages)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        // AMF0 message with 1B should fail.
+        SrsCommonMessage msg;
+        msg.header.initialize_amf0_script(1, 1);
+        msg.create_payload(1);
+        msg.size = 1;
+
+        SrsPacket* pkt;
+        HELPER_EXPECT_FAILED(p.decode_message(&msg, &pkt));
     }
 }
 
