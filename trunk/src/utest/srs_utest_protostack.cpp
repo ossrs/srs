@@ -414,3 +414,34 @@ VOID TEST(ProtoStackTest, DecodeMessages)
     }
 }
 
+VOID TEST(ProtoStackTest, OnDecodeMessages)
+{
+    srs_error_t err;
+
+    vector<char> bytes;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+        pkt->chunk_size = 0;
+
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
+        bytes.assign(io.out_buffer.bytes(), io.out_buffer.bytes() + io.out_buffer.length());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        // Always response ACK message.
+        HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
+
+        SrsCommonMessage* msg;
+        io.in_buffer.append(bytes.data(), bytes.size());
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+        srs_freep(msg);
+    }
+}
+
