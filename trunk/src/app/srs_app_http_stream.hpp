@@ -233,8 +233,8 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual int do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-    virtual int http_hooks_on_play();
-    virtual void http_hooks_on_stop();
+    virtual int http_hooks_on_play(ISrsHttpMessage* r);
+    virtual void http_hooks_on_stop(ISrsHttpMessage* r);
     virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 

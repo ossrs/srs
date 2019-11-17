@@ -1,13 +1,13 @@
 # Simple-RTMP-Server
 
-[![CircleCI](https://circleci.com/gh/ossrs/srs/tree/2.0release.svg?style=svg)](https://circleci.com/gh/ossrs/srs/tree/2.0release)
+[![CircleCI](https://circleci.com/gh/ossrs/srs/tree/master.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/master)
 [![Wechat](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 [<img width="52" alt="Skype" src="https://cloud.githubusercontent.com/assets/2777660/24329166/3821a328-1230-11e7-844a-506a5d17dd3d.png">](https://github.com/ossrs/srs/wiki/v1_EN_Contact#skype-or-gitter)
 
 SRS/2.0, [ZhouGuowen][release2]
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
-SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
+SRS is an industrial-strength live streaming cluster, with the best conceptual integrity and the simplest implementation. 
 
 Download from github.io: [Centos6-x86_64][centos0], [more...][more0]<br/>
 Download from ossrs.net: [Centos6-x86_64][centos1], [more...][more1]<br/>
@@ -15,9 +15,9 @@ Website for SRS/2.0, read SRS 2.0 [Chinese][srs_CN] or [English][srs_EN].
 
 ## Why SRS?
 
-1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
-1. High efficient RTMP deliverying support 7k+ concurrency, vhost based, both origin and edge.
-1. Embeded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
+1. We completely rewrote HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
+1. Highly efficient RTMP streaming, supporting 7k+ clients concurrency, vhost based, both origin and edge.
+1. Embedded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
 1. Variety input: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
 1. Popular internet delivery: RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
@@ -38,7 +38,7 @@ Enjoy it!
 
 ## About
 
-SRS(Simple RTMP Server) over state-threads created in 2013.10.
+SRS(Simple RTMP Server) over state-threads created on 2013.10.
 
 SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
@@ -97,7 +97,7 @@ cd srs/trunk
 </pre>
 
 <strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, for others OS recommend [docker][docker], see Build([CN][v2_CN_Build],[EN][v2_EN_Build]).</strong>
 
 <pre>
 ./configure && make
@@ -294,6 +294,7 @@ Remark:
 
 ## Releases
 
+* 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release5, 2.0.263, 86994 lines.
 * 2018-10-28, [Release v2.0-r5][r2.0r5], 2.0 release5, 2.0.258, 86916 lines.
 * 2018-08-12, [Release v2.0-r4][r2.0r4], 2.0 release4, 2.0.255, 86915 lines.
 * 2018-07-18, [Release v2.0-r3][r2.0r3], 2.0 release3, 2.0.248, 86775 lines.
@@ -335,6 +336,12 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2019-04-05, [2.0 release5(2.0.263)][r2.0r6] released. 86994 lines.</strong>
+* v2.0, 2019-04-05, Merge [#1312][bug #1312], Fix GCC7 build error, this statement may fall through. 2.0.263
+* v2.0, 2019-04-05, Merge [#1339][bug #1339], Support HTTP-FLV params. 2.0.262
+* v2.0, 2018-12-01, Merge [#1274][bug #1274], Upgrade to FFMPEG 4.1 and X264 157. 2.0.261
+* v2.0, 2018-11-11, Merge [#1261][bug #1261], Support `_definst_` for Wowza. 2.0.260
+* v2.0, 2018-11-11, Merge [#1263][bug #1263], Fix string trim bug. 2.0.259
 * <strong>v2.0, 2018-10-28, [2.0 release5(2.0.258)][r2.0r5] released. 86916 lines.</strong>
 * v2.0, 2018-10-28, Fix [#1250][bug #1250], Support build on OSX10.14 Mojave. 2.0.258
 * v2.0, 2018-10-08, Merge [#1236][bug #1236], Fix sleep bug in us. 2.0.257
@@ -979,6 +986,7 @@ Winlin
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
+[docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
@@ -1335,10 +1343,16 @@ Winlin
 [bug #1237]: https://github.com/ossrs/srs/issues/1237
 [bug #1236]: https://github.com/ossrs/srs/issues/1236
 [bug #1250]: https://github.com/ossrs/srs/issues/1250
+[bug #1263]: https://github.com/ossrs/srs/issues/1263
+[bug #1261]: https://github.com/ossrs/srs/issues/1261
+[bug #1274]: https://github.com/ossrs/srs/pull/1274
+[bug #1339]: https://github.com/ossrs/srs/pull/1339
+[bug #1312]: https://github.com/ossrs/srs/pull/1312
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5
 [r2.0r4]: https://github.com/ossrs/srs/releases/tag/v2.0-r4
 [r2.0r3]: https://github.com/ossrs/srs/releases/tag/v2.0-r3
