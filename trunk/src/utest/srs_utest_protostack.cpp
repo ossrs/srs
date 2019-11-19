@@ -445,3 +445,50 @@ VOID TEST(ProtoStackTest, OnDecodeMessages)
     }
 }
 
+SrsCommonMessage* _mock_create_message(char* bytes, int size, int stream_id)
+{
+    SrsCommonMessage* msg = new SrsCommonMessage();
+    msg->header.initialize_amf0_script(size, stream_id);
+    msg->create_payload(size);
+    memcpy(msg->payload, bytes, size);
+    msg->size = size;
+    return msg;
+}
+
+VOID TEST(ProtoStackTest, OnDecodeMessages2)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x17, 0x02, 0x00, 0x01, 's', 0x00, 0,0,0,0,0,0,0,0, 0x03,0,0,9};
+        SrsCommonMessage* msg = _mock_create_message((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+        msg->header.message_type = RTMP_MSG_AMF3CommandMessage;
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+        HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
+
+        SrsCallPacket* call = (SrsCallPacket*)pkt;
+        EXPECT_STREQ("s", call->command_name.c_str());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x17, 0x02, 0x00, 0x01, 's'};
+        SrsCommonMessage* msg = _mock_create_message((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+        msg->header.message_type = RTMP_MSG_AMF3CommandMessage;
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+}
+
