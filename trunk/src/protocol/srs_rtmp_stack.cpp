@@ -979,18 +979,18 @@ srs_error_t SrsProtocol::read_basic_header(char& fmt, int& cid)
     // 2-63, 1B chunk header
     if (cid > 1) {
         return err;
-    }
-    
     // 64-319, 2B chunk header
-    if (cid == 0) {
+    } else if (cid == 0) {
         if ((err = in_buffer->grow(skt, 1)) != srs_success) {
             return srs_error_wrap(err, "basic header requires 2 bytes");
         }
-        
+
         cid = 64;
         cid += (uint8_t)in_buffer->read_1byte();
-        // 64-65599, 3B chunk header
-    } else if (cid == 1) {
+    // 64-65599, 3B chunk header
+    } else {
+        srs_assert(cid == 1);
+
         if ((err = in_buffer->grow(skt, 2)) != srs_success) {
             return srs_error_wrap(err, "basic header requires 3 bytes");
         }
@@ -998,9 +998,6 @@ srs_error_t SrsProtocol::read_basic_header(char& fmt, int& cid)
         cid = 64;
         cid += (uint8_t)in_buffer->read_1byte();
         cid += ((uint8_t)in_buffer->read_1byte()) * 256;
-    } else {
-        srs_error("invalid path, impossible basic header.");
-        srs_assert(false);
     }
     
     return err;

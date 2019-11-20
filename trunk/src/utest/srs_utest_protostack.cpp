@@ -1056,3 +1056,172 @@ VOID TEST(ProtoStackTest, OnDecodeMessages4)
     }
 }
 
+VOID TEST(ProtoStackTest, RecvMessage)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x01, 0x00, 0x00};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x00, 0x00};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x00};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+}
+
+VOID TEST(ProtoStackTest, RecvMessage2)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x03, 0,0,0, 0,0,4, 0, 0,0,0,0, 1,2,3};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        p.in_chunk_size = 3;
+
+        uint8_t bytes[] = {0x03, 0,0,0, 0,0,4, 0, 0,0,0,0, 1,2,3};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+
+        uint8_t bytes2[] = {0x43, 0,0,0, 0,0,5, 0, 0,0,0,0, 1,2,3};
+        io.in_buffer.append((char*)bytes2, sizeof(bytes2));
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x03};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x43, 0,0,0, 0,0,0, 0};
+        io.in_buffer.append((char*)bytes, sizeof(bytes));
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_FAILED(p.recv_message(&msg));
+    }
+}
+
+VOID TEST(ProtoStackTest, RecvMessage3)
+{
+    if (true) {
+        SrsRequest req;
+        req.ip = "10.11.12.13";
+
+        SrsRequest* cp = req.copy();
+        EXPECT_STREQ("10.11.12.13", cp->ip.c_str());
+        srs_freep(cp);
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.ip = "10.11.12.13";
+
+        SrsAmf0Object* obj = SrsAmf0Any::object();
+        obj->set("id", SrsAmf0Any::str("srs"));
+        req.args = obj;
+
+        SrsRequest* cp = req.copy();
+        EXPECT_STREQ("10.11.12.13", cp->ip.c_str());
+
+        SrsAmf0Object* cpa = dynamic_cast<SrsAmf0Object*>(cp->args);
+        SrsAmf0Any* cps = cpa->ensure_property_string("id");
+        EXPECT_STREQ("srs", cps->to_str().c_str());
+        srs_freep(cp);
+    }
+
+    if (true) {
+        SrsRequest req;
+        EXPECT_STREQ("//", req.get_stream_url().c_str());
+    }
+
+    if (true) {
+        SrsRequest req;
+        EXPECT_STREQ("", req.schema.c_str());
+
+        req.as_http();
+        EXPECT_STREQ("http", req.schema.c_str());
+    }
+
+    if (true) {
+        SrsResponse res;
+        EXPECT_EQ(1, res.stream_id);
+    }
+
+    if (true) {
+        EXPECT_STREQ("Play", srs_client_type_string(SrsRtmpConnPlay).c_str());
+        EXPECT_STREQ("flash-publish", srs_client_type_string(SrsRtmpConnFlashPublish).c_str());
+        EXPECT_STREQ("fmle-publish", srs_client_type_string(SrsRtmpConnFMLEPublish).c_str());
+        EXPECT_STREQ("haivision-publish", srs_client_type_string(SrsRtmpConnHaivisionPublish).c_str());
+        EXPECT_STREQ("Unknown", srs_client_type_string(SrsRtmpConnType(0x0f)).c_str());
+
+        EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnFlashPublish));
+        EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnFMLEPublish));
+        EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnHaivisionPublish));
+        EXPECT_FALSE(srs_client_type_is_publish(SrsRtmpConnPlay));
+    }
+}
+
