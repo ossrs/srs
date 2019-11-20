@@ -549,7 +549,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_','r','e','s','u','l','t'};
         SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
         SrsAutoFree(SrsCommonMessage, msg);
-        msg->header.message_type = RTMP_MSG_AMF0DataMessage;
+        msg->header.message_type = RTMP_MSG_AMF3DataMessage;
 
         SrsPacket* pkt;
         SrsAutoFree(SrsPacket, pkt);
@@ -562,10 +562,10 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
         SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
         SrsAutoFree(SrsCommonMessage, msg);
-        msg->header.message_type = RTMP_MSG_AMF0DataMessage;
+        msg->header.message_type = RTMP_MSG_AMF3CommandMessage;
 
         SrsPacket* pkt;
         SrsAutoFree(SrsPacket, pkt);
@@ -656,6 +656,26 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
 
         SrsFMLEStartPacket* request = SrsFMLEStartPacket::create_release_stream("livestream");
         request->command_name = RTMP_AMF0_COMMAND_UNPUBLISH;
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsFMLEStartPacket* request = new SrsFMLEStartPacket();
+        request->command_name = "srs";
         request->transaction_id = 0.0;
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
