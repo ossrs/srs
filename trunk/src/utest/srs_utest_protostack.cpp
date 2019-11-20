@@ -530,7 +530,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't'};
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t'};
         SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
         SrsAutoFree(SrsCommonMessage, msg);
         msg->header.message_type = RTMP_MSG_AMF0DataMessage;
@@ -538,6 +538,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         SrsPacket* pkt;
         SrsAutoFree(SrsPacket, pkt);
 
+        // Decode the response failed, no transaction ID was set by request.
         HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
     }
 
@@ -545,7 +546,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         MockBufferIO io;
         SrsProtocol p(&io);
 
-        uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't'};
+        uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_','r','e','s','u','l','t'};
         SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
         SrsAutoFree(SrsCommonMessage, msg);
         msg->header.message_type = RTMP_MSG_AMF0DataMessage;
@@ -553,6 +554,484 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
         SrsPacket* pkt;
         SrsAutoFree(SrsPacket, pkt);
 
+        // Decode the response failed, no transaction ID was set by request.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+        msg->header.message_type = RTMP_MSG_AMF0DataMessage;
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Decode the response failed, no transaction ID was set by request.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsConnectAppPacket* request = new SrsConnectAppPacket();
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsCreateStreamPacket* request = new SrsCreateStreamPacket();
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsFMLEStartPacket* request = SrsFMLEStartPacket::create_FC_publish("livestream");
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsFMLEStartPacket* request = SrsFMLEStartPacket::create_release_stream("livestream");
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsFMLEStartPacket* request = SrsFMLEStartPacket::create_release_stream("livestream");
+        request->command_name = RTMP_AMF0_COMMAND_UNPUBLISH;
+        request->transaction_id = 0.0;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, '_','r','e','s','u','l','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the response packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+}
+
+VOID TEST(ProtoStackTest, OnDecodeMessages4)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 0x07, 'c','o','n','n','e','c','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 12, 'c','r','e','a','t','e','S','t','r','e','a','m', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 4, 'p','l','a','y', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 5, 'p','a','u','s','e', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 13, 'r','e','l','e','a','s','e','S','t','r','e','a','m', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 9, 'F','C','P','u','b','l','i','s','h', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 7, 'p','u','b','l','i','s','h', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 11, 'F','C','U','n','p','u','b','l','i','s','h', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 13, '@','s','e','t','D','a','t','a','F','r','a','m','e', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 10, 'o','n','M','e','t','a','D','a','t','a', 03,0,0,9};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 22, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','F','i','n','i','s','h','e','d', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 21, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','P','l','a','y','i','n','g', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 24, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','P','u','b','l','i','s','h','i','n','g', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 31, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','a','r','t','i','n','g','P','l','a','y','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 34, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','a','r','t','i','n','g','P','u','b','l','i','s','h','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 28, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','a','r','t','P','l','a','y','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 31, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','a','r','t','P','u','b','l','i','s','h','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 30, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','o','p','p','e','d','P','l','a','y','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 27, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','o','p','P','l','a','y','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 30, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','o','p','P','u','b','l','i','s','h','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 33, 'o','n','S','r','s','B','a','n','d','C','h','e','c','k','S','t','o','p','p','e','d','P','u','b','l','i','s','h','B','y','t','e','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 17, 'f','i','n','a','l','C','l','i','e','n','t','P','a','c','k','e','t', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 11, 'c','l','o','s','e','S','t','r','e','a','m', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
+        HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        uint8_t bytes[] = {0x02, 0x00, 3, 's','r','s', 0x00,0,0,0,0,0,0,0,0};
+        SrsCommonMessage* msg = _create_amf0((char*)bytes, sizeof(bytes), 1);
+        msg->header.message_type = RTMP_MSG_AMF0CommandMessage;
+        SrsAutoFree(SrsCommonMessage, msg);
+
+        SrsPacket* pkt;
+        SrsAutoFree(SrsPacket, pkt);
+
+        // Without enough data, it fail when decoding the request packet.
         HELPER_EXPECT_FAILED(p.decode_message(msg, &pkt));
     }
 }
