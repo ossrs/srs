@@ -63,6 +63,7 @@ public:
      * @remark assert size is positive.
      */
     virtual void append(const char* bytes, int size);
+    virtual void append(SrsSimpleStream* src);
 };
 
 #endif

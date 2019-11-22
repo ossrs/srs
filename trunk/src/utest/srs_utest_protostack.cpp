@@ -418,7 +418,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages)
 {
     srs_error_t err;
 
-    vector<char> bytes;
+    SrsSimpleStream bytes;
 
     if (true) {
         MockBufferIO io;
@@ -428,7 +428,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages)
         pkt->chunk_size = 0;
 
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 1));
-        bytes.assign(io.out_buffer.bytes(), io.out_buffer.bytes() + io.out_buffer.length());
+        bytes.append(&io.out_buffer);
     }
 
     if (true) {
@@ -439,7 +439,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages)
         HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
 
         SrsCommonMessage* msg;
-        io.in_buffer.append(bytes.data(), bytes.size());
+        io.in_buffer.append(&bytes);
         HELPER_EXPECT_FAILED(p.recv_message(&msg));
         srs_freep(msg);
     }
@@ -1222,6 +1222,46 @@ VOID TEST(ProtoStackTest, RecvMessage3)
         EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnFMLEPublish));
         EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnHaivisionPublish));
         EXPECT_FALSE(srs_client_type_is_publish(SrsRtmpConnPlay));
+    }
+}
+
+VOID TEST(ProtoStackTest, RecvMessage4)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+        pkt->chunk_size = 256;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 0));
+
+        io.in_buffer.append(&io.out_buffer);
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+
+        EXPECT_EQ(256, p.out_chunk_size);
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsProtocol p(&io);
+
+        SrsUserControlPacket* pkt = new SrsUserControlPacket();
+        pkt->event_type = SrcPCUCSetBufferLength;
+        pkt->extra_data = 256;
+        HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 0));
+
+        io.in_buffer.append(&io.out_buffer);
+
+        SrsCommonMessage* msg;
+        SrsAutoFree(SrsCommonMessage, msg);
+        HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+
+        EXPECT_EQ(256, p.in_buffer_length);
     }
 }
 
