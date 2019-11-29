@@ -81,7 +81,7 @@ std::string SrsCplxError::description() {
         
         next = this;
         while (next) {
-            ss << "thread #" << next->cid << ": "
+            ss << "thread [" << next->cid << "]: "
             << next->func << "() [" << next->file << ":" << next->line << "]"
             << "[errno=" << next->rerrno << "]";
 
