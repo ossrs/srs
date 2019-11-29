@@ -1072,7 +1072,7 @@ Winlin
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net:8000/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
-[docker]: https://github.com/ossrs/srs-docker/tree/centos#usage
+[docker]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
