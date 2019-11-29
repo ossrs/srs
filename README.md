@@ -294,7 +294,7 @@ Remark:
 
 ## Releases
 
-* 2018-11-29, [Release v2.0-r7][r2.0r7], 2.0 release6, 2.0.265, 86994 lines.
+* 2018-11-29, [Release v2.0-r7][r2.0r7], 2.0 release7, 2.0.265, 86994 lines.
 * 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release6, 2.0.263, 86994 lines.
 * 2018-10-28, [Release v2.0-r5][r2.0r5], 2.0 release5, 2.0.258, 86916 lines.
 * 2018-08-12, [Release v2.0-r4][r2.0r4], 2.0 release4, 2.0.255, 86915 lines.
