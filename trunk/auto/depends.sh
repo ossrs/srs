@@ -573,12 +573,11 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
-        require_sudoer "install CherryPy-3.2.4"
-        echo "install CherryPy-3.2.4"; 
+        echo "install CherryPy-3.2.4";
         (
-            sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
+            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} &&
             unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
-            sudo python setup.py install
+            python setup.py install --user
         )
     fi
     # check status
