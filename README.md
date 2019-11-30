@@ -152,7 +152,7 @@ Please select according to languages:
 
 ### V3 changes
 
-* v3.0, 2019-11-30, Fix #1501, use request ip for origin cluster. 3.0.66
+* v3.0, 2019-11-30, Fix [#1501][bug #1501], use request ip for origin cluster. 3.0.66
 * v3.0, 2019-11-30, Random tid for docker. 3.0.65
 * v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
 * v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63
@@ -1492,6 +1492,7 @@ Winlin
 [bug #1087]: https://github.com/ossrs/srs/issues/1087
 [bug #1051]: https://github.com/ossrs/srs/issues/1051
 [bug #1093]: https://github.com/ossrs/srs/issues/1093
+[bug #1501]: https://github.com/ossrs/srs/issues/1501
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

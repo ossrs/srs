@@ -115,8 +115,6 @@ private:
     SrsCoroutine* trd;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
-    // For RTMP 302 redirect.
-    std::string redirect;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
@@ -131,8 +129,8 @@ public:
 private:
     virtual srs_error_t do_cycle();
 private:
-    virtual srs_error_t ingest();
-    virtual srs_error_t process_publish_message(SrsCommonMessage* msg);
+    virtual srs_error_t ingest(std::string& redirect);
+    virtual srs_error_t process_publish_message(SrsCommonMessage* msg, std::string& redirect);
 };
 
 // The edge used to forward stream to origin.
