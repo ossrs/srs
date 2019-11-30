@@ -1179,7 +1179,8 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     }
     
     // for token tranverse, always take the debug info(which carries token).
-    if ((err = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != srs_success) {
+    SrsServerInfo si;
+    if ((err = client->connect_app(req->app, req->tcUrl, req, true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
     

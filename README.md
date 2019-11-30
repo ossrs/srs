@@ -152,6 +152,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
 * v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63
 * v3.0, 2019-10-23, Cover JSON codec. 3.0.62
 * v3.0, 2019-10-13, Use http://ossrs.net:8000 as homepage.
