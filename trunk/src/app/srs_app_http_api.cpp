@@ -1297,7 +1297,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
               ->set("stream", SrsJsonAny::str(stream.c_str())));
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    data->set("origin", coworkers->dumps(vhost, app, stream));
+    data->set("origin", coworkers->dumps(vhost, ip, app, stream));
     
     return srs_api_response(w, r, obj->dumps());
 }
@@ -1342,7 +1342,7 @@ srs_error_t SrsHttpApi::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    srs_trace("api get peer ip success. ip=%s", ip.c_str());
+    srs_trace("API server client, ip=%s", ip.c_str());
     
     // initialize parser
     if ((err = parser->initialize(HTTP_REQUEST, true)) != srs_success) {

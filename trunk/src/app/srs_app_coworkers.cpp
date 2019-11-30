@@ -58,30 +58,44 @@ SrsCoWorkers* SrsCoWorkers::instance()
     return _instance;
 }
 
-SrsJsonAny* SrsCoWorkers::dumps(string vhost, string app, string stream)
+SrsJsonAny* SrsCoWorkers::dumps(string vhost, string host, string app, string stream)
 {
     SrsRequest* r = find_stream_info(vhost, app, stream);
     if (!r) {
         // TODO: FIXME: Find stream from our origin util return to the start point.
         return SrsJsonAny::null();
     }
-    
-    vector<string> service_ports = _srs_config->get_listens();
-    if (service_ports.empty()) {
-        return SrsJsonAny::null();
+
+    // The service port parsing from listen port.
+    string listen_host;
+    int listen_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    vector<string> listen_hostports = _srs_config->get_listens();
+    if (!listen_hostports.empty()) {
+        string list_hostport = listen_hostports.at(0);
+
+        if (list_hostport.find(":") != string::npos) {
+            srs_parse_hostport(list_hostport, listen_host, listen_port);
+        } else {
+            listen_port = ::atoi(list_hostport.c_str());
+        }
     }
-    
-    string service_ip = srs_get_public_internet_address();
-    string service_hostport = service_ports.at(0);
-    
-    int service_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    if (service_hostport.find(":") != string::npos) {
-        string service_host;
-        srs_parse_hostport(service_hostport, service_host, service_port);
-    } else {
-        service_port = ::atoi(service_hostport.c_str());
+
+    // The ip of server, we use the request host as ip, if listen host is localhost or loopback.
+    // For example, the server may behind a NAT(192.x.x.x), while its ip is a docker ip(172.x.x.x),
+    // we should use the NAT(192.x.x.x) address as it's the exposed ip.
+    // @see https://github.com/ossrs/srs/issues/1501
+    string service_ip;
+    if (listen_host != SRS_CONSTS_LOCALHOST && listen_host != SRS_CONSTS_LOOPBACK && listen_host != SRS_CONSTS_LOOPBACK6) {
+        service_ip = listen_host;
     }
-    
+    if (service_ip.empty()) {
+        service_ip = host;
+    }
+    if (service_ip.empty()) {
+        service_ip = srs_get_public_internet_address();
+    }
+
+    // The backend API endpoint.
     string backend = _srs_config->get_http_api_listen();
     if (backend.find(":") == string::npos) {
         backend = service_ip + ":" + backend;
@@ -92,7 +106,7 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string app, string stream)
     
     return SrsJsonAny::object()
         ->set("ip", SrsJsonAny::str(service_ip.c_str()))
-        ->set("port", SrsJsonAny::integer(service_port))
+        ->set("port", SrsJsonAny::integer(listen_port))
         ->set("vhost", SrsJsonAny::str(r->vhost.c_str()))
         ->set("api", SrsJsonAny::str(backend.c_str()))
         ->set("routers", routers);
