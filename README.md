@@ -152,6 +152,7 @@ Please select according to languages:
 
 ### V3 changes
 
+* <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.66)][r3.0a2] released. 110831 lines.</strong>
 * v3.0, 2019-11-30, Fix [#1501][bug #1501], use request ip for origin cluster. 3.0.66
 * v3.0, 2019-11-30, Random tid for docker. 3.0.65
 * v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
@@ -657,6 +658,7 @@ Please select according to languages:
 
 ### Releases
 
+* 2019-11-30, [Release v3.0-a2][r3.0a2], 3.0 alpha2, 3.0.66, 110831 lines.
 * 2019-10-07, [Release v3.0-a1][r3.0a1], 3.0 alpha1, 3.0.60, 107962 lines.
 * 2019-10-04, [Release v3.0-a0][r3.0a0], 3.0 alpha0, 3.0.56, 107946 lines.
 * 2017-03-03, [Release v2.0-r0][r2.0r0], 2.0 release0, 2.0.234, 86373 lines.
@@ -1497,6 +1499,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2
 [r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
 [r3.0a0]: https://github.com/ossrs/srs/releases/tag/v3.0-a0
 [r2.0r7]: https://github.com/ossrs/srs/releases/tag/v2.0-r7
