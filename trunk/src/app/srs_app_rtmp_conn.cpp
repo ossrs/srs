@@ -610,7 +610,8 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             int port;
             string host;
             string url = "http://" + coworkers.at(i) + "/api/v1/clusters?"
-                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream;
+                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
+                + "&coworker=" + coworkers.at(i);
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }

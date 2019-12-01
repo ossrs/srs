@@ -46,7 +46,7 @@ private:
 public:
     static SrsCoWorkers* instance();
 public:
-    virtual SrsJsonAny* dumps(std::string vhost, std::string host, std::string app, std::string stream);
+    virtual SrsJsonAny* dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
 private:
     virtual SrsRequest* find_stream_info(std::string vhost, std::string app, std::string stream);
 public:

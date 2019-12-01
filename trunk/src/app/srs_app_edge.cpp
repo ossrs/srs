@@ -100,10 +100,13 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
             string _schema, _vhost, _app, _stream, _param, _host;
             srs_discovery_tc_url(redirect, _schema, _host, _vhost, _app, _stream, _port, _param);
             
-            srs_warn("RTMP redirect %s:%d to %s:%d stream=%s", server.c_str(), port, _host.c_str(), _port, _stream.c_str());
             server = _host;
             port = _port;
         }
+
+        // Remember the current selected server.
+        selected_ip = server;
+        selected_port = port;
         
         // support vhost tranform for edge,
         // @see https://github.com/ossrs/srs/issues/372
@@ -142,6 +145,12 @@ srs_error_t SrsEdgeRtmpUpstream::decode_message(SrsCommonMessage* msg, SrsPacket
 void SrsEdgeRtmpUpstream::close()
 {
     srs_freep(sdk);
+}
+
+void SrsEdgeRtmpUpstream::selected(string& server, int& port)
+{
+    server = selected_ip;
+    port = selected_port;
 }
 
 void SrsEdgeRtmpUpstream::set_recv_timeout(srs_utime_t tm)
@@ -272,6 +281,13 @@ srs_error_t SrsEdgeIngester::do_cycle()
         
         // retry for rtmp 302 immediately.
         if (srs_error_code(err) == ERROR_CONTROL_REDIRECT) {
+            int port;
+            string server;
+            upstream->selected(server, port);
+
+            string url = req->get_stream_url();
+            srs_warn("RTMP redirect %s from %s:%d to %s", url.c_str(), server.c_str(), port, redirect.c_str());
+
             srs_error_reset(err);
             continue;
         }

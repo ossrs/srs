@@ -153,7 +153,7 @@ Please select according to languages:
 ### V3 changes
 
 * <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.66)][r3.0a2] released. 110831 lines.</strong>
-* v3.0, 2019-11-30, Fix [#1501][bug #1501], use request ip for origin cluster. 3.0.66
+* v3.0, 2019-11-30, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.67
 * v3.0, 2019-11-30, Random tid for docker. 3.0.65
 * v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
 * v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63

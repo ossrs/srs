@@ -1290,6 +1290,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     string vhost = r->query_get("vhost");
     string app = r->query_get("app");
     string stream = r->query_get("stream");
+    string coworker = r->query_get("coworker");
     data->set("query", SrsJsonAny::object()
               ->set("ip", SrsJsonAny::str(ip.c_str()))
               ->set("vhost", SrsJsonAny::str(vhost.c_str()))
@@ -1297,7 +1298,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
               ->set("stream", SrsJsonAny::str(stream.c_str())));
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    data->set("origin", coworkers->dumps(vhost, ip, app, stream));
+    data->set("origin", coworkers->dumps(vhost, coworker, app, stream));
     
     return srs_api_response(w, r, obj->dumps());
 }

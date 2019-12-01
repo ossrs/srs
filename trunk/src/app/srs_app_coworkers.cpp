@@ -58,7 +58,7 @@ SrsCoWorkers* SrsCoWorkers::instance()
     return _instance;
 }
 
-SrsJsonAny* SrsCoWorkers::dumps(string vhost, string host, string app, string stream)
+SrsJsonAny* SrsCoWorkers::dumps(string vhost, string coworker, string app, string stream)
 {
     SrsRequest* r = find_stream_info(vhost, app, stream);
     if (!r) {
@@ -80,7 +80,7 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string host, string app, string st
         }
     }
 
-    // The ip of server, we use the request host as ip, if listen host is localhost or loopback.
+    // The ip of server, we use the request coworker-host as ip, if listen host is localhost or loopback.
     // For example, the server may behind a NAT(192.x.x.x), while its ip is a docker ip(172.x.x.x),
     // we should use the NAT(192.x.x.x) address as it's the exposed ip.
     // @see https://github.com/ossrs/srs/issues/1501
@@ -89,7 +89,13 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string host, string app, string st
         service_ip = listen_host;
     }
     if (service_ip.empty()) {
-        service_ip = host;
+        int coworker_port;
+        string coworker_host = coworker;
+        if (coworker.find(":") != string::npos) {
+            srs_parse_hostport(coworker, coworker_host, coworker_port);
+        }
+
+        service_ip = coworker_host;
     }
     if (service_ip.empty()) {
         service_ip = srs_get_public_internet_address();
@@ -103,7 +109,10 @@ SrsJsonAny* SrsCoWorkers::dumps(string vhost, string host, string app, string st
     
     // The routers to detect loop and identify path.
     SrsJsonArray* routers = SrsJsonAny::array()->append(SrsJsonAny::str(backend.c_str()));
-    
+
+    srs_trace("Redirect vhost=%s, path=%s/%s to ip=%s, port=%d, api=%s",
+        vhost.c_str(), app.c_str(), stream.c_str(), service_ip.c_str(), listen_port, backend.c_str());
+
     return SrsJsonAny::object()
         ->set("ip", SrsJsonAny::str(service_ip.c_str()))
         ->set("port", SrsJsonAny::integer(listen_port))
