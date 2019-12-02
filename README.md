@@ -794,7 +794,7 @@ The performance benchmark data and corelative commits are listed here.
 
 * See also: [Performance for x86/x64 Test Guide][v1_CN_Performance].
 * See also: [Performance for RaspberryPi][v1_CN_RaspberryPi].
-* For multiple processes performance, read [#775: REUSEPORT][bug #775] or OriginCluster([CN](v3_EN_OriginCluster)/[EN](v3_EN_OriginCluster)) or [go-oryx][oryx].
+* For multiple processes performance, read [#775: REUSEPORT][bug #775] or OriginCluster([CN][v3_EN_OriginCluster]/[EN][v3_EN_OriginCluster]) or [go-oryx][oryx].
 
 #### Play RTMP benchmark
 
