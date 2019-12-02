@@ -53,12 +53,20 @@ cd srs/trunk
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, for other OS recommend [docker][docker], please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend Centos6 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+
+> Note: You can also build SRS in docker, please read [docker][docker-dev].
 
 <strong>Step 3:</strong> Run SRS 
 
 ```
 ./objs/srs -c conf/srs.conf
+```
+
+You can also directly run SRS in [docker][docker-srs3]:
+
+```
+docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
 ```
 
 <strong>From here, </strong> strongly recommend to try other main use-scenarios:
@@ -1082,7 +1090,8 @@ Winlin
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net:8000/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
-[docker]: https://github.com/ossrs/srs-docker/tree/dev#usage
+[docker-srs3]: https://github.com/ossrs/srs-docker#srs3
+[docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
 [v1_EN_Git]: https://github.com/ossrs/srs/wiki/v1_EN_Git
