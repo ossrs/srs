@@ -1002,10 +1002,10 @@ A big THANK YOU goes to:
 
 ### Mirrors
 
-OSChina: [http://git.oschina.net/winlinvip/srs.oschina][oschina], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
+OSChina: [https://gitee.com/winlinvip/srs.oschina][oschina], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
-git clone https://git.oschina.net/winlinvip/srs.oschina.git
+git clone https://gitee.com/winlinvip/srs.oschina.git
 ```
 
 > Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
@@ -1072,7 +1072,7 @@ Winlin
 [libx264]: http://www.videolan.org/
 [srs]: https://github.com/ossrs/srs
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
-[oschina]: http://git.oschina.net/winlinvip/srs.oschina
+[oschina]: https://gitee.com/winlinvip/srs.oschina
 [srs-dolphin]: https://github.com/ossrs/srs-dolphin
 [oryx]: https://github.com/ossrs/go-oryx
 [srs-bench]: https://github.com/ossrs/srs-bench
