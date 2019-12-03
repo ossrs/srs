@@ -231,9 +231,9 @@ string srs_any_address_for_listener()
     }
 
     if (ipv6_active && !ipv4_active) {
-        return "::";
+        return SRS_CONSTS_LOOPBACK6;
     }
-    return "0.0.0.0";
+    return SRS_CONSTS_LOOPBACK;
 }
 
 void srs_parse_endpoint(string hostport, string& ip, int& port)

@@ -284,6 +284,11 @@ int SrsSharedPtrMessage::count()
 
 bool SrsSharedPtrMessage::check(int stream_id)
 {
+    // Ignore error when message has no payload.
+    if (!ptr) {
+        return true;
+    }
+
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
     if (ptr->header.perfer_cid < 2) {

@@ -2,13 +2,13 @@ version: 2
 jobs:
   build:
     docker:
-      - image: ossrs/dev
+      - image: ossrs/srs:dev
     steps:
       - checkout
       - run: cd trunk && ./configure && make
   test:
     docker:
-      - image: ossrs/dev
+      - image: ossrs/srs:dev
     steps:
       - checkout
       - run: cd trunk && ./configure --gcov && make && ./objs/srs_utest && bash auto/coverage.sh

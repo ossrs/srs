@@ -610,7 +610,8 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             int port;
             string host;
             string url = "http://" + coworkers.at(i) + "/api/v1/clusters?"
-                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream;
+                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
+                + "&coworker=" + coworkers.at(i);
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
@@ -1179,7 +1180,8 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     }
     
     // for token tranverse, always take the debug info(which carries token).
-    if ((err = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != srs_success) {
+    SrsServerInfo si;
+    if ((err = client->connect_app(req->app, req->tcUrl, req, true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
     

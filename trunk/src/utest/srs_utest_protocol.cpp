@@ -95,6 +95,7 @@ MockBufferIO::MockBufferIO()
 {
     rtm = stm = SRS_UTIME_NO_TIMEOUT;
     rbytes = sbytes = 0;
+    in_err = out_err = srs_success;
 }
 
 MockBufferIO::~MockBufferIO()
@@ -109,6 +110,10 @@ MockBufferIO* MockBufferIO::append(string data)
 
 srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 {
+    if (in_err != srs_success) {
+        return srs_error_copy(in_err);
+    }
+
     if (in_buffer.length() < (int)size) {
         return srs_error_new(ERROR_SOCKET_READ, "read");
     }
@@ -124,6 +129,10 @@ srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 
 srs_error_t MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
 {
+    if (out_err != srs_success) {
+        return srs_error_copy(out_err);
+    }
+
     sbytes += size;
     if (nwrite) {
         *nwrite = size;
@@ -165,6 +174,10 @@ int64_t MockBufferIO::get_send_bytes()
 srs_error_t MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
+
+    if (out_err != srs_success) {
+        return srs_error_copy(out_err);
+    }
     
     ssize_t total = 0;
     for (int i = 0; i <iov_size; i++) {
@@ -187,6 +200,10 @@ srs_error_t MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite
 
 srs_error_t MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
 {
+    if (in_err != srs_success) {
+        return srs_error_copy(in_err);
+    }
+
     if (in_buffer.length() <= 0) {
         return srs_error_new(ERROR_SOCKET_READ, "read");
     }
@@ -199,6 +216,7 @@ srs_error_t MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
         *nread = available;
     }
     in_buffer.erase(available);
+
     return srs_success;
 }
 

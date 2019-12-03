@@ -68,3 +68,8 @@ void SrsSimpleStream::append(const char* bytes, int size)
     
     data.insert(data.end(), bytes, bytes + size);
 }
+
+void SrsSimpleStream::append(SrsSimpleStream* src)
+{
+    append(src->bytes(), src->length());
+}

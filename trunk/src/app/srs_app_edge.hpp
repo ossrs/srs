@@ -80,6 +80,7 @@ public:
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket) = 0;
     virtual void close() = 0;
 public:
+    virtual void selected(std::string& server, int& port) = 0;
     virtual void set_recv_timeout(srs_utime_t tm) = 0;
     virtual void kbps_sample(const char* label, int64_t age) = 0;
 };
@@ -91,6 +92,10 @@ private:
     // use this <ip[:port]> as upstream.
     std::string redirect;
     SrsSimpleRtmpClient* sdk;
+private:
+    // Current selected server, the ip:port.
+    std::string selected_ip;
+    int selected_port;
 public:
     // @param rediect, override the server. ignore if empty.
     SrsEdgeRtmpUpstream(std::string r);
@@ -101,6 +106,7 @@ public:
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual void close();
 public:
+    virtual void selected(std::string& server, int& port);
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual void kbps_sample(const char* label, int64_t age);
 };
@@ -115,8 +121,6 @@ private:
     SrsCoroutine* trd;
     SrsLbRoundRobin* lb;
     SrsEdgeUpstream* upstream;
-    // For RTMP 302 redirect.
-    std::string redirect;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
@@ -131,8 +135,8 @@ public:
 private:
     virtual srs_error_t do_cycle();
 private:
-    virtual srs_error_t ingest();
-    virtual srs_error_t process_publish_message(SrsCommonMessage* msg);
+    virtual srs_error_t ingest(std::string& redirect);
+    virtual srs_error_t process_publish_message(SrsCommonMessage* msg, std::string& redirect);
 };
 
 // The edge used to forward stream to origin.
