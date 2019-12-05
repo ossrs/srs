@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-05, Fix [#1506][bug #1501], support directly turn FLV timestamp to TS DTS. 3.0.68
 * <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.67)][r3.0a3] released. 110864 lines.</strong>
 * v3.0, 2019-12-01, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.67
 * <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.66)][r3.0a2] released. 110831 lines.</strong>

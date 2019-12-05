@@ -2589,6 +2589,8 @@ srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj
                 hls->set("hls_dispose", sdir->dumps_arg0_to_number());
             } else if (sdir->name == "hls_nb_notify") {
                 hls->set("hls_nb_notify", sdir->dumps_arg0_to_integer());
+            } else if (sdir->name == "hls_dts_directly") {
+                hls->set("hls_dts_directly", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "hls_wait_keyframe") {
                 hls->set("hls_wait_keyframe", sdir->dumps_arg0_to_boolean());
             } else if (sdir->name == "hls_keys") {
@@ -3751,7 +3753,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
-                        && m != "hls_key_file_path" && m != "hls_key_url") {
+                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -6146,6 +6148,23 @@ int SrsConfig::get_vhost_hls_nb_notify(string vhost)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls_dts_directly");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::get_hls_cleanup(string vhost)

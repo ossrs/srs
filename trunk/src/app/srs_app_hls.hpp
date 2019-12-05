@@ -288,6 +288,8 @@ private:
     int64_t previous_audio_dts;
     // The total aac samples.
     uint64_t aac_samples;
+    // Whether directly turn FLV timestamp to TS DTS.
+    bool hls_dts_directly;
 private:
     SrsOriginHub* hub;
     SrsRtmpJitter* jitter;

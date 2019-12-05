@@ -1062,6 +1062,7 @@ SrsHls::SrsHls()
     enabled = false;
     disposable = false;
     last_update_time = 0;
+    hls_dts_directly = false;
     
     previous_audio_dts = 0;
     aac_samples = 0;
@@ -1160,6 +1161,11 @@ srs_error_t SrsHls::on_publish()
     if ((err = controller->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "hls: on publish");
     }
+
+    // TODO: FIXME: Support reload.
+    // TODO: FIXME: Support RAW API.
+    // If enabled, directly turn FLV timestamp to TS DTS.
+    hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
     
     // if enabled, open the muxer.
     enabled = true;
@@ -1255,6 +1261,12 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // Recalc the DTS by the samples of AAC.
     aac_samples += nb_samples_per_frame;
     int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
+
+    // If directly turn FLV timestamp, overwrite the guessed DTS.
+    // @doc https://github.com/ossrs/srs/issues/1506#issuecomment-562063095
+    if (hls_dts_directly) {
+        dts = audio->timestamp * 90;
+    }
     
     if ((err = controller->write_audio(format->audio, dts)) != srs_success) {
         return srs_error_wrap(err, "hls: write audio");
