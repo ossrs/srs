@@ -1229,18 +1229,32 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
         previous_audio_dts = audio->timestamp;
         aac_samples = 0;
     }
-    
-    // Use the diff to guess whether the samples is 1024 or 960.
-    int nb_samples_per_frame = 1024;
-    int diff = ::abs((int)(audio->timestamp - previous_audio_dts)) * srs_flv_srates[format->acodec->sound_rate];
+
+    // The diff duration in ms between two FLV audio packets.
+    int diff = ::abs((int)(audio->timestamp - previous_audio_dts));
     previous_audio_dts = audio->timestamp;
-    if (diff > 100 && diff < 950) {
-        nb_samples_per_frame = 960;
+
+    // Guess the number of samples for each AAC frame.
+    // If samples is 1024, the sample-rate is 8000HZ, the diff should be 1024/8000s=128ms.
+    // If samples is 1024, the sample-rate is 44100HZ, the diff should be 1024/44100s=23ms.
+    // If samples is 2048, the sample-rate is 44100HZ, the diff should be 2048/44100s=46ms.
+    int nb_samples_per_frame = 0;
+    int guessNumberOfSamples = diff * srs_flv_srates[format->acodec->sound_rate] / 1000;
+    if (guessNumberOfSamples > 0) {
+        if (guessNumberOfSamples < 960) {
+            nb_samples_per_frame = 960;
+        } else if (guessNumberOfSamples < 1536) {
+            nb_samples_per_frame = 1024;
+        } else if (guessNumberOfSamples < 3072) {
+            nb_samples_per_frame = 2048;
+        } else {
+            nb_samples_per_frame = 4096;
+        }
     }
     
     // Recalc the DTS by the samples of AAC.
-    int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
     aac_samples += nb_samples_per_frame;
+    int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
     
     if ((err = controller->write_audio(format->audio, dts)) != srs_success) {
         return srs_error_wrap(err, "hls: write audio");
