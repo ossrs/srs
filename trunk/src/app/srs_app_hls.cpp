@@ -1194,6 +1194,12 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     if (!enabled) {
         return err;
     }
+
+    // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
+    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
+    if (!format->acodec) {
+        return err;
+    }
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
@@ -1202,7 +1208,6 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
     // ts support audio codec: aac/mp3
-    srs_assert(format->acodec);
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
         return err;
@@ -1251,7 +1256,13 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     if (!enabled) {
         return err;
     }
-    
+
+    // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
+    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
+    if (!format->vcodec) {
+        return err;
+    }
+
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
     
