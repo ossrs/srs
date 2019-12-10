@@ -31,4 +31,4 @@ ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit 
 cd $workdir &&
 export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
 bash <(curl -s https://codecov.io/bash) &&
-exit 0
+echo "ok" && exit 0
