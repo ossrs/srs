@@ -29,7 +29,8 @@ ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit 
 
 # Upload report with *.gcov
 cd $workdir &&
-cp ../../../.circleci/codecov.yml . &&
-export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
-bash <(curl -s https://codecov.io/bash)
+rm -f t.sh && curl -s https://codecov.io/bash -o t.sh &&
+bash t.sh -y ../../../.circleci/codecov.yml -t 493bba46-c468-4e73-8b45-8cdd8ff62d96
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Upload report failed, ret=$ret"; exit $ret; fi
+
 exit 0
