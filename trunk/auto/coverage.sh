@@ -24,13 +24,11 @@ done
 
 # Cook the gcov files.
 # The right path is https://codecov.io/gh/ossrs/srs/src/1b2aff84bc50f0681f37b959af6ecaed9490a95d/trunk/src/kernel/srs_kernel_codec.cpp
-find . -name "*.gcov"|grep -v srs|xargs rm -f && rm -rf src
+find . -name "*.gcov"|grep -v srs|xargs rm -f
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit $ret; fi
 
 # Upload report with *.gcov
 cd $workdir &&
-rm -f t.sh && curl -s https://codecov.io/bash -o t.sh &&
-bash t.sh -y ../../../.circleci/codecov.yml -t 493bba46-c468-4e73-8b45-8cdd8ff62d96
-ret=$?; if [[ $ret -ne 0 ]]; then echo "Upload report failed, ret=$ret"; exit $ret; fi
-
+export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
+bash <(curl -s https://codecov.io/bash) &&
 exit 0
