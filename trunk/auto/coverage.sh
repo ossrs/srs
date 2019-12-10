@@ -23,8 +23,8 @@ for file in `find src -name "*.cpp"|grep -v utest`; do
 done
 
 # Cook the gcov files.
-find . -name "*.gcov"|grep -v srs|xargs rm -f &&
-sed -i 's|src/|trunk/src/|g' *.gcov
+# The right path is https://codecov.io/gh/ossrs/srs/src/1b2aff84bc50f0681f37b959af6ecaed9490a95d/trunk/src/kernel/srs_kernel_codec.cpp
+find . -name "*.gcov"|grep -v srs|xargs rm -f && rm -rf src
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit $ret; fi
 
 # Upload report with *.gcov
