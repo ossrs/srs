@@ -22,9 +22,13 @@ for file in `find src -name "*.cpp"|grep -v utest`; do
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Collect $file failed, ret=$ret"; exit $ret; fi
 done
 
+# Cook the gcov files.
+find . -name "*.gcov"|grep -v srs|xargs rm -f &&
+sed -i 's|src/|trunk/src/|g' *.gcov
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit $ret; fi
+
 # Upload report with *.gcov
 cd $workdir &&
-find . -name "*.gcov"|grep -v srs|xargs rm -f &&
 export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
 bash <(curl -s https://codecov.io/bash)
 exit 0
