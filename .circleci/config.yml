@@ -9,8 +9,6 @@ jobs:
   test:
     docker:
       - image: ossrs/srs:dev
-    fixes:
-      - "src/::trunk/src"
     steps:
       - checkout
       - run: cd trunk && ./configure --gcov && make && ./objs/srs_utest && bash auto/coverage.sh
@@ -20,4 +18,3 @@ workflows:
     jobs:
       - build
       - test
-

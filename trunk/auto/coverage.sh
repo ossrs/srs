@@ -9,11 +9,11 @@
 workdir=`pwd`/objs/cover
 
 # Create trunk under workdir.
-mkdir -p $workdir/trunk && cd $workdir/trunk
+mkdir -p $workdir && cd $workdir
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Enter workdir failed, ret=$ret"; exit $ret; fi
 
 # Collect all *.gcno and *.gcda to objs/cover.
-(rm -rf src && cp -R ../../../src . && cp -R ../../src .)
+(rm -rf src && cp -R ../../src . && cp -R ../src .)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Collect *.gcno and *.gcda failed, ret=$ret"; exit $ret; fi
 
 # Generate *.gcov for coverage.
@@ -23,7 +23,8 @@ for file in `find src -name "*.cpp"|grep -v utest`; do
 done
 
 # Upload report with *.gcov
-cd $workdir/trunk &&
+cd $workdir &&
+find . -name "*.gcov"|grep -v srs|xargs rm -f &&
 export CODECOV_TOKEN="493bba46-c468-4e73-8b45-8cdd8ff62d96" &&
 bash <(curl -s https://codecov.io/bash)
 exit 0
