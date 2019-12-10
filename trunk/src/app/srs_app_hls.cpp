@@ -910,9 +910,13 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
-        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
+
+    // This config item is used in SrsHls, we just log its value here.
+    bool hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
+
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
+        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
+        hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
     
     return err;
 }
@@ -1162,9 +1166,8 @@ srs_error_t SrsHls::on_publish()
         return srs_error_wrap(err, "hls: on publish");
     }
 
-    // TODO: FIXME: Support reload.
-    // TODO: FIXME: Support RAW API.
     // If enabled, directly turn FLV timestamp to TS DTS.
+    // @remark It'll be reloaded automatically, because the origin hub will republish while reloading.
     hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
     
     // if enabled, open the muxer.
