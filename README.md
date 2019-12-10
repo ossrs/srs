@@ -1,6 +1,6 @@
 # SRS
 
-![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/srs3)
+![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/srs3)
 [![](https://circleci.com/gh/ossrs/srs/tree/3.0release.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/3.0release)
 [![](https://codecov.io/gh/ossrs/srs/branch/3.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/3.0release)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
@@ -154,7 +154,7 @@ For previous versions, please read:
 * v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
 * v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63
 * v3.0, 2019-10-23, Cover JSON codec. 3.0.62
-* v3.0, 2019-10-13, Use http://ossrs.net:8000 as homepage.
+* v3.0, 2019-10-13, Use http://ossrs.net as homepage.
 * v3.0, 2019-10-10, Cover AMF0 codec. 3.0.61
 * <strong>v3.0, 2019-10-07, [3.0 alpha1(3.0.60)][r3.0a1] released. 107962 lines.</strong>
 * v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
@@ -520,7 +520,7 @@ For previous versions, please read:
 * v1.0, 2014-05-27, fix [#84][bug #84], unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89][bug #89], config to /dev/null to disable ffmpeg log. 0.9.117
 * v1.0, 2014-05-25, fix [#76][bug #76], allow edge vhost to add or remove. 0.9.114
-* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net:8000). karthikeyan start to translate wiki to English.
+* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net). karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78][bug #78], st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
@@ -1087,7 +1087,7 @@ Winlin
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
-[player]: http://ossrs.net:8000/players/srs_player.html
+[player]: http://ossrs.net/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
 [docker-srs3]: https://github.com/ossrs/srs-docker#srs3
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
@@ -1139,8 +1139,8 @@ Winlin
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
-[donation1]: http://ossrs.net:8000/srs.release/donation/index.html
-[donation2]: http://ossrs.net:8000/srs.release/donation/paypal.html
+[donation1]: http://ossrs.net/srs.release/donation/index.html
+[donation2]: http://ossrs.net/srs.release/donation/paypal.html
 [donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
 [v1_CN_Compare]: https://github.com/ossrs/srs/wiki/v1_CN_Compare
@@ -1563,7 +1563,7 @@ Winlin
 [v1_CN_Contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [v1_EN_Contact]: https://github.com/ossrs/srs/wiki/v1_EN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
-[more1]: http://ossrs.net:8000/srs.release/releases/
+[more1]: http://ossrs.net/srs.release/releases/
 
 [LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
@@ -1575,5 +1575,5 @@ Winlin
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
-[centos1]: http://ossrs.net:8000/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
+[centos1]: http://ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
 
