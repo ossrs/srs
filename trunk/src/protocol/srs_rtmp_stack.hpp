@@ -775,7 +775,7 @@ public:
         return protocol->expect_message<T>(pmsg, ppacket);
     }
 private:
-    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
+    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, int depth, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
     virtual srs_error_t identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);

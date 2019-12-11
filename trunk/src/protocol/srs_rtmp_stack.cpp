@@ -2538,7 +2538,7 @@ srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type,
         SrsAutoFree(SrsPacket, pkt);
         
         if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
-            return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
+            return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, 3, type, stream_name, duration);
         }
         if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
             return identify_fmle_publish_client(dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
@@ -2909,9 +2909,13 @@ srs_error_t SrsRtmpServer::start_flash_publish(int stream_id)
     return err;
 }
 
-srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
+srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, int depth, SrsRtmpConnType& type, string& stream_name, srs_utime_t& duration)
 {
     srs_error_t err = srs_success;
+
+    if (depth <= 0) {
+        return srs_error_new(ERROR_RTMP_CREATE_STREAM_DEPTH, "create stream recursive depth");
+    }
     
     if (true) {
         SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(req->transaction_id, stream_id);
@@ -2952,7 +2956,7 @@ srs_error_t SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* 
             return identify_flash_publish_client(dynamic_cast<SrsPublishPacket*>(pkt), type, stream_name);
         }
         if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
-            return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
+            return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, depth-1, type, stream_name, duration);
         }
         if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
             return identify_haivision_publish_client(dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);

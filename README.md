@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-11, Fix [#1445][bug #1445], limit the createStream recursive depth. 3.0.70
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP handshake protocol.
 * v3.0, 2019-12-11, Fix [#1229][bug #1229], fix the security risk in logger. 3.0.69
 * v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in HDS. 3.0.69
@@ -1515,6 +1516,7 @@ Winlin
 [bug #1501]: https://github.com/ossrs/srs/issues/1501
 [bug #1229]: https://github.com/ossrs/srs/issues/1229
 [bug #1042]: https://github.com/ossrs/srs/issues/1042
+[bug #1445]: https://github.com/ossrs/srs/issues/1445
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

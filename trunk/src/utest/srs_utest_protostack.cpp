@@ -1594,12 +1594,323 @@ VOID TEST(ProtoStackTest, ServerCommandMessage)
 
             SrsCommonMessage* msg = NULL;
             SrsSetWindowAckSizePacket* pkt = NULL;
-            HELPER_EXPECT_SUCCESS(p.expect_message(&msg, &pkt));
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
             EXPECT_EQ(1024, pkt->ackowledgement_window_size);
 
             srs_freep(msg);
             srs_freep(pkt);
         }
+    }
+
+    // Response ConnectApp.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        SrsRequest req;
+        req.objectEncoding = 3.0;
+
+        const char* ip = "1.2.3.4";
+        HELPER_EXPECT_SUCCESS(r.response_connect_app(&req, ip));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            // In order to receive and decode the response,
+            // we have to send out a ConnectApp request.
+            if (true) {
+                SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+                HELPER_EXPECT_SUCCESS(p.send_and_free_packet(pkt, 0));
+            }
+
+            SrsCommonMessage* msg = NULL;
+            SrsConnectAppResPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+
+            SrsAmf0Any* prop = pkt->info->get_property("objectEncoding");
+            ASSERT_TRUE(prop && prop->is_number());
+            EXPECT_EQ(3.0, prop->to_number());
+
+            prop = pkt->info->get_property("data");
+            ASSERT_TRUE(prop && prop->is_ecma_array());
+
+            SrsAmf0EcmaArray* arr = prop->to_ecma_array();
+            prop = arr->get_property("srs_server_ip");
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ("1.2.3.4", prop->to_str().c_str());
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+
+    // Response ConnectApp rejected.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        const char* desc = "Rejected";
+        r.response_connect_reject(NULL, desc);
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+
+            SrsAmf0Any* prop = pkt->arguments;
+            ASSERT_TRUE(prop && prop->is_object());
+
+            prop = prop->to_object()->get_property(StatusDescription);
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ(desc, prop->to_str().c_str());
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+
+    // Response OnBWDone
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.on_bw_done());
+        EXPECT_TRUE(io.out_length() > 0);
+    }
+
+    // Set peer chunk size.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.set_chunk_size(1024));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+
+            EXPECT_EQ(1024, p.in_chunk_size);
+        }
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerRedirect)
+{
+    srs_error_t err;
+
+    // Redirect without response.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        SrsRequest req;
+        req.app = "live";
+        req.stream = "livestream";
+
+        string host = "target.net";
+        int port = 8888;
+        bool accepted = false;
+        HELPER_EXPECT_SUCCESS(r.redirect(&req, host, port, accepted));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+
+            SrsAmf0Any* prop = pkt->arguments;
+            ASSERT_TRUE(prop && prop->is_object());
+
+            prop = prop->to_object()->get_property("ex");
+            ASSERT_TRUE(prop && prop->is_object());
+            SrsAmf0Object* ex = prop->to_object();
+
+            prop = ex->get_property("code");
+            ASSERT_TRUE(prop && prop->is_number());
+            EXPECT_EQ(302, prop->to_number());
+
+            prop = ex->get_property("redirect");
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ("rtmp://target.net:8888/live/livestream", prop->to_str().c_str());
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+
+    // Redirect with response.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCallPacket* call = new SrsCallPacket();
+            call->command_name = "redirected";
+            call->command_object = SrsAmf0Any::object();
+            call->arguments = SrsAmf0Any::str("OK");
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRequest req;
+        req.app = "live";
+        req.stream = "livestream";
+
+        string host = "target.net";
+        int port = 8888;
+        bool accepted = false;
+        HELPER_EXPECT_SUCCESS(r.redirect(&req, host, port, accepted));
+        EXPECT_TRUE(accepted);
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+
+            SrsAmf0Any* prop = pkt->arguments;
+            ASSERT_TRUE(prop && prop->is_object());
+
+            prop = prop->to_object()->get_property("ex");
+            ASSERT_TRUE(prop && prop->is_object());
+            SrsAmf0Object* ex = prop->to_object();
+
+            prop = ex->get_property("code");
+            ASSERT_TRUE(prop && prop->is_number());
+            EXPECT_EQ(302, prop->to_number());
+
+            prop = ex->get_property("redirect");
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ("rtmp://target.net:8888/live/livestream", prop->to_str().c_str());
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerIdentify)
+{
+    srs_error_t err;
+
+    // Identify failed.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_FAILED(r.identify_client(1, tp, stream_name, duration));
+    }
+
+    // Identify by CreateStream, Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            SrsPlayPacket* play = new SrsPlayPacket();
+            play->stream_name = "livestream";
+            play->duration = 100;
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(play, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+        EXPECT_EQ(100000, duration);
+    }
+
+    // Identify by CreateStream, CreateStream, CreateStream, Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            for (int i = 0; i < 3; i++) {
+                SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+                HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+            }
+
+            SrsPlayPacket* play = new SrsPlayPacket();
+            play->stream_name = "livestream";
+            play->duration = 100;
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(play, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+        EXPECT_EQ(100000, duration);
+    }
+
+    // For N*CreateStream and N>3, it should fail.
+
+    // Identify by CreateStream, CreateStream, CreateStream, Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            for (int i = 0; i < 4; i++) {
+                SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+                HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+            }
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_FAILED(r.identify_client(1, tp, stream_name, duration));
     }
 }
 
