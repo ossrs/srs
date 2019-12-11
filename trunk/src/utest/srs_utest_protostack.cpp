@@ -2128,5 +2128,65 @@ VOID TEST(ProtoStackTest, ServerResponseCommands)
             srs_freep(pkt);
         }
     }
+
+    // Identify by Call,Data,ChunkSize Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCallPacket* call = new SrsCallPacket();
+            call->command_name = "_checkbw";
+            call->transaction_id = 5.0;
+            call->command_object = SrsAmf0Any::object();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            SrsOnStatusDataPacket* data = new SrsOnStatusDataPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(data, 0));
+
+            SrsSetChunkSizePacket* scs = new SrsSetChunkSizePacket();
+            scs->chunk_size = 1024;
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(scs, 0));
+
+            SrsPlayPacket* play = new SrsPlayPacket();
+            play->stream_name = "livestream";
+            play->duration = 100;
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(play, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+        EXPECT_EQ(100000, duration);
+    }
+
+    // Identify by invalid call.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCallPacket* call = new SrsCallPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_FAILED(r.identify_client(1, tp, stream_name, duration));
+    }
 }
 

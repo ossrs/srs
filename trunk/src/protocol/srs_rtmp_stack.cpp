@@ -2546,6 +2546,7 @@ srs_error_t SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type,
         if (dynamic_cast<SrsPlayPacket*>(pkt)) {
             return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name, duration);
         }
+
         // call msg,
         // support response null first,
         // @see https://github.com/ossrs/srs/issues/106
