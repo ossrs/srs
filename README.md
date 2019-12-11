@@ -145,7 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in logger. 3.0.69
+* v3.0, 2019-12-11, Fix [#1229][bug #1229], fix the security risk in logger. 3.0.69
 * v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in HDS. 3.0.69
 * v3.0, 2019-12-05, Fix [#1506][bug #1501], support directly turn FLV timestamp to TS DTS. 3.0.68
 * <strong>v3.0, 2019-11-30, [3.0 alpha3(3.0.67)][r3.0a3] released. 110864 lines.</strong>
