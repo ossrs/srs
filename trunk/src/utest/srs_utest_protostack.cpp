@@ -1345,7 +1345,7 @@ VOID TEST(ProtoStackTest, HandshakeC0C1)
 
         io.append(buf, sizeof(buf));
         HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
-        EXPECT_EQ(1537, io.in_length());
+        EXPECT_EQ(1537, io.length());
     }
 }
 
@@ -1390,7 +1390,7 @@ VOID TEST(ProtoStackTest, HandshakeS0S1S2)
 
         io.append(buf, sizeof(buf));
         HELPER_EXPECT_SUCCESS(hs.read_s0s1s2(&io));
-        EXPECT_EQ(3073, io.in_length());
+        EXPECT_EQ(3073, io.length());
     }
 }
 
@@ -1435,7 +1435,7 @@ VOID TEST(ProtoStackTest, HandshakeC2)
 
         io.append(buf, sizeof(buf));
         HELPER_EXPECT_SUCCESS(hs.read_c2(&io));
-        EXPECT_EQ(1536, io.in_buffer.length());
+        EXPECT_EQ(1536, io.length());
     }
 }
 
