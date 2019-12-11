@@ -64,3 +64,9 @@ VOID TEST(CoreMacroseTest, Check)
 #endif
 }
 
+VOID TEST(CoreLogger, CheckVsnprintf)
+{
+    char buf[1024];
+    EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+}
+

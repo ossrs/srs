@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in HDS. 3.0.69
 * v3.0, 2019-12-05, Fix [#1506][bug #1501], support directly turn FLV timestamp to TS DTS. 3.0.68
 * <strong>v3.0, 2019-11-30, [3.0 alpha3(3.0.67)][r3.0a3] released. 110864 lines.</strong>
 * v3.0, 2019-12-01, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.67
@@ -1510,6 +1511,7 @@ Winlin
 [bug #1051]: https://github.com/ossrs/srs/issues/1051
 [bug #1093]: https://github.com/ossrs/srs/issues/1093
 [bug #1501]: https://github.com/ossrs/srs/issues/1501
+[bug #1229]: https://github.com/ossrs/srs/issues/1229
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
