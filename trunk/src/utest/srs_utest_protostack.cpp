@@ -1888,9 +1888,116 @@ VOID TEST(ProtoStackTest, ServerIdentify)
         EXPECT_EQ(100000, duration);
     }
 
-    // For N*CreateStream and N>3, it should fail.
+    // Identify by CreateStream, Publish.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
 
-    // Identify by CreateStream, CreateStream, CreateStream, Play.
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            SrsPublishPacket* publish = new SrsPublishPacket();
+            publish->stream_name = "livestream";
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(publish, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnFlashPublish, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+    }
+
+    // Identify by CreateStream, FMLEStart.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+
+            SrsFMLEStartPacket* fmle = new SrsFMLEStartPacket();
+            fmle->stream_name = "livestream";
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(fmle, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnHaivisionPublish, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+    }
+
+    // Identify by Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsPlayPacket* play = new SrsPlayPacket();
+            play->stream_name = "livestream";
+            play->duration = 100;
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(play, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+        EXPECT_EQ(100000, duration);
+    }
+
+    // Identify by FMLEStart.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            SrsFMLEStartPacket* fmle = new SrsFMLEStartPacket();
+            fmle->stream_name = "livestream";
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(fmle, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        HELPER_EXPECT_SUCCESS(r.identify_client(1, tp, stream_name, duration));
+        EXPECT_EQ(SrsRtmpConnFMLEPublish, tp);
+        EXPECT_STREQ("livestream", stream_name.c_str());
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerRecursiveDepth)
+{
+    srs_error_t err;
+
+    // For N*CreateStream and N>3, it should fail.
     if (true) {
         MockBufferIO io;
         SrsRtmpServer r(&io);
@@ -1910,7 +2017,34 @@ VOID TEST(ProtoStackTest, ServerIdentify)
         string stream_name;
         SrsRtmpConnType tp;
         srs_utime_t duration = 0;
-        HELPER_EXPECT_FAILED(r.identify_client(1, tp, stream_name, duration));
+        err = r.identify_client(1, tp, stream_name, duration);
+        EXPECT_EQ(ERROR_RTMP_CREATE_STREAM_DEPTH, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    // If CreateStream N times and N<=3, it should be ok.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+
+            for (int i = 0; i < 3; i++) {
+                SrsCreateStreamPacket* call = new SrsCreateStreamPacket();
+                HELPER_EXPECT_SUCCESS(p.send_and_free_packet(call, 0));
+            }
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        string stream_name;
+        SrsRtmpConnType tp;
+        srs_utime_t duration = 0;
+        err = r.identify_client(1, tp, stream_name, duration);
+        EXPECT_NE(ERROR_RTMP_CREATE_STREAM_DEPTH, srs_error_code(err));
+        srs_freep(err);
     }
 }
 
