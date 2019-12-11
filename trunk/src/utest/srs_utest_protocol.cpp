@@ -108,6 +108,22 @@ MockBufferIO* MockBufferIO::append(string data)
     return this;
 }
 
+MockBufferIO* MockBufferIO::append(uint8_t* data, int size)
+{
+    in_buffer.append((char*)data, size);
+    return this;
+}
+
+int MockBufferIO::in_length()
+{
+    return in_buffer.length();
+}
+
+int MockBufferIO::out_length()
+{
+    return out_buffer.length();
+}
+
 srs_error_t MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     if (in_err != srs_success) {

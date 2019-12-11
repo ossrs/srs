@@ -49,6 +49,7 @@ class SrsChunkStream;
 class SrsSharedPtrMessage;
 
 class SrsProtocol;
+class ISrsProtocolReader;
 class ISrsProtocolReadWriter;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
@@ -514,9 +515,9 @@ public:
 public:
     virtual void dispose();
 public:
-    virtual srs_error_t read_c0c1(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_s0s1s2(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_c2(ISrsProtocolReadWriter* io);
+    virtual srs_error_t read_c0c1(ISrsProtocolReader* io);
+    virtual srs_error_t read_s0s1s2(ISrsProtocolReader* io);
+    virtual srs_error_t read_c2(ISrsProtocolReader* io);
     virtual srs_error_t create_c0c1();
     virtual srs_error_t create_s0s1s2(const char* c1 = NULL);
     virtual srs_error_t create_c2();

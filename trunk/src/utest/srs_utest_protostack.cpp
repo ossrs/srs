@@ -1265,3 +1265,188 @@ VOID TEST(ProtoStackTest, RecvMessage4)
     }
 }
 
+VOID TEST(ProtoStackTest, HandshakeC0C1)
+{
+    srs_error_t err;
+
+    // Fail for empty io.
+    if (true) {
+        MockBufferIO io;
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_FAILED(hs.read_c0c1(&io));
+    }
+
+    // It's normal c0c1, so it should be ok.
+    if (true) {
+        uint8_t buf[1537];
+        HELPER_ARRAY_INIT(buf, 1537, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
+    }
+
+    // It's extended c0c1 prefixed with ip, which should be ok.
+    if (true) {
+        uint8_t buf[1537 + 7] = {
+            0xF3, 0x00, 0x04,
+            0x01, 0x02, 0x03, 0x04,
+        };
+        HELPER_ARRAY_INIT(buf+7, 1537, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
+        EXPECT_EQ(0x01020304, hs.proxy_real_ip);
+    }
+
+    // It seems a normal c0c1, but it's extended, so it fail.
+    if (true) {
+        uint8_t buf[1537] = {
+            0xF3, 0x04, 0x01,
+            0x01, 0x02, 0x03, 0x04,
+        };
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_FAILED(hs.read_c0c1(&io));
+    }
+
+    // For extended c0c1, it fail for not enough bytes.
+    if (true) {
+        uint8_t buf[7 + 1537 - 1] = {
+            0xF3, 0x00, 0x04,
+            0x01, 0x02, 0x03, 0x04,
+        };
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_FAILED(hs.read_c0c1(&io));
+    }
+
+    // Ignore when c0c1 exists.
+    if (true) {
+        uint8_t buf[1537];
+        HELPER_ARRAY_INIT(buf, 1537, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
+
+        io.append(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
+        EXPECT_EQ(1537, io.in_length());
+    }
+}
+
+VOID TEST(ProtoStackTest, HandshakeS0S1S2)
+{
+    srs_error_t err;
+
+    // It should be ok for normal s0s1s2.
+    if (true) {
+        uint8_t buf[3073];
+        HELPER_ARRAY_INIT(buf, 3073, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_s0s1s2(&io));
+    }
+
+    // Fail for not enough data.
+    if (true) {
+        uint8_t buf[3073-1];
+        HELPER_ARRAY_INIT(buf, 3073-1, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_FAILED(hs.read_s0s1s2(&io));
+    }
+
+    // Ignore for s0s1s2 exists.
+    if (true) {
+        uint8_t buf[3073];
+        HELPER_ARRAY_INIT(buf, 3073, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_s0s1s2(&io));
+
+        io.append(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(hs.read_s0s1s2(&io));
+        EXPECT_EQ(3073, io.in_length());
+    }
+}
+
+VOID TEST(ProtoStackTest, HandshakeC2)
+{
+    srs_error_t err;
+
+    // It should be ok for normal c2.
+    if (true) {
+        uint8_t buf[1536];
+        HELPER_ARRAY_INIT(buf, 1536, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_c2(&io));
+    }
+
+    // Fail for not enough bytes.
+    if (true) {
+        uint8_t buf[1536-1];
+        HELPER_ARRAY_INIT(buf, 1536-1, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_FAILED(hs.read_c2(&io));
+    }
+
+    // Ignore when c2 exists.
+    if (true) {
+        uint8_t buf[1536];
+        HELPER_ARRAY_INIT(buf, 1536, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsHandshakeBytes hs;
+        HELPER_EXPECT_SUCCESS(hs.read_c2(&io));
+
+        io.append(buf, sizeof(buf));
+        HELPER_EXPECT_SUCCESS(hs.read_c2(&io));
+        EXPECT_EQ(1536, io.in_buffer.length());
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerInfo)
+{
+    SrsServerInfo si;
+    EXPECT_EQ(0, si.pid);
+    EXPECT_EQ(0, si.cid);
+    EXPECT_EQ(0, si.major);
+    EXPECT_EQ(0, si.minor);
+    EXPECT_EQ(0, si.revision);
+    EXPECT_EQ(0, si.build);
+}
+

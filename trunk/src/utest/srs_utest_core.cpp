@@ -64,14 +64,11 @@ VOID TEST(CoreMacroseTest, Check)
 #endif
 }
 
-#define _ARRAY_INIT(buf, sz, val) \
-    for (int i = 0; i < (int)sz; i++) buf[i]=val
-
 VOID TEST(CoreLogger, CheckVsnprintf)
 {
     if (true) {
         char buf[1024];
-        _ARRAY_INIT(buf, sizeof(buf), 0xf);
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0xf);
 
         // Return the number of characters printed.
         EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
@@ -83,7 +80,7 @@ VOID TEST(CoreLogger, CheckVsnprintf)
 
     if (true) {
         char buf[1024];
-        _ARRAY_INIT(buf, sizeof(buf), 0xf);
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0xf);
 
         // Return the number of characters that would have been printed if the size were unlimited.
         EXPECT_EQ(6, snprintf(buf, 3, "%s", "Hello!"));

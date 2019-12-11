@@ -1671,7 +1671,7 @@ void SrsHandshakeBytes::dispose()
     srs_freepa(c2);
 }
 
-srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReadWriter* io)
+srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReader* io)
 {
     srs_error_t err = srs_success;
     
@@ -1709,7 +1709,7 @@ srs_error_t SrsHandshakeBytes::read_c0c1(ISrsProtocolReadWriter* io)
     return err;
 }
 
-srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReadWriter* io)
+srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReader* io)
 {
     srs_error_t err = srs_success;
     
@@ -1727,7 +1727,7 @@ srs_error_t SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReadWriter* io)
     return err;
 }
 
-srs_error_t SrsHandshakeBytes::read_c2(ISrsProtocolReadWriter* io)
+srs_error_t SrsHandshakeBytes::read_c2(ISrsProtocolReader* io)
 {
     srs_error_t err = srs_success;
     

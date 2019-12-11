@@ -52,6 +52,10 @@ extern srs_utime_t _srs_tmp_timeout;
 #define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)
 #define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
 
+// For init array data.
+#define HELPER_ARRAY_INIT(buf, sz, val) \
+    for (int i = 0; i < (int)sz; i++) (buf)[i]=val
+
 // the asserts of gtest:
 //    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual
 //    * {ASSERT|EXPECT}_NE(v1, v2):           Tests that v1 != v2
