@@ -2048,3 +2048,85 @@ VOID TEST(ProtoStackTest, ServerRecursiveDepth)
     }
 }
 
+VOID TEST(ProtoStackTest, ServerResponseCommands)
+{
+    srs_error_t err;
+
+    // Start play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.start_play(1));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+
+            // onStatus(NetStream.Play.Reset)
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+
+            // onStatus(NetStream.Play.Start)
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+
+            // onStatus(NetStream.Data.Start)
+            SrsPacket* bpkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &bpkt));
+            srs_freep(msg);
+            srs_freep(bpkt);
+        }
+    }
+
+    // Pause true.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.on_play_client_pause(1, true));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+
+            // onStatus(NetStream.Pause.Notify)
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+
+    // Pause false.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.on_play_client_pause(1, false));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+
+            // onStatus(NetStream.Pause.Notify)
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+

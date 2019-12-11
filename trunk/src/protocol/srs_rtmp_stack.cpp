@@ -2698,7 +2698,7 @@ srs_error_t SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
                 return srs_error_wrap(err, "send NetStream.Unpause.Notify");
             }
         }
-        // StreanBegin
+        // StreamBegin
         if (true) {
             SrsUserControlPacket* pkt = new SrsUserControlPacket();
             
