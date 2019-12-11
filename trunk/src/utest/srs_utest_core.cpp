@@ -64,9 +64,33 @@ VOID TEST(CoreMacroseTest, Check)
 #endif
 }
 
+#define _ARRAY_INIT(buf, sz, val) \
+    for (int i = 0; i < (int)sz; i++) buf[i]=val
+
 VOID TEST(CoreLogger, CheckVsnprintf)
 {
-    char buf[1024];
-    EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+    if (true) {
+        char buf[1024];
+        _ARRAY_INIT(buf, sizeof(buf), 0xf);
+
+        // Return the number of characters printed.
+        EXPECT_EQ(6, sprintf(buf, "%s", "Hello!"));
+        EXPECT_EQ('H', buf[0]);
+        EXPECT_EQ('!', buf[5]);
+        EXPECT_EQ(0x0, buf[6]);
+        EXPECT_EQ(0xf, buf[7]);
+    }
+
+    if (true) {
+        char buf[1024];
+        _ARRAY_INIT(buf, sizeof(buf), 0xf);
+
+        // Return the number of characters that would have been printed if the size were unlimited.
+        EXPECT_EQ(6, snprintf(buf, 3, "%s", "Hello!"));
+        EXPECT_EQ('H', buf[0]);
+        EXPECT_EQ('e', buf[1]);
+        EXPECT_EQ(0, buf[2]);
+        EXPECT_EQ(0xf, buf[3]);
+    }
 }
 

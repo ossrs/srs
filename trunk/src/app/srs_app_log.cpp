@@ -192,7 +192,8 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     va_end(ap);
     
     // add strerror() to error msg.
-    if (errno != 0) {
+    // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    if (errno != 0 && size < LOG_MAX_SIZE) {
         size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
     }
     

@@ -255,6 +255,12 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
                 level, getpid(), cid);
         }
     }
+
+    // Exceed the size, ignore this log.
+    // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    if (written >= size) {
+        return false;
+    }
     
     if (written == -1) {
         return false;
