@@ -8,21 +8,27 @@
 # Workdir is objs/cover.
 workdir=`pwd`/objs/cover
 
+# Tool git is required to map the right path.
+git --version >/dev/null 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Tool git is required, ret=$ret"; exit $ret; fi
+
 # Create trunk under workdir.
 mkdir -p $workdir && cd $workdir
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Enter workdir failed, ret=$ret"; exit $ret; fi
 
 # Collect all *.gcno and *.gcda to objs/cover.
-(rm -rf src && cp -R ../../src . && cp -R ../src .)
+cd $workdir && (rm -rf src && cp -R ../../src . && cp -R ../src .)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Collect *.gcno and *.gcda failed, ret=$ret"; exit $ret; fi
 
 # Generate *.gcov for coverage.
+cd $workdir &&
 for file in `find src -name "*.cpp"|grep -v utest`; do
     gcov $file -o `dirname $file`
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Collect $file failed, ret=$ret"; exit $ret; fi
 done
 
 # Cook the gcov files.
+cd $workdir &&
 find . -name "*.gcov"|grep -v srs|xargs rm -f
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Cook gcov files failed, ret=$ret"; exit $ret; fi
 
