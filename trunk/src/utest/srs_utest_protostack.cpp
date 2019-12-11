@@ -1450,3 +1450,156 @@ VOID TEST(ProtoStackTest, ServerInfo)
     EXPECT_EQ(0, si.build);
 }
 
+VOID TEST(ProtoStackTest, ClientCommandMessage)
+{
+    srs_error_t err;
+
+    // ConnectApp.
+    if (true) {
+        MockBufferIO io;
+
+        if (true) {
+            SrsConnectAppResPacket* res = new SrsConnectAppResPacket();
+
+            SrsAmf0EcmaArray* data = SrsAmf0Any::ecma_array();
+            res->info->set("data", data);
+
+            data->set("srs_server_ip", SrsAmf0Any::str("1.2.3.4"));
+            data->set("srs_server", SrsAmf0Any::str("srs"));
+            data->set("srs_id", SrsAmf0Any::number(100));
+            data->set("srs_pid", SrsAmf0Any::number(200));
+            data->set("srs_version", SrsAmf0Any::str("3.4.5.678"));
+
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRequest req;
+        SrsRtmpClient r(&io);
+
+        SrsServerInfo si;
+        HELPER_EXPECT_SUCCESS(r.connect_app("live", "rtmp://127.0.0.1/live", &req, true, &si));
+        EXPECT_STREQ("1.2.3.4", si.ip.c_str());
+        EXPECT_STREQ("srs", si.sig.c_str());
+        EXPECT_EQ(100, si.cid);
+        EXPECT_EQ(200, si.pid);
+        EXPECT_EQ(3, si.major);
+        EXPECT_EQ(4, si.minor);
+        EXPECT_EQ(5, si.revision);
+        EXPECT_EQ(678, si.build);
+    }
+
+    // CreateStream.
+    if (true) {
+        MockBufferIO io;
+
+        if (true) {
+            SrsCreateStreamResPacket* res = new SrsCreateStreamResPacket(2.0, 3.0);
+
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRtmpClient r(&io);
+
+        int stream_id = 0;
+        HELPER_EXPECT_SUCCESS(r.create_stream(stream_id));
+        EXPECT_EQ(3, stream_id);
+    }
+
+    // Play.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient r(&io);
+        HELPER_EXPECT_SUCCESS(r.play("livestream", 1, 128));
+        EXPECT_TRUE(io.out_length() > 0);
+    }
+
+    // Publish.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient r(&io);
+        HELPER_EXPECT_SUCCESS(r.publish("livestream", 1, 128));
+        EXPECT_TRUE(io.out_length() > 0);
+    }
+
+    // FMLE publish.
+    if (true) {
+        MockBufferIO io;
+
+        if (true) {
+            SrsCreateStreamResPacket* res = new SrsCreateStreamResPacket(4.0, 3.0);
+
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRtmpClient r(&io);
+
+        int stream_id = 0;
+        HELPER_EXPECT_SUCCESS(r.fmle_publish("livestream", stream_id));
+        EXPECT_EQ(3, stream_id);
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerCommandMessage)
+{
+    srs_error_t err;
+
+    // ConnectApp.
+    if (true) {
+        MockBufferIO io;
+
+        if (true) {
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            res->command_object->set("tcUrl", SrsAmf0Any::str("rtmp://127.0.0.1/live"));
+
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRtmpServer r(&io);
+
+        SrsRequest req;
+        HELPER_EXPECT_SUCCESS(r.connect_app(&req));
+        EXPECT_STREQ("rtmp", req.schema.c_str());
+        EXPECT_STREQ("127.0.0.1", req.host.c_str());
+        EXPECT_STREQ("127.0.0.1", req.vhost.c_str());
+        EXPECT_STREQ("live", req.app.c_str());
+    }
+
+    // Window ACK size.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.set_window_ack_size(1024));
+
+        if (true) {
+            MockBufferIO tio;
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsProtocol p(&tio);
+
+            SrsCommonMessage* msg = NULL;
+            SrsSetWindowAckSizePacket* pkt = NULL;
+            HELPER_EXPECT_SUCCESS(p.expect_message(&msg, &pkt));
+            EXPECT_EQ(1024, pkt->ackowledgement_window_size);
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+

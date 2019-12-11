@@ -52,6 +52,11 @@ extern srs_utime_t _srs_tmp_timeout;
 #define HELPER_EXPECT_SUCCESS(x) EXPECT_TRUE(srs_success == (err = x)); srs_freep(err)
 #define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
 
+// For errors, assert.
+// @remark The err is leak when error, but it's ok in utest.
+#define HELPER_ASSERT_SUCCESS(x) ASSERT_TRUE(srs_success == (err = x)); srs_freep(err)
+#define HELPER_ASSERT_FAILED(x) ASSERT_TRUE(srs_success != (err = x)); srs_freep(err)
+
 // For init array data.
 #define HELPER_ARRAY_INIT(buf, sz, val) \
     for (int i = 0; i < (int)sz; i++) (buf)[i]=val

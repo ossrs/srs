@@ -113,6 +113,12 @@ MockBufferIO* MockBufferIO::append(string data)
     return this;
 }
 
+MockBufferIO* MockBufferIO::append(MockBufferIO* data)
+{
+    in_buffer.append(&data->in_buffer);
+    return this;
+}
+
 MockBufferIO* MockBufferIO::append(uint8_t* data, int size)
 {
     in_buffer.append((char*)data, size);
@@ -127,6 +133,12 @@ int MockBufferIO::out_length()
 MockBufferIO* MockBufferIO::out_append(string data)
 {
     out_buffer.append((char*)data.data(), data.length());
+    return this;
+}
+
+MockBufferIO* MockBufferIO::out_append(MockBufferIO* data)
+{
+    out_buffer.append(&data->out_buffer);
     return this;
 }
 
@@ -488,6 +500,15 @@ VOID TEST(ProtocolHandshakeTest, ComplexHandshake)
         SrsRtmpClient r(&io);
         HELPER_EXPECT_SUCCESS(r.complex_handshake());
     }
+
+    if (true) {
+        MockBufferIO io;
+        io.append(c0c1, 1537);
+        io.append(c2, 1536);
+
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.handshake());
+    }
 }
 
 VOID TEST(ProtocolHandshakeTest, SimpleHandshake)
@@ -538,6 +559,15 @@ VOID TEST(ProtocolHandshakeTest, SimpleHandshake)
 
         SrsRtmpClient r(&io);
         HELPER_EXPECT_SUCCESS(r.simple_handshake());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        io.append(c0c1, 1537);
+        io.append(c2, 1536);
+
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.handshake());
     }
 }
 
