@@ -774,6 +774,9 @@ srs_error_t SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsBuffer* 
     } else if (header.is_window_ackledgement_size()) {
         *ppacket = packet = new SrsSetWindowAckSizePacket();
         return packet->decode(stream);
+    } else if (header.is_ackledgement()) {
+        *ppacket = packet = new SrsAcknowledgementPacket();
+        return packet->decode(stream);
     } else if (header.is_set_chunk_size()) {
         *ppacket = packet = new SrsSetChunkSizePacket();
         return packet->decode(stream);

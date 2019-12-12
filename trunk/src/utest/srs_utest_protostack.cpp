@@ -2453,6 +2453,37 @@ VOID TEST(ProtoStackTest, CoverAll)
     }
 
     if (true) {
+        MockBufferIO io;
+        SrsRtmpClient r(&io);
+        HELPER_EXPECT_SUCCESS(r.play("livestream", 1, 1024));
+        EXPECT_TRUE(io.out_length() > 0);
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient r(&io);
+        HELPER_EXPECT_SUCCESS(r.publish("livestream", 1, 1024));
+        EXPECT_TRUE(io.out_length() > 0);
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient r(&io);
+
+        SrsAcknowledgementPacket* ack = new SrsAcknowledgementPacket();
+        ack->sequence_number = 1024;
+        HELPER_ASSERT_SUCCESS(r.send_and_free_packet(ack, 0));
+
+        io.in_buffer.append(&io.out_buffer);
+        SrsCommonMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(r.recv_message(&msg));
+        srs_freep(msg);
+    }
+}
+
+VOID TEST(ProtoStackTest, CoverBandwidth)
+{
+    if (true) {
         SrsBandwidthPacket p;
 
         p.set_command("onSrsBandCheckStartPlayBytes");
@@ -2520,6 +2551,11 @@ VOID TEST(ProtoStackTest, CoverAll)
         EXPECT_TRUE(p->is_final());
         srs_freep(p);
     }
+}
+
+VOID TEST(ProtoStackTest, CoverAllUnmarshal)
+{
+    srs_error_t err;
 
     if (true) {
         SrsAmf0Any* name = SrsAmf0Any::str("call");
@@ -2534,6 +2570,7 @@ VOID TEST(ProtoStackTest, CoverAll)
         SrsBuffer buf(b, nn);
         HELPER_ASSERT_SUCCESS(name->write(&buf));
         HELPER_ASSERT_SUCCESS(arr->write(&buf));
+        srs_freep(name); srs_freep(arr);
 
         SrsOnMetaDataPacket* p = new SrsOnMetaDataPacket();
         SrsAutoFree(SrsOnMetaDataPacket, p);
@@ -2544,6 +2581,182 @@ VOID TEST(ProtoStackTest, CoverAll)
         SrsAmf0Any* prop = p->metadata->get_property("license");
         ASSERT_TRUE(prop && prop->is_string());
         EXPECT_STREQ("MIT", prop->to_str().c_str());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str("rtmp://127.0.0.1/live"));
+            pkt->command_object->set("pageUrl", SrsAmf0Any::str("http://ossrs.net"));
+            pkt->command_object->set("swfUrl", SrsAmf0Any::str("http://ossrs.net/index.swf"));
+            pkt->command_object->set("objectEncoding", SrsAmf0Any::number(5.0));
+
+            pkt->args = SrsAmf0Any::object();
+            pkt->args->set("license", SrsAmf0Any::str("MIT"));
+
+            HELPER_EXPECT_SUCCESS(r.send_and_free_packet(pkt, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        SrsRequest req;
+        HELPER_EXPECT_SUCCESS(r.connect_app(&req));
+
+        EXPECT_STREQ("rtmp", req.schema.c_str());
+        EXPECT_STREQ("127.0.0.1", req.host.c_str());
+        EXPECT_STREQ("127.0.0.1", req.vhost.c_str());
+        EXPECT_STREQ("live", req.app.c_str());
+        EXPECT_STREQ("http://ossrs.net", req.pageUrl.c_str());
+        EXPECT_STREQ("http://ossrs.net/index.swf", req.swfUrl.c_str());
+        EXPECT_EQ(5.0, req.objectEncoding);
+
+        ASSERT_TRUE(req.args && req.args->is_object());
+        SrsAmf0Any* prop = req.args->get_property("license");
+        ASSERT_TRUE(prop && prop->is_string());
+        EXPECT_STREQ("MIT", prop->to_str().c_str());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        if (true) {
+            SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+            pkt->command_object->set("tcUrl", SrsAmf0Any::number(3.0));
+            HELPER_EXPECT_SUCCESS(r.send_and_free_packet(pkt, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        SrsRequest req;
+        HELPER_EXPECT_FAILED(r.connect_app(&req));
+    }
+
+    if (true) {
+        SrsAmf0Any* name = SrsAmf0Any::str("pause");
+        SrsAmf0Any* tid = SrsAmf0Any::number(3.0);
+        SrsAmf0Any* null = SrsAmf0Any::null();
+        SrsAmf0Any* is_pause = SrsAmf0Any::boolean(true);
+        SrsAmf0Any* ts = SrsAmf0Any::number(30.0);
+
+        int nn = name->total_size() + tid->total_size() + null->total_size() + is_pause->total_size() + ts->total_size();
+        char* b = new char[nn];
+        SrsAutoFreeA(char, b);
+
+        SrsBuffer buf(b, nn);
+        HELPER_ASSERT_SUCCESS(name->write(&buf));
+        HELPER_ASSERT_SUCCESS(tid->write(&buf));
+        HELPER_ASSERT_SUCCESS(null->write(&buf));
+        HELPER_ASSERT_SUCCESS(is_pause->write(&buf));
+        HELPER_ASSERT_SUCCESS(ts->write(&buf));
+        srs_freep(name); srs_freep(tid); srs_freep(null); srs_freep(is_pause); srs_freep(ts);
+
+        SrsPausePacket* p = new SrsPausePacket();
+        SrsAutoFree(SrsPausePacket, p);
+
+        buf.skip(-1 * buf.pos());
+        HELPER_ASSERT_SUCCESS(p->decode(&buf));
+        EXPECT_TRUE(p->is_pause);
+        EXPECT_EQ(30.0, p->time_ms);
+    }
+
+    if (true) {
+        SrsAmf0Any* name = SrsAmf0Any::str("play");
+        SrsAmf0Any* tid = SrsAmf0Any::number(3.0);
+        SrsAmf0Any* null = SrsAmf0Any::null();
+        SrsAmf0Any* stream_name = SrsAmf0Any::str("livestream");
+        SrsAmf0Any* start = SrsAmf0Any::number(20.0);
+        SrsAmf0Any* duration = SrsAmf0Any::number(30.0);
+        SrsAmf0Any* reset = SrsAmf0Any::number(1.0);
+
+        int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
+        char* b = new char[nn];
+        SrsAutoFreeA(char, b);
+
+        SrsBuffer buf(b, nn);
+        HELPER_ASSERT_SUCCESS(name->write(&buf));
+        HELPER_ASSERT_SUCCESS(tid->write(&buf));
+        HELPER_ASSERT_SUCCESS(null->write(&buf));
+        HELPER_ASSERT_SUCCESS(stream_name->write(&buf));
+        HELPER_ASSERT_SUCCESS(start->write(&buf));
+        HELPER_ASSERT_SUCCESS(duration->write(&buf));
+        HELPER_ASSERT_SUCCESS(reset->write(&buf));
+        srs_freep(name); srs_freep(tid); srs_freep(null); srs_freep(stream_name); srs_freep(start); srs_freep(duration); srs_freep(reset);
+
+        SrsPlayPacket* p = new SrsPlayPacket();
+        SrsAutoFree(SrsPlayPacket, p);
+
+        buf.skip(-1 * buf.pos());
+        HELPER_ASSERT_SUCCESS(p->decode(&buf));
+        EXPECT_STREQ("livestream", p->stream_name.c_str());
+        EXPECT_EQ(20.0, p->start);
+        EXPECT_EQ(30.0, p->duration);
+        EXPECT_TRUE(p->reset);
+    }
+
+    if (true) {
+        SrsAmf0Any* name = SrsAmf0Any::str("play");
+        SrsAmf0Any* tid = SrsAmf0Any::number(3.0);
+        SrsAmf0Any* null = SrsAmf0Any::null();
+        SrsAmf0Any* stream_name = SrsAmf0Any::str("livestream");
+        SrsAmf0Any* start = SrsAmf0Any::number(20.0);
+        SrsAmf0Any* duration = SrsAmf0Any::number(30.0);
+        SrsAmf0Any* reset = SrsAmf0Any::boolean(true);
+
+        int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
+        char* b = new char[nn];
+        SrsAutoFreeA(char, b);
+
+        SrsBuffer buf(b, nn);
+        HELPER_ASSERT_SUCCESS(name->write(&buf));
+        HELPER_ASSERT_SUCCESS(tid->write(&buf));
+        HELPER_ASSERT_SUCCESS(null->write(&buf));
+        HELPER_ASSERT_SUCCESS(stream_name->write(&buf));
+        HELPER_ASSERT_SUCCESS(start->write(&buf));
+        HELPER_ASSERT_SUCCESS(duration->write(&buf));
+        HELPER_ASSERT_SUCCESS(reset->write(&buf));
+        srs_freep(name); srs_freep(tid); srs_freep(null); srs_freep(stream_name); srs_freep(start); srs_freep(duration); srs_freep(reset);
+
+        SrsPlayPacket* p = new SrsPlayPacket();
+        SrsAutoFree(SrsPlayPacket, p);
+
+        buf.skip(-1 * buf.pos());
+        HELPER_ASSERT_SUCCESS(p->decode(&buf));
+        EXPECT_STREQ("livestream", p->stream_name.c_str());
+        EXPECT_EQ(20.0, p->start);
+        EXPECT_EQ(30.0, p->duration);
+        EXPECT_TRUE(p->reset);
+    }
+
+    if (true) {
+        SrsAmf0Any* name = SrsAmf0Any::str("play");
+        SrsAmf0Any* tid = SrsAmf0Any::number(3.0);
+        SrsAmf0Any* null = SrsAmf0Any::null();
+        SrsAmf0Any* stream_name = SrsAmf0Any::str("livestream");
+        SrsAmf0Any* start = SrsAmf0Any::number(20.0);
+        SrsAmf0Any* duration = SrsAmf0Any::number(30.0);
+        SrsAmf0Any* reset = SrsAmf0Any::str("true");
+
+        int nn = name->total_size() + tid->total_size() + null->total_size() + stream_name->total_size() + start->total_size() + duration->total_size() + reset->total_size();
+        char* b = new char[nn];
+        SrsAutoFreeA(char, b);
+
+        SrsBuffer buf(b, nn);
+        HELPER_ASSERT_SUCCESS(name->write(&buf));
+        HELPER_ASSERT_SUCCESS(tid->write(&buf));
+        HELPER_ASSERT_SUCCESS(null->write(&buf));
+        HELPER_ASSERT_SUCCESS(stream_name->write(&buf));
+        HELPER_ASSERT_SUCCESS(start->write(&buf));
+        HELPER_ASSERT_SUCCESS(duration->write(&buf));
+        HELPER_ASSERT_SUCCESS(reset->write(&buf));
+        srs_freep(name); srs_freep(tid); srs_freep(null); srs_freep(stream_name); srs_freep(start); srs_freep(duration); srs_freep(reset);
+
+        SrsPlayPacket* p = new SrsPlayPacket();
+        SrsAutoFree(SrsPlayPacket, p);
+
+        buf.skip(-1 * buf.pos());
+        HELPER_EXPECT_FAILED(p->decode(&buf));
     }
 }
 
