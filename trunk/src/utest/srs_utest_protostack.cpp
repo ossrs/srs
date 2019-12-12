@@ -2058,6 +2058,123 @@ VOID TEST(ProtoStackTest, ServerFMLEStart)
     }
 }
 
+VOID TEST(ProtoStackTest, ServerHaivisionPublish)
+{
+    srs_error_t err;
+
+    // FMLE start.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        MockBufferIO tio;
+        SrsProtocol p(&tio);
+        if (true) {
+            SrsPublishPacket* publish = new SrsPublishPacket();
+            publish->stream_name = "livestream";
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(publish, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        HELPER_EXPECT_SUCCESS(r.start_haivision_publish(1));
+
+        if (true) {
+            tio.in_buffer.append(&io.out_buffer);
+
+            // publish response onFCPublish(NetStream.Publish.Start)
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+
+            // publish response onStatus(NetStream.Publish.Start)
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerFMLEUnpublish)
+{
+    srs_error_t err;
+
+    // FMLE start.
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        MockBufferIO tio;
+        SrsProtocol p(&tio);
+        if (true) {
+            SrsFMLEStartPacket* fmle = new SrsFMLEStartPacket();
+            fmle->transaction_id = 3.0;
+            fmle->stream_name = "livestream";
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(fmle, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        HELPER_EXPECT_SUCCESS(r.fmle_unpublish(1, 3.0));
+
+        if (true) {
+            tio.in_buffer.append(&io.out_buffer);
+
+            // publish response onFCUnpublish(NetStream.unpublish.Success)
+            if (true) {
+                SrsCommonMessage* msg = NULL;
+                SrsCallPacket* pkt = NULL;
+                HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+                srs_freep(msg);
+                srs_freep(pkt);
+            }
+
+            // FCUnpublish response
+            if (true) {
+                SrsCommonMessage* msg = NULL;
+                SrsFMLEStartResPacket* pkt = NULL;
+                HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+                srs_freep(msg);
+                srs_freep(pkt);
+            }
+
+            // publish response onStatus(NetStream.Unpublish.Success)
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+
+VOID TEST(ProtoStackTest, ServerFlashPublish)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+
+        HELPER_EXPECT_SUCCESS(r.start_flash_publish(1));
+
+        if (true) {
+            MockBufferIO tio;
+            SrsProtocol p(&tio);
+            tio.in_buffer.append(&io.out_buffer);
+
+            // publish response onStatus(NetStream.Publish.Start)
+            SrsCommonMessage* msg = NULL;
+            SrsCallPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+
 VOID TEST(ProtoStackTest, ServerRecursiveDepth)
 {
     srs_error_t err;
@@ -2312,6 +2429,69 @@ VOID TEST(ProtoStackTest, ComplexToSimpleHandshake)
 
         SrsRtmpServer r(&io);
         HELPER_EXPECT_SUCCESS(r.handshake());
+    }
+}
+
+VOID TEST(ProtoStackTest, ConnectAppWithArgs)
+{
+    srs_error_t err;
+
+    // ConnectApp.
+    if (true) {
+        MockBufferIO io;
+
+        MockBufferIO tio;
+        SrsProtocol p(&tio);
+        if (true) {
+            SrsConnectAppResPacket* res = new SrsConnectAppResPacket();
+
+            SrsAmf0EcmaArray* data = SrsAmf0Any::ecma_array();
+            res->info->set("data", data);
+
+            data->set("srs_server_ip", SrsAmf0Any::str("1.2.3.4"));
+            data->set("srs_server", SrsAmf0Any::str("srs"));
+            data->set("srs_id", SrsAmf0Any::number(100));
+            data->set("srs_pid", SrsAmf0Any::number(200));
+            data->set("srs_version", SrsAmf0Any::str("3.4.5.678"));
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+
+            io.in_buffer.append(&tio.out_buffer);
+        }
+
+        SrsRequest req;
+        req.args = SrsAmf0Any::object();
+        req.args->set("license", SrsAmf0Any::str("MIT"));
+
+        SrsRtmpClient r(&io);
+
+        SrsServerInfo si;
+        HELPER_EXPECT_SUCCESS(r.connect_app("live", "rtmp://127.0.0.1/live", &req, true, &si));
+        EXPECT_STREQ("1.2.3.4", si.ip.c_str());
+        EXPECT_STREQ("srs", si.sig.c_str());
+        EXPECT_EQ(100, si.cid);
+        EXPECT_EQ(200, si.pid);
+        EXPECT_EQ(3, si.major);
+        EXPECT_EQ(4, si.minor);
+        EXPECT_EQ(5, si.revision);
+        EXPECT_EQ(678, si.build);
+
+        if (true) {
+            tio.in_buffer.append(&io.out_buffer);
+
+            SrsCommonMessage* msg = NULL;
+            SrsConnectAppPacket* pkt = NULL;
+            HELPER_ASSERT_SUCCESS(p.expect_message(&msg, &pkt));
+
+            SrsAmf0Any* prop = pkt->command_object->get_property("tcUrl");
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ("rtmp://127.0.0.1/live", prop->to_str().c_str());
+
+            ASSERT_TRUE(pkt->args);
+            prop = pkt->args->get_property("license");
+            ASSERT_TRUE(prop && prop->is_string());
+            EXPECT_STREQ("MIT", prop->to_str().c_str());
+        }
     }
 }
 
