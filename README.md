@@ -145,13 +145,14 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2019-12-11, SrsPacket supports converting to message, so can be sent by one API.
+* v3.0, 2019-12-12, For [#547][bug #547], [#1506][bug #1506], default hls_dts_directly to on. 3.0.71
+* v3.0, 2019-12-12, SrsPacket supports converting to message, so can be sent by one API.
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP client/server protocol.
 * v3.0, 2019-12-11, Fix [#1445][bug #1445], limit the createStream recursive depth. 3.0.70
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP handshake protocol.
 * v3.0, 2019-12-11, Fix [#1229][bug #1229], fix the security risk in logger. 3.0.69
 * v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in HDS. 3.0.69
-* v3.0, 2019-12-05, Fix [#1506][bug #1501], support directly turn FLV timestamp to TS DTS. 3.0.68
+* v3.0, 2019-12-05, Fix [#1506][bug #1506], support directly turn FLV timestamp to TS DTS. 3.0.68
 * <strong>v3.0, 2019-11-30, [3.0 alpha3(3.0.67)][r3.0a3] released. 110864 lines.</strong>
 * v3.0, 2019-12-01, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.67
 * <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.66)][r3.0a2] released. 110831 lines.</strong>
@@ -1519,6 +1520,7 @@ Winlin
 [bug #1229]: https://github.com/ossrs/srs/issues/1229
 [bug #1042]: https://github.com/ossrs/srs/issues/1042
 [bug #1445]: https://github.com/ossrs/srs/issues/1445
+[bug #1506]: https://github.com/ossrs/srs/issues/1506
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

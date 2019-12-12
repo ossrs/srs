@@ -6152,7 +6152,7 @@ int SrsConfig::get_vhost_hls_nb_notify(string vhost)
 
 bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_hls(vhost);
     if (!conf) {
@@ -6164,7 +6164,7 @@ bool SrsConfig::get_vhost_hls_dts_directly(string vhost)
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_hls_cleanup(string vhost)
