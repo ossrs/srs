@@ -36,6 +36,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_service_http_conn.hpp>
 #include <srs_kernel_buffer.hpp>
 
+#define SRS_DEFAULT_RECV_BUFFER_SIZE 131072
+
 using namespace std;
 
 class MockPacket : public SrsPacket
@@ -135,6 +137,18 @@ VOID TEST(ProtoStackTest, ManualFlush)
 
         p.set_auto_response(true);
         HELPER_EXPECT_SUCCESS(p.response_acknowledgement_message());
+        EXPECT_EQ(12+4, io.out_buffer.length());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer p(&io);
+
+        // Always response ACK message.
+        HELPER_EXPECT_SUCCESS(p.set_in_window_ack_size(1));
+
+        p.set_auto_response(true);
+        HELPER_EXPECT_SUCCESS(p.protocol->response_acknowledgement_message());
         EXPECT_EQ(12+4, io.out_buffer.length());
     }
 
@@ -1304,6 +1318,22 @@ VOID TEST(ProtoStackTest, HandshakeC0C1)
         EXPECT_EQ(0x01020304, hs.proxy_real_ip);
     }
 
+    // It's extended c0c1 prefixed with ip, which should be ok.
+    if (true) {
+        uint8_t buf[1537 + 7] = {
+            0xF3, 0x00, 0x04,
+            0x01, 0x02, 0x03, 0x04,
+        };
+        HELPER_ARRAY_INIT(buf+7, 1537, 0x00);
+
+        MockBufferIO io;
+        io.append(buf, sizeof(buf));
+
+        SrsRtmpServer r(&io);
+        HELPER_EXPECT_SUCCESS(r.hs_bytes->read_c0c1(&io));
+        EXPECT_EQ(0x01020304, r.proxy_real_ip());
+    }
+
     // It seems a normal c0c1, but it's extended, so it fail.
     if (true) {
         uint8_t buf[1537] = {
@@ -2396,7 +2426,14 @@ VOID TEST(ProtoStackTest, CoverAll)
         MockBufferIO io;
         SrsRtmpServer r(&io);
         r.set_recv_timeout(100 * SRS_UTIME_MILLISECONDS);
+        EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, r.get_recv_timeout());
+
         r.set_send_timeout(100 * SRS_UTIME_MILLISECONDS);
+        EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, r.get_send_timeout());
+
+        r.set_recv_buffer(SRS_DEFAULT_RECV_BUFFER_SIZE + 10);
+        EXPECT_EQ(SRS_DEFAULT_RECV_BUFFER_SIZE + 10, r.protocol->in_buffer->nb_buffer);
+
         EXPECT_EQ(0, r.get_recv_bytes());
         EXPECT_EQ(0, r.get_send_bytes());
 
@@ -2406,6 +2443,107 @@ VOID TEST(ProtoStackTest, CoverAll)
         SrsCallPacket* pkt = new SrsCallPacket();
         HELPER_EXPECT_SUCCESS(r.send_and_free_packet(pkt, 0));
         EXPECT_TRUE(r.get_send_bytes() > 0);
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer r(&io);
+        HELPER_ASSERT_SUCCESS(r.set_peer_bandwidth(0, 0));
+        EXPECT_TRUE(r.get_send_bytes() > 0);
+    }
+
+    if (true) {
+        SrsBandwidthPacket p;
+
+        p.set_command("onSrsBandCheckStartPlayBytes");
+        EXPECT_TRUE(p.is_start_play());
+
+        p.command_name = "onSrsBandCheckStartPlayBytes";
+        EXPECT_TRUE(p.is_start_play());
+    }
+
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_start_play();
+        EXPECT_TRUE(p->is_start_play());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_starting_play();
+        EXPECT_TRUE(p->is_starting_play());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_playing();
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_stop_play();
+        EXPECT_TRUE(p->is_stop_play());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_stopped_play();
+        EXPECT_TRUE(p->is_stopped_play());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_start_publish();
+        EXPECT_TRUE(p->is_start_publish());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_starting_publish();
+        EXPECT_TRUE(p->is_starting_publish());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_publishing();
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_stop_publish();
+        EXPECT_TRUE(p->is_stop_publish());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_stopped_publish();
+        EXPECT_TRUE(p->is_stopped_publish());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_finish();
+        EXPECT_TRUE(p->is_finish());
+        srs_freep(p);
+    }
+    if (true) {
+        SrsBandwidthPacket* p = SrsBandwidthPacket::create_final();
+        EXPECT_TRUE(p->is_final());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsAmf0Any* name = SrsAmf0Any::str("call");
+
+        SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
+        arr->set("license", SrsAmf0Any::str("MIT"));
+
+        int nn = name->total_size() + arr->total_size();
+        char* b = new char[nn];
+        SrsAutoFreeA(char, b);
+
+        SrsBuffer buf(b, nn);
+        HELPER_ASSERT_SUCCESS(name->write(&buf));
+        HELPER_ASSERT_SUCCESS(arr->write(&buf));
+
+        SrsOnMetaDataPacket* p = new SrsOnMetaDataPacket();
+        SrsAutoFree(SrsOnMetaDataPacket, p);
+
+        buf.skip(-1 * buf.pos());
+        HELPER_ASSERT_SUCCESS(p->decode(&buf));
+
+        SrsAmf0Any* prop = p->metadata->get_property("license");
+        ASSERT_TRUE(prop && prop->is_string());
+        EXPECT_STREQ("MIT", prop->to_str().c_str());
     }
 }
 
@@ -2493,5 +2631,277 @@ VOID TEST(ProtoStackTest, ConnectAppWithArgs)
             EXPECT_STREQ("MIT", prop->to_str().c_str());
         }
     }
+}
+
+VOID TEST(ProtoStackTest, AgentMessageCodec)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient p(&io);
+
+        if (true) {
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient p(&io);
+
+        if (true) {
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_ASSERT_SUCCESS(p.recv_message(&msg));
+
+            SrsPacket* pkt = NULL;
+            HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer p(&io);
+
+        if (true) {
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer p(&io);
+
+        if (true) {
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_EXPECT_SUCCESS(p.send_and_free_packet(res, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_ASSERT_SUCCESS(p.recv_message(&msg));
+
+            SrsPacket* pkt = NULL;
+            HELPER_EXPECT_SUCCESS(p.decode_message(msg, &pkt));
+
+            srs_freep(msg);
+            srs_freep(pkt);
+        }
+    }
+}
+
+srs_error_t _mock_packet_to_shared_msg(SrsPacket* packet, int stream_id, SrsSharedPtrMessage* shared_msg)
+{
+    srs_error_t err = srs_success;
+
+    SrsCommonMessage* msg = new SrsCommonMessage();
+    SrsAutoFree(SrsCommonMessage, msg);
+
+    if ((err = packet->to_msg(msg, stream_id)) != srs_success) {
+        srs_freep(msg);
+        return err;
+    }
+
+    if ((err = shared_msg->create(msg)) != srs_success) {
+        return err;
+    }
+
+    return err;
+}
+
+VOID TEST(ProtoStackTest, CheckStreamID)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient p(&io);
+
+        if (true) {
+            SrsSharedPtrMessage* shared_msgs[2];
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            SrsAutoFree(SrsConnectAppPacket, res);
+
+            if (true) {
+                SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+                HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+                shared_msgs[0] = shared_msg;
+            }
+
+            if (true) {
+                SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+                HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 2, shared_msg));
+                shared_msgs[1] = shared_msg;
+            }
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_messages(shared_msgs, 2, 1));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            EXPECT_EQ(1, msg->header.stream_id);
+            srs_freep(msg);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            EXPECT_EQ(2, msg->header.stream_id);
+            srs_freep(msg);
+        }
+    }
+}
+
+VOID TEST(ProtoStackTest, AgentMessageTransform)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient p(&io);
+
+        if (true) {
+            SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            srs_freep(res);
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_message(shared_msg, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpClient p(&io);
+
+        if (true) {
+            SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            srs_freep(res);
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_messages(&shared_msg, 1, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer p(&io);
+
+        if (true) {
+            SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            srs_freep(res);
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_message(shared_msg, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        SrsRtmpServer p(&io);
+
+        if (true) {
+            SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+            SrsConnectAppPacket* res = new SrsConnectAppPacket();
+            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            srs_freep(res);
+
+            HELPER_EXPECT_SUCCESS(p.send_and_free_messages(&shared_msg, 1, 0));
+            io.in_buffer.append(&io.out_buffer);
+        }
+
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            HELPER_EXPECT_SUCCESS(p.recv_message(&msg));
+            srs_freep(msg);
+        }
+    }
+}
+
+class MockMRHandler : public IMergeReadHandler
+{
+public:
+    ssize_t nn;
+    MockMRHandler() : nn(0) {
+    }
+    virtual void on_read(ssize_t nread) {
+        nn += nread;
+    }
+};
+
+VOID TEST(ProtoStackTest, MergeReadHandler)
+{
+    srs_error_t err;
+
+    MockBufferIO io;
+    SrsRtmpServer r(&io);
+
+    if (true) {
+        SrsConnectAppPacket* res = new SrsConnectAppPacket();
+        HELPER_EXPECT_SUCCESS(r.send_and_free_packet(res, 0));
+        io.in_buffer.append(&io.out_buffer);
+    }
+
+    MockMRHandler h;
+    r.set_merge_read(true, &h);
+
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        HELPER_EXPECT_SUCCESS(r.recv_message(&msg));
+        srs_freep(msg);
+    }
+
+    EXPECT_TRUE(h.nn > 0);
 }
 

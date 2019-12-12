@@ -37,6 +37,7 @@ class SrsBuffer;
 class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
+class SrsPacket;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -231,8 +232,9 @@ public:
 
 // The message header for shared ptr message.
 // only the message for all msgs are same.
-struct SrsSharedMessageHeader
+class SrsSharedMessageHeader
 {
+public:
     // 3bytes.
     // Three-byte field that represents the size of the payload in bytes.
     // It is set in big-endian format.
@@ -245,7 +247,7 @@ struct SrsSharedMessageHeader
     // set at decoding, and canbe used for directly send message,
     // For example, dispatch to all connections.
     int perfer_cid;
-    
+public:
     SrsSharedMessageHeader();
     virtual ~SrsSharedMessageHeader();
 };
@@ -309,6 +311,7 @@ public:
     // copy header, manage the payload of msg,
     // set the payload to NULL to prevent double free.
     // @remark payload of msg set to NULL if success.
+    // @remark User should free the msg.
     virtual srs_error_t create(SrsCommonMessage* msg);
     // Create shared ptr message,
     // from the header and payload.

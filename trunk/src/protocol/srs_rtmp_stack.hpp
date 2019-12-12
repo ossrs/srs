@@ -116,6 +116,9 @@ public:
     SrsPacket();
     virtual ~SrsPacket();
 public:
+    // Covert packet to common message.
+    virtual srs_error_t to_msg(SrsCommonMessage* msg, int stream_id);
+public:
     // The subpacket can override this encode,
     // For example, video and audio will directly set the payload withou memory copy,
     // other packet which need to serialize/encode to bytes by override the
@@ -356,9 +359,6 @@ private:
     virtual srs_error_t do_iovs_send(iovec* iovs, int size);
     // The underlayer api for send and free packet.
     virtual srs_error_t do_send_and_free_packet(SrsPacket* packet, int stream_id);
-    // Use simple algorithm to send the header and bytes.
-    // @remark, for do_send_and_free_packet to send.
-    virtual srs_error_t do_simple_send(SrsMessageHeader* mh, char* payload, int size);
     // The imp for decode_message
     virtual srs_error_t do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket);
     // Recv bytes oriented RTMP message from protocol stack.

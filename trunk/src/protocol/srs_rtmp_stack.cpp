@@ -137,6 +137,36 @@ SrsPacket::~SrsPacket()
 {
 }
 
+srs_error_t SrsPacket::to_msg(SrsCommonMessage* msg, int stream_id)
+{
+    srs_error_t err = srs_success;
+
+    int size = 0;
+    char* payload = NULL;
+    if ((err = encode(size, payload)) != srs_success) {
+        return srs_error_wrap(err, "encode packet");
+    }
+
+    // encode packet to payload and size.
+    if (size <= 0 || payload == NULL) {
+        srs_warn("packet is empty, ignore empty message.");
+        return err;
+    }
+
+    // to message
+    SrsMessageHeader header;
+    header.payload_length = size;
+    header.message_type = get_message_type();
+    header.stream_id = stream_id;
+    header.perfer_cid = get_prefer_cid();
+
+    if ((err = msg->create(&header, payload, size)) != srs_success) {
+        return srs_error_wrap(err, "create %dB message", size);
+    }
+
+    return err;
+}
+
 srs_error_t SrsPacket::encode(int& psize, char*& ppayload)
 {
     srs_error_t err = srs_success;
@@ -570,70 +600,26 @@ srs_error_t SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_i
     
     srs_assert(packet);
     SrsAutoFree(SrsPacket, packet);
-    
-    int size = 0;
-    char* payload = NULL;
-    if ((err = packet->encode(size, payload)) != srs_success) {
-        return srs_error_wrap(err, "encode packet");
-    }
-    
-    // encode packet to payload and size.
-    if (size <= 0 || payload == NULL) {
-        srs_warn("packet is empty, ignore empty message.");
-        return err;
-    }
-    
-    // to message
-    SrsMessageHeader header;
-    header.payload_length = size;
-    header.message_type = packet->get_message_type();
-    header.stream_id = stream_id;
-    header.perfer_cid = packet->get_prefer_cid();
-    
-    err = do_simple_send(&header, payload, size);
-    srs_freepa(payload);
-    if (err != srs_success) {
-        return srs_error_wrap(err, "simple send");
-    }
-    
-    if ((err = on_send_packet(&header, packet)) != srs_success) {
-        return srs_error_wrap(err, "on send packet");
-    }
-    
-    return err;
-}
 
-srs_error_t SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
-{
-    srs_error_t err = srs_success;
+    SrsCommonMessage* msg = new SrsCommonMessage();
+    SrsAutoFree(SrsCommonMessage, msg);
+
+    if ((err = packet->to_msg(msg, stream_id)) != srs_success) {
+        return srs_error_wrap(err, "to message");
+    }
+
+    SrsSharedPtrMessage* shared_msg = new SrsSharedPtrMessage();
+    if ((err = shared_msg->create(msg)) != srs_success) {
+        srs_freep(shared_msg);
+        return srs_error_wrap(err, "create message");
+    }
+
+    if ((err = send_and_free_message(shared_msg, stream_id)) != srs_success) {
+        return srs_error_wrap(err, "send packet");
+    }
     
-    // we directly send out the packet,
-    // use very simple algorithm, not very fast,
-    // but it's ok.
-    char* p = payload;
-    char* end = p + size;
-    char c0c3[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
-    while (p < end) {
-        int nbh = 0;
-        if (p == payload) {
-            nbh = srs_chunk_header_c0(mh->perfer_cid, (uint32_t)mh->timestamp, mh->payload_length, mh->message_type, mh->stream_id, c0c3, sizeof(c0c3));
-        } else {
-            nbh = srs_chunk_header_c3(mh->perfer_cid, (uint32_t)mh->timestamp, c0c3, sizeof(c0c3));
-        }
-        srs_assert(nbh > 0);;
-        
-        iovec iovs[2];
-        iovs[0].iov_base = c0c3;
-        iovs[0].iov_len = nbh;
-        
-        int payload_size = srs_min((int)(end - p), out_chunk_size);
-        iovs[1].iov_base = p;
-        iovs[1].iov_len = payload_size;
-        p += payload_size;
-        
-        if ((err = skt->writev(iovs, 2, NULL)) != srs_success) {
-            return srs_error_wrap(err, "writev packet");
-        }
+    if ((err = on_send_packet(&msg->header, packet)) != srs_success) {
+        return srs_error_wrap(err, "on send packet");
     }
     
     return err;

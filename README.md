@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-11, SrsPacket supports converting to message, so can be sent by one API.
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP client/server protocol.
 * v3.0, 2019-12-11, Fix [#1445][bug #1445], limit the createStream recursive depth. 3.0.70
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP handshake protocol.

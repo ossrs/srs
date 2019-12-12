@@ -95,6 +95,8 @@ private:
     int nb_bytes;
 public:
     SrsBuffer();
+    // Initialize buffer with data b and size nb_b.
+    // @remark User must free the data b.
     SrsBuffer(char* b, int nb_b);
     virtual ~SrsBuffer();
 // get the status of stream
