@@ -230,6 +230,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* v2.0, 2019-12-13, Support openssl versions greater than 1.1.0. 2.0.266
 * <strong>v2.0, 2019-11-29, [2.0 release7(2.0.265)][r2.0r7] released. 86994 lines.</strong>
 * v2.0, 2019-11-29, For [srs-docker](https://github.com/ossrs/srs-docker/tree/master/2.0), install Cherrypy without sudo. 2.0.265
 * v2.0, 2019-04-06, For [#1304][bug #1304], Default HSTRS to on. 2.0.264
