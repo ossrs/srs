@@ -1884,20 +1884,9 @@ srs_error_t SrsRtmpClient::handshake()
     SrsAutoFree(SrsComplexHandshake, complex_hs);
     
     if ((err = complex_hs->handshake_with_server(hs_bytes, io)) != srs_success) {
-        if (srs_error_code(err) == ERROR_RTMP_TRY_SIMPLE_HS) {
-            srs_freep(err);
-            
-            // always alloc object at heap.
-            // @see https://github.com/ossrs/srs/issues/509
-            SrsSimpleHandshake* simple_hs = new SrsSimpleHandshake();
-            SrsAutoFree(SrsSimpleHandshake, simple_hs);
-            
-            if ((err = simple_hs->handshake_with_server(hs_bytes, io)) != srs_success) {
-                return srs_error_wrap(err, "simple handshake");
-            }
-        } else {
-            return srs_error_wrap(err, "complex handshake");
-        }
+        // As client, we never verify s0s1s2, because some server doesn't follow the RTMP spec.
+        // So we never have chance to use simple handshake.
+        return srs_error_wrap(err, "complex handshake");
     }
     
     hs_bytes->dispose();
