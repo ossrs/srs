@@ -200,9 +200,9 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
     
     // Remove the start & when param is empty.
     srs_string_trim_start(query, "&");
-    
+
     // Prefix query with ?.
-    if (!srs_string_starts_with(query, "?")) {
+    if (!query.empty() && !srs_string_starts_with(query, "?")) {
         url += "?";
     }
     

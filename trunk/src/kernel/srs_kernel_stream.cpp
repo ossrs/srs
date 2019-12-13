@@ -64,9 +64,9 @@ void SrsSimpleStream::erase(int size)
 
 void SrsSimpleStream::append(const char* bytes, int size)
 {
-    srs_assert(size > 0);
-    
-    data.insert(data.end(), bytes, bytes + size);
+    if (size > 0) {
+        data.insert(data.end(), bytes, bytes + size);
+    }
 }
 
 void SrsSimpleStream::append(SrsSimpleStream* src)

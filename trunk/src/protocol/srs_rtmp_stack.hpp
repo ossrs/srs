@@ -49,6 +49,7 @@ class SrsChunkStream;
 class SrsSharedPtrMessage;
 
 class SrsProtocol;
+class ISrsProtocolReader;
 class ISrsProtocolReadWriter;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
@@ -114,6 +115,9 @@ class SrsPacket
 public:
     SrsPacket();
     virtual ~SrsPacket();
+public:
+    // Covert packet to common message.
+    virtual srs_error_t to_msg(SrsCommonMessage* msg, int stream_id);
 public:
     // The subpacket can override this encode,
     // For example, video and audio will directly set the payload withou memory copy,
@@ -355,9 +359,6 @@ private:
     virtual srs_error_t do_iovs_send(iovec* iovs, int size);
     // The underlayer api for send and free packet.
     virtual srs_error_t do_send_and_free_packet(SrsPacket* packet, int stream_id);
-    // Use simple algorithm to send the header and bytes.
-    // @remark, for do_send_and_free_packet to send.
-    virtual srs_error_t do_simple_send(SrsMessageHeader* mh, char* payload, int size);
     // The imp for decode_message
     virtual srs_error_t do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket);
     // Recv bytes oriented RTMP message from protocol stack.
@@ -514,9 +515,9 @@ public:
 public:
     virtual void dispose();
 public:
-    virtual srs_error_t read_c0c1(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_s0s1s2(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_c2(ISrsProtocolReadWriter* io);
+    virtual srs_error_t read_c0c1(ISrsProtocolReader* io);
+    virtual srs_error_t read_s0s1s2(ISrsProtocolReader* io);
+    virtual srs_error_t read_c2(ISrsProtocolReader* io);
     virtual srs_error_t create_c0c1();
     virtual srs_error_t create_s0s1s2(const char* c1 = NULL);
     virtual srs_error_t create_c2();
@@ -774,7 +775,7 @@ public:
         return protocol->expect_message<T>(pmsg, ppacket);
     }
 private:
-    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
+    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, int depth, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
     virtual srs_error_t identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);

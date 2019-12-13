@@ -1,6 +1,6 @@
 # SRS
 
-![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/develop)
+![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/develop)
 [![](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/develop)
 [![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
@@ -147,7 +147,16 @@ For previous versions, please read:
 
 ## V3 changes
 
-* <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.67)][r3.0a3] released. 110864 lines.</strong>
+* <strong>v3.0, 2019-12-13, [3.0 alpha4(3.0.71)][r3.0a4] released. 112928 lines.</strong>
+* v3.0, 2019-12-12, For [#547][bug #547], [#1506][bug #1506], default hls_dts_directly to on. 3.0.71
+* v3.0, 2019-12-12, SrsPacket supports converting to message, so can be sent by one API.
+* v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP client/server protocol.
+* v3.0, 2019-12-11, Fix [#1445][bug #1445], limit the createStream recursive depth. 3.0.70
+* v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP handshake protocol.
+* v3.0, 2019-12-11, Fix [#1229][bug #1229], fix the security risk in logger. 3.0.69
+* v3.0, 2019-12-11, For [#1229][bug #1229], fix the security risk in HDS. 3.0.69
+* v3.0, 2019-12-05, Fix [#1506][bug #1506], support directly turn FLV timestamp to TS DTS. 3.0.68
+* <strong>v3.0, 2019-11-30, [3.0 alpha3(3.0.67)][r3.0a3] released. 110864 lines.</strong>
 * v3.0, 2019-12-01, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.67
 * <strong>v3.0, 2019-11-30, [3.0 alpha2(3.0.66)][r3.0a2] released. 110831 lines.</strong>
 * v3.0, 2019-11-30, Fix [#1501][bug #1501], use request coworker for origin cluster. 3.0.66
@@ -155,7 +164,7 @@ For previous versions, please read:
 * v3.0, 2019-11-30, Refine debug info for edge. 3.0.64
 * v3.0, 2019-10-30, Cover protocol stack RTMP. 3.0.63
 * v3.0, 2019-10-23, Cover JSON codec. 3.0.62
-* v3.0, 2019-10-13, Use http://ossrs.net:8000 as homepage.
+* v3.0, 2019-10-13, Use http://ossrs.net as homepage.
 * v3.0, 2019-10-10, Cover AMF0 codec. 3.0.61
 * <strong>v3.0, 2019-10-07, [3.0 alpha1(3.0.60)][r3.0a1] released. 107962 lines.</strong>
 * v3.0, 2019-10-06, Support log rotate by init.d command. 3.0.60
@@ -224,6 +233,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* v2.0, 2019-12-13, Support openssl versions greater than 1.1.0. 2.0.266
 * <strong>v2.0, 2019-11-29, [2.0 release7(2.0.265)][r2.0r7] released. 86994 lines.</strong>
 * v2.0, 2019-11-29, For [srs-docker](https://github.com/ossrs/srs-docker/tree/master/2.0), install Cherrypy without sudo. 2.0.265
 * v2.0, 2019-04-06, For [#1304][bug #1304], Default HSTRS to on. 2.0.264
@@ -521,7 +531,7 @@ For previous versions, please read:
 * v1.0, 2014-05-27, fix [#84][bug #84], unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89][bug #89], config to /dev/null to disable ffmpeg log. 0.9.117
 * v1.0, 2014-05-25, fix [#76][bug #76], allow edge vhost to add or remove. 0.9.114
-* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net:8000). karthikeyan start to translate wiki to English.
+* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net). karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78][bug #78], st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
@@ -655,7 +665,8 @@ For previous versions, please read:
 
 ## Releases
 
-* 2019-11-30, [Release v3.0-a2][r3.0a3], 3.0 alpha2, 3.0.67, 110864 lines.
+* 2019-12-13, [Release v3.0-a4][r3.0a4], 3.0 alpha4, 3.0.71, 112928 lines.
+* 2019-11-30, [Release v3.0-a3][r3.0a3], 3.0 alpha3, 3.0.67, 110864 lines.
 * 2019-11-30, [Release v3.0-a2][r3.0a2], 3.0 alpha2, 3.0.66, 110831 lines.
 * 2019-10-07, [Release v3.0-a1][r3.0a1], 3.0 alpha1, 3.0.60, 107962 lines.
 * 2019-10-04, [Release v3.0-a0][r3.0a0], 3.0 alpha0, 3.0.56, 107946 lines.
@@ -1088,7 +1099,7 @@ Winlin
 [srs-librtmp]: https://github.com/ossrs/srs-librtmp
 [gitlab]: https://gitlab.com/winlinvip/srs-gitlab
 [console]: http://ossrs.net:1985/console
-[player]: http://ossrs.net:8000/players/srs_player.html
+[player]: http://ossrs.net/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
 [docker-srs3]: https://github.com/ossrs/srs-docker#srs3
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
@@ -1140,8 +1151,8 @@ Winlin
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
-[donation1]: http://ossrs.net:8000/srs.release/donation/index.html
-[donation2]: http://ossrs.net:8000/srs.release/donation/paypal.html
+[donation1]: http://ossrs.net/srs.release/donation/index.html
+[donation2]: http://ossrs.net/srs.release/donation/paypal.html
 [donations]: https://github.com/ossrs/srs/blob/develop/DONATIONS.txt
 
 [v1_CN_Compare]: https://github.com/ossrs/srs/wiki/v1_CN_Compare
@@ -1511,6 +1522,10 @@ Winlin
 [bug #1051]: https://github.com/ossrs/srs/issues/1051
 [bug #1093]: https://github.com/ossrs/srs/issues/1093
 [bug #1501]: https://github.com/ossrs/srs/issues/1501
+[bug #1229]: https://github.com/ossrs/srs/issues/1229
+[bug #1042]: https://github.com/ossrs/srs/issues/1042
+[bug #1445]: https://github.com/ossrs/srs/issues/1445
+[bug #1506]: https://github.com/ossrs/srs/issues/1506
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
@@ -1519,6 +1534,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a4]: https://github.com/ossrs/srs/releases/tag/v3.0-a4
 [r3.0a3]: https://github.com/ossrs/srs/releases/tag/v3.0-a3
 [r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2
 [r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
@@ -1568,7 +1584,7 @@ Winlin
 [v1_CN_Contact]: https://github.com/ossrs/srs/wiki/v1_CN_Contact
 [v1_EN_Contact]: https://github.com/ossrs/srs/wiki/v1_EN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
-[more1]: http://ossrs.net:8000/srs.release/releases/
+[more1]: http://ossrs.net/srs.release/releases/
 
 [LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
@@ -1580,5 +1596,5 @@ Winlin
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
-[centos1]: http://ossrs.net:8000/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
+[centos1]: http://ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
 

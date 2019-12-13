@@ -825,6 +825,8 @@ public:
     // Get the size of bytes to read from cdn network, for the on_hls_notify callback,
     // that is, to read max bytes of the bytes from the callback, or timeout or error.
     virtual int get_vhost_hls_nb_notify(std::string vhost);
+    // Whether turn the FLV timestamp to TS DTS.
+    virtual bool get_vhost_hls_dts_directly(std::string vhost);
 // hds section
 private:
     // Get the hds directive of vhost.

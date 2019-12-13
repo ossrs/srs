@@ -910,9 +910,13 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     if ((err = muxer->segment_open()) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
-    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms",
-        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose));
+
+    // This config item is used in SrsHls, we just log its value here.
+    bool hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
+
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
+        srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
+        hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
     
     return err;
 }
@@ -1062,6 +1066,7 @@ SrsHls::SrsHls()
     enabled = false;
     disposable = false;
     last_update_time = 0;
+    hls_dts_directly = false;
     
     previous_audio_dts = 0;
     aac_samples = 0;
@@ -1160,6 +1165,10 @@ srs_error_t SrsHls::on_publish()
     if ((err = controller->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "hls: on publish");
     }
+
+    // If enabled, directly turn FLV timestamp to TS DTS.
+    // @remark It'll be reloaded automatically, because the origin hub will republish while reloading.
+    hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
     
     // if enabled, open the muxer.
     enabled = true;
@@ -1194,6 +1203,12 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     if (!enabled) {
         return err;
     }
+
+    // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
+    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
+    if (!format->acodec) {
+        return err;
+    }
     
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
@@ -1202,7 +1217,6 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
     // ts support audio codec: aac/mp3
-    srs_assert(format->acodec);
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
         return err;
@@ -1224,18 +1238,38 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
         previous_audio_dts = audio->timestamp;
         aac_samples = 0;
     }
-    
-    // Use the diff to guess whether the samples is 1024 or 960.
-    int nb_samples_per_frame = 1024;
-    int diff = ::abs((int)(audio->timestamp - previous_audio_dts)) * srs_flv_srates[format->acodec->sound_rate];
+
+    // The diff duration in ms between two FLV audio packets.
+    int diff = ::abs((int)(audio->timestamp - previous_audio_dts));
     previous_audio_dts = audio->timestamp;
-    if (diff > 100 && diff < 950) {
-        nb_samples_per_frame = 960;
+
+    // Guess the number of samples for each AAC frame.
+    // If samples is 1024, the sample-rate is 8000HZ, the diff should be 1024/8000s=128ms.
+    // If samples is 1024, the sample-rate is 44100HZ, the diff should be 1024/44100s=23ms.
+    // If samples is 2048, the sample-rate is 44100HZ, the diff should be 2048/44100s=46ms.
+    int nb_samples_per_frame = 0;
+    int guessNumberOfSamples = diff * srs_flv_srates[format->acodec->sound_rate] / 1000;
+    if (guessNumberOfSamples > 0) {
+        if (guessNumberOfSamples < 960) {
+            nb_samples_per_frame = 960;
+        } else if (guessNumberOfSamples < 1536) {
+            nb_samples_per_frame = 1024;
+        } else if (guessNumberOfSamples < 3072) {
+            nb_samples_per_frame = 2048;
+        } else {
+            nb_samples_per_frame = 4096;
+        }
     }
     
     // Recalc the DTS by the samples of AAC.
-    int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
     aac_samples += nb_samples_per_frame;
+    int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
+
+    // If directly turn FLV timestamp, overwrite the guessed DTS.
+    // @doc https://github.com/ossrs/srs/issues/1506#issuecomment-562063095
+    if (hls_dts_directly) {
+        dts = audio->timestamp * 90;
+    }
     
     if ((err = controller->write_audio(format->audio, dts)) != srs_success) {
         return srs_error_wrap(err, "hls: write audio");
@@ -1251,7 +1285,13 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     if (!enabled) {
         return err;
     }
-    
+
+    // Ignore if no format->vcodec, it means the codec is not parsed, or unknown codec.
+    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
+    if (!format->vcodec) {
+        return err;
+    }
+
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
     

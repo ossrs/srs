@@ -87,7 +87,15 @@ public:
     MockBufferIO();
     virtual ~MockBufferIO();
 public:
+    virtual int length();
     virtual MockBufferIO* append(std::string data);
+    virtual MockBufferIO* append(MockBufferIO* data);
+    virtual MockBufferIO* append(uint8_t* data, int size);
+public:
+    virtual int out_length();
+    virtual MockBufferIO* out_append(std::string data);
+    virtual MockBufferIO* out_append(MockBufferIO* data);
+    virtual MockBufferIO* out_append(uint8_t* data, int size);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
