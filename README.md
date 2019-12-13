@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2019-12-13, [3.0 alpha4(3.0.71)][r3.0a4] released. 112928 lines.</strong>
 * v3.0, 2019-12-12, For [#547][bug #547], [#1506][bug #1506], default hls_dts_directly to on. 3.0.71
 * v3.0, 2019-12-12, SrsPacket supports converting to message, so can be sent by one API.
 * v3.0, 2019-12-11, For [#1042][bug #1042], cover RTMP client/server protocol.
@@ -662,6 +663,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2019-12-13, [Release v3.0-a4][r3.0a4], 3.0 alpha4, 3.0.71, 112928 lines.
 * 2019-11-30, [Release v3.0-a3][r3.0a3], 3.0 alpha3, 3.0.67, 110864 lines.
 * 2019-11-30, [Release v3.0-a2][r3.0a2], 3.0 alpha2, 3.0.66, 110831 lines.
 * 2019-10-07, [Release v3.0-a1][r3.0a1], 3.0 alpha1, 3.0.60, 107962 lines.
@@ -1526,6 +1528,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a4]: https://github.com/ossrs/srs/releases/tag/v3.0-a4
 [r3.0a3]: https://github.com/ossrs/srs/releases/tag/v3.0-a3
 [r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2
 [r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
