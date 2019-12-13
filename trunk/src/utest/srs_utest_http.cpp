@@ -23,3 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest_http.hpp>
 
 #include <srs_http_stack.hpp>
+
+VOID TEST(ProtoStackTest, StatusCode2Text)
+{
+    EXPECT_STREQ(SRS_CONSTS_HTTP_OK_str, srs_generate_http_status_text(SRS_CONSTS_HTTP_OK).c_str());
+    EXPECT_STREQ("Status Unknown", srs_generate_http_status_text(999).c_str());
+}
