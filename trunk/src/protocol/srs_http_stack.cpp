@@ -99,9 +99,9 @@ string srs_generate_http_status_text(int status)
 // permits a body.  See RFC2616, section 4.4.
 bool srs_go_http_body_allowd(int status)
 {
-    if (status >= 100 && status <= 199) {
+    if (status >= SRS_CONSTS_HTTP_Continue && status < SRS_CONSTS_HTTP_OK) {
         return false;
-    } else if (status == 204 || status == 304) {
+    } else if (status == SRS_CONSTS_HTTP_NoContent || status == SRS_CONSTS_HTTP_NotModified) {
         return false;
     }
     
@@ -116,9 +116,7 @@ bool srs_go_http_body_allowd(int status)
 // returns "application/octet-stream".
 string srs_go_http_detect(char* data, int size)
 {
-    // detect only when data specified.
-    if (data) {
-    }
+    // TODO: Implement the content detecting.
     return "application/octet-stream"; // fallback
 }
 
