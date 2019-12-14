@@ -116,7 +116,7 @@ bool srs_go_http_body_allowd(int status)
 // returns "application/octet-stream".
 string srs_go_http_detect(char* data, int size)
 {
-    // TODO: Implement the content detecting.
+    // TODO: Implement the request content-type detecting.
     return "application/octet-stream"; // fallback
 }
 

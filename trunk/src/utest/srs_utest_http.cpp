@@ -35,3 +35,8 @@ VOID TEST(ProtocolHTTPTest, StatusCode2Text)
     EXPECT_FALSE(srs_go_http_body_allowd(SRS_CONSTS_HTTP_NotModified));
     EXPECT_TRUE(srs_go_http_body_allowd(SRS_CONSTS_HTTP_OK));
 }
+
+VOID TEST(ProtocolHTTPTest, ResponseDetect)
+{
+    EXPECT_STREQ("application/octet-stream", srs_go_http_detect(NULL, 0).c_str());
+}
