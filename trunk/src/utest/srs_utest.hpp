@@ -35,8 +35,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "gtest/gtest.h"
 #include <string>
+using namespace std;
 
 #include <srs_app_log.hpp>
+#include <srs_kernel_stream.hpp>
 
 // we add an empty macro for upp to show the smart tips.
 #define VOID
@@ -60,6 +62,10 @@ extern srs_utime_t _srs_tmp_timeout;
 // For init array data.
 #define HELPER_ARRAY_INIT(buf, sz, val) \
     for (int i = 0; i < (int)sz; i++) (buf)[i]=val
+
+// Dump simple stream to string.
+#define HELPER_BUFFER2STR(io) \
+    string((const char*)(io)->bytes(), (size_t)(io)->length())
 
 // the asserts of gtest:
 //    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual

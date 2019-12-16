@@ -614,7 +614,15 @@ bool SrsHttpMessage::is_jsonp()
     return jsonp;
 }
 
-SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
+ISrsHttpHeaderFilter::ISrsHttpHeaderFilter()
+{
+}
+
+ISrsHttpHeaderFilter::~ISrsHttpHeaderFilter()
+{
+}
+
+SrsHttpResponseWriter::SrsHttpResponseWriter(ISrsProtocolReadWriter* io)
 {
     skt = io;
     hdr = new SrsHttpHeader();
@@ -625,6 +633,7 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
     header_sent = false;
     nb_iovss_cache = 0;
     iovss_cache = NULL;
+    hf = NULL;
 }
 
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
@@ -840,6 +849,11 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     
     // keep alive to make vlc happy.
     hdr->set("Connection", "Keep-Alive");
+
+    // Filter the header before writing it.
+    if (hf && ((err = hf->filter(hdr)) != srs_success)) {
+        return srs_error_wrap(err, "filter header");
+    }
     
     // write headers
     hdr->write(ss);

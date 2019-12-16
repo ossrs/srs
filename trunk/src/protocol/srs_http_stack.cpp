@@ -156,12 +156,21 @@ void SrsHttpHeader::set(string key, string value)
 string SrsHttpHeader::get(string key)
 {
     std::string v;
-    
-    if (headers.find(key) != headers.end()) {
-        v = headers[key];
+
+    map<string, string>::iterator it = headers.find(key);
+    if (it != headers.end()) {
+        v = it->second;
     }
     
     return v;
+}
+
+void SrsHttpHeader::del(string key)
+{
+    map<string, string>::iterator it = headers.find(key);
+    if (it != headers.end()) {
+        headers.erase(it);
+    }
 }
 
 int64_t SrsHttpHeader::content_length()
@@ -192,7 +201,7 @@ void SrsHttpHeader::set_content_type(string ct)
 
 void SrsHttpHeader::write(stringstream& ss)
 {
-    std::map<std::string, std::string>::iterator it;
+    map<string, string>::iterator it;
     for (it = headers.begin(); it != headers.end(); ++it) {
         ss << it->first << ": " << it->second << SRS_HTTP_CRLF;
     }

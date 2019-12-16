@@ -22,7 +22,84 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest_http.hpp>
 
+#include <sstream>
+using namespace std;
+
 #include <srs_http_stack.hpp>
+#include <srs_service_http_conn.hpp>
+#include <srs_utest_protocol.hpp>
+
+class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
+{
+public:
+    SrsHttpResponseWriter* w;
+    MockBufferIO io;
+public:
+    MockResponseWriter();
+    virtual ~MockResponseWriter();
+public:
+    virtual srs_error_t final_request();
+    virtual SrsHttpHeader* header();
+    virtual srs_error_t write(char* data, int size);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+    virtual void write_header(int code);
+public:
+    virtual srs_error_t filter(SrsHttpHeader* h);
+};
+
+MockResponseWriter::MockResponseWriter()
+{
+    w = new SrsHttpResponseWriter(&io);
+    w->hf = this;
+}
+
+MockResponseWriter::~MockResponseWriter()
+{
+    srs_freep(w);
+}
+
+srs_error_t MockResponseWriter::final_request()
+{
+    return w->final_request();
+}
+
+SrsHttpHeader* MockResponseWriter::header()
+{
+    return w->header();
+}
+
+srs_error_t MockResponseWriter::write(char* data, int size)
+{
+    return w->write(data, size);
+}
+
+srs_error_t MockResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite)
+{
+    return w->writev(iov, iovcnt, pnwrite);
+}
+
+void MockResponseWriter::write_header(int code)
+{
+    w->write_header(code);
+}
+
+srs_error_t MockResponseWriter::filter(SrsHttpHeader* h)
+{
+    h->del("Content-Type");
+    h->del("Server");
+    h->del("Connection");
+    return srs_success;
+}
+
+string mock_http_response(int status, string content)
+{
+    stringstream ss;
+    ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
+        << "Content-Length: " << content.length() << "\r\n"
+        << "\r\n"
+        << content;
+    return ss.str();
+}
 
 VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 {
@@ -39,4 +116,15 @@ VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 VOID TEST(ProtocolHTTPTest, ResponseDetect)
 {
     EXPECT_STREQ("application/octet-stream", srs_go_http_detect(NULL, 0).c_str());
+}
+
+VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(srs_go_http_error(&w, SRS_CONSTS_HTTP_Found));
+        EXPECT_STREQ(mock_http_response(302,"Found").c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str());
+    }
 }

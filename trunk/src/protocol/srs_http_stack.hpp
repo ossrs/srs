@@ -121,6 +121,9 @@ public:
     // To access multiple values of a key, access the map directly
     // with CanonicalHeaderKey.
     virtual std::string get(std::string key);
+    // Delete the http header indicated by key.
+    // Return the removed header field.
+    virtual void del(std::string);
 public:
     // Get the content length. -1 if not set.
     virtual int64_t content_length();

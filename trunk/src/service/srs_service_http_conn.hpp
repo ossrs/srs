@@ -35,7 +35,7 @@ class SrsFastStream;
 class SrsRequest;
 class ISrsReader;
 class SrsHttpResponseReader;
-class SrsStSocket;
+class ISrsProtocolReadWriter;
 
 // A wrapper for http-parser,
 // provides HTTP message originted service.
@@ -195,12 +195,25 @@ public:
 // for writev, there always one chunk to send it.
 #define SRS_HTTP_HEADER_CACHE_SIZE 64
 
+class ISrsHttpHeaderFilter
+{
+public:
+    ISrsHttpHeaderFilter();
+    virtual ~ISrsHttpHeaderFilter();
+public:
+    // Filter the HTTP header h.
+    virtual srs_error_t filter(SrsHttpHeader* h) = 0;
+};
+
 // Response writer use st socket
 class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 {
 private:
-    SrsStSocket* skt;
+    ISrsProtocolReadWriter* skt;
     SrsHttpHeader* hdr;
+    // Before writing header, there is a chance to filter it,
+    // such as remove some headers or inject new.
+    ISrsHttpHeaderFilter* hf;
 private:
     char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
     iovec* iovss_cache;
@@ -222,7 +235,7 @@ private:
     // logically written.
     bool header_sent;
 public:
-    SrsHttpResponseWriter(SrsStSocket* io);
+    SrsHttpResponseWriter(ISrsProtocolReadWriter* io);
     virtual ~SrsHttpResponseWriter();
 public:
     virtual srs_error_t final_request();
