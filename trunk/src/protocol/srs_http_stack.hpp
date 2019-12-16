@@ -46,6 +46,7 @@ class ISrsHttpMessage;
 class SrsHttpMuxEntry;
 class ISrsHttpResponseWriter;
 class SrsJsonObject;
+class ISrsFileReaderFactory;
 
 // From http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -276,6 +277,12 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+// For utest to mock it.
+typedef bool (*_pfn_srs_path_exists)(std::string path);
+
+// Build the file path from request r.
+extern std::string srs_http_fs_fullpath(std::string dir, std::string upath, std::string pattern);
+
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
 //
@@ -288,9 +295,17 @@ class SrsHttpFileServer : public ISrsHttpHandler
 {
 protected:
     std::string dir;
+private:
+    ISrsFileReaderFactory* fs_factory;
+    _pfn_srs_path_exists _srs_path_exists;
 public:
     SrsHttpFileServer(std::string root_dir);
     virtual ~SrsHttpFileServer();
+private:
+    // For utest to mock the fs.
+    virtual SrsHttpFileServer* set_fs_factory(ISrsFileReaderFactory* v);
+    // For utest to mock the path check function.
+    virtual SrsHttpFileServer* set_path_check(_pfn_srs_path_exists pfn);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:

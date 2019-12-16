@@ -272,7 +272,7 @@ srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHt
         location += "?" + r->query();
     }
     
-    string msg = "Redirect to" + location;
+    string msg = "Redirect to " + location;
     
     w->header()->set_content_type("text/plain; charset=utf-8");
     w->header()->set_content_length(msg.length());
@@ -304,37 +304,60 @@ srs_error_t SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHt
     return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
 }
 
-SrsHttpFileServer::SrsHttpFileServer(string root_dir)
+string srs_http_fs_fullpath(string dir, string upath, string pattern)
 {
-    dir = root_dir;
-}
-
-SrsHttpFileServer::~SrsHttpFileServer()
-{
-}
-
-srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
-{
-    string upath = r->path();
-    
     // add default pages.
     if (srs_string_ends_with(upath, "/")) {
         upath += SRS_HTTP_DEFAULT_PAGE;
     }
-    
+
     string fullpath = dir + "/";
-    
+
     // remove the virtual directory.
-    srs_assert(entry);
-    size_t pos = entry->pattern.find("/");
-    if (upath.length() > entry->pattern.length() && pos != string::npos) {
-        fullpath += upath.substr(entry->pattern.length() - pos);
+    size_t pos = pattern.find("/");
+    if (upath.length() > pattern.length() && pos != string::npos) {
+        fullpath += upath.substr(pattern.length() - pos);
     } else {
         fullpath += upath;
     }
+
+    return fullpath;
+}
+
+SrsHttpFileServer::SrsHttpFileServer(string root_dir)
+{
+    dir = root_dir;
+    fs_factory = new ISrsFileReaderFactory();
+    _srs_path_exists = srs_path_exists;
+}
+
+SrsHttpFileServer::~SrsHttpFileServer()
+{
+    srs_freep(fs_factory);
+}
+
+SrsHttpFileServer* SrsHttpFileServer::set_fs_factory(ISrsFileReaderFactory* f)
+{
+    srs_freep(fs_factory);
+    fs_factory = f;
+    return this;
+}
+
+SrsHttpFileServer* SrsHttpFileServer::set_path_check(_pfn_srs_path_exists pfn)
+{
+    _srs_path_exists = pfn;
+    return this;
+}
+
+srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_assert(entry);
+
+    string upath = r->path();
+    string fullpath = srs_http_fs_fullpath(dir, upath, entry->pattern);
     
     // stat current dir, if exists, return error.
-    if (!srs_path_exists(fullpath)) {
+    if (!_srs_path_exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s",
                  fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
         return SrsHttpNotFoundHandler().serve_http(w, r);
@@ -357,15 +380,15 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath)
 {
     srs_error_t err = srs_success;
-    
-    // open the target file.
-    SrsFileReader fs;
-    
-    if ((err = fs.open(fullpath)) != srs_success) {
+
+    SrsFileReader* fs = fs_factory->create_file_reader();
+    SrsAutoFree(SrsFileReader, fs);
+
+    if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
     }
     
-    int64_t length = fs.filesize();
+    int64_t length = fs->filesize();
     
     // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
@@ -418,7 +441,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
     
     // write body.
     int64_t left = length;
-    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
         return srs_error_wrap(err, "copy file=%s size=%d", fullpath.c_str(), left);
     }
     

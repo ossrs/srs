@@ -30,6 +30,8 @@ using namespace std;
 #include <srs_utest_protocol.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_file.hpp>
+#include <srs_utest_kernel.hpp>
 
 class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
 {
@@ -90,6 +92,7 @@ srs_error_t MockResponseWriter::filter(SrsHttpHeader* h)
     h->del("Content-Type");
     h->del("Server");
     h->del("Connection");
+    h->del("Location");
     return srs_success;
 }
 
@@ -120,6 +123,9 @@ VOID TEST(ProtocolHTTPTest, ResponseDetect)
     EXPECT_STREQ("application/octet-stream", srs_go_http_detect(NULL, 0).c_str());
 }
 
+#define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
+        EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
+
 VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
 {
     srs_error_t err;
@@ -127,7 +133,7 @@ VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
     if (true) {
         MockResponseWriter w;
         HELPER_EXPECT_SUCCESS(srs_go_http_error(&w, SRS_CONSTS_HTTP_Found));
-        EXPECT_STREQ(mock_http_response(302,"Found").c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str());
+        __MOCK_HTTP_EXPECT_STREQ(302, "Found", w);
     }
 }
 
@@ -163,6 +169,69 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     h.dumps(o);
     EXPECT_EQ(2, o->count());
     srs_freep(o);
+}
+
+class MockFileReaderFactory : public ISrsFileReaderFactory
+{
+public:
+    string bytes;
+    MockFileReaderFactory(string data) {
+        bytes = data;
+    }
+    virtual ~MockFileReaderFactory() {
+    }
+    virtual SrsFileReader* create_file_reader() {
+        return new MockSrsFileReader((const char*)bytes.data(), (int)bytes.length());
+    }
+};
+
+bool _mock_srs_path_exists(std::string path)
+{
+    return true;
+}
+
+VOID TEST(ProtocolHTTPTest, BasicHandlers)
+{
+    srs_error_t err;
+
+    if (true) {
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp", "/tmp/index.html", "/").c_str());
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"))->set_path_check(_mock_srs_path_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpRedirectHandler h("/api", 500);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api?v=2.0", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(500, "Redirect to /api?v=2.0", w);
+    }
+
+    if (true) {
+        SrsHttpNotFoundHandler h;
+
+        MockResponseWriter w;
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, NULL));
+        __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+    }
 }
 
 class MockMSegmentsReader : public ISrsReader

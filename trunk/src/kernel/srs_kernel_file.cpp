@@ -175,6 +175,19 @@ srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
     return srs_success;
 }
 
+ISrsFileReaderFactory::ISrsFileReaderFactory()
+{
+}
+
+ISrsFileReaderFactory::~ISrsFileReaderFactory()
+{
+}
+
+SrsFileReader* ISrsFileReaderFactory::create_file_reader()
+{
+    return new SrsFileReader();
+}
+
 SrsFileReader::SrsFileReader()
 {
     fd = -1;
