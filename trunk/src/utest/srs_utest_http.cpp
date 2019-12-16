@@ -128,3 +128,28 @@ VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
         EXPECT_STREQ(mock_http_response(302,"Found").c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str());
     }
 }
+
+VOID TEST(ProtocolHTTPTest, HTTPHeader)
+{
+    SrsHttpHeader h;
+    h.set("Server", "SRS");
+    EXPECT_STREQ("SRS", h.get("Server").c_str());
+
+    stringstream ss;
+    h.write(ss);
+    EXPECT_STREQ("Server: SRS\r\n", ss.str().c_str());
+
+    h.del("Server");
+    EXPECT_TRUE(h.get("Server").empty());
+
+    EXPECT_EQ(-1, h.content_length());
+
+    h.set_content_length(0);
+    EXPECT_EQ(0, h.content_length());
+
+    h.set_content_length(1024);
+    EXPECT_EQ(1024, h.content_length());
+
+    h.set_content_type("text/plain");
+    EXPECT_STREQ("text/plain", h.content_type().c_str());
+}
