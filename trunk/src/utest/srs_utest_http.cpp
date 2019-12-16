@@ -28,6 +28,8 @@ using namespace std;
 #include <srs_http_stack.hpp>
 #include <srs_service_http_conn.hpp>
 #include <srs_utest_protocol.hpp>
+#include <srs_protocol_json.hpp>
+#include <srs_kernel_utility.hpp>
 
 class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
 {
@@ -156,8 +158,211 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     h.set_content_type("text/plain");
     EXPECT_STREQ("text/plain", h.content_type().c_str());
     EXPECT_EQ(2, h.count());
+
+    SrsJsonObject* o = SrsJsonAny::object();
+    h.dumps(o);
+    EXPECT_EQ(2, o->count());
+    srs_freep(o);
 }
 
-VOID TEST(ProtocolHTTPTest, HTTPCommonHandler)
+class MockMSegmentsReader : public ISrsReader
 {
+public:
+    vector<string> in_bytes;
+public:
+    MockMSegmentsReader();
+    virtual ~MockMSegmentsReader();
+public:
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+};
+
+MockMSegmentsReader::MockMSegmentsReader()
+{
+}
+
+MockMSegmentsReader::~MockMSegmentsReader()
+{
+}
+
+srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
+{
+    srs_error_t err = srs_success;
+
+    for (;;) {
+        if (in_bytes.empty() || size <= 0) {
+            return srs_error_new(-1, "EOF");
+        }
+
+        string v = in_bytes[0];
+        if (v.empty()) {
+            in_bytes.erase(in_bytes.begin());
+            continue;
+        }
+
+        int nn = srs_min(size, v.length());
+        memcpy(buf, v.data(), nn);
+        if (nread) {
+            *nread = nn;
+        }
+
+        if (nn < (int)v.length()) {
+            in_bytes[0] = string(v.data() + nn, v.length() - nn);
+        } else {
+            in_bytes.erase(in_bytes.begin());
+        }
+        break;
+    }
+
+    return err;
+}
+
+VOID TEST(ProtocolHTTPTest, MSegmentsReader)
+{
+    srs_error_t err;
+
+    MockMSegmentsReader r;
+    r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+    r.in_bytes.push_back("Host: ossrs.net\r\n");
+
+    if (true) {
+        char buf[1024];
+        HELPER_ARRAY_INIT(buf, 1024, 0);
+
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(r.read(buf, 1024, &nn));
+        ASSERT_EQ(31, nn);
+        EXPECT_STREQ("GET /api/v1/versions HTTP/1.1\r\n", buf);
+    }
+
+    if (true) {
+        char buf[1024];
+        HELPER_ARRAY_INIT(buf, 1024, 0);
+
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(r.read(buf, 1024, &nn));
+        ASSERT_EQ(17, nn);
+        EXPECT_STREQ("Host: ossrs.net\r\n", buf);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r");
+        r.in_bytes.push_back("\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("User-Agent: curl/7.54.0\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        EXPECT_STREQ("curl/7.54.0", msg->header()->get("User-Agent").c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("User-");
+        r.in_bytes.push_back("Agent: curl/7.54.0\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        EXPECT_STREQ("curl/7.54.0", msg->header()->get("User-Agent").c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("User-");
+        r.in_bytes.push_back("Agent: curl");
+        r.in_bytes.push_back("/7.54.0\r\n");
+        r.in_bytes.push_back("Host: ossrs");
+        r.in_bytes.push_back(".net\r\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        EXPECT_STREQ("curl/7.54.0", msg->header()->get("User-Agent").c_str());
+        srs_freep(msg);
+    }
+
+    if (true) {
+        MockMSegmentsReader r;
+        r.in_bytes.push_back("GET /api/v1/versions HTTP/1.1\r\n");
+        r.in_bytes.push_back("Host: ossrs.net\r\n");
+        r.in_bytes.push_back("\r\n");
+
+        SrsHttpParser p;
+        HELPER_ASSERT_SUCCESS(p.initialize(HTTP_REQUEST, false));
+
+        ISrsHttpMessage* msg = NULL;
+        HELPER_ASSERT_SUCCESS(p.parse_message(&r, &msg));
+        EXPECT_TRUE(msg->is_http_get());
+        EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+        EXPECT_STREQ("ossrs.net", msg->host().c_str());
+        srs_freep(msg);
+    }
 }

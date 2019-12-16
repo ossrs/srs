@@ -49,8 +49,6 @@ private:
     // Whether allow jsonp parse.
     bool jsonp;
 private:
-    // http parse data, reset before parse message.
-    bool expect_field_name;
     std::string field_name;
     std::string field_value;
     SrsHttpParseState state;

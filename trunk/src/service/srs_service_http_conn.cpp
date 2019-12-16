@@ -79,12 +79,10 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     // Reset request data.
     state = SrsHttpParseStateInit;
     hp_header = http_parser();
-    // Reset the message url.
-    url = "";
     // The body that we have read from cache.
     pbody = NULL;
-    // Reset the temporarily parsed header field.
-    expect_field_name = true;
+    // We must reset the field name and value, because we may get a partial value in on_header_value.
+    field_name = field_value = "";
     // The header of the request.
     srs_freep(header);
     header = new SrsHttpHeader();
@@ -143,6 +141,11 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
         if ((err = buffer->grow(reader, buffer->size() + 1)) != srs_success) {
             return srs_error_wrap(err, "grow buffer");
         }
+    }
+
+    SrsHttpParser* obj = this;
+    if (!obj->field_value.empty()) {
+        obj->header->set(obj->field_name, obj->field_value);
     }
     
     return err;
@@ -206,15 +209,14 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
-    
-    // field value=>name, reap the field.
-    if (!obj->expect_field_name) {
+
+    if (!obj->field_value.empty()) {
         obj->header->set(obj->field_name, obj->field_value);
+        obj->field_name = obj->field_value = "";
     }
-    obj->expect_field_name = true;
     
     if (length > 0) {
-        obj->field_name = string(at, (int)length);
+        obj->field_name.append(at, (int)length);
     }
     
     srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
@@ -227,9 +229,8 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     srs_assert(obj);
     
     if (length > 0) {
-        obj->field_value = string(at, (int)length);
+        obj->field_value.append(at, (int)length);
     }
-    obj->expect_field_name = false;
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
