@@ -304,22 +304,31 @@ srs_error_t SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHt
     return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
 }
 
-string srs_http_fs_fullpath(string dir, string upath, string pattern)
+string srs_http_fs_fullpath(string dir, string pattern, string upath)
 {
     // add default pages.
     if (srs_string_ends_with(upath, "/")) {
         upath += SRS_HTTP_DEFAULT_PAGE;
     }
 
-    string fullpath = dir + "/";
-
-    // remove the virtual directory.
+    // Remove the virtual directory.
+    // For example:
+    //      pattern=/api, the virtual directory is api, upath=/api/index.html, fullpath={dir}/index.html
+    //      pattern=/api, the virtual directory is api, upath=/api/views/index.html, fullpath={dir}/views/index.html
+    // The vhost prefix is ignored, for example:
+    //      pattern=ossrs.net/api, the vhost is ossrs.net, the pattern equals to /api under this vhost,
+    //      so the virtual directory is also api
     size_t pos = pattern.find("/");
+    string filename = upath;
     if (upath.length() > pattern.length() && pos != string::npos) {
-        fullpath += upath.substr(pattern.length() - pos);
-    } else {
-        fullpath += upath;
+        filename = upath.substr(pattern.length() - pos);
     }
+
+    string fullpath = srs_string_trim_end(dir, "/");
+    if (!srs_string_starts_with(filename, "/")) {
+        fullpath += "/";
+    }
+    fullpath += filename;
 
     return fullpath;
 }
@@ -354,7 +363,7 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
     srs_assert(entry);
 
     string upath = r->path();
-    string fullpath = srs_http_fs_fullpath(dir, upath, entry->pattern);
+    string fullpath = srs_http_fs_fullpath(dir, entry->pattern, upath);
     
     // stat current dir, if exists, return error.
     if (!_srs_path_exists(fullpath)) {

@@ -281,7 +281,7 @@ public:
 typedef bool (*_pfn_srs_path_exists)(std::string path);
 
 // Build the file path from request r.
-extern std::string srs_http_fs_fullpath(std::string dir, std::string upath, std::string pattern);
+extern std::string srs_http_fs_fullpath(std::string dir, std::string pattern, std::string upath);
 
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.

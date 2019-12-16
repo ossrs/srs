@@ -185,7 +185,7 @@ public:
     }
 };
 
-bool _mock_srs_path_exists(std::string path)
+bool _mock_srs_path_exists(std::string /*path*/)
 {
     return true;
 }
@@ -195,7 +195,15 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
     srs_error_t err;
 
     if (true) {
-        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp", "/tmp/index.html", "/").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp", "/", "/").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp", "/", "/index.html").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp/", "/", "/index.html").c_str());
+        EXPECT_STREQ("/tmp/ndex.html", srs_http_fs_fullpath("/tmp/", "//", "/index.html").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp/", "/api", "/api/index.html").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp/", "ossrs.net/api", "/api/index.html").c_str());
+        EXPECT_STREQ("/tmp/views/index.html", srs_http_fs_fullpath("/tmp/", "/api", "/api/views/index.html").c_str());
+        EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp/", "/api/", "/api/index.html").c_str());
+        EXPECT_STREQ("/tmp/ndex.html", srs_http_fs_fullpath("/tmp/", "/api//", "/api/index.html").c_str());
     }
 
     if (true) {
