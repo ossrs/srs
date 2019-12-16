@@ -258,7 +258,6 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
     infinite_chunked = false;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, reader, buffer);
-    _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
 
     jsonp = false;
 
@@ -272,7 +271,6 @@ SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
     srs_freep(_uri);
-    srs_freepa(_http_ts_send_buffer);
 }
 
 void SrsHttpMessage::set_basic(uint8_t method, uint16_t status, int64_t content_length)

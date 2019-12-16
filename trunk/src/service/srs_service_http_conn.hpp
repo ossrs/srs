@@ -100,8 +100,6 @@ private:
     // Whether the body is infinite chunked.
     bool infinite_chunked;
     // Use a buffer to read and send ts file.
-    // TODO: FIXME: remove it.
-    char* _http_ts_send_buffer;
     // The transport connection, can be NULL.
     SrsConnection* owner_conn;
 private:

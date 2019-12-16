@@ -63,9 +63,6 @@ class SrsJsonObject;
 #define SRS_HTTP_CRLF "\r\n" // 0x0D0A
 #define SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
-// @see ISrsHttpMessage._http_ts_send_buffer
-#define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
-
 // For ead all of http body, read each time.
 #define SRS_HTTP_READ_CACHE_BYTES 4096
 
@@ -455,16 +452,9 @@ public:
 // @rmark for mode 2, the infinite chunked, all left data is body.
 class ISrsHttpMessage
 {
-private:
-    // Use a buffer to read and send ts file.
-    // TODO: FIXME: remove it.
-    char* _http_ts_send_buffer;
 public:
     ISrsHttpMessage();
     virtual ~ISrsHttpMessage();
-public:
-    // The http request level cache.
-    virtual char* http_ts_send_buffer();
 public:
     virtual uint8_t method() = 0;
     virtual uint16_t status_code() = 0;

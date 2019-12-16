@@ -35,8 +35,12 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
+
+// @see ISrsHttpMessage._http_ts_send_buffer
+#define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // get the status text of code.
 string srs_generate_http_status_text(int status)
@@ -492,7 +496,8 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
     srs_error_t err = srs_success;
     
     int left = size;
-    char* buf = r->http_ts_send_buffer();
+    char* buf = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
+    SrsAutoFreeA(char, buf);
     
     while (left > 0) {
         ssize_t nread = -1;
@@ -822,17 +827,10 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
 ISrsHttpMessage::ISrsHttpMessage()
 {
-    _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 ISrsHttpMessage::~ISrsHttpMessage()
 {
-    srs_freepa(_http_ts_send_buffer);
-}
-
-char* ISrsHttpMessage::http_ts_send_buffer()
-{
-    return _http_ts_send_buffer;
 }
 
 SrsHttpUri::SrsHttpUri()
