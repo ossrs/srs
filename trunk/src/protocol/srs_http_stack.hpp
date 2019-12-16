@@ -428,9 +428,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-// For http header.
-typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //

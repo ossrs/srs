@@ -37,6 +37,9 @@ class ISrsReader;
 class SrsHttpResponseReader;
 class ISrsProtocolReadWriter;
 
+// For http header.
+typedef std::pair<std::string, std::string> SrsHttpHeaderField;
+
 // A wrapper for http-parser,
 // provides HTTP message originted service.
 class SrsHttpParser
@@ -101,8 +104,6 @@ private:
     std::string _url;
     // The extension of file, for example, .flv
     std::string _ext;
-    // parsed http header.
-    http_parser _header;
     // The body object, reader object.
     // @remark, user can get body in string by get_body().
     SrsHttpResponseReader* _body;
@@ -110,8 +111,6 @@ private:
     bool chunked;
     // Whether the body is infinite chunked.
     bool infinite_chunked;
-    // Whether the request indicates should keep alive for the http connection.
-    bool keep_alive;
     // The uri parser
     SrsHttpUri* _uri;
     // Use a buffer to read and send ts file.
@@ -123,16 +122,25 @@ private:
     std::map<std::string, std::string> _query;
     // The transport connection, can be NULL.
     SrsConnection* owner_conn;
+private:
+    uint8_t _method;
+    uint16_t _status;
+    int64_t _content_length;
+    // Whether the request indicates should keep alive for the http connection.
+    bool _keep_alive;
+private:
     // Whether request is jsonp.
     bool jsonp;
     // The method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(ISrsReader* io);
+    SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer);
     virtual ~SrsHttpMessage();
 public:
+    // Set the basic information for HTTP request.
+    virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length, bool keep_alive);
     // set the original messages, then update the message.
-    virtual srs_error_t update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
+    virtual srs_error_t update(std::string url, bool allow_jsonp, std::vector<SrsHttpHeaderField>& headers);
 public:
     // Get the owner connection, maybe NULL.
     virtual SrsConnection* connection();
@@ -261,11 +269,10 @@ private:
     // Already read total bytes.
     int64_t nb_total_read;
 public:
-    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader);
+    // Generally the reader is the under-layer io such as socket,
+    // while buffer is a fast cache which may have cached some data from reader.
+    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader, SrsFastStream* buffer);
     virtual ~SrsHttpResponseReader();
-public:
-    // Initialize the response reader with buffer.
-    virtual srs_error_t initialize(SrsFastStream* buffer);
 // Interface ISrsHttpResponseReader
 public:
     virtual bool eof();

@@ -153,3 +153,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     h.set_content_type("text/plain");
     EXPECT_STREQ("text/plain", h.content_type().c_str());
 }
+
+VOID TEST(ProtocolHTTPTest, HTTPCommonHandler)
+{
+}
