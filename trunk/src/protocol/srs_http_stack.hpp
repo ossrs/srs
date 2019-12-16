@@ -108,6 +108,11 @@ enum SrsHttpParseState {
 class SrsHttpHeader
 {
 private:
+    // The order in which header fields with differing field names are
+    // received is not significant. However, it is "good practice" to send
+    // general-header fields first, followed by request-header or response-
+    // header fields, and ending with the entity-header fields.
+    // @doc https://tools.ietf.org/html/rfc2616#section-4.2
     std::map<std::string, std::string> headers;
 public:
     SrsHttpHeader();
