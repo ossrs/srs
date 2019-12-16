@@ -173,6 +173,20 @@ void SrsHttpHeader::del(string key)
     }
 }
 
+int SrsHttpHeader::count()
+{
+    return (int)headers.size();
+}
+
+void SrsHttpHeader::dumps(SrsJsonObject* o)
+{
+    map<string, string>::iterator it;
+    for (it = headers.begin(); it != headers.end(); ++it) {
+        string v = it->second;
+        o->set(it->first, SrsJsonAny::str(v.c_str()));
+    }
+}
+
 int64_t SrsHttpHeader::content_length()
 {
     std::string cl = get("Content-Length");
@@ -776,13 +790,8 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     
     // If CORS enabled, and there is a "Origin" header, it's CORS.
     if (enabled) {
-        for (int i = 0; i < r->request_header_count(); i++) {
-            string k = r->request_header_key_at(i);
-            if (k == "Origin" || k == "origin") {
-                required = true;
-                break;
-            }
-        }
+        SrsHttpHeader* h = r->header();
+        required = !h->get("Origin").empty();
     }
     
     // When CORS required, set the CORS headers.

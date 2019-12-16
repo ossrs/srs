@@ -45,6 +45,7 @@ class SrsHttpHeader;
 class ISrsHttpMessage;
 class SrsHttpMuxEntry;
 class ISrsHttpResponseWriter;
+class SrsJsonObject;
 
 // From http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -129,6 +130,11 @@ public:
     // Delete the http header indicated by key.
     // Return the removed header field.
     virtual void del(std::string);
+    // Get the count of headers.
+    virtual int count();
+public:
+    // Dumps to a JSON object.
+    virtual void dumps(SrsJsonObject* o);
 public:
     // Get the content length. -1 if not set.
     virtual int64_t content_length();
@@ -505,9 +511,7 @@ public:
     // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key) = 0;
     // Get the headers.
-    virtual int request_header_count() = 0;
-    virtual std::string request_header_key_at(int index) = 0;
-    virtual std::string request_header_value_at(int index) = 0;
+    virtual SrsHttpHeader* header() = 0;
 public:
     // Whether the current request is JSONP,
     // which has a "callback=xxx" in QueryString.

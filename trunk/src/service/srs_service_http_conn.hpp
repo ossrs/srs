@@ -37,9 +37,6 @@ class ISrsReader;
 class SrsHttpResponseReader;
 class ISrsProtocolReadWriter;
 
-// For http header.
-typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-
 // A wrapper for http-parser,
 // provides HTTP message originted service.
 class SrsHttpParser
@@ -57,9 +54,9 @@ private:
     std::string field_name;
     std::string field_value;
     SrsHttpParseState state;
-    http_parser header;
+    http_parser hp_header;
     std::string url;
-    std::vector<SrsHttpHeaderField> headers;
+    SrsHttpHeader* header;
     const char* pbody;
 public:
     SrsHttpParser();
@@ -88,9 +85,6 @@ private:
     static int on_body(http_parser* parser, const char* at, size_t length);
 };
 
-// for http header.
-typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -100,34 +94,36 @@ typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 class SrsHttpMessage : public ISrsHttpMessage
 {
 private:
-    // The parsed url.
-    std::string _url;
-    // The extension of file, for example, .flv
-    std::string _ext;
     // The body object, reader object.
     // @remark, user can get body in string by get_body().
     SrsHttpResponseReader* _body;
-    // Whether the body is chunked.
-    bool chunked;
     // Whether the body is infinite chunked.
     bool infinite_chunked;
-    // The uri parser
-    SrsHttpUri* _uri;
     // Use a buffer to read and send ts file.
     // TODO: FIXME: remove it.
     char* _http_ts_send_buffer;
-    // The http headers
-    std::vector<SrsHttpHeaderField> _headers;
-    // The query map
-    std::map<std::string, std::string> _query;
     // The transport connection, can be NULL.
     SrsConnection* owner_conn;
 private:
     uint8_t _method;
     uint16_t _status;
     int64_t _content_length;
+private:
+    // The http headers
+    SrsHttpHeader _header;
     // Whether the request indicates should keep alive for the http connection.
     bool _keep_alive;
+    // Whether the body is chunked.
+    bool chunked;
+private:
+    // The parsed url.
+    std::string _url;
+    // The extension of file, for example, .flv
+    std::string _ext;
+    // The uri parser
+    SrsHttpUri* _uri;
+    // The query map
+    std::map<std::string, std::string> _query;
 private:
     // Whether request is jsonp.
     bool jsonp;
@@ -138,9 +134,11 @@ public:
     virtual ~SrsHttpMessage();
 public:
     // Set the basic information for HTTP request.
-    virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length, bool keep_alive);
+    virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length);
+    // Set HTTP header and whether the request require keep alive.
+    virtual void set_header(SrsHttpHeader* header, bool keep_alive);
     // set the original messages, then update the message.
-    virtual srs_error_t update(std::string url, bool allow_jsonp, std::vector<SrsHttpHeaderField>& headers);
+    virtual srs_error_t set_url(std::string url, bool allow_jsonp);
 public:
     // Get the owner connection, maybe NULL.
     virtual SrsConnection* connection();
@@ -187,10 +185,7 @@ public:
     // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key);
     // Get the headers.
-    virtual int request_header_count();
-    virtual std::string request_header_key_at(int index);
-    virtual std::string request_header_value_at(int index);
-    virtual std::string get_request_header(std::string name);
+    virtual SrsHttpHeader* header();
 public:
     // Convert the http message to a request.
     // @remark user must free the return request.

@@ -134,6 +134,7 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     SrsHttpHeader h;
     h.set("Server", "SRS");
     EXPECT_STREQ("SRS", h.get("Server").c_str());
+    EXPECT_EQ(1, h.count());
 
     stringstream ss;
     h.write(ss);
@@ -141,17 +142,20 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
 
     h.del("Server");
     EXPECT_TRUE(h.get("Server").empty());
+    EXPECT_EQ(0, h.count());
 
     EXPECT_EQ(-1, h.content_length());
 
     h.set_content_length(0);
     EXPECT_EQ(0, h.content_length());
+    EXPECT_EQ(1, h.count());
 
     h.set_content_length(1024);
     EXPECT_EQ(1024, h.content_length());
 
     h.set_content_type("text/plain");
     EXPECT_STREQ("text/plain", h.content_type().c_str());
+    EXPECT_EQ(2, h.count());
 }
 
 VOID TEST(ProtocolHTTPTest, HTTPCommonHandler)
