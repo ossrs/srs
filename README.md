@@ -145,6 +145,9 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-17, Refactor HTTP stream to disconnect client when unpublish.
+* v3.0, 2019-12-17, Fix HTTP-FLV and VOD-FLV conflicting bug.
+* v3.0, 2019-12-17, Refactor HttpResponseWriter.write, default to single text mode.
 * v3.0, 2019-12-16, For [#1042][bug #1042], add test for HTTP protocol.
 * <strong>v3.0, 2019-12-13, [3.0 alpha4(3.0.71)][r3.0a4] released. 112928 lines.</strong>
 * v3.0, 2019-12-12, For [#547][bug #547], [#1506][bug #1506], default hls_dts_directly to on. 3.0.71
