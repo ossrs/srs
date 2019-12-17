@@ -387,10 +387,9 @@ srs_error_t SrsRtspConn::cycle()
     
     if (err == srs_success) {
         srs_trace("client finished.");
-    } else if (srs_is_client_gracefully_close(srs_error_code(err))) {
+    } else if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. code=%d", srs_error_code(err));
         srs_freep(err);
-        err = srs_success;
     }
     
     if (video_rtp) {

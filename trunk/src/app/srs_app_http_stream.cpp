@@ -661,7 +661,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
 
-    return err;
+    // Here, the entry is disabled by encoder un-publishing or reloading,
+    // so we must return a io.EOF error to disconnect the client, or the client will never quit.
+    return srs_error_new(ERROR_HTTP_STREAM_EOF, "Stream EOF");
 }
 
 srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage* r)

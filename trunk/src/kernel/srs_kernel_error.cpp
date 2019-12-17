@@ -30,30 +30,26 @@
 #include <stdarg.h>
 using namespace std;
 
-bool srs_is_system_control_error(int error_code)
+bool srs_is_system_control_error(srs_error_t err)
 {
+    int error_code = srs_error_code(err);
     return error_code == ERROR_CONTROL_RTMP_CLOSE
         || error_code == ERROR_CONTROL_REPUBLISH
         || error_code == ERROR_CONTROL_REDIRECT;
 }
 
-bool srs_is_system_control_error(srs_error_t err)
+bool srs_is_client_gracefully_close(srs_error_t err)
 {
     int error_code = srs_error_code(err);
-    return srs_is_system_control_error(error_code);
-}
-
-bool srs_is_client_gracefully_close(int error_code)
-{
     return error_code == ERROR_SOCKET_READ
         || error_code == ERROR_SOCKET_READ_FULLY
         || error_code == ERROR_SOCKET_WRITE;
 }
 
-bool srs_is_client_gracefully_close(srs_error_t err)
+bool srs_is_server_gracefully_close(srs_error_t err)
 {
-    int error_code = srs_error_code(err);
-    return srs_is_client_gracefully_close(error_code);
+    int code = srs_error_code(err);
+    return code == ERROR_HTTP_STREAM_EOF;
 }
 
 SrsCplxError::SrsCplxError()
