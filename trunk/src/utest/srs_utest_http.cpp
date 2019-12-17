@@ -381,6 +381,25 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerImplicitHandler)
 {
     srs_error_t err;
 
+    // Implicit handler.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api", h1));
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
     // Fail if explicit handler exists.
     if (true) {
         SrsHttpServeMux s;

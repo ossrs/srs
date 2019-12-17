@@ -667,16 +667,13 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
         std::string rpattern = pattern.substr(0, pattern.length() - 1);
         SrsHttpMuxEntry* entry = NULL;
         
-        // free the exists not explicit entry
+        // free the exists implicit entry
         if (entries.find(rpattern) != entries.end()) {
-            SrsHttpMuxEntry* exists = entries[rpattern];
-            if (!exists->explicit_match) {
-                entry = exists;
-            }
+            entry = entries[rpattern];
         }
         
         // create implicit redirect.
-        if (!entry || entry->explicit_match) {
+        if (!entry || !entry->explicit_match) {
             srs_freep(entry);
             
             entry = new SrsHttpMuxEntry();
