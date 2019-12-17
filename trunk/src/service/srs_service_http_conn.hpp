@@ -163,6 +163,7 @@ public:
     // The url maybe the path.
     virtual std::string url();
     virtual std::string host();
+    virtual int port();
     virtual std::string path();
     virtual std::string query();
     virtual std::string ext();

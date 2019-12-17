@@ -1265,6 +1265,39 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
 
 VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 {
+    // Port use 80 if error.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net:-1");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        m.set_url("/api/v1", false);
+        EXPECT_EQ(80, m.port());
+    }
+
+    // Port default to 80.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        m.set_url("/api/v1", false);
+        EXPECT_EQ(80, m.port());
+    }
+
+    // For port not 80.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net:8080");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        m.set_url("/api/v1", false);
+        EXPECT_EQ(8080, m.port());
+    }
+
     // The host is overwrite by header.
     if (true) {
         SrsHttpHeader h;

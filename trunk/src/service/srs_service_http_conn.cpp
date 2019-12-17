@@ -460,6 +460,11 @@ string SrsHttpMessage::host()
     return _uri->get_host();
 }
 
+int SrsHttpMessage::port()
+{
+    return _uri->get_port();
+}
+
 string SrsHttpMessage::path()
 {
     return _uri->get_path();
