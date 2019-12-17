@@ -619,9 +619,16 @@ SrsHttpResponseWriter::~SrsHttpResponseWriter()
 
 srs_error_t SrsHttpResponseWriter::final_request()
 {
+    srs_error_t err = srs_success;
+
     // write the header data in memory.
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
+    }
+
+    // whatever header is wrote, we should try to send header.
+    if ((err = send_header(NULL, 0)) != srs_success) {
+        return srs_error_wrap(err, "send header");
     }
     
     // complete the chunked encoding.
@@ -666,7 +673,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     }
     
     // ignore NULL content.
-    if (!data) {
+    if (!data || size <= 0) {
         return err;
     }
     
@@ -811,7 +818,7 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     
     // detect content type
     if (srs_go_http_body_allowd(status)) {
-        if (hdr->content_type().empty()) {
+        if (data && hdr->content_type().empty()) {
             hdr->set_content_type(srs_go_http_detect(data, size));
         }
     }

@@ -108,6 +108,16 @@ string mock_http_response(int status, string content)
     return ss.str();
 }
 
+string mock_http_response2(int status, string content)
+{
+    stringstream ss;
+    ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
+        << "Transfer-Encoding: chunked" << "\r\n"
+        << "\r\n"
+        << content;
+    return ss.str();
+}
+
 class MockFileReaderFactory : public ISrsFileReaderFactory
 {
 public:
@@ -149,6 +159,9 @@ bool _mock_srs_path_not_exists(std::string /*path*/)
 #define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
         EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
 
+#define __MOCK_HTTP_EXPECT_STREQ2(status, text, w) \
+        EXPECT_STREQ(mock_http_response2(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
+
 VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 {
     EXPECT_STREQ(SRS_CONSTS_HTTP_OK_str, srs_generate_http_status_text(SRS_CONSTS_HTTP_OK).c_str());
@@ -169,6 +182,7 @@ VOID TEST(ProtocolHTTPTest, ResponseDetect)
 
 VOID TEST(ProtocolHTTPTest, ResponseWriter)
 {
+    // If directly write string, response with content-length.
     if (true) {
         MockResponseWriter w;
 
@@ -176,6 +190,70 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
         w.write((char*)msg, sizeof(msg) - 1);
 
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // Response with specified length string, response with content-length.
+    if (true) {
+        MockResponseWriter w;
+
+        char msg[] = "Hello, world!";
+
+        w.header()->set_content_type("text/plain; charset=utf-8");
+        w.header()->set_content_length(sizeof(msg) - 1);
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write((char*)msg, sizeof(msg) - 1);
+        w.final_request();
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // If set content-length to 0 then final_request, send an empty resonse with content-length 0.
+    if (true) {
+        MockResponseWriter w;
+
+        w.header()->set_content_length(0);
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.final_request();
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "", w);
+    }
+
+    // If set content-length to 0 then write, send an empty resonse with content-length 0.
+    if (true) {
+        MockResponseWriter w;
+
+        w.header()->set_content_length(0);
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write(NULL, 0);
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "", w);
+    }
+
+    // If write_header without content-length, enter chunked encoding mode.
+    if (true) {
+        MockResponseWriter w;
+
+        w.header()->set_content_type("application/octet-stream");
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write((char*)"Hello", 5);
+        w.write((char*)", world!", 8);
+        w.final_request();
+
+        __MOCK_HTTP_EXPECT_STREQ2(200, "5\r\nHello\r\n8\r\n, world!\r\n0\r\n\r\n", w);
+    }
+
+    // If directly write empty string, sent an empty response with content-length 0
+    if (true) {
+        MockResponseWriter w;
+        w.write(NULL, 0);
+        __MOCK_HTTP_EXPECT_STREQ(200, "", w);
+    }
+
+    // If directly final request, response with EOF of chunked.
+    if (true) {
+        MockResponseWriter w;
+        w.final_request();
+        __MOCK_HTTP_EXPECT_STREQ2(200, "0\r\n\r\n", w);
     }
 }
 
@@ -356,7 +434,24 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?start=2", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=12-3", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=2-3", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
@@ -444,6 +539,7 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
 
     if (true) {
         SrsHttpRedirectHandler h("/api", 500);
+        EXPECT_FALSE(h.is_not_found());
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);

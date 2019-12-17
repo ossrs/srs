@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-17, Enhance HTTP response write for final_request.
 * v3.0, 2019-12-17, Refactor HTTP stream to disconnect client when unpublish.
 * v3.0, 2019-12-17, Fix HTTP-FLV and VOD-FLV conflicting bug.
 * v3.0, 2019-12-17, Refactor HttpResponseWriter.write, default to single text mode.
