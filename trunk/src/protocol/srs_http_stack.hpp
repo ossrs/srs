@@ -45,6 +45,8 @@ class SrsHttpHeader;
 class ISrsHttpMessage;
 class SrsHttpMuxEntry;
 class ISrsHttpResponseWriter;
+class SrsJsonObject;
+class ISrsFileReaderFactory;
 
 // From http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -61,9 +63,6 @@ class ISrsHttpResponseWriter;
 // tolerant applications).
 #define SRS_HTTP_CRLF "\r\n" // 0x0D0A
 #define SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
-
-// @see ISrsHttpMessage._http_ts_send_buffer
-#define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // For ead all of http body, read each time.
 #define SRS_HTTP_READ_CACHE_BYTES 4096
@@ -108,6 +107,11 @@ enum SrsHttpParseState {
 class SrsHttpHeader
 {
 private:
+    // The order in which header fields with differing field names are
+    // received is not significant. However, it is "good practice" to send
+    // general-header fields first, followed by request-header or response-
+    // header fields, and ending with the entity-header fields.
+    // @doc https://tools.ietf.org/html/rfc2616#section-4.2
     std::map<std::string, std::string> headers;
 public:
     SrsHttpHeader();
@@ -121,6 +125,14 @@ public:
     // To access multiple values of a key, access the map directly
     // with CanonicalHeaderKey.
     virtual std::string get(std::string key);
+    // Delete the http header indicated by key.
+    // Return the removed header field.
+    virtual void del(std::string);
+    // Get the count of headers.
+    virtual int count();
+public:
+    // Dumps to a JSON object.
+    virtual void dumps(SrsJsonObject* o);
 public:
     // Get the content length. -1 if not set.
     virtual int64_t content_length();
@@ -138,7 +150,11 @@ public:
 
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
-// Usage 1, response with specified length content:
+// Usage 0, response with a message once:
+//      ISrsHttpResponseWriter* w; // create or get response.
+//      std::string msg = "Hello, HTTP!";
+//      w->write((char*)msg.data(), (int)msg.length());
+// Usage 1, response with specified length content, same to #0:
 //      ISrsHttpResponseWriter* w; // create or get response.
 //      std::string msg = "Hello, HTTP!";
 //      w->header()->set_content_type("text/plain; charset=utf-8");
@@ -265,6 +281,12 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+// For utest to mock it.
+typedef bool (*_pfn_srs_path_exists)(std::string path);
+
+// Build the file path from request r.
+extern std::string srs_http_fs_fullpath(std::string dir, std::string pattern, std::string upath);
+
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
 //
@@ -277,9 +299,17 @@ class SrsHttpFileServer : public ISrsHttpHandler
 {
 protected:
     std::string dir;
+protected:
+    ISrsFileReaderFactory* fs_factory;
+    _pfn_srs_path_exists _srs_path_exists;
 public:
     SrsHttpFileServer(std::string root_dir);
     virtual ~SrsHttpFileServer();
+private:
+    // For utest to mock the fs.
+    virtual void set_fs_factory(ISrsFileReaderFactory* v);
+    // For utest to mock the path check function.
+    virtual void set_path_check(_pfn_srs_path_exists pfn);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
@@ -420,9 +450,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-// For http header.
-typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -444,16 +471,9 @@ typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 // @rmark for mode 2, the infinite chunked, all left data is body.
 class ISrsHttpMessage
 {
-private:
-    // Use a buffer to read and send ts file.
-    // TODO: FIXME: remove it.
-    char* _http_ts_send_buffer;
 public:
     ISrsHttpMessage();
     virtual ~ISrsHttpMessage();
-public:
-    // The http request level cache.
-    virtual char* http_ts_send_buffer();
 public:
     virtual uint8_t method() = 0;
     virtual uint16_t status_code() = 0;
@@ -500,9 +520,7 @@ public:
     // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key) = 0;
     // Get the headers.
-    virtual int request_header_count() = 0;
-    virtual std::string request_header_key_at(int index) = 0;
-    virtual std::string request_header_value_at(int index) = 0;
+    virtual SrsHttpHeader* header() = 0;
 public:
     // Whether the current request is JSONP,
     // which has a "callback=xxx" in QueryString.

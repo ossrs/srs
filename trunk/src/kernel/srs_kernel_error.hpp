@@ -320,6 +320,7 @@
 #define ERROR_HTTP_REQUEST_EOF              4029
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
+#define ERROR_HTTP_STREAM_EOF               4040
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
@@ -336,10 +337,11 @@
 
 // Whether the error code is an system control error.
 // TODO: FIXME: Remove it from underlayer for confused with error and logger.
-extern bool srs_is_system_control_error(int error_code);
 extern bool srs_is_system_control_error(srs_error_t err);
-extern bool srs_is_client_gracefully_close(int error_code);
+// It's closed by client.
 extern bool srs_is_client_gracefully_close(srs_error_t err);
+// It's closed by server, such as streaming EOF.
+extern bool srs_is_server_gracefully_close(srs_error_t err);
 
 // The complex error carries code, message, callstack and instant variables,
 // which is more strong and easy to locate problem by log,

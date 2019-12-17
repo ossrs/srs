@@ -37,6 +37,7 @@
 #include <stdlib.h>
 
 #include <vector>
+#include <algorithm>
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -449,6 +450,16 @@ bool srs_string_contains(string str, string flag0, string flag1)
 bool srs_string_contains(string str, string flag0, string flag1, string flag2)
 {
     return str.find(flag0) != string::npos || str.find(flag1) != string::npos || str.find(flag2) != string::npos;
+}
+
+int srs_string_count(string str, string flag)
+{
+    int nn = 0;
+    for (int i = 0; i < (int)flag.length(); i++) {
+        char ch = flag.at(i);
+        nn += std::count(str.begin(), str.end(), ch);
+    }
+    return nn;
 }
 
 vector<string> srs_string_split(string str, string flag)

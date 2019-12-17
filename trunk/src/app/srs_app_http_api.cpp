@@ -664,12 +664,7 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // request headers
     SrsJsonObject* headers = SrsJsonAny::object();
     data->set("headers", headers);
-    
-    for (int i = 0; i < r->request_header_count(); i++) {
-        std::string key = r->request_header_key_at(i);
-        std::string value = r->request_header_value_at(i);
-        headers->set(key, SrsJsonAny::str(value.c_str()));
-    }
+    r->header()->dumps(headers);
     
     // server informations
     SrsJsonObject* server = SrsJsonAny::object();

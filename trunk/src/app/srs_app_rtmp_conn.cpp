@@ -390,8 +390,8 @@ srs_error_t SrsRtmpConn::service_cycle()
         
         // stream service must terminated with error, never success.
         // when terminated with success, it's user required to stop.
-        if (srs_error_code(err) == ERROR_SUCCESS) {
-            srs_freep(err);
+        // TODO: FIXME: Support RTMP client timeout, https://github.com/ossrs/srs/issues/1134
+        if (err == srs_success) {
             continue;
         }
         

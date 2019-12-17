@@ -25,21 +25,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_UTEST_PROTO_STACK_HPP
 
 /*
-#include <srs_utest_protostack.hpp>
+#include <srs_utest_http.hpp>
 */
 #include <srs_utest.hpp>
 
-#include <string>
-#include <srs_protocol_utility.hpp>
-
-#include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_handshake.hpp>
-#include <srs_protocol_stream.hpp>
-#include <srs_protocol_kbps.hpp>
-
-using namespace _srs_internal;
-
-#include <srs_protocol_io.hpp>
+#include <srs_utest_protocol.hpp>
 
 #endif
 

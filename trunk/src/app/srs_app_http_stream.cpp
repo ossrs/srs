@@ -540,6 +540,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         return srs_error_new(ERROR_HTTP_LIVE_STREAM_EXT, "invalid pattern=%s", entry->pattern.c_str());
     }
     SrsAutoFree(ISrsBufferEncoder, enc);
+
+    // Enter chunked mode, because we didn't set the content-length.
+    w->write_header(SRS_CONSTS_HTTP_OK);
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
@@ -594,7 +597,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
-    
+
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
@@ -607,6 +610,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
+    // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
         pprint->elapse();
         
@@ -656,8 +660,10 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             return srs_error_wrap(err, "send messages");
         }
     }
-    
-    return err;
+
+    // Here, the entry is disabled by encoder un-publishing or reloading,
+    // so we must return a io.EOF error to disconnect the client, or the client will never quit.
+    return srs_error_new(ERROR_HTTP_STREAM_EOF, "Stream EOF");
 }
 
 srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage* r)
@@ -1045,6 +1051,18 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         } else {
             return err;
         }
+    }
+
+    // For HTTP-FLV stream, the template must have the same schema with upath.
+    // The template is defined in config, the mout of http stream. The upath is specified by http request path.
+    // If template is "[vhost]/[app]/[stream].flv", the upath should be:
+    //      matched for "/live/livestream.flv"
+    //      matched for "ossrs.net/live/livestream.flv"
+    //      not-matched for "/livestream.flv", which is actually "/__defaultApp__/livestream.flv", HTTP not support default app.
+    //      not-matched for "/live/show/livestream.flv"
+    string upath = request->path();
+    if (srs_string_count(upath, "/") != srs_string_count(entry->mount, "/")) {
+        return err;
     }
     
     // convert to concreate class.

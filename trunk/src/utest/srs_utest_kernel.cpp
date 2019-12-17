@@ -2318,6 +2318,14 @@ VOID TEST(KernelUtility, StringUtils)
         EXPECT_TRUE(srs_string_contains("srs", "s", "sr"));
         EXPECT_TRUE(srs_string_contains("srs", "s", "sr", "srs"));
     }
+
+    if (true) {
+        EXPECT_EQ(0, srs_string_count("srs", "y"));
+        EXPECT_EQ(0, srs_string_count("srs", ""));
+        EXPECT_EQ(1, srs_string_count("srs", "r"));
+        EXPECT_EQ(2, srs_string_count("srs", "s"));
+        EXPECT_EQ(3, srs_string_count("srs", "sr"));
+    }
     
     if (true) {
         vector<string> flags;
@@ -2633,9 +2641,9 @@ VOID TEST(KernelUtility, RTMPUtils2)
 VOID TEST(KernelErrorTest, CoverAll)
 {
     if (true) {
-        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_RTMP_CLOSE));
-        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_REPUBLISH));
-        EXPECT_TRUE(srs_is_system_control_error(ERROR_CONTROL_REDIRECT));
+        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "err")));
+        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_REPUBLISH, "err")));
+        EXPECT_TRUE(srs_is_system_control_error(srs_error_new(ERROR_CONTROL_REDIRECT, "err")));
     }
     
     if (true) {
@@ -2645,9 +2653,9 @@ VOID TEST(KernelErrorTest, CoverAll)
     }
     
     if (true) {
-        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_READ));
-        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_READ_FULLY));
-        EXPECT_TRUE(srs_is_client_gracefully_close(ERROR_SOCKET_WRITE));
+        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_READ, "err")));
+        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_READ_FULLY, "err")));
+        EXPECT_TRUE(srs_is_client_gracefully_close(srs_error_new(ERROR_SOCKET_WRITE, "err")));
     }
     
     if (true) {

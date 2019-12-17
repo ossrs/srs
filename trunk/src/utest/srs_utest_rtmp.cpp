@@ -20,9 +20,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-#include <srs_utest_protostack.hpp>
-
-#include <srs_utest_protocol.hpp>
+#include <srs_utest_rtmp.hpp>
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
@@ -75,7 +73,7 @@ public:
     }
 };
 
-VOID TEST(ProtoStackTest, PacketEncode)
+VOID TEST(ProtocolRTMPTest, PacketEncode)
 {
     srs_error_t err;
 
@@ -112,7 +110,7 @@ VOID TEST(ProtoStackTest, PacketEncode)
     }
 }
 
-VOID TEST(ProtoStackTest, ManualFlush)
+VOID TEST(ProtocolRTMPTest, ManualFlush)
 {
     srs_error_t err;
 
@@ -222,7 +220,7 @@ VOID TEST(ProtoStackTest, ManualFlush)
     }
 }
 
-VOID TEST(ProtoStackTest, SendPacketsError)
+VOID TEST(ProtocolRTMPTest, SendPacketsError)
 {
     srs_error_t err;
 
@@ -303,7 +301,7 @@ VOID TEST(ProtoStackTest, SendPacketsError)
     }
 }
 
-VOID TEST(ProtoStackTest, SendHugePacket)
+VOID TEST(ProtocolRTMPTest, SendHugePacket)
 {
     srs_error_t err;
 
@@ -318,7 +316,7 @@ VOID TEST(ProtoStackTest, SendHugePacket)
     }
 }
 
-VOID TEST(ProtoStackTest, SendZeroMessages)
+VOID TEST(ProtocolRTMPTest, SendZeroMessages)
 {
     srs_error_t err;
     if (true) {
@@ -345,7 +343,7 @@ VOID TEST(ProtoStackTest, SendZeroMessages)
     }
 }
 
-VOID TEST(ProtoStackTest, HugeMessages)
+VOID TEST(ProtocolRTMPTest, HugeMessages)
 {
     srs_error_t err;
     if (true) {
@@ -409,7 +407,7 @@ VOID TEST(ProtoStackTest, HugeMessages)
     }
 }
 
-VOID TEST(ProtoStackTest, DecodeMessages)
+VOID TEST(ProtocolRTMPTest, DecodeMessages)
 {
     srs_error_t err;
 
@@ -428,7 +426,7 @@ VOID TEST(ProtoStackTest, DecodeMessages)
     }
 }
 
-VOID TEST(ProtoStackTest, OnDecodeMessages)
+VOID TEST(ProtocolRTMPTest, OnDecodeMessages)
 {
     srs_error_t err;
 
@@ -469,7 +467,7 @@ SrsCommonMessage* _create_amf0(char* bytes, int size, int stream_id)
     return msg;
 }
 
-VOID TEST(ProtoStackTest, OnDecodeMessages2)
+VOID TEST(ProtocolRTMPTest, OnDecodeMessages2)
 {
     srs_error_t err;
 
@@ -536,7 +534,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages2)
     }
 }
 
-VOID TEST(ProtoStackTest, OnDecodeMessages3)
+VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
 {
     srs_error_t err;
 
@@ -705,7 +703,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages3)
     }
 }
 
-VOID TEST(ProtoStackTest, OnDecodeMessages4)
+VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
 {
     srs_error_t err;
 
@@ -1070,7 +1068,7 @@ VOID TEST(ProtoStackTest, OnDecodeMessages4)
     }
 }
 
-VOID TEST(ProtoStackTest, RecvMessage)
+VOID TEST(ProtocolRTMPTest, RecvMessage)
 {
     srs_error_t err;
 
@@ -1120,7 +1118,7 @@ VOID TEST(ProtoStackTest, RecvMessage)
     }
 }
 
-VOID TEST(ProtoStackTest, RecvMessage2)
+VOID TEST(ProtocolRTMPTest, RecvMessage2)
 {
     srs_error_t err;
 
@@ -1179,7 +1177,7 @@ VOID TEST(ProtoStackTest, RecvMessage2)
     }
 }
 
-VOID TEST(ProtoStackTest, RecvMessage3)
+VOID TEST(ProtocolRTMPTest, RecvMessage3)
 {
     if (true) {
         SrsRequest req;
@@ -1239,7 +1237,7 @@ VOID TEST(ProtoStackTest, RecvMessage3)
     }
 }
 
-VOID TEST(ProtoStackTest, RecvMessage4)
+VOID TEST(ProtocolRTMPTest, RecvMessage4)
 {
     srs_error_t err;
 
@@ -1279,7 +1277,7 @@ VOID TEST(ProtoStackTest, RecvMessage4)
     }
 }
 
-VOID TEST(ProtoStackTest, HandshakeC0C1)
+VOID TEST(ProtocolRTMPTest, HandshakeC0C1)
 {
     srs_error_t err;
 
@@ -1379,7 +1377,7 @@ VOID TEST(ProtoStackTest, HandshakeC0C1)
     }
 }
 
-VOID TEST(ProtoStackTest, HandshakeS0S1S2)
+VOID TEST(ProtocolRTMPTest, HandshakeS0S1S2)
 {
     srs_error_t err;
 
@@ -1424,7 +1422,7 @@ VOID TEST(ProtoStackTest, HandshakeS0S1S2)
     }
 }
 
-VOID TEST(ProtoStackTest, HandshakeC2)
+VOID TEST(ProtocolRTMPTest, HandshakeC2)
 {
     srs_error_t err;
 
@@ -1469,7 +1467,7 @@ VOID TEST(ProtoStackTest, HandshakeC2)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerInfo)
+VOID TEST(ProtocolRTMPTest, ServerInfo)
 {
     SrsServerInfo si;
     EXPECT_EQ(0, si.pid);
@@ -1480,7 +1478,7 @@ VOID TEST(ProtoStackTest, ServerInfo)
     EXPECT_EQ(0, si.build);
 }
 
-VOID TEST(ProtoStackTest, ClientCommandMessage)
+VOID TEST(ProtocolRTMPTest, ClientCommandMessage)
 {
     srs_error_t err;
 
@@ -1581,7 +1579,7 @@ VOID TEST(ProtoStackTest, ClientCommandMessage)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerCommandMessage)
+VOID TEST(ProtocolRTMPTest, ServerCommandMessage)
 {
     srs_error_t err;
 
@@ -1736,7 +1734,7 @@ VOID TEST(ProtoStackTest, ServerCommandMessage)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerRedirect)
+VOID TEST(ProtocolRTMPTest, ServerRedirect)
 {
     srs_error_t err;
 
@@ -1843,7 +1841,7 @@ VOID TEST(ProtoStackTest, ServerRedirect)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerIdentify)
+VOID TEST(ProtocolRTMPTest, ServerIdentify)
 {
     srs_error_t err;
 
@@ -2023,7 +2021,7 @@ VOID TEST(ProtoStackTest, ServerIdentify)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerFMLEStart)
+VOID TEST(ProtocolRTMPTest, ServerFMLEStart)
 {
     srs_error_t err;
 
@@ -2088,7 +2086,7 @@ VOID TEST(ProtoStackTest, ServerFMLEStart)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerHaivisionPublish)
+VOID TEST(ProtocolRTMPTest, ServerHaivisionPublish)
 {
     srs_error_t err;
 
@@ -2127,7 +2125,7 @@ VOID TEST(ProtoStackTest, ServerHaivisionPublish)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerFMLEUnpublish)
+VOID TEST(ProtocolRTMPTest, ServerFMLEUnpublish)
 {
     srs_error_t err;
 
@@ -2180,7 +2178,7 @@ VOID TEST(ProtoStackTest, ServerFMLEUnpublish)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerFlashPublish)
+VOID TEST(ProtocolRTMPTest, ServerFlashPublish)
 {
     srs_error_t err;
 
@@ -2205,7 +2203,7 @@ VOID TEST(ProtoStackTest, ServerFlashPublish)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerRecursiveDepth)
+VOID TEST(ProtocolRTMPTest, ServerRecursiveDepth)
 {
     srs_error_t err;
 
@@ -2260,7 +2258,7 @@ VOID TEST(ProtoStackTest, ServerRecursiveDepth)
     }
 }
 
-VOID TEST(ProtoStackTest, ServerResponseCommands)
+VOID TEST(ProtocolRTMPTest, ServerResponseCommands)
 {
     srs_error_t err;
 
@@ -2402,7 +2400,7 @@ VOID TEST(ProtoStackTest, ServerResponseCommands)
     }
 }
 
-VOID TEST(ProtoStackTest, CoverAll)
+VOID TEST(ProtocolRTMPTest, CoverAll)
 {
     srs_error_t err;
 
@@ -2483,7 +2481,7 @@ VOID TEST(ProtoStackTest, CoverAll)
     }
 }
 
-VOID TEST(ProtoStackTest, CoverBandwidth)
+VOID TEST(ProtocolRTMPTest, CoverBandwidth)
 {
     if (true) {
         SrsBandwidthPacket p;
@@ -2555,7 +2553,7 @@ VOID TEST(ProtoStackTest, CoverBandwidth)
     }
 }
 
-VOID TEST(ProtoStackTest, CoverAllUnmarshal)
+VOID TEST(ProtocolRTMPTest, CoverAllUnmarshal)
 {
     srs_error_t err;
 
@@ -2762,7 +2760,7 @@ VOID TEST(ProtoStackTest, CoverAllUnmarshal)
     }
 }
 
-VOID TEST(ProtoStackTest, ComplexToSimpleHandshake)
+VOID TEST(ProtocolRTMPTest, ComplexToSimpleHandshake)
 {
     srs_error_t err;
 
@@ -2785,7 +2783,7 @@ VOID TEST(ProtoStackTest, ComplexToSimpleHandshake)
     }
 }
 
-VOID TEST(ProtoStackTest, ConnectAppWithArgs)
+VOID TEST(ProtocolRTMPTest, ConnectAppWithArgs)
 {
     srs_error_t err;
 
@@ -2848,7 +2846,7 @@ VOID TEST(ProtoStackTest, ConnectAppWithArgs)
     }
 }
 
-VOID TEST(ProtoStackTest, AgentMessageCodec)
+VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
 {
     srs_error_t err;
 
@@ -2950,7 +2948,7 @@ srs_error_t _mock_packet_to_shared_msg(SrsPacket* packet, int stream_id, SrsShar
     return err;
 }
 
-VOID TEST(ProtoStackTest, CheckStreamID)
+VOID TEST(ProtocolRTMPTest, CheckStreamID)
 {
     srs_error_t err;
 
@@ -2995,7 +2993,7 @@ VOID TEST(ProtoStackTest, CheckStreamID)
     }
 }
 
-VOID TEST(ProtoStackTest, AgentMessageTransform)
+VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
 {
     srs_error_t err;
 
@@ -3095,7 +3093,7 @@ public:
     }
 };
 
-VOID TEST(ProtoStackTest, MergeReadHandler)
+VOID TEST(ProtocolRTMPTest, MergeReadHandler)
 {
     srs_error_t err;
 
