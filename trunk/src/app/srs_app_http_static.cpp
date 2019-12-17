@@ -117,6 +117,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     // write http header for ts.
     w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
     w->header()->set_content_type("video/x-flv");
+    w->write_header(SRS_CONSTS_HTTP_OK);
     
     // write flv header and sequence header.
     if ((err = w->write(flv_header, sizeof(flv_header))) != srs_success) {
@@ -170,8 +171,6 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     // write http header for ts.
     w->header()->set_content_length(left);
     w->header()->set_content_type("video/mp4");
-    
-    // status code 206 to make dash.as happy.
     w->write_header(SRS_CONSTS_HTTP_PartialContent);
     
     // response the content range header.

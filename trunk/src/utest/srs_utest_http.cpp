@@ -108,6 +108,47 @@ string mock_http_response(int status, string content)
     return ss.str();
 }
 
+class MockFileReaderFactory : public ISrsFileReaderFactory
+{
+public:
+    string bytes;
+    MockFileReaderFactory(string data) {
+        bytes = data;
+    }
+    virtual ~MockFileReaderFactory() {
+    }
+    virtual SrsFileReader* create_file_reader() {
+        return new MockSrsFileReader((const char*)bytes.data(), (int)bytes.length());
+    }
+};
+
+class MockHttpHandler : public ISrsHttpHandler
+{
+public:
+    string bytes;
+    MockHttpHandler(string data) {
+        bytes = data;
+    }
+    virtual ~MockHttpHandler() {
+    }
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* /*r*/) {
+        return w->write((char*)bytes.data(), (int)bytes.length());
+    }
+};
+
+bool _mock_srs_path_always_exists(std::string /*path*/)
+{
+    return true;
+}
+
+bool _mock_srs_path_not_exists(std::string /*path*/)
+{
+    return false;
+}
+
+#define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
+        EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
+
 VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 {
     EXPECT_STREQ(SRS_CONSTS_HTTP_OK_str, srs_generate_http_status_text(SRS_CONSTS_HTTP_OK).c_str());
@@ -123,10 +164,20 @@ VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 VOID TEST(ProtocolHTTPTest, ResponseDetect)
 {
     EXPECT_STREQ("application/octet-stream", srs_go_http_detect(NULL, 0).c_str());
+    EXPECT_STREQ("application/octet-stream", srs_go_http_detect((char*)"Hello, world!", 0).c_str());
 }
 
-#define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
-        EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
+VOID TEST(ProtocolHTTPTest, ResponseWriter)
+{
+    if (true) {
+        MockResponseWriter w;
+
+        char msg[] = "Hello, world!";
+        w.write((char*)msg, sizeof(msg) - 1);
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+}
 
 VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
 {
@@ -136,6 +187,18 @@ VOID TEST(ProtocolHTTPTest, ResponseHTTPError)
         MockResponseWriter w;
         HELPER_EXPECT_SUCCESS(srs_go_http_error(&w, SRS_CONSTS_HTTP_Found));
         __MOCK_HTTP_EXPECT_STREQ(302, "Found", w);
+    }
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(srs_go_http_error(&w, SRS_CONSTS_HTTP_InternalServerError));
+        __MOCK_HTTP_EXPECT_STREQ(500, "Internal Server Error", w);
+    }
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(srs_go_http_error(&w, SRS_CONSTS_HTTP_ServiceUnavailable));
+        __MOCK_HTTP_EXPECT_STREQ(503, "Service Unavailable", w);
     }
 }
 
@@ -173,28 +236,24 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     srs_freep(o);
 }
 
-class MockFileReaderFactory : public ISrsFileReaderFactory
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
 {
-public:
-    string bytes;
-    MockFileReaderFactory(string data) {
-        bytes = data;
-    }
-    virtual ~MockFileReaderFactory() {
-    }
-    virtual SrsFileReader* create_file_reader() {
-        return new MockSrsFileReader((const char*)bytes.data(), (int)bytes.length());
-    }
-};
+    srs_error_t err;
 
-bool _mock_srs_path_always_exists(std::string /*path*/)
-{
-    return true;
-}
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
 
-bool _mock_srs_path_not_exists(std::string /*path*/)
-{
-    return false;
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
 }
 
 VOID TEST(ProtocolHTTPTest, VodStreamHandlers)

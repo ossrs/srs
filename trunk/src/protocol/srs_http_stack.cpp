@@ -446,6 +446,9 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
             w->header()->set_content_type(_mime[ext]);
         }
     }
+
+    // Enter chunked mode, because we didn't set the content-length.
+    w->write_header(SRS_CONSTS_HTTP_OK);
     
     // write body.
     int64_t left = length;

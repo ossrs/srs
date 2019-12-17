@@ -150,7 +150,11 @@ public:
 
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
-// Usage 1, response with specified length content:
+// Usage 0, response with a message once:
+//      ISrsHttpResponseWriter* w; // create or get response.
+//      std::string msg = "Hello, HTTP!";
+//      w->write((char*)msg.data(), (int)msg.length());
+// Usage 1, response with specified length content, same to #0:
 //      ISrsHttpResponseWriter* w; // create or get response.
 //      std::string msg = "Hello, HTTP!";
 //      w->header()->set_content_type("text/plain; charset=utf-8");

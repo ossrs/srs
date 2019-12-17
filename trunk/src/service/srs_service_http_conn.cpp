@@ -647,6 +647,10 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     
     // write the header data in memory.
     if (!header_wrote) {
+        if (hdr->content_type().empty()) {
+            hdr->set_content_type("text/plain; charset=utf-8");
+        }
+        hdr->set_content_length(size);
         write_header(SRS_CONSTS_HTTP_OK);
     }
     
