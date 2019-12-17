@@ -132,7 +132,7 @@ public:
     }
 };
 
-class MockHttpHandler : public ISrsHttpHandler
+class MockHttpHandler : virtual public ISrsHttpHandler, virtual public ISrsHttpMatchHijacker
 {
 public:
     string bytes;
@@ -143,6 +143,12 @@ public:
     }
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* /*r*/) {
         return w->write((char*)bytes.data(), (int)bytes.length());
+    }
+    virtual srs_error_t hijack(ISrsHttpMessage* /*r*/, ISrsHttpHandler** ph) {
+        if (ph) {
+            *ph = this;
+        }
+        return srs_success;
     }
 };
 
@@ -317,6 +323,206 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
 VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
 {
     srs_error_t err;
+
+    // For hijacker, notify all.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler h1("Done");
+        s.hijack(&h1);
+
+        MockHttpHandler h0("Hello, world!");
+        s.hijack(&h0);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/home/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // For hijacker, notify all.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler h0("Hello, world!");
+        s.hijack(&h0);
+
+        MockHttpHandler h1("Done");
+        s.hijack(&h1);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/home/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    // If not endswith '/', exactly match.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/home", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/home/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // If endswith '/', match any.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/home/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/home/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/v1", h1));
+
+        MockHttpHandler* h2 = new MockHttpHandler("Another one");
+        HELPER_ASSERT_SUCCESS(s.handle("/apis/", h2));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/apis/v1/echo", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Another one", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/v1/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/apis/v1/echo", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/v1/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/echo", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/apis/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/apis/v1/echo", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/index.html", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler hroot("Hello, world!");
+        s.hijack(&hroot);
+        s.unhijack(&hroot);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler hroot("Hello, world!");
+        s.hijack(&hroot);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
 
     if (true) {
         SrsHttpServeMux s;

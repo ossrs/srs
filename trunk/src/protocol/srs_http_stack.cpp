@@ -724,7 +724,7 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage* r, ISrsHttpHandler** 
     
     // always hijack.
     if (!hijackers.empty()) {
-        // notice all hijacker the match failed.
+        // notify all hijackers unless matching failed.
         std::vector<ISrsHttpMatchHijacker*>::iterator it;
         for (it = hijackers.begin(); it != hijackers.end(); ++it) {
             ISrsHttpMatchHijacker* hijacker = *it;
