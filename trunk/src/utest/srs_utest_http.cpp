@@ -507,6 +507,27 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBasic)
 {
     srs_error_t err;
 
+    // Ignore if not enabled.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h1));
+
+        h1->entry->enabled = false;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
     // Empty pattern, failed.
     if (true) {
         SrsHttpServeMux s;
@@ -1265,14 +1286,25 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
 
 VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 {
-    // Port use 80 if error.
+    srs_error_t err;
+
     if (true) {
         SrsHttpHeader h;
         h.set("Host", "ossrs.net:-1");
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_url("/api/v1", false);
+        HELPER_EXPECT_FAILED(m.set_url("/api/v1", false));
+    }
+
+    // Port use 80 if error.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net:0");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
         EXPECT_EQ(80, m.port());
     }
 
@@ -1283,7 +1315,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_url("/api/v1", false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
         EXPECT_EQ(80, m.port());
     }
 
@@ -1294,7 +1326,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_url("/api/v1", false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
         EXPECT_EQ(8080, m.port());
     }
 
@@ -1304,7 +1336,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
         h.set("Host", "ossrs.net");
 
         SrsHttpMessage m;
-        m.set_url("/api/v1", false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
         m.set_header(&h, false);
         EXPECT_STRNE("ossrs.net", m.host().c_str());
     }
@@ -1316,7 +1348,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_url("/api/v1", false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
         EXPECT_STREQ("ossrs.net", m.host().c_str());
     }
 
