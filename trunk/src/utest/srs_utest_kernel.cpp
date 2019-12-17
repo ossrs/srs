@@ -2318,6 +2318,14 @@ VOID TEST(KernelUtility, StringUtils)
         EXPECT_TRUE(srs_string_contains("srs", "s", "sr"));
         EXPECT_TRUE(srs_string_contains("srs", "s", "sr", "srs"));
     }
+
+    if (true) {
+        EXPECT_EQ(0, srs_string_count("srs", "y"));
+        EXPECT_EQ(0, srs_string_count("srs", ""));
+        EXPECT_EQ(1, srs_string_count("srs", "r"));
+        EXPECT_EQ(2, srs_string_count("srs", "s"));
+        EXPECT_EQ(3, srs_string_count("srs", "sr"));
+    }
     
     if (true) {
         vector<string> flags;

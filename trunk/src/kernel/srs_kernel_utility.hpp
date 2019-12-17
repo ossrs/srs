@@ -98,6 +98,8 @@ extern bool srs_string_starts_with(std::string str, std::string flag0, std::stri
 extern bool srs_string_contains(std::string str, std::string flag);
 extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1);
 extern bool srs_string_contains(std::string str, std::string flag0, std::string flag1, std::string flag2);
+// Count each char of flag in string
+extern int srs_string_count(std::string str, std::string flag);
 // Find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
 // Split the string by flag to array.

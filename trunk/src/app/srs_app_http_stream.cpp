@@ -1049,6 +1049,18 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
             return err;
         }
     }
+
+    // For HTTP-FLV stream, the template must have the same schema with upath.
+    // The template is defined in config, the mout of http stream. The upath is specified by http request path.
+    // If template is "[vhost]/[app]/[stream].flv", the upath should be:
+    //      matched for "/live/livestream.flv"
+    //      matched for "ossrs.net/live/livestream.flv"
+    //      not-matched for "/livestream.flv", which is actually "/__defaultApp__/livestream.flv", HTTP not support default app.
+    //      not-matched for "/live/show/livestream.flv"
+    string upath = request->path();
+    if (srs_string_count(upath, "/") != srs_string_count(entry->mount, "/")) {
+        return err;
+    }
     
     // convert to concreate class.
     SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(request);
