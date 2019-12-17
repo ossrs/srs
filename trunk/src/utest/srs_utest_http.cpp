@@ -95,6 +95,10 @@ srs_error_t MockResponseWriter::filter(SrsHttpHeader* h)
     h->del("Connection");
     h->del("Location");
     h->del("Content-Range");
+    h->del("Access-Control-Allow-Origin");
+    h->del("Access-Control-Allow-Methods");
+    h->del("Access-Control-Expose-Headers");
+    h->del("Access-Control-Allow-Headers");
     return srs_success;
 }
 
@@ -663,7 +667,67 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 {
     srs_error_t err;
 
-    // If CORS not enabled, directly response any request.
+    // If CORS enabled, response others with ok except OPTIONS
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_POST, 200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        SrsHttpCorsMux cs;
+        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+
+        HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // If CORS enabled, response OPTIONS with ok
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_OPTIONS, 200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        SrsHttpCorsMux cs;
+        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+
+        HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "", w);
+    }
+
+    // If CORS not enabled, response content except OPTIONS.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_POST, 200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        SrsHttpCorsMux cs;
+        HELPER_ASSERT_SUCCESS(cs.initialize(&s, false));
+
+        HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // If CORS not enabled, response error for options.
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
@@ -680,7 +744,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
         HELPER_ASSERT_SUCCESS(cs.initialize(&s, false));
 
         HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+        __MOCK_HTTP_EXPECT_STREQ(405, "", w);
     }
 
     if (true) {
