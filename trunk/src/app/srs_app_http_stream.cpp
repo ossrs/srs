@@ -597,7 +597,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
-    
+
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
@@ -610,6 +610,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         enc->has_cache(), msgs.max);
 
     // TODO: free and erase the disabled entry after all related connections is closed.
+    // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
         pprint->elapse();
         
@@ -659,7 +660,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             return srs_error_wrap(err, "send messages");
         }
     }
-    
+
     return err;
 }
 
