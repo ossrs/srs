@@ -320,7 +320,112 @@ VOID TEST(ProtocolHTTPTest, HTTPHeader)
     srs_freep(o);
 }
 
-VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerVhost)
+{
+    srs_error_t err;
+
+    // For vhost.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("ossrs.net/api/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    // For vhost.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("ossrs.net/api/", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+        r.set_header(&h, false);
+
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerImplicitHandler)
+{
+    srs_error_t err;
+
+    // Fail if explicit handler exists.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_EXPECT_FAILED(s.handle("/api/", h1));
+    }
+
+    // Explicit handler will overwrite the implicit handler.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockHttpHandler* h1 = new MockHttpHandler("Done");
+        HELPER_ASSERT_SUCCESS(s.handle("/api", h1));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    // Implicit handler.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/api/", h0));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(302, "Redirect to /api/", w);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerHijack)
 {
     srs_error_t err;
 
@@ -360,6 +465,51 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
 
         HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Done", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler hroot("Hello, world!");
+        s.hijack(&hroot);
+        s.unhijack(&hroot);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+    }
+
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler hroot("Hello, world!");
+        s.hijack(&hroot);
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBasic)
+{
+    srs_error_t err;
+
+    // Empty pattern, failed.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+
+        MockHttpHandler* h0 = new MockHttpHandler("Hello, world!");
+        HELPER_EXPECT_FAILED(s.handle("", h0));
     }
 
     // If not endswith '/', exactly match.
@@ -497,30 +647,39 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
 
-        MockHttpHandler hroot("Hello, world!");
-        s.hijack(&hroot);
-        s.unhijack(&hroot);
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
+}
 
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
+{
+    srs_error_t err;
+
+    // If CORS not enabled, directly response any request.
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
 
-        MockHttpHandler hroot("Hello, world!");
-        s.hijack(&hroot);
+        MockHttpHandler* hroot = new MockHttpHandler("Hello, world!");
+        HELPER_ASSERT_SUCCESS(s.handle("/", hroot));
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_OPTIONS, 200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        SrsHttpCorsMux cs;
+        HELPER_ASSERT_SUCCESS(cs.initialize(&s, false));
+
+        HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
@@ -535,7 +694,10 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxer)
         SrsHttpMessage r(NULL, NULL);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
-        HELPER_ASSERT_SUCCESS(s.serve_http(&w, &r));
+        SrsHttpCorsMux cs;
+        HELPER_ASSERT_SUCCESS(cs.initialize(&s, true));
+
+        HELPER_ASSERT_SUCCESS(cs.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 }
@@ -623,11 +785,81 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(206, "llo,", w);
     }
+
+    // Invalid format of range, use static file handler.
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=2", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // No range, use static file handler.
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
 }
 
 VOID TEST(ProtocolHTTPTest, BasicHandlers)
 {
     srs_error_t err;
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=0", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
 
     if (true) {
         SrsHttpMuxEntry e;
@@ -964,5 +1196,90 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
         EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
         EXPECT_STREQ("ossrs.net", msg->host().c_str());
         srs_freep(msg);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
+{
+    // The host is overwrite by header.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+
+        SrsHttpMessage m;
+        m.set_url("/api/v1", false);
+        m.set_header(&h, false);
+        EXPECT_STRNE("ossrs.net", m.host().c_str());
+    }
+
+    // The host is overwrite by header.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        m.set_url("/api/v1", false);
+        EXPECT_STREQ("ossrs.net", m.host().c_str());
+    }
+
+    // The content-length is overwrite by header.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "10");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        m.set_basic(HTTP_POST, 200, 2);
+        EXPECT_EQ(10, m.content_length());
+    }
+
+    // The content-length is overwrite by header.
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "10");
+
+        SrsHttpMessage m;
+        m.set_basic(HTTP_POST, 200, 2);
+        m.set_header(&h, false);
+        EXPECT_EQ(10, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "abc");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        EXPECT_EQ(0, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "10");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        EXPECT_EQ(10, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Content-Length", "0");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        EXPECT_EQ(0, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpMessage m;
+        m.set_basic(HTTP_POST, 200, 0);
+        EXPECT_EQ(0, m.content_length());
+    }
+
+    if (true) {
+        SrsHttpMessage m;
+        EXPECT_EQ(-1, m.content_length());
     }
 }

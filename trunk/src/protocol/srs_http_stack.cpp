@@ -823,8 +823,6 @@ srs_error_t SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabl
 
 srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    srs_error_t err = srs_success;
-    
     // If CORS enabled, and there is a "Origin" header, it's CORS.
     if (enabled) {
         SrsHttpHeader* h = r->header();
@@ -848,9 +846,7 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         } else {
             w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
         }
-        if ((err = w->final_request()) != srs_success) {
-            return srs_error_wrap(err, "final request");
-        }
+        return w->final_request();
     }
     
     srs_assert(next);

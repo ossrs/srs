@@ -264,7 +264,7 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
 
     _method = 0;
     _status = 0;
-    _content_length = 0;
+    _content_length = -1;
     _keep_alive = true;
 }
 
@@ -278,7 +278,9 @@ void SrsHttpMessage::set_basic(uint8_t method, uint16_t status, int64_t content_
 {
     _method = method;
     _status = status;
-    _content_length = content_length;
+    if (_content_length == -1) {
+        _content_length = content_length;
+    }
 }
 
 void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
@@ -288,6 +290,12 @@ void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
 
     // whether chunked.
     chunked = (header->get("Transfer-Encoding") == "chunked");
+
+    // Update the content-length in header.
+    string clv = header->get("Content-Length");
+    if (!clv.empty()) {
+        _content_length = ::atoll(clv.c_str());
+    }
 }
 
 srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)

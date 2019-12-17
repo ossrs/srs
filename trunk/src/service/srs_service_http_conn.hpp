@@ -126,12 +126,14 @@ private:
     // The method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer);
+    SrsHttpMessage(ISrsReader* reader = NULL, SrsFastStream* buffer = NULL);
     virtual ~SrsHttpMessage();
 public:
     // Set the basic information for HTTP request.
+    // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
     virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length);
     // Set HTTP header and whether the request require keep alive.
+    // @remark User must call set_header before set_url, because the Host in header is used for url.
     virtual void set_header(SrsHttpHeader* header, bool keep_alive);
     // set the original messages, then update the message.
     virtual srs_error_t set_url(std::string url, bool allow_jsonp);

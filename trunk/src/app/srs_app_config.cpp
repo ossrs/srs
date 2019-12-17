@@ -907,7 +907,7 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_str()
 
 SrsJsonAny* SrsConfDirective::dumps_arg0_to_integer()
 {
-    return SrsJsonAny::integer(::atol(arg0().c_str()));
+    return SrsJsonAny::integer(::atoll(arg0().c_str()));
 }
 
 SrsJsonAny* SrsConfDirective::dumps_arg0_to_number()

@@ -887,7 +887,7 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             if ((err = recv_token_eof(seq)) != srs_success) {
                 return srs_error_wrap(err, "seq");
             }
-            req->seq = ::atol(seq.c_str());
+            req->seq = ::atoll(seq.c_str());
         } else if (token == SRS_RTSP_TOKEN_CONTENT_TYPE) {
             std::string ct;
             if ((err = recv_token_eof(ct)) != srs_success) {
@@ -899,7 +899,7 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             if ((err = recv_token_eof(cl)) != srs_success) {
                 return srs_error_wrap(err, "cl");
             }
-            req->content_length = ::atol(cl.c_str());
+            req->content_length = ::atoll(cl.c_str());
         } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
             std::string transport;
             if ((err = recv_token_eof(transport)) != srs_success) {
