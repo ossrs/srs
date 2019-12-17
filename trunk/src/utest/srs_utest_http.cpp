@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_utest_kernel.hpp>
+#include <srs_app_http_static.hpp>
 
 class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
 {
@@ -93,6 +94,7 @@ srs_error_t MockResponseWriter::filter(SrsHttpHeader* h)
     h->del("Server");
     h->del("Connection");
     h->del("Location");
+    h->del("Content-Range");
     return srs_success;
 }
 
@@ -185,14 +187,189 @@ public:
     }
 };
 
-bool _mock_srs_path_exists(std::string /*path*/)
+bool _mock_srs_path_always_exists(std::string /*path*/)
 {
     return true;
+}
+
+bool _mock_srs_path_not_exists(std::string /*path*/)
+{
+    return false;
+}
+
+VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        string fs;
+        int nn_flv_prefix = 0;
+        if (true) {
+            char flv_header[13];
+            nn_flv_prefix += sizeof(flv_header);
+            HELPER_ARRAY_INIT(flv_header, 13, 0);
+            fs.append(flv_header, 13);
+        }
+        if (true) {
+            uint8_t tag[15] = {9};
+            nn_flv_prefix += sizeof(tag);
+            HELPER_ARRAY_INIT(tag+1, 14, 0);
+            fs.append((const char*)tag, sizeof(tag));
+        }
+        if (true) {
+            uint8_t tag[15] = {8};
+            nn_flv_prefix += sizeof(tag);
+            HELPER_ARRAY_INIT(tag+1, 14, 0);
+            fs.append((const char*)tag, sizeof(tag));
+        }
+        string flv_content = "Hello, world!";
+        fs.append(flv_content);
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory(fs));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.flv?start=" + srs_int2str(nn_flv_prefix + 2), false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+
+        // We only compare the last content, ignore HTTP and FLV header.
+        string av2 = HELPER_BUFFER2STR(&w.io.out_buffer);
+        string av = av2.substr(av2.length() - flv_content.length() + 2);
+        string ev2 = mock_http_response(200, "llo, world!");
+        string ev = ev2.substr(ev2.length() - flv_content.length() + 2);
+        EXPECT_STREQ(ev.c_str(), av.c_str());
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=2-3", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(206, "ll", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?bytes=2-5", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(206, "llo,", w);
+    }
 }
 
 VOID TEST(ProtocolHTTPTest, BasicHandlers)
 {
     srs_error_t err;
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?start=2", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.flv?start=2", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.flv", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_always_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsHttpFileServer h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path_check(_mock_srs_path_not_exists);
+        h.entry = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+    }
 
     if (true) {
         EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp", "/", "/").c_str());
@@ -204,22 +381,6 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
         EXPECT_STREQ("/tmp/views/index.html", srs_http_fs_fullpath("/tmp/", "/api", "/api/views/index.html").c_str());
         EXPECT_STREQ("/tmp/index.html", srs_http_fs_fullpath("/tmp/", "/api/", "/api/index.html").c_str());
         EXPECT_STREQ("/tmp/ndex.html", srs_http_fs_fullpath("/tmp/", "/api//", "/api/index.html").c_str());
-    }
-
-    if (true) {
-        SrsHttpMuxEntry e;
-        e.pattern = "/";
-
-        SrsHttpFileServer h("/tmp");
-        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"))->set_path_check(_mock_srs_path_exists);
-        h.entry = &e;
-
-        MockResponseWriter w;
-        SrsHttpMessage r(NULL, NULL);
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
-
-        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
     if (true) {
@@ -239,6 +400,7 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
         MockResponseWriter w;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, NULL));
         __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
+        EXPECT_TRUE(h.is_not_found());
     }
 }
 

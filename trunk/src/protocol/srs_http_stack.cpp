@@ -345,17 +345,15 @@ SrsHttpFileServer::~SrsHttpFileServer()
     srs_freep(fs_factory);
 }
 
-SrsHttpFileServer* SrsHttpFileServer::set_fs_factory(ISrsFileReaderFactory* f)
+void SrsHttpFileServer::set_fs_factory(ISrsFileReaderFactory* f)
 {
     srs_freep(fs_factory);
     fs_factory = f;
-    return this;
 }
 
-SrsHttpFileServer* SrsHttpFileServer::set_path_check(_pfn_srs_path_exists pfn)
+void SrsHttpFileServer::set_path_check(_pfn_srs_path_exists pfn)
 {
     _srs_path_exists = pfn;
-    return this;
 }
 
 srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -396,8 +394,9 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
     }
-    
-    int64_t length = fs->filesize();
+
+    // The length of bytes we could response to.
+    int64_t length = fs->filesize() - fs->tellg();
     
     // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
@@ -479,10 +478,8 @@ srs_error_t SrsHttpFileServer::serve_flv_file(ISrsHttpResponseWriter* w, ISrsHtt
 srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath)
 {
     // for flash to request mp4 range in query string.
-    // for example, http://digitalprimates.net/dash/DashTest.html?url=http://dashdemo.edgesuite.net/digitalprimates/nexus/oops-20120802-manifest.mpd
     std::string range = r->query_get("range");
-    // or, use bytes to request range,
-    // for example, http://dashas.castlabs.com/demo/try.html
+    // or, use bytes to request range.
     if (range.empty()) {
         range = r->query_get("bytes");
     }
@@ -515,11 +512,15 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
 
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
 {
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
 {
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
@@ -535,17 +536,13 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
         ssize_t nread = -1;
         int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
         if ((err = fs->read(buf, max_read, &nread)) != srs_success) {
-            break;
+            return srs_error_wrap(err, "read limit=%d, left=%d", max_read, left);
         }
         
         left -= nread;
         if ((err = w->write(buf, (int)nread)) != srs_success) {
-            break;
+            return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%d", max_read, nread, left);
         }
-    }
-    
-    if (err != srs_success) {
-        return srs_error_wrap(err, "copy");
     }
     
     return err;

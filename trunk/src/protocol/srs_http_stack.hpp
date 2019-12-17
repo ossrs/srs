@@ -295,7 +295,7 @@ class SrsHttpFileServer : public ISrsHttpHandler
 {
 protected:
     std::string dir;
-private:
+protected:
     ISrsFileReaderFactory* fs_factory;
     _pfn_srs_path_exists _srs_path_exists;
 public:
@@ -303,9 +303,9 @@ public:
     virtual ~SrsHttpFileServer();
 private:
     // For utest to mock the fs.
-    virtual SrsHttpFileServer* set_fs_factory(ISrsFileReaderFactory* v);
+    virtual void set_fs_factory(ISrsFileReaderFactory* v);
     // For utest to mock the path check function.
-    virtual SrsHttpFileServer* set_path_check(_pfn_srs_path_exists pfn);
+    virtual void set_path_check(_pfn_srs_path_exists pfn);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
