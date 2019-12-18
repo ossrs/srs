@@ -18,13 +18,6 @@ function srs_get_player_vhost() { return "players"; }
 function srs_get_api_server_port() { return 8085; }
 // the srs http server port
 function srs_get_srs_http_server_port() { return 8080; }
-// get the stream published to vhost,
-// generally we need to transcode the stream to support HLS and filters.
-// for example, src_vhost is "players", we transcode stream to vhost "players_pub".
-// if not equals to the player vhost, return the orignal vhost.
-function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
-// for chat, use rtmp only vhost, low latecy, without gop cache.
-function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_chat"); }
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +101,7 @@ function build_default_publish_rtmp_url() {
 
     var queries = [];
     if (server != vhost && vhost != "__defaultVhost__") {
-        queries.push("vhost=" + srs_get_player_chat_vhost(vhost));
+        queries.push("vhost=" + vhost);
     }
     if (query.shp_identify) {
         queries.push("shp_identify=" + query.shp_identify);
