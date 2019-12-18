@@ -80,7 +80,7 @@ function build_default_rtmp_url() {
     var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "demo":query.stream;
+    var stream = (query.stream == undefined)? "livestream":query.stream;
 
     var queries = [];
     if (server != vhost && vhost != "__defaultVhost__") {

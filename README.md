@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-18, Detect whether flash enabled for srs-player. 3.0.73
 * v3.0, 2019-12-17, Fix HTTP CORS bug when sending response for OPTIONS. 3.0.72
 * v3.0, 2019-12-17, Enhance HTTP response write for final_request.
 * v3.0, 2019-12-17, Refactor HTTP stream to disconnect client when unpublish.

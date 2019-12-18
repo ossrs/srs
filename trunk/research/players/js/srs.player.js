@@ -118,6 +118,9 @@ SrsPlayer.prototype.start = function(url) {
         flashvars, params, attributes,
         function(callbackObj){
             self.callbackObj = callbackObj;
+            if (!callbackObj.success) {
+                console.error('Initialize player failed:'); console.error(callbackObj);
+            }
         }
     );
     
