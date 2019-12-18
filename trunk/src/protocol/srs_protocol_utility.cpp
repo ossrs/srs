@@ -76,9 +76,6 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
             if (!query.empty()) {
                 vhost = query;
             }
-            if ((pos = vhost.find("?")) != std::string::npos) {
-                vhost = vhost.substr(0, pos);
-            }
         }
     }
     
@@ -199,7 +196,7 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
     }
     
     // Remove the start & when param is empty.
-    srs_string_trim_start(query, "&");
+    query = srs_string_trim_start(query, "&");
 
     // Prefix query with ?.
     if (!query.empty() && !srs_string_starts_with(query, "?")) {

@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_rtmp_stack.hpp>
 #include <srs_service_http_conn.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_codec.hpp>
 
 #define SRS_DEFAULT_RECV_BUFFER_SIZE 131072
 
@@ -3116,5 +3117,366 @@ VOID TEST(ProtocolRTMPTest, MergeReadHandler)
     }
 
     EXPECT_TRUE(h.nn > 0);
+}
+
+char* _strcpy(const char* src)
+{
+    return strcpy(new char[strlen(src)], src);
+}
+
+VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)
+{
+    srs_error_t err;
+
+    // Invalid message type.
+    if (true) {
+        SrsSharedPtrMessage* msg = NULL;
+        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_TRUE(NULL == msg);
+    }
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_TRUE(NULL == msg);
+    }
+
+    // Normal script message.
+    if (true) {
+        SrsSharedPtrMessage* msg = NULL;
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeScript, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_STREQ("Hello", msg->payload);
+        srs_freep(msg);
+    }
+
+    // Normal video message.
+    if (true) {
+        SrsSharedPtrMessage* msg = NULL;
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeVideo, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_STREQ("Hello", msg->payload);
+        srs_freep(msg);
+    }
+
+    // Normal audio message.
+    if (true) {
+        SrsSharedPtrMessage* msg = NULL;
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_STREQ("Hello", msg->payload);
+        srs_freep(msg);
+    }
+    if (true) {
+        SrsCommonMessage* msg = NULL;
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, _strcpy("Hello"), 5, 0, &msg));
+        EXPECT_STREQ("Hello", msg->payload);
+        srs_freep(msg);
+    }
+}
+
+VOID TEST(ProtocolRTMPTest, OthersAll)
+{
+    if (true) {
+        vector<string> vs;
+        vs.push_back("Hello");
+        vs.push_back("world!");
+        string v = srs_join_vector_string(vs, ", ");
+        EXPECT_STREQ("Hello, world!", v.c_str());
+    }
+
+    if (true) {
+        EXPECT_TRUE(srs_is_ipv4("1.2.3.4"));
+        EXPECT_TRUE(srs_is_ipv4("255.2.3.4"));
+        EXPECT_TRUE(srs_is_ipv4("1255.2.3.4"));
+    }
+
+    if (true) {
+        EXPECT_FALSE(srs_is_ipv4("ossrs.2.3.4"));
+        EXPECT_FALSE(srs_is_ipv4("2.3.4.ossrs"));
+    }
+
+    if (true) {
+        SrsMessageArray msgs(10);
+        msgs[0] = new SrsSharedPtrMessage();
+        msgs[1] = new SrsSharedPtrMessage();
+        EXPECT_TRUE(NULL != msgs[0]);
+        EXPECT_TRUE(NULL != msgs[1]);
+
+        msgs.free(1);
+        EXPECT_TRUE(NULL == msgs[0]);
+        EXPECT_TRUE(NULL != msgs[1]);
+
+        msgs.free(2);
+        EXPECT_TRUE(NULL == msgs[0]);
+        EXPECT_TRUE(NULL == msgs[1]);
+    }
+}
+
+VOID TEST(ProtocolRTMPTest, ParseRTMPURL)
+{
+    if (true) {
+        string url("rtmp://ossrs.net/live/show/livestream?token=abc"), tcUrl, stream;
+        srs_parse_rtmp_url(url, tcUrl, stream);
+        EXPECT_STREQ("rtmp://ossrs.net/live/show", tcUrl.c_str());
+        EXPECT_STREQ("livestream?token=abc", stream.c_str());
+    }
+
+    if (true) {
+        string url("rtmp://ossrs.net/live/show/livestream"), tcUrl, stream;
+        srs_parse_rtmp_url(url, tcUrl, stream);
+        EXPECT_STREQ("rtmp://ossrs.net/live/show", tcUrl.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+    }
+
+    if (true) {
+        string url("rtmp://ossrs.net/live/livestream"), tcUrl, stream;
+        srs_parse_rtmp_url(url, tcUrl, stream);
+        EXPECT_STREQ("rtmp://ossrs.net/live", tcUrl.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+    }
+}
+
+VOID TEST(ProtocolRTMPTest, GenerateURL)
+{
+    if (true) {
+        string host("184.23.22.14"), vhost("ossrs.net"), stream("stream"), param("token=abc");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param);
+        EXPECT_STREQ("stream?token=abc&vhost=ossrs.net", url.c_str());
+    }
+
+    if (true) {
+        string host("184.23.22.14"), vhost("__defaultVhost__"), stream("stream"), param("vhost=ossrs.net");
+        string url = srs_generate_stream_with_query(host, vhost, stream, param);
+        EXPECT_STREQ("stream?vhost=ossrs.net", url.c_str());
+    }
+
+    if (true) {
+        string host("184.23.22.14"), vhost("__defaultVhost__"), stream("stream"), param;
+        string url = srs_generate_stream_with_query(host, vhost, stream, param);
+        EXPECT_STREQ("stream", url.c_str());
+    }
+
+    if (true) {
+        string host("184.23.22.14"), vhost("ossrs.net"), stream("stream"), param;
+        string url = srs_generate_stream_with_query(host, vhost, stream, param);
+        EXPECT_STREQ("stream?vhost=ossrs.net", url.c_str());
+    }
+
+    if (true) {
+        string host("ossrs.net"), vhost("__defaultVhost__"), stream("stream"), param;
+        string url = srs_generate_stream_with_query(host, vhost, stream, param);
+        EXPECT_STREQ("stream?vhost=ossrs.net", url.c_str());
+    }
+}
+
+/**
+* discovery tcUrl to schema/vhost/host/port/app
+*/
+VOID TEST(ProtocolRTMPTest, DiscoveryTcUrl)
+{
+    // default vhost in param
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream= "show";
+        param = "?vhost=__defaultVhost__";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    // default app
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("__defaultApp__", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    // general url
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn:19351/live"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream= "show?key=abc";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("?key=abc", param.c_str());
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream= "show?key=abc&&vhost=demo.com";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("demo.com", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("?key=abc&&vhost=demo.com", param.c_str());
+    }
+
+    // vhost in app
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live?key=abc"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("?key=abc", param.c_str());
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live?key=abc&&vhost=demo.com"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("demo.com", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("?key=abc&&vhost=demo.com", param.c_str());
+    }
+
+    // without stream
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live"; stream="";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:1935/live"; stream="";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("127.0.0.1", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live"; stream="";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("127.0.0.1", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live?vhost=demo"; stream="";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    // no vhost
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("127.0.0.1", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    // ip and vhost
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live"; stream= "show?vhost=demo";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    // _definst_ at the end of app
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://winlin.cn/live/_definst_"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("winlin.cn", ip.c_str());
+        EXPECT_STREQ("winlin.cn", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(1935, port);
+    }
 }
 
