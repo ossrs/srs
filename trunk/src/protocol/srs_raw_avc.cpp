@@ -107,34 +107,22 @@ srs_error_t SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
     if (nb_frame < 4) {
         return err;
     }
-    
-    sps = "";
-    if (nb_frame > 0) {
-        sps.append(frame, nb_frame);
-    }
-    
-    // should never be empty.
-    if (sps.empty()) {
-        return srs_error_new(ERROR_STREAM_CASTER_AVC_SPS, "no sps");
-    }
-    
+
+    sps = string(frame, nb_frame);
+
     return err;
 }
 
 srs_error_t SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
 {
     srs_error_t err = srs_success;
-    
-    pps = "";
-    if (nb_frame > 0) {
-        pps.append(frame, nb_frame);
-    }
-    
-    // should never be empty.
-    if (pps.empty()) {
+
+    if (nb_frame <= 0) {
         return srs_error_new(ERROR_STREAM_CASTER_AVC_PPS, "no pps");
     }
-    
+
+    pps = string(frame, nb_frame);
+
     return err;
 }
 
