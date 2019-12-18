@@ -67,6 +67,10 @@ extern srs_utime_t _srs_tmp_timeout;
 #define HELPER_BUFFER2STR(io) \
     string((const char*)(io)->bytes(), (size_t)(io)->length())
 
+// Covert uint8_t array to string.
+#define HELPER_ARR2STR(arr, size) \
+    string((char*)(arr), (int)size)
+
 // the asserts of gtest:
 //    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual
 //    * {ASSERT|EXPECT}_NE(v1, v2):           Tests that v1 != v2
