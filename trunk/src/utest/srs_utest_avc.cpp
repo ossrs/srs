@@ -449,3 +449,125 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
     }
 }
 
+VOID TEST(SrsAVCTest, AACMuxToFLV)
+{
+    srs_error_t err;
+
+    // For MP3 frame.
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdMP3;
+        codec.sound_rate = 0; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(6, nb_flv);
+        EXPECT_EQ(0x23, (uint8_t)flv[0]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+1,5).c_str());
+        srs_freep(flv);
+    }
+
+    // For Opus frame.
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdOpus;
+        codec.sound_rate = 0; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(6, nb_flv);
+        EXPECT_EQ(0xd3, (uint8_t)flv[0]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+1,5).c_str());
+        srs_freep(flv);
+    }
+
+    // For Speex frame.
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdSpeex;
+        codec.sound_rate = 0; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(6, nb_flv);
+        EXPECT_EQ(0xb3, (uint8_t)flv[0]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+1,5).c_str());
+        srs_freep(flv);
+    }
+
+    // For AAC frame.
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdAAC;
+        codec.sound_rate = 0; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(7, nb_flv);
+        EXPECT_EQ(0xa3, (uint8_t)flv[0]);
+        EXPECT_EQ(0x04, (uint8_t)flv[1]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+2,5).c_str());
+        srs_freep(flv);
+    }
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdAAC;
+        codec.sound_rate = 1; codec.sound_size = 1; codec.sound_type = 0;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(7, nb_flv);
+        EXPECT_EQ(0xa6, (uint8_t)flv[0]);
+        EXPECT_EQ(0x04, (uint8_t)flv[1]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+2,5).c_str());
+        srs_freep(flv);
+    }
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdAAC;
+        codec.sound_rate = 1; codec.sound_size = 0; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(7, nb_flv);
+        EXPECT_EQ(0xa5, (uint8_t)flv[0]);
+        EXPECT_EQ(0x04, (uint8_t)flv[1]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+2,5).c_str());
+        srs_freep(flv);
+    }
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdAAC;
+        codec.sound_rate = 1; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(7, nb_flv);
+        EXPECT_EQ(0xa7, (uint8_t)flv[0]);
+        EXPECT_EQ(0x04, (uint8_t)flv[1]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+2,5).c_str());
+        srs_freep(flv);
+    }
+    if (true) {
+        SrsRawAacStream h;
+        string frame("Hello"); SrsRawAacStreamCodec codec;
+        char* flv = NULL; int nb_flv = 0;
+        codec.sound_format = SrsAudioCodecIdAAC;
+        codec.sound_rate = 3; codec.sound_size = 1; codec.sound_type = 1;
+        codec.aac_packet_type = 4;
+        HELPER_ASSERT_SUCCESS(h.mux_aac2flv((char*)frame.data(), frame.length(), &codec, 0, &flv, &nb_flv));
+        EXPECT_EQ(7, nb_flv);
+        EXPECT_EQ(0xaf, (uint8_t)flv[0]);
+        EXPECT_EQ(0x04, (uint8_t)flv[1]);
+        EXPECT_STREQ("Hello", HELPER_ARR2STR(flv+2,5).c_str());
+        srs_freep(flv);
+    }
+}
+
