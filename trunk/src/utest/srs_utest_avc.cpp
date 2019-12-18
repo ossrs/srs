@@ -256,6 +256,20 @@ VOID TEST(SrsAVCTest, AACDemuxADTS)
 {
     srs_error_t err;
 
+    // Fail if not adts format.
+    if (true) {
+        SrsRawAacStream h; char* frame = NULL; int nb_frame = 0; SrsRawAacStreamCodec codec;
+        uint8_t b[] = {0xff, 0x09, 0x2c,0x40, 0,0xe0,0}; SrsBuffer buf((char*)b, sizeof(b));
+        HELPER_EXPECT_FAILED(h.adts_demux(&buf, &frame, &nb_frame, codec));
+    }
+
+    // Fail if less than 7 bytes.
+    if (true) {
+        SrsRawAacStream h; char* frame = NULL; int nb_frame = 0; SrsRawAacStreamCodec codec;
+        uint8_t b[] = {0xff, 0xf9}; SrsBuffer buf((char*)b, sizeof(b));
+        HELPER_EXPECT_FAILED(h.adts_demux(&buf, &frame, &nb_frame, codec));
+    }
+
     // For lower sampling rate, such as 5512HZ.
     if (true) {
         SrsRawAacStream h; char* frame = NULL; int nb_frame = 0; SrsRawAacStreamCodec codec;
