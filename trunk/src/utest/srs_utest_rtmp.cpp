@@ -3193,19 +3193,19 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
     }
 
     if (true) {
-        SrsMessageArray msgs(10);
-        msgs[0] = new SrsSharedPtrMessage();
-        msgs[1] = new SrsSharedPtrMessage();
-        EXPECT_TRUE(NULL != msgs[0]);
-        EXPECT_TRUE(NULL != msgs[1]);
+        SrsMessageArray h(10);
+        h.msgs[0] = new SrsSharedPtrMessage();
+        h.msgs[1] = new SrsSharedPtrMessage();
+        EXPECT_TRUE(NULL != h.msgs[0]);
+        EXPECT_TRUE(NULL != h.msgs[1]);
 
-        msgs.free(1);
-        EXPECT_TRUE(NULL == msgs[0]);
-        EXPECT_TRUE(NULL != msgs[1]);
+        h.free(1);
+        EXPECT_TRUE(NULL == h.msgs[0]);
+        EXPECT_TRUE(NULL != h.msgs[1]);
 
-        msgs.free(2);
-        EXPECT_TRUE(NULL == msgs[0]);
-        EXPECT_TRUE(NULL == msgs[1]);
+        h.free(2);
+        EXPECT_TRUE(NULL == h.msgs[0]);
+        EXPECT_TRUE(NULL == h.msgs[1]);
     }
 }
 
