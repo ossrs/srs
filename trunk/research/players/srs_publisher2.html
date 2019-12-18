@@ -311,7 +311,6 @@
 </script>
 <script type="text/javascript">
     var srs_publisher = null;
-    var remote_player = null;
     var realtime_player = null;
 
     var query = parse_query_string();
@@ -369,17 +368,6 @@
 
         // if no play specified, donot show the player, for debug the publisher.
         if (query.no_play != "true") {
-            // start the normal player with HLS supported.
-            remote_player = new SrsPlayer("remote_player", 430, 185);
-            remote_player.on_player_ready = function() {
-                this.set_bt(0.8);
-            };
-            remote_player.on_player_metadata = function(metadata) {
-                this.set_dar(0, 0);
-                this.set_fs("screen", 100);
-            }
-            remote_player.start();
-
             // start the realtime player.
             realtime_player = new SrsPlayer("realtime_player", 430, 185);
             realtime_player.on_player_ready = function() {
@@ -455,17 +443,6 @@
             // directly play the url for the realtime player.
             realtime_player.stop();
             realtime_player.play(url);
-        }
-
-        if (remote_player) {
-            // the normal player should play the transcoded stream in another vhost.
-            // for example, publish stream to vhost players,
-            // the realtime player play the vhost players, which may donot support HLS,
-            // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
-            var ret = srs_parse_rtmp_url(url);
-            var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app + "/" + ret.stream + "?vhost=" + ret.vhost;
-            remote_player.stop();
-            remote_player.play(pub_url);
         }
     }
 </script>
