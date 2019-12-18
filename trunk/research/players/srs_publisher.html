@@ -55,7 +55,7 @@
     $(function(){
         var l = window.location;
         var url = window.location.href;
-        if (true || l.hostname !== 'localhost' && l.hostname !== '127.0.0.1' && l.protocol == 'http:') {
+        if (l.hostname !== 'localhost' && l.hostname !== '127.0.0.1' && l.protocol == 'http:') {
             // For flash publisher, must use HTTPS.
             url = window.location.href.replace('http:', 'https:');
         }
