@@ -613,6 +613,11 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
                 + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
                 + "&coworker=" + coworkers.at(i);
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
+                // If failed to discovery stream in this coworker, we should request the next one util the last.
+                // @see https://github.com/ossrs/srs/issues/1223
+                if (i < (int)coworkers.size() - 1) {
+                    continue;
+                }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
             srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s",

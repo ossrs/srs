@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-18, Fix [#1520][bug #1520] and [#1223][bug #1223], bug for origin cluster 3+ servers. 3.0.74
 * v3.0, 2019-12-18, For [#1042][bug #1042], add test for RAW AVC protocol.
 * v3.0, 2019-12-18, Detect whether flash enabled for srs-player. 3.0.73
 * v3.0, 2019-12-17, Fix HTTP CORS bug when sending response for OPTIONS. 3.0.72
@@ -1532,6 +1533,8 @@ Winlin
 [bug #1042]: https://github.com/ossrs/srs/issues/1042
 [bug #1445]: https://github.com/ossrs/srs/issues/1445
 [bug #1506]: https://github.com/ossrs/srs/issues/1506
+[bug #1520]: https://github.com/ossrs/srs/issues/1520
+[bug #1223]: https://github.com/ossrs/srs/issues/1223
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
