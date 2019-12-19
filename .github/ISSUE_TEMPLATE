@@ -1,37 +1,45 @@
 ---
-name: 提Bug
-about: 描述一个Bug帮助改进系统
+name: File bug
+about: File bug to improve SRS
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**描述**
-描述你遇到了什么问题。
+**描述(Description)**
 
-**环境**
-1. 操作系统：```...```
-1. 编码器(工具和版本)：```...```
-1. 播放器(工具和版本)：```...```
-1. SRS版本: ```...```
-1. SRS的日志如下:
+描述你遇到了什么问题。<br/>
+(Please description your issue here.)
+
+**环境(Environment)**
+
+1. 操作系统(OS)：`...`
+1. 编码器(工具和版本)(Encoder)：`...`
+1. 播放器(工具和版本)(Player)：`...`
+1. SRS版本(Version): `...`
+1. SRS的日志如下(Log):
 
 ```
 ......
 ```
 
-**重现**
-重现Bug的步骤如下：
-1. 启动SRS，运行 ```...```
-1. 推流，运行 ```...```
-1. 播放，运行 ```...```
-1. 操作 ```...```
-1. 重现了Bug，关键信息如下：
+**重现(Replay)**
+
+重现Bug的步骤如下：<br/>
+(How to replay bug?)
+
+1. 启动SRS，运行(Start SRS by) `...`
+1. 推流，运行(Publish by) `...`
+1. 播放，运行(Play by) `...`
+1. 操作(Other steps) `...`
+1. 重现了Bug，关键信息如下(Bug replayed, logs)：
 
 ```
 ...
 ```
 
-**期望行为**
-描述你期望发生的事情。
+**期望行为(Expect)**
+
+描述你期望发生的事情。<br/>
+(Please describe your expectation.)
