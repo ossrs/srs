@@ -14,12 +14,11 @@ assignees: ''
 
 **环境(Environment)**
 
+1. SRS版本(Version): `xxxxxx`
 1. 操作系统(OS)：`xxxxxx`
 1. 编码器(工具和版本)(Encoder)：`xxxxxx`
 1. 播放器(工具和版本)(Player)：`xxxxxx`
-1. SRS版本(Version): `xxxxxx`
 1. SRS的日志如下(Log):
-
 ```
 xxxxxxxxxxxx
 ```
