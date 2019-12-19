@@ -147,6 +147,13 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2019-12-19, [3.0 alpha5(3.0.75)][r3.0a5] released. 115362 lines.</strong>
+* v3.0, 2019-12-19, Refine the RTMP iovs cache increasing to much faster.
+* v3.0, 2019-12-19, Fix [#1524][bug #1524], memory leak for amf0 strict array. 3.0.75
+* v3.0, 2019-12-19, Fix random build failed bug for modules.
+* v3.0, 2019-12-19, Fix [#1520][bug #1520] and [#1223][bug #1223], bug for origin cluster 3+ servers. 3.0.74
+* v3.0, 2019-12-18, For [#1042][bug #1042], add test for RAW AVC protocol.
+* v3.0, 2019-12-18, Detect whether flash enabled for srs-player. 3.0.73
 * v3.0, 2019-12-17, Fix HTTP CORS bug when sending response for OPTIONS. 3.0.72
 * v3.0, 2019-12-17, Enhance HTTP response write for final_request.
 * v3.0, 2019-12-17, Refactor HTTP stream to disconnect client when unpublish.
@@ -671,6 +678,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2019-12-19, [Release v3.0-a5][r3.0a5], 3.0 alpha5, 3.0.75, 115362 lines.
 * 2019-12-13, [Release v3.0-a4][r3.0a4], 3.0 alpha4, 3.0.71, 112928 lines.
 * 2019-11-30, [Release v3.0-a3][r3.0a3], 3.0 alpha3, 3.0.67, 110864 lines.
 * 2019-11-30, [Release v3.0-a2][r3.0a2], 3.0 alpha2, 3.0.66, 110831 lines.
@@ -1508,6 +1516,7 @@ Winlin
 [bug #1339]: https://github.com/ossrs/srs/pull/1339
 [bug #1312]: https://github.com/ossrs/srs/pull/1312
 [bug #1304]: https://github.com/ossrs/srs/pull/1304
+[bug #1524]: https://github.com/ossrs/srs/issues/1524
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
@@ -1532,6 +1541,8 @@ Winlin
 [bug #1042]: https://github.com/ossrs/srs/issues/1042
 [bug #1445]: https://github.com/ossrs/srs/issues/1445
 [bug #1506]: https://github.com/ossrs/srs/issues/1506
+[bug #1520]: https://github.com/ossrs/srs/issues/1520
+[bug #1223]: https://github.com/ossrs/srs/issues/1223
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
@@ -1540,6 +1551,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a5]: https://github.com/ossrs/srs/releases/tag/v3.0-a5
 [r3.0a4]: https://github.com/ossrs/srs/releases/tag/v3.0-a4
 [r3.0a3]: https://github.com/ossrs/srs/releases/tag/v3.0-a3
 [r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2

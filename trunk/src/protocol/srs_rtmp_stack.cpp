@@ -231,7 +231,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
     in_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;
     out_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;
     
-    nb_out_iovs = SRS_CONSTS_IOVS_MAX;
+    nb_out_iovs = 8 * SRS_CONSTS_IOVS_MAX;
     out_iovs = (iovec*)malloc(sizeof(iovec) * nb_out_iovs);
     // each chunk consumers atleast 2 iovs
     srs_assert(nb_out_iovs >= 2);
@@ -486,11 +486,11 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
             // for we donot know how many messges maybe to send entirely,
             // we just alloc the iovs, it's ok.
             if (iov_index >= nb_out_iovs - 2) {
-                srs_warn("resize iovs %d => %d, max_msgs=%d", nb_out_iovs, nb_out_iovs + SRS_CONSTS_IOVS_MAX, SRS_PERF_MW_MSGS);
-                
-                nb_out_iovs += SRS_CONSTS_IOVS_MAX;
+                int ov = nb_out_iovs;
+                nb_out_iovs = 2 * nb_out_iovs;
                 int realloc_size = sizeof(iovec) * nb_out_iovs;
                 out_iovs = (iovec*)realloc(out_iovs, realloc_size);
+                srs_warn("resize iovs %d => %d, max_msgs=%d", ov, nb_out_iovs, SRS_PERF_MW_MSGS);
             }
             
             // to next pair of iovs

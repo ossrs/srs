@@ -107,34 +107,22 @@ srs_error_t SrsRawH264Stream::sps_demux(char* frame, int nb_frame, string& sps)
     if (nb_frame < 4) {
         return err;
     }
-    
-    sps = "";
-    if (nb_frame > 0) {
-        sps.append(frame, nb_frame);
-    }
-    
-    // should never be empty.
-    if (sps.empty()) {
-        return srs_error_new(ERROR_STREAM_CASTER_AVC_SPS, "no sps");
-    }
-    
+
+    sps = string(frame, nb_frame);
+
     return err;
 }
 
 srs_error_t SrsRawH264Stream::pps_demux(char* frame, int nb_frame, string& pps)
 {
     srs_error_t err = srs_success;
-    
-    pps = "";
-    if (nb_frame > 0) {
-        pps.append(frame, nb_frame);
-    }
-    
-    // should never be empty.
-    if (pps.empty()) {
+
+    if (nb_frame <= 0) {
         return srs_error_new(ERROR_STREAM_CASTER_AVC_PPS, "no pps");
     }
-    
+
+    pps = string(frame, nb_frame);
+
     return err;
 }
 
@@ -153,9 +141,7 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32
     //      numOfPictureParameterSets, pictureParameterSetLength
     // Nbytes of pps:
     //      pictureParameterSetNALUnit
-    int nb_packet = 5
-    + 3 + (int)sps.length()
-    + 3 + (int)pps.length();
+    int nb_packet = 5 + (3 + (int)sps.length()) + (3 + (int)pps.length());
     char* packet = new char[nb_packet];
     SrsAutoFreeA(char, packet);
     
@@ -216,9 +202,8 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32
     // TODO: FIXME: for more profile.
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 144
-    
-    sh = "";
-    sh.append(packet, nb_packet);
+
+    sh = string(packet, nb_packet);
     
     return err;
 }
@@ -248,9 +233,8 @@ srs_error_t SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& i
     stream.write_4bytes(NAL_unit_length);
     // NALUnit
     stream.write_bytes(frame, nb_frame);
-    
-    ibp = "";
-    ibp.append(packet, nb_packet);
+
+    ibp = string(packet, nb_packet);
     
     return err;
 }
@@ -421,7 +405,7 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* p
         codec.channel_configuration = channel_configuration;
         codec.frame_length = frame_length;
         
-        // @see srs_audio_write_raw_frame().
+        // The aac sampleing rate defined in srs_aac_srates.
         // TODO: FIXME: maybe need to resample audio.
         codec.sound_format = 10; // AAC
         if (sampling_frequency_index <= 0x0c && sampling_frequency_index > 0x0a) {
@@ -477,27 +461,24 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
             break;
     }
     
-    sh = "";
-    
-    char ch = 0;
+    char chs[2];
     // @see ISO_IEC_14496-3-AAC-2001.pdf
     // AudioSpecificConfig (), page 33
     // 1.6.2.1 AudioSpecificConfig
     // audioObjectType; 5 bslbf
-    ch = (audioObjectType << 3) & 0xf8;
+    chs[0] = (audioObjectType << 3) & 0xf8;
     // 3bits left.
     
     // samplingFrequencyIndex; 4 bslbf
-    ch |= (samplingFrequencyIndex >> 1) & 0x07;
-    sh += ch;
-    ch = (samplingFrequencyIndex << 7) & 0x80;
+    chs[0] |= (samplingFrequencyIndex >> 1) & 0x07;
+    chs[1] = (samplingFrequencyIndex << 7) & 0x80;
     if (samplingFrequencyIndex == 0x0f) {
         return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid sampling frequency index");
     }
     // 7bits left.
     
     // channelConfiguration; 4 bslbf
-    ch |= (channelConfiguration << 3) & 0x78;
+    chs[1] |= (channelConfiguration << 3) & 0x78;
     // 3bits left.
     
     // GASpecificConfig(), page 451
@@ -505,7 +486,7 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     // frameLengthFlag; 1 bslbf
     // dependsOnCoreCoder; 1 bslbf
     // extensionFlag; 1 bslbf
-    sh += ch;
+    sh = string((char*)chs, sizeof(chs));
     
     return err;
 }
