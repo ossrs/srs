@@ -607,11 +607,12 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost) && source->inactive()) {
         vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
         for (int i = 0; i < (int)coworkers.size(); i++) {
-            int port;
-            string host;
-            string url = "http://" + coworkers.at(i) + "/api/v1/clusters?"
+            // TODO: FIXME: User may config the server itself as coworker, we must identify and ignore it.
+            string host; int port = 0; string coworker = coworkers.at(i);
+
+            string url = "http://" + coworker + "/api/v1/clusters?"
                 + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
-                + "&coworker=" + coworkers.at(i);
+                + "&coworker=" + coworker;
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
                 // If failed to discovery stream in this coworker, we should request the next one util the last.
                 // @see https://github.com/ossrs/srs/issues/1223
@@ -622,6 +623,11 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             }
             srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s",
                 req->host.c_str(), req->port, host.c_str(), port, url.c_str());
+
+            // Ignore if host or port is invalid.
+            if (host.empty() || port == 0) {
+                continue;
+            }
             
             bool accepted = false;
             if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
