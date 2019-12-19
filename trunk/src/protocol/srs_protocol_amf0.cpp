@@ -1030,12 +1030,7 @@ SrsAmf0StrictArray::SrsAmf0StrictArray()
 
 SrsAmf0StrictArray::~SrsAmf0StrictArray()
 {
-    std::vector<SrsAmf0Any*>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
-        SrsAmf0Any* any = *it;
-        srs_freep(any);
-    }
-    properties.clear();
+    clear();
 }
 
 int SrsAmf0StrictArray::total_size()
@@ -1147,6 +1142,11 @@ SrsJsonAny* SrsAmf0StrictArray::to_json()
 
 void SrsAmf0StrictArray::clear()
 {
+    std::vector<SrsAmf0Any*>::iterator it;
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsAmf0Any* any = *it;
+        srs_freep(any);
+    }
     properties.clear();
 }
 

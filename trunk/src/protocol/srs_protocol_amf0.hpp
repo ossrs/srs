@@ -356,7 +356,7 @@ public:
      * convert amf0 to json.
      */
     virtual SrsJsonAny* to_json();
-    // properties iteration
+// properties iteration
 public:
     /**
      * clear all propergies.
@@ -447,7 +447,7 @@ public:
      * convert amf0 to json.
      */
     virtual SrsJsonAny* to_json();
-    // properties iteration
+// properties iteration
 public:
     /**
      * clear all propergies.
@@ -532,7 +532,7 @@ public:
      * convert amf0 to json.
      */
     virtual SrsJsonAny* to_json();
-    // properties iteration
+// properties iteration
 public:
     /**
      * clear all elements.
