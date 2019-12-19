@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-19, Refine the RTMP iovs cache increasing to much faster.
 * v3.0, 2019-12-19, Fix [#1524][bug #1524], memory leak for amf0 strict array. 3.0.75
 * v3.0, 2019-12-19, Fix random build failed bug for modules.
 * v3.0, 2019-12-19, Fix [#1520][bug #1520] and [#1223][bug #1223], bug for origin cluster 3+ servers. 3.0.74
