@@ -83,6 +83,13 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     fi
 done
 
+# generate extra phony for each modules.
+cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+
+.PHONY: $__mphonys
+
+END
+
 #####################################################################################
 # build tools or compiler args.
 # enable gdb debug
@@ -112,7 +119,7 @@ if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
 # Start to generate the Makefile.
-cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
 CXX = g++
 AR = ar
