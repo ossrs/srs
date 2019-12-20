@@ -19,6 +19,7 @@ echo "Generating lib ${LIB_NAME} depends."
 echo "" >> ${FILE}
 echo "# archive library ${LIB_TAGET_STATIC}" >> ${FILE}
 echo "${BUILD_KEY}: ${LIB_TAGET_STATIC}" >> ${FILE}
+echo "" >> ${FILE}
 
 # build depends
 echo -n "${LIB_TAGET_STATIC}: " >> ${FILE}

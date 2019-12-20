@@ -429,13 +429,13 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     # if export librtmp, donot build the bravo-ingest.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-$SRS_MODULE_NAME: _prepare_dir
+$SRS_MODULE_NAME: _prepare_dir server
 	@echo "Ingore the $SRS_MODULE_NAME for srs-librtmp"
 
 END
     else
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-$SRS_MODULE_NAME: _prepare_dir
+$SRS_MODULE_NAME: _prepare_dir server
 	@echo "Build the $SRS_MODULE_NAME over SRS"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} $SRS_MODULE_NAME
 

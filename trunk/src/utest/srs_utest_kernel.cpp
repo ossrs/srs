@@ -271,8 +271,12 @@ MockBufferReader::~MockBufferReader()
 srs_error_t MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
 {
     int len = srs_min(str.length(), size);
+    if (len == 0) {
+        return srs_error_new(-1, "no data");
+    }
 
     memcpy(buf, str.data(), len);
+    str = str.substr(len);
     
     if (nread) {
         *nread = len;
@@ -388,19 +392,73 @@ VOID TEST(KernelBufferTest, EraseBytes)
 
 VOID TEST(KernelFastBufferTest, Grow)
 {
-    SrsFastStream b;
-    MockBufferReader r("winlin");
-    
-    b.grow(&r, 1);
-    EXPECT_EQ('w', b.read_1byte());
+    srs_error_t err;
 
-    b.grow(&r, 3);
-    b.skip(1);
-    EXPECT_EQ('n', b.read_1byte());
-    
-    b.grow(&r, 100);
-    b.skip(99);
-    EXPECT_EQ('w', b.read_1byte());
+    if(true) {
+        SrsFastStream b(5);
+        MockBufferReader r("Hello, world!");
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        b.skip(2);
+
+        HELPER_ASSERT_FAILED(b.grow(&r, 6));
+    }
+
+    if(true) {
+        SrsFastStream b(5);
+        MockBufferReader r("Hello, world!");
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        b.skip(5);
+
+        HELPER_ASSERT_FAILED(b.grow(&r, 6));
+    }
+
+    if(true) {
+        SrsFastStream b(6);
+        MockBufferReader r("Hello, world!");
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        EXPECT_EQ('H', b.read_1byte()); EXPECT_EQ('e', b.read_1byte()); EXPECT_EQ('l', b.read_1byte());
+        b.skip(2);
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 2));
+        b.skip(2);
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        EXPECT_EQ('w', b.read_1byte()); EXPECT_EQ('o', b.read_1byte()); EXPECT_EQ('r', b.read_1byte());
+        b.skip(2);
+    }
+
+    if(true) {
+        SrsFastStream b(5);
+        MockBufferReader r("Hello, world!");
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        EXPECT_EQ('H', b.read_1byte()); EXPECT_EQ('e', b.read_1byte()); EXPECT_EQ('l', b.read_1byte());
+        b.skip(2);
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 2));
+        b.skip(2);
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 5));
+        EXPECT_EQ('w', b.read_1byte()); EXPECT_EQ('o', b.read_1byte()); EXPECT_EQ('r', b.read_1byte());
+        b.skip(2);
+    }
+
+    if (true) {
+        SrsFastStream b;
+        MockBufferReader r("winlin");
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 1));
+        EXPECT_EQ('w', b.read_1byte());
+
+        HELPER_ASSERT_SUCCESS(b.grow(&r, 3));
+        b.skip(1);
+        EXPECT_EQ('n', b.read_1byte());
+
+        HELPER_ASSERT_FAILED(b.grow(&r, 100));
+    }
 }
 
 /**

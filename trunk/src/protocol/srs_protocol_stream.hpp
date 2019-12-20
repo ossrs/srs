@@ -84,7 +84,8 @@ private:
     // the size of buffer.
     int nb_buffer;
 public:
-    SrsFastStream();
+    // If buffer is 0, use default size.
+    SrsFastStream(int size=0);
     virtual ~SrsFastStream();
 public:
     /**
@@ -128,7 +129,7 @@ public:
     virtual void skip(int size);
 public:
     /**
-     * grow buffer to the required size, loop to read from skt to fill.
+     * grow buffer to atleast required size, loop to read from skt to fill.
      * @param reader, read more bytes from reader to fill the buffer to required size.
      * @param required_size, loop to fill to ensure buffer size to required.
      * @return an int error code, error if required_size negative.

@@ -52,14 +52,14 @@ IMergeReadHandler::~IMergeReadHandler()
 }
 #endif
 
-SrsFastStream::SrsFastStream()
+SrsFastStream::SrsFastStream(int size)
 {
 #ifdef SRS_PERF_MERGED_READ
     merged_read = false;
     _handler = NULL;
 #endif
     
-    nb_buffer = SRS_DEFAULT_RECV_BUFFER_SIZE;
+    nb_buffer = size? size:SRS_DEFAULT_RECV_BUFFER_SIZE;
     buffer = (char*)malloc(nb_buffer);
     p = end = buffer;
 }
@@ -84,8 +84,7 @@ void SrsFastStream::set_buffer(int buffer_size)
 {
     // never exceed the max size.
     if (buffer_size > SRS_MAX_SOCKET_BUFFER) {
-        srs_warn("limit the user-space buffer from %d to %d",
-                 buffer_size, SRS_MAX_SOCKET_BUFFER);
+        srs_warn("limit buffer size %d to %d", buffer_size, SRS_MAX_SOCKET_BUFFER);
     }
     
     // the user-space buffer size limit to a max value.
@@ -152,7 +151,7 @@ srs_error_t SrsFastStream::grow(ISrsReader* reader, int required_size)
     srs_assert(nb_exists_bytes >= 0);
     
     // resize the space when no left space.
-    if (nb_free_space < required_size - nb_exists_bytes) {
+    if (nb_exists_bytes + nb_free_space < required_size) {
         // reset or move to get more space.
         if (!nb_exists_bytes) {
             // reset when buffer is empty.
@@ -168,7 +167,7 @@ srs_error_t SrsFastStream::grow(ISrsReader* reader, int required_size)
         
         // check whether enough free space in buffer.
         nb_free_space = (int)(buffer + nb_buffer - end);
-        if (nb_free_space < required_size - nb_exists_bytes) {
+        if (nb_exists_bytes + nb_free_space < required_size) {
             return srs_error_new(ERROR_READER_BUFFER_OVERFLOW, "overflow, required=%d, max=%d, left=%d", required_size, nb_buffer, nb_free_space);
         }
     }
