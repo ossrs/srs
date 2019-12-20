@@ -40,6 +40,8 @@ SrsHttpParser::SrsHttpParser()
 {
     buffer = new SrsFastStream();
     header = NULL;
+
+    p_body_start = p_header_tail = NULL;
 }
 
 SrsHttpParser::~SrsHttpParser()
@@ -80,7 +82,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     state = SrsHttpParseStateInit;
     hp_header = http_parser();
     // The body that we have read from cache.
-    pbody = NULL;
+    p_body_start = p_header_tail = NULL;
     // We must reset the field name and value, because we may get a partial value in on_header_value.
     field_name = field_value = "";
     // The header of the request.
@@ -115,19 +117,26 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     
     while (true) {
         if (buffer->size() > 0) {
-            ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
 
             // The error is set in http_errno.
             enum http_errno code;
 	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
 	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
-	                buffer->size(), nparsed, http_errno_name(code), http_errno_description(code));
+	                buffer->size(), consumed, http_errno_name(code), http_errno_description(code));
 	        }
 
-			// The consumed size, does not include the body.
-	        ssize_t consumed = nparsed;
-	        if (pbody && buffer->bytes() < pbody) {
-	           consumed = pbody - buffer->bytes();
+            // When buffer consumed these bytes, it's dropped so the new ptr is actually the HTTP body. But http-parser
+            // doesn't indicate the specific sizeof header, so we must finger it out.
+            // @remark We shouldn't use on_body, because it only works for normal case, and losts the chunk header and length.
+            // @see https://github.com/ossrs/srs/issues/1508
+	        if (p_header_tail && buffer->bytes() < p_body_start) {
+	            for (const char* p = p_header_tail; p <= p_body_start - 4; p++) {
+	                if (p[0] == SRS_CONSTS_CR && p[1] == SRS_CONSTS_LF && p[2] == SRS_CONSTS_CR && p[3] == SRS_CONSTS_LF) {
+	                    consumed = p + 4 - buffer->bytes();
+	                    break;
+	                }
+	            }
 	        }
             srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
 
@@ -203,6 +212,11 @@ int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
     if (length > 0) {
         obj->url = string(at, (int)length);
     }
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Method: %d, Url: %.*s", parser->method, (int)length, at);
     
@@ -222,6 +236,11 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
     if (length > 0) {
         obj->field_name.append(at, (int)length);
     }
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
@@ -235,6 +254,11 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     if (length > 0) {
         obj->field_value.append(at, (int)length);
     }
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
@@ -248,9 +272,10 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     // save the parser when body parsed.
     obj->state = SrsHttpParseStateBody;
 
-    // Save the body position.
-    obj->pbody = at;
-    
+    // Used to discover the header length.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_body_start = at;
+
     srs_info("Body: %.*s", (int)length, at);
     
     return 0;

@@ -55,7 +55,11 @@ private:
     http_parser hp_header;
     std::string url;
     SrsHttpHeader* header;
-    const char* pbody;
+private:
+    // Point to the start of body.
+    const char* p_body_start;
+    // To discover the length of header, point to the last few bytes in header.
+    const char* p_header_tail;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
