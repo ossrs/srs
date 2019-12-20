@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-20, For [#1508][bug #1508], Refactor srs_is_digital, support all zeros.
 * <strong>v3.0, 2019-12-19, [3.0 alpha5(3.0.75)][r3.0a5] released. 115362 lines.</strong>
 * v3.0, 2019-12-19, Refine the RTMP iovs cache increasing to much faster.
 * v3.0, 2019-12-19, Fix [#1524][bug #1524], memory leak for amf0 strict array. 3.0.75
@@ -1541,6 +1542,7 @@ Winlin
 [bug #1506]: https://github.com/ossrs/srs/issues/1506
 [bug #1520]: https://github.com/ossrs/srs/issues/1520
 [bug #1223]: https://github.com/ossrs/srs/issues/1223
+[bug #1508]: https://github.com/ossrs/srs/issues/1508
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

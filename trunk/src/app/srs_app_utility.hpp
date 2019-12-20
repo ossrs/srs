@@ -640,12 +640,6 @@ extern int srs_get_local_port(int fd);
 // Where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
 
-// Whether string is digit number
-//      is_digit("1234567890")  === true
-//      is_digit("0123456789")  === false
-//      is_digit("1234567890a") === false
-//      is_digit("a1234567890") === false
-extern bool srs_is_digit_number(const std::string& str);
 // Whether string is boolean
 //      is_bool("true") == true
 //      is_bool("false") == true

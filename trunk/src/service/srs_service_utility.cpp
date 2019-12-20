@@ -28,6 +28,8 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <math.h>
+#include <stdlib.h>
 #include <map>
 #include <sstream>
 using namespace std;
@@ -46,6 +48,28 @@ bool srs_string_is_http(string url)
 bool srs_string_is_rtmp(string url)
 {
     return srs_string_starts_with(url, "rtmp://");
+}
+
+bool srs_is_digit_number(const string& str)
+{
+    if (str.empty()) {
+        return false;
+    }
+
+    const char* p = str.c_str();
+    const char* p_end = str.data() + str.length();
+    for (; p < p_end; p++) {
+        if (*p != '0') {
+            break;
+        }
+    }
+    if (p == p_end) {
+        return true;
+    }
+
+    int64_t v = ::atoll(p);
+    int64_t powv = (int64_t)pow(10, p_end - p - 1);
+    return  v / powv >= 1 && v / powv <= 9;
 }
 
 // we detect all network device as internet or intranet device, by its ip address.
