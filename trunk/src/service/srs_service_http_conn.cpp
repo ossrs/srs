@@ -962,11 +962,16 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
         // it's ok to set the pos and pos+1 to NULL.
         at[length - 1] = 0;
         at[length - 2] = 0;
+
+        // The at is length in string, it must be all digital.
+        if (!srs_is_digit_number(at)) {
+            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%s", at);
+        }
         
         // size is the bytes size, excludes the chunk header and end CRLF.
         int ilength = (int)::strtol(at, NULL, 16);
         if (ilength < 0) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%d", ilength);
+            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%s as %d", at, ilength);
         }
         
         // all bytes in chunk is left now.
