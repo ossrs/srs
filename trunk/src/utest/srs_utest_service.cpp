@@ -27,6 +27,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_service_st.hpp>
+#include <srs_service_utility.hpp>
 
 // Disable coroutine test for OSX.
 #if !defined(SRS_OSX)
@@ -223,6 +224,153 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		EXPECT_TRUE(SRS_UTIME_NO_TIMEOUT == skt.get_send_timeout());
 		EXPECT_TRUE(1*SRS_UTIME_MILLISECONDS == skt.get_recv_timeout());
 	}
+}
+
+VOID TEST(TCPServerTest, StringIsDigital)
+{
+    EXPECT_EQ(0, ::atoi("0"));
+    EXPECT_EQ(0, ::atoi("0000000000"));
+    EXPECT_EQ(1, ::atoi("01"));
+    EXPECT_EQ(12, ::atoi("012"));
+    EXPECT_EQ(1234567890L, ::atol("1234567890"));
+    EXPECT_EQ(123456789L, ::atol("0123456789"));
+    EXPECT_EQ(1234567890, ::atoi("1234567890a"));
+    EXPECT_EQ(10, ::atoi("10e3"));
+    EXPECT_EQ(0, ::atoi("!1234567890"));
+    EXPECT_EQ(0, ::atoi(""));
+
+    EXPECT_TRUE(srs_is_digit_number("0"));
+    EXPECT_TRUE(srs_is_digit_number("0000000000"));
+    EXPECT_TRUE(srs_is_digit_number("1234567890"));
+    EXPECT_TRUE(srs_is_digit_number("0123456789"));
+    EXPECT_FALSE(srs_is_digit_number("1234567890a"));
+    EXPECT_FALSE(srs_is_digit_number("a1234567890"));
+    EXPECT_FALSE(srs_is_digit_number("10e3"));
+    EXPECT_FALSE(srs_is_digit_number("!1234567890"));
+    EXPECT_FALSE(srs_is_digit_number(""));
+}
+
+VOID TEST(TCPServerTest, StringIsHex)
+{
+    if (true) {
+        char* str = (char*)"0";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 1, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"0";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 1, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"0000000000";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 10, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"01";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 2, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"012";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x12, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 3, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"1234567890";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1234567890L, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 10, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"0123456789";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x123456789L, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 10, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"1234567890a";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1234567890a, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 11, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"0x1234567890a";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1234567890a, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 13, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"1234567890f";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1234567890f, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 11, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"10e3";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x10e3, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 4, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"!1234567890";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"1234567890g";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x1234567890, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str + 10, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(0, errno);
+        EXPECT_EQ(str, parsed);
+    }
+
+    if (true) {
+        char* str = (char*)"1fffffffffffffffffffffffffffff";
+        char* parsed = str; errno = 0;
+        EXPECT_EQ(0x7fffffffffffffff, ::strtol(str, &parsed, 16));
+        EXPECT_NE(0, errno);
+        EXPECT_EQ(str+30, parsed);
+    }
 }
 
 VOID TEST(TCPServerTest, WritevIOVC)

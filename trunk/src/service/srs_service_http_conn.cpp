@@ -992,15 +992,14 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
         at[length - 1] = 0;
         at[length - 2] = 0;
 
-        // The at is length in string, it must be all digital.
-        if (!srs_is_digit_number(at)) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%s", at);
-        }
-        
         // size is the bytes size, excludes the chunk header and end CRLF.
-        int ilength = (int)::strtol(at, NULL, 16);
-        if (ilength < 0) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%s as %d", at, ilength);
+        // @remark It must be hex format, please read https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Transfer-Encoding#Directives
+        // @remark For strtol, note that: If no conversion could be performed, 0 is returned and the global variable errno is set to EINVAL.
+        char* at_parsed = at; errno = 0;
+        int ilength = (int)::strtol(at, &at_parsed, 16);
+        if (ilength < 0 || errno != 0 || at_parsed - at != length - 2) {
+            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length %s as %d, parsed=%.*s, errno=%d",
+                at, ilength, (int)(at_parsed-at), at, errno);
         }
         
         // all bytes in chunk is left now.

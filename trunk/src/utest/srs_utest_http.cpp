@@ -251,6 +251,26 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         __MOCK_HTTP_EXPECT_STREQ2(200, "5\r\nHello\r\n8\r\n, world!\r\n0\r\n\r\n", w);
     }
+    if (true) {
+        MockResponseWriter w;
+
+        w.header()->set_content_type("application/octet-stream");
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write((char*)"Hello, world!", 13);
+        w.final_request();
+
+        __MOCK_HTTP_EXPECT_STREQ2(200, "d\r\nHello, world!\r\n0\r\n\r\n", w);
+    }
+    if (true) {
+        MockResponseWriter w;
+
+        w.header()->set_content_type("application/octet-stream");
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write((char*)"Hello, world!", 13);
+        w.final_request();
+
+        __MOCK_HTTP_EXPECT_STREQ2(200, "d\r\nHello, world!\r\n0\r\n\r\n", w);
+    }
 
     // If directly write empty string, sent an empty response with content-length 0
     if (true) {
@@ -264,6 +284,42 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
         MockResponseWriter w;
         w.final_request();
         __MOCK_HTTP_EXPECT_STREQ2(200, "0\r\n\r\n", w);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, ClientRequest)
+{
+    srs_error_t err;
+
+    // Normal case, with chunked encoding.
+    if (true) {
+        MockBufferIO io; io.append(mock_http_response2(200, "0d\r\nHello, world!\r\n0\r\n\r\n"));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res; HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello, world!", res.c_str());
+        srs_freep(msg);
+    }
+    if (true) {
+        MockBufferIO io; io.append(mock_http_response2(200, "6\r\nHello!\r\n0\r\n\r\n"));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res; HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello!", res.c_str());
+        srs_freep(msg);
+    }
+
+    // Normal case, with specified content-length.
+    if (true) {
+        MockBufferIO io; io.append(mock_http_response(200, "Hello, world!"));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res; HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello, world!", res.c_str());
+        srs_freep(msg);
     }
 }
 
