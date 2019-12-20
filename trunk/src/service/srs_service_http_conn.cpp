@@ -116,8 +116,12 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     while (true) {
         if (buffer->size() > 0) {
             ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
-	        if (buffer->size() != nparsed) {
-	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse failed, nparsed=%d, size=%d", nparsed, buffer->size());
+
+            // The error is set in http_errno.
+            enum http_errno code;
+	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
+	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
+	                buffer->size(), nparsed, http_errno_name(code), http_errno_description(code));
 	        }
 
 			// The consumed size, does not include the body.
