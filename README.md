@@ -94,11 +94,8 @@ For previous versions, please read:
 - [x] Support native HTTP server([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP]) for http api and http live streaming.
 - [x] Support HTTP CORS for js in http api and http live streaming.
 - [x] Support HTTP API([CN][v3_CN_HTTPApi], [EN][v3_EN_HTTPApi]) for system management.
-- [x] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] Support HTTP callback([CN][v3_CN_HTTPCallback], [EN][v3_EN_HTTPCallback]) for authentication and integration.
-- [x] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] Support DVR([CN][v3_CN_DVR], [EN][v3_EN_DVR]) to record live streaming to FLV file.
-- [x] Support DVR in MP4 format, read [#738][bug #738].
 - [x] Support DVR control module like NGINX-RTMP, please read [#459][bug #459].
 - [x] Support EXEC like NGINX-RTMP, please read [bug #367][bug #367].
 - [x] Support security strategy including allow/deny publish/play IP([CN][v2_CN_Security], [EN][v2_EN_Security]).
@@ -119,15 +116,19 @@ For previous versions, please read:
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
+- [x] [Experimental] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
+- [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
 - [x] [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250][bug #250].
 - [x] [Experimental] Support pushing RTSP, please read [bug #133][bug #133].
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
-- [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]) and flash client example.
-- [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication.
+- [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
+- [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
+- [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
+- [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
+- [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
