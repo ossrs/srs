@@ -353,7 +353,7 @@ int srs_do_create_dir_recursively(string dir)
     mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
 #else
-    if (::mkdir(dir.c_str()) < 0) {
+    if (::_mkdir(dir.c_str()) < 0) {
 #endif
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
@@ -833,9 +833,9 @@ int srs_chunk_header_c0(
         *p++ = pp[1];
         *p++ = pp[0];
     } else {
-        *p++ = 0xFF;
-        *p++ = 0xFF;
-        *p++ = 0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
     }
     
     // message_length, 3bytes, big-endian

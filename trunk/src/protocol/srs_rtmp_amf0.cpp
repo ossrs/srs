@@ -1842,7 +1842,7 @@ namespace _srs_internal
             srs_error("amf0 write string length failed. ret=%d", ret);
             return ret;
         }
-        stream->write_2bytes(value.length());
+        stream->write_2bytes((int16_t)value.length());
         srs_verbose("amf0 write string length success. len=%d", (int)value.length());
         
         // empty string

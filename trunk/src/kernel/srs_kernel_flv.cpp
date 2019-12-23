@@ -303,12 +303,12 @@ int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
 {
     if (c0) {
         return srs_chunk_header_c0(
-            ptr->header.perfer_cid, timestamp, ptr->header.payload_length,
+            ptr->header.perfer_cid, (u_int32_t)timestamp, ptr->header.payload_length,
             ptr->header.message_type, stream_id,
             cache, nb_cache);
     } else {
         return srs_chunk_header_c3(
-            ptr->header.perfer_cid, timestamp,
+            ptr->header.perfer_cid, (u_int32_t)timestamp,
             cache, nb_cache);
     }
 }

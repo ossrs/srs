@@ -43,18 +43,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *************************************************************/
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
+    // To disable some security warnings.
+    #define _CRT_SECURE_NO_WARNINGS
     // include windows first.
     #include <windows.h>
     // the type used by this header for windows.
+    #if defined(_MSC_VER)
+        #include <stdint.h>
+    #else
+        typedef char int8_t;
+        typedef short int16_t;
+        typedef int int32_t;
+        typedef long long int64_t;
+    #endif
     typedef unsigned long long u_int64_t;
-    typedef long long int64_t;
     typedef unsigned int u_int32_t;
     typedef u_int32_t uint32_t;
-    typedef int int32_t;
     typedef unsigned char u_int8_t;
-    typedef char int8_t;
     typedef unsigned short u_int16_t;
-    typedef short int16_t;
     typedef int64_t ssize_t;
     struct iovec {
         void  *iov_base;    /* Starting address */
@@ -1051,7 +1057,6 @@ typedef void* srs_hijack_io_t;
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
     // for time.
-    #define _CRT_SECURE_NO_WARNINGS
     #include <time.h>
     int gettimeofday(struct timeval* tv, struct timezone* tz);
     #define PRId64 "lld"
@@ -1094,8 +1099,10 @@ typedef void* srs_hijack_io_t;
     int socket_setup();
     int socket_cleanup();
     
-    // others.
-    #define snprintf _snprintf
+    // snprintf is defined in VS2015, so we only define this macro before that.
+    #if defined(_MSC_VER) && _MSC_VER < 1900
+        #define snprintf _snprintf
+    #endif
 #endif
 
 #ifdef __cplusplus
