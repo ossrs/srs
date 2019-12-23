@@ -179,7 +179,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         microsec = srs_max(0, microsec);
 
         struct timeval tv = { sec , microsec };
-        if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, tvv, sizeof(tv)) == -1) {
+        if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
             return SOCKET_ERRNO();
         }
 #endif
@@ -217,7 +217,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         microsec = srs_max(0, microsec);
 
         struct timeval tv = { sec , microsec };
-        if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, tvv, sizeof(tv)) == -1) {
+        if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
             return SOCKET_ERRNO();
         }
 #endif
