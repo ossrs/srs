@@ -211,7 +211,8 @@ int SrsPacket::encode_packet(SrsStream* stream)
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     window = 0;
-    sequence_number = nb_recv_bytes = 0;
+    sequence_number = 0;
+    nb_recv_bytes = 0;
 }
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)

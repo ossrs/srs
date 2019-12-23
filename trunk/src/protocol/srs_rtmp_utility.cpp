@@ -71,8 +71,9 @@ void srs_discovery_tc_url(
     vhost = host;
     srs_vhost_resolve(vhost, app, param);
     srs_vhost_resolve(vhost, stream, param);
-    
-    if (param == "?vhost="SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+
+    // There must be a space to make VS2015 happy.
+    if (param == "?vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         param = "";
     }
 }
