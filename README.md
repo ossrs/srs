@@ -121,13 +121,13 @@ For previous versions, please read:
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
-- [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
 - [x] [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250][bug #250].
 - [x] [Experimental] Support pushing RTSP, please read [bug #133][bug #133].
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
 - [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]).
 - [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-23, For [#1535][bug #1535], deprecate Adobe HDS(f4m)([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]). 3.0.77
 * v3.0, 2019-12-20, Fix [#1508][bug #1508], http-client support read chunked response. 3.0.76
 * v3.0, 2019-12-20, For [#1508][bug #1508], refactor srs_is_digital, support all zeros.
 * <strong>v3.0, 2019-12-19, [3.0 alpha5(3.0.75)][r3.0a5] released. 115362 lines.</strong>
@@ -1544,6 +1545,7 @@ Winlin
 [bug #1520]: https://github.com/ossrs/srs/issues/1520
 [bug #1223]: https://github.com/ossrs/srs/issues/1223
 [bug #1508]: https://github.com/ossrs/srs/issues/1508
+[bug #1535]: https://github.com/ossrs/srs/issues/1535
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
