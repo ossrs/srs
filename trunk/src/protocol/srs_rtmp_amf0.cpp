@@ -275,7 +275,7 @@ char* SrsAmf0Any::human_print(char** pdata, int* psize)
         *pdata = data;
     }
     if (psize) {
-        *psize = str.length();
+        *psize = (int)str.length();
     }
     
     return data;
@@ -1148,7 +1148,7 @@ void SrsAmf0StrictArray::clear()
 
 int SrsAmf0StrictArray::count()
 {
-    return properties.size();
+    return (int)properties.size();
 }
 
 SrsAmf0Any* SrsAmf0StrictArray::at(int index)
@@ -1165,7 +1165,7 @@ void SrsAmf0StrictArray::append(SrsAmf0Any* any)
 
 int SrsAmf0Size::utf8(string value)
 {
-    return 2 + value.length();
+    return (int)(2 + value.length());
 }
 
 int SrsAmf0Size::str(string value)
@@ -1852,7 +1852,7 @@ namespace _srs_internal
         }
         
         // data
-        if (!stream->require(value.length())) {
+        if (!stream->require((int)value.length())) {
             ret = ERROR_RTMP_AMF0_ENCODE;
             srs_error("amf0 write string data failed. ret=%d", ret);
             return ret;

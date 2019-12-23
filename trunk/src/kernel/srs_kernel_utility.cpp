@@ -430,7 +430,7 @@ bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
     char* p = bytes;
     
     for (;;) {
-        if (!stream->require(p - bytes + 3)) {
+        if (!stream->require((int)(p - bytes + 3))) {
             return false;
         }
         
@@ -721,7 +721,7 @@ out2:
     *dst++ = v >> 4;
 out1:
 out0:
-    return bits & 1 ? -1 : dst - out;
+    return (int)(bits & 1 ? -1 : dst - out);
 }
 
 /*****************************************************************************
@@ -881,7 +881,7 @@ int srs_chunk_header_c0(
     }
     
     // always has header
-    return p - cache;
+    return (int)(p - cache);
 }
 
 int srs_chunk_header_c3(
@@ -931,6 +931,6 @@ int srs_chunk_header_c3(
     }
     
     // always has header
-    return p - cache;
+    return (int)(p - cache);
 }
 

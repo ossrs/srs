@@ -135,8 +135,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
         int ret = ERROR_SUCCESS;
-        
-        ssize_t nb_read = ::recv(skt->fd, (char*)buf, size, 0);
+
+#ifdef _WIN32
+        ssize_t nb_read = (int)::recv(skt->fd, (char*)buf, (int)size, 0);
+#else
+        ssize_t nb_read = (int)::recv(skt->fd, (char*)buf, size, 0);
+#endif
         
         if (nread) {
             *nread = nb_read;
@@ -242,7 +246,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         
         int ret = ERROR_SUCCESS;
         
-        ssize_t nb_write = ::writev(skt->fd, iov, iov_size);
+        ssize_t nb_write = ::writev((int)skt->fd, iov, iov_size);
         
         if (nwrite) {
             *nwrite = nb_write;
@@ -301,8 +305,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
         
         int ret = ERROR_SUCCESS;
-        
-        ssize_t nb_write = ::send(skt->fd, (char*)buf, size, 0);
+
+#ifdef _WIN32
+        ssize_t nb_write = (int)::send(skt->fd, (char*)buf, (int)size, 0);
+#else
+        ssize_t nb_write = (int)::send(skt->fd, (char*)buf, size, 0);
+#endif
         
         if (nwrite) {
             *nwrite = nb_write;

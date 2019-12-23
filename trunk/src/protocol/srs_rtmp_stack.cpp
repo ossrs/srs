@@ -675,7 +675,7 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         iovs[0].iov_base = c0c3;
         iovs[0].iov_len = nbh;
         
-        int payload_size = srs_min(end - p, out_chunk_size);
+        int payload_size = (int)srs_min(end - p, out_chunk_size);
         iovs[1].iov_base = p;
         iovs[1].iov_len = payload_size;
         p += payload_size;

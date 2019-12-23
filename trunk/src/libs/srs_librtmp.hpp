@@ -1085,9 +1085,7 @@ typedef void* srs_hijack_io_t;
     #define open _open
     #define close _close
     #define lseek _lseek
-    #define write _write
-    #define read _read
-    
+
     // for pid.
     typedef int pid_t;
     pid_t getpid(void);

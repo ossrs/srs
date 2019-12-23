@@ -202,8 +202,12 @@ struct Context
         ssize_t nwrite = 0;
         for (int i = 0; i < iovcnt; i++) {
             const struct iovec* current = iov + i;
-    
-            int nsent = ::send(fd, (char*)current->iov_base, current->iov_len, 0);
+
+#ifdef _WIN32
+            int nsent = (int)::send(fd, (char*)current->iov_base, (int)current->iov_len, 0);
+#else
+            int nsent = (int)::send(fd, (char*)current->iov_base, (size_t)current->iov_len, 0);
+#endif
             if (nsent < 0) {
                 return nsent;
             }
@@ -443,7 +447,7 @@ struct Context
             if (i == 6 && best.base == 0 && (best.len == 6 ||
                 (best.len == 7 && words[7] != 0x0001) ||
                 (best.len == 5 && words[5] == 0xffff))) {
-                if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp)))
+                if (!inet_ntop4(src+12, tp, (socklen_t)(sizeof tmp - (tp - tmp))))
                     return (NULL);
                 tp += strlen(tp);
                 break;
