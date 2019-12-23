@@ -183,7 +183,7 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32
         // numOfSequenceParameterSets, always 1
         stream.write_1bytes(0x01);
         // sequenceParameterSetLength
-        stream.write_2bytes(sps.length());
+        stream.write_2bytes((int16_t)sps.length());
         // sequenceParameterSetNALUnit
         stream.write_string(sps);
     }
@@ -194,7 +194,7 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, uint32
         // numOfPictureParameterSets, always 1
         stream.write_1bytes(0x01);
         // pictureParameterSetLength
-        stream.write_2bytes(pps.length());
+        stream.write_2bytes((int16_t)pps.length());
         // pictureParameterSetNALUnit
         stream.write_string(pps);
     }

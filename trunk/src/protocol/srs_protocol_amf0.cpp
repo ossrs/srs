@@ -1169,7 +1169,7 @@ void SrsAmf0StrictArray::append(SrsAmf0Any* any)
 
 int SrsAmf0Size::utf8(string value)
 {
-    return 2 + (int)value.length();
+    return (int)(2 + value.length());
 }
 
 int SrsAmf0Size::str(string value)
@@ -1752,7 +1752,7 @@ namespace _srs_internal
         if (!stream->require(2)) {
             return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
         }
-        stream->write_2bytes(value.length());
+        stream->write_2bytes((int16_t)value.length());
         
         // empty string
         if (value.length() <= 0) {
