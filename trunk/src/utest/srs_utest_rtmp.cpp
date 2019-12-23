@@ -3271,6 +3271,34 @@ VOID TEST(ProtocolRTMPTest, GenerateURL)
 */
 VOID TEST(ProtocolRTMPTest, DiscoveryTcUrl)
 {
+    // vhost and params
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live?vhost=demo&token=abc"; stream= "show";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
+    // vhost and params
+    if (true) {
+        int port; std::string tcUrl, schema, ip, vhost, app, stream, param;
+
+        tcUrl = "rtmp://127.0.0.1:19351/live"; stream= "show?vhost=demo&token=abc";
+        srs_discovery_tc_url(tcUrl, schema, ip, vhost, app, stream, port, param);
+        EXPECT_STREQ("rtmp", schema.c_str());
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        EXPECT_STREQ("demo", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("show", stream.c_str());
+        EXPECT_EQ(19351, port);
+    }
+
     // default vhost in param
     if (true) {
         int port; std::string tcUrl, schema, ip, vhost, app, stream, param;

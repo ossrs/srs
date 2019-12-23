@@ -220,7 +220,8 @@ srs_error_t SrsPacket::encode_packet(SrsBuffer* stream)
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     window = 0;
-    sequence_number = nb_recv_bytes = 0;
+    sequence_number = 0;
+    nb_recv_bytes = 0;
 }
 
 SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
@@ -253,6 +254,8 @@ SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
         
         cs_cache[cid] = cs;
     }
+
+    out_c0c3_caches = new char[SRS_CONSTS_C0C3_HEADERS_MAX];
 }
 
 SrsProtocol::~SrsProtocol()
@@ -291,6 +294,8 @@ SrsProtocol::~SrsProtocol()
         srs_freep(cs);
     }
     srs_freepa(cs_cache);
+
+    srs_freepa(out_c0c3_caches);
 }
 
 void SrsProtocol::set_auto_response(bool v)
@@ -2375,7 +2380,8 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     srs_error_t err = srs_success;
     
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
-    
+
+    // @remark For windows, there must be a space between const string and macro.
     pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/" RTMP_SIG_FMS_VER));
     pkt->props->set("capabilities", SrsAmf0Any::number(127));
     pkt->props->set("mode", SrsAmf0Any::number(1));

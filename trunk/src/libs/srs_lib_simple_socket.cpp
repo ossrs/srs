@@ -92,7 +92,7 @@ struct SrsBlockSyncSocket
         SOCKET_RESET(fd);
         SOCKET_SETUP();
     }
-    
+
     virtual ~SrsBlockSyncSocket() {
         SOCKET_CLOSE(fd);
         SOCKET_CLEANUP();
@@ -121,7 +121,7 @@ int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
     if (!SOCKET_VALID(skt->fd)) {
         return ERROR_SOCKET_CREATE;
     }
-    
+
     // No TCP cache.
     int v = 1;
     setsockopt(skt->fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
@@ -163,7 +163,7 @@ int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nre
     if (nread) {
         *nread = nb_read;
     }
-    
+
     // On success a non-negative integer indicating the number of bytes actually read is returned
     // (a value of 0 means the network connection is closed or end of file is reached).
     if (nb_read <= 0) {
@@ -185,7 +185,15 @@ int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nre
 int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm)
 {
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-    
+
+#ifdef _WIN32
+    DWORD tv = (DWORD)(timeout_us/1000);
+
+    // To convert tv to const char* to make VS2015 happy.
+    if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+        return SOCKET_ERRNO();
+    }
+#else
     // The default for this option is zero,
     // which indicates that a receive operation shall not time out.
     int32_t sec = 0;
@@ -200,9 +208,10 @@ int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm)
     if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
         return SOCKET_ERRNO();
     }
-    
+#endif
+
     skt->rtm = tm;
-    
+
     return ERROR_SUCCESS;
 }
 int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx)
@@ -218,21 +227,30 @@ int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx)
 int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm)
 {
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
-    
+
+#ifdef _WIN32
+    DWORD tv = (DWORD)(timeout_us/1000);
+
+    // To convert tv to const char* to make VS2015 happy.
+    if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
+        return SOCKET_ERRNO();
+    }
+#else
     // The default for this option is zero,
     // which indicates that a receive operation shall not time out.
     int32_t sec = 0;
     int32_t usec = 0;
-    
+
     if (tm != SRS_UTIME_NO_TIMEOUT) {
         sec = (int32_t)(tm / 1000);
         usec = (int32_t)((tm % 1000)*1000);
     }
-    
+
     struct timeval tv = { sec , usec };
     if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
         return SOCKET_ERRNO();
     }
+#endif
     
     skt->stm = tm;
     
@@ -271,7 +289,7 @@ int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ss
         
         return ERROR_SOCKET_WRITE;
     }
-    
+
     skt->sbytes += nb_write;
     
     return ret;

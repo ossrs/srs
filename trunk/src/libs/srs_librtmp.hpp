@@ -44,21 +44,24 @@
  *************************************************************/
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
+// To disable some security warnings.
+#define _CRT_SECURE_NO_WARNINGS
 // include windows first.
 #include <windows.h>
 // the type used by this header for windows.
+#if defined(_MSC_VER)
+    #include <stdint.h>
+#else
+    typedef char int8_t;
+    typedef short int16_t;
+    typedef int int32_t;
+    typedef long long int64_t;
+#endif
 typedef unsigned long long u_int64_t;
-typedef u_int64_t uint64_t;
-typedef long long int64_t;
 typedef unsigned int u_int32_t;
 typedef u_int32_t uint32_t;
-typedef int int32_t;
 typedef unsigned char u_int8_t;
-typedef u_int8_t uint8_t;
-typedef char int8_t;
 typedef unsigned short u_int16_t;
-typedef u_int16_t uint16_t;
-typedef short int16_t;
 typedef int64_t ssize_t;
 struct iovec {
     void  *iov_base;    /* Starting address */
@@ -1175,8 +1178,6 @@ extern int srs_hijack_io_write(srs_hijack_io_t ctx, void* buf, size_t size, ssiz
  *************************************************************/
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
-// for time.
-#define _CRT_SECURE_NO_WARNINGS
 #include <time.h>
 int gettimeofday(struct timeval* tv, struct timezone* tz);
 #define PRId64 "lld"
@@ -1205,8 +1206,6 @@ typedef int mode_t;
 #define open _open
 #define close _close
 #define lseek _lseek
-#define write _write
-#define read _read
 
 // for socket.
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt);

@@ -213,7 +213,8 @@ private:
     // The c0c3 caches must use unit SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE bytes.
     //
     // @remark, the c0c3 cache cannot be realloc.
-    char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
+    // To allocate it in heap to make VS2015 happy.
+    char* out_c0c3_caches;
     // Whether warned user to increase the c0c3 header cache.
     bool warned_c0c3_cache_dry;
     // The output chunk size, default to 128, set by config.

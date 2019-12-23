@@ -61,6 +61,7 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, ",", "?");
     app = srs_string_replace(app, "...", "?");
     app = srs_string_replace(app, "&&", "?");
+    app = srs_string_replace(app, "&", "?");
     app = srs_string_replace(app, "=", "?");
     
     if (srs_string_ends_with(app, "/_definst_")) {
@@ -77,6 +78,11 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
                 vhost = query;
             }
         }
+    }
+
+    // vhost with params.
+    if ((pos = vhost.find("?")) != std::string::npos) {
+        vhost = vhost.substr(0, pos);
     }
     
     /* others */
