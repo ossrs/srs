@@ -2721,6 +2721,12 @@ VOID TEST(KernelErrorTest, CoverAll)
         EXPECT_TRUE(srs_is_client_gracefully_close(err));
         srs_freep(err);
     }
+
+    if (true) {
+        srs_error_t err = srs_error_new(ERROR_HTTP_STREAM_EOF, "graceful close error");
+        EXPECT_TRUE(srs_is_server_gracefully_close(err));
+        srs_freep(err);
+    }
     
     if (true) {
         srs_error_t err = srs_error_wrap(srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "control error"), "wrapped");
