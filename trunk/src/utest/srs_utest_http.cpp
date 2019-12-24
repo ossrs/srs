@@ -192,12 +192,41 @@ VOID TEST(ProtocolHTTPTest, ResponseDetect)
 
 VOID TEST(ProtocolHTTPTest, ResponseWriter)
 {
+    srs_error_t err;
+
+    // Directly final_request, should work.
+    if (true) {
+        MockResponseWriter w;
+        w.header()->set_content_length(0);
+        HELPER_ASSERT_SUCCESS(w.final_request());
+    }
+
+    // Directly final_request, should work.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_ASSERT_SUCCESS(w.final_request());
+    }
+
+    // When content-length is set, we could write multiple parts.
+    if (true) {
+        MockResponseWriter w;
+
+        char msg[] = "Hello, world!";
+        w.header()->set_content_length(sizeof(msg) - 1);
+        HELPER_EXPECT_SUCCESS(w.write((char*)msg, 5));
+        HELPER_EXPECT_SUCCESS(w.write((char*)(msg+5), 2));
+        HELPER_EXPECT_SUCCESS(w.write((char*)(msg+7), 5));
+        HELPER_EXPECT_SUCCESS(w.write((char*)(msg+12), 1));
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
     // If directly write string, response with content-length.
     if (true) {
         MockResponseWriter w;
 
         char msg[] = "Hello, world!";
-        w.write((char*)msg, sizeof(msg) - 1);
+        HELPER_EXPECT_SUCCESS(w.write((char*)msg, sizeof(msg) - 1));
 
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
@@ -211,8 +240,8 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
         w.header()->set_content_type("text/plain; charset=utf-8");
         w.header()->set_content_length(sizeof(msg) - 1);
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.write((char*)msg, sizeof(msg) - 1);
-        w.final_request();
+        HELPER_EXPECT_SUCCESS(w.write((char*)msg, sizeof(msg) - 1));
+        HELPER_ASSERT_SUCCESS(w.final_request());
 
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
@@ -223,7 +252,7 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         w.header()->set_content_length(0);
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.final_request();
+        HELPER_ASSERT_SUCCESS(w.final_request());
 
         __MOCK_HTTP_EXPECT_STREQ(200, "", w);
     }
@@ -234,7 +263,7 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         w.header()->set_content_length(0);
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.write(NULL, 0);
+        HELPER_EXPECT_SUCCESS(w.write(NULL, 0));
 
         __MOCK_HTTP_EXPECT_STREQ(200, "", w);
     }
@@ -245,9 +274,9 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         w.header()->set_content_type("application/octet-stream");
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.write((char*)"Hello", 5);
-        w.write((char*)", world!", 8);
-        w.final_request();
+        HELPER_EXPECT_SUCCESS(w.write((char*)"Hello", 5));
+        HELPER_EXPECT_SUCCESS(w.write((char*)", world!", 8));
+        HELPER_ASSERT_SUCCESS(w.final_request());
 
         __MOCK_HTTP_EXPECT_STREQ2(200, "5\r\nHello\r\n8\r\n, world!\r\n0\r\n\r\n", w);
     }
@@ -256,8 +285,8 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         w.header()->set_content_type("application/octet-stream");
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.write((char*)"Hello, world!", 13);
-        w.final_request();
+        HELPER_EXPECT_SUCCESS(w.write((char*)"Hello, world!", 13));
+        HELPER_ASSERT_SUCCESS(w.final_request());
 
         __MOCK_HTTP_EXPECT_STREQ2(200, "d\r\nHello, world!\r\n0\r\n\r\n", w);
     }
@@ -266,8 +295,8 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
 
         w.header()->set_content_type("application/octet-stream");
         w.write_header(SRS_CONSTS_HTTP_OK);
-        w.write((char*)"Hello, world!", 13);
-        w.final_request();
+        HELPER_EXPECT_SUCCESS(w.write((char*)"Hello, world!", 13));
+        HELPER_ASSERT_SUCCESS(w.final_request());
 
         __MOCK_HTTP_EXPECT_STREQ2(200, "d\r\nHello, world!\r\n0\r\n\r\n", w);
     }
@@ -275,14 +304,14 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
     // If directly write empty string, sent an empty response with content-length 0
     if (true) {
         MockResponseWriter w;
-        w.write(NULL, 0);
+        HELPER_EXPECT_SUCCESS(w.write(NULL, 0));
         __MOCK_HTTP_EXPECT_STREQ(200, "", w);
     }
 
     // If directly final request, response with EOF of chunked.
     if (true) {
         MockResponseWriter w;
-        w.final_request();
+        HELPER_ASSERT_SUCCESS(w.final_request());
         __MOCK_HTTP_EXPECT_STREQ2(200, "0\r\n\r\n", w);
     }
 }

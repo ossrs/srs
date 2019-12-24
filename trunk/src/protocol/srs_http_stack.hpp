@@ -160,7 +160,7 @@ public:
 //      w->header()->set_content_type("text/plain; charset=utf-8");
 //      w->header()->set_content_length(msg.length());
 //      w->write_header(SRS_CONSTS_HTTP_OK);
-//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length()); // write N times, N>0
 //      w->final_request(); // optional flush.
 // Usage 2, response with HTTP code only, zero content length.
 //      ISrsHttpResponseWriter* w; // create or get response.

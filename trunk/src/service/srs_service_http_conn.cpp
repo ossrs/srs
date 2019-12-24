@@ -699,7 +699,9 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
         if (hdr->content_type().empty()) {
             hdr->set_content_type("text/plain; charset=utf-8");
         }
-        hdr->set_content_length(size);
+        if (hdr->content_length() == -1) {
+            hdr->set_content_length(size);
+        }
         write_header(SRS_CONSTS_HTTP_OK);
     }
     
