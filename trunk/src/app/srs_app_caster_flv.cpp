@@ -295,7 +295,7 @@ srs_error_t SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     int total_read = 0;
     while (total_read < (int)count) {
-        int nread = 0;
+        ssize_t nread = 0;
         if ((err = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != srs_success) {
             return srs_error_wrap(err, "read");
         }
@@ -306,7 +306,7 @@ srs_error_t SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
         }
         
         srs_assert(nread);
-        total_read += nread;
+        total_read += (int)nread;
     }
     
     if (pnread) {

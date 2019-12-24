@@ -187,7 +187,7 @@ int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm)
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
 
 #ifdef _WIN32
-    DWORD tv = (DWORD)(timeout_us/1000);
+    DWORD tv = (DWORD)(tm);
 
     // To convert tv to const char* to make VS2015 happy.
     if (setsockopt(skt->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
@@ -229,7 +229,7 @@ int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm)
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
 
 #ifdef _WIN32
-    DWORD tv = (DWORD)(timeout_us/1000);
+    DWORD tv = (DWORD)(tm);
 
     // To convert tv to const char* to make VS2015 happy.
     if (setsockopt(skt->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {

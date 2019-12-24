@@ -261,9 +261,9 @@ private:
     SrsFastStream* buffer;
     bool is_eof;
     // The left bytes in chunk.
-    int nb_left_chunk;
+    size_t nb_left_chunk;
     // The number of bytes of current chunk.
-    int nb_chunk;
+    size_t nb_chunk;
     // Already read total bytes.
     int64_t nb_total_read;
 public:
@@ -274,10 +274,10 @@ public:
 // Interface ISrsHttpResponseReader
 public:
     virtual bool eof();
-    virtual srs_error_t read(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 private:
-    virtual srs_error_t read_chunked(char* data, int nb_data, int* nb_read);
-    virtual srs_error_t read_specified(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read_chunked(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_specified(void* buf, size_t size, ssize_t* nread);
 };
 
 #endif

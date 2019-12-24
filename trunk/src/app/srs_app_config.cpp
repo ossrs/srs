@@ -3855,17 +3855,6 @@ srs_error_t SrsConfig::check_normal_config()
                 SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
         }
     }
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        SrsConfDirective* vhost = vhosts[i];
-        srs_assert(vhost != NULL);
-        if (get_dvr_enabled(vhost->arg0())) {
-            srs_warn("can't enable vhost.dvr of %s", vhost->arg0().c_str());
-        }
-        if (get_hls_enabled(vhost->arg0())) {
-            srs_warn("can't enable vhost.hls of %s", vhost->arg0().c_str());
-        }
-        // TODO: FIXME: required http server when hls storage is ram or both.
-    }
     
     // asprocess conflict with daemon
     if (get_asprocess() && get_daemon()) {

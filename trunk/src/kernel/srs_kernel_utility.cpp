@@ -568,11 +568,11 @@ int srs_do_create_dir_recursively(string dir)
     
     // create curren dir.
     // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#ifndef _WIN32
+#ifdef _WIN32
+    if (::_mkdir(dir.c_str()) < 0) {
+#else
     mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
-#else
-    if (::_mkdir(dir.c_str()) < 0) {
 #endif
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;

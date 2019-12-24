@@ -398,11 +398,11 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
-        int nb_bytes = 0;
+        ssize_t nb_bytes = 0;
         if ((err = br->read(buf, nb_buf, &nb_bytes)) != srs_success) {
             break;
         }
-        nb_read += nb_bytes;
+        nb_read += (int)nb_bytes;
     }
     
     int spenttime = (int)(srsu2ms(srs_update_system_time()) - starttime);
