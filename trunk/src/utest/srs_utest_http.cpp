@@ -34,6 +34,60 @@ using namespace std;
 #include <srs_utest_kernel.hpp>
 #include <srs_app_http_static.hpp>
 
+class MockMSegmentsReader : public ISrsReader
+{
+public:
+    vector<string> in_bytes;
+public:
+    MockMSegmentsReader();
+    virtual ~MockMSegmentsReader();
+public:
+    virtual void append(string b) {
+        in_bytes.push_back(b);
+    }
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+};
+
+MockMSegmentsReader::MockMSegmentsReader()
+{
+}
+
+MockMSegmentsReader::~MockMSegmentsReader()
+{
+}
+
+srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
+{
+    srs_error_t err = srs_success;
+
+    for (;;) {
+        if (in_bytes.empty() || size <= 0) {
+            return srs_error_new(-1, "EOF");
+        }
+
+        string v = in_bytes[0];
+        if (v.empty()) {
+            in_bytes.erase(in_bytes.begin());
+            continue;
+        }
+
+        int nn = srs_min(size, v.length());
+        memcpy(buf, v.data(), nn);
+        if (nread) {
+            *nread = nn;
+        }
+
+        if (nn < (int)v.length()) {
+            in_bytes[0] = string(v.data() + nn, v.length() - nn);
+        } else {
+            in_bytes.erase(in_bytes.begin());
+        }
+        break;
+    }
+
+    return err;
+}
+
 class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
 {
 public:
@@ -313,6 +367,164 @@ VOID TEST(ProtocolHTTPTest, ResponseWriter)
         MockResponseWriter w;
         HELPER_ASSERT_SUCCESS(w.final_request());
         __MOCK_HTTP_EXPECT_STREQ2(200, "0\r\n\r\n", w);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, ChunkSmallBuffer)
+{
+    srs_error_t err;
+
+    // No chunk end flag, error.
+    if (true) {
+        MockMSegmentsReader io;
+        io.append(mock_http_response2(200, "0d\r\n"));
+        io.append("Hello, world!\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(13, nread);
+        EXPECT_STREQ("Hello, world!", buf);
+
+        err = r->read(buf, 32, &nread);
+        EXPECT_EQ(-1, srs_error_code(err));
+        srs_freep(err);
+
+        srs_freep(msg);
+    }
+
+    // Read util EOF(nread=0) or err(ERROR_HTTP_RESPONSE_EOF).
+    if (true) {
+        MockMSegmentsReader io;
+        io.append(mock_http_response2(200, "0d\r\n"));
+        io.append("Hello, world!\r\n0\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(13, nread);
+        EXPECT_STREQ("Hello, world!", buf);
+
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(0, nread);
+
+        err = r->read(buf, 32, &nread);
+        EXPECT_EQ(ERROR_HTTP_RESPONSE_EOF, srs_error_code(err));
+        srs_freep(err);
+
+        srs_freep(msg);
+    }
+
+    // In this case, we only got header complete, no body start event.
+    if (true) {
+        MockMSegmentsReader io;
+        io.append(mock_http_response2(200, "0d\r\n"));
+        io.append("Hello, world!\r\n0\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(13, nread);
+        EXPECT_STREQ("Hello, world!", buf);
+
+        srs_freep(msg);
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, ClientSmallBuffer)
+{
+    srs_error_t err;
+
+    // The chunk content is sent in multiple parts.
+    if (true) {
+        MockMSegmentsReader io;
+        io.append(mock_http_response2(200, "0d\r\n"));
+        io.append("Hello,");
+        io.append(" world!");
+        io.append("\r\n0\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("Hello,", buf);
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(7, nread);
+        EXPECT_STREQ(" world!", buf);
+
+        srs_freep(msg);
+    }
+
+    // The chunk size is sent separately before chunk content.
+    if (true) {
+        MockMSegmentsReader io;
+        io.append(mock_http_response2(200, "0d\r\n"));
+        io.append("Hello, world!\r\n0\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 32, &nread));
+        EXPECT_EQ(13, nread);
+        EXPECT_STREQ("Hello, world!", buf);
+
+        srs_freep(msg);
+    }
+
+    // If buffer is smaller than chunk, we could read N times to get the whole chunk.
+    if (true) {
+        MockBufferIO io; io.append(mock_http_response2(200, "0d\r\nHello, world!\r\n0\r\n\r\n"));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 7, &nread));
+        EXPECT_EQ(7, nread);
+        EXPECT_STREQ(", world", buf);
+
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 7, &nread));
+        EXPECT_EQ(1, nread);
+        EXPECT_STREQ("!", buf);
+
+        HELPER_ASSERT_SUCCESS(r->read(buf, 7, &nread));
+        EXPECT_EQ(0, nread);
+
+        srs_freep(msg);
     }
 }
 
@@ -1184,57 +1396,6 @@ VOID TEST(ProtocolHTTPTest, BasicHandlers)
         __MOCK_HTTP_EXPECT_STREQ(404, "Not Found", w);
         EXPECT_TRUE(h.is_not_found());
     }
-}
-
-class MockMSegmentsReader : public ISrsReader
-{
-public:
-    vector<string> in_bytes;
-public:
-    MockMSegmentsReader();
-    virtual ~MockMSegmentsReader();
-public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
-};
-
-MockMSegmentsReader::MockMSegmentsReader()
-{
-}
-
-MockMSegmentsReader::~MockMSegmentsReader()
-{
-}
-
-srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
-{
-    srs_error_t err = srs_success;
-
-    for (;;) {
-        if (in_bytes.empty() || size <= 0) {
-            return srs_error_new(-1, "EOF");
-        }
-
-        string v = in_bytes[0];
-        if (v.empty()) {
-            in_bytes.erase(in_bytes.begin());
-            continue;
-        }
-
-        int nn = srs_min(size, v.length());
-        memcpy(buf, v.data(), nn);
-        if (nread) {
-            *nread = nn;
-        }
-
-        if (nn < (int)v.length()) {
-            in_bytes[0] = string(v.data() + nn, v.length() - nn);
-        } else {
-            in_bytes.erase(in_bytes.begin());
-        }
-        break;
-    }
-
-    return err;
 }
 
 VOID TEST(ProtocolHTTPTest, MSegmentsReader)

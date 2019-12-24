@@ -26,6 +26,8 @@
 
 #include <srs_core.hpp>
 
+#include <srs_kernel_io.hpp>
+
 // Default http listen port.
 #define SRS_DEFAULT_HTTP_PORT 80
 
@@ -215,7 +217,7 @@ public:
 };
 
 // The reader interface for http response.
-class ISrsHttpResponseReader
+class ISrsHttpResponseReader : public ISrsReader
 {
 public:
     ISrsHttpResponseReader();
@@ -223,18 +225,6 @@ public:
 public:
     // Whether response read EOF.
     virtual bool eof() = 0;
-    // Read from the response body.
-    // @param data, the buffer to read data buffer to.
-    // @param nb_data, the max size of data buffer.
-    // @param nb_read, the actual read size of bytes. NULL to ignore.
-    // @remark when eof(), return error.
-    // @remark for some server, the content-length not specified and not chunked,
-    //      which is actually the infinite chunked encoding, which after http header
-    //      is http response data, it's ok for browser. that is,
-    //      when user call this read, please ensure there is data to read(by content-length
-    //      or by chunked), because the sdk never know whether there is no data or
-    //      infinite chunked.
-    virtual srs_error_t read(char* data, int nb_data, int* nb_read) = 0;
 };
 
 // Objects implementing the Handler interface can be

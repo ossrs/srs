@@ -185,6 +185,10 @@ int SrsHttpParser::on_headers_complete(http_parser* parser)
     // save the parser when header parse completed.
     obj->state = SrsHttpParseStateHeaderComplete;
 
+    // We must update the body start when header complete, because sometimes we only got header.
+    // When we got the body start event, we will update it to much precious position.
+    obj->p_body_start = obj->buffer->bytes() + obj->buffer->size();
+
     srs_info("***HEADERS COMPLETE***");
     
     // see http_parser.c:1570, return 1 to skip body.
@@ -551,7 +555,7 @@ srs_error_t SrsHttpMessage::body_read_all(string& body)
     
     // whatever, read util EOF.
     while (!_body->eof()) {
-        int nb_read = 0;
+        ssize_t nb_read = 0;
         if ((err = _body->read(buf, SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
             return srs_error_wrap(err, "read body");
         }
@@ -914,7 +918,7 @@ bool SrsHttpResponseReader::eof()
     return is_eof;
 }
 
-srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -929,7 +933,7 @@ srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     
     // read by specified content-length
     if (owner->content_length() != -1) {
-        int max = (int)owner->content_length() - (int)nb_total_read;
+        size_t max = (size_t)owner->content_length() - (size_t)nb_total_read;
         if (max <= 0) {
             is_eof = true;
             return err;
@@ -953,7 +957,7 @@ srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     return err;
 }
 
-srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read_chunked(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -1005,32 +1009,34 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
         }
         
         // all bytes in chunk is left now.
-        nb_chunk = nb_left_chunk = ilength;
+        nb_chunk = nb_left_chunk = (size_t)ilength;
     }
     
     if (nb_chunk <= 0) {
         // for the last chunk, eof.
         is_eof = true;
+        *nb_read = 0;
     } else {
         // for not the last chunk, there must always exists bytes.
         // left bytes in chunk, read some.
         srs_assert(nb_left_chunk);
         
-        int nb_bytes = srs_min(nb_left_chunk, nb_data);
-        err = read_specified(data, nb_bytes, &nb_bytes);
+        size_t nb_bytes = srs_min(nb_left_chunk, nb_data);
+        err = read_specified(data, nb_bytes, (ssize_t*)&nb_bytes);
         
         // the nb_bytes used for output already read size of bytes.
         if (nb_read) {
             *nb_read = nb_bytes;
         }
         nb_left_chunk -= nb_bytes;
-        
-        // error or still left bytes in chunk, ignore and read in future.
+
         if (err != srs_success) {
             return srs_error_wrap(err, "read specified");
         }
+
+        // If still left bytes in chunk, ignore and read in future.
         if (nb_left_chunk > 0) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "read specified left=%d", nb_left_chunk);
+            return err;
         }
     }
     
@@ -1043,7 +1049,7 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
     return err;
 }
 
-srs_error_t SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read_specified(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -1054,7 +1060,7 @@ srs_error_t SrsHttpResponseReader::read_specified(char* data, int nb_data, int* 
         }
     }
     
-    int nb_bytes = srs_min(nb_data, buffer->size());
+    size_t nb_bytes = srs_min(nb_data, (size_t)buffer->size());
     
     // read data to buffer.
     srs_assert(nb_bytes);
