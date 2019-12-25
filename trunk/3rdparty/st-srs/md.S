@@ -1,4 +1,6 @@
-#if defined(MD_USE_BUILTIN_SETJMP)
+
+/* If user disable the ASM, such as avoiding bugs in ASM, donot compile it. */
+#if !defined(MD_ST_NO_ASM)
 
 /*
  * Portions created by SGI are Copyright (C) 2000 Silicon Graphics, Inc.
