@@ -436,7 +436,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
             ln -sf ../3rdparty/st-srs && cd st-srs &&
-            make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
+            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
             cd .. && rm -f st && ln -sf st-srs/obj st
         )
     fi
