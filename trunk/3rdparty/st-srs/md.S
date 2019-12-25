@@ -466,6 +466,7 @@
 #elif defined(__aarch64__)
 
     /****************************************************************/
+    /* https://github.com/ossrs/srs/issues/1282#issuecomment-445539513 */
 
     #define JB_X19            0
     #define JB_X20            1
@@ -560,43 +561,81 @@
 #elif defined(__arm__)
 
     /****************************************************************/
+    /* https://github.com/ossrs/srs/issues/1282#issuecomment-445539513 */
 
-    .globl _st_md_cxt_save
-        .type _st_md_cxt_save, %function
-        .align 2
+    /* Register list for a ldm/stm instruction to load/store
+       the general registers from a __jmp_buf.  */
+    # define JMP_BUF_REGLIST	{v1-v6, sl, fp, sp, lr}
+
+    	.file "md.S"
+    	.text
+
+    	/* _st_md_cxt_save(__jmp_buf env) */
+    	.globl _st_md_cxt_save
+    	.type _st_md_cxt_save, %function
+    	.align 2
     _st_md_cxt_save:
-        mov     ip, r0 // r0 is the param jmpbuf ptr address.
-        // Save registers like
-        // *ip++ = v1
-        // *ip++ = ...
-        // *ip++ = v6
-        // *ip++ = sl
-        // *ip++ = fp
-        stmia   ip!, {v1-v6, sl, fp} // TODO: compatible with other ARM version.
-        movs    r2, sp
-        stmia   ip!, {r2, lr}
-        mov     r0, #0               // r0 save the return value(0) of setjmp.
-        bx      lr                   // return
-     .size _st_md_cxt_save, .-_st_md_cxt_save
+    	mov	ip, r0
+
+    	/* Save registers */
+    	stmia	ip!, JMP_BUF_REGLIST
+
+    #ifdef __VFP_FP__
+    	/* Store the VFP registers.  */
+    	/* Following instruction is vstmia ip!, {d8-d15}.  */
+    	stc	p11, cr8, [ip], #64
+    #endif
+
+    #ifdef __IWMMXT__
+    	/* Save the call-preserved iWMMXt registers.  */
+    	/* Following instructions are wstrd wr10, [ip], #8 (etc.)  */
+    	stcl	p1, cr10, [r12], #8
+    	stcl	p1, cr11, [r12], #8
+    	stcl	p1, cr12, [r12], #8
+    	stcl	p1, cr13, [r12], #8
+    	stcl	p1, cr14, [r12], #8
+    	stcl	p1, cr15, [r12], #8
+    #endif
+
+    	mov	r0, #0
+    	bx	lr
+
+    	.size _st_md_cxt_save, .-_st_md_cxt_save
 
     /****************************************************************/
 
-    .globl _st_md_cxt_restore
-        .type _st_md_cxt_restore, %function
-        .align 2
+    	/* _st_md_cxt_restore(__jmp_buf env, int val) */
+    	.globl _st_md_cxt_restore
+    	.type _st_md_cxt_restore, %function
+    	.align 2
     _st_md_cxt_restore:
-        mov     ip, r0 // r0 -> jmp_buf
-        movs    r0, r1 // r1 -> return value
-        // The bellow is a group, that is:
-        // if (r0 == 0) r0 =1;
-        ITT     eq
-        moveq   r0, #1 // long_jmp should never return 0
+    	mov	ip, r0
 
-        ldmia   ip!, {v1-v6, sl, fp} // restore registers.
-        ldr     sp, [ip], #4         // restore sp, like: sp=*ip; ip+=4;
-        ldr     lr, [ip], #4
-        bx      lr
-    .size _st_md_cxt_restore, .-_st_md_cxt_restore
+    	/* Restore registers */
+    	ldmia	ip!, JMP_BUF_REGLIST
+
+    #ifdef __VFP_FP__
+    	/* Restore the VFP registers.  */
+    	/* Following instruction is vldmia ip!, {d8-d15}.  */
+    	ldc	p11, cr8, [r12], #64
+    #endif
+
+    #ifdef __IWMMXT__
+    	/* Restore the call-preserved iWMMXt registers.  */
+    	/* Following instructions are wldrd wr10, [ip], #8 (etc.)  */
+    	ldcl	p1, cr10, [r12], #8
+    	ldcl	p1, cr11, [r12], #8
+    	ldcl	p1, cr12, [r12], #8
+    	ldcl	p1, cr13, [r12], #8
+    	ldcl	p1, cr14, [r12], #8
+    	ldcl	p1, cr15, [r12], #8
+    #endif
+
+    	movs	r0, r1		/* get the return value in place */
+    	moveq	r0, #1		/* can't let setjmp() return zero! */
+    	bx	lr
+
+    	.size _st_md_cxt_restore, .-_st_md_cxt_restore
 
     /****************************************************************/
 
