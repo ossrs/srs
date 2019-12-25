@@ -1049,18 +1049,18 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // 0x00 0x06            where: event Ping(0x06)
         // 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
         // @see: https://github.com/ossrs/srs/issues/98
-        if (chunk->cid == RTMP_CID_ProtocolControl && fmt == RTMP_FMT_TYPE1) {
-            srs_warn("accept cid=2, fmt=1 to make librtmp happy.");
+        if (fmt == RTMP_FMT_TYPE1) {
+            srs_warn("fresh chunk starts with fmt=1");
         } else {
             // must be a RTMP protocol level error.
-            return srs_error_new(ERROR_RTMP_CHUNK_START, "chunk is fresh, fmt must be %d, actual is %d. cid=%d", RTMP_FMT_TYPE0, fmt, chunk->cid);
+            return srs_error_new(ERROR_RTMP_CHUNK_START, "fresh chunk expect fmt=0, actual=%d, cid=%d", fmt, chunk->cid);
         }
     }
     
     // when exists cache msg, means got an partial message,
     // the fmt must not be type0 which means new message.
     if (chunk->msg && fmt == RTMP_FMT_TYPE0) {
-        return srs_error_new(ERROR_RTMP_CHUNK_START, "chunk exists, fmt must not be %d, actual is %d", RTMP_FMT_TYPE0, fmt);
+        return srs_error_new(ERROR_RTMP_CHUNK_START, "for existed chunk, fmt should not be 0");
     }
     
     // create msg when new chunk stream start

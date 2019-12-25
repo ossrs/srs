@@ -146,7 +146,8 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2019-12-25, Remove FFMPEG and NGINX, please use [srs-docker](https://github.com/ossrs/srs-docker) instead . 3.0.82
+* v3.0, 2019-12-25, For [#1538][bug #1538], fresh chunk allow fmt=0 or fmt=1. 3.0.83
+* v3.0, 2019-12-25, Remove FFMPEG and NGINX, please use [srs-docker](https://github.com/ossrs/srs-docker) instead. 3.0.82
 * v3.0, 2019-12-25, For [#1537][bug #1537], remove cross-build, not used patches, directly build st.
 * v3.0, 2019-12-24, For [#1508][bug #1508], support chunk length and content in multiple parts.
 * v3.0, 2019-12-23, Merge SRS2 for running srs-librtmp on Windows. 3.0.80
@@ -1556,6 +1557,7 @@ Winlin
 [bug #1508]: https://github.com/ossrs/srs/issues/1508
 [bug #1535]: https://github.com/ossrs/srs/issues/1535
 [bug #1537]: https://github.com/ossrs/srs/issues/1537
+[bug #1538]: https://github.com/ossrs/srs/issues/1538
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
