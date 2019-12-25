@@ -45,24 +45,6 @@ function Ubuntu_prepare()
             fi
         fi
     fi
-    
-    # cross build for arm, install the cross build tool chain.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing gcc-arm-linux-gnueabi g++-arm-linux-gnueabi."
-            require_sudoer "sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
-            sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The gcc-arm-linux-gnueabi g++-arm-linux-gnueabi are installed."
-        fi
-    fi
-    
-    # cross build for mips, user must installed the tool chain.
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "You must install the tool chain: $SrsArmCC"
-            return 2
-        fi
-    fi
 
     OS_IS_UBUNTU=YES
     echo "Installing tools for Ubuntu."
@@ -167,12 +149,6 @@ function Centos_prepare()
 {
     if [[ ! -f /etc/redhat-release ]]; then
         return 0;
-    fi
-    
-    # cross build for arm, install the cross build tool chain.
-    if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "CentOS doesn't support crossbuild for arm/mips, please use Ubuntu instead."
-        return 1
     fi
 
     OS_IS_CENTOS=YES
@@ -290,12 +266,6 @@ function OSX_prepare()
             exit 1;
         fi
         return 0;
-    fi
-    
-    # cross build for arm, install the cross build tool chain.
-    if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "OSX doesn't support crossbuild for arm/mips, please use Ubuntu instead."
-        return 1
     fi
 
     OS_IS_OSX=YES
@@ -455,37 +425,19 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [ $SRS_CROSS_BUILD = YES ]; then
-        # ok, arm specified, if the flag filed does not exists, need to rebuild.
-        if [[ -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "The state-threads for arm is ok.";
-        else
-            echo "Building state-threads for arm.";
-            (
-                rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
-                tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
-                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
-                make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
-                cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
-                rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
-                cd .. && touch ${SRS_OBJS}/_flag.st.cross.build.tmp
-            )
-        fi
+    if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+        echo "The state-threads is ok.";
     else
-        if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-            echo "The state-threads is ok.";
-        else
-            echo "Building state-threads.";
-            (
-                rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
-                tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
-                patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
-                make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
-                cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
-                rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
-            )
-        fi
+        echo "Building state-threads.";
+        (
+            rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
+            tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
+            patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
+            make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
+            cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
+            rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
+            cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
+        )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
@@ -508,7 +460,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     mkdir -p ${SRS_OBJS}/nginx
 fi
 # make nginx
-__SRS_BUILD_NGINX=NO; if [ $SRS_CROSS_BUILD = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
+__SRS_BUILD_NGINX=NO; if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "The nginx-1.5.7 is ok.";
@@ -615,9 +567,6 @@ fi
 #####################################################################################
 # extra configure options
 CONFIGURE_TOOL="./config"
-if [ $SRS_CROSS_BUILD = YES ]; then
-    CONFIGURE_TOOL="./Configure linux-armv4"
-fi
 if [ $SRS_OSX = YES ]; then
     CONFIGURE_TOOL="./Configure darwin64-`uname -m`-cc"
 fi
@@ -635,39 +584,19 @@ if [ $SRS_SSL = YES ]; then
     if [ $SRS_USE_SYS_SSL = YES ]; then
         echo "Warning: Use system libssl, without compiling openssl."
     else
-        # check the cross build flag file, if flag changed, need to rebuild the st.
-        if [ $SRS_CROSS_BUILD = YES ]; then
-            # ok, arm specified, if the flag filed does not exists, need to rebuild.
-            if [[ -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "The openssl-1.1.0e for arm is ok.";
-            else
-                echo "Building openssl-1.1.0e for ARM.";
-                (
-                    rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
-                    unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm no-threads $OPENSSL_HOTFIX &&
-                    make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
-                        LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
-                    make install_sw &&
-                    cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
-                    cd .. && touch ${SRS_OBJS}/_flag.ssl.cross.build.tmp
-                )
-            fi
+        # cross build not specified, if exists flag, need to rebuild for no-arm platform.
+        if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            echo "Openssl-1.1.0e is ok.";
         else
-            # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-            if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-                echo "Openssl-1.1.0e is ok.";
-            else
-                echo "Building openssl-1.1.0e.";
-                (
-                    rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
-                    unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
-                    make && make install_sw &&
-                    cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
-                    cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
-                )
-            fi
+            echo "Building openssl-1.1.0e.";
+            (
+                rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
+                unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
+                $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
+                make && make install_sw &&
+                cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
+            )
         fi
         # check status
         ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi

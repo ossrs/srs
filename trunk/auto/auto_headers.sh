@@ -46,12 +46,6 @@ fi
 if [ $SRS_X86_X64 = YES ]; then
     srs_define_macro "SRS_X86_X64" $SRS_AUTO_HEADERS_H
 fi
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    srs_define_macro "SRS_ARM_UBUNTU12" $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    srs_define_macro "SRS_MIPS_UBUNTU12" $SRS_AUTO_HEADERS_H
-fi
 if [ $SRS_PI = YES ]; then
     srs_define_macro "SRS_PI" $SRS_AUTO_HEADERS_H
 fi
@@ -69,15 +63,6 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
-# write to source file
-if [ $SRS_CROSS_BUILD = YES ]; then
-    __TOOL_CHAIN="cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB" && echo "$__TOOL_CHAIN"
-    srs_define_macro_value "SRS_AUTO_EMBEDED_TOOL_CHAIN" "\"$__TOOL_CHAIN\"" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_EMBEDED_TOOL_CHAIN" $SRS_AUTO_HEADERS_H
-fi
-echo "" >> $SRS_AUTO_HEADERS_H
-
 # auto headers in depends.
 if [ $SRS_NGINX = YES ]; then
     srs_define_macro "SRS_AUTO_NGINX" $SRS_AUTO_HEADERS_H
@@ -147,27 +132,6 @@ fi
 #####################################################################################
 # for embeded.
 #####################################################################################
-if [ $SRS_CROSS_BUILD = YES ]; then
-    srs_define_macro "SRS_AUTO_EMBEDED_CPU" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_EMBEDED_CPU" $SRS_AUTO_HEADERS_H
-fi
-
-# arm
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    srs_define_macro "SRS_AUTO_ARM_UBUNTU12" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_ARM_UBUNTU12" $SRS_AUTO_HEADERS_H
-fi
-
-# mips
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    srs_define_macro "SRS_AUTO_MIPS_UBUNTU12" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_MIPS_UBUNTU12" $SRS_AUTO_HEADERS_H
-fi
-
-echo "" >> $SRS_AUTO_HEADERS_H
 # for log level compile settings
 if [ $SRS_LOG_VERBOSE = YES ]; then
     srs_define_macro "SRS_AUTO_VERBOSE" $SRS_AUTO_HEADERS_H

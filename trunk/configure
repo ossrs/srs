@@ -163,10 +163,6 @@ fi
 if [ $SRS_STATIC = YES ]; then
     SrsLinkOptions="${SrsLinkOptions} -static";
 fi
-# if mips, add -lgcc_eh, or stl compile failed.
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    SrsLinkOptions="${SrsLinkOptions} -lgcc_eh";
-fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
@@ -351,23 +347,10 @@ cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
-END
-
-# embeded, ubuntu12, use embeded tool chain.
-if [ $SRS_CROSS_BUILD = YES ]; then
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-default:
-	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default
-
-END
-# x86/x64, use gnu-gcc/g++ tool chain.
-else
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 default:
 	\$(MAKE) _default
 
 END
-fi
 
 # the real entry for all platform:
 #       the server, librtmp and utest
@@ -686,16 +669,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${YELLOW}The gprof(GNU profile tool) is enabled, performance may suffer.${BLACK}"
     else
         echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
-    fi
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The cross-build arm-ubuntu12(armhf, v7cpu) is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The cross-build arm-ubuntu12(armhf, v7cpu)is disabled.${BLACK}"
-    fi
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The mips-ubuntu12 is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The mips-ubuntu12 is disabled.${BLACK}"
     fi
     if [ $SRS_VALGRIND = YES ]; then
         echo -e "${GREEN}The valgrind is enabled.${BLACK}"
