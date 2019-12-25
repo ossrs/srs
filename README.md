@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-25, For [#1537][bug #1537], remove cross-build, not used patches, directly build st.
 * v3.0, 2019-12-24, For [#1508][bug #1508], support chunk length and content in multiple parts.
 * v3.0, 2019-12-23, Merge SRS2 for running srs-librtmp on Windows. 3.0.80
 * v3.0, 2019-12-23, For [#1535][bug #1535], deprecate Adobe FMS/AMS edge token traversing([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication. 3.0.79
@@ -1553,6 +1554,7 @@ Winlin
 [bug #1223]: https://github.com/ossrs/srs/issues/1223
 [bug #1508]: https://github.com/ossrs/srs/issues/1508
 [bug #1535]: https://github.com/ossrs/srs/issues/1535
+[bug #1537]: https://github.com/ossrs/srs/issues/1537
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
