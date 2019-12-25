@@ -418,6 +418,12 @@
             #endif
             #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[JB_RSP]
 
+        #elif defined(__aarch64__)
+            /* https://github.com/ossrs/state-threads/issues/9 */
+            #define MD_STACK_GROWS_DOWN
+            #define MD_USE_BUILTIN_SETJMP
+            #define MD_GET_SP(_t) (_t)->context[0].__jmpbuf[13]
+
         #elif defined(__arm__)
             #define MD_STACK_GROWS_DOWN
             /* https://github.com/ossrs/state-threads/issues/1#issuecomment-244648573 */

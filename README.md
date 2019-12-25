@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-25, For [#1537][bug #1537], support aarch64 for armv8. 3.0.84
 * v3.0, 2019-12-25, For [#1538][bug #1538], fresh chunk allow fmt=0 or fmt=1. 3.0.83
 * v3.0, 2019-12-25, Remove FFMPEG and NGINX, please use [srs-docker](https://github.com/ossrs/srs-docker) instead. 3.0.82
 * v3.0, 2019-12-25, For [#1537][bug #1537], remove cross-build, not used patches, directly build st.
