@@ -434,11 +434,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo "Building state-threads.";
         (
-            rm -rf ${SRS_OBJS}/state-threads-1.9.1 && cd ${SRS_OBJS} &&
-            tar xf ../3rdparty/state-threads-1.9.1.tar.gz && cd state-threads-1.9.1 && chmod +w * &&
+            rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
+            ln -sf ../3rdparty/st-srs && cd st-srs &&
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
-            cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
-            rm -f state-threads && ln -sf state-threads-1.9.1 state-threads
+            cd .. && rm -f st && ln -sf st-srs/obj st
         )
     fi
     # check status
