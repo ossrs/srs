@@ -353,8 +353,6 @@ function apply_user_presets() {
     # all disabled.
     if [ $SRS_DISABLE_ALL = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -364,8 +362,6 @@ function apply_user_presets() {
     # all enabled.
     if [ $SRS_ENABLE_ALL = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=YES
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -375,8 +371,6 @@ function apply_user_presets() {
     # only rtmp vp6
     if [ $SRS_FAST = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -386,8 +380,6 @@ function apply_user_presets() {
     # only ssl for RTMP with complex handshake.
     if [ $SRS_PURE_RTMP = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -397,8 +389,6 @@ function apply_user_presets() {
     # defaults for x86/x64
     if [ $SRS_X86_X64 = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -408,8 +398,6 @@ function apply_user_presets() {
     # for osx(darwin)
     if [ $SRS_OSX = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -422,8 +410,6 @@ function apply_user_presets() {
     # if dev specified, open features if possible.
     if [ $SRS_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -433,8 +419,6 @@ function apply_user_presets() {
     # if fast dev specified, open main server features.
     if [ $SRS_FAST_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -444,8 +428,6 @@ function apply_user_presets() {
     # for srs demo
     if [ $SRS_DEMO = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -455,8 +437,6 @@ function apply_user_presets() {
     # if raspberry-pi specified, open ssl/hls/static features
     if [ $SRS_PI = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -466,8 +446,6 @@ function apply_user_presets() {
     # if cubieboard specified, open features except ffmpeg/nginx.
     if [ $SRS_CUBIE = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -519,9 +497,7 @@ function apply_user_detail_options() {
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
         SRS_SSL=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_INGEST=NO
@@ -549,9 +525,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hls"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hls"; fi
     if [ $SRS_HDS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hds"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hds"; fi
     if [ $SRS_DVR = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-dvr"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-dvr"; fi
-    if [ $SRS_NGINX = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nginx"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nginx"; fi
     if [ $SRS_SSL = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ssl"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ssl"; fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ffmpeg"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ffmpeg"; fi
     if [ $SRS_TRANSCODE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-transcode"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-transcode"; fi
     if [ $SRS_INGEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ingest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ingest"; fi
     if [ $SRS_STAT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-stat"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-stat"; fi
@@ -593,6 +567,16 @@ function check_option_conflicts() {
         exit -1
     fi
 
+    if [[ $SRS_NGINX == YES ]]; then
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
+        exit -1
+    fi
+
+    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
+        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"
+        exit -1
+    fi
+
     # TODO: FIXME: check more os.
 
     __check_ok=YES
@@ -621,9 +605,7 @@ function check_option_conflicts() {
 
     # check variable neccessary
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_FFMPEG_TOOL = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi

@@ -17,7 +17,7 @@ BLACK="\\033[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG_TOOL/SRS_HTTP_CALLBACK/......
+# srs features: SRS_SSL/SRS_HLS/SRS_HTTP_CALLBACK/......
 # build options: SRS_JOBS
 #####################################################################################
 # parse options, exit with error when parse options invalid.
@@ -584,11 +584,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
     fi
-    if [ $SRS_NGINX = YES ]; then
-        echo -e "${GREEN}Nginx is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: Nginx is disabled.${BLACK}"
-    fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"
     else
@@ -598,11 +593,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${GREEN}RTMP complex handshake is enabled${BLACK}"
     else
         echo -e "${YELLOW}Warning: RTMP complex handshake is disabled, flash cann't play h264/aac.${BLACK}"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "${GREEN}The FFMPEG tool is enabled.${BLACK}"
-    else
-        echo -e "${YELLOW}Warning: The FFMPEG tool is disabled, please use other tools for transcode/mux/ingest.${BLACK}"
     fi
     if [ $SRS_TRANSCODE = YES ]; then
         echo -e "${GREEN}The transcoding is enabled${BLACK}"
@@ -692,12 +682,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
     echo ""
     echo "You can run 3rdparty applications:"
-    if [ $SRS_NGINX = YES ]; then
-        echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
-    fi
     if [ $SRS_HTTP_CALLBACK = YES ]; then
         echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
     fi

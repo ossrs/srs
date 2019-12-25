@@ -64,12 +64,6 @@ echo "" >> $SRS_AUTO_HEADERS_H
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
 # auto headers in depends.
-if [ $SRS_NGINX = YES ]; then
-    srs_define_macro "SRS_AUTO_NGINX" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_NGINX" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_HDS = YES ]; then
     srs_define_macro "SRS_AUTO_HDS" $SRS_AUTO_HEADERS_H
 else
@@ -86,13 +80,6 @@ if [ $SRS_UTEST = YES ]; then
     srs_define_macro "SRS_AUTO_UTEST" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_UTEST" $SRS_AUTO_HEADERS_H
-fi
-
-# whether compile ffmpeg tool
-if [ $SRS_FFMPEG_TOOL = YES ]; then
-    srs_define_macro "SRS_AUTO_FFMPEG_TOOL" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_AUTO_FFMPEG_TOOL" $SRS_AUTO_HEADERS_H
 fi
 
 # whatever the FFMPEG tools, if transcode and ingest specified,

@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-25, Remove FFMPEG and NGINX, please use [srs-docker](https://github.com/ossrs/srs-docker) instead . 3.0.82
 * v3.0, 2019-12-25, For [#1537][bug #1537], remove cross-build, not used patches, directly build st.
 * v3.0, 2019-12-24, For [#1508][bug #1508], support chunk length and content in multiple parts.
 * v3.0, 2019-12-23, Merge SRS2 for running srs-librtmp on Windows. 3.0.80

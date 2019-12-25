@@ -228,9 +228,6 @@ void show_macro_features()
         // inge(ingest)
         ss << ", inge:" << srs_bool2switch(true);
         ss << ", stat:" << srs_bool2switch(true);
-        ss << ", nginx:" << srs_bool2switch(SRS_AUTO_NGINX_BOOL);
-        // ff(ffmpeg)
-        ss << ", ff:" << srs_bool2switch(SRS_AUTO_FFMPEG_TOOL_BOOL);
         // sc(stream-caster)
         ss << ", sc:" << srs_bool2switch(true);
         srs_trace(ss.str().c_str());

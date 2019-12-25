@@ -101,38 +101,6 @@ function Ubuntu_prepare()
             echo "The valgrind-dev is installed."
         fi
     fi
-
-    if [ $SRS_NGINX = YES ]; then
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "Installing libpcre3-dev."
-            require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
-            sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The libpcre3-dev is installed."
-        fi
-    fi
-    
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing autoconf."
-            require_sudoer "sudo apt-get install -y --force-yes autoconf"
-            sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The autoconf is installed."
-        fi
-        
-        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing libtool."
-            require_sudoer "sudo apt-get install -y --force-yes libtool"
-            sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The libtool is installed."
-        fi
-        
-        if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "Installing zlib1g-dev."
-            require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
-            sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The zlib1g-dev is installed."
-        fi
-    fi
     
     echo "Tools for Ubuntu are installed."
     return 0
@@ -204,45 +172,6 @@ function Centos_prepare()
             require_sudoer "sudo yum install -y valgrind-devel"
             sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The valgrind-devel is installed."
-        fi
-    fi
-
-    if [ $SRS_NGINX = YES ]; then
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "Installing pcre-devel."
-            require_sudoer "sudo yum install -y pcre-devel"
-            sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The pcre-devel is installed."
-        fi
-    fi
-    
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing automake."
-            require_sudoer "sudo yum install -y automake"
-            sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The automake is installed."
-        fi
-        
-        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing autoconf."
-            require_sudoer "sudo yum install -y autoconf"
-            sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The autoconf is installed."
-        fi
-        
-        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing libtool."
-            require_sudoer "sudo yum install -y libtool"
-            sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The libtool is installed."
-        fi
-        
-        if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "Installing zlib-devel."
-            require_sudoer "sudo yum install -y zlib-devel"
-            sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The zlib-devel is installed."
         fi
     fi
     
@@ -326,45 +255,6 @@ function OSX_prepare()
             echo "brew install valgrind"
             brew install valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The valgrind is installed."
-        fi
-    fi
-
-    if [ $SRS_NGINX = YES ]; then
-        if [[ ! -f /usr/local/include/pcre.h ]]; then
-        echo "Installing pcre."
-        echo "brew install pcre"
-        brew install pcre; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The pcre is installed."
-        fi
-    fi
-
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing automake."
-            echo "brew install automake"
-            brew install automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The automake is installed."
-        fi
-        
-        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing autoconf."
-            echo "brew install autoconf"
-            brew install autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The autoconf is installed."
-        fi
-        
-        which libtool >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing libtool."
-            echo "brew install libtool"
-            brew install libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The libtool is installed."
-        fi
-
-        brew info zlib >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing zlib."
-            echo "brew install zlib"
-            brew install zlib; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The zlib is installed."
         fi
     fi
     
@@ -459,30 +349,6 @@ END
 # create the nginx dir, for http-server if not build nginx
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     mkdir -p ${SRS_OBJS}/nginx
-fi
-# make nginx
-__SRS_BUILD_NGINX=NO; if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi
-if [ $__SRS_BUILD_NGINX = YES ]; then
-    if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
-        echo "The nginx-1.5.7 is ok.";
-    else
-        echo "Building nginx-1.5.7";
-        (
-            rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf nginx && ln -sf nginx-1.5.7/_release nginx
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "Build nginx-1.5.7 failed."; exit -1; fi
-
-    # use current user to config nginx,
-    # srs will write ts/m3u8 file use current user,
-    # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
-    cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-    $SED "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
 fi
 
 # the demo dir.
