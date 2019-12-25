@@ -1,3 +1,5 @@
+#if defined(MD_USE_BUILTIN_SETJMP)
+
 /*
  * Portions created by SGI are Copyright (C) 2000 Silicon Graphics, Inc.
  * All Rights Reserved.
@@ -504,3 +506,4 @@
 
 #endif
 
+#endif

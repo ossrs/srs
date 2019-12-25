@@ -420,6 +420,7 @@
 
         #elif defined(__arm__)
             #define MD_STACK_GROWS_DOWN
+            /* https://github.com/ossrs/state-threads/issues/1#issuecomment-244648573 */
             #define MD_USE_BUILTIN_SETJMP
 
             /* force to use glibc solution, hack the guard jmpbuf from michaeltalyansky */
