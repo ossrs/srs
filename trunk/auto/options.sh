@@ -54,6 +54,8 @@ SRS_GCOV=NO
 SRS_LOG_VERBOSE=NO
 SRS_LOG_INFO=NO
 SRS_LOG_TRACE=NO
+# The extra c/c++ flags to build SRS. Note that we also pass to ST as EXTRA_CFLAGS.
+SRS_EXTRA_CFLAGS=
 #
 ################################################################
 # experts
@@ -97,7 +99,6 @@ SRS_ENABLE_ALL=NO
 #
 #####################################################################################
 # We don't support crossbuild for ARM/MIPS, please directly build it on ARM/MIPS server.
-# whether cross build for embed cpu, arm/mips
 SRS_CROSS_BUILD=NO
 
 #####################################################################################
@@ -174,7 +175,10 @@ Presets:
   --full                    enable all features, no gperf/gprof/arm.
   --x86-64                  alias for --x86-x64.
 
-Always Enabled:
+Toolchain options:
+  --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Pass to ST as EXTRA_CFLAGS.
+
+Recomment to enable:
   --with-http-api           enable HTTP API, to communicate with SRS.
   --with-http-callback      enable HTTP hooks, build cherrypy as demo api server.
   --with-http-server        enable HTTP server to delivery http stream.
@@ -257,6 +261,7 @@ function parse_user_option() {
         --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
+        --extra-flags)                  SRS_EXTRA_CFLAGS=${value}   ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --static)                       SRS_STATIC=YES              ;;
         --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
@@ -568,6 +573,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
+    if [[ $SRS_EXTRA_CFLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_CFLAGS\\\""; fi
     echo "User config: $SRS_AUTO_USER_CONFIGURE"
     echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }

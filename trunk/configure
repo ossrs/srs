@@ -118,6 +118,10 @@ fi
 if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
+# User configed options.
+if [[ $SRS_EXTRA_CFLAGS != '' ]]; then
+    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_CFLAGS";
+fi
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
