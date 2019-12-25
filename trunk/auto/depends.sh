@@ -413,23 +413,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
-# generate demo index.html
-#####################################################################################
-# if nginx enalbed, generate nginx index file.
-if [ $__SRS_BUILD_NGINX = YES ]; then
-    rm -f ${SRS_OBJS}/nginx/html/index.html &&
-    ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
-fi
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # if http-server enalbed, use srs embeded http-server
-    rm -f ${SRS_OBJS}/nginx/html/index.html &&
-    ln -sf `pwd`/research/players/srs-http-server_index.html ${SRS_OBJS}/nginx/html/index.html
-    # if api-server enabled, generate for api server.
-    rm -f ${SRS_OBJS}/nginx/html/index.html &&
-    ln -sf `pwd`/research/players/api-server_index.html ${SRS_OBJS}/nginx/html/index.html
-fi
-
-#####################################################################################
 # openssl, for rtmp complex handshake
 #####################################################################################
 # extra configure options
