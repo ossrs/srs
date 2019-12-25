@@ -425,7 +425,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [[ ! -f ${SRS_OBJS}/_flag.st.cross.build.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+    if [[ -f ${SRS_OBJS}/st/libst.a ]]; then
         echo "The state-threads is ok.";
     else
         echo "Building state-threads.";
@@ -435,8 +435,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             patch -p0 < ../../3rdparty/patches/6.st.osx10.14.build.patch &&
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
             cd .. && rm -f st && ln -sf state-threads-1.9.1/obj st &&
-            rm -f state-threads && ln -sf state-threads-1.9.1 state-threads &&
-            cd .. && rm -f ${SRS_OBJS}/_flag.st.cross.build.tmp
+            rm -f state-threads && ln -sf state-threads-1.9.1 state-threads
         )
     fi
     # check status
@@ -585,7 +584,7 @@ if [ $SRS_SSL = YES ]; then
         echo "Warning: Use system libssl, without compiling openssl."
     else
         # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-        if [[ ! -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+        if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
             echo "Openssl-1.1.0e is ok.";
         else
             echo "Building openssl-1.1.0e.";
@@ -594,8 +593,7 @@ if [ $SRS_SSL = YES ]; then
                 unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
                 $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
                 make && make install_sw &&
-                cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.ssl.cross.build.tmp
+                cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
             )
         fi
         # check status
