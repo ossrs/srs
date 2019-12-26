@@ -626,6 +626,17 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     if (req->host == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         req->host = _uri->get_host();
     }
+
+    // Set ip by remote ip of connection.
+    if (conn) {
+        req->ip = conn->remote_ip();
+    }
+
+    // Overwrite by ip from proxy.
+    string oip = srs_get_original_ip(this);
+    if (!oip.empty()) {
+        req->ip = oip;
+    }
     
     return req;
 }
