@@ -26,12 +26,17 @@
 
 #include <srs_core.hpp>
 
+#include <string>
+
 // The connection interface for all HTTP/RTMP/RTSP object.
 class ISrsConnection
 {
 public:
     ISrsConnection();
     virtual ~ISrsConnection();
+public:
+    // Get remote ip address.
+    virtual std::string remote_ip() = 0;
 };
 
 // The manager for connection.

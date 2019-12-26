@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_service_conn.hpp>
 
 SrsHttpParser::SrsHttpParser()
 {
@@ -372,12 +373,12 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     return err;
 }
 
-SrsConnection* SrsHttpMessage::connection()
+ISrsConnection* SrsHttpMessage::connection()
 {
     return owner_conn;
 }
 
-void SrsHttpMessage::set_connection(SrsConnection* conn)
+void SrsHttpMessage::set_connection(ISrsConnection* conn)
 {
     owner_conn = conn;
 }
@@ -628,8 +629,8 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     }
 
     // Set ip by remote ip of connection.
-    if (conn) {
-        req->ip = conn->remote_ip();
+    if (owner_conn) {
+        req->ip = owner_conn->remote_ip();
     }
 
     // Overwrite by ip from proxy.

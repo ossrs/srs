@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_utest_kernel.hpp>
 #include <srs_app_http_static.hpp>
+#include <srs_service_utility.hpp>
 
 class MockMSegmentsReader : public ISrsReader
 {
@@ -1675,5 +1676,47 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
     if (true) {
         SrsHttpMessage m;
         EXPECT_EQ(-1, m.content_length());
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, GetOriginalIP)
+{
+    if (true) {
+        SrsHttpHeader h;
+        h.set("X-Forwarded-For", "10.11.12.13");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+
+        EXPECT_STREQ("10.11.12.13", srs_get_original_ip(&m).c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("X-Forwarded-For", "192.193.194.195,10.11.12.13");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+
+        EXPECT_STREQ("192.193.194.195", srs_get_original_ip(&m).c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("X-Real-IP", "172.14.42.78");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+
+        EXPECT_STREQ("172.14.42.78", srs_get_original_ip(&m).c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+
+        EXPECT_STREQ("", srs_get_original_ip(&m).c_str());
     }
 }

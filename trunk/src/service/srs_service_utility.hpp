@@ -32,6 +32,8 @@
 
 #include <srs_service_st.hpp>
 
+class ISrsHttpMessage;
+
 // Whether the url is starts with http:// or https://
 extern bool srs_string_is_http(std::string url);
 extern bool srs_string_is_rtmp(std::string url);
@@ -57,6 +59,9 @@ extern std::string srs_get_public_internet_address();
 // Detect whether specified device is internet public address.
 extern bool srs_net_device_is_internet(std::string ifname);
 extern bool srs_net_device_is_internet(const sockaddr* addr);
+
+// Get the original ip from query and header by proxy.
+extern std::string srs_get_original_ip(ISrsHttpMessage* r);
 
 #endif
 

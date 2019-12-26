@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_http_stack.hpp>
 
 bool srs_string_is_http(string url)
 {
@@ -323,6 +324,31 @@ string srs_get_public_internet_address()
         return ip;
     }
     
+    return "";
+}
+
+string srs_get_original_ip(ISrsHttpMessage* r)
+{
+    SrsHttpHeader* h = r->header();
+
+    string x_forwarded_for = h->get("X-Forwarded-For");
+    if (!x_forwarded_for.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_forwarded_for.find(",")) == string::npos) {
+            return x_forwarded_for;
+        }
+        return x_forwarded_for.substr(0, pos);
+    }
+
+    string x_real_ip = h->get("X-Real-IP");
+    if (!x_real_ip.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_real_ip.find(":")) == string::npos) {
+            return x_real_ip;
+        }
+        return x_real_ip.substr(0, pos);
+    }
+
     return "";
 }
 

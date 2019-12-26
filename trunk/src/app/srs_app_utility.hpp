@@ -40,7 +40,6 @@
 class SrsKbps;
 class SrsBuffer;
 class SrsJsonObject;
-class ISrsHttpMessage;
 
 // Convert level in string to log level in int.
 // @return the log level defined in SrsLogLevel.
@@ -649,9 +648,6 @@ extern bool srs_is_boolean(const std::string& str);
 
 // Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
-
-// Get the original ip from query and header by proxy.
-extern std::string srs_get_original_ip(ISrsHttpMessage* r);
 
 #endif
 
