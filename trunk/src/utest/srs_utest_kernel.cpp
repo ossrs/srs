@@ -4589,7 +4589,7 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
         };
         EXPECT_TRUE(srs_success == fmt.on_video(0, (char*)raw, sizeof(raw)));
         EXPECT_TRUE(srs_success == enc.write_sample(
-            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
+            NULL, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
         ));
     }
     
@@ -4599,7 +4599,7 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
         };
         EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)raw, sizeof(raw)));
         EXPECT_TRUE(srs_success == enc.write_sample(
-            SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
+            NULL, SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
         ));
     }
     
@@ -4615,7 +4615,7 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
         };
         EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)raw, sizeof(raw)));
         EXPECT_TRUE(srs_success == enc.write_sample(
-            SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 34, 34, (uint8_t*)fmt.raw, fmt.nb_raw
+            NULL, SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 34, 34, (uint8_t*)fmt.raw, fmt.nb_raw
         ));
     }
     
@@ -4634,7 +4634,7 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
         };
         EXPECT_TRUE(srs_success == fmt.on_video(0, (char*)raw, sizeof(raw)));
         EXPECT_TRUE(srs_success == enc.write_sample(
-            SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 40, 40, (uint8_t*)fmt.raw, fmt.nb_raw
+            NULL, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 40, 40, (uint8_t*)fmt.raw, fmt.nb_raw
         ));
     }
     

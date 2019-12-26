@@ -2024,12 +2024,12 @@ public:
     // @param pts The output pts in milliseconds.
     // @param sample The output payload, user must free it.
     // @param nb_sample The output size of payload.
-    virtual srs_error_t write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
+    virtual srs_error_t write_sample(SrsFormat* format, SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
         uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
     // Flush the encoder, to write the moov.
     virtual srs_error_t flush();
 private:
-    virtual srs_error_t copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_sample);
+    virtual srs_error_t copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample);
     virtual srs_error_t do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
 };
 

@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-26, For [#1105][bug #1105], dvr mp4 supports playing on Chrome/Safari/Firefox. 3.0.86
 * <strong>v3.0, 2019-12-26, [3.0 alpha6(3.0.85)][r3.0a6] released. 116056 lines.</strong>
 * v3.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 3.0.85
 * v3.0, 2019-12-25, For [#1537][bug #1537], [#1282][bug #1282], support aarch64 for armv8. 3.0.84
@@ -1565,6 +1566,7 @@ Winlin
 [bug #1537]: https://github.com/ossrs/srs/issues/1537
 [bug #1538]: https://github.com/ossrs/srs/issues/1538
 [bug #1282]: https://github.com/ossrs/srs/issues/1282
+[bug #1105]: https://github.com/ossrs/srs/issues/1105
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

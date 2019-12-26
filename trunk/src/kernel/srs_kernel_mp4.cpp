@@ -2047,10 +2047,8 @@ stringstream& SrsMp4TrackHeaderBox::dumps_detail(stringstream& ss, SrsMp4DumpCon
     if (volume) {
         ss << ", volume=" << uint32_t(volume>>8) << "." << uint32_t(volume&0xFF);
     }
-    
-    if (width || height) {
-        ss << ", size=" << uint16_t(width>>16) << "x" << uint16_t(height>>16);
-    }
+
+    ss << ", size=" << uint16_t(width>>16) << "x" << uint16_t(height>>16);
     
     return ss;
 }
@@ -5528,6 +5526,26 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
             return srs_error_wrap(err, "write ftyp");
         }
     }
+
+    // 8B reserved free box.
+    if (true) {
+        SrsMp4FreeSpaceBox* freeb = new SrsMp4FreeSpaceBox(SrsMp4BoxTypeFREE);
+        SrsAutoFree(SrsMp4FreeSpaceBox, freeb);
+
+        int nb_data = freeb->nb_bytes();
+        std::vector<char> data(nb_data);
+
+        SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
+        SrsAutoFree(SrsBuffer, buffer);
+
+        if ((err = freeb->encode(buffer)) != srs_success) {
+            return srs_error_wrap(err, "encode free box");
+        }
+
+        if ((err = wsio->write(&data[0], nb_data, NULL)) != srs_success) {
+            return srs_error_wrap(err, "write free box");
+        }
+    }
     
     // Write mdat box.
     if (true) {
@@ -5564,8 +5582,10 @@ srs_error_t SrsMp4Encoder::initialize(ISrsWriteSeeker* ws)
     return err;
 }
 
-srs_error_t SrsMp4Encoder::write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct, uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample)
-{
+srs_error_t SrsMp4Encoder::write_sample(
+    SrsFormat* format, SrsMp4HandlerType ht, uint16_t ft, uint16_t ct, uint32_t dts, uint32_t pts,
+    uint8_t* sample, uint32_t nb_sample
+) {
     srs_error_t err = srs_success;
     
     SrsMp4Sample* ps = new SrsMp4Sample();
@@ -5574,7 +5594,7 @@ srs_error_t SrsMp4Encoder::write_sample(SrsMp4HandlerType ht, uint16_t ft, uint1
     bool vsh = (ht == SrsMp4HandlerTypeVIDE) && (ct == (uint16_t)SrsVideoAvcFrameTraitSequenceHeader);
     bool ash = (ht == SrsMp4HandlerTypeSOUN) && (ct == (uint16_t)SrsAudioAacFrameTraitSequenceHeader);
     if (vsh || ash) {
-        err = copy_sequence_header(vsh, sample, nb_sample);
+        err = copy_sequence_header(format, vsh, sample, nb_sample);
         srs_freep(ps);
         return err;
     }
@@ -5683,6 +5703,7 @@ srs_error_t SrsMp4Encoder::flush()
             
             avc1->width = width;
             avc1->height = height;
+            avc1->data_reference_index = 1;
             
             SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
             avc1->set_avcC(avcC);
@@ -5741,6 +5762,7 @@ srs_error_t SrsMp4Encoder::flush()
             stbl->set_stsd(stsd);
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
+            mp4a->data_reference_index = 1;
             mp4a->samplerate = uint32_t(srs_flv_srates[sample_rate]) << 16;
             if (sound_bits == SrsAudioSampleBits16bit) {
                 mp4a->samplesize = 16;
@@ -5826,7 +5848,7 @@ srs_error_t SrsMp4Encoder::flush()
     return err;
 }
 
-srs_error_t SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_sample)
+srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample)
 {
     srs_error_t err = srs_success;
     
@@ -5848,8 +5870,10 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(bool vsh, uint8_t* sample, uint3
     
     if (vsh) {
         pavcc = std::vector<char>(sample, sample + nb_sample);
-        
-        // TODO: FIXME: Parse the width and height.
+        if (format && format->vcodec) {
+            width = format->vcodec->width;
+            height = format->vcodec->height;
+        }
     }
     
     if (!vsh) {
