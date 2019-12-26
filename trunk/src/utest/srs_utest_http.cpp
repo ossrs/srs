@@ -1713,6 +1713,16 @@ VOID TEST(ProtocolHTTPTest, GetOriginalIP)
 
     if (true) {
         SrsHttpHeader h;
+        h.set("X-Real-IP", "172.14.42.79:15425");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+
+        EXPECT_STREQ("172.14.42.79", srs_get_original_ip(&m).c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
 
         SrsHttpMessage m;
         m.set_header(&h, false);
