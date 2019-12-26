@@ -486,6 +486,15 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
     if (range.empty()) {
         range = r->query_get("bytes");
     }
+
+    // Fetch range from header.
+    SrsHttpHeader* h = r->header();
+    if (range.empty() && h) {
+        range = h->get("Range");
+        if (range.find("bytes=") == 0) {
+            range = range.substr(6);
+        }
+    }
     
     // rollback to serve whole file.
     size_t pos = string::npos;
