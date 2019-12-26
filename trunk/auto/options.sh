@@ -54,6 +54,8 @@ SRS_GCOV=NO
 SRS_LOG_VERBOSE=NO
 SRS_LOG_INFO=NO
 SRS_LOG_TRACE=NO
+# The extra c/c++ flags to build SRS. Note that we also pass to ST as EXTRA_CFLAGS.
+SRS_EXTRA_CFLAGS=
 #
 ################################################################
 # experts
@@ -76,10 +78,6 @@ SRS_X86_X64=NO
 # for osx system
 SRS_OSX=NO
 SRS_ALLOW_OSX=NO
-# armhf(v7cpu) built on ubuntu12
-SRS_ARM_UBUNTU12=NO
-# mips built on ubuntu12
-SRS_MIPS_UBUNTU12=NO
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
 # dev, open main server feature for dev, no utest/research/librtmp
@@ -99,8 +97,8 @@ SRS_DISABLE_ALL=NO
 # all features is on
 SRS_ENABLE_ALL=NO
 #
-################################################################
-# whether cross build for embed cpu, arm/mips
+#####################################################################################
+# We don't support crossbuild for ARM/MIPS, please directly build it on ARM/MIPS server.
 SRS_CROSS_BUILD=NO
 
 #####################################################################################
@@ -177,7 +175,10 @@ Presets:
   --full                    enable all features, no gperf/gprof/arm.
   --x86-64                  alias for --x86-x64.
 
-Always Enabled:
+Toolchain options:
+  --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Pass to ST as EXTRA_CFLAGS.
+
+Recomment to enable:
   --with-http-api           enable HTTP API, to communicate with SRS.
   --with-http-callback      enable HTTP hooks, build cherrypy as demo api server.
   --with-http-server        enable HTTP server to delivery http stream.
@@ -236,8 +237,8 @@ function parse_user_option() {
         --with-gmp)                     SRS_GPERF_MP=YES            ;;
         --with-gcp)                     SRS_GPERF_CP=YES            ;;
         --with-gprof)                   SRS_GPROF=YES               ;;
-        --with-arm-ubuntu12)            SRS_ARM_UBUNTU12=YES        ;;
-        --with-mips-ubuntu12)           SRS_MIPS_UBUNTU12=YES       ;;
+        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
+        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
                                                                  
         --without-ssl)                  SRS_SSL=NO                  ;;
         --without-hds)                  SRS_HDS=NO                  ;;
@@ -256,10 +257,11 @@ function parse_user_option() {
         --without-gmp)                  SRS_GPERF_MP=NO             ;;
         --without-gcp)                  SRS_GPERF_CP=NO             ;;
         --without-gprof)                SRS_GPROF=NO                ;;
-        --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO         ;;
-        --without-mips-ubuntu12)        SRS_MIPS_UBUNTU12=NO        ;;
+        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
+        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
+        --extra-flags)                  SRS_EXTRA_CFLAGS=${value}   ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --static)                       SRS_STATIC=YES              ;;
         --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
@@ -271,8 +273,8 @@ function parse_user_option() {
         --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
         --allow-osx)                    SRS_ALLOW_OSX=YES           ;;
-        --arm)                          SRS_ARM_UBUNTU12=YES        ;;
-        --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
+        --arm)                          SRS_CROSS_BUILD=YES         ;;
+        --mips)                         SRS_CROSS_BUILD=YES         ;;
         --pi)                           SRS_PI=YES                  ;;
         --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
@@ -310,8 +312,8 @@ function parse_user_option() {
 function parse_user_option_to_value_and_option() {
     case "$option" in
         -*=*) 
-            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/.]*||'`
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/. ]*||'`
         ;;
            *) value="" ;;
     esac
@@ -341,47 +343,16 @@ function apply_user_presets() {
     SRS_LOG_TRACE=YES
     
     # set default preset if not specifies
-    if [ $SRS_PURE_RTMP = NO ]; then
-        if [ $SRS_FAST = NO ]; then
-            if [ $SRS_DISABLE_ALL = NO ]; then
-                if [ $SRS_ENABLE_ALL = NO ]; then
-                    if [ $SRS_DEV = NO ]; then
-                        if [ $SRS_FAST_DEV = NO ]; then
-                            if [ $SRS_DEMO = NO ]; then
-                                if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                                    if [ $SRS_MIPS_UBUNTU12 = NO ]; then
-                                        if [ $SRS_PI = NO ]; then
-                                            if [ $SRS_CUBIE = NO ]; then
-                                                if [ $SRS_X86_X64 = NO ]; then
-                                                    if [ $SRS_OSX = NO ]; then
-                                                        SRS_X86_X64=YES; opt="--x86-x64 $opt";
-                                                    fi
-                                                fi
-                                            fi
-                                        fi
-                                    fi
-                                fi
-                            fi
-                        fi
-                    fi
-                fi
-            fi
-        fi
-    fi
-    
-    # whether embeded cpu.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        SRS_CROSS_BUILD=YES
-    fi
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        SRS_CROSS_BUILD=YES
+    if [[ $SRS_PURE_RTMP == NO && $SRS_FAST == NO && $SRS_DISABLE_ALL == NO && $SRS_ENABLE_ALL == NO && \
+        $SRS_DEV == NO && $SRS_FAST_DEV == NO && $SRS_DEMO == NO && $SRS_PI == NO && $SRS_CUBIE == NO && \
+        $SRS_X86_X64 == NO && $SRS_OSX == NO \
+    ]]; then
+        SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
 
     # all disabled.
     if [ $SRS_DISABLE_ALL = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -391,8 +362,6 @@ function apply_user_presets() {
     # all enabled.
     if [ $SRS_ENABLE_ALL = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=YES
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -402,8 +371,6 @@ function apply_user_presets() {
     # only rtmp vp6
     if [ $SRS_FAST = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -413,32 +380,7 @@ function apply_user_presets() {
     # only ssl for RTMP with complex handshake.
     if [ $SRS_PURE_RTMP = YES ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
-        SRS_UTEST=NO
-        SRS_STATIC=NO
-    fi
-
-    # if arm specified, set some default to disabled.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
-        SRS_UTEST=NO
-        # TODO: FIXME: need static? maybe donot.
-        SRS_STATIC=YES
-    fi
-
-    # if mips specified, set some default to disabled.
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
-        SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
@@ -447,8 +389,6 @@ function apply_user_presets() {
     # defaults for x86/x64
     if [ $SRS_X86_X64 = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -458,8 +398,6 @@ function apply_user_presets() {
     # for osx(darwin)
     if [ $SRS_OSX = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -472,8 +410,6 @@ function apply_user_presets() {
     # if dev specified, open features if possible.
     if [ $SRS_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
@@ -483,8 +419,6 @@ function apply_user_presets() {
     # if fast dev specified, open main server features.
     if [ $SRS_FAST_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -494,8 +428,6 @@ function apply_user_presets() {
     # for srs demo
     if [ $SRS_DEMO = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
@@ -505,8 +437,6 @@ function apply_user_presets() {
     # if raspberry-pi specified, open ssl/hls/static features
     if [ $SRS_PI = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -516,8 +446,6 @@ function apply_user_presets() {
     # if cubieboard specified, open features except ffmpeg/nginx.
     if [ $SRS_CUBIE = YES ]; then
         SRS_HDS=YES
-        SRS_NGINX=NO
-        SRS_FFMPEG_TOOL=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -569,9 +497,7 @@ function apply_user_detail_options() {
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         SRS_HDS=NO
-        SRS_NGINX=NO
         SRS_SSL=NO
-        SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_HTTP_CALLBACK=NO
         SRS_INGEST=NO
@@ -599,9 +525,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hls"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hls"; fi
     if [ $SRS_HDS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hds"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hds"; fi
     if [ $SRS_DVR = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-dvr"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-dvr"; fi
-    if [ $SRS_NGINX = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nginx"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nginx"; fi
     if [ $SRS_SSL = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ssl"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ssl"; fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ffmpeg"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ffmpeg"; fi
     if [ $SRS_TRANSCODE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-transcode"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-transcode"; fi
     if [ $SRS_INGEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-ingest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-ingest"; fi
     if [ $SRS_STAT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-stat"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-stat"; fi
@@ -618,13 +542,12 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_GPERF_MP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmp"; fi
     if [ $SRS_GPERF_CP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gcp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gcp"; fi
     if [ $SRS_GPROF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gprof"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gprof"; fi
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-arm-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-arm-ubuntu12"; fi
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-mips-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-mips-ubuntu12"; fi
     if [ $SRS_STATIC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static"; fi
     if [ $SRS_LOG_VERBOSE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
+    if [[ $SRS_EXTRA_CFLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_CFLAGS\\\""; fi
     echo "User config: $SRS_AUTO_USER_CONFIGURE"
     echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }
@@ -634,6 +557,28 @@ regenerate_options
 # check user options
 #####################################################################################
 function check_option_conflicts() {
+    if [ $SRS_CROSS_BUILD = YES ]; then
+        echo "We don't support crossbuild for ARM/MIPS, please directly build it on ARM/MIPS server."
+        exit -1
+    fi
+
+    if [ $SRS_OSX = YES ]; then
+        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"
+        exit -1
+    fi
+
+    if [[ $SRS_NGINX == YES ]]; then
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
+        exit -1
+    fi
+
+    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
+        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"
+        exit -1
+    fi
+
+    # TODO: FIXME: check more os.
+
     __check_ok=YES
     # check conflict
     if [ $SRS_GPERF = NO ]; then
@@ -658,40 +603,9 @@ function check_option_conflicts() {
         echo "gmc/gmp/gcp not compatible with gprof, see: ./configure --help"; __check_ok=NO; 
     fi fi
 
-    # check embeded(arm/mips), if embeded enabled, only allow st/ssl/librtmp,
-    # user should disable all other features
-    if [ $SRS_CROSS_BUILD = YES ]; then
-        if [ $SRS_FFMPEG_TOOL = YES ]; then echo "ffmpeg for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MC = YES ]; then echo "gmc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MD = YES ]; then echo "gmd for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MP = YES ]; then echo "gmp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_CP = YES ]; then echo "gcp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPROF = YES ]; then echo "gprof for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-    fi
-
-    # osx not support gperf.
-    if [ $SRS_OSX = YES ]; then
-        if [ $SRS_GPERF = YES ]; then echo "gperf for osx is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MC = YES ]; then echo "gmc for osx is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MD = YES ]; then echo "gmd for osx is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_MP = YES ]; then echo "gmp for osx is not available, see: ./configure --help"; __check_ok=NO; fi
-        if [ $SRS_GPERF_CP = YES ]; then echo "gcp for osx is not available, see: ./configure --help"; __check_ok=NO; fi
-    fi
-
-    # if osx, never use static
-    if [[ $SRS_OSX = YES && $SRS_STATIC = YES ]]; then
-        echo "osx should never use static, see: ./configure --help"; __check_ok=NO;
-    fi
-    
-    # TODO: FIXME: check more os.
-
     # check variable neccessary
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_FFMPEG_TOOL = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
@@ -702,8 +616,6 @@ function check_option_conflicts() {
     if [ $SRS_GPERF_MP = RESERVED ]; then echo "you must specifies the gperf-mp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_CP = RESERVED ]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then echo "you must specifies the arm-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_MIPS_UBUNTU12 = RESERVED ]; then echo "you must specifies the mips-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
     if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
     if [ $__check_ok = NO ]; then
         exit 1;

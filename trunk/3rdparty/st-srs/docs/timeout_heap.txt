@@ -1,0 +1,60 @@
+How the timeout heap works
+
+As of version 1.5, the State Threads Library represents the queue of
+sleeping threads using a heap data structure rather than a sorted
+linked list.  This improves performance when there is a large number
+of sleeping threads, since insertion into a heap takes O(log N) time
+while insertion into a sorted list takes O(N) time.  For example, in
+one test 1000 threads were created, each thread called st_usleep()
+with a random time interval, and then all the threads where
+immediately interrupted and joined before the sleeps had a chance to
+finish.  The whole process was repeated 1000 times, for a total of a
+million sleep queue insertions and removals.  With the old list-based
+sleep queue, this test took 100 seconds; now it takes only 12 seconds.
+
+Heap data structures are typically based on dynamically resized
+arrays.  However, since the existing ST code base was very nicely
+structured around linking the thread objects into pointer-based lists
+without the need for any auxiliary data structures, implementing the
+heap using a similar nodes-and-pointers based approach seemed more
+appropriate for ST than introducing a separate array.
+
+Thus, the new ST timeout heap works by organizing the existing
+_st_thread_t objects in a balanced binary tree, just as they were
+previously organized into a doubly-linked, sorted list.  The global
+_ST_SLEEPQ variable, formerly a linked list head, is now simply a
+pointer to the root of this tree, and the root node of the tree is the
+thread with the earliest timeout.  Each thread object has two child
+pointers, "left" and "right", pointing to threads with later timeouts.
+
+Each node in the tree is numbered with an integer index, corresponding
+to the array index in an array-based heap, and the tree is kept fully
+balanced and left-adjusted at all times.  In other words, the tree
+consists of any number of fully populated top levels, followed by a
+single bottom level which may be partially populated, such that any
+existing nodes form a contiguous block to the left and the spaces for
+missing nodes form a contiguous block to the right.  For example, if
+there are nine threads waiting for a timeout, they are numbered and
+arranged in a tree exactly as follows:
+
+              1
+           /     \
+          2       3
+         / \     / \
+        4   5   6   7
+       / \
+      8   9
+
+Each node has either no children, only a left child, or both a left
+and a right child.  Children always time out later than their parents
+(this is called the "heap invariant"), but when a node has two
+children, their mutual order is unspecified - the left child may time
+out before or after the right child.  If a node is numbered N, its
+left child is numbered 2N, and its right child is numbered 2N+1.
+
+There is no pointer from a child to its parent; all pointers point
+downward.  Additions and deletions both work by starting at the root
+and traversing the tree towards the leaves, going left or right
+according to the binary digits forming the index of the destination
+node.  As nodes are added or deleted, existing nodes are rearranged to
+maintain the heap invariant.

@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <sstream>
 #include <stdarg.h>
+#include <unistd.h>
 using namespace std;
 
 bool srs_is_system_control_error(srs_error_t err)
@@ -77,7 +78,7 @@ std::string SrsCplxError::description() {
         
         next = this;
         while (next) {
-            ss << "thread [" << next->cid << "]: "
+            ss << "thread [" << getpid() << "][" << next->cid << "]: "
             << next->func << "() [" << next->file << ":" << next->line << "]"
             << "[errno=" << next->rerrno << "]";
 

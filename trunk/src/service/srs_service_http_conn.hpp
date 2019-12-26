@@ -30,7 +30,7 @@
 
 #include <srs_http_stack.hpp>
 
-class SrsConnection;
+class ISrsConnection;
 class SrsFastStream;
 class SrsRequest;
 class ISrsReader;
@@ -103,7 +103,7 @@ private:
     bool infinite_chunked;
     // Use a buffer to read and send ts file.
     // The transport connection, can be NULL.
-    SrsConnection* owner_conn;
+    ISrsConnection* owner_conn;
 private:
     uint8_t _method;
     uint16_t _status;
@@ -143,8 +143,8 @@ public:
     virtual srs_error_t set_url(std::string url, bool allow_jsonp);
 public:
     // Get the owner connection, maybe NULL.
-    virtual SrsConnection* connection();
-    virtual void set_connection(SrsConnection* conn);
+    virtual ISrsConnection* connection();
+    virtual void set_connection(ISrsConnection* conn);
 public:
     virtual uint8_t method();
     virtual uint16_t status_code();

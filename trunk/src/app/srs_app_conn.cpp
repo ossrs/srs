@@ -198,6 +198,10 @@ int SrsConnection::srs_id()
     return trd->cid();
 }
 
+string SrsConnection::remote_ip() {
+    return ip;
+}
+
 void SrsConnection::expire()
 {
     trd->interrupt();

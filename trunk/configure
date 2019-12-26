@@ -17,7 +17,7 @@ BLACK="\\033[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG_TOOL/SRS_HTTP_CALLBACK/......
+# srs features: SRS_SSL/SRS_HLS/SRS_HTTP_CALLBACK/......
 # build options: SRS_JOBS
 #####################################################################################
 # parse options, exit with error when parse options invalid.
@@ -118,6 +118,10 @@ fi
 if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
+# User configed options.
+if [[ $SRS_EXTRA_CFLAGS != '' ]]; then
+    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_CFLAGS";
+fi
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
@@ -162,10 +166,6 @@ fi
 # TODO: FIXME: remove static.
 if [ $SRS_STATIC = YES ]; then
     SrsLinkOptions="${SrsLinkOptions} -static";
-fi
-# if mips, add -lgcc_eh, or stl compile failed.
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    SrsLinkOptions="${SrsLinkOptions} -lgcc_eh";
 fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
@@ -351,23 +351,10 @@ cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
-END
-
-# embeded, ubuntu12, use embeded tool chain.
-if [ $SRS_CROSS_BUILD = YES ]; then
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-default:
-	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default
-
-END
-# x86/x64, use gnu-gcc/g++ tool chain.
-else
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 default:
 	\$(MAKE) _default
 
 END
-fi
 
 # the real entry for all platform:
 #       the server, librtmp and utest
@@ -597,11 +584,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
     fi
-    if [ $SRS_NGINX = YES ]; then
-        echo -e "${GREEN}Nginx is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: Nginx is disabled.${BLACK}"
-    fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"
     else
@@ -611,11 +593,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${GREEN}RTMP complex handshake is enabled${BLACK}"
     else
         echo -e "${YELLOW}Warning: RTMP complex handshake is disabled, flash cann't play h264/aac.${BLACK}"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "${GREEN}The FFMPEG tool is enabled.${BLACK}"
-    else
-        echo -e "${YELLOW}Warning: The FFMPEG tool is disabled, please use other tools for transcode/mux/ingest.${BLACK}"
     fi
     if [ $SRS_TRANSCODE = YES ]; then
         echo -e "${GREEN}The transcoding is enabled${BLACK}"
@@ -687,16 +664,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
     fi
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The cross-build arm-ubuntu12(armhf, v7cpu) is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The cross-build arm-ubuntu12(armhf, v7cpu)is disabled.${BLACK}"
-    fi
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The mips-ubuntu12 is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The mips-ubuntu12 is disabled.${BLACK}"
-    fi
     if [ $SRS_VALGRIND = YES ]; then
         echo -e "${GREEN}The valgrind is enabled.${BLACK}"
     else
@@ -715,12 +682,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
     echo ""
     echo "You can run 3rdparty applications:"
-    if [ $SRS_NGINX = YES ]; then
-        echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
-    fi
     if [ $SRS_HTTP_CALLBACK = YES ]; then
         echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
     fi

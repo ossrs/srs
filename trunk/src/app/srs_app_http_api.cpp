@@ -599,16 +599,6 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     features->set("transcode", SrsJsonAny::boolean(true));
     features->set("ingest", SrsJsonAny::boolean(true));
     features->set("stat", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_NGINX
-    features->set("nginx", SrsJsonAny::boolean(true));
-#else
-    features->set("nginx", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_FFMPEG_TOOL
-    features->set("ffmpeg", SrsJsonAny::boolean(true));
-#else
-    features->set("ffmpeg", SrsJsonAny::boolean(false));
-#endif
     features->set("caster", SrsJsonAny::boolean(true));
 #ifdef SRS_PERF_COMPLEX_SEND
     features->set("complex_send", SrsJsonAny::boolean(true));
