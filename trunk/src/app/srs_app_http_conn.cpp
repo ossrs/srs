@@ -870,6 +870,11 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
     req->as_http();
+
+    // Set ip by remote ip of connection.
+    if (conn) {
+        req->ip = conn->remote_ip();
+    }
     
     return req;
 }

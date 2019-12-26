@@ -130,6 +130,8 @@ public:
     * get the srs id which identify the client.
     */
     virtual int srs_id();
+    // Get the remote ip of peer.
+    virtual std::string remote_ip();
     /**
      * set connection to expired.
      */

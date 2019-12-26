@@ -338,6 +338,7 @@ Remark:
 
 ## History
 
+* v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
 * v2.0, 2019-12-23, Fix [srs-librtmp #22](https://github.com/ossrs/srs-librtmp/issues/22), parse vhost splited by single seperator. 2.0.268
 * v2.0, 2019-12-23, Fix [srs-librtmp #25](https://github.com/ossrs/srs-librtmp/issues/25), build srs-librtmp on windows. 2.0.267
 * v2.0, 2019-12-13, Support openssl versions greater than 1.1.0. 2.0.266
