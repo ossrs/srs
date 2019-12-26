@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_http_stack.hpp>
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
@@ -1539,5 +1540,36 @@ void srs_api_dump_summaries(std::stringstream& ss)
             << SRS_JOBJECT_END
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
+}
+
+string srs_get_original_ip(ISrsHttpMessage* r)
+{
+    string x_forwarded_for, x_real_ip;
+    for (int i = 0; i < r->request_header_count(); i++) {
+        string k = r->request_header_key_at(i);
+        if (k == "X-Forwarded-For") {
+            x_forwarded_for = r->request_header_value_at(i);
+        } else if (k == "X-Real-IP") {
+            x_real_ip = r->request_header_value_at(i);
+        }
+    }
+
+    if (!x_forwarded_for.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_forwarded_for.find(",")) == string::npos) {
+            return x_forwarded_for;
+        }
+        return x_forwarded_for.substr(0, pos);
+    }
+
+    if (!x_real_ip.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_real_ip.find(":")) == string::npos) {
+            return x_real_ip;
+        }
+        return x_real_ip.substr(0, pos);
+    }
+
+    return "";
 }
 
