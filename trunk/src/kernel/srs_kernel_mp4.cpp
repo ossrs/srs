@@ -6001,6 +6001,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             
             avc1->width = format->vcodec->width;
             avc1->height = format->vcodec->height;
+            avc1->data_reference_index = 1;
             
             SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
             avc1->set_avcC(avcC);
@@ -6078,6 +6079,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             stbl->set_stsd(stsd);
             
             SrsMp4AudioSampleEntry* mp4a = new SrsMp4AudioSampleEntry();
+            mp4a->data_reference_index = 1;
             mp4a->samplerate = uint32_t(srs_flv_srates[format->acodec->sound_rate]) << 16;
             if (format->acodec->sound_size == SrsAudioSampleBits16bit) {
                 mp4a->samplesize = 16;
