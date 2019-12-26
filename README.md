@@ -148,6 +148,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2019-12-26, [3.0 alpha6(3.0.85)][r3.0a6] released. 116056 lines.</strong>
 * v3.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 3.0.85
 * v3.0, 2019-12-25, For [#1537][bug #1537], [#1282][bug #1282], support aarch64 for armv8. 3.0.84
 * v3.0, 2019-12-25, For [#1538][bug #1538], fresh chunk allow fmt=0 or fmt=1. 3.0.83
@@ -694,6 +695,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2019-12-19, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
 * 2019-12-19, [Release v3.0-a5][r3.0a5], 3.0 alpha5, 3.0.75, 115362 lines.
 * 2019-12-13, [Release v3.0-a4][r3.0a4], 3.0 alpha4, 3.0.71, 112928 lines.
 * 2019-11-30, [Release v3.0-a3][r3.0a3], 3.0 alpha3, 3.0.67, 110864 lines.
@@ -1533,6 +1535,7 @@ Winlin
 [bug #1312]: https://github.com/ossrs/srs/pull/1312
 [bug #1304]: https://github.com/ossrs/srs/pull/1304
 [bug #1524]: https://github.com/ossrs/srs/issues/1524
+[bug #1488]: https://github.com/ossrs/srs/issues/1488
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
@@ -1572,6 +1575,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6
 [r3.0a5]: https://github.com/ossrs/srs/releases/tag/v3.0-a5
 [r3.0a4]: https://github.com/ossrs/srs/releases/tag/v3.0-a4
 [r3.0a3]: https://github.com/ossrs/srs/releases/tag/v3.0-a3
