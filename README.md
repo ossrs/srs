@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-27, Add links for flv.js, hls.js and dash.js.
 * v3.0, 2019-12-26, For [#1105][bug #1105], http server support mp4 range.
 * v3.0, 2019-12-26, For [#1105][bug #1105], dvr mp4 supports playing on Chrome/Safari/Firefox. 3.0.86
 * <strong>v3.0, 2019-12-26, [3.0 alpha6(3.0.85)][r3.0a6] released. 116056 lines.</strong>
