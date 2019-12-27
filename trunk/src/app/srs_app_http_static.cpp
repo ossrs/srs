@@ -157,10 +157,10 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     // parse -1 to whole file.
     if (end == -1) {
-        end = (int)fs->filesize();
+        end = (int)(fs->filesize() - 1);
     }
     
-    if (end > fs->filesize() || start > end) {
+    if (end > fs->filesize() || start > end || end < 0) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
             fullpath.c_str(), fs->filesize(), start);
     }

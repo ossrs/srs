@@ -489,7 +489,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     uint32_t nb_sample = (uint32_t)format->nb_raw;
     
     uint32_t dts = (uint32_t)audio->timestamp;
-    if ((err = enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
         return srs_error_wrap(err, "write sample");
     }
     
@@ -515,7 +515,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsForm
     
     uint8_t* sample = (uint8_t*)format->raw;
     uint32_t nb_sample = (uint32_t)format->nb_raw;
-    if ((err = enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
         return srs_error_wrap(err, "write sample");
     }
     

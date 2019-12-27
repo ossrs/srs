@@ -62,6 +62,7 @@ SrsCplxError::SrsCplxError()
 
 SrsCplxError::~SrsCplxError()
 {
+    srs_freep(wrapped);
 }
 
 std::string SrsCplxError::description() {
