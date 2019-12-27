@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-27, For [#1544][bug #1544], fix memory leaking for complex error. 3.0.87
 * v3.0, 2019-12-27, Add links for flv.js, hls.js and dash.js.
 * v3.0, 2019-12-26, For [#1105][bug #1105], http server support mp4 range.
 * v3.0, 2019-12-26, For [#1105][bug #1105], dvr mp4 supports playing on Chrome/Safari/Firefox. 3.0.86
@@ -1569,6 +1570,7 @@ Winlin
 [bug #1538]: https://github.com/ossrs/srs/issues/1538
 [bug #1282]: https://github.com/ossrs/srs/issues/1282
 [bug #1105]: https://github.com/ossrs/srs/issues/1105
+[bug #1544]: https://github.com/ossrs/srs/issues/1544
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
