@@ -123,6 +123,7 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeTFHD = 0x74666864, // 'tfhd'
     SrsMp4BoxTypeTFDT = 0x74666474, // 'tfdt'
     SrsMp4BoxTypeTRUN = 0x7472756e, // 'trun'
+    SrsMp4BoxTypeSIDX = 0x73696478, // 'sidx'
 };
 
 // 8.4.3.3 Semantics
@@ -145,9 +146,11 @@ enum SrsMp4BoxBrand
     SrsMp4BoxBrandAVC1 = 0x61766331, // 'avc1'
     SrsMp4BoxBrandMP41 = 0x6d703431, // 'mp41'
     SrsMp4BoxBrandISO5 = 0x69736f35, // 'iso5'
+    SrsMp4BoxBrandISO6 = 0x69736f36, // 'iso6'
     SrsMp4BoxBrandMP42 = 0x6d703432, // 'mp42'
     SrsMp4BoxBrandDASH = 0x64617368, // 'dash'
     SrsMp4BoxBrandMSDH = 0x6d736468, // 'msdh'
+    SrsMp4BoxBrandMSIX = 0x6d736978, // 'msix'
 };
 
 // The context to dump.
@@ -179,8 +182,10 @@ public:
     // An extended type; in this case, the type field is set to ‘uuid’.
     SrsMp4BoxType type;
     // For box 'uuid'.
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> usertype;
 protected:
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4Box*> boxes;
 private:
     // The position at buffer to start demux the box.
@@ -274,6 +279,7 @@ public:
     uint32_t minor_version;
 private:
     // A list, to the end of the box, of brands
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4BoxBrand> compatible_brands;
 public:
     SrsMp4FileTypeBox();
@@ -506,6 +512,7 @@ public:
     uint32_t first_sample_flags;
 // all fields in the following array are optional
 public:
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4TrunEntry*> entries;
 public:
     SrsMp4TrackFragmentRunBox();
@@ -595,6 +602,7 @@ public:
 class SrsMp4FreeSpaceBox : public SrsMp4Box
 {
 private:
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4FreeSpaceBox(SrsMp4BoxType v);
@@ -902,6 +910,7 @@ class SrsMp4EditListBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4ElstEntry> entries;
 public:
     SrsMp4EditListBox();
@@ -1152,6 +1161,7 @@ public:
 class SrsMp4DataReferenceBox : public SrsMp4FullBox
 {
 private:
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4DataEntryBox*> entries;
 public:
     SrsMp4DataReferenceBox();
@@ -1273,6 +1283,7 @@ public:
 class SrsMp4AvccBox : public SrsMp4Box
 {
 public:
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> avc_config;
 public:
     SrsMp4AvccBox();
@@ -1383,6 +1394,7 @@ class SrsMp4DecoderSpecificInfo : public SrsMp4BaseDescriptor
 public:
     // AAC Audio Specific Config.
     // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> asc;
 public:
     SrsMp4DecoderSpecificInfo();
@@ -1449,6 +1461,7 @@ public:
     // if (streamDependenceFlag)
     uint16_t dependsOn_ES_ID;
     // if (URL_Flag)
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> URLstring;
     // if (OCRstreamFlag)
     uint16_t OCR_ES_Id;
@@ -1494,6 +1507,7 @@ public:
 class SrsMp4SampleDescriptionBox : public SrsMp4FullBox
 {
 private:
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SampleEntry*> entries;
 public:
     SrsMp4SampleDescriptionBox();
@@ -1543,6 +1557,7 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table.
+    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SttsEntry> entries;
 private:
     // The index for counter to calc the dts for samples.
@@ -1783,10 +1798,49 @@ public:
 class SrsMp4UserDataBox : public SrsMp4Box
 {
 public:
+    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4UserDataBox();
     virtual ~SrsMp4UserDataBox();
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// The entry for SegmentIndexBox(sidx) for MPEG-DASH.
+// @doc https://patches.videolan.org/patch/103/
+struct SrsMp4SegmentIndexEntry
+{
+    uint8_t reference_type; // 1bit
+    uint32_t referenced_size; // 31bits
+    uint32_t subsegment_duration; // 32bits
+    uint8_t starts_with_SAP; // 1bit
+    uint8_t SAP_type; // 3bits
+    uint32_t SAP_delta_time; // 28bits
+};
+
+// The SegmentIndexBox(sidx) for MPEG-DASH.
+// @doc https://gpac.wp.imt.fr/2012/02/01/dash-support/
+// @doc https://patches.videolan.org/patch/103/
+// @doc https://github.com/necccc/iso-bmff-parser-stream/blob/master/lib/box/sidx.js
+class SrsMp4SegmentIndexBox : public SrsMp4Box
+{
+public:
+    uint8_t version;
+    uint32_t flags;
+    uint32_t reference_id;
+    uint32_t timescale;
+    uint64_t earliest_presentation_time;
+    uint32_t first_offset;
+    // TODO: FIXME: Should double check buffer.
+    std::vector<SrsMp4SegmentIndexEntry> entries;
+public:
+    SrsMp4SegmentIndexBox();
+    virtual ~SrsMp4SegmentIndexBox();
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -2063,8 +2117,6 @@ private:
     uint32_t nb_videos;
     uint64_t mdat_bytes;
     SrsMp4SampleManager* samples;
-private:
-    uint64_t data_offset;
 public:
     SrsMp4M2tsSegmentEncoder();
     virtual ~SrsMp4M2tsSegmentEncoder();

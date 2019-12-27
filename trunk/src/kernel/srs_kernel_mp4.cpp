@@ -408,6 +408,7 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeTFHD: box = new SrsMp4TrackFragmentHeaderBox(); break;
         case SrsMp4BoxTypeTFDT: box = new SrsMp4TrackFragmentDecodeTimeBox(); break;
         case SrsMp4BoxTypeTRUN: box = new SrsMp4TrackFragmentRunBox(); break;
+        case SrsMp4BoxTypeSIDX: box = new SrsMp4SegmentIndexBox(); break;
         // Skip some unknown boxes.
         case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
             box = new SrsMp4FreeSpaceBox(type); break;
@@ -4575,6 +4576,120 @@ stringstream& SrsMp4UserDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
     return ss;
 }
 
+SrsMp4SegmentIndexBox::SrsMp4SegmentIndexBox()
+{
+    type = SrsMp4BoxTypeSIDX;
+}
+
+SrsMp4SegmentIndexBox::~SrsMp4SegmentIndexBox()
+{
+}
+
+int SrsMp4SegmentIndexBox::nb_header()
+{
+    return SrsMp4Box::nb_header() + 4+4+4 + (version? 4:8) + 4+4 + 12*entries.size();
+}
+
+srs_error_t SrsMp4SegmentIndexBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = SrsMp4Box::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buf->write_1bytes(version);
+    buf->write_3bytes(flags);
+    buf->write_4bytes(reference_id);
+    buf->write_4bytes(timescale);
+    if (!version) {
+        buf->write_4bytes(earliest_presentation_time);
+        buf->write_4bytes(first_offset);
+    } else {
+        buf->write_8bytes(earliest_presentation_time);
+        buf->write_8bytes(first_offset);
+    }
+
+    buf->write_4bytes((uint32_t)entries.size());
+    for (int i = 0; i < (int)entries.size(); i++) {
+        SrsMp4SegmentIndexEntry& entry = entries.at(i);
+
+        uint32_t v = uint32_t(entry.reference_type&0x01)<<31;
+        v |= entry.referenced_size&0x7fffffff;
+        buf->write_4bytes(v);
+
+        buf->write_4bytes(entry.subsegment_duration);
+
+        v = uint32_t(entry.starts_with_SAP&0x01)<<31;
+        v |= uint32_t(entry.SAP_type&0x7)<<28;
+        v |= entry.SAP_delta_time&0xfffffff;
+        buf->write_4bytes(v);
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4SegmentIndexBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = SrsMp4Box::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    version = buf->read_1bytes();
+    flags = buf->read_3bytes();
+    reference_id = buf->read_4bytes();
+    timescale = buf->read_4bytes();
+    if (!version) {
+        earliest_presentation_time = buf->read_4bytes();
+        first_offset = buf->read_4bytes();
+    } else {
+        earliest_presentation_time = buf->read_8bytes();
+        first_offset = buf->read_8bytes();
+    }
+
+    uint32_t nn_entries = (uint32_t)(buf->read_4bytes() & 0xffff);
+    for (uint32_t i = 0; i < nn_entries; i++) {
+        SrsMp4SegmentIndexEntry entry;
+
+        uint32_t v = buf->read_4bytes();
+        entry.reference_type = uint8_t((v&0x80000000)>>31);
+        entry.referenced_size = v&0x7fffffff;
+
+        entry.subsegment_duration = buf->read_4bytes();
+
+        v = buf->read_4bytes();
+        entry.starts_with_SAP = uint8_t((v&0x80000000)>>31);
+        entry.SAP_type = uint8_t((v&0x70000000)>>28);
+        entry.SAP_delta_time = v&0xfffffff;
+
+        entries.push_back(entry);
+    }
+
+    return err;
+}
+
+stringstream& SrsMp4SegmentIndexBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
+{
+    SrsMp4Box::dumps_detail(ss, dc);
+
+    ss << ", v" << (int)version << ", flags=" << flags << ", refs#" << reference_id
+        << ", TBN=" << timescale << ", ePTS=" << earliest_presentation_time;
+
+    for (int i = 0; i < (int)entries.size(); i++) {
+        SrsMp4SegmentIndexEntry& entry = entries.at(i);
+
+        ss << endl;
+        srs_padding(ss, dc.indent());
+        ss << "#" << i << ", ref=" << (int)entry.reference_type << "/" << entry.referenced_size
+            << ", duration=" << entry.subsegment_duration << ", SAP=" << (int)entry.starts_with_SAP
+            << "/" << (int)entry.SAP_type << "/" << entry.SAP_delta_time;
+    }
+
+    return ss;
+}
+
 SrsMp4Sample::SrsMp4Sample()
 {
     type = SrsFrameTypeForbidden;
@@ -5930,8 +6045,8 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
     SrsAutoFree(SrsMp4FileTypeBox, ftyp);
     if (true) {
         ftyp->major_brand = SrsMp4BoxBrandISO5;
-        ftyp->minor_version = 0;
-        ftyp->set_compatible_brands(SrsMp4BoxBrandISOM, SrsMp4BoxBrandISO5, SrsMp4BoxBrandDASH, SrsMp4BoxBrandMP42);
+        ftyp->minor_version = 512;
+        ftyp->set_compatible_brands(SrsMp4BoxBrandISO6, SrsMp4BoxBrandMP41);
     }
     
     // Write moov.
@@ -6135,7 +6250,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
     uint8_t* data = new uint8_t[nb_data];
     SrsAutoFreeA(uint8_t, data);
     
-    SrsBuffer* buffer = new SrsBuffer();
+    SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
     SrsAutoFree(SrsBuffer, buffer);
     
     if ((err = ftyp->encode(buffer)) != srs_success) {
@@ -6160,7 +6275,6 @@ SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()
     buffer = new SrsBuffer();
     sequence_number = 0;
     decode_basetime = 0;
-    data_offset = 0;
     mdat_bytes = 0;
 }
 
@@ -6186,7 +6300,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequenc
         
         styp->major_brand = SrsMp4BoxBrandMSDH;
         styp->minor_version = 0;
-        styp->set_compatible_brands(SrsMp4BoxBrandMSDH, SrsMp4BoxBrandDASH);
+        styp->set_compatible_brands(SrsMp4BoxBrandMSDH, SrsMp4BoxBrandMSIX);
         
         int nb_data = styp->nb_bytes();
         std::vector<char> data(nb_data);
@@ -6202,9 +6316,8 @@ srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequenc
         if ((err = writer->write(&data[0], nb_data, NULL)) != srs_success) {
             return srs_error_wrap(err, "write styp");
         }
-        
-        data_offset = nb_data;
     }
+
     return err;
 }
 
@@ -6230,7 +6343,11 @@ srs_error_t SrsMp4M2tsSegmentEncoder::write_sample(SrsMp4HandlerType ht,
     ps->tbn = 1000;
     ps->dts = dts;
     ps->pts = pts;
-    ps->data = sample;
+
+    // We should copy the sample data, which is shared ptr from video/audio message.
+    // Furthermore, we do free the data when freeing the sample.
+    ps->data = new uint8_t[nb_sample];
+    memcpy(ps->data, sample, nb_sample);
     ps->nb_data = nb_sample;
     
     // Append to manager to build the moof.
@@ -6254,7 +6371,10 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     // and we will update its header(size) when flush.
     SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
     SrsAutoFree(SrsMp4MediaDataBox, mdat);
-    
+
+    // Although the sidx is not required to start play DASH, but it's required for AV sync.
+    // TODO: FIXME: Insert a sidx box.
+
     // Write moof.
     if (true) {
         SrsMp4MovieFragmentBox* moof = new SrsMp4MovieFragmentBox();
@@ -6288,7 +6408,8 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         }
         
         int nb_data = moof->nb_bytes();
-        trun->data_offset = (int32_t)(data_offset + nb_data + mdat->sz_header());
+        // @remark Remember the data_offset of turn is size(moof)+header(mdat), not including styp or sidx.
+        trun->data_offset = (int32_t)(nb_data + mdat->sz_header());
         
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
