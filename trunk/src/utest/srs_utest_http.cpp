@@ -1612,7 +1612,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
         SrsHttpMessage m;
         HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=ossrs.net", false));
         m.set_header(&h, false);
-        EXPECT_STRNE("ossrs.net", m.host().c_str());
+        EXPECT_STREQ("ossrs.net", m.host().c_str());
     }
 
     if (true) {
