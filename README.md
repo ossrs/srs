@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-29, For [#1255][bug #1255], support vhost/domain in query string for HTTP streaming. 3.0.90
 * v3.0, 2019-12-29, For [#299][bug #299], increase dash segment size for avsync issue. 3.0.89
 * v3.0, 2019-12-27, For [#299][bug #299], fix some bugs in dash, it works now. 3.0.88
 * v3.0, 2019-12-27, For [#1544][bug #1544], fix memory leaking for complex error. 3.0.87
@@ -1573,6 +1574,7 @@ Winlin
 [bug #1282]: https://github.com/ossrs/srs/issues/1282
 [bug #1105]: https://github.com/ossrs/srs/issues/1105
 [bug #1544]: https://github.com/ossrs/srs/issues/1544
+[bug #1255]: https://github.com/ossrs/srs/issues/1255
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

@@ -491,6 +491,16 @@ string SrsHttpMessage::url()
 
 string SrsHttpMessage::host()
 {
+    std::map<string, string>::iterator it = _query.find("vhost");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
+    it = _query.find("domain");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
     return _uri->get_host();
 }
 
