@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2019-12-29, [3.0 alpha7(3.0.90)][r3.0a7] released. 116356 lines.</strong>
 * v3.0, 2019-12-29, For [#1255][bug #1255], support vhost/domain in query string for HTTP streaming. 3.0.90
 * v3.0, 2019-12-29, For [#299][bug #299], increase dash segment size for avsync issue. 3.0.89
 * v3.0, 2019-12-27, For [#299][bug #299], fix some bugs in dash, it works now. 3.0.88
@@ -700,7 +701,8 @@ For previous versions, please read:
 
 ## Releases
 
-* 2019-12-19, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
+* 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
+* 2019-12-26, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
 * 2019-12-19, [Release v3.0-a5][r3.0a5], 3.0 alpha5, 3.0.75, 115362 lines.
 * 2019-12-13, [Release v3.0-a4][r3.0a4], 3.0 alpha4, 3.0.71, 112928 lines.
 * 2019-11-30, [Release v3.0-a3][r3.0a3], 3.0 alpha3, 3.0.67, 110864 lines.
@@ -1579,6 +1581,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7
 [r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6
 [r3.0a5]: https://github.com/ossrs/srs/releases/tag/v3.0-a5
 [r3.0a4]: https://github.com/ossrs/srs/releases/tag/v3.0-a4
