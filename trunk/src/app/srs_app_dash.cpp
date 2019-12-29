@@ -363,7 +363,18 @@ void SrsDashController::on_unpublish()
 {
     mpd->on_unpublish();
 
+    srs_error_t err = srs_success;
+
+    if ((err = vcurrent->reap(video_dts)) != srs_success) {
+        srs_warn("reap video err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     srs_freep(vcurrent);
+
+    if ((err = acurrent->reap(audio_dts)) != srs_success) {
+        srs_warn("reap audio err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     srs_freep(acurrent);
 }
 

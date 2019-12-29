@@ -1835,7 +1835,7 @@ public:
     uint32_t reference_id;
     uint32_t timescale;
     uint64_t earliest_presentation_time;
-    uint32_t first_offset;
+    uint64_t first_offset;
     // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SegmentIndexEntry> entries;
 public:
@@ -2115,6 +2115,7 @@ private:
 private:
     uint32_t nb_audios;
     uint32_t nb_videos;
+    uint32_t styp_bytes;
     uint64_t mdat_bytes;
     SrsMp4SampleManager* samples;
 public:

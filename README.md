@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-29, For [#299][bug #299], increase dash segment size for avsync issue. 3.0.89
 * v3.0, 2019-12-27, For [#299][bug #299], fix some bugs in dash, it works now. 3.0.88
 * v3.0, 2019-12-27, For [#1544][bug #1544], fix memory leaking for complex error. 3.0.87
 * v3.0, 2019-12-27, Add links for flv.js, hls.js and dash.js.

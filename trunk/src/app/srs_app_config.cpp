@@ -5810,7 +5810,7 @@ bool SrsConfig::get_dash_enabled(string vhost)
 
 srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 {
-    static int DEFAULT = 3 * SRS_UTIME_SECONDS;
+    static int DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5827,7 +5827,7 @@ srs_utime_t SrsConfig::get_dash_fragment(string vhost)
 
 srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 {
-    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
+    static srs_utime_t DEFAULT = 150 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {
@@ -5844,7 +5844,7 @@ srs_utime_t SrsConfig::get_dash_update_period(string vhost)
 
 srs_utime_t SrsConfig::get_dash_timeshift(string vhost)
 {
-    static srs_utime_t DEFAULT = 60 * SRS_UTIME_SECONDS;
+    static srs_utime_t DEFAULT = 300 * SRS_UTIME_SECONDS;
     
     SrsConfDirective* conf = get_dash(vhost);
     if (!conf) {

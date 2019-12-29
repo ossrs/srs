@@ -41,6 +41,27 @@ using namespace std;
 
 #define SRS_MP4_BUF_SIZE 4096
 
+srs_error_t srs_mp4_write_box(ISrsWriter* writer, ISrsCodec* box)
+{
+    srs_error_t err = srs_success;
+
+    int nb_data = box->nb_bytes();
+    std::vector<char> data(nb_data);
+
+    SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
+    SrsAutoFree(SrsBuffer, buffer);
+
+    if ((err = box->encode(buffer)) != srs_success) {
+        return srs_error_wrap(err, "encode box");
+    }
+
+    if ((err = writer->write(&data[0], nb_data, NULL)) != srs_success) {
+        return srs_error_wrap(err, "write box");
+    }
+
+    return err;
+}
+
 stringstream& srs_padding(stringstream& ss, SrsMp4DumpContext dc, int tab = 4)
 {
     for (int i = 0; i < (int)dc.level; i++) {
@@ -4587,7 +4608,7 @@ SrsMp4SegmentIndexBox::~SrsMp4SegmentIndexBox()
 
 int SrsMp4SegmentIndexBox::nb_header()
 {
-    return SrsMp4Box::nb_header() + 4+4+4 + (version? 4:8) + 4+4 + 12*entries.size();
+    return SrsMp4Box::nb_header() + 4+4+4 + (!version? 8:16) + 4 + 12*entries.size();
 }
 
 srs_error_t SrsMp4SegmentIndexBox::encode_header(SrsBuffer* buf)
@@ -6041,18 +6062,24 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
     srs_error_t err = srs_success;
     
     // Write ftyp box.
-    SrsMp4FileTypeBox* ftyp = new SrsMp4FileTypeBox();
-    SrsAutoFree(SrsMp4FileTypeBox, ftyp);
     if (true) {
+        SrsMp4FileTypeBox* ftyp = new SrsMp4FileTypeBox();
+        SrsAutoFree(SrsMp4FileTypeBox, ftyp);
+
         ftyp->major_brand = SrsMp4BoxBrandISO5;
         ftyp->minor_version = 512;
         ftyp->set_compatible_brands(SrsMp4BoxBrandISO6, SrsMp4BoxBrandMP41);
+
+        if ((err = srs_mp4_write_box(writer, ftyp)) != srs_success) {
+            return srs_error_wrap(err, "write ftyp");
+        }
     }
     
     // Write moov.
-    SrsMp4MovieBox* moov = new SrsMp4MovieBox();
-    SrsAutoFree(SrsMp4MovieBox, moov);
     if (true) {
+        SrsMp4MovieBox* moov = new SrsMp4MovieBox();
+        SrsAutoFree(SrsMp4MovieBox, moov);
+
         SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
         moov->set_mvhd(mvhd);
         
@@ -6244,24 +6271,10 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             trex->track_ID = tid;
             trex->default_sample_description_index = 1;
         }
-    }
-    
-    int nb_data = ftyp->nb_bytes() + moov->nb_bytes();
-    uint8_t* data = new uint8_t[nb_data];
-    SrsAutoFreeA(uint8_t, data);
-    
-    SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-    SrsAutoFree(SrsBuffer, buffer);
-    
-    if ((err = ftyp->encode(buffer)) != srs_success) {
-        return srs_error_wrap(err, "encode ftyp");
-    }
-    if ((err = moov->encode(buffer)) != srs_success) {
-        return srs_error_wrap(err, "encode moov");
-    }
-    
-    if ((err = writer->write(data, nb_data, NULL)) != srs_success) {
-        return srs_error_wrap(err, "write ftyp and moov");
+
+        if ((err = srs_mp4_write_box(writer, moov)) != srs_success) {
+            return srs_error_wrap(err, "write moov");
+        }
     }
     
     return err;
@@ -6275,6 +6288,7 @@ SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()
     buffer = new SrsBuffer();
     sequence_number = 0;
     decode_basetime = 0;
+    styp_bytes = 0;
     mdat_bytes = 0;
 }
 
@@ -6301,19 +6315,11 @@ srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequenc
         styp->major_brand = SrsMp4BoxBrandMSDH;
         styp->minor_version = 0;
         styp->set_compatible_brands(SrsMp4BoxBrandMSDH, SrsMp4BoxBrandMSIX);
-        
-        int nb_data = styp->nb_bytes();
-        std::vector<char> data(nb_data);
-        
-        SrsBuffer* buffer = new SrsBuffer(&data[0], nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = styp->encode(buffer)) != srs_success) {
-            return srs_error_wrap(err, "encode styp");
-        }
-        
-        // TODO: FIXME: Ensure write ok.
-        if ((err = writer->write(&data[0], nb_data, NULL)) != srs_success) {
+
+        // Used for sidx to calcalute the referenced size.
+        styp_bytes = styp->nb_bytes();
+
+        if ((err = srs_mp4_write_box(writer, styp)) != srs_success) {
             return srs_error_wrap(err, "write styp");
         }
     }
@@ -6365,15 +6371,35 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
     if (!nb_audios && !nb_videos) {
         return srs_error_new(ERROR_MP4_ILLEGAL_MOOF, "Missing audio and video track");
     }
-    
+
+    // Although the sidx is not required to start play DASH, but it's required for AV sync.
+    SrsMp4SegmentIndexBox* sidx = new SrsMp4SegmentIndexBox();
+    SrsAutoFree(SrsMp4SegmentIndexBox, sidx);
+    if (true) {
+        sidx->version = 1;
+        sidx->reference_id = 1;
+        sidx->timescale = 1000;
+        sidx->earliest_presentation_time = uint64_t(decode_basetime / sidx->timescale);
+
+        uint64_t duration = 0;
+        if (samples && !samples->samples.empty()) {
+            SrsMp4Sample* first = samples->samples[0];
+            SrsMp4Sample* last = samples->samples[samples->samples.size() - 1];
+            duration = srs_max(0, last->dts - first->dts);
+        }
+
+        SrsMp4SegmentIndexEntry entry;
+        memset(&entry, 0, sizeof(entry));
+        entry.subsegment_duration = duration;
+        entry.starts_with_SAP = 1;
+        sidx->entries.push_back(entry);
+    }
+
     // Create a mdat box.
     // its payload will be writen by samples,
     // and we will update its header(size) when flush.
     SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
     SrsAutoFree(SrsMp4MediaDataBox, mdat);
-
-    // Although the sidx is not required to start play DASH, but it's required for AV sync.
-    // TODO: FIXME: Insert a sidx box.
 
     // Write moof.
     if (true) {
@@ -6407,30 +6433,25 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
             return srs_error_wrap(err, "write samples");
         }
         
-        int nb_data = moof->nb_bytes();
         // @remark Remember the data_offset of turn is size(moof)+header(mdat), not including styp or sidx.
-        trun->data_offset = (int32_t)(nb_data + mdat->sz_header());
-        
-        uint8_t* data = new uint8_t[nb_data];
-        SrsAutoFreeA(uint8_t, data);
-        
-        SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
-        SrsAutoFree(SrsBuffer, buffer);
-        
-        if ((err = moof->encode(buffer)) != srs_success) {
-            return srs_error_wrap(err, "encode moof");
+        int moof_bytes = moof->nb_bytes();
+        trun->data_offset = (int32_t)(moof_bytes + mdat->sz_header());
+        mdat->nb_data = (int)mdat_bytes;
+
+        // Update the size of sidx.
+        SrsMp4SegmentIndexEntry* entry = &sidx->entries[0];
+        entry->referenced_size = moof_bytes + mdat->nb_bytes();
+        if ((err = srs_mp4_write_box(writer, sidx)) != srs_success) {
+            return srs_error_wrap(err, "write sidx");
         }
-        
-        // TODO: FIXME: Ensure all bytes are writen.
-        if ((err = writer->write(data, nb_data, NULL)) != srs_success) {
+
+        if ((err = srs_mp4_write_box(writer, moof)) != srs_success) {
             return srs_error_wrap(err, "write moof");
         }
     }
     
     // Write mdat.
     if (true) {
-        mdat->nb_data = (int)mdat_bytes;
-        
         int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
         SrsAutoFreeA(uint8_t, data);
