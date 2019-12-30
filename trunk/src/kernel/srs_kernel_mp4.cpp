@@ -62,7 +62,7 @@ srs_error_t srs_mp4_write_box(ISrsWriter* writer, ISrsCodec* box)
     return err;
 }
 
-stringstream& srs_padding(stringstream& ss, SrsMp4DumpContext dc, int tab = 4)
+stringstream& srs_mp4_padding(stringstream& ss, SrsMp4DumpContext dc, int tab)
 {
     for (int i = 0; i < (int)dc.level; i++) {
         for (int j = 0; j < tab; j++) {
@@ -78,127 +78,36 @@ stringstream& srs_print_mp4_type(stringstream& ss, uint32_t v)
     return ss;
 }
 
-#define SrsSummaryCount 8
-
-template<typename T>
-stringstream& srs_dumps_array(std::vector<T>&arr, stringstream& ss, SrsMp4DumpContext dc,
-    void (*pfn)(T&, stringstream&, SrsMp4DumpContext),
-    void (*delimiter)(stringstream&,SrsMp4DumpContext))
+stringstream& srs_mp4_print_bytes(stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line, int max)
 {
-    int limit = arr.size();
-    if (dc.summary) {
-        limit = srs_min(SrsSummaryCount, limit);
-    }
-    
-    for (size_t i = 0; i < (size_t)limit; i++) {
-        T& elem = arr[i];
-        
-        pfn(elem, ss, dc);
-        
-        if (i < limit - 1) {
-            delimiter(ss, dc);
+    int limit = srs_min((max<0?size:max), size);
+
+    for (int i = 0; i < (int)limit; i += line) {
+        int nn_line_elems = srs_min(line, limit-i);
+        srs_dumps_array(p+i, nn_line_elems, ss, dc, srs_mp4_pfn_hex, srs_mp4_delimiter_inspace);
+
+        if (i + line < limit) {
+            ss << "," << endl;
+            srs_mp4_padding(ss, dc);
         }
     }
     return ss;
 }
 
-template<typename T>
-stringstream& srs_dumps_array(T* arr, int size, stringstream& ss, SrsMp4DumpContext dc,
-    void (*pfn)(T&, stringstream&, SrsMp4DumpContext),
-    void (*delimiter)(stringstream&, SrsMp4DumpContext))
-{
-    int limit = size;
-    if (dc.summary) {
-        limit = srs_min(SrsSummaryCount, limit);
-    }
-    
-    for (size_t i = 0; i < (size_t)limit; i++) {
-        T& elem = arr[i];
-        
-        pfn(elem, ss, dc);
-        
-        if (i < limit - 1) {
-            delimiter(ss, dc);
-        }
-    }
-    return ss;
-}
-
-void srs_delimiter_inline(stringstream& ss, SrsMp4DumpContext dc)
+void srs_mp4_delimiter_inline(stringstream& ss, SrsMp4DumpContext dc)
 {
     ss << ",";
 }
 
-void srs_delimiter_inlinespace(stringstream& ss, SrsMp4DumpContext dc)
+void srs_mp4_delimiter_inspace(stringstream& ss, SrsMp4DumpContext dc)
 {
     ss << ", ";
 }
 
-void srs_delimiter_newline(stringstream& ss, SrsMp4DumpContext dc)
+void srs_mp4_delimiter_newline(stringstream& ss, SrsMp4DumpContext dc)
 {
     ss << endl;
-    srs_padding(ss, dc);
-}
-
-template<typename T>
-void srs_pfn_box(T& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    elem.dumps(ss, dc);
-}
-
-template<typename T>
-void srs_pfn_detail(T& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    elem.dumps_detail(ss, dc);
-}
-
-template<typename T>
-void srs_pfn_pbox(T*& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    elem->dumps(ss, dc);
-}
-
-template<typename T>
-void srs_pfn_pdetail(T*& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    elem->dumps_detail(ss, dc);
-}
-
-template<typename T>
-void srs_pfn_types(T& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    srs_print_mp4_type(ss, (uint32_t)elem);
-}
-
-template<typename T>
-void srs_pfn_hex(T& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)elem << std::dec;
-}
-
-template<typename T>
-void srs_pfn_elems(T& elem, stringstream& ss, SrsMp4DumpContext dc)
-{
-    ss << elem;
-}
-
-stringstream& srs_print_bytes(stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = SrsSummaryCount, int max = -1)
-{
-    if (max == -1) {
-        max = size;
-    }
-    
-    for (int i = 0; i < (int)max; i++) {
-        ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)p[i] << std::dec;
-         if (i < max -1) {
-             ss << ", ";
-             if (((i+1)%line) == 0) {
-                 ss << endl;
-                 srs_padding(ss, dc);
-             }
-        }
-    }
-    return ss;
+    srs_mp4_padding(ss, dc);
 }
 
 int srs_mp4_string_length(const string& v)
@@ -236,6 +145,16 @@ srs_error_t srs_mp4_string_read(SrsBuffer* buf, string& v, int left)
     buf->skip((int)len + 1);
     
     return err;
+}
+
+SrsMp4DumpContext::SrsMp4DumpContext()
+{
+    level = 0;
+    summary = false;
+}
+
+SrsMp4DumpContext::~SrsMp4DumpContext()
+{
 }
 
 SrsMp4DumpContext SrsMp4DumpContext::indent()
@@ -328,7 +247,7 @@ int SrsMp4Box::remove(SrsMp4BoxType bt)
 
 stringstream& SrsMp4Box::dumps(stringstream& ss, SrsMp4DumpContext dc)
 {
-    srs_padding(ss, dc);
+    srs_mp4_padding(ss, dc);
     srs_print_mp4_type(ss, (uint32_t)type);
     
     ss << ", " << sz();
@@ -802,7 +721,7 @@ stringstream& SrsMp4FileTypeBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
     
     if (!compatible_brands.empty()) {
         ss << "(";
-        srs_dumps_array(compatible_brands, ss, dc, srs_pfn_types, srs_delimiter_inline);
+        srs_dumps_array(compatible_brands, ss, dc, srs_mp4_pfn_type, srs_mp4_delimiter_inline);
         ss << ")";
     }
     return ss;
@@ -1339,8 +1258,8 @@ stringstream& SrsMp4TrackFragmentRunBox::dumps_detail(stringstream& ss, SrsMp4Du
     
     if (sample_count > 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_pdetail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail2, srs_mp4_delimiter_newline);
     }
     
     return ss;
@@ -1458,8 +1377,8 @@ stringstream& SrsMp4FreeSpaceBox::dumps_detail(stringstream& ss, SrsMp4DumpConte
     
     if (!data.empty()) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_pfn_hex, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_mp4_pfn_hex, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -2192,8 +2111,8 @@ stringstream& SrsMp4EditListBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
     
     if (!entries.empty()) {
         ss << "(+)" << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_detail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail, srs_mp4_delimiter_newline);
     }
     
     return ss;
@@ -2872,8 +2791,8 @@ stringstream& SrsMp4DataReferenceBox::dumps_detail(stringstream& ss, SrsMp4DumpC
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_pdetail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail2, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -3196,8 +3115,8 @@ stringstream& SrsMp4AvccBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc
     SrsMp4Box::dumps_detail(ss, dc);
     
     ss << ", AVC Config: " << (int)avc_config.size() << "B" << endl;
-    srs_padding(ss, dc.indent());
-    srs_print_bytes(ss, (const char*)&avc_config[0], (int)avc_config.size(), dc.indent());
+    srs_mp4_padding(ss, dc.indent());
+    srs_mp4_print_bytes(ss, (const char*)&avc_config[0], (int)avc_config.size(), dc.indent());
     return ss;
 }
 
@@ -3444,8 +3363,8 @@ stringstream& SrsMp4DecoderSpecificInfo::dumps_detail(stringstream& ss, SrsMp4Du
     ss << ", ASC " << asc.size() << "B";
     
     ss << endl;
-    srs_padding(ss, dc.indent());
-    return srs_print_bytes(ss, (const char*)&asc[0], (int)asc.size(), dc.indent());
+    srs_mp4_padding(ss, dc.indent());
+    return srs_mp4_print_bytes(ss, (const char*)&asc[0], (int)asc.size(), dc.indent());
 }
 
 SrsMp4DecoderConfigDescriptor::SrsMp4DecoderConfigDescriptor() : upStream(0), bufferSizeDB(0), maxBitrate(0), avgBitrate(0)
@@ -3522,7 +3441,7 @@ stringstream& SrsMp4DecoderConfigDescriptor::dumps_detail(stringstream& ss, SrsM
     ss << ", type=" << objectTypeIndication << ", stream=" << streamType;
     
     ss << endl;
-    srs_padding(ss, dc.indent());
+    srs_mp4_padding(ss, dc.indent());
     
     ss << "decoder specific";
     return decSpecificInfo->dumps_detail(ss, dc.indent());
@@ -3681,7 +3600,7 @@ stringstream& SrsMp4ES_Descriptor::dumps_detail(stringstream& ss, SrsMp4DumpCont
     ss << ", ID=" << ES_ID;
     
     ss << endl;
-    srs_padding(ss, dc.indent());
+    srs_mp4_padding(ss, dc.indent());
     
     ss << "decoder config";
     decConfigDescr.dumps_detail(ss, dc.indent());
@@ -3887,7 +3806,7 @@ stringstream& SrsMp4SampleDescriptionBox::dumps_detail(stringstream& ss, SrsMp4D
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_pbox, srs_delimiter_newline);
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_box2, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -4003,8 +3922,8 @@ stringstream& SrsMp4DecodingTime2SampleBox::dumps_detail(stringstream& ss, SrsMp
     ss << ", " << entries.size() << " childs (+)";
     if (!entries.empty()) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_detail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -4128,8 +4047,8 @@ stringstream& SrsMp4CompositionTime2SampleBox::dumps_detail(stringstream& ss, Sr
     ss << ", " << entries.size() << " childs (+)";
     if (!entries.empty()) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_pfn_detail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -4205,8 +4124,8 @@ stringstream& SrsMp4SyncSampleBox::dumps_detail(stringstream& ss, SrsMp4DumpCont
     ss << ", count=" << entry_count;
     if (entry_count > 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(sample_numbers, entry_count, ss, dc.indent(), srs_pfn_elems, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(sample_numbers, entry_count, ss, dc.indent(), srs_mp4_pfn_elem, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -4310,8 +4229,8 @@ stringstream& SrsMp4Sample2ChunkBox::dumps_detail(stringstream& ss, SrsMp4DumpCo
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_pfn_detail, srs_delimiter_newline);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_mp4_pfn_detail, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -4376,8 +4295,8 @@ stringstream& SrsMp4ChunkOffsetBox::dumps_detail(stringstream& ss, SrsMp4DumpCon
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_pfn_elems, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_mp4_pfn_elem, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -4442,8 +4361,8 @@ stringstream& SrsMp4ChunkLargeOffsetBox::dumps_detail(stringstream& ss, SrsMp4Du
     ss << ", " << entry_count << " childs (+)";
     if (entry_count > 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_pfn_elems, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entries, entry_count, ss, dc.indent(), srs_mp4_pfn_elem, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -4531,8 +4450,8 @@ stringstream& SrsMp4SampleSizeBox::dumps_detail(stringstream& ss, SrsMp4DumpCont
     ss << ", size=" << sample_size << ", " << sample_count << " childs (+)";
     if (!sample_size  && sample_count> 0) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(entry_sizes, sample_count, ss, dc.indent(), srs_pfn_elems, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(entry_sizes, sample_count, ss, dc.indent(), srs_mp4_pfn_elem, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -4591,8 +4510,8 @@ stringstream& SrsMp4UserDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
     
     if (!data.empty()) {
         ss << endl;
-        srs_padding(ss, dc.indent());
-        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_pfn_hex, srs_delimiter_inlinespace);
+        srs_mp4_padding(ss, dc.indent());
+        srs_dumps_array(&data[0], (int)data.size(), ss, dc.indent(), srs_mp4_pfn_hex, srs_mp4_delimiter_inspace);
     }
     return ss;
 }
@@ -4702,7 +4621,7 @@ stringstream& SrsMp4SegmentIndexBox::dumps_detail(stringstream& ss, SrsMp4DumpCo
         SrsMp4SegmentIndexEntry& entry = entries.at(i);
 
         ss << endl;
-        srs_padding(ss, dc.indent());
+        srs_mp4_padding(ss, dc.indent());
         ss << "#" << i << ", ref=" << (int)entry.reference_type << "/" << entry.referenced_size
             << ", duration=" << entry.subsegment_duration << ", SAP=" << (int)entry.starts_with_SAP
             << "/" << (int)entry.SAP_type << "/" << entry.SAP_delta_time;

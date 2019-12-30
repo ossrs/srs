@@ -28,6 +28,7 @@
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <string>
 #include <sstream>
@@ -159,7 +160,10 @@ class SrsMp4DumpContext
 public:
     int level;
     bool summary;
-    
+
+    SrsMp4DumpContext();
+    virtual ~SrsMp4DumpContext();
+
     SrsMp4DumpContext indent();
 };
 
@@ -2137,6 +2141,111 @@ public:
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t& dts);
 };
+
+/////////////////////////////////////////////////////////////////////////////////
+// MP4 dumps functions.
+/////////////////////////////////////////////////////////////////////////////////
+
+#include <iomanip>
+
+#define SrsMp4SummaryCount 8
+
+extern std::stringstream& srs_mp4_padding(std::stringstream& ss, SrsMp4DumpContext dc, int tab = 4);
+
+extern void srs_mp4_delimiter_inline(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_inspace(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_newline(std::stringstream& ss, SrsMp4DumpContext dc);
+
+extern std::stringstream& srs_print_mp4_type(std::stringstream& ss, uint32_t v);
+extern std::stringstream& srs_mp4_print_bytes(std::stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = SrsMp4SummaryCount, int max = -1);
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(std::vector<T>&arr, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = arr.size();
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if (i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(T* arr, int size, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = size;
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if (i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+template<typename T>
+void srs_mp4_pfn_box(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_box2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_type(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    srs_print_mp4_type(ss, (uint32_t)elem);
+}
+
+template<typename T>
+void srs_mp4_pfn_hex(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)elem << std::dec;
+}
+
+template<typename T>
+void srs_mp4_pfn_elem(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << elem;
+}
 
 #endif
 
