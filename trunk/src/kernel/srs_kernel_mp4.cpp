@@ -117,12 +117,9 @@ int srs_mp4_string_length(const string& v)
 
 void srs_mp4_string_write(SrsBuffer* buf, const string& v)
 {
-    // Nothing for empty string.
-    if (v.empty()) {
-        return;
+    if (!v.empty()) {
+        buf->write_bytes((char*)v.data(), (int)v.length());
     }
-    
-    buf->write_bytes((char*)v.data(), (int)v.length());
     buf->write_1bytes(0x00);
 }
 
@@ -191,6 +188,19 @@ uint64_t SrsMp4Box::sz()
 int SrsMp4Box::sz_header()
 {
     return nb_header();
+}
+
+int SrsMp4Box::update_size()
+{
+    uint64_t size = nb_bytes();
+
+    if (size > 0xffffffff) {
+        largesize = size;
+    } else {
+        smallsize = (uint32_t)size;
+    }
+
+    return (int)size;
 }
 
 int SrsMp4Box::left_space(SrsBuffer* buf)
@@ -391,13 +401,8 @@ int SrsMp4Box::nb_bytes()
 srs_error_t SrsMp4Box::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
-    
-    uint64_t size = nb_bytes();
-    if (size > 0xffffffff) {
-        largesize = size;
-    } else {
-        smallsize = (uint32_t)size;
-    }
+
+    update_size();
     
     start_pos = buf->pos();
     
@@ -1161,7 +1166,7 @@ stringstream& SrsMp4TrunEntry::dumps(stringstream& ss, SrsMp4DumpContext dc)
 SrsMp4TrackFragmentRunBox::SrsMp4TrackFragmentRunBox()
 {
     type = SrsMp4BoxTypeTRUN;
-    sample_count = first_sample_flags = 0;
+    first_sample_flags = 0;
     data_offset = 0;
 }
 
@@ -1201,7 +1206,8 @@ srs_error_t SrsMp4TrackFragmentRunBox::encode_header(SrsBuffer* buf)
     if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "encode header");
     }
-    
+
+    uint32_t sample_count = (uint32_t)entries.size();
     buf->write_4bytes(sample_count);
     
     if ((flags&SrsMp4TrunFlagsDataOffset) == SrsMp4TrunFlagsDataOffset) {
@@ -1230,7 +1236,7 @@ srs_error_t SrsMp4TrackFragmentRunBox::decode_header(SrsBuffer* buf)
         return srs_error_wrap(err, "decode header");
     }
     
-    sample_count = buf->read_4bytes();
+    uint32_t sample_count = buf->read_4bytes();
     
     if ((flags&SrsMp4TrunFlagsDataOffset) == SrsMp4TrunFlagsDataOffset) {
         data_offset = buf->read_4bytes();
@@ -1258,7 +1264,8 @@ srs_error_t SrsMp4TrackFragmentRunBox::decode_header(SrsBuffer* buf)
 stringstream& SrsMp4TrackFragmentRunBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
-    
+
+    uint32_t sample_count = (uint32_t)entries.size();
     ss << ", samples=" << sample_count;
     
     if ((flags&SrsMp4TrunFlagsDataOffset) == SrsMp4TrunFlagsDataOffset) {
@@ -2201,7 +2208,7 @@ void SrsMp4MediaBox::set_minf(SrsMp4MediaInformationBox* v)
     boxes.push_back(v);
 }
 
-SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox() : creation_time(0), modification_time(0), duration(0)
+SrsMp4MediaHeaderBox::SrsMp4MediaHeaderBox() : creation_time(0), modification_time(0), timescale(0), duration(0)
 {
     type = SrsMp4BoxTypeMDHD;
     language = 0;
@@ -2392,7 +2399,9 @@ stringstream& SrsMp4HandlerReferenceBox::dumps_detail(stringstream& ss, SrsMp4Du
     
     ss << ", ";
     srs_print_mp4_type(ss, (uint32_t)handler_type);
-    ss << ", " <<  name;
+    if (!name.empty()) {
+        ss << ", " <<  name;
+    }
     
     return ss;
 }
@@ -4860,8 +4869,7 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t& d
     
     trun->flags = SrsMp4TrunFlagsDataOffset | SrsMp4TrunFlagsSampleDuration
         | SrsMp4TrunFlagsSampleSize | SrsMp4TrunFlagsSampleFlag | SrsMp4TrunFlagsSampleCtsOffset;
-    trun->sample_count = (uint32_t)samples.size();
-    
+
     SrsMp4Sample* previous = NULL;
     
     vector<SrsMp4Sample*>::iterator it;

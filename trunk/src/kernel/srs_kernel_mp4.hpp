@@ -202,6 +202,8 @@ public:
     // Get the size of header, without contained boxes.
     // @remark For mdat box, we must codec its header, use this instead of sz().
     virtual int sz_header();
+    // Update the size of box.
+    virtual int update_size();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -507,7 +509,7 @@ class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
 public:
     // The number of samples being added in this run; also the number of rows in the following
     // table (the rows can be empty)
-    uint32_t sample_count;
+    //uint32_t sample_count;
 // The following are optional fields
 public:
     // added to the implicit or explicit data_offset established in the track fragment header.
