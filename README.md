@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2019-12-30, Fix mp4 security issue, check buffer when required size is variable.
 * <strong>v3.0, 2019-12-29, [3.0 alpha7(3.0.90)][r3.0a7] released. 116356 lines.</strong>
 * v3.0, 2019-12-29, For [#1255][bug #1255], support vhost/domain in query string for HTTP streaming. 3.0.90
 * v3.0, 2019-12-29, For [#299][bug #299], increase dash segment size for avsync issue. 3.0.89

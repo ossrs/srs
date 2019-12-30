@@ -186,10 +186,8 @@ public:
     // An extended type; in this case, the type field is set to ‘uuid’.
     SrsMp4BoxType type;
     // For box 'uuid'.
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> usertype;
 protected:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4Box*> boxes;
 private:
     // The position at buffer to start demux the box.
@@ -283,7 +281,6 @@ public:
     uint32_t minor_version;
 private:
     // A list, to the end of the box, of brands
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4BoxBrand> compatible_brands;
 public:
     SrsMp4FileTypeBox();
@@ -478,7 +475,7 @@ enum SrsMp4TrunFlags
 
 // Entry for trun.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 69
-class SrsMp4TrunEntry
+class SrsMp4TrunEntry : public ISrsCodec
 {
 public:
     SrsMp4FullBox* owner;
@@ -492,10 +489,11 @@ public:
     SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
-    virtual int nb_header();
-    virtual srs_error_t encode_header(SrsBuffer* buf);
-    virtual srs_error_t decode_header(SrsBuffer* buf);
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // 8.8.8 Track Fragment Run Box (trun)
@@ -516,7 +514,6 @@ public:
     uint32_t first_sample_flags;
 // all fields in the following array are optional
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4TrunEntry*> entries;
 public:
     SrsMp4TrackFragmentRunBox();
@@ -606,7 +603,6 @@ public:
 class SrsMp4FreeSpaceBox : public SrsMp4Box
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4FreeSpaceBox(SrsMp4BoxType v);
@@ -914,7 +910,6 @@ class SrsMp4EditListBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4ElstEntry> entries;
 public:
     SrsMp4EditListBox();
@@ -1165,7 +1160,6 @@ public:
 class SrsMp4DataReferenceBox : public SrsMp4FullBox
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4DataEntryBox*> entries;
 public:
     SrsMp4DataReferenceBox();
@@ -1287,7 +1281,6 @@ public:
 class SrsMp4AvccBox : public SrsMp4Box
 {
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> avc_config;
 public:
     SrsMp4AvccBox();
@@ -1398,7 +1391,6 @@ class SrsMp4DecoderSpecificInfo : public SrsMp4BaseDescriptor
 public:
     // AAC Audio Specific Config.
     // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> asc;
 public:
     SrsMp4DecoderSpecificInfo();
@@ -1465,7 +1457,6 @@ public:
     // if (streamDependenceFlag)
     uint16_t dependsOn_ES_ID;
     // if (URL_Flag)
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> URLstring;
     // if (OCRstreamFlag)
     uint16_t OCR_ES_Id;
@@ -1511,7 +1502,6 @@ public:
 class SrsMp4SampleDescriptionBox : public SrsMp4FullBox
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SampleEntry*> entries;
 public:
     SrsMp4SampleDescriptionBox();
@@ -1561,7 +1551,6 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table.
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SttsEntry> entries;
 private:
     // The index for counter to calc the dts for samples.
@@ -1802,7 +1791,6 @@ public:
 class SrsMp4UserDataBox : public SrsMp4Box
 {
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4UserDataBox();
@@ -1840,7 +1828,6 @@ public:
     uint32_t timescale;
     uint64_t earliest_presentation_time;
     uint64_t first_offset;
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SegmentIndexEntry> entries;
 public:
     SrsMp4SegmentIndexBox();
@@ -2142,6 +2129,7 @@ public:
     virtual srs_error_t flush(uint64_t& dts);
 };
 
+// LCOV_EXCL_START
 /////////////////////////////////////////////////////////////////////////////////
 // MP4 dumps functions.
 /////////////////////////////////////////////////////////////////////////////////
@@ -2246,6 +2234,8 @@ void srs_mp4_pfn_elem(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
 {
     ss << elem;
 }
+
+// LCOV_EXCL_STOP
 
 #endif
 

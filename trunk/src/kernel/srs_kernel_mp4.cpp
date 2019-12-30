@@ -1061,7 +1061,7 @@ SrsMp4TrunEntry::~SrsMp4TrunEntry()
 {
 }
 
-int SrsMp4TrunEntry::nb_header()
+int SrsMp4TrunEntry::nb_bytes()
 {
     int size = 0;
     
@@ -1081,7 +1081,7 @@ int SrsMp4TrunEntry::nb_header()
     return size;
 }
 
-srs_error_t SrsMp4TrunEntry::encode_header(SrsBuffer* buf)
+srs_error_t SrsMp4TrunEntry::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
     
@@ -1107,7 +1107,7 @@ srs_error_t SrsMp4TrunEntry::encode_header(SrsBuffer* buf)
     return err;
 }
 
-srs_error_t SrsMp4TrunEntry::decode_header(SrsBuffer* buf)
+srs_error_t SrsMp4TrunEntry::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
     
@@ -1133,7 +1133,7 @@ srs_error_t SrsMp4TrunEntry::decode_header(SrsBuffer* buf)
     return err;
 }
 
-stringstream& SrsMp4TrunEntry::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
+stringstream& SrsMp4TrunEntry::dumps(stringstream& ss, SrsMp4DumpContext dc)
 {
     if ((owner->flags&SrsMp4TrunFlagsSampleDuration) == SrsMp4TrunFlagsSampleDuration) {
         ss << "duration=" << sample_duration;
@@ -1180,7 +1180,7 @@ int SrsMp4TrackFragmentRunBox::nb_header()
     vector<SrsMp4TrunEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
         SrsMp4TrunEntry* entry = *it;
-        size += entry->nb_header();
+        size += entry->nb_bytes();
     }
     
     return size;
@@ -1206,7 +1206,7 @@ srs_error_t SrsMp4TrackFragmentRunBox::encode_header(SrsBuffer* buf)
     vector<SrsMp4TrunEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
         SrsMp4TrunEntry* entry = *it;
-        if ((err = entry->encode_header(buf)) != srs_success) {
+        if ((err = entry->encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode entry");
         }
     }
@@ -1234,8 +1234,12 @@ srs_error_t SrsMp4TrackFragmentRunBox::decode_header(SrsBuffer* buf)
     for (int i = 0; i < (int)sample_count; i++) {
         SrsMp4TrunEntry* entry = new SrsMp4TrunEntry(this);
         entries.push_back(entry);
+
+        if (!buf->require(entry->nb_bytes())) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "trun entry requires %d bytes", entry->nb_bytes());
+        }
         
-        if ((err = entry->decode_header(buf)) != srs_success) {
+        if ((err = entry->decode(buf)) != srs_success) {
             return srs_error_wrap(err, "decode entry");
         }
     }
@@ -1259,7 +1263,7 @@ stringstream& SrsMp4TrackFragmentRunBox::dumps_detail(stringstream& ss, SrsMp4Du
     if (sample_count > 0) {
         ss << endl;
         srs_mp4_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail2, srs_mp4_delimiter_newline);
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_box2, srs_mp4_delimiter_newline);
     }
     
     return ss;
@@ -2089,13 +2093,22 @@ srs_error_t SrsMp4EditListBox::decode_header(SrsBuffer* buf)
         SrsMp4ElstEntry& entry = entries[i];
         
         if (version == 1) {
+            if (!buf->require(16)) {
+                return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+            }
             entry.segment_duration = buf->read_8bytes();
             entry.media_time = buf->read_8bytes();
         } else {
+            if (!buf->require(8)) {
+                return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+            }
             entry.segment_duration = buf->read_4bytes();
             entry.media_time = buf->read_4bytes();
         }
-        
+
+        if (!buf->require(4)) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+        }
         entry.media_rate_integer = buf->read_2bytes();
         entry.media_rate_fraction = buf->read_2bytes();
     }
@@ -3873,7 +3886,7 @@ srs_error_t SrsMp4DecodingTime2SampleBox::on_sample(uint32_t sample_index, SrsMp
 
 int SrsMp4DecodingTime2SampleBox::nb_header()
 {
-    return SrsMp4FullBox::nb_header() + 4 + 8 * (int)entries.size();
+    return SrsMp4FullBox::nb_header() + 4 + 8*(int)entries.size();
 }
 
 srs_error_t SrsMp4DecodingTime2SampleBox::encode_header(SrsBuffer* buf)
@@ -3907,6 +3920,10 @@ srs_error_t SrsMp4DecodingTime2SampleBox::decode_header(SrsBuffer* buf)
         entries.resize(entry_count);
     }
     for (size_t i = 0; i < (size_t)entry_count; i++) {
+        if (!buf->require(8)) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+        }
+
         SrsMp4SttsEntry& entry = entries[i];
         entry.sample_count = buf->read_4bytes();
         entry.sample_delta = buf->read_4bytes();
@@ -4581,16 +4598,27 @@ srs_error_t SrsMp4SegmentIndexBox::decode_header(SrsBuffer* buf)
     flags = buf->read_3bytes();
     reference_id = buf->read_4bytes();
     timescale = buf->read_4bytes();
+
     if (!version) {
+        if (!buf->require(8)) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+        }
         earliest_presentation_time = buf->read_4bytes();
         first_offset = buf->read_4bytes();
     } else {
+        if (!buf->require(16)) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+        }
         earliest_presentation_time = buf->read_8bytes();
         first_offset = buf->read_8bytes();
     }
 
     uint32_t nn_entries = (uint32_t)(buf->read_4bytes() & 0xffff);
     for (uint32_t i = 0; i < nn_entries; i++) {
+        if (!buf->require(12)) {
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "no space");
+        }
+
         SrsMp4SegmentIndexEntry entry;
 
         uint32_t v = buf->read_4bytes();
