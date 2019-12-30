@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -491,6 +491,16 @@ string SrsHttpMessage::url()
 
 string SrsHttpMessage::host()
 {
+    std::map<string, string>::iterator it = _query.find("vhost");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
+    it = _query.find("domain");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
     return _uri->get_host();
 }
 

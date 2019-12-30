@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2019 Winlin
+Copyright (c) 2013-2020 Winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1820,9 +1820,9 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
-	    EXPECT_EQ(3 * SRS_UTIME_SECONDS, conf.get_dash_fragment(""));
-	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_dash_update_period(""));
-	    EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_dash_timeshift(""));
+	    EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_dash_fragment(""));
+	    EXPECT_EQ(150 * SRS_UTIME_SECONDS, conf.get_dash_update_period(""));
+	    EXPECT_EQ(300 * SRS_UTIME_SECONDS, conf.get_dash_timeshift(""));
 
 	    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dash{dash_fragment 4;dash_update_period 40;dash_timeshift 70;}}"));
 	    EXPECT_EQ(4 * SRS_UTIME_SECONDS, conf.get_dash_fragment("v"));

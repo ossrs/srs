@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,7 @@
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <string>
 #include <sstream>
@@ -159,7 +160,10 @@ class SrsMp4DumpContext
 public:
     int level;
     bool summary;
-    
+
+    SrsMp4DumpContext();
+    virtual ~SrsMp4DumpContext();
+
     SrsMp4DumpContext indent();
 };
 
@@ -182,10 +186,8 @@ public:
     // An extended type; in this case, the type field is set to ‘uuid’.
     SrsMp4BoxType type;
     // For box 'uuid'.
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> usertype;
 protected:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4Box*> boxes;
 private:
     // The position at buffer to start demux the box.
@@ -200,6 +202,8 @@ public:
     // Get the size of header, without contained boxes.
     // @remark For mdat box, we must codec its header, use this instead of sz().
     virtual int sz_header();
+    // Update the size of box.
+    virtual int update_size();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -212,6 +216,8 @@ public:
     // Remove the contained box of specified type.
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
+    // Append a child box.
+    virtual void append(SrsMp4Box* box);
     // Dumps the box and all contained boxes.
     virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     // Discovery the box from buffer.
@@ -279,7 +285,6 @@ public:
     uint32_t minor_version;
 private:
     // A list, to the end of the box, of brands
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4BoxBrand> compatible_brands;
 public:
     SrsMp4FileTypeBox();
@@ -474,7 +479,7 @@ enum SrsMp4TrunFlags
 
 // Entry for trun.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 69
-class SrsMp4TrunEntry
+class SrsMp4TrunEntry : public ISrsCodec
 {
 public:
     SrsMp4FullBox* owner;
@@ -488,10 +493,11 @@ public:
     SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
-    virtual int nb_header();
-    virtual srs_error_t encode_header(SrsBuffer* buf);
-    virtual srs_error_t decode_header(SrsBuffer* buf);
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // 8.8.8 Track Fragment Run Box (trun)
@@ -503,7 +509,7 @@ class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
 public:
     // The number of samples being added in this run; also the number of rows in the following
     // table (the rows can be empty)
-    uint32_t sample_count;
+    //uint32_t sample_count;
 // The following are optional fields
 public:
     // added to the implicit or explicit data_offset established in the track fragment header.
@@ -512,7 +518,6 @@ public:
     uint32_t first_sample_flags;
 // all fields in the following array are optional
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4TrunEntry*> entries;
 public:
     SrsMp4TrackFragmentRunBox();
@@ -602,7 +607,6 @@ public:
 class SrsMp4FreeSpaceBox : public SrsMp4Box
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4FreeSpaceBox(SrsMp4BoxType v);
@@ -910,7 +914,6 @@ class SrsMp4EditListBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4ElstEntry> entries;
 public:
     SrsMp4EditListBox();
@@ -1161,7 +1164,6 @@ public:
 class SrsMp4DataReferenceBox : public SrsMp4FullBox
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4DataEntryBox*> entries;
 public:
     SrsMp4DataReferenceBox();
@@ -1283,7 +1285,6 @@ public:
 class SrsMp4AvccBox : public SrsMp4Box
 {
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> avc_config;
 public:
     SrsMp4AvccBox();
@@ -1394,7 +1395,6 @@ class SrsMp4DecoderSpecificInfo : public SrsMp4BaseDescriptor
 public:
     // AAC Audio Specific Config.
     // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> asc;
 public:
     SrsMp4DecoderSpecificInfo();
@@ -1461,7 +1461,6 @@ public:
     // if (streamDependenceFlag)
     uint16_t dependsOn_ES_ID;
     // if (URL_Flag)
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> URLstring;
     // if (OCRstreamFlag)
     uint16_t OCR_ES_Id;
@@ -1507,7 +1506,6 @@ public:
 class SrsMp4SampleDescriptionBox : public SrsMp4FullBox
 {
 private:
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SampleEntry*> entries;
 public:
     SrsMp4SampleDescriptionBox();
@@ -1557,7 +1555,6 @@ class SrsMp4DecodingTime2SampleBox : public SrsMp4FullBox
 {
 public:
     // An integer that gives the number of entries in the following table.
-    // TODO: FIXME: Should double check buffer.
     std::vector<SrsMp4SttsEntry> entries;
 private:
     // The index for counter to calc the dts for samples.
@@ -1798,7 +1795,6 @@ public:
 class SrsMp4UserDataBox : public SrsMp4Box
 {
 public:
-    // TODO: FIXME: Should double check buffer.
     std::vector<char> data;
 public:
     SrsMp4UserDataBox();
@@ -1835,8 +1831,7 @@ public:
     uint32_t reference_id;
     uint32_t timescale;
     uint64_t earliest_presentation_time;
-    uint32_t first_offset;
-    // TODO: FIXME: Should double check buffer.
+    uint64_t first_offset;
     std::vector<SrsMp4SegmentIndexEntry> entries;
 public:
     SrsMp4SegmentIndexBox();
@@ -2115,6 +2110,7 @@ private:
 private:
     uint32_t nb_audios;
     uint32_t nb_videos;
+    uint32_t styp_bytes;
     uint64_t mdat_bytes;
     SrsMp4SampleManager* samples;
 public:
@@ -2136,6 +2132,114 @@ public:
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t& dts);
 };
+
+// LCOV_EXCL_START
+/////////////////////////////////////////////////////////////////////////////////
+// MP4 dumps functions.
+/////////////////////////////////////////////////////////////////////////////////
+
+#include <iomanip>
+
+#define SrsMp4SummaryCount 8
+
+extern std::stringstream& srs_mp4_padding(std::stringstream& ss, SrsMp4DumpContext dc, int tab = 4);
+
+extern void srs_mp4_delimiter_inline(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_inspace(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_newline(std::stringstream& ss, SrsMp4DumpContext dc);
+
+extern std::stringstream& srs_print_mp4_type(std::stringstream& ss, uint32_t v);
+extern std::stringstream& srs_mp4_print_bytes(std::stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = SrsMp4SummaryCount, int max = -1);
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(std::vector<T>&arr, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = arr.size();
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if (i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(T* arr, int size, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = size;
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if (i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+template<typename T>
+void srs_mp4_pfn_box(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_box2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_type(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    srs_print_mp4_type(ss, (uint32_t)elem);
+}
+
+template<typename T>
+void srs_mp4_pfn_hex(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)elem << std::dec;
+}
+
+template<typename T>
+void srs_mp4_pfn_elem(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << elem;
+}
+
+// LCOV_EXCL_STOP
 
 #endif
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2019 Winlin
+Copyright (c) 2013-2020 Winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1550,9 +1550,70 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageParser)
     }
 }
 
+VOID TEST(ProtocolHTTPTest, VhostInQuery)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsHttpHeader h;
+
+        SrsHttpMessage m;
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=rt.ossrs.net&token=xxx", false));
+        m.set_header(&h, false);
+        EXPECT_STREQ("rt.ossrs.net", m.host().c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+
+        SrsHttpMessage m;
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=rt.ossrs.net&&token=xxx", false));
+        m.set_header(&h, false);
+        EXPECT_STREQ("rt.ossrs.net", m.host().c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net:-1");
+
+        SrsHttpMessage m;
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=rt.ossrs.net", false));
+        m.set_header(&h, false);
+        EXPECT_STREQ("rt.ossrs.net", m.host().c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+
+        SrsHttpMessage m;
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=ossrs.net", false));
+        m.set_header(&h, false);
+        EXPECT_STREQ("ossrs.net", m.host().c_str());
+    }
+
+    if (true) {
+        SrsHttpHeader h;
+        h.set("Host", "ossrs.net");
+
+        SrsHttpMessage m;
+        m.set_header(&h, false);
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1", false));
+        EXPECT_STREQ("ossrs.net", m.host().c_str());
+    }
+}
+
 VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 {
     srs_error_t err;
+
+    if (true) {
+        SrsHttpHeader h;
+
+        SrsHttpMessage m;
+        HELPER_ASSERT_SUCCESS(m.set_url("/api/v1?vhost=ossrs.net", false));
+        m.set_header(&h, false);
+        EXPECT_STREQ("ossrs.net", m.host().c_str());
+    }
 
     if (true) {
         SrsHttpHeader h;
