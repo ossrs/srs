@@ -195,7 +195,8 @@ int SrsMp4Box::sz_header()
 
 int SrsMp4Box::left_space(SrsBuffer* buf)
 {
-    return (int)sz() - (buf->pos() - start_pos);
+    int left = (int)sz() - (buf->pos() - start_pos);
+    return srs_max(0, left);
 }
 
 bool SrsMp4Box::is_ftyp()
@@ -237,12 +238,18 @@ int SrsMp4Box::remove(SrsMp4BoxType bt)
         
         if (box->type == bt) {
             it = boxes.erase(it);
+            srs_freep(box);
         } else {
             ++it;
         }
     }
     
     return nb_removed;
+}
+
+void SrsMp4Box::append(SrsMp4Box* box)
+{
+    boxes.push_back(box);
 }
 
 stringstream& SrsMp4Box::dumps(stringstream& ss, SrsMp4DumpContext dc)
@@ -351,6 +358,7 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeSIDX: box = new SrsMp4SegmentIndexBox(); break;
         // Skip some unknown boxes.
         case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
+        case SrsMp4BoxTypeUUID:
             box = new SrsMp4FreeSpaceBox(type); break;
         default:
             err = srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "illegal box type=%d", type);
@@ -3229,7 +3237,8 @@ SrsMp4BaseDescriptor::~SrsMp4BaseDescriptor()
 
 int SrsMp4BaseDescriptor::left_space(SrsBuffer* buf)
 {
-    return vlen - (buf->pos() - start_pos);
+    int left = vlen - (buf->pos() - start_pos);
+    return srs_max(0, left);
 }
 
 int SrsMp4BaseDescriptor::nb_bytes()

@@ -198,3 +198,335 @@ VOID TEST(KernelMp4Test, PrintBytes)
     }
 }
 
+VOID TEST(KernelMp4Test, ChildBoxes)
+{
+    SrsMp4Box* box = new SrsMp4Box();
+    EXPECT_TRUE(box->get(SrsMp4BoxTypeFTYP) == NULL);
+
+    SrsMp4Box* ftyp = new SrsMp4FileTypeBox();
+    box->append(ftyp);
+    EXPECT_TRUE(box->get(SrsMp4BoxTypeFTYP) == ftyp);
+
+    box->remove(SrsMp4BoxTypeFTYP);
+    EXPECT_TRUE(box->get(SrsMp4BoxTypeFTYP) == NULL);
+
+    srs_freep(box);
+}
+
+VOID TEST(KernelMp4Test, DiscoveryBox)
+{
+    srs_error_t err;
+    SrsMp4Box* pbox;
+
+    if (true) {
+        SrsBuffer b;
+        HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
+    }
+
+    if (true) {
+        uint8_t data[] = {0,0,0,1, 0,0,0,0};
+        SrsBuffer b((char*)data, sizeof(data));
+        HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
+    }
+
+    if (true) {
+        uint8_t data[] = {0,0,0,1, 0,0,0,1,0,0,0,0};
+        SrsBuffer b((char*)data, sizeof(data));
+        HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeEDTS); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeEDTS, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeELST); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeELST, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeURN); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeURN, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeCTTS); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeCTTS, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeCO64); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeCO64, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUDTA); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeUDTA, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMVEX); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeMVEX, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTREX); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeTREX, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeSTYP); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeSTYP, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMOOF); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeMOOF, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeMFHD); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeMFHD, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTRAF); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeTRAF, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTFHD); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeTFHD, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTFDT); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeTFDT, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeTRUN); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeTRUN, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeSIDX); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeSIDX, pbox->type);
+        srs_freep(pbox);
+    }
+}
+
+VOID TEST(KernelMp4Test, UUIDBoxDecode)
+{
+    srs_error_t err;
+    SrsMp4Box* pbox;
+
+    if (true) {
+        uint8_t data[24];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-24);
+        SrsMp4Box box;
+        HELPER_ASSERT_FAILED(box.decode(&b));
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsMp4Box box;
+        HELPER_ASSERT_FAILED(box.decode(&b));
+    }
+
+    if (true) {
+        uint8_t data[16];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(1); b.write_8bytes(0x80000000LL); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-16);
+        SrsMp4Box box;
+        HELPER_ASSERT_FAILED(box.decode(&b));
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(1); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        SrsMp4Box box;
+        HELPER_ASSERT_FAILED(box.decode(&b));
+    }
+
+    if (true) {
+        SrsBuffer b;
+        SrsMp4Box box;
+        HELPER_ASSERT_FAILED(box.decode(&b));
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(0); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
+        HELPER_EXPECT_SUCCESS(pbox->decode(&b));
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
+        srs_freep(pbox);
+    }
+
+    if (true) {
+        uint8_t data[8];
+        SrsBuffer b((char*)data, sizeof(data));
+        b.write_4bytes(0); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
+        HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&b, &pbox));
+        ASSERT_EQ(SrsMp4BoxTypeUUID, pbox->type);
+        srs_freep(pbox);
+    }
+}
+
+VOID TEST(KernelMp4Test, UUIDBoxEncode)
+{
+    srs_error_t err;
+
+    if (true) {
+        char data[8];
+        SrsBuffer b(data, 8);
+
+        SrsMp4Box box;
+        box.type = SrsMp4BoxTypeFREE;
+        box.usertype.resize(8);
+        ASSERT_EQ(8, box.nb_bytes());
+        HELPER_ASSERT_SUCCESS(box.encode(&b));
+    }
+
+    if (true) {
+        char data[24];
+        SrsBuffer b(data, 24);
+
+        SrsMp4Box box;
+        box.type = SrsMp4BoxTypeUUID;
+        box.usertype.resize(16);
+        ASSERT_EQ(24, box.nb_bytes());
+        HELPER_ASSERT_SUCCESS(box.encode(&b));
+    }
+}
+
+VOID TEST(KernelMp4Test, FullBoxDump)
+{
+    if (true) {
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        SrsMp4FileTypeBox box;
+        box.major_brand = SrsMp4BoxBrandISO2;
+        box.compatible_brands.push_back(SrsMp4BoxBrandISOM);
+        box.dumps(ss, dc);
+
+        string v = ss.str();
+        EXPECT_STREQ("ftyp, 0B, brands:iso2,0(isom)\n", v.c_str());
+    }
+
+    if (true) {
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        SrsMp4FullBox box;
+        box.type = SrsMp4BoxTypeFTYP;
+        box.version = 1;
+        box.flags = 0x02;
+        box.dumps(ss, dc);
+
+        string v = ss.str();
+        EXPECT_STREQ("ftyp, 0B, FB(4B,V1,0x02)\n", v.c_str());
+    }
+
+    if (true) {
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        SrsMp4FullBox box;
+        box.type = SrsMp4BoxTypeFTYP;
+        box.version = 1;
+        box.dumps(ss, dc);
+
+        string v = ss.str();
+        EXPECT_STREQ("ftyp, 0B, FB(4B,V1,0x00)\n", v.c_str());
+    }
+
+    if (true) {
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        SrsMp4FullBox box;
+        box.type = SrsMp4BoxTypeFTYP;
+        box.dumps(ss, dc);
+
+        string v = ss.str();
+        EXPECT_STREQ("ftyp, 0B, FB(4B)\n", v.c_str());
+    }
+}
+

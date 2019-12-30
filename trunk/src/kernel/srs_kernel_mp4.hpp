@@ -214,6 +214,8 @@ public:
     // Remove the contained box of specified type.
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
+    // Append a child box.
+    virtual void append(SrsMp4Box* box);
     // Dumps the box and all contained boxes.
     virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     // Discovery the box from buffer.
