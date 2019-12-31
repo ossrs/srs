@@ -368,11 +368,8 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeSIDX: box = new SrsMp4SegmentIndexBox(); break;
         // Skip some unknown boxes.
         case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
-        case SrsMp4BoxTypeUUID:
+        case SrsMp4BoxTypeUUID: default:
             box = new SrsMp4FreeSpaceBox(type); break;
-        default:
-            err = srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "illegal box type=%d", type);
-            break;
     }
     
     if (box) {
@@ -1552,6 +1549,9 @@ SrsMp4MovieHeaderBox::~SrsMp4MovieHeaderBox()
 
 uint64_t SrsMp4MovieHeaderBox::duration()
 {
+    if (timescale <= 0) {
+        return 0;
+    }
     return duration_in_tbn * 1000 / timescale;
 }
 
@@ -2587,6 +2587,11 @@ SrsMp4DataEntryBox::~SrsMp4DataEntryBox()
 {
 }
 
+bool SrsMp4DataEntryBox::boxes_in_header()
+{
+    return true;
+}
+
 SrsMp4DataEntryUrlBox::SrsMp4DataEntryUrlBox()
 {
     type = SrsMp4BoxTypeURL;
@@ -2598,11 +2603,6 @@ SrsMp4DataEntryUrlBox::~SrsMp4DataEntryUrlBox()
 
 int SrsMp4DataEntryUrlBox::nb_header()
 {
-    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
-    // data is in the same file as the Movie Box containing this data reference.
-    if (location.empty()) {
-        return SrsMp4FullBox::nb_header();
-    }
     return SrsMp4FullBox::nb_header()+srs_mp4_string_length(location);
 }
 
@@ -2619,11 +2619,9 @@ srs_error_t SrsMp4DataEntryUrlBox::encode_header(SrsBuffer* buf)
     if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "encode header");
     }
-    
-    if (!location.empty()) {
-        srs_mp4_string_write(buf, location);
-    }
-    
+
+    srs_mp4_string_write(buf, location);
+
     return err;
 }
 
@@ -2635,12 +2633,6 @@ srs_error_t SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
         return srs_error_wrap(err, "decode header");
     }
     
-    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
-    // data is in the same file as the Movie Box containing this data reference.
-    if (flags == 0x01) {
-        return err;
-    }
-    
     if ((err = srs_mp4_string_read(buf, location, left_space(buf))) != srs_success) {
         return srs_error_wrap(err, "url read location");
     }
@@ -2650,7 +2642,9 @@ srs_error_t SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DataEntryUrlBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
-    ss << "URL: " << location;
+    SrsMp4FullBox::dumps_detail(ss, dc);
+
+    ss << ", URL: " << location;
     if (location.empty()) {
         ss << "Same file";
     }
@@ -2674,6 +2668,12 @@ int SrsMp4DataEntryUrnBox::nb_header()
 srs_error_t SrsMp4DataEntryUrnBox::encode_header(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
+
+    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+    // data is in the same file as the Movie Box containing this data reference.
+    if (location.empty()) {
+        flags = 0x01;
+    }
     
     if ((err = SrsMp4DataEntryBox::encode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "encode entry");
@@ -2706,7 +2706,16 @@ srs_error_t SrsMp4DataEntryUrnBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DataEntryUrnBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
-    ss << "URN: " << name << ", " << location;
+    SrsMp4FullBox::dumps_detail(ss, dc);
+
+    ss << ", URL: " << location;
+    if (location.empty()) {
+        ss << "Same file";
+    }
+    if (!name.empty()) {
+        ss << ", " << name;
+    }
+
     return ss;
 }
 
@@ -2821,8 +2830,7 @@ stringstream& SrsMp4DataReferenceBox::dumps_detail(stringstream& ss, SrsMp4DumpC
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
-        srs_mp4_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail2, srs_mp4_delimiter_newline);
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_box2, srs_mp4_delimiter_newline);
     }
     return ss;
 }
@@ -3475,7 +3483,11 @@ stringstream& SrsMp4DecoderConfigDescriptor::dumps_detail(stringstream& ss, SrsM
     srs_mp4_padding(ss, dc.indent());
     
     ss << "decoder specific";
-    return decSpecificInfo->dumps_detail(ss, dc.indent());
+    if (decSpecificInfo) {
+        decSpecificInfo->dumps_detail(ss, dc.indent());
+    }
+
+    return ss;
 }
 
 SrsMp4SLConfigDescriptor::SrsMp4SLConfigDescriptor()
@@ -4554,6 +4566,7 @@ stringstream& SrsMp4UserDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
 SrsMp4SegmentIndexBox::SrsMp4SegmentIndexBox()
 {
     type = SrsMp4BoxTypeSIDX;
+    version = 0;
 }
 
 SrsMp4SegmentIndexBox::~SrsMp4SegmentIndexBox()
@@ -4778,10 +4791,10 @@ srs_error_t SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
 
 SrsMp4Sample* SrsMp4SampleManager::at(uint32_t index)
 {
-    if (index >= samples.size() - 1) {
-        return NULL;
+    if (index < samples.size()) {
+        return samples.at(index);
     }
-    return samples.at(index);
+    return NULL;
 }
 
 void SrsMp4SampleManager::append(SrsMp4Sample* sample)

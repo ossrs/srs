@@ -620,7 +620,7 @@ srs_error_t SrsTsPacket::decode(SrsBuffer* stream, SrsTsMessage** ppmsg)
                 payload = new SrsTsPayloadPES(this);
             } else {
                 // left bytes as reserved.
-                stream->skip(nb_payload);
+                stream->skip(srs_min(stream->left(), nb_payload));
             }
         }
         

@@ -34,24 +34,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_kernel_stream.hpp>
 
-class MockBufferReader: public ISrsReader
+class MockSrsFile
 {
-private:
-    std::string str;
 public:
-    MockBufferReader(const char* data);
-    virtual ~MockBufferReader();
+    SrsBuffer* _buf;
+    SrsSimpleStream _data;
 public:
-    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    MockSrsFile();
+    virtual ~MockSrsFile();
+public:
+    virtual srs_error_t open(std::string file);
+    virtual void close();
+public:
+    virtual srs_error_t write(void* data, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t read(void* data, size_t count, ssize_t* pnread);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
 };
 
 class MockSrsFileWriter : public SrsFileWriter
 {
 public:
-    char* data;
-    int size;
-    int offset;
+    MockSrsFile* uf;
     srs_error_t err;
     // Error if exceed this offset.
     int error_offset;
@@ -67,6 +72,8 @@ public:
     virtual bool is_open();
     virtual void seek2(int64_t offset);
     virtual int64_t tellg();
+    virtual int64_t filesize();
+    virtual char* data();
 public:
     virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
     virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
@@ -78,9 +85,7 @@ public:
 class MockSrsFileReader : public SrsFileReader
 {
 public:
-    char* data;
-    int size;
-    int offset;
+    MockSrsFile* uf;
     bool opened;
     // Could seek.
     bool seekable;
@@ -105,6 +110,17 @@ public:
     // append data to current offset, modify the offset and size.
     void mock_append_data(const char* _data, int _size);
     void mock_reset_offset();
+};
+
+class MockBufferReader: public ISrsReader
+{
+private:
+    std::string str;
+public:
+    MockBufferReader(const char* data);
+    virtual ~MockBufferReader();
+public:
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 };
 
 class MockSrsCodec : public ISrsCodec

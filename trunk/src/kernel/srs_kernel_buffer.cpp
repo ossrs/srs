@@ -94,6 +94,8 @@ bool SrsBuffer::require(int required_size)
 void SrsBuffer::skip(int size)
 {
     srs_assert(p);
+    srs_assert(p + size >= bytes);
+    srs_assert(p + size <= bytes + nb_bytes);
     
     p += size;
 }

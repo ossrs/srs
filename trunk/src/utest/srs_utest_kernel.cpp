@@ -40,37 +40,121 @@ using namespace std;
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
+MockSrsFile::MockSrsFile()
+{
+    _buf = new SrsBuffer(_data.bytes(), _data.length());
+}
+
+MockSrsFile::~MockSrsFile()
+{
+    close();
+}
+
+srs_error_t MockSrsFile::open(std::string /*file*/)
+{
+    srs_error_t err = srs_success;
+    return err;
+}
+
+void MockSrsFile::close()
+{
+    srs_freep(_buf);
+}
+
+srs_error_t MockSrsFile::write(void* data, size_t count, ssize_t* pnwrite)
+{
+    srs_error_t err = srs_success;
+
+    for (;;) {
+        if (_buf->left() >= (int)count) {
+            _buf->write_bytes((char*)data, count);
+            break;
+        }
+
+        // Append enough data and rebuild the buffer.
+        off_t pos = _buf->pos();
+        _data.append((const char*)data, count - _buf->left());
+        srs_freep(_buf);
+        _buf = new SrsBuffer(_data.bytes(), _data.length());
+        lseek(pos, SEEK_SET, NULL);
+    }
+
+    if (pnwrite) {
+        *pnwrite = count;
+    }
+
+    return err;
+}
+
+srs_error_t MockSrsFile::read(void* data, size_t count, ssize_t* pnread)
+{
+    srs_error_t err = srs_success;
+
+    int limit = srs_min(_buf->left(), (int)count);
+
+    if (limit <= 0) {
+        return srs_error_new(-1, "EOF");
+    }
+
+    _buf->read_bytes((char*)data, limit);
+
+    if (pnread) {
+        *pnread = limit;
+    }
+
+    return err;
+}
+
+srs_error_t MockSrsFile::lseek(off_t offset, int whence, off_t* seeked)
+{
+    srs_error_t err = srs_success;
+
+    if (whence == SEEK_SET) {
+        if (offset > _data.length()) {
+            return srs_error_new(-1, "Overflow");
+        }
+        if (_buf->data()) {
+            _buf->skip(offset - _buf->pos());
+        }
+    } else if (whence == SEEK_CUR) {
+    } else if (whence == SEEK_END) {
+        if (_buf->data()) {
+            _buf->skip(_buf->left());
+        }
+    }
+
+    if (seeked) {
+        *seeked = (off_t)_buf->pos();
+    }
+    return err;
+}
+
 MockSrsFileWriter::MockSrsFileWriter()
 {
-    size = MAX_MOCK_DATA_SIZE;
-    data = new char[size];
-    offset = 0;
     err = srs_success;
     error_offset = -1;
     opened = false;
+    uf = new MockSrsFile();
 }
 
 MockSrsFileWriter::~MockSrsFileWriter()
 {
     srs_freep(err);
-    srs_freep(data);
+    srs_freep(uf);
 }
 
-srs_error_t MockSrsFileWriter::open(string /*file*/)
+srs_error_t MockSrsFileWriter::open(string file)
 {
-    offset = 0;
-    
     if (err != srs_success) {
         return srs_error_copy(err);
     }
-
     opened = true;
-    return srs_success;
+    return uf->open(file);
 }
 
 void MockSrsFileWriter::close()
 {
-    opened = false;
+    uf->close();
 }
 
 bool MockSrsFileWriter::is_open()
@@ -80,12 +164,30 @@ bool MockSrsFileWriter::is_open()
 
 void MockSrsFileWriter::seek2(int64_t offset)
 {
-    this->offset = offset;
+    lseek(offset, SEEK_SET, NULL);
 }
 
 int64_t MockSrsFileWriter::tellg()
 {
+    off_t offset = 0;
+    lseek(0, SEEK_CUR, &offset);
+    return (int64_t)offset;
+}
+
+int64_t MockSrsFileWriter::filesize()
+{
+    int64_t cur = tellg();
+
+    off_t offset = 0;
+    lseek(0, SEEK_END, &offset);
+
+    seek2(cur);
     return offset;
+}
+
+char* MockSrsFileWriter::data()
+{
+    return uf->_data.bytes();
 }
 
 srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
@@ -93,90 +195,58 @@ srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     if (err != srs_success) {
         return srs_error_copy(err);
     }
-    
-    int nwriten = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
-	if (nwriten > 0) {
-	    memcpy(data + offset, buf, nwriten);
+
+    if (error_offset >= 0 && tellg() >= error_offset) {
+        return srs_error_new(-1, "overflow");
     }
 
-    if (pnwrite) {
-        *pnwrite = nwriten;
-    }
-    
-    offset += nwriten;
-    size = srs_max(size, offset);
-    
-    if (error_offset >= 0 && offset > error_offset) {
-        return srs_error_new(-1, "exceed offset");
-    }
-    
-    return srs_success;
+    return uf->write(buf, count, pnwrite);
 }
 
-srs_error_t MockSrsFileWriter::lseek(off_t _offset, int whence, off_t* seeked)
+srs_error_t MockSrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
 {
-    if (whence == SEEK_SET) {
-        offset = (int)_offset;
+    if (error_offset >= 0 && offset > error_offset) {
+        return srs_error_new(-1, "overflow");
     }
-    if (whence == SEEK_CUR) {
-        offset += (int)_offset;
-    }
-    if (whence == SEEK_END) {
-        offset = (int)(size + _offset);
-    }
-    
-    if (seeked) {
-        *seeked = (off_t)offset;
-    }
-    
-    return srs_success;
+    return uf->lseek(offset, whence, seeked);
 }
 
 void MockSrsFileWriter::mock_reset_offset()
 {
-    offset = 0;
+    seek2(0);
 }
 
 MockSrsFileReader::MockSrsFileReader()
 {
-    data = new char[MAX_MOCK_DATA_SIZE];
-    size = 0;
-    offset = 0;
     opened = false;
     seekable = true;
+    uf = new MockSrsFile();
 }
 
 MockSrsFileReader::MockSrsFileReader(const char* src, int nb_src)
 {
-	data = NULL;
-    size = nb_src;
-
-	if (nb_src > 0) {
-	    data = new char[nb_src];
-	    memcpy(data, src, nb_src);
-    }
-
-    offset = 0;
     opened = false;
     seekable = true;
+    uf = new MockSrsFile();
+
+    uf->write((void*)src, nb_src, NULL);
+    uf->lseek(0, SEEK_SET, NULL);
 }
 
 MockSrsFileReader::~MockSrsFileReader()
 {
-    srs_freep(data);
+    srs_freep(uf);
 }
 
-srs_error_t MockSrsFileReader::open(string /*file*/)
+srs_error_t MockSrsFileReader::open(string file)
 {
-    offset = 0;
     opened = true;
-    
-    return srs_success;
+    return uf->open(file);
 }
 
 void MockSrsFileReader::close()
 {
-    offset = 0;
+    uf->close();
 }
 
 bool MockSrsFileReader::is_open()
@@ -186,77 +256,56 @@ bool MockSrsFileReader::is_open()
 
 int64_t MockSrsFileReader::tellg()
 {
+    off_t offset = 0;
+    lseek(0, SEEK_CUR, &offset);
     return offset;
 }
 
 void MockSrsFileReader::skip(int64_t _size)
 {
-    offset += _size;
+    int64_t offset = tellg() + _size;
+    lseek(offset, SEEK_SET, NULL);
 }
 
 int64_t MockSrsFileReader::seek2(int64_t _offset)
 {
-	if (!seekable) {
-		return -1;
-	}
-
-    offset = (int)_offset;
+    off_t offset = 0;
+    lseek(_offset, SEEK_SET, &offset);
     return offset;
 }
 
 int64_t MockSrsFileReader::filesize()
 {
-    return size;
+    int64_t cur = tellg();
+
+    off_t offset = 0;
+    lseek(0, SEEK_END, &offset);
+
+    seek2(cur);
+    return offset;
 }
 
 srs_error_t MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 {
-    int s = srs_min(size - offset, (int)count);
-    
-    if (s <= 0) {
-        return srs_error_new(ERROR_SYSTEM_FILE_EOF, "EOF left=%d", s);
-    }
-    
-    memcpy(buf, data + offset, s);
-    offset += s;
-
-    if (pnread) {
-        *pnread = s;
-    }
-    
-    return srs_success;
+    return uf->read(buf, count, pnread);
 }
 
-srs_error_t MockSrsFileReader::lseek(off_t _offset, int whence, off_t* seeked)
+srs_error_t MockSrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
 {
-    if (whence == SEEK_SET) {
-        offset = (int)_offset;
+    if (!seekable) {
+        return srs_error_new(-1, "unseekable");
     }
-    if (whence == SEEK_CUR) {
-        offset += (int)_offset;
-    }
-    if (whence == SEEK_END) {
-        offset = (int)(size + _offset);
-    }
-    
-    if (seeked) {
-        *seeked = (off_t)offset;
-    }
-    
-    return srs_success;
+    return uf->lseek(offset, whence, seeked);
 }
 
-void MockSrsFileReader::mock_append_data(const char* _data, int _size)
+void MockSrsFileReader::mock_append_data(const char* data, int size)
 {
-    int s = srs_min(MAX_MOCK_DATA_SIZE - offset, _size);
-    memcpy(data + offset, _data, s);
-    size += s;
-    offset += s;
+    uf->write((void*)data, size, NULL);
 }
 
 void MockSrsFileReader::mock_reset_offset()
 {
-    offset = 0;
+    seek2(0);
 }
 
 MockBufferReader::MockBufferReader(const char* data)
@@ -596,10 +645,10 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
     
     EXPECT_TRUE(ERROR_SUCCESS == enc.write_header());
-    ASSERT_TRUE(9 + 4 == fs.offset);
+    ASSERT_TRUE(9 + 4 == fs.tellg());
     
-    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data, 9));
-    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 9, 4));
+    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data(), 9));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data() + 9, 4));
 
     // customer header
     flv_header[3] = 0xF0;
@@ -609,10 +658,10 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
     fs.mock_reset_offset();
     
     EXPECT_TRUE(ERROR_SUCCESS == enc.write_header(flv_header));
-    ASSERT_TRUE(9 + 4 == fs.offset);
+    ASSERT_TRUE(9 + 4 == fs.tellg());
     
-    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data, 9));
-    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 9, 4));
+    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data(), 9));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data() + 9, 4));
 }
 
 /**
@@ -641,12 +690,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
     ASSERT_TRUE(ERROR_SUCCESS == enc.write_metadata(18, md, 8));
-    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
-    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
-    EXPECT_TRUE(srs_bytes_equals(md, fs.data + 11, 8));
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
+    EXPECT_TRUE(srs_bytes_equals(md, fs.data() + 11, 8));
     EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
-    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 19, 4));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data() + 19, 4));
 }
 
 /**
@@ -675,12 +724,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
     ASSERT_TRUE(ERROR_SUCCESS == enc.write_audio(0x30, audio, 8));
-    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
-    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
-    EXPECT_TRUE(srs_bytes_equals(audio, fs.data + 11, 8));
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
+    EXPECT_TRUE(srs_bytes_equals(audio, fs.data() + 11, 8));
     EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
-    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data() + 11 + 8, 4));
 }
 
 /**
@@ -709,12 +758,12 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
     ASSERT_TRUE(ERROR_SUCCESS == enc.write_video(0x30, video, 8));
-    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    ASSERT_TRUE(11 + 8 + 4 == fs.tellg());
     
-    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
-    EXPECT_TRUE(srs_bytes_equals(video, fs.data + 11, 8));
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data(), 11));
+    EXPECT_TRUE(srs_bytes_equals(video, fs.data() + 11, 8));
     EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
-    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data() + 11 + 8, 4));
 }
 
 /**
@@ -1478,13 +1527,13 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
         (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
     };
     fs.mock_append_data(tag_header, 11);
-    EXPECT_TRUE(11 == fs.offset);
+    EXPECT_TRUE(11 == fs.tellg());
 
     EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(0));
-    EXPECT_TRUE(0 == fs.offset);
+    EXPECT_TRUE(0 == fs.tellg());
 
     EXPECT_TRUE(ERROR_SUCCESS == dec.seek2(5));
-    EXPECT_TRUE(5 == fs.offset);
+    EXPECT_TRUE(5 == fs.tellg());
 }
 
 VOID TEST(KernelFLVTest, CoverFLVVodError)
@@ -2805,15 +2854,15 @@ VOID TEST(KernelAACTest, TransmaxRTMP2AAC)
         EXPECT_TRUE(srs_success == err);
         srs_freep(err);
         
-        EXPECT_EQ(8, f.offset);
-        EXPECT_EQ((char)0xff, f.data[0]);
-        EXPECT_EQ((char)0xf1, f.data[1]);
-        EXPECT_EQ((char)0x50, f.data[2]);
-        EXPECT_EQ((char)0x80, f.data[3]);
-        EXPECT_EQ((char)0x01, f.data[4]);
-        EXPECT_EQ((char)0x00, f.data[5]);
-        EXPECT_EQ((char)0xfc, f.data[6]);
-        EXPECT_EQ((char)0xcb, f.data[7]);
+        EXPECT_EQ(8, f.tellg());
+        EXPECT_EQ((char)0xff, f.data()[0]);
+        EXPECT_EQ((char)0xf1, f.data()[1]);
+        EXPECT_EQ((char)0x50, f.data()[2]);
+        EXPECT_EQ((char)0x80, f.data()[3]);
+        EXPECT_EQ((char)0x01, f.data()[4]);
+        EXPECT_EQ((char)0x00, f.data()[5]);
+        EXPECT_EQ((char)0xfc, f.data()[6]);
+        EXPECT_EQ((char)0xcb, f.data()[7]);
     }
     
     if (true) {
@@ -3915,7 +3964,7 @@ VOID TEST(KernelFLVTest, CoverAll)
         SrsSharedPtrMessage* msgs = &m;
         EXPECT_TRUE(srs_success == mux.write_tags(&msgs, 1));
         
-        EXPECT_EQ(16, f.offset);
+        EXPECT_EQ(16, f.tellg());
     }
 #endif
 }
@@ -3992,7 +4041,7 @@ VOID TEST(KernelMp3Test, CoverAll)
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_header());
-        EXPECT_EQ((char)0x49, f.data[0]);
+        EXPECT_EQ((char)0x49, f.data()[0]);
     }
     
     if (true) {
@@ -4002,7 +4051,7 @@ VOID TEST(KernelMp3Test, CoverAll)
         EXPECT_TRUE(srs_success == m.initialize(&f));
         
         EXPECT_TRUE(srs_success == m.write_audio(0, (char*)"\x20\x01", 2));
-        EXPECT_EQ((char)0x01, f.data[0]);
+        EXPECT_EQ((char)0x01, f.data()[0]);
     }
     
     if (true) {
@@ -4016,16 +4065,6 @@ VOID TEST(KernelMp3Test, CoverAll)
         srs_freep(err);
         
         err = m.write_audio(0, (char*)"\x20", 1);
-        EXPECT_TRUE(srs_success != err);
-        srs_freep(err);
-    }
-    
-    if (true) {
-        SrsMp3Transmuxer m;
-        MockSrsFileWriter f;
-        f.offset = -1;
-        
-        srs_error_t err = m.initialize(&f);
         EXPECT_TRUE(srs_success != err);
         srs_freep(err);
     }
@@ -4641,7 +4680,7 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
     EXPECT_TRUE(srs_success == enc.flush());
     
     if (true) {
-        MockSrsFileReader fr((const char*)f.data, f.size);
+        MockSrsFileReader fr((const char*)f.data(), f.filesize());
         SrsMp4Decoder dec;
         EXPECT_TRUE(srs_success == dec.initialize(&fr));
         
@@ -4649,13 +4688,39 @@ VOID TEST(KernelMP4Test, CoverMP4Codec)
         uint16_t ft, ct;
         uint32_t dts, pts, nb_sample;
         uint8_t* sample;
+
         EXPECT_TRUE(srs_success == dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
         EXPECT_EQ(0, (int)dts);
+        EXPECT_EQ(41, nb_sample);
+        EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht);
+        EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        srs_freepa(sample);
+
+        EXPECT_TRUE(srs_success == dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
+        EXPECT_EQ(0, (int)dts);
+        EXPECT_EQ(2, nb_sample);
+        EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht);
+        EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        srs_freepa(sample);
+
+        EXPECT_TRUE(srs_success == dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
+        EXPECT_EQ(0, (int)dts);
+        EXPECT_EQ(87, nb_sample);
+        EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht);
+        EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        srs_freepa(sample);
+
+        EXPECT_TRUE(srs_success == dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
+        EXPECT_EQ(0, (int)dts);
+        EXPECT_EQ(127, nb_sample);
+        EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht);
+        EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        srs_freepa(sample);
     }
     
     if (true) {
         SrsMp4BoxReader br;
-        MockSrsFileReader fr((const char*)f.data, f.size);
+        MockSrsFileReader fr((const char*)f.data(), f.filesize());
         EXPECT_TRUE(srs_success == br.initialize(&fr));
         
         SrsSimpleStream stream;
