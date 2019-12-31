@@ -388,9 +388,9 @@ VOID TEST(KernelMp4Test, UUIDBoxDecode)
     if (true) {
         uint8_t data[24];
         SrsBuffer b((char*)data, sizeof(data));
-        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-24);
+        b.write_4bytes(8); b.write_4bytes(SrsMp4BoxTypeUUID); b.skip(-8);
         SrsMp4Box box;
-        HELPER_ASSERT_FAILED(box.decode(&b));
+        HELPER_EXPECT_SUCCESS(box.decode(&b));
     }
 
     if (true) {

@@ -2599,11 +2599,6 @@ SrsMp4DataEntryUrlBox::~SrsMp4DataEntryUrlBox()
 
 int SrsMp4DataEntryUrlBox::nb_header()
 {
-    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
-    // data is in the same file as the Movie Box containing this data reference.
-    if (location.empty()) {
-        return SrsMp4FullBox::nb_header();
-    }
     return SrsMp4FullBox::nb_header()+srs_mp4_string_length(location);
 }
 
@@ -2621,9 +2616,7 @@ srs_error_t SrsMp4DataEntryUrlBox::encode_header(SrsBuffer* buf)
         return srs_error_wrap(err, "encode header");
     }
 
-    if (!location.empty()) {
-        srs_mp4_string_write(buf, location);
-    }
+    srs_mp4_string_write(buf, location);
 
     return err;
 }
@@ -2635,12 +2628,6 @@ srs_error_t SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
     if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "decode header");
     }
-
-    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
-    // data is in the same file as the Movie Box containing this data reference.
-    if (flags == 0x01) {
-        return err;
-    }
     
     if ((err = srs_mp4_string_read(buf, location, left_space(buf))) != srs_success) {
         return srs_error_wrap(err, "url read location");
@@ -2651,7 +2638,9 @@ srs_error_t SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DataEntryUrlBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
-    ss << "URL: " << location;
+    SrsMp4FullBox::dumps_detail(ss, dc);
+
+    ss << ", URL: " << location;
     if (location.empty()) {
         ss << "Same file";
     }
@@ -2707,7 +2696,9 @@ srs_error_t SrsMp4DataEntryUrnBox::decode_header(SrsBuffer* buf)
 
 stringstream& SrsMp4DataEntryUrnBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
 {
-    ss << "URN: " << name << ", " << location;
+    SrsMp4FullBox::dumps_detail(ss, dc);
+
+    ss << ", URN: " << name << ", " << location;
     return ss;
 }
 
