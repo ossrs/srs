@@ -2665,6 +2665,12 @@ int SrsMp4DataEntryUrnBox::nb_header()
 srs_error_t SrsMp4DataEntryUrnBox::encode_header(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
+
+    // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
+    // data is in the same file as the Movie Box containing this data reference.
+    if (location.empty()) {
+        flags = 0x01;
+    }
     
     if ((err = SrsMp4DataEntryBox::encode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "encode entry");
@@ -2699,7 +2705,14 @@ stringstream& SrsMp4DataEntryUrnBox::dumps_detail(stringstream& ss, SrsMp4DumpCo
 {
     SrsMp4FullBox::dumps_detail(ss, dc);
 
-    ss << ", URN: " << name << ", " << location;
+    ss << ", URL: " << location;
+    if (location.empty()) {
+        ss << "Same file";
+    }
+    if (!name.empty()) {
+        ss << ", " << name;
+    }
+
     return ss;
 }
 
@@ -3467,7 +3480,11 @@ stringstream& SrsMp4DecoderConfigDescriptor::dumps_detail(stringstream& ss, SrsM
     srs_mp4_padding(ss, dc.indent());
     
     ss << "decoder specific";
-    return decSpecificInfo->dumps_detail(ss, dc.indent());
+    if (decSpecificInfo) {
+        decSpecificInfo->dumps_detail(ss, dc.indent());
+    }
+
+    return ss;
 }
 
 SrsMp4SLConfigDescriptor::SrsMp4SLConfigDescriptor()
@@ -4546,6 +4563,7 @@ stringstream& SrsMp4UserDataBox::dumps_detail(stringstream& ss, SrsMp4DumpContex
 SrsMp4SegmentIndexBox::SrsMp4SegmentIndexBox()
 {
     type = SrsMp4BoxTypeSIDX;
+    version = 0;
 }
 
 SrsMp4SegmentIndexBox::~SrsMp4SegmentIndexBox()

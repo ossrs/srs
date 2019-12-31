@@ -1254,12 +1254,482 @@ VOID TEST(KernelMp4Test, URLBox)
             box.dumps(ss, dc);
 
             string v = ss.str();
-            EXPECT_STREQ("url , 13B, FB(4B,V0,0x01), URL: Same file\n", v.c_str());
+            EXPECT_STREQ("url , 13B, FB(4B,V0,0x01), URL: Same file", v.c_str());
         }
 
         if (true) {
             b.skip(-1 * b.pos());
             SrsMp4DataEntryUrlBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[12+2];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DataEntryUrnBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("urn , 14B, FB(4B,V0,0x01), URL: Same file", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DataEntryUrnBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        SrsMp4DataReferenceBox box;
+        SrsMp4DataEntryUrnBox* urn = new SrsMp4DataEntryUrnBox();
+        box.append(urn);
+        EXPECT_TRUE(urn == box.entry_at(0));
+    }
+
+    if (true) {
+        char buf[12+4 + 12+2];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DataReferenceBox box;
+            SrsMp4DataEntryUrnBox* urn = new SrsMp4DataEntryUrnBox();
+            box.append(urn);
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("dref, 30B, FB(4B), 1 childs(+)\n    urn , 14B, FB(4B,V0,0x01), URL: Same file\n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DataReferenceBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        SrsMp4SampleTableBox box;
+        SrsMp4CompositionTime2SampleBox* ctts = new SrsMp4CompositionTime2SampleBox();
+        box.set_ctts(ctts);
+        EXPECT_TRUE(ctts == box.ctts());
+    }
+}
+
+VOID TEST(KernelMp4Test, SampleDescBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        char buf[8+8+70];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4VisualSampleEntry box;
+            box.data_reference_index = 1;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("avc1, 86B, refs#1, size=0x0\n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4VisualSampleEntry box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[8];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4AvccBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("avcC, 8B, AVC Config: 0B\n    \n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4AvccBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[8+8+20];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4AudioSampleEntry box;
+            box.data_reference_index = 1;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("mp4a, 36B, refs#1, 2 channels, 16 bits, 0 Hz\n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4AudioSampleEntry box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+}
+
+VOID TEST(KernelMp4Test, SpecificInfoBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        char buf[2+2];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DecoderSpecificInfo box;
+            box.asc.resize(2);
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", tag=0x05, ASC 2B\n    0x00, 0x00", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DecoderSpecificInfo box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[2+13];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DecoderConfigDescriptor box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", tag=0x04, type=0, stream=0\n    decoder specific", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DecoderConfigDescriptor box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[2+21];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4ES_Descriptor box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", tag=0x03, ID=0\n    decoder config, tag=0x04, type=0, stream=0\n        decoder specific", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DecoderConfigDescriptor box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+}
+
+VOID TEST(KernelMp4Test, STSDBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        char buf[32];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4SampleDescriptionBox box;
+            box.entries.push_back(new SrsMp4SampleEntry());
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 1 childs(+)\n    ", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4SampleDescriptionBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[24];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DecodingTime2SampleBox box;
+            box.entries.push_back(SrsMp4SttsEntry());
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 1 childs (+)\n    count=0, delta=0", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DecodingTime2SampleBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[24];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4CompositionTime2SampleBox box;
+            box.entries.push_back(SrsMp4CttsEntry());
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 1 childs (+)\n    count=0, offset=0", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4CompositionTime2SampleBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[16];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4SyncSampleBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), count=0", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4SyncSampleBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[16];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4Sample2ChunkBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 0 childs (+)", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4Sample2ChunkBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[16];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4ChunkOffsetBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 0 childs (+)", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4ChunkOffsetBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[16];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4ChunkLargeOffsetBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 0 childs (+)", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4ChunkLargeOffsetBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[20];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4SampleSizeBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), size=0, 0 childs (+)", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4SampleSizeBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[10];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4UserDataBox box;
+            box.data.resize(2);
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", total 2B\n    0x00, 0x00", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4UserDataBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        char buf[32];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4SegmentIndexBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_TRUE(v.length() > 0);
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4SegmentIndexBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
         }
     }
