@@ -4791,10 +4791,10 @@ srs_error_t SrsMp4SampleManager::load(SrsMp4MovieBox* moov)
 
 SrsMp4Sample* SrsMp4SampleManager::at(uint32_t index)
 {
-    if (index >= samples.size() - 1) {
-        return NULL;
+    if (index < samples.size()) {
+        return samples.at(index);
     }
-    return samples.at(index);
+    return NULL;
 }
 
 void SrsMp4SampleManager::append(SrsMp4Sample* sample)
