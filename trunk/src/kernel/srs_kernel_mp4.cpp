@@ -371,8 +371,9 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeUUID:
             box = new SrsMp4FreeSpaceBox(type); break;
         default:
-            err = srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "illegal box type=%d", type);
-            break;
+            box = new SrsMp4FreeSpaceBox(type); break;
+            //err = srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "illegal box type=%d", type);
+            //break;
     }
     
     if (box) {
@@ -2619,11 +2620,11 @@ srs_error_t SrsMp4DataEntryUrlBox::encode_header(SrsBuffer* buf)
     if ((err = SrsMp4FullBox::encode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "encode header");
     }
-    
+
     if (!location.empty()) {
         srs_mp4_string_write(buf, location);
     }
-    
+
     return err;
 }
 
@@ -2634,7 +2635,7 @@ srs_error_t SrsMp4DataEntryUrlBox::decode_header(SrsBuffer* buf)
     if ((err = SrsMp4FullBox::decode_header(buf)) != srs_success) {
         return srs_error_wrap(err, "decode header");
     }
-    
+
     // a 24-bit integer with flags; one flag is defined (x000001) which means that the media
     // data is in the same file as the Movie Box containing this data reference.
     if (flags == 0x01) {

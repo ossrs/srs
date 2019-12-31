@@ -1236,3 +1236,32 @@ VOID TEST(KernelMp4Test, HDLRBox)
     }
 }
 
+VOID TEST(KernelMp4Test, URLBox)
+{
+    srs_error_t err;
+
+    if (true) {
+        char buf[12+1];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DataEntryUrlBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ("url , 13B, FB(4B,V0,0x01), URL: Same file\n", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4DataEntryUrlBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+}
+
