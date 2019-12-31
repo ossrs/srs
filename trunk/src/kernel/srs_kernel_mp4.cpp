@@ -1549,6 +1549,9 @@ SrsMp4MovieHeaderBox::~SrsMp4MovieHeaderBox()
 
 uint64_t SrsMp4MovieHeaderBox::duration()
 {
+    if (timescale <= 0) {
+        return 0;
+    }
     return duration_in_tbn * 1000 / timescale;
 }
 

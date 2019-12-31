@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
+#include <srs_utest_kernel.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_mp4.hpp>
 #include <srs_core_autofree.hpp>
@@ -1732,6 +1733,107 @@ VOID TEST(KernelMp4Test, STSDBox)
             SrsMp4SegmentIndexBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
         }
+    }
+
+    if (true) {
+        char buf[108];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4MovieHeaderBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 0ms, TBN=0, nTID=0", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4MovieHeaderBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+
+    if (true) {
+        SrsMp4TrackBox box;
+        SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
+        box.set_tkhd(tkhd);
+        EXPECT_TRUE(tkhd == box.tkhd());
+    }
+
+    if (true) {
+        char buf[16];
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4CompositionTime2SampleBox box;
+            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            HELPER_EXPECT_SUCCESS(box.encode(&b));
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", FB(4B), 0 childs (+)", v.c_str());
+        }
+
+        if (true) {
+            b.skip(-1 * b.pos());
+            SrsMp4CompositionTime2SampleBox box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+        }
+    }
+}
+
+VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open("test.mp4"));
+
+        SrsMp4M2tsInitEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        SrsFormat fmt;
+        EXPECT_TRUE(srs_success == fmt.initialize());
+
+        uint8_t raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+        };
+        EXPECT_TRUE(srs_success == fmt.on_video(0, (char*)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(enc.write(&fmt, true, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
+    }
+
+    if (true) {
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open("test.mp4"));
+
+        SrsMp4M2tsInitEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        SrsFormat fmt;
+        EXPECT_TRUE(srs_success == fmt.initialize());
+
+        uint8_t raw[] = {
+            0xaf, 0x00, 0x12, 0x10
+        };
+        EXPECT_TRUE(srs_success == fmt.on_audio(0, (char*)raw, sizeof(raw)));
+
+        HELPER_ASSERT_SUCCESS(enc.write(&fmt, false, 1));
+        EXPECT_TRUE(fw.filesize() > 0);
     }
 }
 
