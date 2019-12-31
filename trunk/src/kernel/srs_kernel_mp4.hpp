@@ -1122,6 +1122,8 @@ public:
 public:
     SrsMp4DataEntryBox();
     virtual ~SrsMp4DataEntryBox();
+public:
+    virtual bool boxes_in_header();
 };
 
 // 8.7.2 Data Reference Box (url )

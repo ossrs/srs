@@ -368,12 +368,8 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeSIDX: box = new SrsMp4SegmentIndexBox(); break;
         // Skip some unknown boxes.
         case SrsMp4BoxTypeFREE: case SrsMp4BoxTypeSKIP: case SrsMp4BoxTypePASP:
-        case SrsMp4BoxTypeUUID:
+        case SrsMp4BoxTypeUUID: default:
             box = new SrsMp4FreeSpaceBox(type); break;
-        default:
-            box = new SrsMp4FreeSpaceBox(type); break;
-            //err = srs_error_new(ERROR_MP4_BOX_ILLEGAL_TYPE, "illegal box type=%d", type);
-            //break;
     }
     
     if (box) {
@@ -2588,6 +2584,11 @@ SrsMp4DataEntryBox::~SrsMp4DataEntryBox()
 {
 }
 
+bool SrsMp4DataEntryBox::boxes_in_header()
+{
+    return true;
+}
+
 SrsMp4DataEntryUrlBox::SrsMp4DataEntryUrlBox()
 {
     type = SrsMp4BoxTypeURL;
@@ -2813,8 +2814,7 @@ stringstream& SrsMp4DataReferenceBox::dumps_detail(stringstream& ss, SrsMp4DumpC
     ss << ", " << entries.size() << " childs";
     if (!entries.empty()) {
         ss << "(+)" << endl;
-        srs_mp4_padding(ss, dc.indent());
-        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_detail2, srs_mp4_delimiter_newline);
+        srs_dumps_array(entries, ss, dc.indent(), srs_mp4_pfn_box2, srs_mp4_delimiter_newline);
     }
     return ss;
 }
