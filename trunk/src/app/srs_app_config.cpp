@@ -1156,6 +1156,7 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
     subscribes.erase(it);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::reload()
 {
     srs_error_t err = srs_success;
@@ -1182,6 +1183,7 @@ srs_error_t SrsConfig::reload()
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
 {
@@ -1848,6 +1850,7 @@ srs_error_t SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirecti
 }
 
 // see: ngx_get_options
+// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_options(int argc, char** argv)
 {
     srs_error_t err = srs_success;
@@ -3123,6 +3126,7 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::do_reload_listen()
 {
@@ -3310,6 +3314,7 @@ string SrsConfig::config()
     return config_file;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 {
     srs_error_t err = srs_success;
@@ -3425,6 +3430,7 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::check_config()
 {
@@ -3830,6 +3836,7 @@ srs_error_t SrsConfig::check_normal_config()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::check_number_connections()
 {
     srs_error_t err = srs_success;
@@ -3879,6 +3886,7 @@ srs_error_t SrsConfig::check_number_connections()
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
 {
