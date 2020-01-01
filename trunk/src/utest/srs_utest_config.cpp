@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_service_st.hpp>
+#include <srs_rtmp_stack.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -1924,6 +1925,359 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesGlobal)
 
         EXPECT_TRUE(t0 > 0);
         EXPECT_TRUE(t1 >= t0);
+    }
+}
+
+VOID TEST(ConfigUnitTest, VectorEquals)
+{
+    if (true) {
+        vector<uint8_t> a, b;
+        a.push_back(0); a.push_back(1); a.push_back(2);
+        b.push_back(0); b.push_back(1); b.push_back(2);
+        EXPECT_TRUE(srs_vector_actual_equals(a, b));
+    }
+
+    if (true) {
+        vector<uint8_t> a, b;
+        a.push_back(0); a.push_back(1); a.push_back(2);
+        b.push_back(2); b.push_back(1); b.push_back(0);
+        EXPECT_TRUE(srs_vector_actual_equals(a, b));
+    }
+
+    if (true) {
+        vector<uint8_t> a, b;
+        a.push_back(0); a.push_back(1); a.push_back(2);
+        b.push_back(0); b.push_back(2); b.push_back(1);
+        EXPECT_TRUE(srs_vector_actual_equals(a, b));
+    }
+
+    if (true) {
+        vector<uint8_t> a, b;
+        a.push_back(0); a.push_back(1); a.push_back(2);
+        b.push_back(0); b.push_back(1); b.push_back(2); b.push_back(3);
+        EXPECT_FALSE(srs_vector_actual_equals(a, b));
+    }
+
+    if (true) {
+        vector<uint8_t> a, b;
+        a.push_back(1); a.push_back(2); a.push_back(3);
+        b.push_back(0); b.push_back(1); b.push_back(2);
+        EXPECT_FALSE(srs_vector_actual_equals(a, b));
+    }
+}
+
+extern bool srs_directive_equals_self(SrsConfDirective* a, SrsConfDirective* b);
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
+extern bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, string except);
+
+VOID TEST(ConfigUnitTest, DirectiveEquals)
+{
+    EXPECT_TRUE(srs_directive_equals_self(NULL, NULL));
+
+    if (true) {
+        SrsConfDirective* a = new SrsConfDirective();
+        EXPECT_FALSE(srs_directive_equals_self(a, NULL));
+        EXPECT_FALSE(srs_directive_equals_self(NULL, a));
+        srs_freep(a);
+    }
+
+    if (true) {
+        SrsConfDirective* a = new SrsConfDirective();
+        SrsConfDirective* b = a;
+        EXPECT_TRUE(srs_directive_equals_self(a, b));
+        srs_freep(a);
+    }
+
+    if (true) {
+        SrsConfDirective* a = new SrsConfDirective();
+        a->name = "hls";
+        SrsConfDirective* b = new SrsConfDirective();
+        b->name = "dvr";
+        EXPECT_FALSE(srs_directive_equals_self(a, b));
+        srs_freep(a); srs_freep(b);
+    }
+
+    if (true) {
+        SrsConfDirective* a = new SrsConfDirective();
+        a->directives.push_back(new SrsConfDirective());
+        SrsConfDirective* b = new SrsConfDirective();
+        EXPECT_FALSE(srs_directive_equals_self(a, b));
+        srs_freep(a); srs_freep(b);
+    }
+
+    if (true) {
+        SrsConfDirective* a = new SrsConfDirective();
+        a->directives.push_back(new SrsConfDirective());
+        a->at(0)->name = "hls";
+        SrsConfDirective* b = new SrsConfDirective();
+        b->directives.push_back(new SrsConfDirective());
+        EXPECT_TRUE(srs_directive_equals(a, b, "hls"));
+        srs_freep(a); srs_freep(b);
+    }
+}
+
+VOID TEST(ConfigUnitTest, OperatorEquals)
+{
+    EXPECT_TRUE(srs_config_hls_is_on_error_ignore("ignore"));
+    EXPECT_FALSE(srs_config_hls_is_on_error_ignore("xxx"));
+
+    EXPECT_TRUE(srs_config_hls_is_on_error_continue("continue"));
+    EXPECT_FALSE(srs_config_hls_is_on_error_continue("xxx"));
+
+    EXPECT_TRUE(srs_config_ingest_is_file("file"));
+    EXPECT_FALSE(srs_config_ingest_is_file("xxx"));
+
+    EXPECT_TRUE(srs_config_ingest_is_stream("stream"));
+    EXPECT_FALSE(srs_config_ingest_is_stream("xxx"));
+
+    EXPECT_TRUE(srs_config_dvr_is_plan_segment("segment"));
+    EXPECT_FALSE(srs_config_dvr_is_plan_segment("xxx"));
+
+    EXPECT_TRUE(srs_config_dvr_is_plan_session("session"));
+    EXPECT_FALSE(srs_config_dvr_is_plan_session("xxx"));
+
+    EXPECT_TRUE(srs_stream_caster_is_udp("mpegts_over_udp"));
+    EXPECT_FALSE(srs_stream_caster_is_udp("xxx"));
+
+    EXPECT_TRUE(srs_stream_caster_is_rtsp("rtsp"));
+    EXPECT_FALSE(srs_stream_caster_is_rtsp("xxx"));
+
+    EXPECT_TRUE(srs_stream_caster_is_flv("flv"));
+    EXPECT_FALSE(srs_stream_caster_is_flv("xxx"));
+
+    EXPECT_STREQ("on", srs_config_bool2switch("true").c_str());
+    EXPECT_STREQ("off", srs_config_bool2switch("false").c_str());
+    EXPECT_STREQ("off", srs_config_bool2switch("xxx").c_str());
+}
+
+VOID TEST(ConfigUnitTest, ApplyFilter)
+{
+    EXPECT_TRUE(srs_config_apply_filter(NULL, NULL));
+
+    if (true) {
+        SrsConfDirective d;
+        EXPECT_TRUE(srs_config_apply_filter(&d, NULL));
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("all");
+        EXPECT_TRUE(srs_config_apply_filter(&d, NULL));
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        SrsRequest r;
+        r.app = "live"; r.stream = "stream";
+        d.args.push_back("live/stream");
+        EXPECT_TRUE(srs_config_apply_filter(&d, &r));
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("live/stream");
+        SrsRequest r;
+        EXPECT_FALSE(srs_config_apply_filter(&d, &r));
+    }
+}
+
+VOID TEST(ConfigUnitTest, TransformForVhost)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsConfDirective root;
+        root.get_or_create("http_stream");
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = root.get("http_server");
+        ASSERT_TRUE(p != NULL);
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("http");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("http_static");
+        ASSERT_TRUE(p != NULL);
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            SrsConfDirective* p = vhost->get_or_create("http_remux");
+            p->get_or_create("hstrs", "on");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("http_remux");
+        ASSERT_TRUE(p != NULL);
+        ASSERT_TRUE(p->get("hstrs") == NULL);
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("refer", "refer-v");
+            vhost->get_or_create("refer_play", "refer-play-v");
+            vhost->get_or_create("refer_publish", "refer-publish-v");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("refer");
+        ASSERT_TRUE(p != NULL);
+
+        ASSERT_TRUE(p->get("enabled") != NULL);
+        EXPECT_STREQ("on", p->get("enabled")->arg0().c_str());
+
+        ASSERT_TRUE(p->get("all") != NULL);
+        EXPECT_STREQ("refer-v", p->get("all")->arg0().c_str());
+
+        ASSERT_TRUE(p->get("play") != NULL);
+        EXPECT_STREQ("refer-play-v", p->get("play")->arg0().c_str());
+
+        ASSERT_TRUE(p->get("publish") != NULL);
+        EXPECT_STREQ("refer-publish-v", p->get("publish")->arg0().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            SrsConfDirective* mr = vhost->get_or_create("mr");
+            mr->get_or_create("enabled", "on");
+            mr->get_or_create("latency", "100");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* publish = vhost->get("publish");
+        ASSERT_TRUE(publish != NULL);
+
+        SrsConfDirective* p = publish->get("mr");
+        ASSERT_TRUE(p != NULL);
+        EXPECT_STREQ("on", p->arg0().c_str());
+
+        p = publish->get("mr_latency");
+        ASSERT_TRUE(p != NULL);
+        EXPECT_STREQ("100", p->arg0().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("publish_1stpkt_timeout", "100");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* publish = vhost->get("publish");
+        ASSERT_TRUE(publish != NULL);
+
+        SrsConfDirective* p = publish->get("firstpkt_timeout");
+        ASSERT_TRUE(p != NULL);
+        EXPECT_STREQ("100", p->arg0().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("publish_normal_timeout", "100");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* publish = vhost->get("publish");
+        ASSERT_TRUE(publish != NULL);
+
+        SrsConfDirective* p = publish->get("normal_timeout");
+        ASSERT_TRUE(p != NULL);
+        EXPECT_STREQ("100", p->arg0().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("time_jitter", "on");
+            vhost->get_or_create("mix_correct", "on");
+            vhost->get_or_create("atc", "on");
+            vhost->get_or_create("atc_auto", "on");
+            vhost->get_or_create("mw_latency", "on");
+            vhost->get_or_create("gop_cache", "on");
+            vhost->get_or_create("queue_length", "on");
+            vhost->get_or_create("send_min_interval", "on");
+            vhost->get_or_create("reduce_sequence_header", "on");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("play");
+        ASSERT_TRUE(p != NULL);
+
+        ASSERT_TRUE(p->get("time_jitter") != NULL);
+        ASSERT_TRUE(p->get("mix_correct") != NULL);
+        ASSERT_TRUE(p->get("atc") != NULL);
+        ASSERT_TRUE(p->get("atc_auto") != NULL);
+        ASSERT_TRUE(p->get("mw_latency") != NULL);
+        ASSERT_TRUE(p->get("gop_cache") != NULL);
+        ASSERT_TRUE(p->get("queue_length") != NULL);
+        ASSERT_TRUE(p->get("send_min_interval") != NULL);
+        ASSERT_TRUE(p->get("reduce_sequence_header") != NULL);
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("forward", "forward-v");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("forward");
+        ASSERT_TRUE(p != NULL);
+
+        ASSERT_TRUE(p->get("enabled") != NULL);
+        EXPECT_STREQ("on", p->get("enabled")->arg0().c_str());
+
+        ASSERT_TRUE(p->get("destination") != NULL);
+        EXPECT_STREQ("forward-v", p->get("destination")->arg0().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective root;
+        SrsConfDirective* vhost = root.get_or_create("vhost");
+        if (true) {
+            vhost->get_or_create("mode", "on");
+            vhost->get_or_create("origin", "on");
+            vhost->get_or_create("token_traverse", "on");
+            vhost->get_or_create("vhost", "on");
+            vhost->get_or_create("debug_srs_upnode", "on");
+        }
+
+        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
+
+        SrsConfDirective* p = vhost->get("cluster");
+        ASSERT_TRUE(p != NULL);
+
+        ASSERT_TRUE(p->get("mode") != NULL);
+        ASSERT_TRUE(p->get("origin") != NULL);
+        ASSERT_TRUE(p->get("token_traverse") != NULL);
+        ASSERT_TRUE(p->get("vhost") != NULL);
+        ASSERT_TRUE(p->get("debug_srs_upnode") != NULL);
     }
 }
 

@@ -81,36 +81,6 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine);
 
 /**
- * whether the two vector actual equals, for instance,
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
- *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
- */
-template<typename T>
-bool srs_vector_actual_equals(const vector<T>& a, const vector<T>& b)
-{
-    // all elements of a in b.
-    for (int i = 0; i < (int)a.size(); i++) {
-        const T& e = a.at(i);
-        if (::find(b.begin(), b.end(), e) == b.end()) {
-            return false;
-        }
-    }
-    
-    // all elements of b in a.
-    for (int i = 0; i < (int)b.size(); i++) {
-        const T& e = b.at(i);
-        if (::find(a.begin(), a.end(), e) == a.end()) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-/**
  * whether the ch is common space.
  */
 bool is_common_space(char ch)
@@ -132,7 +102,8 @@ namespace _srs_internal
     {
         srs_freepa(start);
     }
-    
+
+    // LCOV_EXCL_START
     srs_error_t SrsConfigBuffer::fullfill(const char* filename)
     {
         srs_error_t err = srs_success;
@@ -160,6 +131,7 @@ namespace _srs_internal
         
         return err;
     }
+    // LCOV_EXCL_STOP
     
     bool SrsConfigBuffer::empty()
     {
@@ -413,7 +385,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 if (enabled) {
                     SrsConfDirective* mr = publish->get_or_create("mr");
                     mr->args = enabled->args;
-                    srs_warn("transform: vhost.mr.enabled to vhost.publish.mr.enabled for %s", dir->name.c_str());
+                    srs_warn("transform: vhost.mr.enabled to vhost.publish.mr for %s", dir->name.c_str());
                 }
                 
                 SrsConfDirective* latency = conf->get("latency");
@@ -525,6 +497,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
 {
     srs_error_t err = srs_success;
@@ -626,6 +599,7 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 SrsConfDirective::SrsConfDirective()
 {

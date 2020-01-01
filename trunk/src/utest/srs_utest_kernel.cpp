@@ -5093,6 +5093,44 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVs)
     }
 }
 
+VOID TEST(KernelMP4Test, CoverMP4CodecErrorNoFrames)
+{
+	srs_error_t err;
+
+    MockSrsFileWriter f;
+
+    // MP4 encoder.
+    if (true) {
+        SrsMp4Encoder enc; SrsFormat fmt;
+        HELPER_EXPECT_SUCCESS(enc.initialize(&f));
+        HELPER_EXPECT_SUCCESS(fmt.initialize());
+
+        if (true) {
+            uint8_t raw[] = {
+                0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c
+            };
+            HELPER_EXPECT_SUCCESS(fmt.on_video(0, (char*)raw, sizeof(raw)));
+            HELPER_EXPECT_SUCCESS(enc.write_sample(
+                &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
+            ));
+            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+        }
+
+        if (true) {
+            uint8_t raw[] = {
+                0xaf, 0x00, 0x12, 0x10
+            };
+            HELPER_EXPECT_SUCCESS(fmt.on_audio(0, (char*)raw, sizeof(raw)));
+            HELPER_EXPECT_SUCCESS(enc.write_sample(
+                &fmt, SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
+            ));
+        }
+
+        HELPER_ASSERT_FAILED(enc.flush());
+        //mock_print_mp4(string(f.data(), f.filesize()));
+    }
+}
+
 uint8_t* mock_copy_bytes(char* data, int size)
 {
     uint8_t* cp = new uint8_t[size];
