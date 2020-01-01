@@ -3147,7 +3147,7 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{interval 10;}}"));
-        EXPECT_EQ(10000, conf.get_bw_check_interval("ossrs.net"));
+        EXPECT_EQ(10000000, conf.get_bw_check_interval("ossrs.net"));
     }
 
     if (true) {
