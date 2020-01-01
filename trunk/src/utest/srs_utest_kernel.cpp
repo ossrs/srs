@@ -195,6 +195,16 @@ char* MockSrsFileWriter::data()
     return uf->_data.bytes();
 }
 
+string MockSrsFileWriter::str()
+{
+    int size = filesize();
+    if (size == 0) {
+        return "";
+    }
+
+    return string(data(), size);
+}
+
 srs_error_t MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     if (err != srs_success) {

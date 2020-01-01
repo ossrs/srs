@@ -308,9 +308,7 @@ public:
 public:
     // Whether srs is in dolphin mode.
     virtual bool is_dolphin();
-private:
-    virtual void set_config_directive(SrsConfDirective* parent, std::string dir, std::string value);
-// Reload 
+// Reload
 public:
     // For reload handler to register itself,
     // when config service do the reload, callback the handler.

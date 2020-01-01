@@ -222,6 +222,14 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, string excep
     return true;
 }
 
+void set_config_directive(SrsConfDirective* parent, string dir, string value)
+{
+    SrsConfDirective* d = parent->get_or_create(dir);
+    d->name = dir;
+    d->args.clear();
+    d->args.push_back(value);
+}
+
 bool srs_config_hls_is_on_error_ignore(string strategy)
 {
     return strategy == "ignore";
@@ -864,6 +872,7 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     return err;
 }
 
+// LCOV_EXCL_START
 SrsJsonArray* SrsConfDirective::dumps_args()
 {
     SrsJsonArray* arr = SrsJsonAny::array();
@@ -893,6 +902,7 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 {
     return SrsJsonAny::boolean(arg0() == "on");
 }
+// LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
@@ -1120,24 +1130,6 @@ SrsConfig::~SrsConfig()
 bool SrsConfig::is_dolphin()
 {
     return dolphin;
-}
-
-void SrsConfig::set_config_directive(SrsConfDirective* parent, string dir, string value)
-{
-    SrsConfDirective* d = parent->get(dir);
-    
-    if (!d) {
-        d = new SrsConfDirective();
-        if (!dir.empty()) {
-            d->name = dir;
-        }
-        parent->directives.push_back(d);
-    }
-    
-    d->args.clear();
-    if (!value.empty()) {
-        d->args.push_back(value);
-    }
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)

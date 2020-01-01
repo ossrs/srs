@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_service_st.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_utest_kernel.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -2278,6 +2279,215 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
         ASSERT_TRUE(p->get("token_traverse") != NULL);
         ASSERT_TRUE(p->get("vhost") != NULL);
         ASSERT_TRUE(p->get("debug_srs_upnode") != NULL);
+    }
+}
+
+VOID TEST(ConfigUnitTest, DirectiveCopy)
+{
+    if (true) {
+        SrsConfDirective d;
+        d.name = "vhost";
+        d.get_or_create("enabled", "on");
+
+        SrsConfDirective* cp = d.copy();
+        ASSERT_TRUE(cp != NULL);
+        EXPECT_STREQ("vhost", cp->name.c_str());
+        ASSERT_TRUE(cp->get("enabled") != NULL);
+        EXPECT_STREQ("on", cp->get("enabled")->arg0().c_str());
+        srs_freep(cp);
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.name = "vhost";
+        d.get_or_create("enabled", "on");
+
+        SrsConfDirective* cp = d.copy("enabled");
+        ASSERT_TRUE(cp != NULL);
+        EXPECT_STREQ("vhost", cp->name.c_str());
+        ASSERT_TRUE(cp->get("enabled") == NULL);
+        srs_freep(cp);
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.name = "vhost";
+        d.get_or_create("enabled", "on");
+        d.get_or_create("hls");
+
+        SrsConfDirective* cp = d.copy("hls");
+        ASSERT_TRUE(cp != NULL);
+        EXPECT_STREQ("vhost", cp->name.c_str());
+        ASSERT_TRUE(cp->get("enabled") != NULL);
+        EXPECT_STREQ("on", cp->get("enabled")->arg0().c_str());
+        srs_freep(cp);
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        EXPECT_TRUE(d.arg0().empty());
+        EXPECT_TRUE(d.arg1().empty());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a0");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_TRUE(d.arg1().empty());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a0");
+        d.args.push_back("a1");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_STREQ("a1", d.arg1().c_str());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a0");
+        d.args.push_back("a1");
+        d.args.push_back("a2");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_STREQ("a1", d.arg1().c_str());
+        EXPECT_STREQ("a2", d.arg2().c_str());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a0");
+        d.args.push_back("a1");
+        d.args.push_back("a2");
+        d.args.push_back("a3");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_STREQ("a1", d.arg1().c_str());
+        EXPECT_STREQ("a2", d.arg2().c_str());
+        EXPECT_STREQ("a3", d.arg3().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.set_arg0("a0");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_TRUE(d.arg1().empty());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a0");
+        d.set_arg0("a0");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_TRUE(d.arg1().empty());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.args.push_back("a1");
+        d.set_arg0("a0");
+        EXPECT_STREQ("a0", d.arg0().c_str());
+        EXPECT_TRUE(d.arg1().empty());
+        EXPECT_TRUE(d.arg2().empty());
+        EXPECT_TRUE(d.arg3().empty());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+
+        SrsConfDirective* vhost = d.get_or_create("vhost");
+        d.remove(vhost);
+        srs_freep(vhost);
+
+        EXPECT_TRUE(d.get("vhost") == NULL);
+    }
+}
+
+extern void set_config_directive(SrsConfDirective* parent, string dir, string value);
+
+VOID TEST(ConfigUnitTest, PersistenceConfig)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsConfDirective d;
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.name = "root";
+        d.args.push_back("on");
+
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.get_or_create("global");
+
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("global;\n", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        d.get_or_create("global", "on");
+
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("global on;\n", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        SrsConfDirective* p = d.get_or_create("global", "on");
+        p->get_or_create("child", "100");
+        p->get_or_create("sibling", "101");
+
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("global on {\n    child 100;\n    sibling 101;\n}\n", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        SrsConfDirective* p = d.get_or_create("global", "on");
+        SrsConfDirective* pp = p->get_or_create("child", "100");
+        p->get_or_create("sibling", "101");
+        pp->get_or_create("grandson", "200");
+
+        MockSrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(d.persistence(&fw, 0));
+        EXPECT_STREQ("global on {\n    child 100 {\n        grandson 200;\n    }\n    sibling 101;\n}\n", fw.str().c_str());
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        set_config_directive(&d, "vhost", "on");
+
+        ASSERT_TRUE(d.get("vhost") != NULL);
+        EXPECT_STREQ("on", d.get("vhost")->arg0().c_str());
+
+        set_config_directive(&d, "vhost", "off");
+
+        ASSERT_TRUE(d.get("vhost") != NULL);
+        EXPECT_STREQ("off", d.get("vhost")->arg0().c_str());
     }
 }
 
