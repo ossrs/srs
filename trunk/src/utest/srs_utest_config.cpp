@@ -2777,5 +2777,455 @@ VOID TEST(ConfigMainTest, CheckStreamCaster)
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster; stream_caster;"));
         EXPECT_EQ(2, conf.get_stream_casters().size());
     }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_FALSE(conf.get_stream_caster_enabled(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {enabled off;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_FALSE(conf.get_stream_caster_enabled(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {enabled on;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_TRUE(conf.get_stream_caster_enabled(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_TRUE(conf.get_stream_caster_output(arr.at(0)).empty());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {output xxx;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_STREQ("xxx", conf.get_stream_caster_output(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(0, conf.get_stream_caster_listen(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {listen 8080;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(8080, conf.get_stream_caster_listen(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(0, conf.get_stream_caster_rtp_port_min(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {rtp_port_min 8080;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(8080, conf.get_stream_caster_rtp_port_min(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(0, conf.get_stream_caster_rtp_port_max(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster {rtp_port_max 8080;}"));
+
+        vector<SrsConfDirective*> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, arr.size());
+
+        EXPECT_EQ(8080, conf.get_stream_caster_rtp_port_max(arr.at(0)));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckVhostConfig2)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_vhost_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net;"));
+        EXPECT_TRUE(conf.get_vhost_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
+        EXPECT_TRUE(conf.get_debug_srs_upnode("ossrs.net"));
+        EXPECT_FALSE(conf.get_atc("ossrs.net"));
+        EXPECT_FALSE(conf.get_atc_auto("ossrs.net"));
+        EXPECT_EQ(1, conf.get_time_jitter("ossrs.net"));
+        EXPECT_FALSE(conf.get_mix_correct("ossrs.net"));
+        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length("ossrs.net"));
+        EXPECT_FALSE(conf.get_refer_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_refer_all("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_refer_play("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") == NULL);
+        EXPECT_EQ(0, conf.get_in_ack_size("ossrs.net"));
+        EXPECT_EQ(2500000, conf.get_out_ack_size("ossrs.net"));
+        EXPECT_EQ(60000, conf.get_chunk_size("ossrs.net"));
+        EXPECT_TRUE(conf.get_parse_sps("ossrs.net"));
+        EXPECT_FALSE(conf.get_mr_enabled("ossrs.net"));
+        EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("ossrs.net"));
+        EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep("ossrs.net"));
+        EXPECT_FALSE(conf.get_realtime_enabled("ossrs.net"));
+        EXPECT_FALSE(conf.get_tcp_nodelay("ossrs.net"));
+        EXPECT_EQ(0, conf.get_send_min_interval("ossrs.net"));
+        EXPECT_FALSE(conf.get_reduce_sequence_header("ossrs.net"));
+        EXPECT_EQ(20000000, conf.get_publish_1stpkt_timeout("ossrs.net"));
+        EXPECT_EQ(5000000, conf.get_publish_normal_timeout("ossrs.net"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{forward {destination xxx;}}"));
+        EXPECT_TRUE(conf.get_forwards("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{forward {enabled on;}}"));
+        EXPECT_TRUE(conf.get_forward_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish {normal_timeout 10;}}"));
+        EXPECT_EQ(10000, conf.get_publish_normal_timeout("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish {firstpkt_timeout 10;}}"));
+        EXPECT_EQ(10000, conf.get_publish_1stpkt_timeout("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play {reduce_sequence_header on;}}"));
+        EXPECT_TRUE(conf.get_reduce_sequence_header("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play {send_min_interval 10;}}"));
+        EXPECT_EQ(10000, conf.get_send_min_interval("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{tcp_nodelay on;}"));
+        EXPECT_TRUE(conf.get_tcp_nodelay("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{min_latency on;}"));
+        EXPECT_TRUE(conf.get_realtime_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{mw_latency 10;}}"));
+        EXPECT_EQ(10000, conf.get_mw_sleep("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish{mr_latency 10;}}"));
+        EXPECT_EQ(10000, conf.get_mr_sleep("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish{mr on;}}"));
+        EXPECT_TRUE(conf.get_mr_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{publish{parse_sps off;}}"));
+        EXPECT_FALSE(conf.get_parse_sps("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{chunk_size 10;}"));
+        EXPECT_EQ(10, conf.get_chunk_size("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{out_ack_size 10;}"));
+        EXPECT_EQ(10, conf.get_out_ack_size("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{in_ack_size 10;}"));
+        EXPECT_EQ(10, conf.get_in_ack_size("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{refer{publish xxx;}}"));
+        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{refer{play xxx;}}"));
+        EXPECT_TRUE(conf.get_refer_play("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{refer{all xxx;}}"));
+        EXPECT_TRUE(conf.get_refer_all("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{refer{enabled on;}}"));
+        EXPECT_TRUE(conf.get_refer_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{queue_length 10;}}"));
+        EXPECT_EQ(10000000, conf.get_queue_length("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{mix_correct on;}}"));
+        EXPECT_TRUE(conf.get_mix_correct("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{time_jitter zero;}}"));
+        EXPECT_EQ(2, conf.get_time_jitter("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{atc_auto on;}}"));
+        EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{atc on;}}"));
+        EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{gop_cache off;}}"));
+        EXPECT_FALSE(conf.get_gop_cache("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net {enabled off;}"));
+        EXPECT_FALSE(conf.get_vhost_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net {enabled on;}"));
+        EXPECT_TRUE(conf.get_vhost_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{play{gop_cache off;}}"));
+        EXPECT_FALSE(conf.get_gop_cache("ossrs.net"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckVhostConfig3)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net;"));
+        EXPECT_TRUE(conf.get_vhost_http_hooks("ossrs.net") == NULL);
+        EXPECT_FALSE(conf.get_vhost_http_hooks_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_vhost_on_connect("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_close("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_publish("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_unpublish("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_play("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_stop("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_dvr("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_hls("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_vhost_on_hls_notify("ossrs.net") == NULL);
+        EXPECT_FALSE(conf.get_bw_check_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_bw_check_key("ossrs.net").empty());
+        EXPECT_EQ(30000000, conf.get_bw_check_interval("ossrs.net"));
+        EXPECT_EQ(1000, conf.get_bw_check_limit_kbps("ossrs.net"));
+        EXPECT_FALSE(conf.get_vhost_is_edge("ossrs.net"));
+        EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{origin xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{mode remote;}}"));
+        EXPECT_TRUE(conf.get_vhost_is_edge("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{limit_kbps 10;}}"));
+        EXPECT_EQ(10, conf.get_bw_check_limit_kbps("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{interval 10;}}"));
+        EXPECT_EQ(10000, conf.get_bw_check_interval("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{key xxx;}}"));
+        EXPECT_FALSE(conf.get_bw_check_key("ossrs.net").empty());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{bandcheck{enabled on;}}"));
+        EXPECT_TRUE(conf.get_bw_check_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_hls_notify xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_hls_notify("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_hls xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_hls("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_dvr xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_dvr("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_stop xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_stop("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_play xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_play("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_unpublish xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_unpublish("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_publish xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_publish("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_close xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_close("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{on_connect xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_on_connect("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks{enabled on;}}"));
+        EXPECT_TRUE(conf.get_vhost_http_hooks_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks;}"));
+        EXPECT_TRUE(conf.get_vhost_http_hooks("ossrs.net") != NULL);
+    }
 }
 

@@ -3892,7 +3892,7 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
 {
     srs_error_t err = srs_success;
 
-	// We use a new root to parse buffer, to allow parse multiple times.
+    // We use a new root to parse buffer, to allow parse multiple times.
     srs_freep(root);
     root = new SrsConfDirective();
 
@@ -4539,7 +4539,7 @@ bool SrsConfig::get_mr_enabled(string vhost)
 
 srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 {
-	static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
+    static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4561,7 +4561,7 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 
 srs_utime_t SrsConfig::get_mw_sleep(string vhost)
 {
-	static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
+    static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
