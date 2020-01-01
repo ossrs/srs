@@ -2746,8 +2746,13 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "asprocess on;"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "daemon off; asprocess on;"));
         EXPECT_TRUE(conf.get_asprocess());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "daemon on; asprocess on;"));
     }
 }
 
