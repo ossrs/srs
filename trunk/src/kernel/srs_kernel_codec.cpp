@@ -1195,24 +1195,24 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     int8_t sound_size = (sound_format >> 1) & 0x01;
     int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
-    
+
     SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
     acodec->id = codec_id;
-    
+
     acodec->sound_type = (SrsAudioChannels)sound_type;
     acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
     acodec->sound_size = (SrsAudioSampleBits)sound_size;
-    
+
     // we support h.264+mp3 for hls.
     if (codec_id == SrsAudioCodecIdMP3) {
         return srs_error_new(ERROR_HLS_TRY_MP3, "try mp3");
     }
-    
+
     // only support aac
     if (codec_id != SrsAudioCodecIdAAC) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "not supported codec %d", codec_id);
     }
-    
+
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "aac decode aac_packet_type");
     }

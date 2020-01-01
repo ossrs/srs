@@ -3124,6 +3124,48 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_EQ(1000, conf.get_bw_check_limit_kbps("ossrs.net"));
         EXPECT_FALSE(conf.get_vhost_is_edge("ossrs.net"));
         EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") == NULL);
+        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
+        EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("ossrs.net").c_str());
+        EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
+        EXPECT_EQ(0, conf.get_vhost_coworkers("ossrs.net").size());
+        EXPECT_FALSE(conf.get_security_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_security_rules("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on;}}"));
+        EXPECT_TRUE(conf.get_security_rules("ossrs.net") != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on;}}"));
+        EXPECT_TRUE(conf.get_security_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{coworkers xxx;}}"));
+        EXPECT_EQ(1, conf.get_vhost_coworkers("ossrs.net").size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{origin_cluster on;}}"));
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{vhost xxx;}}"));
+        EXPECT_FALSE(conf.get_vhost_edge_transform_vhost("ossrs.net").empty());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{cluster{token_traverse on;}}"));
+        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("ossrs.net"));
     }
 
     if (true) {
@@ -3226,6 +3268,213 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_hooks;}"));
         EXPECT_TRUE(conf.get_vhost_http_hooks("ossrs.net") != NULL);
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckVhostConfig4)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net;"));
+        EXPECT_TRUE(conf.get_transcode("ossrs.net", "") == NULL);
+        EXPECT_FALSE(conf.get_transcode_enabled(conf.get_transcode("ossrs.net", "")));
+        EXPECT_TRUE(conf.get_transcode_ffmpeg(conf.get_transcode("ossrs.net", "")).empty());
+        EXPECT_EQ(0, conf.get_transcode_engines(conf.get_transcode("ossrs.net", "")).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{output xxx;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("xxx", conf.get_engine_output(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{oformat flv;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("flv", conf.get_engine_oformat(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{aparams {i;}}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1, conf.get_engine_aparams(arr.at(0)).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{achannels 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_achannels(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{asample_rate 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_asample_rate(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{abitrate 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_abitrate(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{acodec aac;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("aac", conf.get_engine_acodec(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vparams {t;}}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1, conf.get_engine_vparams(arr.at(0)).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vpreset main;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("main", conf.get_engine_vpreset(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vprofile main;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("main", conf.get_engine_vprofile(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vthreads 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_vthreads(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vheight 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_vheight(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vwidth 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_vwidth(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vfps 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_vfps(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vbitrate 1000;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1000, conf.get_engine_vbitrate(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vcodec x264;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("x264", conf.get_engine_vcodec(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vfilter {i;}}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1, conf.get_engine_vfilter(arr.at(0)).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{vfilter {i logo.png;}}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(2, conf.get_engine_vfilter(arr.at(0)).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{iformat mp4;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_STREQ("mp4", conf.get_engine_iformat(arr.at(0)).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{perfile {re;}}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_EQ(1, conf.get_engine_perfile(arr.at(0)).size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine{enabled on;}}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+        EXPECT_TRUE(conf.get_engine_enabled(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{engine;}}"));
+        vector<SrsConfDirective*> arr = conf.get_transcode_engines(conf.get_transcode("ossrs.net", "xxx"));
+        ASSERT_EQ(1, arr.size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{ffmpeg xxx;}}"));
+        EXPECT_STREQ("xxx", conf.get_transcode_ffmpeg(conf.get_transcode("ossrs.net", "xxx")).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx{enabled on;}}"));
+        EXPECT_TRUE(conf.get_transcode_enabled(conf.get_transcode("ossrs.net", "xxx")));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{transcode xxx;}"));
+        EXPECT_TRUE(conf.get_transcode("ossrs.net", "xxx") != NULL);
     }
 }
 

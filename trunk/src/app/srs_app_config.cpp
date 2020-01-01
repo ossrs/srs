@@ -5231,7 +5231,9 @@ vector<string> SrsConfig::get_engine_perfile(SrsConfDirective* conf)
         }
         
         perfile.push_back(srs_prefix_underscores_ifno(option->name));
-        perfile.push_back(option->arg0());
+        if (!option->arg0().empty()) {
+            perfile.push_back(option->arg0());
+        }
     }
     
     return perfile;
@@ -5273,7 +5275,9 @@ vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* conf)
         }
         
         vfilter.push_back(srs_prefix_underscores_ifno(filter->name));
-        vfilter.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            vfilter.push_back(filter->arg0());
+        }
     }
     
     return vfilter;
@@ -5427,7 +5431,9 @@ vector<string> SrsConfig::get_engine_vparams(SrsConfDirective* conf)
         }
         
         vparams.push_back(srs_prefix_underscores_ifno(filter->name));
-        vparams.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            vparams.push_back(filter->arg0());
+        }
     }
     
     return vparams;
@@ -5517,7 +5523,9 @@ vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* conf)
         }
         
         aparams.push_back(srs_prefix_underscores_ifno(filter->name));
-        aparams.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            aparams.push_back(filter->arg0());
+        }
     }
     
     return aparams;
