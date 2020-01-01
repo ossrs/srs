@@ -2638,6 +2638,12 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
 
     if (true) {
         MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_daemon());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "daemon on;"));
         EXPECT_TRUE(conf.get_daemon());
     }
@@ -2651,7 +2657,120 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-        EXPECT_TRUE(conf.get_root().empty());
+        EXPECT_TRUE(conf.get_root() != NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_EQ(1000, conf.get_max_connections());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "max_connections 1024;"));
+        EXPECT_EQ(1024, conf.get_max_connections());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse("listen 1935;"));
+        EXPECT_EQ(1, conf.get_listens().size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse("listen 1935 1936;"));
+        EXPECT_EQ(2, conf.get_listens().size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_STREQ("./objs/srs.pid", conf.get_pid_file().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "pid server.pid;"));
+        EXPECT_STREQ("server.pid", conf.get_pid_file().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_pithy_print());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_utc_time());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "utc_time on;"));
+        EXPECT_TRUE(conf.get_utc_time());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "utc_time off;"));
+        EXPECT_FALSE(conf.get_utc_time());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_STREQ("./", conf.get_work_dir().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "work_dir objs;"));
+        EXPECT_STREQ("objs", conf.get_work_dir().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_asprocess());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "asprocess off;"));
+        EXPECT_FALSE(conf.get_asprocess());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "asprocess on;"));
+        EXPECT_TRUE(conf.get_asprocess());
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckStreamCaster)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
+        EXPECT_EQ(0, conf.get_stream_casters().size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster;"));
+        EXPECT_EQ(1, conf.get_stream_casters().size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stream_caster; stream_caster;"));
+        EXPECT_EQ(2, conf.get_stream_casters().size());
     }
 }
 
