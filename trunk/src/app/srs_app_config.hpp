@@ -30,6 +30,7 @@
 #include <string>
 #include <map>
 #include <sstream>
+#include <algorithm>
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
@@ -46,6 +47,35 @@ class SrsRequest;
 class SrsJsonArray;
 class SrsConfDirective;
 
+/**
+ * whether the two vector actual equals, for instance,
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
+ *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
+ */
+template<typename T>
+bool srs_vector_actual_equals(const std::vector<T>& a, const std::vector<T>& b)
+{
+    // all elements of a in b.
+    for (int i = 0; i < (int)a.size(); i++) {
+        const T& e = a.at(i);
+        if (std::find(b.begin(), b.end(), e) == b.end()) {
+            return false;
+        }
+    }
+
+    // all elements of b in a.
+    for (int i = 0; i < (int)b.size(); i++) {
+        const T& e = b.at(i);
+        if (std::find(a.begin(), a.end(), e) == a.end()) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 namespace _srs_internal
 {
@@ -278,9 +308,7 @@ public:
 public:
     // Whether srs is in dolphin mode.
     virtual bool is_dolphin();
-private:
-    virtual void set_config_directive(SrsConfDirective* parent, std::string dir, std::string value);
-// Reload 
+// Reload
 public:
     // For reload handler to register itself,
     // when config service do the reload, callback the handler.

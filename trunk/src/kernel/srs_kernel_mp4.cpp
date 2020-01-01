@@ -3884,6 +3884,11 @@ SrsMp4DecodingTime2SampleBox::~SrsMp4DecodingTime2SampleBox()
 srs_error_t SrsMp4DecodingTime2SampleBox::initialize_counter()
 {
     srs_error_t err = srs_success;
+
+    // If only sps/pps and no frames, there is no stts entries.
+    if (entries.empty()) {
+        return err;
+    }
     
     index = 0;
     if (index >= entries.size()) {
@@ -4005,6 +4010,11 @@ SrsMp4CompositionTime2SampleBox::~SrsMp4CompositionTime2SampleBox()
 srs_error_t SrsMp4CompositionTime2SampleBox::initialize_counter()
 {
     srs_error_t err = srs_success;
+
+    // If only sps/pps and no frames, there is no stts entries.
+    if (entries.empty()) {
+        return err;
+    }
     
     index = 0;
     if (index >= entries.size()) {
@@ -4812,7 +4822,7 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
         vector<SrsMp4Sample*>::iterator it;
         for (it = samples.begin(); it != samples.end(); ++it) {
             SrsMp4Sample* sample = *it;
-            if (sample->dts != sample->pts) {
+            if (sample->dts != sample->pts && sample->type == SrsFrameTypeVideo) {
                 has_cts = true;
                 break;
             }
@@ -5760,7 +5770,7 @@ srs_error_t SrsMp4Encoder::flush()
         mvhd->duration_in_tbn = srs_max(vduration, aduration);
         mvhd->next_track_ID = 1; // Starts from 1, increase when use it.
         
-        if (nb_videos) {
+        if (nb_videos || !pavcc.empty()) {
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
             moov->add_trak(trak);
             
@@ -5824,7 +5834,7 @@ srs_error_t SrsMp4Encoder::flush()
             avcC->avc_config = pavcc;
         }
         
-        if (nb_audios) {
+        if (nb_audios || !pasc.empty()) {
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
             moov->add_trak(trak);
             

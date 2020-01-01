@@ -81,36 +81,6 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine);
 
 /**
- * whether the two vector actual equals, for instance,
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
- *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
- *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
- */
-template<typename T>
-bool srs_vector_actual_equals(const vector<T>& a, const vector<T>& b)
-{
-    // all elements of a in b.
-    for (int i = 0; i < (int)a.size(); i++) {
-        const T& e = a.at(i);
-        if (::find(b.begin(), b.end(), e) == b.end()) {
-            return false;
-        }
-    }
-    
-    // all elements of b in a.
-    for (int i = 0; i < (int)b.size(); i++) {
-        const T& e = b.at(i);
-        if (::find(a.begin(), a.end(), e) == a.end()) {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-/**
  * whether the ch is common space.
  */
 bool is_common_space(char ch)
@@ -132,7 +102,8 @@ namespace _srs_internal
     {
         srs_freepa(start);
     }
-    
+
+    // LCOV_EXCL_START
     srs_error_t SrsConfigBuffer::fullfill(const char* filename)
     {
         srs_error_t err = srs_success;
@@ -160,6 +131,7 @@ namespace _srs_internal
         
         return err;
     }
+    // LCOV_EXCL_STOP
     
     bool SrsConfigBuffer::empty()
     {
@@ -248,6 +220,14 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b, string excep
     }
     
     return true;
+}
+
+void set_config_directive(SrsConfDirective* parent, string dir, string value)
+{
+    SrsConfDirective* d = parent->get_or_create(dir);
+    d->name = dir;
+    d->args.clear();
+    d->args.push_back(value);
 }
 
 bool srs_config_hls_is_on_error_ignore(string strategy)
@@ -413,7 +393,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 if (enabled) {
                     SrsConfDirective* mr = publish->get_or_create("mr");
                     mr->args = enabled->args;
-                    srs_warn("transform: vhost.mr.enabled to vhost.publish.mr.enabled for %s", dir->name.c_str());
+                    srs_warn("transform: vhost.mr.enabled to vhost.publish.mr for %s", dir->name.c_str());
                 }
                 
                 SrsConfDirective* latency = conf->get("latency");
@@ -525,6 +505,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine)
 {
     srs_error_t err = srs_success;
@@ -626,6 +607,7 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 SrsConfDirective::SrsConfDirective()
 {
@@ -890,6 +872,7 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
     return err;
 }
 
+// LCOV_EXCL_START
 SrsJsonArray* SrsConfDirective::dumps_args()
 {
     SrsJsonArray* arr = SrsJsonAny::array();
@@ -919,6 +902,7 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 {
     return SrsJsonAny::boolean(arg0() == "on");
 }
+// LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
@@ -1148,24 +1132,6 @@ bool SrsConfig::is_dolphin()
     return dolphin;
 }
 
-void SrsConfig::set_config_directive(SrsConfDirective* parent, string dir, string value)
-{
-    SrsConfDirective* d = parent->get(dir);
-    
-    if (!d) {
-        d = new SrsConfDirective();
-        if (!dir.empty()) {
-            d->name = dir;
-        }
-        parent->directives.push_back(d);
-    }
-    
-    d->args.clear();
-    if (!value.empty()) {
-        d->args.push_back(value);
-    }
-}
-
 void SrsConfig::subscribe(ISrsReloadHandler* handler)
 {
     std::vector<ISrsReloadHandler*>::iterator it;
@@ -1190,6 +1156,7 @@ void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
     subscribes.erase(it);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::reload()
 {
     srs_error_t err = srs_success;
@@ -1216,6 +1183,7 @@ srs_error_t SrsConfig::reload()
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
 {
@@ -1882,6 +1850,7 @@ srs_error_t SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirecti
 }
 
 // see: ngx_get_options
+// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_options(int argc, char** argv)
 {
     srs_error_t err = srs_success;
@@ -3157,6 +3126,7 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::do_reload_listen()
 {
@@ -3344,6 +3314,7 @@ string SrsConfig::config()
     return config_file;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 {
     srs_error_t err = srs_success;
@@ -3459,6 +3430,7 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::check_config()
 {
@@ -3864,6 +3836,7 @@ srs_error_t SrsConfig::check_normal_config()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsConfig::check_number_connections()
 {
     srs_error_t err = srs_success;
@@ -3913,12 +3886,13 @@ srs_error_t SrsConfig::check_number_connections()
     
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
 {
     srs_error_t err = srs_success;
 
-	// We use a new root to parse buffer, to allow parse multiple times.
+    // We use a new root to parse buffer, to allow parse multiple times.
     srs_freep(root);
     root = new SrsConfDirective();
 
@@ -4565,7 +4539,7 @@ bool SrsConfig::get_mr_enabled(string vhost)
 
 srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 {
-	static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
+    static srs_utime_t DEFAULT = SRS_PERF_MR_SLEEP;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -4587,7 +4561,7 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
 
 srs_utime_t SrsConfig::get_mw_sleep(string vhost)
 {
-	static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
+    static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -5257,7 +5231,9 @@ vector<string> SrsConfig::get_engine_perfile(SrsConfDirective* conf)
         }
         
         perfile.push_back(srs_prefix_underscores_ifno(option->name));
-        perfile.push_back(option->arg0());
+        if (!option->arg0().empty()) {
+            perfile.push_back(option->arg0());
+        }
     }
     
     return perfile;
@@ -5299,7 +5275,9 @@ vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* conf)
         }
         
         vfilter.push_back(srs_prefix_underscores_ifno(filter->name));
-        vfilter.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            vfilter.push_back(filter->arg0());
+        }
     }
     
     return vfilter;
@@ -5453,7 +5431,9 @@ vector<string> SrsConfig::get_engine_vparams(SrsConfDirective* conf)
         }
         
         vparams.push_back(srs_prefix_underscores_ifno(filter->name));
-        vparams.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            vparams.push_back(filter->arg0());
+        }
     }
     
     return vparams;
@@ -5543,7 +5523,9 @@ vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* conf)
         }
         
         aparams.push_back(srs_prefix_underscores_ifno(filter->name));
-        aparams.push_back(filter->arg0());
+        if (!filter->arg0().empty()) {
+            aparams.push_back(filter->arg0());
+        }
     }
     
     return aparams;
