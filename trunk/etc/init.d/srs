@@ -62,7 +62,7 @@ load_process_info() {
 start() {
     # if exists, exit.
     load_process_info
-    if [[ 0 -eq $? ]]; then failed_msg "SRS started(pid ${srs_pid}), should not start it again."; return 0; fi
+    if [[ 0 -eq $? ]]; then failed_msg "SRS started(pid ${srs_pid}), should not start it again."; return 1; fi
     
     # not exists, start server
     ok_msg "Starting SRS..."
@@ -95,7 +95,7 @@ start() {
     
     # check whether started.
     load_process_info
-    ret=$?; if [[ 0 -eq $? ]]; then ok_msg "SRS started(pid ${srs_pid})"; return 0; fi
+    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "SRS started(pid ${srs_pid})"; return 0; fi
     
     failed_msg "SRS not started"
     return $ret

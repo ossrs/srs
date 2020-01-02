@@ -1,0 +1,13 @@
+--- Makefile	2018-10-28 13:49:27.000000000 +0800
++++ ../st-1.9-patch/Makefile	2018-10-28 13:50:07.000000000 +0800
+@@ -139,8 +139,8 @@ CFLAGS      += -arch ppc
+ LDFLAGS     += -arch ppc
+ endif
+ ifeq ($(INTEL), yes)
+-CFLAGS      += -arch i386 -arch x86_64
+-LDFLAGS     += -arch i386 -arch x86_64
++CFLAGS      += -arch x86_64
++LDFLAGS     += -arch x86_64
+ endif
+ LDFLAGS     += -dynamiclib -install_name /sw/lib/libst.$(MAJOR).$(DSO_SUFFIX) -compatibility_version $(MAJOR) -current_version $(VERSION)
+ OTHER_FLAGS = -Wall

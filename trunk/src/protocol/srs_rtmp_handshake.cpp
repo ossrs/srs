@@ -69,7 +69,7 @@ namespace _srs_internal
         0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
         0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE
     }; // 62
-    
+
     int do_openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, void* digest, unsigned int* digest_size) 
     {
         int ret = ERROR_SUCCESS;
@@ -86,6 +86,8 @@ namespace _srs_internal
         
         return ret;
     }
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // Use old API before 1.1.0
     /**
     * sha256 digest algorithm.
     * @param key the sha256 key, NULL to use EVP_Digest, for instance,
@@ -136,6 +138,51 @@ namespace _srs_internal
         
         return ret;
     }
+#else
+    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest)
+    {
+        int err = ERROR_SUCCESS;
+
+        unsigned int digest_size = 0;
+
+        unsigned char* temp_key = (unsigned char*)key;
+        unsigned char* temp_digest = (unsigned char*)digest;
+
+        if (key == NULL) {
+            // use data to digest.
+            // @see ./crypto/sha/sha256t.c
+            // @see ./crypto/evp/digest.c
+            if (EVP_Digest(data, data_size, temp_digest, &digest_size, EVP_sha256(), NULL) < 0) {
+                return ERROR_OpenSslSha256EvpDigest;
+            }
+        } else {
+            // use key-data to digest.
+            HMAC_CTX *ctx = HMAC_CTX_new();
+            if (ctx == NULL) {
+                return ERROR_OpenSslSha256Init;
+            }
+            // @remark, if no key, use EVP_Digest to digest,
+            // for instance, in python, hashlib.sha256(data).digest().
+            if (HMAC_Init_ex(ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
+                HMAC_CTX_free(ctx);
+                return ERROR_OpenSslSha256Init;
+            }
+
+            err = do_openssl_HMACsha256(ctx, data, data_size, temp_digest, &digest_size);
+            HMAC_CTX_free(ctx);
+
+            if (err != ERROR_SUCCESS) {
+                return err;
+            }
+        }
+
+        if (digest_size != 32) {
+            return ERROR_OpenSslSha256DigestSize;
+        }
+
+        return err;
+    }
+#endif
     
     #define RFC2409_PRIME_1024 \
             "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
@@ -144,17 +191,18 @@ namespace _srs_internal
             "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
             "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
             "FFFFFFFFFFFFFFFF"
-    
+
     SrsDH::SrsDH()
     {
         pdh = NULL;
     }
-    
+
     SrsDH::~SrsDH()
     {
         close();
     }
-    
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // Use old API before 1.1.0
     void SrsDH::close()
     {
         if (pdh != NULL) {
@@ -297,6 +345,142 @@ namespace _srs_internal
         
         return ret;
     }
+#else
+    void SrsDH::close()
+    {
+        if (pdh != NULL) {
+            DH_free(pdh);
+            pdh = NULL;
+        }
+    }
+
+    int SrsDH::initialize(bool ensure_128bytes_public_key)
+    {
+        int err = ERROR_SUCCESS;
+
+        for (;;) {
+            if ((err = do_initialize()) != ERROR_SUCCESS) {
+                return err;
+            }
+
+            if (ensure_128bytes_public_key) {
+                const BIGNUM *pub_key = NULL;
+                DH_get0_key(pdh, &pub_key, NULL);
+                int32_t key_size = BN_num_bytes(pub_key);
+                if (key_size != 128) {
+                    srs_warn("regenerate 128B key, current=%dB", key_size);
+                    continue;
+                }
+            }
+
+            break;
+        }
+
+        return err;
+    }
+
+    int SrsDH::copy_public_key(char* pkey, int32_t& pkey_size)
+    {
+        int err = ERROR_SUCCESS;
+
+        // copy public key to bytes.
+        // sometimes, the key_size is 127, seems ok.
+        const BIGNUM *pub_key = NULL;
+        DH_get0_key(pdh, &pub_key, NULL);
+        int32_t key_size = BN_num_bytes(pub_key);
+        srs_assert(key_size > 0);
+
+        // maybe the key_size is 127, but dh will write all 128bytes pkey,
+        // so, donot need to set/initialize the pkey.
+        // @see https://github.com/ossrs/srs/issues/165
+        key_size = BN_bn2bin(pub_key, (unsigned char*)pkey);
+        srs_assert(key_size > 0);
+
+        // output the size of public key.
+        // @see https://github.com/ossrs/srs/issues/165
+        srs_assert(key_size <= pkey_size);
+        pkey_size = key_size;
+
+        return err;
+    }
+
+    int SrsDH::copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t& skey_size)
+    {
+        int err = ERROR_SUCCESS;
+
+        BIGNUM* ppk = NULL;
+        if ((ppk = BN_bin2bn((const unsigned char*)ppkey, ppkey_size, 0)) == NULL) {
+            return ERROR_OpenSslGetPeerPublicKey;
+        }
+
+        // if failed, donot return, do cleanup, @see ./test/dhtest.c:168
+        // maybe the key_size is 127, but dh will write all 128bytes skey,
+        // so, donot need to set/initialize the skey.
+        // @see https://github.com/ossrs/srs/issues/165
+        int32_t key_size = DH_compute_key((unsigned char*)skey, ppk, pdh);
+
+        if (key_size < ppkey_size) {
+            srs_warn("shared key size=%d, ppk_size=%d", key_size, ppkey_size);
+        }
+
+        if (key_size < 0 || key_size > skey_size) {
+            err = ERROR_OpenSslComputeSharedKey;
+        } else {
+            skey_size = key_size;
+        }
+
+        if (ppk) {
+            BN_free(ppk);
+        }
+
+        return err;
+    }
+
+    int SrsDH::do_initialize()
+    {
+        int err = ERROR_SUCCESS;
+
+        int32_t bits_count = 1024;
+
+        close();
+
+        //1. Create the DH
+        if ((pdh = DH_new()) == NULL) {
+            return ERROR_OpenSslCreateDH;
+        }
+
+        //2. Create his internal p and g
+        BIGNUM *p, *g;
+        if ((p = BN_new()) == NULL) {
+            return ERROR_OpenSslCreateP;
+        }
+        if ((g = BN_new()) == NULL) {
+            BN_free(p);
+            return ERROR_OpenSslCreateG;
+        }
+        DH_set0_pqg(pdh, p, NULL, g);
+
+        //3. initialize p and g, @see ./test/ectest.c:260
+        if (!BN_hex2bn(&p, RFC2409_PRIME_1024)) {
+            return ERROR_OpenSslParseP1024;
+        }
+        // @see ./test/bntest.c:1764
+        if (!BN_set_word(g, 2)) {
+            return ERROR_OpenSslSetG;
+        }
+
+        // 4. Set the key length
+        DH_set_length(pdh, bits_count);
+
+        // 5. Generate private and public key
+        // @see ./test/dhtest.c:152
+        if (!DH_generate_key(pdh)) {
+            return ERROR_OpenSslGenerateDHKeys;
+        }
+
+        return err;
+    }
+#endif
     
     key_block::key_block()
     {

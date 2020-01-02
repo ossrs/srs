@@ -311,7 +311,6 @@
 		3C1EE6C91AB1080900576EE9 /* origin.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = origin.conf; path = ../../../conf/origin.conf; sourceTree = "<group>"; };
 		3C1EE6CA1AB1080900576EE9 /* push.mpegts.over.udp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.mpegts.over.udp.conf; path = ../../../conf/push.mpegts.over.udp.conf; sourceTree = "<group>"; };
 		3C1EE6CB1AB1080900576EE9 /* push.rtsp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.rtsp.conf; path = ../../../conf/push.rtsp.conf; sourceTree = "<group>"; };
-		3C1EE6CC1AB1080900576EE9 /* ram.hls.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ram.hls.conf; path = ../../../conf/ram.hls.conf; sourceTree = "<group>"; };
 		3C1EE6CD1AB1080900576EE9 /* realtime.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = realtime.conf; path = ../../../conf/realtime.conf; sourceTree = "<group>"; };
 		3C1EE6CE1AB1080900576EE9 /* rtmp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = rtmp.conf; path = ../../../conf/rtmp.conf; sourceTree = "<group>"; };
 		3C1EE6CF1AB1080900576EE9 /* security.deny.publish.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = security.deny.publish.conf; path = ../../../conf/security.deny.publish.conf; sourceTree = "<group>"; };
@@ -703,7 +702,6 @@
 				3C1EE6C91AB1080900576EE9 /* origin.conf */,
 				3C1EE6CA1AB1080900576EE9 /* push.mpegts.over.udp.conf */,
 				3C1EE6CB1AB1080900576EE9 /* push.rtsp.conf */,
-				3C1EE6CC1AB1080900576EE9 /* ram.hls.conf */,
 				3C1EE6CD1AB1080900576EE9 /* realtime.conf */,
 				3C1EE6CE1AB1080900576EE9 /* rtmp.conf */,
 				3C1EE6CF1AB1080900576EE9 /* security.deny.publish.conf */,

@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_conn.hpp>
 
+using namespace std;
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
@@ -115,6 +117,10 @@ void SrsConnection::on_thread_stop()
 int SrsConnection::srs_id()
 {
     return id;
+}
+
+string SrsConnection::remote_ip() {
+    return ip;
 }
 
 void SrsConnection::expire()

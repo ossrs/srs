@@ -861,13 +861,26 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     }
     
     req->tcUrl = "rtmp://" + vhost + req->app;
+    std::string query = _uri->get_query();
+    if (!query.empty()) {
+        req->tcUrl = req->tcUrl + "?" + query;
+    }
     req->pageUrl = get_request_header("Referer");
     req->objectEncoding = 0;
     
-    srs_discovery_tc_url(req->tcUrl,
-                         req->schema, req->host, req->vhost, req->app, req->port,
-                         req->param);
-    req->strip();
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
+    req->as_http();
+
+    // Set ip by remote ip of connection.
+    if (conn) {
+        req->ip = conn->remote_ip();
+    }
+
+    // Overwrite by ip from proxy.
+    string oip = srs_get_original_ip(this);
+    if (!oip.empty()) {
+        req->ip = oip;
+    }
     
     return req;
 }

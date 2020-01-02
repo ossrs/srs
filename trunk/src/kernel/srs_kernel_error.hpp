@@ -98,6 +98,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_CREATE_DIR             1057
 #define ERROR_SYSTEM_KILL                   1058
 #define ERROR_SYSTEM_DNS_RESOLVE            1059
+#define ERROR_SOCKET_SETKEEPALIVE           1060
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

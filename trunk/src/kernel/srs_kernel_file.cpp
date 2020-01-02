@@ -133,7 +133,11 @@ int SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     
     ssize_t nwrite;
     // TODO: FIXME: use st_write.
-    if ((nwrite = ::write(fd, buf, count)) < 0) {
+#ifdef _WIN32
+    if ((nwrite = ::_write(fd, buf, (unsigned int)count)) < 0) {
+#else
+    if ((nwrite = ::write(fd, buf, (size_t)count)) < 0) {
+#endif
         ret = ERROR_SYSTEM_FILE_WRITE;
         srs_error("write to file %s failed. ret=%d", path.c_str(), ret);
         return ret;
@@ -250,7 +254,11 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     ssize_t nread;
     // TODO: FIXME: use st_read.
+#ifdef _WIN32
+    if ((nread = ::_read(fd, buf, (unsigned int)count)) < 0) {
+#else
     if ((nread = ::read(fd, buf, count)) < 0) {
+#endif
         ret = ERROR_SYSTEM_FILE_READ;
         srs_error("read from file %s failed. ret=%d", path.c_str(), ret);
         return ret;

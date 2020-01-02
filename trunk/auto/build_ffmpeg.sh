@@ -68,34 +68,34 @@ else
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build speex-1.2rc1 failed"; exit 1; fi
 fi
 
-# x264 core.138
+# x264 core.157
 if [[ -f ${ff_release_dir}/lib/libx264.a ]]; then
     echo "x264 is ok"
 else
     echo "build x264"
     cd $ff_current_dir &&
-    rm -rf x264-snapshot-20131129-2245-stable && unzip -q ${ff_src_dir}/x264-snapshot-20131129-2245-stable.zip &&
-    cd x264-snapshot-20131129-2245-stable && 
-    chmod +w configure && patch -p0 <../../../3rdparty/patches/5.x264.osx.gcc.patch &&
-    ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=8 \
+    rm -rf x264-snapshot-20181116-2245 && unzip -q ${ff_src_dir}/x264-snapshot-20181116-2245.zip &&
+    cd x264-snapshot-20181116-2245 && 
+#    chmod +w configure && patch -p0 <../../../3rdparty/patches/5.x264.osx.gcc.patch &&
+    ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=all \
         --enable-static --disable-avs  --disable-swscale  --disable-lavf \
-        --disable-ffms  --disable-gpac && 
+        --disable-ffms  --disable-gpac --disable-cli && 
     make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build x264 failed"; exit 1; fi
 fi
 
-# ffmpeg-2.1.1
+# ffmpeg-4.1
 if [[ -f ${ff_release_dir}/bin/ffmpeg ]]; then
-    echo "ffmpeg-2.1.1 is ok"
+    echo "ffmpeg-4.1 is ok"
 else
-    echo "build ffmpeg-2.1.1"
+    echo "build ffmpeg-4.1"
     cd $ff_current_dir &&
-    rm -rf ffmpeg-2.1.1 && unzip -q ${ff_src_dir}/ffmpeg-2.1.1.zip &&
+    rm -rf ffmpeg-4.1 && unzip -q ${ff_src_dir}/ffmpeg-4.1.zip &&
     echo "remove all so to force the ffmpeg to build in static" &&
     rm -f ${ff_release_dir}/lib/*.so* &&
     echo "export the dir to enable the build command canbe use." &&
     export ffmpeg_exported_release_dir=${ff_release_dir} &&
-    cd ffmpeg-2.1.1 && 
+    cd ffmpeg-4.1 && 
     ./configure \
         --enable-gpl --enable-nonfree \
         --yasmexe=${ff_yasm_bin} \
@@ -103,7 +103,7 @@ else
         --enable-static --disable-shared --disable-debug \
         --extra-cflags='-I${ffmpeg_exported_release_dir}/include' \
         --extra-ldflags='-L${ffmpeg_exported_release_dir}/lib -lm -ldl' \
-        --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
+        --disable-ffplay --disable-ffprobe --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
         --enable-libx264 --enable-libmp3lame --enable-libfdk-aac --enable-libspeex \
         --enable-pthreads --extra-libs=-lpthread \

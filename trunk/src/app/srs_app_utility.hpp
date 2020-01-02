@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsKbps;
 class SrsStream;
+class ISrsHttpMessage;
 
 // client open socket and connect to server.
 extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
@@ -688,6 +689,9 @@ extern bool srs_is_boolean(const std::string& str);
 
 // dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(std::stringstream& ss);
+
+// Get the original ip from query and header by proxy.
+extern std::string srs_get_original_ip(ISrsHttpMessage* r);
 
 #endif
 
