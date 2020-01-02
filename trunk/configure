@@ -94,7 +94,7 @@ SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p
 # performance of gperf
 SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpthread"; fi
 # the cxx flag generated.
-CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
+CXXFLAGS="${CXXFLAGS} ${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc

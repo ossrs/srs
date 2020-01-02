@@ -654,7 +654,7 @@ int SrsRtspConn::connect()
         req = new SrsRequest();
 
         std::string schema, host, vhost, app, port, param;
-        srs_discovery_tc_url(rtsp_tcUrl, schema, host, vhost, app, port, param);
+        srs_discovery_tc_url(rtsp_tcUrl, schema, host, vhost, app, rtsp_stream, port, param);
 
         // generate output by template.
         std::string output = output_template;
@@ -671,7 +671,7 @@ int SrsRtspConn::connect()
         }
     
         srs_discovery_tc_url(req->tcUrl, 
-            req->schema, req->host, req->vhost, req->app, req->port,
+            req->schema, req->host, req->vhost, req->app, req->stream, req->port,
             req->param);
     }
 

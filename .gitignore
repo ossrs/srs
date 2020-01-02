@@ -28,3 +28,7 @@
 
 # Apple-specific garbage files.
 .AppleDouble
+
+.idea
+.DS_Store
+

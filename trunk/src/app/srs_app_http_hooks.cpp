@@ -139,7 +139,8 @@ int SrsHttpHooks::on_publish(string url, SrsRequest* req)
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("tcUrl", req->tcUrl) << SRS_JFIELD_CONT  // Add tcUrl for auth publish rtmp stream client
-        << SRS_JFIELD_STR("stream", req->stream)
+        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param)
         << SRS_JOBJECT_END;
         
     std::string data = ss.str();
@@ -172,7 +173,8 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
         << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream)
+        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param)
         << SRS_JOBJECT_END;
         
     std::string data = ss.str();
@@ -206,6 +208,7 @@ int SrsHttpHooks::on_play(string url, SrsRequest* req)
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("pageUrl", req->pageUrl)
         << SRS_JOBJECT_END;
         
@@ -239,7 +242,8 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
         << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("stream", req->stream)
+        << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param)
         << SRS_JOBJECT_END;
         
     std::string data = ss.str();
@@ -274,6 +278,7 @@ int SrsHttpHooks::on_dvr(int cid, string url, SrsRequest* req, string file)
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("file", file)
         << SRS_JOBJECT_END;
@@ -316,6 +321,7 @@ int SrsHttpHooks::on_hls(int cid, string url, SrsRequest* req, string file, stri
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("param", req->param) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("duration", duration) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("file", file) << SRS_JFIELD_CONT
@@ -356,6 +362,7 @@ int SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* req, std::
     url = srs_string_replace(url, "[app]", req->app);
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
+    url = srs_string_replace(url, "[param]", req->param);
     
     int64_t starttime = srs_update_system_time_ms();
     

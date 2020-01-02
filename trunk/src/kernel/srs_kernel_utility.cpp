@@ -222,7 +222,7 @@ string srs_string_trim_end(string str, string trim_chars)
             ret.erase(ret.end() - 1);
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -240,7 +240,7 @@ string srs_string_trim_start(string str, string trim_chars)
             ret.erase(ret.begin());
             
             // ok, matched, should reset the search
-            i = 0;
+            i = -1;
         }
     }
     
@@ -259,7 +259,7 @@ string srs_string_remove(string str, string remove_chars)
                 it = ret.erase(it);
                 
                 // ok, matched, should reset the search
-                i = 0;
+                i = -1;
             } else {
                 ++it;
             }
@@ -267,6 +267,32 @@ string srs_string_remove(string str, string remove_chars)
     }
     
     return ret;
+}
+
+string srs_erase_first_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.find(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
+}
+
+string srs_erase_last_substr(string str, string erase_string)
+{
+	std::string ret = str;
+
+	size_t pos = ret.rfind(erase_string);
+
+	if (pos != std::string::npos)
+	{
+		ret.erase(pos, erase_string.length());
+	}
+	return ret;
 }
 
 bool srs_string_ends_with(string str, string flag)
@@ -327,7 +353,7 @@ int srs_do_create_dir_recursively(string dir)
     mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
 #else
-    if (::mkdir(dir.c_str()) < 0) {
+    if (::_mkdir(dir.c_str()) < 0) {
 #endif
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
@@ -404,7 +430,7 @@ bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
     char* p = bytes;
     
     for (;;) {
-        if (!stream->require(p - bytes + 3)) {
+        if (!stream->require((int)(p - bytes + 3))) {
             return false;
         }
         
@@ -652,7 +678,7 @@ int srs_av_base64_decode(u_int8_t* out, const char* in_str, int out_size)
     // no sign extension
     const u_int8_t *in = (const u_int8_t*)in_str;
     unsigned bits = 0xff;
-    unsigned v;
+    unsigned v = 0;
 
     while (end - dst > 3) {
         BASE64_DEC_STEP(0);
@@ -695,7 +721,7 @@ out2:
     *dst++ = v >> 4;
 out1:
 out0:
-    return bits & 1 ? -1 : dst - out;
+    return (int)(bits & 1 ? -1 : dst - out);
 }
 
 /*****************************************************************************
@@ -807,9 +833,9 @@ int srs_chunk_header_c0(
         *p++ = pp[1];
         *p++ = pp[0];
     } else {
-        *p++ = 0xFF;
-        *p++ = 0xFF;
-        *p++ = 0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
     }
     
     // message_length, 3bytes, big-endian
@@ -855,7 +881,7 @@ int srs_chunk_header_c0(
     }
     
     // always has header
-    return p - cache;
+    return (int)(p - cache);
 }
 
 int srs_chunk_header_c3(
@@ -905,6 +931,6 @@ int srs_chunk_header_c3(
     }
     
     // always has header
-    return p - cache;
+    return (int)(p - cache);
 }
 

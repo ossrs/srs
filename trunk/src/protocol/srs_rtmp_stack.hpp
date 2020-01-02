@@ -268,7 +268,8 @@ private:
     * 
     * @remark, the c0c3 cache cannot be realloc.
     */
-    char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
+    // To allocate it in heap to make VS2015 happy.
+    char* out_c0c3_caches;
     // whether warned user to increase the c0c3 header cache.
     bool warned_c0c3_cache_dry;
     /**
@@ -606,6 +607,9 @@ public:
      * strip url, user must strip when update the url.
      */
     virtual void strip();
+public:
+    // Transform it as HTTP request.
+    virtual SrsRequest* as_http();
 };
 
 /**

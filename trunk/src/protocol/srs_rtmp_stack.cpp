@@ -211,7 +211,8 @@ int SrsPacket::encode_packet(SrsStream* stream)
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     window = 0;
-    sequence_number = nb_recv_bytes = 0;
+    sequence_number = 0;
+    nb_recv_bytes = 0;
 }
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
@@ -244,6 +245,8 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
         
         cs_cache[cid] = cs;
     }
+
+    out_c0c3_caches = new char[SRS_CONSTS_C0C3_HEADERS_MAX];
 }
 
 SrsProtocol::~SrsProtocol()
@@ -282,6 +285,8 @@ SrsProtocol::~SrsProtocol()
         srs_freep(cs);
     }
     srs_freepa(cs_cache);
+
+    srs_freepa(out_c0c3_caches);
 }
 
 void SrsProtocol::set_auto_response(bool v)
@@ -656,12 +661,12 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         int nbh = 0;
         if (p == payload) {
             nbh = srs_chunk_header_c0(
-                mh->perfer_cid, mh->timestamp, mh->payload_length,
+                mh->perfer_cid, (uint32_t)mh->timestamp, mh->payload_length,
                 mh->message_type, mh->stream_id,
                 c0c3, sizeof(c0c3));
         } else {
             nbh = srs_chunk_header_c3(
-                mh->perfer_cid, mh->timestamp,
+                mh->perfer_cid, (uint32_t)mh->timestamp,
                 c0c3, sizeof(c0c3));
         }
         srs_assert(nbh > 0);;
@@ -670,7 +675,7 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
         iovs[0].iov_base = c0c3;
         iovs[0].iov_len = nbh;
         
-        int payload_size = srs_min(end - p, out_chunk_size);
+        int payload_size = (int)srs_min(end - p, out_chunk_size);
         iovs[1].iov_base = p;
         iovs[1].iov_len = payload_size;
         p += payload_size;
@@ -1743,6 +1748,7 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    param = req->param;
     
     if (args) {
         srs_freep(args);
@@ -1774,6 +1780,12 @@ void SrsRequest::strip()
     // remove start slash of app/stream
     app = srs_string_trim_start(app, "/");
     stream = srs_string_trim_start(stream, "/");
+}
+
+SrsRequest* SrsRequest::as_http()
+{
+    schema = "http";
+    return this;
 }
 
 SrsResponse::SrsResponse()
@@ -2515,7 +2527,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     srs_info("get connect app message params success.");
     
     srs_discovery_tc_url(req->tcUrl, 
-        req->schema, req->host, req->vhost, req->app, req->port,
+        req->schema, req->host, req->vhost, req->app, req->stream, req->port,
         req->param);
     req->strip();
     
@@ -2559,8 +2571,9 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     int ret = ERROR_SUCCESS;
     
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
-    
-    pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
+
+    // @remark For windows, there must be a space between const string and macro.
+    pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/" RTMP_SIG_FMS_VER));
     pkt->props->set("capabilities", SrsAmf0Any::number(127));
     pkt->props->set("mode", SrsAmf0Any::number(1));
     

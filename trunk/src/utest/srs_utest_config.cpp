@@ -840,10 +840,10 @@ VOID TEST(ConfigMainTest, CheckConf_max_connections)
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections 0;"));
     }
-    
+
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections 1000000;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections 100000000;"));
     }
     
     if (true) {

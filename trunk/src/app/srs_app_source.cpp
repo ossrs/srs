@@ -1080,7 +1080,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     atc = _srs_config->get_atc(_req->vhost);
 
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->initialize(this)) != ERROR_SUCCESS) {
+    if ((ret = hls->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -2175,7 +2175,6 @@ int SrsSource::on_publish()
     }
 #endif
     
-    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_publish(_req, false)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
