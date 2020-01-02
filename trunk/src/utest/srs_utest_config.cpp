@@ -3478,3 +3478,161 @@ VOID TEST(ConfigMainTest, CheckVhostConfig4)
     }
 }
 
+VOID TEST(ConfigMainTest, CheckVhostConfig5)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{exec{enabled on;publish xxx;}}"));
+        EXPECT_TRUE(conf.get_exec("ossrs.net") != NULL);
+        EXPECT_TRUE(conf.get_exec_enabled("ossrs.net"));
+        EXPECT_EQ(1, conf.get_exec_publishs("ossrs.net").size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{ingest xxx{enabled on;ffmpeg xxx2;input{type xxx3;url xxx4;}}}"));
+        EXPECT_EQ(1, conf.get_ingesters("ossrs.net").size());
+        ASSERT_TRUE(conf.get_ingest_by_id("ossrs.net", "xxx") != NULL);
+        EXPECT_TRUE(conf.get_ingest_enabled(conf.get_ingest_by_id("ossrs.net", "xxx")));
+        EXPECT_STREQ("xxx2", conf.get_ingest_ffmpeg(conf.get_ingest_by_id("ossrs.net", "xxx")).c_str());
+        EXPECT_STREQ("xxx3", conf.get_ingest_input_type(conf.get_ingest_by_id("ossrs.net", "xxx")).c_str());
+        EXPECT_STREQ("xxx4", conf.get_ingest_input_url(conf.get_ingest_by_id("ossrs.net", "xxx")).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srs_log_tank xxx;srs_log_level xxx2;srs_log_file xxx3;ff_log_dir xxx4;"));
+        EXPECT_TRUE(conf.get_log_tank_file());
+        EXPECT_STREQ("xxx2", conf.get_log_level().c_str());
+        EXPECT_STREQ("xxx3", conf.get_log_file().c_str());
+        EXPECT_STREQ("xxx4", conf.get_ffmpeg_log_dir().c_str());
+        EXPECT_TRUE(conf.get_ffmpeg_log_enabled());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{dash{enabled on;dash_fragment 10;dash_update_period 10;dash_timeshift 10;dash_path xxx;dash_mpd_file xxx2;}}"));
+        EXPECT_TRUE(conf.get_dash_enabled("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_fragment("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_update_period("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_timeshift("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_dash_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_dash_mpd_file("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{enabled on;hls_entry_prefix xxx;hls_path xxx2;hls_m3u8_file xxx3;hls_ts_file xxx4;hls_ts_floor on;hls_fragment 10;}}"));
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_entry_prefix("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx3", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx4", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_TRUE(conf.get_hls_ts_floor("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_td_ratio 2.1;hls_aof_ratio 3.1;hls_window 10;hls_on_error xxx;hls_acodec xxx2;hls_vcodec xxx3;hls_nb_notify 5;hls_dts_directly off;hls_cleanup off;hls_dispose 10;hls_wait_keyframe off;}}"));
+        EXPECT_EQ(2.1, conf.get_hls_td_ratio("ossrs.net"));
+        EXPECT_EQ(3.1, conf.get_hls_aof_ratio("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_on_error("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_acodec("ossrs.net").c_str());
+        EXPECT_STREQ("xxx3", conf.get_hls_vcodec("ossrs.net").c_str());
+        EXPECT_EQ(5, conf.get_vhost_hls_nb_notify("ossrs.net"));
+        EXPECT_FALSE(conf.get_vhost_hls_dts_directly("ossrs.net"));
+        EXPECT_FALSE(conf.get_hls_cleanup("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_dispose("ossrs.net"));
+        EXPECT_FALSE(conf.get_hls_wait_keyframe("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hls{hls_keys on;hls_fragments_per_key 5;hls_key_file xxx;hls_key_file_path xxx2;hls_key_url xxx3;}}"));
+        EXPECT_TRUE(conf.get_hls_keys("ossrs.net"));
+        EXPECT_EQ(5, conf.get_hls_fragments_per_key("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_key_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_key_file_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx3", conf.get_hls_key_url("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{hds{enabled on;hds_path xxx;hds_fragment 10;hds_window 10;}}"));
+        EXPECT_TRUE(conf.get_hds_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hds_path("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hds_fragment("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hds_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{dvr{enabled on;dvr_apply all;dvr_path xxx;dvr_plan xxx2;dvr_duration 10;time_jitter full;}}"));
+        EXPECT_TRUE(conf.get_dvr_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_dvr_apply("ossrs.net") != NULL);
+        EXPECT_STREQ("xxx", conf.get_dvr_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_dvr_plan("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dvr_duration("ossrs.net"));
+        EXPECT_TRUE(conf.get_dvr_wait_keyframe("ossrs.net"));
+        EXPECT_EQ(1, conf.get_dvr_time_jitter("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_api{enabled on;listen xxx;crossdomain off;raw_api {enabled on;allow_reload on;allow_query on;allow_update on;}}"));
+        EXPECT_TRUE(conf.get_http_api_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
+        EXPECT_FALSE(conf.get_http_api_crossdomain());
+        EXPECT_TRUE(conf.get_raw_api());
+        EXPECT_TRUE(conf.get_raw_api_allow_reload());
+        EXPECT_TRUE(conf.get_raw_api_allow_query());
+        EXPECT_TRUE(conf.get_raw_api_allow_update());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "http_server{enabled on;listen xxx;dir xxx2;crossdomain on;}"));
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+        EXPECT_TRUE(conf.get_http_stream_crossdomain());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_static{enabled on;mount xxx;dir xxx2;}}"));
+        EXPECT_TRUE(conf.get_vhost_http_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_vhost_http_mount("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_vhost_http_dir("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{http_remux{enabled on;fast_cache 10;mount xxx;}}"));
+        EXPECT_TRUE(conf.get_vhost_http_remux_enabled("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_vhost_http_remux_fast_cache("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_vhost_http_remux_mount("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "heartbeat{enabled on;interval 10;url xxx;device_id xxx2;summaries on;}"));
+        EXPECT_TRUE(conf.get_heartbeat_enabled());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_heartbeat_interval());
+        EXPECT_STREQ("xxx", conf.get_heartbeat_url().c_str());
+        EXPECT_STREQ("xxx2", conf.get_heartbeat_device_id().c_str());
+        EXPECT_TRUE(conf.get_heartbeat_summaries());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "stats{network 0;disk xxx;}"));
+        EXPECT_EQ(0, conf.get_stats_network());
+        EXPECT_TRUE(conf.get_stats_disk_device() != NULL);
+    }
+}
+
