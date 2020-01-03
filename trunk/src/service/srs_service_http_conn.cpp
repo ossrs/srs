@@ -296,9 +296,13 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
 
     jsonp = false;
 
-    _method = 0;
-    _status = 0;
+    // As 0 is DELETE, so we use GET as default.
+    _method = SRS_CONSTS_HTTP_GET;
+    // 200 is ok.
+    _status = SRS_CONSTS_HTTP_OK;
+    // -1 means infinity chunked mode.
     _content_length = -1;
+    // From HTTP/1.1, default to keep alive.
     _keep_alive = true;
 }
 
@@ -338,18 +342,21 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     
     _url = url;
 
-    // use server public ip when host not specified.
-    // to make telnet happy.
-    std::string host = _header.get("Host");
-    if (host.empty()) {
-        host= srs_get_public_internet_address();
-    }
-
     // parse uri from schema/server:port/path?query
     std::string uri = _url;
-    if (!host.empty()) {
-        uri = "http://" + host + _url;
+
+    if (!srs_string_contains(uri, "://")) {
+        // use server public ip when host not specified.
+        // to make telnet happy.
+        std::string host = _header.get("Host");
+        if (host.empty()) {
+            host= srs_get_public_internet_address();
+        }
+        if (!host.empty()) {
+            uri = "http://" + host + _url;
+        }
     }
+
     if ((err = _uri->initialize(uri)) != srs_success) {
         return srs_error_wrap(err, "init uri %s", uri.c_str());
     }

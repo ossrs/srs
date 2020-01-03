@@ -29,10 +29,20 @@ using namespace std;
 #include <srs_service_st.hpp>
 #include <srs_service_utility.hpp>
 
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
-
 #include <srs_service_st.hpp>
+#include <srs_service_http_conn.hpp>
+
+class MockSrsConnection : public ISrsConnection
+{
+public:
+    MockSrsConnection() {
+    }
+    virtual ~MockSrsConnection() {
+    }
+    virtual std::string remote_ip() {
+        return "127.0.0.1";
+    }
+};
 
 VOID TEST(ServiceTimeTest, TimeUnit)
 {
@@ -376,6 +386,7 @@ VOID TEST(TCPServerTest, StringIsHex)
 VOID TEST(TCPServerTest, WritevIOVC)
 {
 	srs_error_t err;
+
 	if (true) {
 		MockTcpHandler h;
 		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
@@ -431,4 +442,55 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	}
 }
 
-#endif
+VOID TEST(TCPServerTest, MessageConnection)
+{
+    srs_error_t err;
+
+	if (true) {
+	    MockSrsConnection conn;
+	    SrsHttpMessage m;
+	    m.set_connection(&conn);
+	    EXPECT_TRUE(&conn == m.connection());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=POST", true));
+	    EXPECT_TRUE(m.jsonp); EXPECT_STREQ("POST", m.jsonp_method.c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=GET", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=PUT", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=POST", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=DELETE", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    m.set_basic(100, 0, 0); EXPECT_STREQ("OTHER", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_DELETE, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_OPTIONS, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
+	}
+}
+
