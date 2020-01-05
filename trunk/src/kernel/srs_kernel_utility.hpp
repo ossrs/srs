@@ -56,7 +56,7 @@ extern std::string srs_dns_resolve(std::string host, int& family);
 
 // Split the host:port to host and port.
 // @remark the hostport format in <host[:port]>, where port is optional.
-extern void srs_parse_hostport(const std::string& hostport, std::string& host, int& port);
+extern void srs_parse_hostport(std::string hostport, std::string& host, int& port);
 
 // Parse the endpoint to ip and port.
 // @remark The hostport format in <[ip:]port>, where ip is default to "0.0.0.0".

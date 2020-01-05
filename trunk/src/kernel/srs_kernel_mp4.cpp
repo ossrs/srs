@@ -110,12 +110,12 @@ void srs_mp4_delimiter_newline(stringstream& ss, SrsMp4DumpContext dc)
     srs_mp4_padding(ss, dc);
 }
 
-int srs_mp4_string_length(const string& v)
+int srs_mp4_string_length(string v)
 {
     return (int)v.length()+1;
 }
 
-void srs_mp4_string_write(SrsBuffer* buf, const string& v)
+void srs_mp4_string_write(SrsBuffer* buf, string v)
 {
     if (!v.empty()) {
         buf->write_bytes((char*)v.data(), (int)v.length());

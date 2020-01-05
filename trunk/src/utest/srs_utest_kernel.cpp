@@ -4255,6 +4255,110 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     EXPECT_TRUE(srs_update_system_time() > 0);
 
     if (true) {
+        string host = "127.0.0.1:1935";
+        int port = 0;
+        srs_parse_hostport(host, host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("127.0.0.1", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 8080;
+        srs_parse_hostport("::1", host, port);
+        EXPECT_EQ(8080, port);
+        EXPECT_STREQ("::1", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 8080;
+        srs_parse_hostport("::", host, port);
+        EXPECT_EQ(8080, port);
+        EXPECT_STREQ("::", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("3ffe:dead:beef::1", host, port);
+        EXPECT_EQ(0, port);
+        EXPECT_STREQ("3ffe:dead:beef::1", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 10;
+        srs_parse_hostport("2001:da8:6000:291:21f:d0ff:fed4:928c", host, port);
+        EXPECT_EQ(10, port);
+        EXPECT_STREQ("2001:da8:6000:291:21f:d0ff:fed4:928c", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[2001:da8:6000:291:21f:d0ff:fed4:928c]:167", host, port);
+        EXPECT_EQ(167, port);
+        EXPECT_STREQ("2001:da8:6000:291:21f:d0ff:fed4:928c", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[::A.B.C.D]:167", host, port);
+        EXPECT_EQ(167, port);
+        EXPECT_STREQ("::A.B.C.D", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("::A.B.C.D", host, port);
+        EXPECT_EQ(0, port);
+        EXPECT_STREQ("::A.B.C.D", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[::FFFF:A.B.C.D]:167", host, port);
+        EXPECT_EQ(167, port);
+        EXPECT_STREQ("::FFFF:A.B.C.D", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[ff00::]:167", host, port);
+        EXPECT_EQ(167, port);
+        EXPECT_STREQ("ff00::", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("[fe80::a00:27ff:fe84:be2%eth0]:167", host, port);
+        EXPECT_EQ(167, port);
+        EXPECT_STREQ("fe80::a00:27ff:fe84:be2%eth0", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 0;
+        srs_parse_hostport("::FFFF:A.B.C.D", host, port);
+        EXPECT_EQ(0, port);
+        EXPECT_STREQ("::FFFF:A.B.C.D", host.c_str());
+    }
+
+    if (true) {
+        string host;
+        int port = 8080;
+        srs_parse_hostport("", host, port);
+        EXPECT_EQ(8080, port);
+        EXPECT_STREQ("", host.c_str());
+    }
+
+    if (true) {
         string host;
         int port = 8080;
         srs_parse_hostport("3ffe:dead:beef::1", host, port);

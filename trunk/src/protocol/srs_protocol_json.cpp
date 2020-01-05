@@ -1731,7 +1731,7 @@ SrsJsonAny* srs_json_parse_tree(json_value* node)
     }
 }
 
-SrsJsonAny* SrsJsonAny::loads(const string& str)
+SrsJsonAny* SrsJsonAny::loads(string str)
 {
     if (str.empty()) {
         return NULL;

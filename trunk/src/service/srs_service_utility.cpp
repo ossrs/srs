@@ -51,7 +51,7 @@ bool srs_string_is_rtmp(string url)
     return srs_string_starts_with(url, "rtmp://");
 }
 
-bool srs_is_digit_number(const string& str)
+bool srs_is_digit_number(string str)
 {
     if (str.empty()) {
         return false;

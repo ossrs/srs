@@ -107,7 +107,7 @@ public:
 public:
     // Read json tree from string.
     // @return json object. NULL if error.
-    static SrsJsonAny* loads(const std::string& str);
+    static SrsJsonAny* loads(std::string str);
 };
 
 class SrsJsonObject : public SrsJsonAny

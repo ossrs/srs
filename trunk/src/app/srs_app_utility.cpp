@@ -1157,7 +1157,7 @@ string srs_get_peer_ip(int fd)
     return std::string(saddr);
 }
 
-bool srs_is_boolean(const string& str)
+bool srs_is_boolean(string str)
 {
     return str == "true" || str == "false";
 }

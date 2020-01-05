@@ -123,7 +123,7 @@ extern bool srs_stream_caster_is_flv(std::string caster);
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
 
 // Convert bool in str to on/off
-extern std::string srs_config_bool2switch(const std::string& sbool);
+extern std::string srs_config_bool2switch(std::string sbool);
 
 // Parse loaded vhost directives to compatible mode.
 // For exmaple, SRS1/2 use the follow refer style:
