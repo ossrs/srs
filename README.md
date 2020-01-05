@@ -148,6 +148,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-02, For [#1042][bug #1042], improve test coverage for config. 3.0.91
 * v3.0, 2019-12-30, Fix mp4 security issue, check buffer when required size is variable.
 * <strong>v3.0, 2019-12-29, [3.0 alpha7(3.0.90)][r3.0a7] released. 116356 lines.</strong>
 * v3.0, 2019-12-29, For [#1255][bug #1255], support vhost/domain in query string for HTTP streaming. 3.0.90
@@ -269,6 +270,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
 * v2.0, 2019-12-23, Fix [srs-librtmp #22](https://github.com/ossrs/srs-librtmp/issues/22), parse vhost splited by single seperator. 2.0.268
 * v2.0, 2019-12-23, Fix [srs-librtmp #25](https://github.com/ossrs/srs-librtmp/issues/25), build srs-librtmp on windows. 2.0.267
@@ -1546,6 +1548,7 @@ Winlin
 [bug #1304]: https://github.com/ossrs/srs/pull/1304
 [bug #1524]: https://github.com/ossrs/srs/issues/1524
 [bug #1488]: https://github.com/ossrs/srs/issues/1488
+[bug #1551]: https://github.com/ossrs/srs/pull/1551
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735

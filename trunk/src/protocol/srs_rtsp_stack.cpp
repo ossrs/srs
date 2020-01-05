@@ -159,7 +159,7 @@ void SrsRtpPacket::copy(SrsRtpPacket* src)
     
     chunked = src->chunked;
     completed = src->completed;
-    
+
     srs_freep(audio);
     audio = new SrsAudioFrame();
 }

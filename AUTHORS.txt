@@ -50,3 +50,4 @@ CONTRIBUTORS ordered by first contribution.
 * HungMingWu<u9089000@gmail.com>
 * Himer<xishizhaohua@qq.com>
 * xialixin<xlx0625@163.com>
+* alphonsetai<tyh_123@163.com>

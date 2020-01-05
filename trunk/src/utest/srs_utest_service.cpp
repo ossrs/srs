@@ -29,10 +29,24 @@ using namespace std;
 #include <srs_service_st.hpp>
 #include <srs_service_utility.hpp>
 
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
-
 #include <srs_service_st.hpp>
+#include <srs_service_http_conn.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_utest_protocol.hpp>
+#include <srs_utest_http.hpp>
+
+class MockSrsConnection : public ISrsConnection
+{
+public:
+    MockSrsConnection() {
+    }
+    virtual ~MockSrsConnection() {
+    }
+    virtual std::string remote_ip() {
+        return "127.0.0.1";
+    }
+};
 
 VOID TEST(ServiceTimeTest, TimeUnit)
 {
@@ -376,6 +390,7 @@ VOID TEST(TCPServerTest, StringIsHex)
 VOID TEST(TCPServerTest, WritevIOVC)
 {
 	srs_error_t err;
+
 	if (true) {
 		MockTcpHandler h;
 		SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
@@ -431,4 +446,236 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	}
 }
 
-#endif
+VOID TEST(TCPServerTest, MessageConnection)
+{
+    srs_error_t err;
+
+	if (true) {
+	    MockSrsConnection conn;
+	    SrsHttpMessage m;
+	    m.set_connection(&conn);
+	    EXPECT_TRUE(&conn == m.connection()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=POST", true));
+	    EXPECT_TRUE(m.jsonp); EXPECT_STREQ("POST", m.jsonp_method.c_str()); EXPECT_TRUE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=GET", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str()); EXPECT_TRUE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=PUT", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str()); EXPECT_TRUE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=POST", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str()); EXPECT_TRUE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?callback=fn&method=DELETE", true));
+	    EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str()); EXPECT_TRUE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    m.set_basic(100, 0, 0); EXPECT_STREQ("OTHER", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_DELETE, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
+	    m.set_basic(SRS_CONSTS_HTTP_OPTIONS, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    EXPECT_TRUE(m.is_keep_alive());
+	    EXPECT_FALSE(m.is_infinite_chunked());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv", false));
+	    EXPECT_STREQ("http://127.0.0.1/live/livestream.flv", m.uri().c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?domain=ossrs.net", false));
+	    EXPECT_STREQ("ossrs.net", m.host().c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv", false));
+	    EXPECT_STREQ(".flv", m.ext().c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
+	    EXPECT_EQ(100, m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	}
+}
+
+VOID TEST(TCPServerTest, MessageInfinityChunked)
+{
+    srs_error_t err;
+
+	if (true) {
+	    SrsHttpMessage m;
+	    EXPECT_FALSE(m.is_infinite_chunked());
+	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
+	    EXPECT_TRUE(m.is_infinite_chunked());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
+	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
+	    EXPECT_TRUE(m.is_infinite_chunked());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    SrsHttpHeader hdr;
+	    hdr.set("Transfer-Encoding", "chunked");
+	    m.set_header(&hdr, false);
+	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    SrsHttpHeader hdr;
+	    hdr.set("Content-Length", "100");
+	    m.set_header(&hdr, false);
+	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
+	}
+}
+
+VOID TEST(TCPServerTest, MessageTurnRequest)
+{
+    srs_error_t err;
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_ASSERT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv", false));
+	    SrsRequest* r = m.to_request("ossrs.net");
+	    EXPECT_STREQ("live", r->app.c_str());
+	    EXPECT_STREQ("livestream", r->stream.c_str());
+	    EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl.c_str());
+	    srs_freep(r);
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_ASSERT_SUCCESS(m.set_url("http://127.0.0.1/live/livestream.flv?token=key", false));
+	    SrsRequest* r = m.to_request("ossrs.net");
+	    EXPECT_STREQ("rtmp://ossrs.net/live", r->tcUrl.c_str());
+	    EXPECT_STREQ("?token=key", r->param.c_str());
+	    srs_freep(r);
+	}
+
+	if (true) {
+	    MockSrsConnection conn;
+	    SrsHttpMessage m;
+	    m.set_connection(&conn);
+
+	    SrsRequest* r = m.to_request("ossrs.net");
+	    EXPECT_STREQ("127.0.0.1", r->ip.c_str());
+	    srs_freep(r);
+	}
+
+	if (true) {
+	    MockSrsConnection conn;
+	    SrsHttpMessage m;
+	    m.set_connection(&conn);
+
+	    SrsHttpHeader hdr;
+	    hdr.set("X-Real-IP", "10.11.12.13");
+	    m.set_header(&hdr, false);
+
+	    SrsRequest* r = m.to_request("ossrs.net");
+	    EXPECT_STREQ("10.11.12.13", r->ip.c_str());
+	    srs_freep(r);
+	}
+}
+
+VOID TEST(TCPServerTest, MessageWritev)
+{
+    srs_error_t err;
+
+    // For infinite chunked mode, all data is content.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        if (true) {
+            SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(msg);
+            ASSERT_TRUE(hm != NULL);
+            hm->enter_infinite_chunked();
+        }
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("\r\nWorld!");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 8, &nread));
+        EXPECT_EQ(8, nread);
+        EXPECT_STREQ("\r\nWorld!", buf);
+    }
+
+    // Directly writev, merge to one chunk.
+    if (true) {
+        MockResponseWriter w;
+        w.write_header(SRS_CONSTS_HTTP_OK);
+
+        iovec iovs[] = {
+            {(char*)"Hello", 5},
+            {(char*)"World", 5},
+            {(char*)"!", 1},
+        };
+        HELPER_ASSERT_SUCCESS(w.writev(iovs, 3, NULL));
+
+        __MOCK_HTTP_EXPECT_STREQ2(200, "b\r\nHelloWorld!\r\n", w);
+    }
+
+    // Use writev to send one iov, should also be ok.
+    if (true) {
+        MockResponseWriter w;
+
+        char data[] = "Hello, world!";
+        iovec iovs[] = {{(char*)data, (int)(sizeof(data) - 1)}};
+        HELPER_ASSERT_SUCCESS(w.writev(iovs, 1, NULL));
+
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // Write header multiple times, should be ok.
+    if (true) {
+        MockResponseWriter w;
+        w.write_header(SRS_CONSTS_HTTP_OK);
+        w.write_header(SRS_CONSTS_HTTP_OK);
+    }
+}
+
