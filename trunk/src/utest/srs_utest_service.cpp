@@ -919,7 +919,7 @@ VOID TEST(TCPServerTest, TCPClientServer)
         HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
 
         char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
-        HELPER_ASSERT_SUCCESS(srs_read(c.stfd, buf, 5, NULL));
+        HELPER_ASSERT_SUCCESS(srs_read(c.stfd, buf, 5, 1*SRS_UTIME_SECONDS));
         EXPECT_STREQ("Hello", buf);
     }
 }
