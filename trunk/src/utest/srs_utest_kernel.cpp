@@ -4788,13 +4788,13 @@ VOID TEST(KernelMP4Test, CoverMP4All)
 	if (true) {
 		SrsMp4ElstEntry e;
 		EXPECT_EQ(0, e.media_time);
-		EXPECT_EQ(0, e.segment_duration);
+		EXPECT_EQ(0, (int)e.segment_duration);
 	}
 
 	if (true) {
 		SrsMp4CttsEntry e;
-		EXPECT_EQ(0, e.sample_count);
-		EXPECT_EQ(0, e.sample_offset);
+		EXPECT_EQ(0, (int)e.sample_count);
+		EXPECT_EQ(0, (int)e.sample_offset);
 	}
 }
 

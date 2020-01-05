@@ -1314,7 +1314,7 @@ VOID TEST(ProtocolRTMPTest, HandshakeC0C1)
 
         SrsHandshakeBytes hs;
         HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
-        EXPECT_EQ(0x01020304, hs.proxy_real_ip);
+        EXPECT_EQ((uint32_t)0x01020304, (uint32_t)hs.proxy_real_ip);
     }
 
     // It's extended c0c1 prefixed with ip, which should be ok.

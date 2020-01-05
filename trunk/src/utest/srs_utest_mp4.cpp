@@ -492,7 +492,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
         SrsMp4FullBox box;
         HELPER_ASSERT_SUCCESS(box.decode(&b));
         EXPECT_EQ(1, box.version);
-        EXPECT_EQ(2, box.flags);
+        EXPECT_EQ(2, (int)box.flags);
     }
 
     if (true) {
@@ -596,7 +596,7 @@ VOID TEST(KernelMp4Test, TFHDBox)
         if (true) {
             SrsMp4TrackFragmentHeaderBox box;
             box.track_id = 100;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), (int)box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -682,7 +682,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentDecodeTimeBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(100, box.base_media_decode_time);
+            EXPECT_EQ(100, (int)box.base_media_decode_time);
         }
     }
 

@@ -5805,7 +5805,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 70, nparsed = 70, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\n"));
 		EXPECT_EQ(70, parser.parsed);
-		EXPECT_EQ(0, parser.parser->nread);
+		EXPECT_EQ(0, (int)parser.parser->nread);
 		EXPECT_TRUE(!parser.body);
 		EXPECT_TRUE(parser.headers_complete);
 		EXPECT_TRUE(!parser.message_complete);
