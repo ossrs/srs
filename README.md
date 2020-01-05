@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 hostport parsing bug. 3.0.94
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 intranet address filter bug. 3.0.93
 * v3.0, 2020-01-05, For [#1543][bug #1543], use getpeername to retrieve client ip. 3.0.92
 * v3.0, 2020-01-02, For [#1042][bug #1042], improve test coverage for config. 3.0.91

@@ -188,23 +188,42 @@ string srs_dns_resolve(string host, int& family)
    return string(shost);
 }
 
-void srs_parse_hostport(const string& hostport, string& host, int& port)
+void srs_parse_hostport(string hostport, string& host, int& port)
 {
-    const size_t pos = hostport.rfind(":");   // Look for ":" from the end, to work with IPv6.
-    if (pos != std::string::npos) {
-        const string p = hostport.substr(pos + 1);
-        if ((pos >= 1) &&
-            (hostport[0]       == '[') &&
-            (hostport[pos - 1] == ']')) {
-            // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
-            host = hostport.substr(1, pos - 2);
-        } else {
-            // Handle IP address
-            host = hostport.substr(0, pos);
-        }
-        port = ::atoi(p.c_str());
-    } else {
+    // No host or port.
+    if (hostport.empty()) {
+        return;
+    }
+
+    size_t pos = string::npos;
+
+    // Host only for ipv4.
+    if ((pos = hostport.rfind(":")) == string::npos) {
         host = hostport;
+        return;
+    }
+
+    // For ipv4(only one colon), host:port.
+    if (hostport.find(":") == pos) {
+        host = hostport.substr(0, pos);
+        string p = hostport.substr(pos + 1);
+        if (!p.empty()) {
+            port = ::atoi(p.c_str());
+        }
+        return;
+    }
+
+    // Host only for ipv6.
+    if (hostport.at(0) != '[' || (pos = hostport.rfind("]:")) == string::npos) {
+        host = hostport;
+        return;
+    }
+
+    // For ipv6, [host]:port.
+    host = hostport.substr(1, pos - 1);
+    string p = hostport.substr(pos + 2);
+    if (!p.empty()) {
+        port = ::atoi(p.c_str());
     }
 }
 
