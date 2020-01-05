@@ -263,27 +263,22 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 	srs_error_t err = srs_success;
 
     if ((err = srs_fd_closeexec(fd)) != srs_success) {
-        ::close(fd);
         return srs_error_wrap(err, "set closeexec");
     }
 
     if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
-        ::close(fd);
         return srs_error_wrap(err, "set reuseaddr");
     }
 
     if ((err = srs_fd_reuseport(fd)) != srs_success) {
-        ::close(fd);
         return srs_error_wrap(err, "set reuseport");
     }
 
     if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
-        ::close(fd);
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 
     if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
-        ::close(fd);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
     }
 

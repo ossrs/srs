@@ -914,5 +914,13 @@ VOID TEST(TCPServerTest, TCPClientServer)
         HELPER_ASSERT_SUCCESS(c.read_fully(buf, 5, NULL));
         EXPECT_STREQ("Hello", buf);
     }
+
+    if (true) {
+        HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+        char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
+        HELPER_ASSERT_SUCCESS(srs_read(c.stfd, buf, 5, NULL));
+        EXPECT_STREQ("Hello", buf);
+    }
 }
 
