@@ -89,24 +89,6 @@ srs_error_t MockMSegmentsReader::read(void* buf, size_t size, ssize_t* nread)
     return err;
 }
 
-class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
-{
-public:
-    SrsHttpResponseWriter* w;
-    MockBufferIO io;
-public:
-    MockResponseWriter();
-    virtual ~MockResponseWriter();
-public:
-    virtual srs_error_t final_request();
-    virtual SrsHttpHeader* header();
-    virtual srs_error_t write(char* data, int size);
-    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
-    virtual void write_header(int code);
-public:
-    virtual srs_error_t filter(SrsHttpHeader* h);
-};
-
 MockResponseWriter::MockResponseWriter()
 {
     w = new SrsHttpResponseWriter(&io);
@@ -220,12 +202,6 @@ bool _mock_srs_path_not_exists(std::string /*path*/)
 {
     return false;
 }
-
-#define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
-        EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
-
-#define __MOCK_HTTP_EXPECT_STREQ2(status, text, w) \
-        EXPECT_STREQ(mock_http_response2(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
 
 VOID TEST(ProtocolHTTPTest, StatusCode2Text)
 {

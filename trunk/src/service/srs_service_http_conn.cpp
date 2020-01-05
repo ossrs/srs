@@ -103,7 +103,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     msg->set_header(header, http_should_keep_alive(&hp_header));
     if ((err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
-        return srs_error_wrap(err, "update message");
+        return srs_error_wrap(err, "set url=%s, jsonp=%d", url.c_str(), jsonp);
     }
     
     // parse ok, return the msg.
@@ -634,7 +634,7 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
 
     std::string query = _uri->get_query();
     if (!query.empty()) {
-        req->tcUrl = req->tcUrl + "?" + query;
+        req->param = "?" + query;
     }
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
@@ -788,9 +788,8 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     if (!header_wrote || content_length != -1) {
         ssize_t nwrite = 0;
         for (int i = 0; i < iovcnt; i++) {
-            const iovec* piovc = iov + i;
-            nwrite += piovc->iov_len;
-            if ((err = write((char*)piovc->iov_base, (int)piovc->iov_len)) != srs_success) {
+            nwrite += iov[i].iov_len;
+            if ((err = write((char*)iov[i].iov_base, (int)iov[i].iov_len)) != srs_success) {
                 return srs_error_wrap(err, "writev");
             }
         }
@@ -806,6 +805,11 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     if (iovcnt <= 0) {
         return err;
     }
+
+    // whatever header is wrote, we should try to send header.
+    if ((err = send_header(NULL, 0)) != srs_success) {
+        return srs_error_wrap(err, "send header");
+    }
     
     // send in chunked encoding.
     int nb_iovss = 3 + iovcnt;
@@ -816,9 +820,7 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
         iovss = iovss_cache = new iovec[nb_iovss];
     }
     
-    // send in chunked encoding.
-    
-    // chunk size.
+    // Send all iovs in one chunk, the size is the total size of iovs.
     int size = 0;
     for (int i = 0; i < iovcnt; i++) {
         const iovec* data_iov = iov + i;
@@ -828,29 +830,23 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     
     // chunk header
     int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
-    iovec* iovs = iovss;
-    iovs[0].iov_base = (char*)header_cache;
-    iovs[0].iov_len = (int)nb_size;
-    iovs++;
-    
+    iovss[0].iov_base = (char*)header_cache;
+    iovss[0].iov_len = (int)nb_size;
+
     // chunk header eof.
-    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
-    iovs[0].iov_len = 2;
-    iovs++;
-    
+    iovss[1].iov_base = (char*)SRS_HTTP_CRLF;
+    iovss[1].iov_len = 2;
+
     // chunk body.
     for (int i = 0; i < iovcnt; i++) {
-        const iovec* data_iov = iov + i;
-        iovs[0].iov_base = (char*)data_iov->iov_base;
-        iovs[0].iov_len = (int)data_iov->iov_len;
-        iovs++;
+        iovss[2+i].iov_base = (char*)iov[i].iov_base;
+        iovss[2+i].iov_len = (int)iov[i].iov_len;
     }
     
     // chunk body eof.
-    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
-    iovs[0].iov_len = 2;
-    iovs++;
-    
+    iovss[2+iovcnt].iov_base = (char*)SRS_HTTP_CRLF;
+    iovss[2+iovcnt].iov_len = 2;
+
     // sendout all ioves.
     ssize_t nwrite;
     if ((err = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != srs_success) {
