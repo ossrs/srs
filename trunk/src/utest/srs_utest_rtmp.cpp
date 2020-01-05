@@ -1330,7 +1330,7 @@ VOID TEST(ProtocolRTMPTest, HandshakeC0C1)
 
         SrsRtmpServer r(&io);
         HELPER_EXPECT_SUCCESS(r.hs_bytes->read_c0c1(&io));
-        EXPECT_EQ(0x01020304, r.proxy_real_ip());
+        EXPECT_EQ((uint32_t)0x01020304, (uint32_t)r.proxy_real_ip());
     }
 
     // It seems a normal c0c1, but it's extended, so it fail.
