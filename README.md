@@ -338,6 +338,7 @@ Remark:
 
 ## History
 
+* v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
 * v2.0, 2019-12-23, Fix [srs-librtmp #22](https://github.com/ossrs/srs-librtmp/issues/22), parse vhost splited by single seperator. 2.0.268
 * v2.0, 2019-12-23, Fix [srs-librtmp #25](https://github.com/ossrs/srs-librtmp/issues/25), build srs-librtmp on windows. 2.0.267
@@ -1359,6 +1360,7 @@ Winlin
 [bug #1312]: https://github.com/ossrs/srs/pull/1312
 [bug #1304]: https://github.com/ossrs/srs/pull/1304
 [bug #1488]: https://github.com/ossrs/srs/issues/1488
+[bug #1551]: https://github.com/ossrs/srs/pull/1551
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
