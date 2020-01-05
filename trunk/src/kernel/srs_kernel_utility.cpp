@@ -183,11 +183,11 @@ string srs_dns_resolve(string host, int& family)
     char* h = (char*)saddr;
     socklen_t nbh = sizeof(saddr);
     const int r0 = getnameinfo(r->ai_addr, r->ai_addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
-
     if(!r0) {
        family = r->ai_family;
        return string(saddr);
     }
+
     return "";
 }
 

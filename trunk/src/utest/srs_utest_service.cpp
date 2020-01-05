@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>
+#include <srs_service_utility.hpp>
 
 class MockSrsConnection : public ISrsConnection
 {
@@ -921,6 +922,63 @@ VOID TEST(TCPServerTest, TCPClientServer)
         char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
         ASSERT_EQ(5, srs_read(c.stfd, buf, 5, 1*SRS_UTIME_SECONDS));
         EXPECT_STREQ("Hello", buf);
+    }
+}
+
+VOID TEST(TCPServerTest, CoverUtility)
+{
+    EXPECT_TRUE(srs_string_is_http("http://"));
+    EXPECT_TRUE(srs_string_is_http("https://"));
+    EXPECT_TRUE(srs_string_is_http("http://localhost"));
+    EXPECT_TRUE(srs_string_is_http("https://localhost"));
+    EXPECT_FALSE(srs_string_is_http("ftp://"));
+    EXPECT_FALSE(srs_string_is_http("ftps://"));
+    EXPECT_FALSE(srs_string_is_http("http:"));
+    EXPECT_FALSE(srs_string_is_http("https:"));
+    EXPECT_TRUE(srs_string_is_rtmp("rtmp://"));
+    EXPECT_TRUE(srs_string_is_rtmp("rtmp://localhost"));
+    EXPECT_FALSE(srs_string_is_rtmp("http://"));
+    EXPECT_FALSE(srs_string_is_rtmp("rtmp:"));
+
+    if (true) {
+        sockaddr_in6 addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin6_family = AF_INET6;
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+    }
+
+    EXPECT_FALSE(srs_net_device_is_internet("eth0"));
+
+    if (true) {
+        sockaddr_in addr;
+        addr.sin_family = AF_INET;
+
+        addr.sin_addr.s_addr = htonl(0x12000000);
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x7f000000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x7f000001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0a000000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0a000001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0affffff);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a80000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a80001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a8ffff);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
     }
 }
 

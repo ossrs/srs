@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-05, For [#1543][bug #1543], use getpeername to retrieve client ip. 3.0.92
 * v3.0, 2020-01-02, For [#1042][bug #1042], improve test coverage for config. 3.0.91
 * v3.0, 2019-12-30, Fix mp4 security issue, check buffer when required size is variable.
 * <strong>v3.0, 2019-12-29, [3.0 alpha7(3.0.90)][r3.0a7] released. 116356 lines.</strong>
@@ -1581,6 +1582,7 @@ Winlin
 [bug #1105]: https://github.com/ossrs/srs/issues/1105
 [bug #1544]: https://github.com/ossrs/srs/issues/1544
 [bug #1255]: https://github.com/ossrs/srs/issues/1255
+[bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
