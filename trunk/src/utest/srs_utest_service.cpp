@@ -35,6 +35,9 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>
+#include <srs_service_utility.hpp>
+#include <sys/socket.h>
+#include <netdb.h>
 
 class MockSrsConnection : public ISrsConnection
 {
@@ -676,6 +679,403 @@ VOID TEST(TCPServerTest, MessageWritev)
         MockResponseWriter w;
         w.write_header(SRS_CONSTS_HTTP_OK);
         w.write_header(SRS_CONSTS_HTTP_OK);
+    }
+}
+
+VOID TEST(TCPServerTest, TCPListen)
+{
+    srs_error_t err;
+
+    // Failed for invalid ip.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_EXPECT_FAILED(srs_tcp_listen("10.0.0.abc", 1935, &pfd));
+        srs_close_stfd(pfd);
+    }
+
+    // If listen multiple times, should success for we already set the REUSEPORT.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+
+        srs_netfd_t pfd2 = NULL;
+        srs_error_t err2 = srs_tcp_listen("127.0.0.1", 1935, &pfd2);
+
+        srs_close_stfd(pfd);
+        srs_close_stfd(pfd2);
+        HELPER_EXPECT_SUCCESS(err2);
+    }
+
+    // Typical listen.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+        srs_close_stfd(pfd);
+    }
+}
+
+VOID TEST(TCPServerTest, UDPListen)
+{
+    srs_error_t err;
+
+    // Failed for invalid ip.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_EXPECT_FAILED(srs_udp_listen("10.0.0.abc", 1935, &pfd));
+        srs_close_stfd(pfd);
+    }
+
+    // If listen multiple times, should success for we already set the REUSEPORT.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+
+        srs_netfd_t pfd2 = NULL;
+        srs_error_t err2 = srs_udp_listen("127.0.0.1", 1935, &pfd2);
+
+        srs_close_stfd(pfd);
+        srs_close_stfd(pfd2);
+        HELPER_EXPECT_SUCCESS(err2);
+    }
+
+    // Typical listen.
+    if (true) {
+        srs_netfd_t pfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+        srs_close_stfd(pfd);
+    }
+}
+
+class MockOnCycleThread : public ISrsCoroutineHandler
+{
+public:
+    SrsSTCoroutine trd;
+    srs_cond_t cond;
+    MockOnCycleThread() : trd("mock", this, 0) {
+        cond = srs_cond_new();
+    };
+    virtual ~MockOnCycleThread() {
+        srs_cond_destroy(cond);
+    }
+    virtual srs_error_t cycle() {
+        srs_error_t err = srs_success;
+
+        for (;;) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+            srs_cond_signal(cond);
+            // If no one waiting on the cond, directly return event signal more than one time.
+            // If someone waiting, signal them more than one time.
+            srs_cond_signal(cond);
+
+            if ((err = trd.pull()) != srs_success) {
+                return err;
+            }
+        }
+
+        return err;
+    }
+};
+
+VOID TEST(TCPServerTest, ThreadCondWait)
+{
+    MockOnCycleThread trd;
+    trd.trd.start();
+
+    srs_usleep(20 * SRS_UTIME_MILLISECONDS);
+    srs_cond_wait(trd.cond);
+    trd.trd.stop();
+}
+
+class MockOnCycleThread2 : public ISrsCoroutineHandler
+{
+public:
+    SrsSTCoroutine trd;
+    srs_mutex_t lock;
+    MockOnCycleThread2() : trd("mock", this, 0) {
+        lock = srs_mutex_new();
+    };
+    virtual ~MockOnCycleThread2() {
+        srs_mutex_destroy(lock);
+    }
+    virtual srs_error_t cycle() {
+        srs_error_t err = srs_success;
+
+        for (;;) {
+            srs_mutex_lock(lock);
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+            srs_mutex_unlock(lock);
+
+            srs_error_t err = trd.pull();
+            if (err != srs_success) {
+                return err;
+            }
+        }
+
+        return err;
+    }
+};
+
+VOID TEST(TCPServerTest, ThreadMutexWait)
+{
+    MockOnCycleThread2 trd;
+    trd.trd.start();
+
+    srs_usleep(20 * SRS_UTIME_MILLISECONDS);
+
+    srs_mutex_lock(trd.lock);
+    trd.trd.stop();
+    srs_mutex_unlock(trd.lock);
+}
+
+class MockOnCycleThread3 : public ISrsCoroutineHandler
+{
+public:
+    SrsSTCoroutine trd;
+    srs_netfd_t fd;
+    MockOnCycleThread3() : trd("mock", this, 0) {
+    };
+    virtual ~MockOnCycleThread3() {
+        trd.stop();
+        srs_close_stfd(fd);
+    }
+    virtual srs_error_t start(string ip, int port) {
+        srs_error_t err = srs_success;
+        if ((err = srs_tcp_listen(ip, port, &fd)) != srs_success) {
+            return err;
+        }
+
+        return trd.start();
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd) {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt;
+        if ((err = skt.initialize(cfd)) != srs_success) {
+            return err;
+        }
+
+        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+        while (true) {
+            if ((err = trd.pull()) != srs_success) {
+                return err;
+            }
+
+            char buf[5];
+            if ((err = skt.read_fully(buf, 5, NULL)) != srs_success) {
+                return err;
+            }
+            if ((err = skt.write(buf, 5, NULL)) != srs_success) {
+                return err;
+            }
+        }
+
+        return err;
+    }
+    virtual srs_error_t cycle() {
+        srs_error_t err = srs_success;
+
+        srs_netfd_t cfd = srs_accept(fd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+        if (cfd == NULL) {
+            return err;
+        }
+
+        err = do_cycle(cfd);
+        srs_close_stfd(cfd);
+        srs_freep(err);
+
+        return err;
+    }
+};
+
+VOID TEST(TCPServerTest, TCPClientServer)
+{
+    srs_error_t err;
+
+    MockOnCycleThread3 trd;
+    HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 1935));
+
+    SrsTcpClient c("127.0.0.1", 1935, 1 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(c.connect());
+
+    c.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+    c.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+    if (true) {
+        HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+        char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
+        HELPER_ASSERT_SUCCESS(c.read(buf, 5, NULL));
+        EXPECT_STREQ("Hello", buf);
+    }
+
+    if (true) {
+        HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+        char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
+        HELPER_ASSERT_SUCCESS(c.read_fully(buf, 5, NULL));
+        EXPECT_STREQ("Hello", buf);
+    }
+
+    if (true) {
+        HELPER_ASSERT_SUCCESS(c.write((void*)"Hello", 5, NULL));
+
+        char buf[6]; HELPER_ARRAY_INIT(buf, 6, 0);
+        ASSERT_EQ(5, srs_read(c.stfd, buf, 5, 1*SRS_UTIME_SECONDS));
+        EXPECT_STREQ("Hello", buf);
+    }
+}
+
+VOID TEST(TCPServerTest, CoverUtility)
+{
+    EXPECT_TRUE(srs_string_is_http("http://"));
+    EXPECT_TRUE(srs_string_is_http("https://"));
+    EXPECT_TRUE(srs_string_is_http("http://localhost"));
+    EXPECT_TRUE(srs_string_is_http("https://localhost"));
+    EXPECT_FALSE(srs_string_is_http("ftp://"));
+    EXPECT_FALSE(srs_string_is_http("ftps://"));
+    EXPECT_FALSE(srs_string_is_http("http:"));
+    EXPECT_FALSE(srs_string_is_http("https:"));
+    EXPECT_TRUE(srs_string_is_rtmp("rtmp://"));
+    EXPECT_TRUE(srs_string_is_rtmp("rtmp://localhost"));
+    EXPECT_FALSE(srs_string_is_rtmp("http://"));
+    EXPECT_FALSE(srs_string_is_rtmp("rtmp:"));
+
+    // ipv4 loopback
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("127.0.0.1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // ipv4 intranet
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("192.168.0.1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    EXPECT_FALSE(srs_net_device_is_internet("eth0"));
+
+    if (true) {
+        sockaddr_in addr;
+        addr.sin_family = AF_INET;
+
+        addr.sin_addr.s_addr = htonl(0x12000000);
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x7f000000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x7f000001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0a000000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0a000001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0x0affffff);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a80000);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a80001);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+
+        addr.sin_addr.s_addr = htonl(0xc0a8ffff);
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+    }
+
+    // Normal ipv6 address.
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("2001:da8:6000:291:21f:d0ff:fed4:928c", NULL, &hints, &r));
+
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("3ffe:dead:beef::1", NULL, &hints, &r));
+
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_UNSPECIFIED
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_SITELOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("fec0::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_LINKLOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("FE80::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_LINKLOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("::1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 }
 

@@ -296,7 +296,7 @@ bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
     return false;
 }
 
-string srs_config_bool2switch(const string& sbool)
+string srs_config_bool2switch(string sbool)
 {
     return sbool == "true"? "on":"off";
 }

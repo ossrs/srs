@@ -2169,7 +2169,7 @@ std::stringstream& srs_dumps_array(std::vector<T>&arr, std::stringstream& ss, Sr
 
         pfn(elem, ss, dc);
 
-        if (i < limit - 1) {
+        if ((int)i < limit - 1) {
             delimiter(ss, dc);
         }
     }
@@ -2192,7 +2192,7 @@ std::stringstream& srs_dumps_array(T* arr, int size, std::stringstream& ss, SrsM
 
         pfn(elem, ss, dc);
 
-        if (i < limit - 1) {
+        if ((int)i < limit - 1) {
             delimiter(ss, dc);
         }
     }

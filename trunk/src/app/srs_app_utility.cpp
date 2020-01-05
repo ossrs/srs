@@ -1142,7 +1142,7 @@ string srs_get_peer_ip(int fd)
     // discovery client information
     sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
-    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
         return "";
     }
 
@@ -1157,7 +1157,7 @@ string srs_get_peer_ip(int fd)
     return std::string(saddr);
 }
 
-bool srs_is_boolean(const string& str)
+bool srs_is_boolean(string str)
 {
     return str == "true" || str == "false";
 }

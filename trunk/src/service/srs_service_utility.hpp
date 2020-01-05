@@ -48,7 +48,7 @@ extern bool srs_string_is_rtmp(std::string url);
 //      is_digit("10e3") === false
 //      is_digit("!1234567890") === false
 //      is_digit("") === false
-extern bool srs_is_digit_number(const std::string& str);
+extern bool srs_is_digit_number(std::string str);
 
 // Get local ip, fill to @param ips
 extern std::vector<std::string>& srs_get_local_ips();

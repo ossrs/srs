@@ -644,7 +644,7 @@ extern std::string srs_get_peer_ip(int fd);
 //      is_bool("true") == true
 //      is_bool("false") == true
 //      otherwise, false.
-extern bool srs_is_boolean(const std::string& str);
+extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
