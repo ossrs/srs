@@ -170,25 +170,22 @@ string srs_dns_resolve(string host, int& family)
 {
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family  = family;
+    hints.ai_family = family;
     
     addrinfo* r = NULL;
     SrsAutoFree(addrinfo, r);
-    
-    if(getaddrinfo(host.c_str(), NULL, NULL, &r)) {
+    if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
         return "";
     }
     
-    char saddr[64];
-    char* h = (char*)saddr;
-    socklen_t nbh = sizeof(saddr);
-    const int r0 = getnameinfo(r->ai_addr, r->ai_addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
-    if(!r0) {
-       family = r->ai_family;
-       return string(saddr);
+    char shost[64];
+    memset(shost, 0, sizeof(shost));
+    if (getnameinfo(r->ai_addr, r->ai_addrlen, shost, sizeof(shost), NULL, 0, NI_NUMERICHOST)) {
+        return "";
     }
 
-    return "";
+   family = r->ai_family;
+   return string(shost);
 }
 
 void srs_parse_hostport(const string& hostport, string& host, int& port)

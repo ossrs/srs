@@ -115,8 +115,28 @@ bool srs_net_device_is_internet(const sockaddr* addr)
         }
     } else if(addr->sa_family == AF_INET6) {
         const sockaddr_in6* a6 = (const sockaddr_in6*)addr;
-        if ((IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) ||
-            (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr))) {
+
+        // IPv6 loopback is ::1
+        if (IN6_IS_ADDR_LOOPBACK(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // IPv6 unspecified is ::
+        if (IN6_IS_ADDR_UNSPECIFIED(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // From IPv4, you might know APIPA (Automatic Private IP Addressing) or AutoNet.
+        // Whenever automatic IP configuration through DHCP fails.
+        // The prefix of a site-local address is FE80::/10.
+        if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // Site-local addresses are equivalent to private IP addresses in IPv4.
+        // The prefix of a site-local address is FEC0::/10.
+        // https://4sysops.com/archives/ipv6-tutorial-part-6-site-local-addresses-and-link-local-addresses/
+        if (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr)) {
            return false;
         }
     }

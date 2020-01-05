@@ -36,6 +36,8 @@ using namespace std;
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>
 #include <srs_service_utility.hpp>
+#include <sys/socket.h>
+#include <netdb.h>
 
 class MockSrsConnection : public ISrsConnection
 {
@@ -940,11 +942,30 @@ VOID TEST(TCPServerTest, CoverUtility)
     EXPECT_FALSE(srs_string_is_rtmp("http://"));
     EXPECT_FALSE(srs_string_is_rtmp("rtmp:"));
 
+    // ipv4 loopback
     if (true) {
-        sockaddr_in6 addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin6_family = AF_INET6;
-        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("127.0.0.1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // ipv4 intranet
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("192.168.0.1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 
     EXPECT_FALSE(srs_net_device_is_internet("eth0"));
@@ -979,6 +1000,82 @@ VOID TEST(TCPServerTest, CoverUtility)
 
         addr.sin_addr.s_addr = htonl(0xc0a8ffff);
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)&addr));
+    }
+
+    // Normal ipv6 address.
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("2001:da8:6000:291:21f:d0ff:fed4:928c", NULL, &hints, &r));
+
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("3ffe:dead:beef::1", NULL, &hints, &r));
+
+        EXPECT_TRUE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_UNSPECIFIED
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_SITELOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("fec0::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_LINKLOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("FE80::", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+
+    // IN6_IS_ADDR_LINKLOCAL
+    if (true) {
+        addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+
+        addrinfo* r = NULL;
+        SrsAutoFree(addrinfo, r);
+        ASSERT_TRUE(!getaddrinfo("::1", NULL, &hints, &r));
+
+        EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 }
 

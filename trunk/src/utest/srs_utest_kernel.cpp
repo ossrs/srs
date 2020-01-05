@@ -4253,6 +4253,14 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
     
     _srs_system_time_us_cache -= 300*1000 * 1000 + 1;
     EXPECT_TRUE(srs_update_system_time() > 0);
+
+    if (true) {
+        string host;
+        int port = 8080;
+        srs_parse_hostport("3ffe:dead:beef::1", host, port);
+        EXPECT_EQ(8080, port);
+        EXPECT_STREQ("3ffe:dead:beef::1", host.c_str());
+    }
     
     if (true) {
         string host;
