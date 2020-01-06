@@ -1,0 +1,15 @@
+/data/log/srs/*.log {
+
+weekly
+
+size 200M
+
+copytruncate
+
+rotate 5
+
+dateext
+
+noolddir
+
+}
