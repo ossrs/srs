@@ -82,6 +82,7 @@ void SrsThreadContext::clear_cid()
     }
 }
 
+// LCOV_EXCL_START
 SrsConsoleLog::SrsConsoleLog(SrsLogLevel l, bool u)
 {
     level = l;
@@ -208,6 +209,7 @@ void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
     
     fprintf(stderr, "%s\n", buffer);
 }
+// LCOV_EXCL_STOP
 
 bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize)
 {

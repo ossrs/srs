@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_utest_http.hpp>
 #include <srs_service_utility.hpp>
 #include <srs_service_http_client.hpp>
+#include <srs_service_rtmp_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -1200,6 +1201,7 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
         SrsHttpClient client;
         HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
         client.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        client.set_header("agent", "srs");
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1215,6 +1217,67 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
         EXPECT_STREQ("OK", buf);
 
         client.kbps_sample("SRS", 0);
+    }
+}
+
+class MockConnectionManager : public IConnectionManager
+{
+public:
+    MockConnectionManager() {
+    }
+    virtual ~MockConnectionManager() {
+    }
+public:
+    virtual void remove(ISrsConnection* /*c*/) {
+    }
+};
+
+VOID TEST(TCPServerTest, ContextUtility)
+{
+    if (true) {
+        SrsThreadContext ctx;
+
+        EXPECT_EQ(0, ctx.set_id(100));
+        EXPECT_EQ(100, ctx.set_id(1000));
+        EXPECT_EQ(1000, ctx.get_id());
+
+        ctx.clear_cid();
+        EXPECT_EQ(0, ctx.set_id(100));
+    }
+
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
+        EXPECT_EQ(53, size);
+    }
+
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
+        EXPECT_EQ(53, size);
+    }
+
+    if (true) {
+        errno = 0;
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
+        EXPECT_EQ(48, size);
+    }
+
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
+        EXPECT_EQ(45, size);
+    }
+
+    if (true) {
+        MockConnectionManager cm;
+        cm.remove(NULL);
+    }
+
+    if (true) {
+        srs_utime_t to = 1*SRS_UTIME_SECONDS;
+        SrsBasicRtmpClient rc("rtmp://127.0.0.1/live/livestream", to, to);
     }
 }
 
