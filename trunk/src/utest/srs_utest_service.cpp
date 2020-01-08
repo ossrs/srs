@@ -1278,6 +1278,7 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         srs_utime_t to = 1*SRS_UTIME_SECONDS;
         SrsBasicRtmpClient rc("rtmp://127.0.0.1/live/livestream", to, to);
+        rc.close();
     }
 }
 
