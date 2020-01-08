@@ -318,11 +318,7 @@ void SrsFastLog::open_log_file()
     if (filename.empty()) {
         return;
     }
-    
-    fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
-    
-    if(fd == -1 && errno == ENOENT) {
-        fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-    }
+
+    fd = ::open(filename.c_str(), O_RDWR | O_CREAT | O_APPEND);
 }
 

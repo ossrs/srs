@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 3.0.96
 * v3.0, 2020-01-05, Always use string instance to avoid crash risk. 3.0.95
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 hostport parsing bug. 3.0.94
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 intranet address filter bug. 3.0.93
@@ -272,6 +273,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.271
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
 * v2.0, 2019-12-23, Fix [srs-librtmp #22](https://github.com/ossrs/srs-librtmp/issues/22), parse vhost splited by single seperator. 2.0.268
@@ -1551,6 +1553,7 @@ Winlin
 [bug #1524]: https://github.com/ossrs/srs/issues/1524
 [bug #1488]: https://github.com/ossrs/srs/issues/1488
 [bug #1551]: https://github.com/ossrs/srs/pull/1551
+[bug #1554]: https://github.com/ossrs/srs/pull/1554
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
