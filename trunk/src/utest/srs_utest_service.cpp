@@ -1245,29 +1245,31 @@ VOID TEST(TCPServerTest, ContextUtility)
         EXPECT_EQ(0, ctx.set_id(100));
     }
 
+    int base_size = 0;
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
-        EXPECT_EQ(53, size);
+        base_size = size;
+        EXPECT_TRUE(base_size > 0);
     }
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
-        EXPECT_EQ(53, size);
+        EXPECT_EQ(base_size, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
-        EXPECT_EQ(48, size);
+        EXPECT_EQ(base_size - 5, size);
     }
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
-        EXPECT_EQ(45, size);
+        EXPECT_EQ(base_size - 8, size);
     }
 
     if (true) {
