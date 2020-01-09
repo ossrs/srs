@@ -505,6 +505,8 @@ private:
     // last die time, when all consumers quit and no publisher,
     // we will remove the source when source die.
     int64_t die_at;
+    // last active time
+    int64_t active_at;
 private:
     SrsSharedPtrMessage* cache_metadata;
     // the cached video sequence header.
@@ -519,6 +521,7 @@ public:
     virtual int cycle();
     // remove source when expired.
     virtual bool expired();
+    virtual bool activable();
 // initialize, get and setter.
 public:
     /**

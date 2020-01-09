@@ -787,6 +787,8 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // and we only need to update the token of request, it's simple.
     source->_req->update_auth(r);
 
+    source->die_at = -1;
+    source->active_at = srs_get_system_time_ms();
     return source;
 }
 
@@ -827,9 +829,9 @@ int SrsSource::do_cycle_all()
         // TODO: FIXME: support source cleanup.
         // @see https://github.com/ossrs/srs/issues/713
         // @see https://github.com/ossrs/srs/issues/714
-#if 0
+#if 1
         // When source expired, remove it.
-        if (source->expired()) {
+        if (source->expired() || !source->activable()) {
             int cid = source->source_id();
             if (cid == -1 && source->pre_source_id() > 0) {
                 cid = source->pre_source_id();
@@ -959,6 +961,7 @@ SrsSource::SrsSource()
     _can_publish = true;
     _pre_source_id = _source_id = -1;
     die_at = -1;
+    active_at = srs_get_system_time_ms();
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1066,6 +1069,23 @@ bool SrsSource::expired()
     }
     
     return false;
+}
+
+bool SrsSource::activable()
+{
+    // has any consumers?
+    if (!consumers.empty()) {
+        return true;
+    }
+    // still publishing?
+    if (!_can_publish || !publish_edge->can_publish()) {
+        return true;
+    }
+    int64_t now = srs_get_system_time_ms();
+    if (now > active_at + SRS_SOURCE_CLEANUP * 1.5) { // use SRS_CONSTS_RTMP_RECV_TIMEOUT_US ?
+        return false;
+    }
+    return true;
 }
 
 int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
@@ -1489,6 +1509,8 @@ bool SrsSource::can_publish(bool is_edge)
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
+    active_at = srs_get_system_time_ms();
+    
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HLS
@@ -1610,6 +1632,8 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 
 int SrsSource::on_audio(SrsCommonMessage* shared_audio)
 {
+    active_at = srs_get_system_time_ms();
+
     int ret = ERROR_SUCCESS;
     
     // monotically increase detect.
@@ -1828,6 +1852,8 @@ int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 
 int SrsSource::on_video(SrsCommonMessage* shared_video)
 {
+    active_at = srs_get_system_time_ms();
+
     int ret = ERROR_SUCCESS;
     
     // monotically increase detect.
