@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-09, For [#1042][bug #1042], improve test coverage for service. 3.0.97
 * v3.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 3.0.96
 * v3.0, 2020-01-05, Always use string instance to avoid crash risk. 3.0.95
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 hostport parsing bug. 3.0.94
