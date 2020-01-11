@@ -1456,6 +1456,7 @@ srs_error_t SrsOriginHub::create_forwarders()
     if (!_srs_config->get_forward_enabled(req->vhost)) {
         return err;
     }
+    srs_trace("srs vhost(%s) forward is enable.", req->host.c_str());
     
     SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {

@@ -96,6 +96,8 @@ END
 GDBDebug=" -g -O0"
 # the warning level.
 WarnLevel=" -Wall"
+# c++11 enable.
+cpp11=" -std=c++11 -pthread"
 # the compile standard.
 CppStd="-ansi"
 # for library compile
@@ -107,7 +109,7 @@ SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p
 # performance of gperf
 SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpthread"; fi
 # the cxx flag generated.
-CXXFLAGS="${CXXFLAGS} ${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
+CXXFLAGS="${CXXFLAGS} ${CppStd}${WarnLevel}${cpp11}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then
     CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free";
 fi
@@ -158,7 +160,7 @@ if [ $SRS_GPERF_MD = YES ]; then
     LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a";
 fi
 # the link options, always use static link
-SrsLinkOptions="-ldl";
+SrsLinkOptions="-pthread -ldl";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -205,6 +207,14 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_protocol_format")
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
+#
+#srt protocol features.
+MODULE_ID="SRT" 
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP") 
+ModuleLibIncs=(${SRS_OBJS_DIR})
+MODULE_FILES=("srt_server")
+SRT_INCS="src/srt"; MODULE_DIR=${SRT_INCS} . auto/modules.sh
+SRT_OBJS="${MODULE_OBJS[@]}"
 #
 #Service Module, for both Server and Client Modules.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
@@ -257,7 +267,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 #Server Module, for SRS only.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVER"
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP" "SRT")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=("srs_main_server")
     SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
@@ -297,14 +307,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     # all depends objects
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SRT_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
     #
     # For modules, without the app module.
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${SRT_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -326,7 +336,7 @@ if [ $SRS_UTEST = YES ]; then
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP" "SRT")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi

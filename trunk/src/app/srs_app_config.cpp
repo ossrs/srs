@@ -479,7 +479,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 ++it;
                 continue;
             }
-            
+
             // SRS3.0, change the folowing like a shadow:
             //      mode, origin, token_traverse, vhost, debug_srs_upnode
             //  SRS1/2:
@@ -3470,7 +3470,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster"
+            && n != "http_server" && n != "stream_caster" && n != "srt_server"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
@@ -3501,6 +3501,15 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "crossdomain") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_stream.%s", n.c_str());
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = root->get("srt_server");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
             }
         }
     }
@@ -3631,6 +3640,7 @@ srs_error_t SrsConfig::check_normal_config()
     get_vhosts(vhosts);
     for (int n = 0; n < (int)vhosts.size(); n++) {
         SrsConfDirective* vhost = vhosts[n];
+        printf("virtural host name:%s, arg:%s\r\n", vhost->name.c_str(), vhost->args[0].c_str());
         for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;
@@ -6627,6 +6637,39 @@ bool SrsConfig::get_raw_api_allow_update()
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+
+bool SrsConfig::get_srt_enabled()
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+unsigned short SrsConfig::get_srt_listen_port()
+{
+    static unsigned short DEFAULT = 10080;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return (unsigned short)atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_http_stream_enabled()
