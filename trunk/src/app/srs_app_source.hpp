@@ -508,14 +508,14 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
-    // last active time
-    int64_t active_at;
 public:
     SrsSource();
     virtual ~SrsSource();
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
+    // All consumers quit and no publisher
+    virtual bool is_die();
     // Remove source when expired.
     virtual bool expired();
 public:

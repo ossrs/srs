@@ -1681,8 +1681,11 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // and we only need to update the token of request, it's simple.
     source->req->update_auth(r);
     
-    source->die_at = 0;
-    source->active_at = srs_get_system_time();
+    // all consumers quit and no publisher?
+    if(source->is_die()) {
+        source->die_at = srs_get_system_time();
+    }
+    
     return source;
 }
 
@@ -1765,8 +1768,7 @@ SrsSource::SrsSource()
     
     _can_publish = true;
     _pre_source_id = _source_id = -1;
-    die_at = 0;
-    active_at = srs_get_system_time();
+    die_at = srs_get_system_time(); // all consumers quit and no publisher, update last die time
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1817,7 +1819,7 @@ srs_error_t SrsSource::cycle()
     return srs_success;
 }
 
-bool SrsSource::expired()
+bool SrsSource::is_die() 
 {
     // still publishing?
     if (!_can_publish || !publish_edge->can_publish()) {
@@ -1828,14 +1830,19 @@ bool SrsSource::expired()
     if (!consumers.empty()) {
         return false;
     }
+    return true;
+}
+
+bool SrsSource::expired()
+{
+    // isn't die?
+    if(!is_die()) {
+        return false;
+    }
 
     // unknown state?
     if (die_at == 0) {
         // inactive source?
-        int64_t now = srs_get_system_time();
-        if (now > active_at + SRS_SOURCE_CLEANUP * 1.5) { // use SRS_CONSTS_RTMP_RECV_TIMEOUT_US ?
-            return true;
-        }
         return false;
     }
     
@@ -2013,8 +2020,6 @@ bool SrsSource::can_publish(bool is_edge)
 
 srs_error_t SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
-    active_at = srs_get_system_time();
-
     srs_error_t err = srs_success;
     
     // if allow atc_auto and bravo-atc detected, open atc for vhost.
@@ -2061,8 +2066,6 @@ srs_error_t SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* 
 
 srs_error_t SrsSource::on_audio(SrsCommonMessage* shared_audio)
 {
-    active_at = srs_get_system_time();
-
     srs_error_t err = srs_success;
     
     // monotically increase detect.
@@ -2171,8 +2174,6 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 
 srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
 {
-    active_at = srs_get_system_time();
-    
     srs_error_t err = srs_success;
     
     // monotically increase detect.
@@ -2441,8 +2442,8 @@ void SrsSource::on_unpublish()
     stat->on_stream_close(req);
     handler->on_unpublish(this, req);
     
-    // no consumer, stream is die.
-    if (consumers.empty()) {
+    // all consumers quit and no publisher?
+    if(is_die()) {
         die_at = srs_get_system_time();
     }
 }
@@ -2508,6 +2509,9 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
     
     if (consumers.empty()) {
         play_edge->on_all_client_stop();
+    }
+    // all consumers quit and no publisher?
+    if(is_die()) {
         die_at = srs_get_system_time();
     }
 }
