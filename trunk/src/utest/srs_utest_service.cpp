@@ -835,6 +835,7 @@ public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
     MockOnCycleThread3() : trd("mock", this, 0) {
+        fd = NULL;
     };
     virtual ~MockOnCycleThread3() {
         trd.stop();
@@ -1087,6 +1088,7 @@ public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
     MockOnCycleThread4() : trd("mock", this, 0) {
+        fd = NULL;
     };
     virtual ~MockOnCycleThread4() {
         trd.stop();
