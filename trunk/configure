@@ -133,8 +133,7 @@ ARFLAGS = -rs
 LINK = g++
 CXXFLAGS = ${CXXFLAGS}
 
-.PHONY: default srs srs_ingest_hls librtmp
-
+.PHONY: default srs librtmp
 default:
 
 END
@@ -160,7 +159,7 @@ if [ $SRS_GPERF_MD = YES ]; then
     LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a";
 fi
 # the link options, always use static link
-SrsLinkOptions="-pthread -ldl";
+SrsLinkOptions="-pthread -ldl -lsrt";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -212,7 +211,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="SRT" 
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srt_server")
+MODULE_FILES=("srt_server" "srt_handle" "srt_conn")
 SRT_INCS="src/srt"; MODULE_DIR=${SRT_INCS} . auto/modules.sh
 SRT_OBJS="${MODULE_OBJS[@]}"
 #
@@ -355,7 +354,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean server librtmp _prepare_dir $__mphonys
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -370,7 +369,7 @@ END
 #       the server, librtmp and utest
 # where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server srs_ingest_hls librtmp utest __modules $__mdefaults
+_default: server librtmp __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:

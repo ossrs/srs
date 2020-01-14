@@ -16,6 +16,8 @@
 *.pyc
 *.swp
 .DS_Store
+.vscode
+.vscode/*
 /trunk/Makefile
 /trunk/objs
 /trunk/src/build-qt-Desktop-Debug
