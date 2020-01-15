@@ -167,6 +167,8 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
         add_new_puller(conn_ptr, conn_ptr->get_subpath());
     } else {
         if(add_new_pusher(conn_ptr) == false) {
+            srs_trace("push connection is repeated and rejected, fd:%d, streamid:%s",
+                conn_ptr->get_conn(), conn_ptr->get_streamid().c_str());
             conn_ptr->close();
             return;
         }
@@ -362,14 +364,28 @@ void srt_handle::check_alive() {
 
 void srt_handle::close_push_conn(SRTSOCKET srtsocket) {
     auto iter = _conn_map.find(srtsocket);
-    if (iter == _conn_map.end()) {
-        return;
+
+    if (iter != _conn_map.end()) {
+        SRT_CONN_PTR conn_ptr = iter->second;
+        auto push_iter = _push_conn_map.find(conn_ptr->get_subpath());
+        if (push_iter != _push_conn_map.end()) {
+            _push_conn_map.erase(push_iter);
+        }
+        _conn_map.erase(iter);
+        conn_ptr->close();
     }
+
     srt_epoll_remove_usock(_handle_pollid, srtsocket);
-    _conn_map.erase(iter);
+    
+    return;
 }
 
 bool srt_handle::add_new_pusher(SRT_CONN_PTR conn_ptr) {
+    auto push_iter = _push_conn_map.find(conn_ptr->get_subpath());
+    if (push_iter != _push_conn_map.end()) {
+        return false;
+    }
+    _push_conn_map.insert(std::make_pair(conn_ptr->get_subpath(), conn_ptr));
     _conn_map.insert(std::make_pair(conn_ptr->get_conn(), conn_ptr));
     srs_trace("srt_handle add new pusher streamid:%s, subpath:%s",
         conn_ptr->get_streamid().c_str(), conn_ptr->get_subpath().c_str());

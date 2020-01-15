@@ -60,9 +60,11 @@ private:
 private:
     int _handle_pollid;
 
-    std::unordered_map<SRTSOCKET, SRT_CONN_PTR> _conn_map;
+    std::unordered_map<SRTSOCKET, SRT_CONN_PTR> _conn_map;//save all srt connection: pull or push
     std::shared_ptr<std::thread> _work_thread_ptr;
 
+    //save push srt connection for prevent from repeat push connection
+    std::unordered_map<std::string, SRT_CONN_PTR> _push_conn_map;//key:streamid, value:SRT_CONN_PTR
     //streamid, play map<SRTSOCKET, SRT_CONN_PTR>
     std::unordered_map<std::string, std::unordered_map<SRTSOCKET, SRT_CONN_PTR>> _streamid_map;
     
