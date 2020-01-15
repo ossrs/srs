@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
 * v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
 * <strong>v3.0, 2020-01-10, [3.0 alpha8(3.0.97)][r3.0a8] released. 121555 lines.</strong>
 * v3.0, 2020-01-09, For [#1042][bug #1042], improve test coverage for service. 3.0.97
