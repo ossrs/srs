@@ -621,8 +621,10 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
                 }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
-            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s",
-                req->host.c_str(), req->port, host.c_str(), port, url.c_str());
+
+            string rurl = srs_generate_rtmp_url(host, port, req->host, req->vhost, req->app, req->stream, req->param);
+            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
+                req->host.c_str(), req->port, host.c_str(), port, url.c_str(), rurl.c_str());
 
             // Ignore if host or port is invalid.
             if (host.empty() || port == 0) {
@@ -630,7 +632,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             }
             
             bool accepted = false;
-            if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
+            if ((err = rtmp->redirect(req, rurl, accepted)) != srs_success) {
                 srs_error_reset(err);
             } else {
                 return srs_error_new(ERROR_CONTROL_REDIRECT, "redirected");

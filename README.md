@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-16, For [#1575][bug #1575], use RTMP redirect as tcUrl and redirect2 as RTMP URL. 3.0.100
 * v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
 * v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
 * <strong>v3.0, 2020-01-10, [3.0 alpha8(3.0.97)][r3.0a8] released. 121555 lines.</strong>
@@ -1595,6 +1596,7 @@ Winlin
 [bug #1255]: https://github.com/ossrs/srs/issues/1255
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #1509]: https://github.com/ossrs/srs/issues/1509
+[bug #1575]: https://github.com/ossrs/srs/issues/1575
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
