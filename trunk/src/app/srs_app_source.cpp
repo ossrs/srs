@@ -154,7 +154,7 @@ int64_t SrsRtmpJitter::get_time()
 SrsFastVector::SrsFastVector()
 {
     count = 0;
-    nb_msgs = SRS_PERF_MW_MSGS * 8;
+    nb_msgs = 8;
     msgs = new SrsSharedPtrMessage*[nb_msgs];
 }
 
@@ -212,12 +212,12 @@ void SrsFastVector::push_back(SrsSharedPtrMessage* msg)
 {
     // increase vector.
     if (count >= nb_msgs) {
-        int size = nb_msgs * 2;
+        int size = srs_max(SRS_PERF_MW_MSGS * 8, nb_msgs * 2);
         SrsSharedPtrMessage** buf = new SrsSharedPtrMessage*[size];
         for (int i = 0; i < nb_msgs; i++) {
             buf[i] = msgs[i];
         }
-        srs_warn("fast vector incrase %d=>%d", nb_msgs, size);
+        srs_info("fast vector incrase %d=>%d", nb_msgs, size);
         
         // use new array.
         srs_freepa(msgs);

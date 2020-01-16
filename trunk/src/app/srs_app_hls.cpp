@@ -269,13 +269,24 @@ int SrsHlsMuxer::deviation()
 
 srs_error_t SrsHlsMuxer::initialize()
 {
+    return srs_success;
+}
+
+srs_error_t SrsHlsMuxer::on_publish(SrsRequest* req)
+{
     srs_error_t err = srs_success;
-    
+
     if ((err = async->start()) != srs_success) {
         return srs_error_wrap(err, "async start");
     }
-    
+
     return err;
+}
+
+srs_error_t SrsHlsMuxer::on_unpublish()
+{
+    async->stop();
+    return srs_success;
 }
 
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
@@ -899,8 +910,11 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
+
+    if ((err = muxer->on_publish(req)) != srs_success) {
+        return srs_error_wrap(err, "muxer publish");
+    }
     
-    // open muxer
     if ((err = muxer->update_config(req, entry_prefix, path, m3u8_file, ts_file, hls_fragment,
         hls_window, ts_floor, hls_aof_ratio, cleanup, wait_keyframe,hls_keys,hls_fragments_per_key,
         hls_key_file, hls_key_file_path, hls_key_url)) != srs_success ) {
@@ -924,6 +938,10 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
 srs_error_t SrsHlsController::on_unpublish()
 {
     srs_error_t err = srs_success;
+
+    if ((err = muxer->on_unpublish()) != srs_success) {
+        return srs_error_wrap(err, "muxer unpublish");
+    }
     
     if ((err = muxer->flush_audio(tsmc)) != srs_success) {
         return srs_error_wrap(err, "hls: flush audio");

@@ -131,7 +131,7 @@ VOID TEST(SrsAVCTest, H264SequenceHeader)
     if (true) {
         SrsRawH264Stream h; string sh;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header("Hello", "world", 0, 0, sh));
-        EXPECT_EQ(11+5+5, sh.length());
+        EXPECT_EQ(11+5+5, (int)sh.length());
         EXPECT_STREQ("Hello", sh.substr(8, 5).c_str());
         EXPECT_STREQ("world", sh.substr(16).c_str());
     }
@@ -247,7 +247,8 @@ VOID TEST(SrsAVCTest, H264IPBFrame)
         SrsRawH264Stream h; string frame;
         HELPER_ASSERT_SUCCESS(h.mux_ipb_frame((char*)"Hello", 5, frame));
         EXPECT_EQ(4+5, frame.length());
-        EXPECT_EQ(0, frame.at(0)); EXPECT_EQ(0, frame.at(1)); EXPECT_EQ(0, frame.at(2)); EXPECT_EQ(5, frame.at(3));
+        EXPECT_EQ(0, (uint8_t)frame.at(0)); EXPECT_EQ(0, (uint8_t)frame.at(1));
+        EXPECT_EQ(0, (uint8_t)frame.at(2)); EXPECT_EQ(5, (uint8_t)frame.at(3));
         EXPECT_STREQ("Hello", frame.substr(4).c_str());
     }
 }

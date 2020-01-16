@@ -122,6 +122,7 @@ Options:
   --with-research           build the research tools.
   --with-utest              build the utest for SRS.
   --with-gperf              build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
+                            https://blog.csdn.net/win_lin/article/details/53503869
   --with-gmc                build memory check for SRS with gperf tools.
   --with-gmd                build memory defense(corrupt memory) for SRS with gperf tools.
   --with-gmp                build memory profile for SRS with gperf tools.
@@ -198,6 +199,7 @@ Experts:
   --memory-watch                    enable memory watch to detect memory leaking(hurts performance).
   --export-librtmp-project=<path>   export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    export srs-librtmp to a single file(.h+.cpp) in path.
+  --with-valgrind                   support valgrind for memory check.
   --without-valgrind                donot support valgrind for memory check.
 
 Workflow:
@@ -207,10 +209,7 @@ Workflow:
   4. generate detail features.
 
 Remark:
-  1. both ubuntu12 and ubuntu14 are ok for SRS.
-  2. the centos5, centos6 and centos7 are ok for SRS.
-  3. all linux and unix-like os are ok for SRS.
-  4. windows is absolutely impossible for SRS.
+  1. For performance improving, read https://blog.csdn.net/win_lin/article/details/53503869
 
 END
 }
@@ -289,6 +288,7 @@ function parse_user_option() {
         --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
+        --with-valgrind)                SRS_VALGRIND=YES            ;;
         --without-valgrind)             SRS_VALGRIND=NO             ;;
 
         --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
@@ -393,18 +393,6 @@ function apply_user_presets() {
         SRS_RESEARCH=NO
         SRS_UTEST=YES
         SRS_STATIC=NO
-    fi
-
-    # for osx(darwin)
-    if [ $SRS_OSX = YES ]; then
-        SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
-        SRS_UTEST=YES
-        SRS_STATIC=NO
-        # valgrind is not supported by macOS sierra, read
-        # https://stackoverflow.com/questions/40650338/valgrind-on-macos-sierra
-        SRS_VALGRIND=NO
     fi
 
     # if dev specified, open features if possible.

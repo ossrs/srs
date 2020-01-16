@@ -63,6 +63,7 @@ private:
 private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
+    srs_utime_t recv_timeout;
     // The host name or ip.
     std::string host;
     int port;

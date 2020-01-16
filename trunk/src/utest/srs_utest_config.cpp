@@ -2675,13 +2675,13 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse("listen 1935;"));
-        EXPECT_EQ(1, conf.get_listens().size());
+        EXPECT_EQ(1, (int)conf.get_listens().size());
     }
 
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.parse("listen 1935 1936;"));
-        EXPECT_EQ(2, conf.get_listens().size());
+        EXPECT_EQ(2, (int)conf.get_listens().size());
     }
 
     if (true) {

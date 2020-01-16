@@ -116,6 +116,7 @@ For previous versions, please read:
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
+- [x] Improve test coverage for core/kernel/protocol/service.
 - [x] [Experimental] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
@@ -129,7 +130,6 @@ For previous versions, please read:
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
-- [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
@@ -148,6 +148,12 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100
+* v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
+* v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
+* <strong>v3.0, 2020-01-10, [3.0 alpha8(3.0.97)][r3.0a8] released. 121555 lines.</strong>
+* v3.0, 2020-01-09, For [#1042][bug #1042], improve test coverage for service. 3.0.97
+* v3.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 3.0.96
 * v3.0, 2020-01-05, Always use string instance to avoid crash risk. 3.0.95
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 hostport parsing bug. 3.0.94
 * v3.0, 2020-01-05, For [#460][bug #460], fix ipv6 intranet address filter bug. 3.0.93
@@ -274,6 +280,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
 * v2.0, 2019-12-23, Fix [srs-librtmp #22](https://github.com/ossrs/srs-librtmp/issues/22), parse vhost splited by single seperator. 2.0.268
@@ -710,6 +717,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
 * 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
 * 2019-12-26, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
 * 2019-12-19, [Release v3.0-a5][r3.0a5], 3.0 alpha5, 3.0.75, 115362 lines.
@@ -1553,6 +1561,7 @@ Winlin
 [bug #1524]: https://github.com/ossrs/srs/issues/1524
 [bug #1488]: https://github.com/ossrs/srs/issues/1488
 [bug #1551]: https://github.com/ossrs/srs/pull/1551
+[bug #1554]: https://github.com/ossrs/srs/pull/1554
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
@@ -1588,6 +1597,8 @@ Winlin
 [bug #1544]: https://github.com/ossrs/srs/issues/1544
 [bug #1255]: https://github.com/ossrs/srs/issues/1255
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
+[bug #1509]: https://github.com/ossrs/srs/issues/1509
+[bug #1575]: https://github.com/ossrs/srs/issues/1575
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
@@ -1596,6 +1607,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
 [r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7
 [r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6
 [r3.0a5]: https://github.com/ossrs/srs/releases/tag/v3.0-a5
@@ -1660,6 +1672,4 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
-[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
-[centos1]: http://ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-3.0.56.zip
 

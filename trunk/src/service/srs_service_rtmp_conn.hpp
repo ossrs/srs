@@ -60,10 +60,10 @@ private:
     int stream_id;
 public:
     // Constructor.
-    // @param u The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
+    // @param r The RTMP url, for example, rtmp://ip:port/app/stream?domain=vhost
     // @param ctm The timeout in srs_utime_t to connect to server.
     // @param stm The timeout in srs_utime_t to delivery A/V stream.
-    SrsBasicRtmpClient(std::string u, srs_utime_t ctm, srs_utime_t stm);
+    SrsBasicRtmpClient(std::string r, srs_utime_t ctm, srs_utime_t stm);
     virtual ~SrsBasicRtmpClient();
 public:
     // Connect, handshake and connect app to RTMP server.

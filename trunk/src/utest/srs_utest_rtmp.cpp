@@ -1314,7 +1314,7 @@ VOID TEST(ProtocolRTMPTest, HandshakeC0C1)
 
         SrsHandshakeBytes hs;
         HELPER_EXPECT_SUCCESS(hs.read_c0c1(&io));
-        EXPECT_EQ(0x01020304, hs.proxy_real_ip);
+        EXPECT_EQ((uint32_t)0x01020304, (uint32_t)hs.proxy_real_ip);
     }
 
     // It's extended c0c1 prefixed with ip, which should be ok.
@@ -1330,7 +1330,7 @@ VOID TEST(ProtocolRTMPTest, HandshakeC0C1)
 
         SrsRtmpServer r(&io);
         HELPER_EXPECT_SUCCESS(r.hs_bytes->read_c0c1(&io));
-        EXPECT_EQ(0x01020304, r.proxy_real_ip());
+        EXPECT_EQ((uint32_t)0x01020304, (uint32_t)r.proxy_real_ip());
     }
 
     // It seems a normal c0c1, but it's extended, so it fail.
@@ -1751,7 +1751,8 @@ VOID TEST(ProtocolRTMPTest, ServerRedirect)
         string host = "target.net";
         int port = 8888;
         bool accepted = false;
-        HELPER_EXPECT_SUCCESS(r.redirect(&req, host, port, accepted));
+        string rurl = srs_generate_rtmp_url(host, port, req.host, req.vhost, req.app, req.stream, req.param);
+        HELPER_EXPECT_SUCCESS(r.redirect(&req, rurl, accepted));
 
         if (true) {
             MockBufferIO tio;
@@ -1776,6 +1777,14 @@ VOID TEST(ProtocolRTMPTest, ServerRedirect)
 
             prop = ex->get_property("redirect");
             ASSERT_TRUE(prop && prop->is_string());
+            // The recirect is tcUrl, not RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574995475
+            EXPECT_STREQ("rtmp://target.net:8888/live", prop->to_str().c_str());
+
+            prop = ex->get_property("redirect2");
+            ASSERT_TRUE(prop && prop->is_string());
+            // The recirect2 is RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574999798
             EXPECT_STREQ("rtmp://target.net:8888/live/livestream", prop->to_str().c_str());
 
             srs_freep(msg);
@@ -1808,7 +1817,8 @@ VOID TEST(ProtocolRTMPTest, ServerRedirect)
         string host = "target.net";
         int port = 8888;
         bool accepted = false;
-        HELPER_EXPECT_SUCCESS(r.redirect(&req, host, port, accepted));
+        string rurl = srs_generate_rtmp_url(host, port, req.host, req.vhost, req.app, req.stream, req.param);
+        HELPER_EXPECT_SUCCESS(r.redirect(&req, rurl, accepted));
         EXPECT_TRUE(accepted);
 
         if (true) {
@@ -1834,6 +1844,14 @@ VOID TEST(ProtocolRTMPTest, ServerRedirect)
 
             prop = ex->get_property("redirect");
             ASSERT_TRUE(prop && prop->is_string());
+            // The recirect is tcUrl, not RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574995475
+            EXPECT_STREQ("rtmp://target.net:8888/live", prop->to_str().c_str());
+
+            prop = ex->get_property("redirect2");
+            ASSERT_TRUE(prop && prop->is_string());
+            // The recirect2 is RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574999798
             EXPECT_STREQ("rtmp://target.net:8888/live/livestream", prop->to_str().c_str());
 
             srs_freep(msg);

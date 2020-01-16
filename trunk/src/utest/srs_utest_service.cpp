@@ -36,6 +36,8 @@ using namespace std;
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_service_http_client.hpp>
+#include <srs_service_rtmp_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -833,6 +835,7 @@ public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
     MockOnCycleThread3() : trd("mock", this, 0) {
+        fd = NULL;
     };
     virtual ~MockOnCycleThread3() {
         trd.stop();
@@ -1076,6 +1079,210 @@ VOID TEST(TCPServerTest, CoverUtility)
         ASSERT_TRUE(!getaddrinfo("::1", NULL, &hints, &r));
 
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
+    }
+}
+
+class MockOnCycleThread4 : public ISrsCoroutineHandler
+{
+public:
+    SrsSTCoroutine trd;
+    srs_netfd_t fd;
+    MockOnCycleThread4() : trd("mock", this, 0) {
+        fd = NULL;
+    };
+    virtual ~MockOnCycleThread4() {
+        trd.stop();
+        srs_close_stfd(fd);
+    }
+    virtual srs_error_t start(string ip, int port) {
+        srs_error_t err = srs_success;
+        if ((err = srs_tcp_listen(ip, port, &fd)) != srs_success) {
+            return err;
+        }
+
+        return trd.start();
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd) {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt;
+        if ((err = skt.initialize(cfd)) != srs_success) {
+            return err;
+        }
+
+        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+        while (true) {
+            if ((err = trd.pull()) != srs_success) {
+                return err;
+            }
+
+            char buf[1024];
+            if ((err = skt.read(buf, 1024, NULL)) != srs_success) {
+                return err;
+            }
+
+            string res = mock_http_response(200, "OK");
+            if ((err = skt.write((char*)res.data(), (int)res.length(), NULL)) != srs_success) {
+                return err;
+            }
+        }
+
+        return err;
+    }
+    virtual srs_error_t cycle() {
+        srs_error_t err = srs_success;
+
+        srs_netfd_t cfd = srs_accept(fd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+        if (cfd == NULL) {
+            return err;
+        }
+
+        err = do_cycle(cfd);
+        srs_close_stfd(cfd);
+        srs_freep(err);
+
+        return err;
+    }
+};
+
+VOID TEST(TCPServerTest, HTTPClientUtility)
+{
+    srs_error_t err;
+
+    // Typical HTTP POST.
+    if (true) {
+        MockOnCycleThread4 trd;
+        HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
+
+        SrsHttpClient client;
+        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+
+        ISrsHttpMessage* res = NULL;
+        SrsAutoFree(ISrsHttpMessage, res);
+        HELPER_ASSERT_SUCCESS(client.post("/api/v1", "", &res));
+
+        ISrsHttpResponseReader* br = res->body_reader();
+        ASSERT_FALSE(br->eof());
+
+        ssize_t nn = 0; char buf[1024];
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(br->read(buf, sizeof(buf), &nn));
+        ASSERT_EQ(2, nn);
+        EXPECT_STREQ("OK", buf);
+    }
+
+    // Typical HTTP GET.
+    if (true) {
+        MockOnCycleThread4 trd;
+        HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
+
+        SrsHttpClient client;
+        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+
+        ISrsHttpMessage* res = NULL;
+        SrsAutoFree(ISrsHttpMessage, res);
+        HELPER_ASSERT_SUCCESS(client.get("/api/v1", "", &res));
+
+        ISrsHttpResponseReader* br = res->body_reader();
+        ASSERT_FALSE(br->eof());
+
+        ssize_t nn = 0; char buf[1024];
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(br->read(buf, sizeof(buf), &nn));
+        ASSERT_EQ(2, nn);
+        EXPECT_STREQ("OK", buf);
+    }
+
+    // Set receive timeout and Kbps ample.
+    if (true) {
+        MockOnCycleThread4 trd;
+        HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
+
+        SrsHttpClient client;
+        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        client.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        client.set_header("agent", "srs");
+
+        ISrsHttpMessage* res = NULL;
+        SrsAutoFree(ISrsHttpMessage, res);
+        HELPER_ASSERT_SUCCESS(client.get("/api/v1", "", &res));
+
+        ISrsHttpResponseReader* br = res->body_reader();
+        ASSERT_FALSE(br->eof());
+
+        ssize_t nn = 0; char buf[1024];
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(br->read(buf, sizeof(buf), &nn));
+        ASSERT_EQ(2, nn);
+        EXPECT_STREQ("OK", buf);
+
+        client.kbps_sample("SRS", 0);
+    }
+}
+
+class MockConnectionManager : public IConnectionManager
+{
+public:
+    MockConnectionManager() {
+    }
+    virtual ~MockConnectionManager() {
+    }
+public:
+    virtual void remove(ISrsConnection* /*c*/) {
+    }
+};
+
+VOID TEST(TCPServerTest, ContextUtility)
+{
+    if (true) {
+        SrsThreadContext ctx;
+
+        EXPECT_EQ(0, ctx.set_id(100));
+        EXPECT_EQ(100, ctx.set_id(1000));
+        EXPECT_EQ(1000, ctx.get_id());
+
+        ctx.clear_cid();
+        EXPECT_EQ(0, ctx.set_id(100));
+    }
+
+    int base_size = 0;
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
+        base_size = size;
+        EXPECT_TRUE(base_size > 0);
+    }
+
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
+        EXPECT_EQ(base_size, size);
+    }
+
+    if (true) {
+        errno = 0;
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
+        EXPECT_EQ(base_size - 5, size);
+    }
+
+    if (true) {
+        int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
+        EXPECT_EQ(base_size - 8, size);
+    }
+
+    if (true) {
+        MockConnectionManager cm;
+        cm.remove(NULL);
+    }
+
+    if (true) {
+        srs_utime_t to = 1*SRS_UTIME_SECONDS;
+        SrsBasicRtmpClient rc("rtmp://127.0.0.1/live/livestream", to, to);
+        rc.close();
     }
 }
 

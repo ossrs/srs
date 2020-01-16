@@ -492,7 +492,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
         SrsMp4FullBox box;
         HELPER_ASSERT_SUCCESS(box.decode(&b));
         EXPECT_EQ(1, box.version);
-        EXPECT_EQ(2, box.flags);
+        EXPECT_EQ(2, (int)box.flags);
     }
 
     if (true) {
@@ -564,7 +564,7 @@ VOID TEST(KernelMp4Test, MFHDBox)
 
         SrsMp4MovieFragmentHeaderBox box;
         HELPER_ASSERT_SUCCESS(box.decode(&b));
-        EXPECT_EQ(3, box.sequence_number);
+        EXPECT_EQ(3, (int)box.sequence_number);
     }
 
     if (true) {
@@ -596,7 +596,7 @@ VOID TEST(KernelMp4Test, TFHDBox)
         if (true) {
             SrsMp4TrackFragmentHeaderBox box;
             box.track_id = 100;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -631,7 +631,7 @@ VOID TEST(KernelMp4Test, TFHDBox)
             box.default_sample_duration = 12;
             box.default_sample_size = 13;
             box.default_sample_flags = 14;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -646,12 +646,12 @@ VOID TEST(KernelMp4Test, TFHDBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentHeaderBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(100, box.track_id);
-            EXPECT_EQ(box.base_data_offset, 10);
-            EXPECT_EQ(box.sample_description_index, 11);
-            EXPECT_EQ(box.default_sample_duration, 12);
-            EXPECT_EQ(box.default_sample_size, 13);
-            EXPECT_EQ(box.default_sample_flags, 14);
+            EXPECT_EQ((int)box.track_id, 100);
+            EXPECT_EQ((int)box.base_data_offset, 10);
+            EXPECT_EQ((int)box.sample_description_index, 11);
+            EXPECT_EQ((int)box.default_sample_duration, 12);
+            EXPECT_EQ((int)box.default_sample_size, 13);
+            EXPECT_EQ((int)box.default_sample_flags, 14);
         }
     }
 }
@@ -667,7 +667,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
         if (true) {
             SrsMp4TrackFragmentDecodeTimeBox box;
             box.base_media_decode_time = 100;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -682,7 +682,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentDecodeTimeBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(100, box.base_media_decode_time);
+            EXPECT_EQ(100, (int)box.base_media_decode_time);
         }
     }
 
@@ -694,7 +694,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
             SrsMp4TrackFragmentDecodeTimeBox box;
             box.version = 1;
             box.base_media_decode_time = 100;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -709,7 +709,7 @@ VOID TEST(KernelMp4Test, TFDTBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentDecodeTimeBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(100, box.base_media_decode_time);
+            EXPECT_EQ(100, (int)box.base_media_decode_time);
         }
     }
 }
@@ -724,7 +724,7 @@ VOID TEST(KernelMp4Test, TRUNBox)
 
         if (true) {
             SrsMp4TrackFragmentRunBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -754,7 +754,7 @@ VOID TEST(KernelMp4Test, TRUNBox)
             entry->sample_duration = 1000;
             box.entries.push_back(entry);
 
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -788,7 +788,7 @@ VOID TEST(KernelMp4Test, FreeBox)
         if (true) {
             SrsMp4FreeSpaceBox box(SrsMp4BoxTypeFREE);
             box.data.resize(4);
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -818,7 +818,7 @@ VOID TEST(KernelMp4Test, MOOVBox)
 
         if (true) {
             SrsMp4MovieBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -891,7 +891,7 @@ VOID TEST(KernelMp4Test, TREXBox)
             SrsMp4TrackExtendsBox box;
             box.track_ID = 1; box.default_sample_description_index = 2; box.default_sample_size = 3;
             box.default_sample_duration = 4; box.default_sample_flags = 5;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -933,7 +933,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
         if (true) {
             SrsMp4TrackHeaderBox box;
             box.track_ID = 1;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -960,7 +960,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
             SrsMp4TrackHeaderBox box;
             box.version = 1;
             box.track_ID = 1;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -990,7 +990,7 @@ VOID TEST(KernelMp4Test, ELSTBox)
 
         if (true) {
             SrsMp4EditListBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1018,7 +1018,7 @@ VOID TEST(KernelMp4Test, ELSTBox)
                 SrsMp4ElstEntry entry;
                 box.entries.push_back(entry);
             }
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1054,7 +1054,7 @@ VOID TEST(KernelMp4Test, MDHDBox)
 
         if (true) {
             SrsMp4MediaHeaderBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1081,7 +1081,7 @@ VOID TEST(KernelMp4Test, MDHDBox)
             box.set_language0('C');
             box.set_language1('N');
             box.set_language2('E');
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1136,7 +1136,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
         if (true) {
             SrsMp4HandlerReferenceBox box;
             box.handler_type = SrsMp4HandlerTypeSOUN;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1162,7 +1162,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
         if (true) {
             SrsMp4HandlerReferenceBox box;
             box.handler_type = SrsMp4HandlerTypeVIDE;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1189,7 +1189,7 @@ VOID TEST(KernelMp4Test, HDLRBox)
             SrsMp4HandlerReferenceBox box;
             box.handler_type = SrsMp4HandlerTypeVIDE;
             box.name = "srs";
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1247,7 +1247,7 @@ VOID TEST(KernelMp4Test, URLBox)
 
         if (true) {
             SrsMp4DataEntryUrlBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1271,7 +1271,7 @@ VOID TEST(KernelMp4Test, URLBox)
 
         if (true) {
             SrsMp4DataEntryUrnBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1304,7 +1304,7 @@ VOID TEST(KernelMp4Test, URLBox)
             SrsMp4DataReferenceBox box;
             SrsMp4DataEntryUrnBox* urn = new SrsMp4DataEntryUrnBox();
             box.append(urn);
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1341,7 +1341,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
         if (true) {
             SrsMp4VisualSampleEntry box;
             box.data_reference_index = 1;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1365,7 +1365,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
 
         if (true) {
             SrsMp4AvccBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1390,7 +1390,7 @@ VOID TEST(KernelMp4Test, SampleDescBox)
         if (true) {
             SrsMp4AudioSampleEntry box;
             box.data_reference_index = 1;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1420,7 +1420,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
         if (true) {
             SrsMp4DecoderSpecificInfo box;
             box.asc.resize(2);
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1444,7 +1444,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
 
         if (true) {
             SrsMp4DecoderConfigDescriptor box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1468,7 +1468,7 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
 
         if (true) {
             SrsMp4ES_Descriptor box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1498,7 +1498,7 @@ VOID TEST(KernelMp4Test, STSDBox)
         if (true) {
             SrsMp4SampleDescriptionBox box;
             box.entries.push_back(new SrsMp4SampleEntry());
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1523,7 +1523,7 @@ VOID TEST(KernelMp4Test, STSDBox)
         if (true) {
             SrsMp4DecodingTime2SampleBox box;
             box.entries.push_back(SrsMp4SttsEntry());
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1548,7 +1548,7 @@ VOID TEST(KernelMp4Test, STSDBox)
         if (true) {
             SrsMp4CompositionTime2SampleBox box;
             box.entries.push_back(SrsMp4CttsEntry());
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1572,7 +1572,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4SyncSampleBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1596,7 +1596,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4Sample2ChunkBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1620,7 +1620,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4ChunkOffsetBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1644,7 +1644,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4ChunkLargeOffsetBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1668,7 +1668,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4SampleSizeBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1693,7 +1693,7 @@ VOID TEST(KernelMp4Test, STSDBox)
         if (true) {
             SrsMp4UserDataBox box;
             box.data.resize(2);
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1717,7 +1717,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4SegmentIndexBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1741,7 +1741,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4MovieHeaderBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
@@ -1772,7 +1772,7 @@ VOID TEST(KernelMp4Test, STSDBox)
 
         if (true) {
             SrsMp4CompositionTime2SampleBox box;
-            EXPECT_EQ(sizeof(buf), box.nb_bytes());
+            EXPECT_EQ((int)sizeof(buf), box.nb_bytes());
             HELPER_EXPECT_SUCCESS(box.encode(&b));
 
             stringstream ss;
