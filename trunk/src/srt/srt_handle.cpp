@@ -22,9 +22,10 @@ const long long CHECK_ALIVE_TIMEOUT = 15*1000;
 
 long long srt_now_ms = 0;
 
-srt_handle::srt_handle():_last_timestamp(0)
+srt_handle::srt_handle():_run_flag(false)
+    ,_last_timestamp(0)
     ,_last_check_alive_ts(0) {
-
+    _srt2rtmp_ptr = std::make_shared<srt2rtmp>();
 }
 
 srt_handle::~srt_handle() {
@@ -38,14 +39,18 @@ int srt_handle::start() {
         return -1;
     }
 
+    _run_flag = true;
     srs_trace("srt handle is starting...");
     _work_thread_ptr = std::make_shared<std::thread>(&srt_handle::onwork, this);
     
+    _srt2rtmp_ptr->start();
     return 0;
 }
 
 void srt_handle::stop() {
+    _run_flag = false;
     _work_thread_ptr->join();
+    _srt2rtmp_ptr->stop();
     return;
 }
 
@@ -219,7 +224,7 @@ void srt_handle::onwork()
     const int64_t DEF_TIMEOUT_INTERVAL = 30;
     
     srs_trace("srt handle epoll work is starting...");
-    while(true) 
+    while(_run_flag)
     {
         SRTSOCKET read_fds[SRT_FD_MAX];
         SRTSOCKET write_fds[SRT_FD_MAX];
@@ -289,6 +294,8 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
         return;
     }
     srt_conn_ptr->update_timestamp(srt_now_ms);
+
+    _srt2rtmp_ptr->insert_data_message(data, ret, subpath);
     
     //send data to subscriber(players)
     //streamid, play map<SRTSOCKET, SRT_CONN_PTR>

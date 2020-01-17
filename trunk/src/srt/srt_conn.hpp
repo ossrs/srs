@@ -1,5 +1,6 @@
 #ifndef SRT_CONN_H
 #define SRT_CONN_H
+#include "stringex.hpp"
 #include <srt/srt.h>
 #include <thread>
 #include <memory>
@@ -9,6 +10,7 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 
+#define ERR_SRT_MODE  0x00
 #define PULL_SRT_MODE 0x01
 #define PUSH_SRT_MODE 0x02
 
@@ -29,10 +31,13 @@ inline void get_streamid_info(const std::string& streamid, int& mode, std::strin
             mode = PULL_SRT_MODE;
         } else {
             mode_str = mode_str.substr(mode_pos+2);
+            mode_str = string_lower(mode_str);
             if (mode_str == "push") {
                 mode = PUSH_SRT_MODE;
-            } else {
+            } else if(mode_str == "pull"){
                 mode = PULL_SRT_MODE;
+            } else {
+                mode = ERR_SRT_MODE;
             }
         }
     }

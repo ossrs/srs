@@ -10,6 +10,7 @@
 #include <mutex>
 
 #include "srt_conn.hpp"
+#include "srt_to_rtmp.hpp"
 
 typedef struct {
     SRT_CONN_PTR conn_ptr;
@@ -58,6 +59,7 @@ private:
     void debug_statics(SRTSOCKET srtsocket, const std::string& streamid);
 
 private:
+    bool _run_flag;
     int _handle_pollid;
 
     std::unordered_map<SRTSOCKET, SRT_CONN_PTR> _conn_map;//save all srt connection: pull or push
@@ -73,6 +75,8 @@ private:
 
     long long _last_timestamp;
     long long _last_check_alive_ts;
+
+    SRT2RTMP_PTR _srt2rtmp_ptr;
 };
 
 #endif //SRT_HANDLE_H

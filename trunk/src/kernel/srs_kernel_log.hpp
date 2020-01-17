@@ -142,5 +142,26 @@ extern ISrsThreadContext* _srs_context;
     #define srs_trace(msg, ...) (void)0
 #endif
 
+inline void srs_trace_data(const char* data_p, int len, const char* dscr)
+{
+    const int MAX = 256;
+    char debug_data[MAX];
+    char debug_len = 0;
+
+    debug_len += sprintf(debug_data + debug_len, "%s", dscr);
+
+    for (int index = 0; index < len; index++) {
+        if (index % 16 == 0) {
+            debug_len += sprintf(debug_data + debug_len, "\r\n");
+        }
+        debug_len += sprintf(debug_data + debug_len, " %02x", (unsigned char)data_p[index]);
+        if (index >= 32) {
+            break;
+        }
+    }
+
+    srs_trace("%s", debug_data);
+    return;
+}
 #endif
 

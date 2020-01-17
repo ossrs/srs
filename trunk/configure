@@ -211,7 +211,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="SRT" 
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srt_server" "srt_handle" "srt_conn")
+MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp")
 SRT_INCS="src/srt"; MODULE_DIR=${SRT_INCS} . auto/modules.sh
 SRT_OBJS="${MODULE_OBJS[@]}"
 #

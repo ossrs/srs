@@ -134,8 +134,13 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             if (srt_conn_ptr->get_mode() == PULL_SRT_MODE) {
                 //add SRT_EPOLL_IN for information notify
                 conn_event = SRT_EPOLL_IN | SRT_EPOLL_ERR;//not inlucde SRT_EPOLL_OUT for save cpu
-            } else {
+            } else if (srt_conn_ptr->get_mode() == PUSH_SRT_MODE) {
                 conn_event = SRT_EPOLL_IN | SRT_EPOLL_ERR;
+            } else {
+                srs_trace("stream mode error, it shoulde be m=push or m=pull, streamid:%s",
+                    srt_conn_ptr->get_streamid().c_str());
+                srt_conn_ptr->close();
+                return;
             }
             request_message_t msg = {srt_conn_ptr, conn_event};
             handle_ptr->insert_message_queue(msg);
