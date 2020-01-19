@@ -652,9 +652,9 @@ bool SrsFormat::is_aac_sequence_header()
 
 bool SrsFormat::is_avc_sequence_header()
 {
-    bool h264 = vcodec->id == SrsVideoCodecIdAVC;
-    bool h265 = vcodec->id == SrsVideoCodecIdHEVC;
-    bool av1 = vcodec->id == SrsVideoCodecIdAV1;
+    bool h264 = (vcodec && vcodec->id == SrsVideoCodecIdAVC);
+    bool h265 = (vcodec && vcodec->id == SrsVideoCodecIdHEVC);
+    bool av1 = (vcodec && vcodec->id == SrsVideoCodecIdAV1);
     return vcodec && (h264 || h265 || av1)
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
