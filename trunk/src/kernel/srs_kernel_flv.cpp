@@ -291,7 +291,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
 
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
-    if (ptr->header.perfer_cid < 2) {
+    if (ptr->header.perfer_cid < 2 || ptr->header.perfer_cid > 63) {
         srs_info("change the chunk_id=%d to default=%d", ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
         ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
     }
