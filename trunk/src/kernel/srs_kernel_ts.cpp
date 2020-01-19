@@ -313,6 +313,7 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
         case SrsVideoCodecIdOn2VP6WithAlphaChannel:
         case SrsVideoCodecIdScreenVideoVersion2:
         case SrsVideoCodecIdHEVC:
+        case SrsVideoCodecIdAV1:
             vs = SrsTsStreamReserved;
             break;
     }

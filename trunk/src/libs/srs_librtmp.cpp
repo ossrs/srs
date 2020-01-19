@@ -1666,7 +1666,7 @@ int srs_mp4_to_flv_tag(srs_mp4_t mp4, srs_mp4_sample_t* s, char* type, uint32_t*
     
     // E.4.3.1 VIDEODATA, flv_v10_1.pdf, page 5
     p.write_1bytes(uint8_t(s->frame_type<<4) | uint8_t(s->codec));
-    if (s->codec == SrsVideoCodecIdAVC || s->codec == SrsVideoCodecIdHEVC) {
+    if (s->codec == SrsVideoCodecIdAVC || s->codec == SrsVideoCodecIdHEVC || s->codec == SrsVideoCodecIdAV1) {
         *type = SRS_RTMP_TYPE_VIDEO;
         
         p.write_1bytes(uint8_t(s->frame_trait == (uint16_t)SrsVideoAvcFrameTraitSequenceHeader? 0:1));

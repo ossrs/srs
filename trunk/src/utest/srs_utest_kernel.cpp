@@ -3028,6 +3028,7 @@ VOID TEST(KernelCodecTest, CoverAll)
         EXPECT_TRUE("H264" == srs_video_codec_id2str(SrsVideoCodecIdAVC));
         EXPECT_TRUE("VP6" == srs_video_codec_id2str(SrsVideoCodecIdOn2VP6));
         EXPECT_TRUE("HEVC" == srs_video_codec_id2str(SrsVideoCodecIdHEVC));
+        EXPECT_TRUE("AV1" == srs_video_codec_id2str(SrsVideoCodecIdAV1));
         EXPECT_TRUE("Other" == srs_video_codec_id2str(SrsVideoCodecIdScreenVideo));
     }
     
@@ -3291,6 +3292,9 @@ VOID TEST(KernelCodecTest, IsSequenceHeaderSpecial)
 		EXPECT_FALSE(f.is_avc_sequence_header());
 
 		f.vcodec->id = SrsVideoCodecIdHEVC;
+		EXPECT_FALSE(f.is_avc_sequence_header());
+
+		f.vcodec->id = SrsVideoCodecIdAV1;
 		EXPECT_FALSE(f.is_avc_sequence_header());
 
 		f.video->avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
@@ -4647,7 +4651,10 @@ VOID TEST(KernelTSTest, CoverContextEncode)
         
         err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
         HELPER_EXPECT_FAILED(err);
-        
+
+        err = ctx.encode(&f, &m, SrsVideoCodecIdAV1, SrsAudioCodecIdOpus);
+        HELPER_EXPECT_FAILED(err);
+
         err = ctx.encode_pat_pmt(&f, 0, SrsTsStreamReserved, 0, SrsTsStreamReserved);
         HELPER_EXPECT_FAILED(err);
     }

@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-19, For [#1070][bug #1070], define FLV CodecID for [AV1][bug #1070] and [opus][bug #307]. 3.0.101
 * v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100
 * v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
 * v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
@@ -1597,6 +1598,8 @@ Winlin
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #1509]: https://github.com/ossrs/srs/issues/1509
 [bug #1575]: https://github.com/ossrs/srs/issues/1575
+[bug #307]: https://github.com/ossrs/srs/issues/307
+[bug #1070]: https://github.com/ossrs/srs/issues/1070
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
