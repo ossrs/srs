@@ -96,7 +96,7 @@ function Ubuntu_prepare()
     if [[ $SRS_VALGRIND == YES ]]; then
         if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
             echo "Installing valgrind-dev."
-            require_sudoer "sudo apt-get install -y --force-yes valgrind-dev"
+            require_sudoer "sudo apt-get install -y --force-yes valgrind-dbg"
             sudo apt-get install -y --force-yes valgrind-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The valgrind-dev is installed."
         fi

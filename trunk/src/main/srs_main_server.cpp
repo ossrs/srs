@@ -236,16 +236,6 @@ void show_macro_features()
     if (true) {
         stringstream ss;
         ss << "SRS on ";
-#ifdef SRS_OSX
-        ss << "OSX";
-#endif
-#ifdef SRS_PI
-        ss << "RespberryPi";
-#endif
-#ifdef SRS_CUBIE
-        ss << "CubieBoard";
-#endif
-        
 #if defined(__amd64__)
         ss << " amd64";
 #endif
@@ -258,9 +248,8 @@ void show_macro_features()
 #if defined(__arm__)
         ss << "arm";
 #endif
-        
-#ifndef SRS_OSX
-        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
+#if defined(__aarch64__)
+        ss << " aarch64";
 #endif
         
         ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()

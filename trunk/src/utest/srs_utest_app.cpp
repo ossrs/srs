@@ -27,9 +27,6 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_fragment.hpp>
 
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
-
 #include <srs_app_st.hpp>
 
 VOID TEST(AppCoroutineTest, Dummy)
@@ -374,6 +371,4 @@ VOID TEST(AppFragmentTest, CheckDuration)
 		EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, frg.duration());
 	}
 }
-
-#endif
 

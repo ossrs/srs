@@ -31,9 +31,6 @@
 #include <sys/wait.h>
 #include <netdb.h>
 
-#ifdef SRS_OSX
-#include <sys/sysctl.h>
-#endif
 #include <stdlib.h>
 #include <sys/time.h>
 #include <math.h>
@@ -329,7 +326,6 @@ SrsProcSystemStat* srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat& r)
 {
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/stat", "r");
     if (f == NULL) {
         srs_warn("open system cpu stat failed, ignore");
@@ -359,10 +355,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     }
     
     fclose(f);
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     r.ok = true;
     
     return true;
@@ -370,7 +363,6 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
 
 bool get_proc_self_stat(SrsProcSelfStat& r)
 {
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/self/stat", "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
@@ -397,10 +389,7 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
            &r.guest_time, &r.cguest_time);
     
     fclose(f);
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     r.ok = true;
     
     return true;
@@ -495,7 +484,6 @@ SrsDiskStat* srs_get_disk_stat()
 
 bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 {
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -515,10 +503,7 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
     }
     
     fclose(f);
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     r.ok = true;
     
     return true;
@@ -535,7 +520,6 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         return true;
     }
     
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/diskstats", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -600,10 +584,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
     }
     
     fclose(f);
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     r.ok = true;
     
     return true;
@@ -695,7 +676,6 @@ void srs_update_meminfo()
 {
     SrsMemInfo& r = _srs_system_meminfo;
     
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
         srs_warn("open meminfo failed, ignore");
@@ -721,10 +701,7 @@ void srs_update_meminfo()
     }
     
     fclose(f);
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     r.sample_time = srsu2ms(srs_get_system_time());
     r.MemActive = r.MemTotal - r.MemFree;
     r.RealInUse = r.MemActive - r.Buffers - r.Cached;
@@ -791,7 +768,6 @@ void srs_update_platform_info()
     
     r.srs_startup_time = srsu2ms(srs_get_system_startup_time());
     
-#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/uptime", "r");
         if (f == NULL) {
@@ -820,43 +796,6 @@ void srs_update_platform_info()
         
         fclose(f);
     }
-#else
-    // man 3 sysctl
-    if (true) {
-        struct timeval tv;
-        size_t len = sizeof(timeval);
-        
-        int mib[2];
-        mib[0] = CTL_KERN;
-        mib[1] = KERN_BOOTTIME;
-        if (sysctl(mib, 2, &tv, &len, NULL, 0) < 0) {
-            srs_warn("sysctl boottime failed, ignore");
-            return;
-        }
-        
-        time_t bsec = tv.tv_sec;
-        time_t csec = ::time(NULL);
-        r.os_uptime = difftime(csec, bsec);
-    }
-    
-    // man 3 sysctl
-    if (true) {
-        struct loadavg la;
-        size_t len = sizeof(loadavg);
-        
-        int mib[2];
-        mib[0] = CTL_VM;
-        mib[1] = VM_LOADAVG;
-        if (sysctl(mib, 2, &la, &len, NULL, 0) < 0) {
-            srs_warn("sysctl loadavg failed, ignore");
-            return;
-        }
-        
-        r.load_one_minutes = (double)la.ldavg[0] / la.fscale;
-        r.load_five_minutes = (double)la.ldavg[1] / la.fscale;
-        r.load_fifteen_minutes = (double)la.ldavg[2] / la.fscale;
-    }
-#endif
     
     r.ok = true;
 }
@@ -903,7 +842,6 @@ int srs_get_network_devices_count()
 
 void srs_update_network_devices()
 {
-#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/dev", "r");
         if (f == NULL) {
@@ -940,9 +878,6 @@ void srs_update_network_devices()
         
         fclose(f);
     }
-#else
-    // TODO: FIXME: impelments it.
-#endif
 }
 
 SrsNetworkRtmpServer::SrsNetworkRtmpServer()
@@ -990,7 +925,6 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     int nb_tcp_mem = 0;
     int nb_udp4 = 0;
     
-#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
@@ -1020,20 +954,9 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         
         fclose(f);
     }
-#else
-    // TODO: FIXME: impelments it.
-    nb_socks = 0;
-    nb_tcp4_hashed = 0;
-    nb_tcp_orphans = 0;
-    nb_tcp_tws = 0;
-    nb_tcp_total = 0;
-    nb_tcp_mem = 0;
-    nb_udp4 = 0;
-#endif
     
     int nb_tcp_estab = 0;
     
-#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
@@ -1063,10 +986,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         
         fclose(f);
     }
-#else
-    // TODO: FIXME: impelments it.
-#endif
-    
+
     // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
     // TODO: FIXME: ignore the slabstat, @see: get_slabstat()
     if (true) {
