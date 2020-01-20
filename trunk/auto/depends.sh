@@ -185,101 +185,11 @@ fi
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
-OS_IS_OSX=NO
-function OSX_prepare()
-{
-    uname -s|grep Darwin >/dev/null 2>&1
-    ret=$?; if [[ 0 -ne $ret ]]; then
-        if [ $SRS_OSX = YES ]; then
-            echo "Current OS `uname -s` is not OSX, please check your configure options."
-            exit 1;
-        fi
-        return 0;
-    fi
-
-    OS_IS_OSX=YES
-    echo "Installing tools for OSX."
-    # requires the osx when os
-    if [ $OS_IS_OSX = YES ]; then
-        if [ $SRS_OSX = NO ]; then
-            echo "Invalid configure options for OSX, please specify --osx."
-            exit 1
-        fi
-    fi
-
-    brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing brew."
-        echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
-        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The brew is installed."
-    fi
-    
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing gcc."
-        echo "brew install gcc"
-        brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The gcc is installed."
-    fi
-    
-    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing gcc-c++."
-        echo "brew install gcc-c++"
-        brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The gcc-c++ is installed."
-    fi
-    
-    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing make."
-        echo "brew install make"
-        brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The make is installed."
-    fi
-    
-    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing patch."
-        echo "brew install patch"
-        brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The patch is installed."
-    fi
-    
-    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing unzip."
-        echo "brew install unzip"
-        brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The unzip is installed."
-    fi
-
-    if [[ $SRS_VALGRIND == YES ]]; then
-        valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "Installing valgrind."
-            echo "brew install valgrind"
-            brew install valgrind; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "The valgrind is installed."
-        fi
-    fi
-    
-    echo "Tools for OSX are installed."
-    return 0
-}
-# donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for OSX failed, ret=$ret"; exit $ret; fi
-fi
-
 # We must use a bash function instead of variable.
 function sed_utility() {
-    if [ $OS_IS_OSX = YES ]; then
-        sed -i '' "$@"
-    else
-        sed -i "$@"
-    fi
-    
+    sed -i "$@"
     ret=$?; if [[ $ret -ne 0 ]]; then
-        if [ $OS_IS_OSX = YES ]; then
-            echo "sed -i '' \"$@\""
-        else
-            echo "sed -i \"$@\""
-        fi
+        echo "sed -i \"$@\""
         return $ret
     fi
 }
@@ -294,7 +204,7 @@ SED="sed_utility" && echo "SED is $SED"
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
         echo "Your OS `uname -s` is not supported."
         exit 1
@@ -307,10 +217,6 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
     _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
-    # for osx, use darwin for st, donot use epoll.
-    if [ $OS_IS_OSX = YES ]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE -I/usr/local/include"
-    fi
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
@@ -416,10 +322,6 @@ fi
 # openssl, for rtmp complex handshake
 #####################################################################################
 # extra configure options
-CONFIGURE_TOOL="./config"
-if [ $SRS_OSX = YES ]; then
-    CONFIGURE_TOOL="./Configure darwin64-`uname -m`-cc"
-fi
 OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
 # @see http://www.openssl.org/news/secadv/20140407.txt
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
@@ -442,7 +344,7 @@ if [ $SRS_SSL = YES ]; then
             (
                 rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
                 unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
+                ./config --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
                 make && make install_sw &&
                 cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
             )

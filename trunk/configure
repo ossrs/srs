@@ -568,7 +568,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo ""
     echo "Configure summary:"
     echo "     ${SRS_AUTO_USER_CONFIGURE}"
-    echo "      ${SRS_AUTO_CONFIGURE}"
+    echo "     ${SRS_AUTO_CONFIGURE}"
     if [ $SRS_HLS = YES ]; then
         echo -e "${GREEN}HLS is enabled.${BLACK}"
     else

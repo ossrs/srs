@@ -77,7 +77,6 @@ SRS_VALGRIND=NO
 SRS_X86_X64=NO
 # for osx system
 SRS_OSX=NO
-SRS_ALLOW_OSX=NO
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
 # dev, open main server feature for dev, no utest/research/librtmp
@@ -98,7 +97,7 @@ SRS_DISABLE_ALL=NO
 SRS_ENABLE_ALL=NO
 #
 #####################################################################################
-# We don't support crossbuild for ARM/MIPS, please directly build it on ARM/MIPS server.
+# Whether enable crossbuild for ARM or MIPS.
 SRS_CROSS_BUILD=NO
 
 #####################################################################################
@@ -107,106 +106,79 @@ SRS_CROSS_BUILD=NO
 function show_help() {
     cat << END
 
-Options:
-  -h, --help                print this message
-                          
-  --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
-  --with-hds                enable hds streaming, mux RTMP to F4M/F4V files.
-  --with-nginx              enable delivery HTTP stream with nginx.
-  --with-stream-caster      enable stream caster to serve other stream over other protocol.
-  --with-ffmpeg             enable transcoding tool ffmpeg.
-  --with-transcode          enable transcoding features.
-  --with-ingest             enable ingest features.
-  --with-stat               enable the data statistic, for http api.
-  --with-librtmp            enable srs-librtmp, library for client.
-  --with-research           build the research tools.
-  --with-utest              build the utest for SRS.
-  --with-gperf              build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
-                            https://blog.csdn.net/win_lin/article/details/53503869
-  --with-gmc                build memory check for SRS with gperf tools.
-  --with-gmd                build memory defense(corrupt memory) for SRS with gperf tools.
-  --with-gmp                build memory profile for SRS with gperf tools.
-  --with-gcp                build cpu profile for SRS with gperf tools.
-  --with-gprof              build SRS with gprof(GNU profile tool).
-  --with-arm-ubuntu12       cross build SRS on ubuntu12 for armhf(v7cpu).
-  --with-mips-ubuntu12      cross build SRS on ubuntu12 for mips.
-                          
-  --without-ssl             disable rtmp complex handshake.
-  --without-hds             disable hds, the adobe http dynamic streaming.
-  --without-nginx           disable delivery HTTP stream with nginx.
-  --without-stream-caster   disable stream caster, only listen and serve RTMP/HTTP.
-  --without-ffmpeg          disable the ffmpeg transcode tool feature.
-  --without-transcode       disable the transcoding feature.
-  --without-ingest          disable the ingest feature.
-  --without-stat            disable the data statistic feature.
-  --without-librtmp         disable srs-librtmp, library for client.
-  --without-research        do not build the research tools.
-  --without-utest           do not build the utest for SRS.
-  --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmd/gmc/gmp/gcp).
-  --without-gmc             do not build memory check for SRS with gperf tools.
-  --without-gmd             do not build memory defense for SRS with gperf tools.
-  --without-gmp             do not build memory profile for SRS with gperf tools.
-  --without-gcp             do not build cpu profile for SRS with gperf tools.
-  --without-gprof           do not build srs with gprof(GNU profile tool).
-  --without-arm-ubuntu12    do not cross build srs on ubuntu12 for armhf(v7cpu).
-  --without-mips-ubuntu12   do not cross build srs on ubuntu12 for mips.
-                          
+Presets:
+  --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
+  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
+  --mips                    Enable crossbuild for MIPS
+
+Features:
+  -h, --help                Print this message and exit 0.
+
+  --with-ssl                Enable rtmp complex handshake, requires openssl-devel installed.
+  --with-hds                Enable hds streaming, mux RTMP to F4M/F4V files.
+  --with-stream-caster      Enable stream caster to serve other stream over other protocol.
+  --with-stat               Enable the data statistic, for http api.
+  --with-librtmp            Enable srs-librtmp, library for client.
+  --with-research           Build the research tools.
+  --with-utest              Build the utest for SRS.
+
+  --without-ssl             Disable rtmp complex handshake.
+  --without-hds             Disable hds, the adobe http dynamic streaming.
+  --without-stream-caster   Disable stream caster, only listen and serve RTMP/HTTP.
+  --without-stat            Disable the data statistic feature.
+  --without-librtmp         Disable srs-librtmp, library for client.
+  --without-research        Do not build the research tools.
+  --without-utest           Do not build the utest for SRS.
+
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
   --gcov                    Whether enable the GCOV compiler options.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
-                            used for make in the configure, for example, to make ffmpeg.
-  --log-verbose             whether enable the log verbose level. default: no.
-  --log-info                whether enable the log info level. default: no.
-  --log-trace               whether enable the log trace level. default: yes.
+                            Used for make in the configure, for example, to make ffmpeg.
+  --log-verbose             Whether enable the log verbose level. default: no.
+  --log-info                Whether enable the log info level. default: no.
+  --log-trace               Whether enable the log trace level. default: yes.
 
-Presets:
-  --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
-  --osx                     for osx(darwin) system to build SRS.
-  --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
-  --cubie                   for cubieboard(directly build), open features except ffmpeg/nginx.
-  --arm                     alias for --with-arm-ubuntu12, for ubuntu12, arm crossbuild
-  --mips                    alias for --with-mips-ubuntu12, for ubuntu12, mips crossbuild
-  --fast                    the most fast compile, nothing, only support vp6 RTMP.
-  --pure-rtmp               only support RTMP with ssl.
-  --disable-all             disable all features, only support vp6 RTMP.
-  --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
-  --fast-dev                for dev fast compile, the RTMP server, without librtmp/utest/research.
-  --demo                    for srs demo, @see: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
-  --full                    enable all features, no gperf/gprof/arm.
-  --x86-64                  alias for --x86-x64.
+Performance:
+              https://blog.csdn.net/win_lin/article/details/53503869
+  --with-valgrind           Support valgrind for memory check.
+  --with-gperf              Build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
+  --with-gmc                Build memory check for SRS with gperf tools.
+  --with-gmd                Build memory defense(corrupt memory) for SRS with gperf tools.
+  --with-gmp                Build memory profile for SRS with gperf tools.
+  --with-gcp                Build cpu profile for SRS with gperf tools.
+  --with-gprof              Build SRS with gprof(GNU profile tool).
+
+  --without-valgrind        Do not support valgrind for memory check.
+  --without-gperf           Do not build SRS with gperf tools(without tcmalloc and gmd/gmc/gmp/gcp).
+  --without-gmc             Do not build memory check for SRS with gperf tools.
+  --without-gmd             Do not build memory defense for SRS with gperf tools.
+  --without-gmp             Do not build memory profile for SRS with gperf tools.
+  --without-gcp             Do not build cpu profile for SRS with gperf tools.
+  --without-gprof           Do not build srs with gprof(GNU profile tool).
 
 Toolchain options:
-  --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Pass to ST as EXTRA_CFLAGS.
+              https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
+  --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
-Recomment to enable:
-  --with-http-api           enable HTTP API, to communicate with SRS.
-  --with-http-callback      enable HTTP hooks, build cherrypy as demo api server.
-  --with-http-server        enable HTTP server to delivery http stream.
-  --with-hls                enable HLS streaming, mux RTMP to M3U8/TS files.
-  --with-dvr                enable DVR, record RTMP to FLV/MP4 files.
-  
 Conflicts:
   1. --with-gmc vs --with-gmp: 
         @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
   2. --with-gperf/gmc/gmp vs --with-gprof:
-        gperftools not compatible with gprof.
+        The gperftools not compatible with gprof.
   3. --arm vs --with-ffmpeg/gperf/gmc/gmp/gprof:
-        the complex tools not available for arm.
+        The complex tools not available for arm.
 
 Experts:
-  --use-sys-ssl                     donot compile ssl, use system ssl(-lssl) if required.
-  --memory-watch                    enable memory watch to detect memory leaking(hurts performance).
-  --export-librtmp-project=<path>   export srs-librtmp to specified project in path.
-  --export-librtmp-single=<path>    export srs-librtmp to a single file(.h+.cpp) in path.
-  --with-valgrind                   support valgrind for memory check.
-  --without-valgrind                donot support valgrind for memory check.
+  --use-sys-ssl                     Do not compile ssl, use system ssl(-lssl) if required.
+  --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
+  --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
 
 Workflow:
-  1. apply "Presets". if not specified, use default preset.
-  2. apply "Options". user specified option will override the preset.
-  3. check conflicts. @see Conflicts section.
-  4. generate detail features.
+  1. Apply "Presets". if not specified, use default preset.
+  2. Apply "Features", "Performance" and others. user specified option will override the preset.
+  3. Check conflicts, fail if exists conflicts.
+  4. Generate Makefile.
 
 Remark:
   1. For performance improving, read https://blog.csdn.net/win_lin/article/details/53503869
@@ -271,7 +243,7 @@ function parse_user_option() {
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
-        --allow-osx)                    SRS_ALLOW_OSX=YES           ;;
+        --allow-osx)                    SRS_OSX=YES                 ;;
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
         --pi)                           SRS_PI=YES                  ;;
@@ -607,16 +579,6 @@ function check_option_conflicts() {
     if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
     if [ $__check_ok = NO ]; then
         exit 1;
-    fi
-
-    if [[ $SRS_OSX == YES && $SRS_ALLOW_OSX == NO ]]; then
-        macOSVersion=`sw_vers -productVersion`
-        macOSVersionMajor=`echo $macOSVersion|awk -F '.' '{print $1}'`
-        macOSVersionMinor=`echo $macOSVersion|awk -F '.' '{print $2}'`
-        if [[ $macOSVersionMajor -ge 10 && $macOSVersionMinor -ge 14 ]]; then
-            echo "macOS $macOSVersion is not supported, read https://github.com/ossrs/srs/issues/1250"
-            exit -1
-        fi
     fi
 }
 check_option_conflicts
