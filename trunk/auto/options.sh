@@ -335,7 +335,7 @@ function apply_user_presets() {
     # set default preset if not specifies
     if [[ $SRS_PURE_RTMP == NO && $SRS_FAST == NO && $SRS_DISABLE_ALL == NO && $SRS_ENABLE_ALL == NO && \
         $SRS_DEV == NO && $SRS_FAST_DEV == NO && $SRS_DEMO == NO && $SRS_PI == NO && $SRS_CUBIE == NO && \
-        $SRS_X86_X64 == NO && $SRS_OSX == NO \
+        $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO \
     ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
@@ -548,40 +548,24 @@ regenerate_options
 # check user options
 #####################################################################################
 function check_option_conflicts() {
-    if [[ $SRS_TOOL_CC == '' ]]; then
-        echo "No c compiler"
-        exit -1
+    if [[ $SRS_TOOL_CC == '' ||  $SRS_TOOL_CXX == '' ||  $SRS_TOOL_AR == '' ||  $SRS_TOOL_LD == '' ||  $SRS_TOOL_RANDLIB == '' ]]; then
+        echo "No crossbuild tools, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR, ld: $SRS_TOOL_LD, randlib: $SRS_TOOL_RANDLIB"; exit -1
     fi
-    if [[ $SRS_TOOL_CXX == '' ]]; then
-        echo "No c++ compiler"
-        exit -1
-    fi
-    if [[ $SRS_TOOL_AR == '' ]]; then
-        echo "No arhive tool"
-        exit -1
-    fi
-    if [[ $SRS_TOOL_LD == '' ]]; then
-        echo "No linker tool"
-        exit -1
-    fi
-    if [[ $SRS_TOOL_RANDLIB == '' ]]; then
-        echo "No randlib tool"
-        exit -1
+
+    if [[ $SRS_CROSS_BUILD == YES && ($SRS_TOOL_CC == 'gcc' || $SRS_TOOL_CXX == 'g++' || $SRS_TOOL_AR == 'ar') ]]; then
+        echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
     fi
 
     if [ $SRS_OSX = YES ]; then
-        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"
-        exit -1
+        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"; exit -1
     fi
 
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
-        exit -1
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1
     fi
 
     if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"
-        exit -1
+        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1
     fi
 
     # TODO: FIXME: check more os.
