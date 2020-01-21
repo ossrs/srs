@@ -118,7 +118,11 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             }
             //add new srt connect into srt handle
             std::string streamid = UDT::getstreamid(conn_fd);
-
+            if (!is_streamid_valid(streamid)) {
+                srs_trace("srt streamid(%s) error, fd:%d", streamid.c_str(), conn_fd);
+                srt_close(conn_fd);
+                return;
+            }
             SRT_CONN_PTR srt_conn_ptr = std::make_shared<srt_conn>(conn_fd, streamid);
 
             std::string vhost_str = srt_conn_ptr->get_vhost();
@@ -179,7 +183,6 @@ void srt_server::on_work()
         int ret = srt_epoll_wait(_pollid, read_fds, &rfd_num, write_fds, &wfd_num, -1,
                         nullptr, nullptr, nullptr, nullptr);
         if (ret < 0) {
-            srs_error("listen srt epoll is timeout, port=%d", listen_port);
             continue;
         }
         srs_trace("srt server epoll get: ret=%d, rfd_num=%d, wfd_num=%d", 

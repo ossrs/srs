@@ -5,6 +5,7 @@
 
 class SRT_DATA_MSG {
 public:
+    SRT_DATA_MSG(unsigned int len, const std::string& path);
     SRT_DATA_MSG(unsigned char* data_p, unsigned int len, const std::string& path);
     ~SRT_DATA_MSG();
 

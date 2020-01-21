@@ -3640,7 +3640,7 @@ srs_error_t SrsConfig::check_normal_config()
     get_vhosts(vhosts);
     for (int n = 0; n < (int)vhosts.size(); n++) {
         SrsConfDirective* vhost = vhosts[n];
-        printf("virtural host name:%s, arg:%s\r\n", vhost->name.c_str(), vhost->args[0].c_str());
+
         for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;

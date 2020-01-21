@@ -5,6 +5,7 @@
 #include <thread>
 #include <memory>
 #include <string>
+#include <vector>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -13,6 +14,21 @@
 #define ERR_SRT_MODE  0x00
 #define PULL_SRT_MODE 0x01
 #define PUSH_SRT_MODE 0x02
+
+inline bool is_streamid_valid(const std::string& streamid) {
+    bool ret = false;
+    if (streamid.empty()) {
+        return ret;
+    }
+    std::vector<std::string> ret_vec;
+    string_split(streamid, "/", ret_vec);
+
+    if (ret_vec.size() < 2) {
+        return ret;
+    }
+    ret = true;
+    return ret;
+}
 
 inline void get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash) {
     std::string real_streamip;

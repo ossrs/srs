@@ -1014,6 +1014,12 @@ srs_error_t SrsServer::listen_srt() {
         srs_trace("srt server is enabled...");
         unsigned short srt_port = _srs_config->get_srt_listen_port();
         srs_trace("srt server listen port:%d", srt_port);
+        err = srt2rtmp::get_instance()->init();
+        if (err != srs_success) {
+            srs_error_wrap(err, "srt start srt2rtmp error");
+            return err;
+        }
+
         srt_ptr = std::make_shared<srt_server>(srt_port);
         if (!srt_ptr) {
             srs_error_wrap(err, "srt listen %d", srt_port);

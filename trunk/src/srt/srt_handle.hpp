@@ -75,8 +75,6 @@ private:
 
     long long _last_timestamp;
     long long _last_check_alive_ts;
-
-    SRT2RTMP_PTR _srt2rtmp_ptr;
 };
 
 #endif //SRT_HANDLE_H

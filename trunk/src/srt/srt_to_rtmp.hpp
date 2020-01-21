@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "srt_data.hpp"
+#include "ts_demux.hpp"
 
 #define SRT_VIDEO_MSG_TYPE 0x01
 #define SRT_AUDIO_MSG_TYPE 0x02
@@ -21,7 +22,9 @@ typedef std::shared_ptr<SrsSimpleRtmpClient> RTMP_CONN_PTR;
 typedef std::shared_ptr<SrsRawH264Stream> AVC_PTR;
 typedef std::shared_ptr<SrsRawAacStream> AAC_PTR;
 
-class rtmp_client : public ISrsTsHandler {
+#define DEFAULT_VHOST "__default_host__"
+
+class rtmp_client : public ts_media_data_callback_I, public std::enable_shared_from_this<rtmp_client> {
 public:
     rtmp_client(std::string key_path);
     ~rtmp_client();
@@ -29,13 +32,14 @@ public:
     void receive_ts_data(SRT_DATA_MSG_PTR data_ptr);
     
 private:
-    virtual srs_error_t on_ts_message(SrsTsMessage* msg);
+    virtual void on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts);
+
     srs_error_t connect();
     void close();
 
 private:
-    srs_error_t on_ts_video(SrsTsMessage* msg, SrsBuffer* avs);
-    srs_error_t on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs);
+    srs_error_t on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
+    srs_error_t on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
     virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
@@ -46,7 +50,10 @@ private:
 private:
     std::string _key_path;
     std::string _url;
-    std::shared_ptr<SrsTsContext> _ts_ctx_ptr;
+    std::string _vhost;
+    std::string _appname;
+    std::string _streamname;
+    TS_DEMUX_PTR _ts_demux_ptr;
 
 private:
     AVC_PTR _avc_ptr;
@@ -60,34 +67,35 @@ private:
     AAC_PTR _aac_ptr;
 private:
     RTMP_CONN_PTR _rtmp_conn_ptr;
+    bool _connect_flag;
 };
 
 typedef std::shared_ptr<rtmp_client> RTMP_CLIENT_PTR;
 
-class srt2rtmp {
+class srt2rtmp : public ISrsCoroutineHandler {
 public:
+    static std::shared_ptr<srt2rtmp> get_instance();
     srt2rtmp();
     virtual ~srt2rtmp();
 
-    void start();
-    void stop();
+    srs_error_t init();
+    void release();
+
     void insert_data_message(unsigned char* data_p, unsigned int len, const std::string& key_path);
 
 private:
     SRT_DATA_MSG_PTR get_data_message();
-    void on_work();
+    virtual srs_error_t cycle();
     void handle_ts_data(SRT_DATA_MSG_PTR data_ptr);
 
 private:
-    std::shared_ptr<std::thread> _thread_ptr;
+    static std::shared_ptr<srt2rtmp> s_srt2rtmp_ptr;
+    std::shared_ptr<SrsCoroutine> _trd_ptr;
     std::mutex _mutex;
-    std::condition_variable_any _notify_cond;
+    //std::condition_variable_any _notify_cond;
     std::queue<SRT_DATA_MSG_PTR> _msg_queue;
 
     std::unordered_map<std::string, RTMP_CLIENT_PTR> _rtmp_client_map;
-    bool _run_flag;
 };
-
-typedef std::shared_ptr<srt2rtmp> SRT2RTMP_PTR;
 
 #endif

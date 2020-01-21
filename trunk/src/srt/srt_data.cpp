@@ -1,4 +1,11 @@
 #include "srt_data.hpp"
+#include <string.h>
+
+SRT_DATA_MSG::SRT_DATA_MSG(unsigned int len, const std::string& path):_len(len)
+    ,_key_path(path) {
+    _data_p = new unsigned char[len];
+    memset(_data_p, 0, len);
+}
 
 SRT_DATA_MSG::SRT_DATA_MSG(unsigned char* data_p, unsigned int len, const std::string& path):_len(len)
     ,_key_path(path)

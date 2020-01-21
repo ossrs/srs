@@ -37,6 +37,7 @@
 #include <srs_app_conn.hpp>
 #include <srs_service_st.hpp>
 #include "../srt/srt_server.hpp"
+#include "../srt/srt_to_rtmp.hpp"
 
 class SrsServer;
 class SrsConnection;
