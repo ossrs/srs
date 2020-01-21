@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar tools. 3.0.103
 * v3.0, 2020-01-19, For [#1580][bug #1580], fix cid range problem. 3.0.102
 * v3.0, 2020-01-19, For [#1070][bug #1070], define FLV CodecID for [AV1][bug #1070] and [opus][bug #307]. 3.0.101
 * v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100
@@ -1602,6 +1603,7 @@ Winlin
 [bug #307]: https://github.com/ossrs/srs/issues/307
 [bug #1070]: https://github.com/ossrs/srs/issues/1070
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
+[bug #1547]: https://github.com/ossrs/srs/issues/1547
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

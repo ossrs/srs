@@ -119,16 +119,16 @@ if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
 # User configed options.
-if [[ $SRS_EXTRA_CFLAGS != '' ]]; then
-    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_CFLAGS";
+if [[ $SRS_EXTRA_FLAGS != '' ]]; then
+    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_FLAGS";
 fi
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
-GCC = gcc
-CXX = g++
-AR = ar
+GCC = ${SRS_TOOL_CC}
+CXX = ${SRS_TOOL_CXX}
+AR = ${SRS_TOOL_AR}
 ARFLAGS = -rs
-LINK = g++
+LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
 .PHONY: default srs srs_ingest_hls librtmp

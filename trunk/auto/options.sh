@@ -54,8 +54,6 @@ SRS_GCOV=NO
 SRS_LOG_VERBOSE=NO
 SRS_LOG_INFO=NO
 SRS_LOG_TRACE=NO
-# The extra c/c++ flags to build SRS. Note that we also pass to ST as EXTRA_CFLAGS.
-SRS_EXTRA_CFLAGS=
 #
 ################################################################
 # experts
@@ -97,8 +95,12 @@ SRS_DISABLE_ALL=NO
 SRS_ENABLE_ALL=NO
 #
 #####################################################################################
-# Whether enable crossbuild for ARM or MIPS.
+# Toolchain crossbuild for ARM or MIPS.
 SRS_CROSS_BUILD=NO
+SRS_TOOL_CC=gcc
+SRS_TOOL_CXX=g++
+SRS_TOOL_AR=ar
+SRS_EXTRA_FLAGS=
 
 #####################################################################################
 # menu
@@ -139,8 +141,7 @@ Features:
   --log-info                Whether enable the log info level. default: no.
   --log-trace               Whether enable the log trace level. default: yes.
 
-Performance:
-              https://blog.csdn.net/win_lin/article/details/53503869
+Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
   --with-valgrind           Support valgrind for memory check.
   --with-gperf              Build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
   --with-gmc                Build memory check for SRS with gperf tools.
@@ -157,8 +158,12 @@ Performance:
   --without-gcp             Do not build cpu profile for SRS with gperf tools.
   --without-gprof           Do not build srs with gprof(GNU profile tool).
 
-Toolchain options:
-              https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
+Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
+  --arm                     Enable crossbuild for ARM.
+  --mips                    Enable crossbuild for MIPS.
+  --cc=<CC>                 Use c compiler CC, default is gcc.
+  --cxx=<CXX>               Use c++ compiler CXX, default is g++.
+  --ar=<AR>                 Use archive tool AR, default is ar.
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Conflicts:
@@ -232,20 +237,24 @@ function parse_user_option() {
         --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
-        --extra-flags)                  SRS_EXTRA_CFLAGS=${value}   ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --static)                       SRS_STATIC=YES              ;;
         --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
         --log-info)                     SRS_LOG_INFO=YES            ;;
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         --gcov)                         SRS_GCOV=YES                ;;
-        
+
+        --arm)                          SRS_CROSS_BUILD=YES         ;;
+        --mips)                         SRS_CROSS_BUILD=YES         ;;
+        --cc)                           SRS_TOOL_CC=${value}        ;;
+        --cxx)                          SRS_TOOL_CXX=${value}       ;;
+        --ar)                           SRS_TOOL_AR=${value}        ;;
+        --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
+
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
         --allow-osx)                    SRS_OSX=YES                 ;;
-        --arm)                          SRS_CROSS_BUILD=YES         ;;
-        --mips)                         SRS_CROSS_BUILD=YES         ;;
         --pi)                           SRS_PI=YES                  ;;
         --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
@@ -285,7 +294,7 @@ function parse_user_option_to_value_and_option() {
     case "$option" in
         -*=*) 
             value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/. ]*||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/. +]*||'`
         ;;
            *) value="" ;;
     esac
@@ -507,7 +516,10 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
-    if [[ $SRS_EXTRA_CFLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_CFLAGS\\\""; fi
+    if [[ $SRS_EXTRA_FLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
+    if [[ $SRS_TOOL_CC != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
+    if [[ $SRS_TOOL_CXX != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx=$SRS_TOOL_CXX"; fi
+    if [[ $SRS_TOOL_AR != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ar=$SRS_TOOL_AR"; fi
     echo "User config: $SRS_AUTO_USER_CONFIGURE"
     echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }
@@ -517,8 +529,16 @@ regenerate_options
 # check user options
 #####################################################################################
 function check_option_conflicts() {
-    if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "We don't support crossbuild for ARM/MIPS, please directly build it on ARM/MIPS server."
+    if [[ $SRS_TOOL_CC == '' ]]; then
+        echo "No c compiler"
+        exit -1
+    fi
+    if [[ $SRS_TOOL_CXX == '' ]]; then
+        echo "No c++ compiler"
+        exit -1
+    fi
+    if [[ $SRS_TOOL_AR == '' ]]; then
+        echo "No arhive tool"
         exit -1
     fi
 
