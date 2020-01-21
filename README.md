@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
 * v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
 * v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
 * v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar/ld/randlib tools. 3.0.103
@@ -720,6 +721,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
 * 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
 * 2019-12-26, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
@@ -1611,6 +1613,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
 [r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7
 [r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6
