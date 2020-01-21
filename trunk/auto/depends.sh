@@ -320,7 +320,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
-# openssl, for rtmp complex handshake
+# openssl, for rtmp complex handshake and HLS encryption.
 #####################################################################################
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     echo "Warning: Use system libssl, without compiling openssl."
@@ -364,10 +364,11 @@ fi
 #####################################################################################
 # live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
+# Always link the ffmpeg tools if exists.
+if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+    mkdir -p ${SRS_OBJS}/ffmpeg/bin && ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/ffmpeg/bin/ffmpeg
+fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
-    if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-        mkdir -p ${SRS_OBJS}/ffmpeg/bin && ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/ffmpeg/bin/ffmpeg
-    fi
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else

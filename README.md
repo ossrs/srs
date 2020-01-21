@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
 * v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
 * v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar/ld/randlib tools. 3.0.103
 * v3.0, 2020-01-19, For [#1580][bug #1580], fix cid range problem. 3.0.102
@@ -1605,6 +1606,7 @@ Winlin
 [bug #1070]: https://github.com/ossrs/srs/issues/1070
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
 [bug #1547]: https://github.com/ossrs/srs/issues/1547
+[bug #1221]: https://github.com/ossrs/srs/issues/1221
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

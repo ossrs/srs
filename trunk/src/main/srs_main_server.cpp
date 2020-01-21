@@ -119,7 +119,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
-    srs_trace("contributors: " SRS_AUTO_CONSTRIBUTORS);
+    srs_trace("contributors: %s", SRS_AUTO_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s",
         _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
     srs_trace("configure detail: " SRS_AUTO_CONFIGURE);

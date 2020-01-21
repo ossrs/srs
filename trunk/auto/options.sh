@@ -219,15 +219,10 @@ function parse_user_option() {
         --with-gprof)                   SRS_GPROF=YES               ;;
         --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
         --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
-                                                                 
-        --without-ssl)                  SRS_SSL=NO                  ;;
+
         --without-hds)                  SRS_HDS=NO                  ;;
         --without-nginx)                SRS_NGINX=NO                ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
-        --without-transcode)            SRS_TRANSCODE=NO            ;;
-        --without-ingest)               SRS_INGEST=NO               ;;
-        --without-stat)                 SRS_STAT=NO                 ;;
-        --without-stream-caster)        SRS_STREAM_CASTER=NO        ;;
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
@@ -283,11 +278,19 @@ function parse_user_option() {
         --with-http-server)             SRS_HTTP_SERVER=YES         ;;
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
-        --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
-        --without-http-api)             SRS_HTTP_API=NO             ;;
-        --without-http-server)          SRS_HTTP_SERVER=NO          ;;
-        --without-hls)                  SRS_HLS=NO                  ;;
-        --without-dvr)                  SRS_DVR=NO                  ;;
+
+        --without-stream-caster) ;&
+        --without-ingest) ;&
+        --without-ssl) ;&
+        --without-stat) ;&
+        --without-transcode) ;&
+        --without-http-callback) ;&
+        --without-http-server) ;&
+        --without-http-api) ;&
+        --without-hls) ;&
+        --without-dvr)
+            echo "ignore option \"$option\""
+        ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
