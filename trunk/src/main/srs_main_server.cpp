@@ -251,6 +251,9 @@ void show_macro_features()
 #if defined(__aarch64__)
         ss << " aarch64";
 #endif
+#if defined(SRS_AUTO_CROSSBUILD)
+        ss << "(crossbuild)";
+#endif
         
         ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()
         << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian()? "little-endian":"big-endian")

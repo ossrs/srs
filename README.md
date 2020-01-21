@@ -146,7 +146,8 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar tools. 3.0.103
+* v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
+* v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar/ld/randlib tools. 3.0.103
 * v3.0, 2020-01-19, For [#1580][bug #1580], fix cid range problem. 3.0.102
 * v3.0, 2020-01-19, For [#1070][bug #1070], define FLV CodecID for [AV1][bug #1070] and [opus][bug #307]. 3.0.101
 * v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100

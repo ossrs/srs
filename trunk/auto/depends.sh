@@ -232,7 +232,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
             ln -sf ../3rdparty/st-srs && cd st-srs &&
-            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" &&
+            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
+                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
             cd .. && rm -f st && ln -sf st-srs/obj st
         )
     fi
@@ -321,38 +322,43 @@ fi
 #####################################################################################
 # openssl, for rtmp complex handshake
 #####################################################################################
-# extra configure options
-OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
+if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
+    echo "Warning: Use system libssl, without compiling openssl."
+fi
 # @see http://www.openssl.org/news/secadv/20140407.txt
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
-if [ $SRS_SSL = YES ]; then
-    if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-        (mkdir -p  ${SRS_OBJS}/openssl/lib && cd ${SRS_OBJS}/openssl/lib && 
-            ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
-        (mkdir -p ${SRS_OBJS}/openssl/include && cd ${SRS_OBJS}/openssl/include &&
-            ln -sf /usr/local/include/openssl)
-    fi
-    if [ $SRS_USE_SYS_SSL = YES ]; then
-        echo "Warning: Use system libssl, without compiling openssl."
+if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
+    OPENSSL_HOTFIX="-DOPENSSL_NO_HEARTBEATS"
+    OPENSSL_CONFIG="./config"
+    # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+        OPENSSL_CONFIG="./Configure linux-armv4"
     else
-        # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-        if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-            echo "Openssl-1.1.0e is ok.";
-        else
-            echo "Building openssl-1.1.0e.";
-            (
-                rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
-                unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-                ./config --prefix=`pwd`/_release -no-shared no-threads $OPENSSL_HOTFIX &&
-                make && make install_sw &&
-                cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
-            )
+        # If not crossbuild, try to use exists libraries.
+        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            (mkdir -p  ${SRS_OBJS}/openssl/lib && cd ${SRS_OBJS}/openssl/lib &&
+                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
+            (mkdir -p ${SRS_OBJS}/openssl/include && cd ${SRS_OBJS}/openssl/include &&
+                ln -sf /usr/local/include/openssl)
         fi
-        # check status
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
-        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
     fi
+    # cross build not specified, if exists flag, need to rebuild for no-arm platform.
+    if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+        echo "Openssl-1.1.0e is ok.";
+    else
+        echo "Building openssl-1.1.0e.";
+        (
+            rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
+            unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
+            ${OPENSSL_CONFIG} --prefix=`pwd`/_release -no-shared -no-threads -no-asm $OPENSSL_HOTFIX &&
+            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} && make install_sw &&
+            cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -447,4 +453,3 @@ fi
 # generated the test script
 #####################################################################################
 rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test
-

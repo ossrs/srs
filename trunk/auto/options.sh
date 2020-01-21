@@ -100,6 +100,8 @@ SRS_CROSS_BUILD=NO
 SRS_TOOL_CC=gcc
 SRS_TOOL_CXX=g++
 SRS_TOOL_AR=ar
+SRS_TOOL_LD=ld
+SRS_TOOL_RANDLIB=randlib
 SRS_EXTRA_FLAGS=
 
 #####################################################################################
@@ -164,6 +166,8 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
   --cc=<CC>                 Use c compiler CC, default is gcc.
   --cxx=<CXX>               Use c++ compiler CXX, default is g++.
   --ar=<AR>                 Use archive tool AR, default is ar.
+  --ld=<LD>                 Use linker tool LD, default is ld.
+  --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib.
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Conflicts:
@@ -249,6 +253,8 @@ function parse_user_option() {
         --cc)                           SRS_TOOL_CC=${value}        ;;
         --cxx)                          SRS_TOOL_CXX=${value}       ;;
         --ar)                           SRS_TOOL_AR=${value}        ;;
+        --ld)                           SRS_TOOL_LD=${value}        ;;
+        --randlib)                      SRS_TOOL_RANDLIB=${value}   ;;
         --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
 
         --x86-x64)                      SRS_X86_X64=YES             ;;
@@ -420,6 +426,14 @@ function apply_user_presets() {
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
+
+    # if crossbuild, disable research and librtmp.
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+        SRS_LIBRTMP=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
+        SRS_STATIC=NO
+    fi
 }
 apply_user_presets
 
@@ -520,6 +534,8 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [[ $SRS_TOOL_CC != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
     if [[ $SRS_TOOL_CXX != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx=$SRS_TOOL_CXX"; fi
     if [[ $SRS_TOOL_AR != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ar=$SRS_TOOL_AR"; fi
+    if [[ $SRS_TOOL_LD != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ld=$SRS_TOOL_LD"; fi
+    if [[ $SRS_TOOL_RANDLIB != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --randlib=$SRS_TOOL_RANDLIB"; fi
     echo "User config: $SRS_AUTO_USER_CONFIGURE"
     echo "Detail config: ${SRS_AUTO_CONFIGURE}"
 }
@@ -539,6 +555,14 @@ function check_option_conflicts() {
     fi
     if [[ $SRS_TOOL_AR == '' ]]; then
         echo "No arhive tool"
+        exit -1
+    fi
+    if [[ $SRS_TOOL_LD == '' ]]; then
+        echo "No linker tool"
+        exit -1
+    fi
+    if [[ $SRS_TOOL_RANDLIB == '' ]]; then
+        echo "No randlib tool"
         exit -1
     fi
 
