@@ -496,7 +496,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     // find a source to serve.
     SrsSource* source = NULL;
-    if ((err = SrsSource::fetch_or_create(req, server, &source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req, server, &source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
     srs_assert(source != NULL);

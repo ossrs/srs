@@ -1635,9 +1635,17 @@ srs_error_t SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
     return vformat->on_video(msg);
 }
 
-std::map<std::string, SrsSource*> SrsSource::pool;
+SrsSourceManager* _srs_sources = new SrsSourceManager();
 
-srs_error_t SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
+SrsSourceManager::SrsSourceManager()
+{
+}
+
+SrsSourceManager::~SrsSourceManager()
+{
+}
+
+srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     srs_error_t err = srs_success;
     
@@ -1665,7 +1673,7 @@ srs_error_t SrsSource::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsS
     return err;
 }
 
-SrsSource* SrsSource::fetch(SrsRequest* r)
+SrsSource* SrsSourceManager::fetch(SrsRequest* r)
 {
     SrsSource* source = NULL;
     
@@ -1679,12 +1687,12 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // we always update the request of resource,
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
-    source->req->update_auth(r);
+    source->update_auth(r);
     
     return source;
 }
 
-void SrsSource::dispose_all()
+void SrsSourceManager::dispose()
 {
     std::map<std::string, SrsSource*>::iterator it;
     for (it = pool.begin(); it != pool.end(); ++it) {
@@ -1694,16 +1702,16 @@ void SrsSource::dispose_all()
     return;
 }
 
-srs_error_t SrsSource::cycle_all()
+srs_error_t SrsSourceManager::cycle()
 {
     int cid = _srs_context->get_id();
-    srs_error_t err = do_cycle_all();
+    srs_error_t err = do_cycle();
     _srs_context->set_id(cid);
     
     return err;
 }
 
-srs_error_t SrsSource::do_cycle_all()
+srs_error_t SrsSourceManager::do_cycle()
 {
     srs_error_t err = srs_success;
     
@@ -1744,7 +1752,7 @@ srs_error_t SrsSource::do_cycle_all()
     return err;
 }
 
-void SrsSource::destroy()
+void SrsSourceManager::destroy()
 {
     std::map<std::string, SrsSource*>::iterator it;
     for (it = pool.begin(); it != pool.end(); ++it) {
@@ -1992,6 +2000,11 @@ int SrsSource::pre_source_id()
 bool SrsSource::inactive()
 {
     return _can_publish;
+}
+
+void SrsSource::update_auth(SrsRequest* r)
+{
+    req->update_auth(r);
 }
 
 bool SrsSource::can_publish(bool is_edge)

@@ -1089,7 +1089,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     
     SrsSource* s = NULL;
-    if ((err = SrsSource::fetch_or_create(r, server, &s)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(r, server, &s)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }
     srs_assert(s != NULL);

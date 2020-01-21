@@ -1,12 +1,5 @@
 #!/bin/bash
 
-OS_IS_OSX=NO
-uname -s|grep Darwin >/dev/null 2>&1
-ret=$?; if [[ 0 -eq $ret ]]; then
-    OS_IS_OSX=YES
-fi
-echo "Is OSX: ${OS_IS_OSX}"
-
 # when export srs-librtmp single files
 # package the whole project to srs_librtmp.h and srs_librtmp.cpp
 #

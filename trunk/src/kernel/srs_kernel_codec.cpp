@@ -43,6 +43,8 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
             return "VP6";
         case SrsVideoCodecIdHEVC:
             return "HEVC";
+        case SrsVideoCodecIdAV1:
+            return "AV1";
         case SrsVideoCodecIdReserved:
         case SrsVideoCodecIdReserved1:
         case SrsVideoCodecIdReserved2:
@@ -650,7 +652,10 @@ bool SrsFormat::is_aac_sequence_header()
 
 bool SrsFormat::is_avc_sequence_header()
 {
-    return vcodec && (vcodec->id == SrsVideoCodecIdAVC || vcodec->id == SrsVideoCodecIdHEVC)
+    bool h264 = (vcodec && vcodec->id == SrsVideoCodecIdAVC);
+    bool h265 = (vcodec && vcodec->id == SrsVideoCodecIdHEVC);
+    bool av1 = (vcodec && vcodec->id == SrsVideoCodecIdAV1);
+    return vcodec && (h264 || h265 || av1)
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 

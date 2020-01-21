@@ -5,8 +5,8 @@
 [![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
-SRS/3.0，[OuXuli][release3]，是一个简单的流媒体直播集群，简单的快乐。<br/>
-SRS(Simple RTMP Server) is a simple live streaming cluster, a simple joy.
+SRS/3.0，[OuXuli][release3]，是一个流媒体直播集群，高效、稳定、易用，简单而快乐。<br/>
+SRS(Simple RTMP Server) is a live streaming cluster, high efficiency, stable and simple.
 
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
 
@@ -148,6 +148,12 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
+* v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
+* v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
+* v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar/ld/randlib tools. 3.0.103
+* v3.0, 2020-01-19, For [#1580][bug #1580], fix cid range problem. 3.0.102
+* v3.0, 2020-01-19, For [#1070][bug #1070], define FLV CodecID for [AV1][bug #1070] and [opus][bug #307]. 3.0.101
 * v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100
 * v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
 * v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
@@ -717,6 +723,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
 * 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
 * 2019-12-26, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
@@ -1599,6 +1606,11 @@ Winlin
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #1509]: https://github.com/ossrs/srs/issues/1509
 [bug #1575]: https://github.com/ossrs/srs/issues/1575
+[bug #307]: https://github.com/ossrs/srs/issues/307
+[bug #1070]: https://github.com/ossrs/srs/issues/1070
+[bug #1580]: https://github.com/ossrs/srs/issues/1580
+[bug #1547]: https://github.com/ossrs/srs/issues/1547
+[bug #1221]: https://github.com/ossrs/srs/issues/1221
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
@@ -1607,6 +1619,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
 [r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7
 [r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6

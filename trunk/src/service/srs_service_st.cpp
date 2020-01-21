@@ -115,7 +115,12 @@ srs_error_t srs_fd_reuseport(int fd)
 #if defined(SO_REUSEPORT)
     int v = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+        #ifdef SRS_AUTO_CROSSBUILD
+            srs_warn("SO_REUSEPORT disabled for crossbuild");
+            return srs_success;
+        #else
+            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+        #endif
     }
 #else
     #warning "SO_REUSEPORT is not supported by your OS"
