@@ -121,6 +121,7 @@ Options:
   --with-librtmp            enable srs-librtmp, library for client.
   --with-research           build the research tools.
   --with-utest              build the utest for SRS.
+  --with-srt                build the srt for SRS.
   --with-gperf              build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
   --with-gmc                build memory check for SRS with gperf tools.
   --with-gmd                build memory defense(corrupt memory) for SRS with gperf tools.
@@ -141,6 +142,7 @@ Options:
   --without-librtmp         disable srs-librtmp, library for client.
   --without-research        do not build the research tools.
   --without-utest           do not build the utest for SRS.
+  --without-srt             do not build the srt for SRS.
   --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmd/gmc/gmp/gcp).
   --without-gmc             do not build memory check for SRS with gperf tools.
   --without-gmd             do not build memory defense for SRS with gperf tools.
@@ -231,6 +233,7 @@ function parse_user_option() {
         --with-librtmp)                 SRS_LIBRTMP=YES             ;;
         --with-research)                SRS_RESEARCH=YES            ;;
         --with-utest)                   SRS_UTEST=YES               ;;
+        --with-srt)                     SRS_SRT=YES                 ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -251,6 +254,7 @@ function parse_user_option() {
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
+        --without-srt)                  SRS_SRT=NO                 ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -536,6 +540,7 @@ SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_LIBRTMP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-librtmp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-librtmp"; fi
     if [ $SRS_RESEARCH = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-research"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-research"; fi
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
+    if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi

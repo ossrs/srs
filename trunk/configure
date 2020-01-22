@@ -211,12 +211,15 @@ PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
 #srt protocol features.
+if [ $SRS_SRT = YES ]; then
 MODULE_ID="SRT" 
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
 MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data")
 SRT_INCS=${LibSRTRoot}; MODULE_DIR=${LibSRTRoot} . auto/modules.sh
 SRT_OBJS="${MODULE_OBJS[@]}"
+fi
+
 #
 #Service Module, for both Server and Client Modules.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
