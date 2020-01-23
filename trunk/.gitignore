@@ -34,8 +34,6 @@
 /research/speex/
 /test/
 .DS_Store
-.vscode
-.vscode/*
 srs
 *.dSYM/
 *.gcov
