@@ -37,8 +37,8 @@
 #include <srs_app_conn.hpp>
 #include <srs_service_st.hpp>
 #ifdef SRS_AUTO_SRT
-#include "../srt/srt_server.hpp"
-#include "../srt/srt_to_rtmp.hpp"
+#include <srt_server.hpp>
+#include <srt_to_rtmp.hpp>
 #endif
 
 class SrsServer;
@@ -214,7 +214,7 @@ private:
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;
 #ifdef SRS_AUTO_SRT
-    //srt server
+    // srt server
     SRT_SERVER_PTR srt_ptr;
 #endif
 private:
