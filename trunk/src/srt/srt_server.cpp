@@ -229,13 +229,12 @@ srs_error_t SrtServerAdapter::run()
         srs_trace("srt server listen port:%d", srt_port);
         err = srt2rtmp::get_instance()->init();
         if (err != srs_success) {
-            srs_error_wrap(err, "srt start srt2rtmp error");
-            return err;
+            return srs_error_wrap(err, "srt start srt2rtmp error");
         }
 
         srt_ptr = std::make_shared<srt_server>(srt_port);
         if (!srt_ptr) {
-            srs_error_wrap(err, "srt listen %d", srt_port);
+            return srs_error_wrap(err, "srt listen %d", srt_port);
         }
     } else {
         srs_trace("srt server is disabled...");
