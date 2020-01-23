@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_hybrid.hpp>
 
 // pre-declare
 srs_error_t run_directly_or_daemon();
@@ -410,46 +411,17 @@ srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
 
-    SrsServer* svr = new SrsServer();
-    SrsAutoFree(SrsServer, svr);
+    SrsHybridServer* svr = new SrsHybridServer();
+    SrsAutoFree(SrsHybridServer, svr);
 
-    // Initialize the whole system, set hooks to handle server level events.
-    if ((err = svr->initialize(NULL)) != srs_success) {
-        return srs_error_wrap(err, "server initialize");
-    }
-    
-    if ((err = svr->initialize_st()) != srs_success) {
-        return srs_error_wrap(err, "initialize st");
-    }
-    
-    if ((err = svr->initialize_signal()) != srs_success) {
-        return srs_error_wrap(err, "initialize signal");
-    }
-    
-    if ((err = svr->acquire_pid_file()) != srs_success) {
-        return srs_error_wrap(err, "acquire pid file");
-    }
-    
-    if ((err = svr->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen");
-    }
-    
-    if ((err = svr->register_signal()) != srs_success) {
-        return srs_error_wrap(err, "register signal");
-    }
-    
-    if ((err = svr->http_handle()) != srs_success) {
-        return srs_error_wrap(err, "http handle");
-    }
-    
-    if ((err = svr->ingest()) != srs_success) {
-        return srs_error_wrap(err, "ingest");
+    if ((err = svr->initialize()) != srs_success) {
+        return srs_error_wrap(err, "hybrid initialize");
     }
 
-    if ((err = svr->cycle()) != srs_success) {
-        return srs_error_wrap(err, "main cycle");
+    if ((err = svr->run()) != srs_success) {
+        return srs_error_wrap(err, "hybrid run");
     }
-    
+
     return err;
 }
 
