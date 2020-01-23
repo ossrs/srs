@@ -214,6 +214,7 @@ void show_macro_features()
         ss << ", dash:" << "on";
         ss << ", hls:" << srs_bool2switch(true);
         ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
+        ss << ", srt:" << srs_bool2switch(SRS_AUTO_SRT_BOOL);
         // hc(http callback)
         ss << ", hc:" << srs_bool2switch(true);
         // ha(http api)
