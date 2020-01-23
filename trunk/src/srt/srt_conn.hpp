@@ -20,10 +20,27 @@ inline bool is_streamid_valid(const std::string& streamid) {
     if (streamid.empty()) {
         return ret;
     }
+    //check whether subpath is valid, eg. live/test or srs.srt.com.cn/live/test
     std::vector<std::string> ret_vec;
     string_split(streamid, "/", ret_vec);
-
     if (ret_vec.size() < 2) {
+        return ret;
+    }
+
+    //check whether mode is valid, eg. live/test?m=push or live/test?m=pull
+    size_t pos = streamid.find("?");
+    if (pos == streamid.npos) {
+        return ret;
+    }
+
+    std::string mode = streamid.substr(pos+1);
+    string_split(mode, "=", ret_vec);
+    if (ret_vec.size() != 2) {
+        return ret;
+    }
+    //it must be m=push or m=pull
+    std::string mode_oper = string_lower(ret_vec[1]);
+    if ((ret_vec[0] != "m") || ((mode_oper != "push") && (mode_oper != "pull"))) {
         return ret;
     }
     ret = true;
@@ -35,7 +52,7 @@ inline void get_streamid_info(const std::string& streamid, int& mode, std::strin
     
     size_t pos = streamid.find("?");
     if (pos == std::string::npos) {
-        mode = PULL_SRT_MODE;
+        mode = ERR_SRT_MODE;
         url_subpash = streamid;
     } else {
         std::string mode_str = streamid.substr(pos+1);
