@@ -245,9 +245,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
-    if [[ $SRS_SRT == YES ]]; then
-        ModuleLibIncs+=("${LibSRTRoot[*]}")
-    fi
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 

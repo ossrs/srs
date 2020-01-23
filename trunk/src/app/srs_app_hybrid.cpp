@@ -25,18 +25,30 @@
 
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_service_st.hpp>
 
-SrsHybridServer::SrsHybridServer()
+using namespace std;
+
+ISrsHybridServer::ISrsHybridServer()
+{
+}
+
+ISrsHybridServer::~ISrsHybridServer()
+{
+}
+
+SrsServerAdapter::SrsServerAdapter()
 {
     srs = new SrsServer();
 }
 
-SrsHybridServer::~SrsHybridServer()
+SrsServerAdapter::~SrsServerAdapter()
 {
     srs_freep(srs);
 }
 
-srs_error_t SrsHybridServer::initialize()
+srs_error_t SrsServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
 
@@ -49,30 +61,10 @@ srs_error_t SrsHybridServer::initialize()
         return srs_error_wrap(err, "initialize st");
     }
 
-#ifdef SRS_AUTO_SRT
-    if(_srs_config->get_srt_enabled()) {
-        srs_trace("srt server is enabled...");
-        unsigned short srt_port = _srs_config->get_srt_listen_port();
-        srs_trace("srt server listen port:%d", srt_port);
-        err = srt2rtmp::get_instance()->init();
-        if (err != srs_success) {
-            srs_error_wrap(err, "srt start srt2rtmp error");
-            return err;
-        }
-
-        srt_ptr = std::make_shared<srt_server>(srt_port);
-        if (!srt_ptr) {
-            srs_error_wrap(err, "srt listen %d", srt_port);
-        }
-    } else {
-        srs_trace("srt server is disabled...");
-    }
-#endif
-
     return err;
 }
 
-srs_error_t SrsHybridServer::run()
+srs_error_t SrsServerAdapter::run()
 {
     srs_error_t err = srs_success;
 
@@ -100,16 +92,82 @@ srs_error_t SrsHybridServer::run()
         return srs_error_wrap(err, "ingest");
     }
 
-#ifdef SRS_AUTO_SRT
-    if(_srs_config->get_srt_enabled()) {
-        srt_ptr->start();
-    }
-#endif
-
     if ((err = srs->cycle()) != srs_success) {
         return srs_error_wrap(err, "main cycle");
     }
 
     return err;
 }
+
+SrsHybridServer::SrsHybridServer()
+{
+}
+
+SrsHybridServer::~SrsHybridServer()
+{
+    vector<ISrsHybridServer*>::iterator it;
+    for (it = servers.begin(); it != servers.end(); ++it) {
+        ISrsHybridServer* server = *it;
+        srs_freep(server);
+    }
+    servers.clear();
+}
+
+void SrsHybridServer::register_server(ISrsHybridServer* svr)
+{
+    servers.push_back(svr);
+}
+
+srs_error_t SrsHybridServer::initialize()
+{
+    srs_error_t err = srs_success;
+
+    // init st
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "initialize st failed");
+    }
+
+    vector<ISrsHybridServer*>::iterator it;
+    for (it = servers.begin(); it != servers.end(); ++it) {
+        ISrsHybridServer* server = *it;
+
+        if ((err = server->initialize()) != srs_success) {
+            return srs_error_wrap(err, "init server");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsHybridServer::run()
+{
+    srs_error_t err = srs_success;
+
+    // Run master server in this main thread.
+    SrsServerAdapter* master_server = NULL;
+
+    vector<ISrsHybridServer*>::iterator it;
+    for (it = servers.begin(); it != servers.end(); ++it) {
+        ISrsHybridServer* server = *it;
+
+        if (!master_server) {
+            master_server = dynamic_cast<SrsServerAdapter*>(server);
+            if (master_server) {
+                continue;
+            }
+        }
+
+        if ((err = server->run()) != srs_success) {
+            return srs_error_wrap(err, "run server");
+        }
+    }
+
+    if (master_server) {
+        return master_server->run();
+    }
+
+    return err;
+}
+
+SrsHybridServer* _srs_hybrid = new SrsHybridServer();
 

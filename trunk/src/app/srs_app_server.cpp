@@ -565,11 +565,6 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
     
-    // init st
-    if ((err = srs_st_init()) != srs_success) {
-        return srs_error_wrap(err, "initialize st failed");
-    }
-    
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.

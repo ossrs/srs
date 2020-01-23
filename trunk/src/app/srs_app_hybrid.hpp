@@ -26,26 +26,46 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_SRT
-#include <srt_server.hpp>
-#include <srt_to_rtmp.hpp>
-#endif
+#include <vector>
 
 class SrsServer;
 
-class SrsHybridServer
+class ISrsHybridServer
+{
+public:
+    ISrsHybridServer();
+    virtual ~ISrsHybridServer();
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t run() = 0;
+};
+
+class SrsServerAdapter : public ISrsHybridServer
 {
 private:
     SrsServer* srs;
-#ifdef SRS_AUTO_SRT
-    SRT_SERVER_PTR srt_ptr;
-#endif
 public:
-    SrsHybridServer();
-    virtual ~SrsHybridServer();
+    SrsServerAdapter();
+    virtual ~SrsServerAdapter();
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
 };
+
+class SrsHybridServer
+{
+private:
+    std::vector<ISrsHybridServer*> servers;
+public:
+    SrsHybridServer();
+    virtual ~SrsHybridServer();
+public:
+    virtual void register_server(ISrsHybridServer* svr);
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run();
+};
+
+extern SrsHybridServer* _srs_hybrid;
 
 #endif

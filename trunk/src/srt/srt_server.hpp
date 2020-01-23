@@ -1,9 +1,12 @@
 #ifndef SRT_SERVER_H
 #define SRT_SERVER_H
+
 #include <srt/srt.h>
 
 #include <thread>
 #include <memory>
+
+#include <srs_app_hybrid.hpp>
 
 class srt_handle;
 
@@ -33,5 +36,17 @@ private:
 };
 
 typedef std::shared_ptr<srt_server> SRT_SERVER_PTR;
+
+class SrtServerAdapter : public ISrsHybridServer
+{
+private:
+    SRT_SERVER_PTR srt_ptr;
+public:
+    SrtServerAdapter();
+    virtual ~SrtServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run();
+};
 
 #endif//SRT_SERVER_H

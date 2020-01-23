@@ -199,3 +199,47 @@ void srt_server::on_work()
         }
     }
 }
+
+SrtServerAdapter::SrtServerAdapter()
+{
+}
+
+SrtServerAdapter::~SrtServerAdapter()
+{
+}
+
+srs_error_t SrtServerAdapter::initialize()
+{
+    srs_error_t err = srs_success;
+
+    if(_srs_config->get_srt_enabled()) {
+        srs_trace("srt server is enabled...");
+        unsigned short srt_port = _srs_config->get_srt_listen_port();
+        srs_trace("srt server listen port:%d", srt_port);
+        err = srt2rtmp::get_instance()->init();
+        if (err != srs_success) {
+            srs_error_wrap(err, "srt start srt2rtmp error");
+            return err;
+        }
+
+        srt_ptr = std::make_shared<srt_server>(srt_port);
+        if (!srt_ptr) {
+            srs_error_wrap(err, "srt listen %d", srt_port);
+        }
+    } else {
+        srs_trace("srt server is disabled...");
+    }
+
+    return err;
+}
+
+srs_error_t SrtServerAdapter::run()
+{
+    srs_error_t err = srs_success;
+
+    if(_srs_config->get_srt_enabled()) {
+        srt_ptr->start();
+    }
+
+    return err;
+}
