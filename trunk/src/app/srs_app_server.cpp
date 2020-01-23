@@ -688,9 +688,11 @@ srs_error_t SrsServer::listen()
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
     }
+#ifdef SRS_AUTO_SRT
     if ((err = listen_srt()) != srs_success) {
         return srs_error_wrap(err, "srt listen");
     }
+#endif
 
     return err;
 }
@@ -1007,6 +1009,7 @@ srs_error_t SrsServer::do_cycle()
     return err;
 }
 
+#ifdef SRS_AUTO_SRT
 srs_error_t SrsServer::listen_srt() {
     srs_error_t err = srs_success;
 
@@ -1030,6 +1033,7 @@ srs_error_t SrsServer::listen_srt() {
     }
     return err;
 }
+#endif
 
 srs_error_t SrsServer::listen_rtmp()
 {

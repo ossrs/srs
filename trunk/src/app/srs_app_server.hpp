@@ -36,8 +36,10 @@
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_service_st.hpp>
-#include "../srt/srt_server.hpp"
-#include "../srt/srt_to_rtmp.hpp"
+#ifdef SRS_AUTO_SRT
+#include <srt_server.hpp>
+#include <srt_to_rtmp.hpp>
+#endif
 
 class SrsServer;
 class SrsConnection;
@@ -211,11 +213,10 @@ private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;
-
-private:
-    //srt server
+#ifdef SRS_AUTO_SRT
+    // srt server
     SRT_SERVER_PTR srt_ptr;
-
+#endif
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -286,8 +287,10 @@ private:
     virtual srs_error_t listen_http_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
+#ifdef SRS_AUTO_SRT
     //start listen srt udp port
     virtual srs_error_t listen_srt();
+#endif
     // Close the listeners for specified type,
     // Remove the listen object from manager.
     virtual void close_listeners(SrsListenerType type);
