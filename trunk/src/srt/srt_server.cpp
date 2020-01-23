@@ -211,6 +211,12 @@ SrtServerAdapter::~SrtServerAdapter()
 srs_error_t SrtServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
+    return err;
+}
+
+srs_error_t SrtServerAdapter::run()
+{
+    srs_error_t err = srs_success;
 
     if(_srs_config->get_srt_enabled()) {
         srs_trace("srt server is enabled...");
@@ -229,13 +235,6 @@ srs_error_t SrtServerAdapter::initialize()
     } else {
         srs_trace("srt server is disabled...");
     }
-
-    return err;
-}
-
-srs_error_t SrtServerAdapter::run()
-{
-    srs_error_t err = srs_success;
 
     if(_srs_config->get_srt_enabled()) {
         srt_ptr->start();

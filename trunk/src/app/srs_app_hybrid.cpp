@@ -51,6 +51,12 @@ SrsServerAdapter::~SrsServerAdapter()
 srs_error_t SrsServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
+    return err;
+}
+
+srs_error_t SrsServerAdapter::run()
+{
+    srs_error_t err = srs_success;
 
     // Initialize the whole system, set hooks to handle server level events.
     if ((err = srs->initialize(NULL)) != srs_success) {
@@ -61,19 +67,12 @@ srs_error_t SrsServerAdapter::initialize()
         return srs_error_wrap(err, "initialize st");
     }
 
-    return err;
-}
-
-srs_error_t SrsServerAdapter::run()
-{
-    srs_error_t err = srs_success;
+    if ((err = srs->acquire_pid_file()) != srs_success) {
+        return srs_error_wrap(err, "acquire pid file");
+    }
 
     if ((err = srs->initialize_signal()) != srs_success) {
         return srs_error_wrap(err, "initialize signal");
-    }
-
-    if ((err = srs->acquire_pid_file()) != srs_success) {
-        return srs_error_wrap(err, "acquire pid file");
     }
 
     if ((err = srs->listen()) != srs_success) {
