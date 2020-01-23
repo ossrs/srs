@@ -50,8 +50,8 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 
 // pre-declare
-srs_error_t run(SrsServer* svr);
-srs_error_t run_master(SrsServer* svr);
+srs_error_t run_directly_or_daemon();
+srs_error_t run_hybrid_server();
 void show_macro_features();
 string srs_getenv(const char* name);
 
@@ -177,10 +177,7 @@ srs_error_t do_main(int argc, char** argv)
     // features
     show_macro_features();
     
-    SrsServer* svr = new SrsServer();
-    SrsAutoFree(SrsServer, svr);
-    
-    if ((err = run(svr)) != srs_success) {
+    if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
     
@@ -359,18 +356,13 @@ string srs_getenv(const char* name)
     return "";
 }
 
-srs_error_t run(SrsServer* svr)
+srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
-
-    // Initialize the whole system, set hooks to handle server level events.
-    if ((err = svr->initialize(NULL)) != srs_success) {
-        return srs_error_wrap(err, "server initialize");
-    }
     
     // If not daemon, directly run master.
     if (!_srs_config->get_daemon()) {
-        if ((err = run_master(svr)) != srs_success) {
+        if ((err = run_hybrid_server()) != srs_success) {
             return srs_error_wrap(err, "run master");
         }
         return srs_success;
@@ -407,16 +399,24 @@ srs_error_t run(SrsServer* svr)
     // son
     srs_trace("son(daemon) process running.");
     
-    if ((err = run_master(svr)) != srs_success) {
+    if ((err = run_hybrid_server()) != srs_success) {
         return srs_error_wrap(err, "daemon run master");
     }
     
     return err;
 }
 
-srs_error_t run_master(SrsServer* svr)
+srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
+
+    SrsServer* svr = new SrsServer();
+    SrsAutoFree(SrsServer, svr);
+
+    // Initialize the whole system, set hooks to handle server level events.
+    if ((err = svr->initialize(NULL)) != srs_success) {
+        return srs_error_wrap(err, "server initialize");
+    }
     
     if ((err = svr->initialize_st()) != srs_success) {
         return srs_error_wrap(err, "initialize st");
@@ -445,7 +445,7 @@ srs_error_t run_master(SrsServer* svr)
     if ((err = svr->ingest()) != srs_success) {
         return srs_error_wrap(err, "ingest");
     }
-    
+
     if ((err = svr->cycle()) != srs_success) {
         return srs_error_wrap(err, "main cycle");
     }
