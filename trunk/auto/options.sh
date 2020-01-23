@@ -16,6 +16,7 @@ help=no
 ################################################################
 # feature options
 SRS_HDS=NO
+SRS_SRT=NO
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
