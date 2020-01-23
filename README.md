@@ -1015,31 +1015,33 @@ Remark:
 +---------+              +----------+
 | Publish |              |  Deliver |
 +---|-----+              +----|-----+
-+----------------------+-------------------------+----------------+
-|     Input            | SRS(Simple RTMP Server) |     Output     |
-+----------------------+-------------------------+----------------+
-|                      |   +-> DASH -------------+-> DASH player  |
-|    Encoder(1)        |   +-> RTMP/HDS  --------+-> Flash player |
-|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3U8 player  |
-|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
-|  ......)             |   +-> Fowarder ---------+-> RTMP server  |
-|                      |   +-> Transcoder -------+-> RTMP server  |
-|                      |   +-> EXEC(5) ----------+-> External app |
-|                      |   +-> DVR --------------+-> FLV file     |
-|                      |   +-> BandwidthTest ----+-> Flash        |
-+----------------------+                         |                |
-|  MediaSource(2)      |                         |                |
-|  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)-+-> SRS          |
-|   Device,            |                         |                |
-|   ......)            |                         |                |
-+----------------------+                         |                |
-|  MediaSource(2)      |                         |                |
-|  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --push-+->-- Streamer(4) -(rtmp)-+-> SRS          |
-|   Device,            |                         |                |
-|   ......)            |                         |                |
-+----------------------+-------------------------+----------------+
++----------------------+----------------------------+----------------+
+|     Input            | SRS(Simple RTMP Server)    |     Output     |
++----------------------+----------------------------+----------------+
+|                      |   +-> DASH ----------------+-> DASH player  |
+|    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
+|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
+|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
+|  ......)             |   +-> Fowarder ------------+-> RTMP server  |
+|                      |   +-> Transcoder ----------+-> RTMP server  |
+|                      |   +-> EXEC(5) -------------+-> External app |
+|                      |   +-> DVR -----------------+-> FLV file     |
+|                      |   +-> BandwidthTest -------+-> Flash        |
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (RTSP,FILE,         |                            |                |
+|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)----+-> SRS          |
+|   Device,            |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (RTSP,FILE,         |                            |                |
+|   HTTP,HLS,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
+|   Device,            |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
++----------------------+----------------------------+----------------+
 
 ```
 
@@ -1050,6 +1052,7 @@ Remark:
 1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v1_CN_Ingest].
 1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v2_CN_Streamer].
 1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v3_CN_NgExec].
+1. SRTModule: A isolate module which run in [hybrid](https://github.com/ossrs/srs/issues/1147#issuecomment-577574883) model.
 
 ## AUTHORS
 
