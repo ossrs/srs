@@ -421,7 +421,12 @@ void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
         }
         return;
     }
-    get_streamid_info(conn_ptr->get_streamid(), mode, subpath);
+    bool ret = get_streamid_info(conn_ptr->get_streamid(), mode, subpath);
+    if (!ret) {
+        conn_ptr->close();
+        conn_ptr = nullptr;
+        return;
+    }
     
     if (mode == PUSH_SRT_MODE) {
         switch (status)
