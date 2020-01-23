@@ -162,12 +162,12 @@ if [ $SRS_GPERF_MD = YES ]; then
 fi
 # srt code path
 if [[ $SRS_SRT == YES ]]; then
-    LibSRTRoot="${SRS_WORKDIR}/src/srt"
+    LibSRTRoot="${SRS_WORKDIR}/src/srt"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
 fi
 # the link options, always use static link
 SrsLinkOptions="-ldl";
 if [[ $SRS_SRT == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -pthread -lsrt";
+    SrsLinkOptions="${SrsLinkOptions} -pthread";
 fi
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
@@ -323,6 +323,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibFiles+=("${LibSRTfile[*]}")
+    fi
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
@@ -336,6 +339,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -360,6 +364,9 @@ if [ $SRS_UTEST = YES ]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibFiles+=("${LibSRTfile[*]}")
+    fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_DEPENDS+=("SRT")
