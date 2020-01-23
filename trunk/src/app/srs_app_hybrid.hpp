@@ -30,16 +30,22 @@
 
 class SrsServer;
 
+// The hibrid server interfaces, we could register many servers.
 class ISrsHybridServer
 {
 public:
     ISrsHybridServer();
     virtual ~ISrsHybridServer();
 public:
+    // Only ST initialized before each server, we could fork processes as such.
     virtual srs_error_t initialize() = 0;
+    // Run each server, should never block except the SRS master server.
     virtual srs_error_t run() = 0;
+    // Stop each server, should do cleanup, for example, kill processes forked by server.
+    virtual void stop() = 0;
 };
 
+// The SRS server adapter, the master server.
 class SrsServerAdapter : public ISrsHybridServer
 {
 private:
@@ -50,8 +56,10 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
+    virtual void stop();
 };
 
+// The hybrid server manager.
 class SrsHybridServer
 {
 private:
@@ -64,6 +72,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
+    virtual void stop();
 };
 
 extern SrsHybridServer* _srs_hybrid;

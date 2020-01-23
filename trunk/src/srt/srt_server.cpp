@@ -211,12 +211,17 @@ SrtServerAdapter::~SrtServerAdapter()
 srs_error_t SrtServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
+
+    // TODO: FIXME: We could fork processes here, because here only ST is initialized.
+
     return err;
 }
 
 srs_error_t SrtServerAdapter::run()
 {
     srs_error_t err = srs_success;
+
+    // TODO: FIXME: We could start a coroutine to dispatch SRT task to processes.
 
     if(_srs_config->get_srt_enabled()) {
         srs_trace("srt server is enabled...");
@@ -241,4 +246,9 @@ srs_error_t SrtServerAdapter::run()
     }
 
     return err;
+}
+
+void SrtServerAdapter::stop()
+{
+    // TODO: FIXME: If forked processes, we should do cleanup.
 }

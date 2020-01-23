@@ -420,13 +420,18 @@ srs_error_t run_hybrid_server()
     _srs_hybrid->register_server(new SrtServerAdapter());
 #endif
 
+    // Do some system initialize.
     if ((err = _srs_hybrid->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
     }
 
+    // Should run util hybrid servers all done.
     if ((err = _srs_hybrid->run()) != srs_success) {
         return srs_error_wrap(err, "hybrid run");
     }
+
+    // After all done, stop and cleanup.
+    _srs_hybrid->stop();
 
     return err;
 }

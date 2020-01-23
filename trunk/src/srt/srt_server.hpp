@@ -47,6 +47,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
+    virtual void stop();
 };
 
 #endif//SRT_SERVER_H

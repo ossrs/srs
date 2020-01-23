@@ -98,6 +98,10 @@ srs_error_t SrsServerAdapter::run()
     return err;
 }
 
+void SrsServerAdapter::stop()
+{
+}
+
 SrsHybridServer::SrsHybridServer()
 {
 }
@@ -166,6 +170,15 @@ srs_error_t SrsHybridServer::run()
     }
 
     return err;
+}
+
+void SrsHybridServer::stop()
+{
+    vector<ISrsHybridServer*>::iterator it;
+    for (it = servers.begin(); it != servers.end(); ++it) {
+        ISrsHybridServer* server = *it;
+        server->stop();
+    }
 }
 
 SrsHybridServer* _srs_hybrid = new SrsHybridServer();
