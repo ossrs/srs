@@ -70,11 +70,13 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
 
 Please select according to languages:
 
-* [SRS 3.0 English Wiki][v3_EN_Home]
-* [SRS 3.0 Chinese Wiki][v3_CN_Home]
+* [SRS 4.0 English Wiki][v4_EN_Home]
+* [SRS 4.0 Chinese Wiki][v4_CN_Home]
 
 For previous versions, please read:
 
+* [SRS 3.0 English Wiki][v3_EN_Home]
+* [SRS 3.0 Chinese Wiki][v3_CN_Home]
 * [SRS 2.0 English Wiki][v2_EN_Home]
 * [SRS 2.0 Chinese Wiki][v2_CN_Home]
 * [SRS 1.0 English Wiki][v1_EN_Home]
@@ -148,6 +150,10 @@ For previous versions, please read:
 
 <a name="history"></a>
 <a name="change-logs"></a>
+
+## V4 changes
+
+* v4.0, 2020-01-24, Fix [#1147][bug #1147], support SRT(Secure Reliable Transport). 4.0.1
 
 ## V3 changes
 
@@ -1219,6 +1225,8 @@ Winlin
 [v2_EN_Home]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
+[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
+[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
 [donation1]: http://ossrs.net/srs.release/donation/index.html
 [donation2]: http://ossrs.net/srs.release/donation/paypal.html
