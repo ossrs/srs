@@ -15,49 +15,9 @@
 #define PULL_SRT_MODE 0x01
 #define PUSH_SRT_MODE 0x02
 
-inline bool is_streamid_valid(const std::string& streamid) {
-    bool ret = false;
-    if (streamid.empty()) {
-        return ret;
-    }
-    std::vector<std::string> ret_vec;
-    string_split(streamid, "/", ret_vec);
-
-    if (ret_vec.size() < 2) {
-        return ret;
-    }
-    ret = true;
-    return ret;
-}
-
-inline void get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash) {
-    std::string real_streamip;
-    
-    size_t pos = streamid.find("?");
-    if (pos == std::string::npos) {
-        mode = PULL_SRT_MODE;
-        url_subpash = streamid;
-    } else {
-        std::string mode_str = streamid.substr(pos+1);
-
-        url_subpash = streamid.substr(0, pos);
-
-        size_t mode_pos = mode_str.find("m=");
-        if (mode_pos == std::string::npos) {
-            mode = PULL_SRT_MODE;
-        } else {
-            mode_str = mode_str.substr(mode_pos+2);
-            mode_str = string_lower(mode_str);
-            if (mode_str == "push") {
-                mode = PUSH_SRT_MODE;
-            } else if(mode_str == "pull"){
-                mode = PULL_SRT_MODE;
-            } else {
-                mode = ERR_SRT_MODE;
-            }
-        }
-    }
-}
+bool is_streamid_valid(const std::string& streamid);
+bool get_key_value(const std::string& info, std::string& key, std::string& value);
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash);
 
 class srt_conn {
 public:

@@ -3,6 +3,93 @@
 #include "stringex.hpp"
 #include <vector>
 
+bool is_streamid_valid(const std::string& streamid) {
+    int mode = ERR_SRT_MODE;
+    std::string url_subpash;
+
+    bool ret = get_streamid_info(streamid, mode, url_subpash);
+    if (!ret) {
+        return ret;
+    }
+
+    if ((mode != PULL_SRT_MODE) && (mode != PUSH_SRT_MODE)) {
+        return false;
+    }
+
+    if (url_subpash.empty()) {
+        return false;
+    }
+
+    std::vector<std::string> info_vec;
+    string_split(url_subpash, "/", info_vec);
+    if (info_vec.size() < 2) {
+        return false;
+    }
+
+    return true;
+}
+
+bool get_key_value(const std::string& info, std::string& key, std::string& value) {
+    size_t pos = info.find("=");
+
+    if (pos == info.npos) {
+        return false;
+    }
+
+    key = info.substr(0, pos);
+    value = info.substr(pos+1);
+
+    if (key.empty() || value.empty()) {
+        return false;
+    }
+    return true;
+}
+
+//eg. streamid=#!::h:live/livestream,m:publish
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash) {
+    std::vector<std::string> info_vec;
+    std::string real_streamid;
+
+    size_t pos = streamid.find("#!::h");
+    if (pos != 0) {
+        return false;
+    }
+    real_streamid = streamid.substr(4);
+
+    string_split(real_streamid, ",", info_vec);
+    if (info_vec.size() < 2) {
+        return false;
+    }
+
+    for (int index = 0; index < info_vec.size(); index++) {
+        std::string key;
+        std::string value;
+
+        bool ret = get_key_value(info_vec[index], key, value);
+        if (!ret) {
+            continue;
+        }
+        
+        if (key == "h") {
+            url_subpash = value;//eg. h=live/stream
+        } else if (key == "m") {
+            std::string mode_str = string_lower(value);//m=publish or m=request
+            if (mode_str == "publish") {
+                mode = PUSH_SRT_MODE;
+            } else if (mode_str == "request") {
+                mode = PULL_SRT_MODE;
+            } else {
+                mode = ERR_SRT_MODE;
+                return false;
+            }
+        } else {//not suport
+            continue;
+        }
+    }
+
+    return true;
+}
+
 srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn_fd),
     _streamid(streamid) {
     get_streamid_info(streamid, _mode, _url_subpath);
