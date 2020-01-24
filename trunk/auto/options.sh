@@ -510,9 +510,9 @@ apply_user_detail_options
 
 function regenerate_options() {
     # save all config options to macro to write to auto headers file
-    SRS_AUTO_USER_CONFIGURE="$opt"
+    SRS_AUTO_USER_CONFIGURE=`echo $opt`
     # regenerate the options for default values.
-SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
+    SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hls"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hls"; fi
     if [ $SRS_HDS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hds"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hds"; fi
     if [ $SRS_DVR = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-dvr"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-dvr"; fi

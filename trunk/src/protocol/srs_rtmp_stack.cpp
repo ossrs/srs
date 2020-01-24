@@ -2399,6 +2399,7 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
     data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHORS));
 
     if (server_ip) {
         data->set("srs_server_ip", SrsAmf0Any::str(server_ip));
