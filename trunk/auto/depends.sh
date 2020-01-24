@@ -386,6 +386,22 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
 fi
 
 #####################################################################################
+# SRT module, https://github.com/ossrs/srs/issues/1147#issuecomment-577469119
+#####################################################################################
+if [[ $SRS_SRT == YES ]]; then
+    if [[ -f /usr/local/lib64/libsrt.a && ! -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
+        mkdir -p ${SRS_OBJS}/srt/lib && ln -sf /usr/local/lib64/libsrt.a ${SRS_OBJS}/srt/lib/libsrt.a
+        mkdir -p ${SRS_OBJS}/srt/include && ln -sf /usr/local/include/srt ${SRS_OBJS}/srt/include/
+    fi
+    if [[ -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
+        echo "libsrt-1.4.1 is ok.";
+    else
+        echo "no libsrt, please use srs-docker or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
+        exit -1;
+    fi
+fi
+
+#####################################################################################
 # build research code, librtmp
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then

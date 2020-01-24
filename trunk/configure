@@ -98,6 +98,9 @@ GDBDebug=" -g -O0"
 WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
+if [[ $SRS_SRT == YES ]]; then
+    CppStd="-std=c++11"
+fi
 # for library compile
 if [[ $SRS_EXPORT_LIBRTMP_PROJECT == YES ]]; then
     LibraryCompile=" -fPIC"
@@ -157,8 +160,15 @@ fi
 if [ $SRS_GPERF_MD = YES ]; then
     LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a";
 fi
+# srt code path
+if [[ $SRS_SRT == YES ]]; then
+    LibSRTRoot="${SRS_WORKDIR}/src/srt"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
+fi
 # the link options, always use static link
 SrsLinkOptions="-ldl";
+if [[ $SRS_SRT == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -pthread";
+fi
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -206,6 +216,17 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
+#srt protocol features.
+if [ $SRS_SRT = YES ]; then
+    MODULE_ID="SRT"
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    ModuleLibIncs=(${SRS_OBJS_DIR})
+    MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data")
+    SRT_INCS=${LibSRTRoot}; MODULE_DIR=${LibSRTRoot} . auto/modules.sh
+    SRT_OBJS="${MODULE_OBJS[@]}"
+fi
+
+#
 #Service Module, for both Server and Client Modules.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
@@ -234,7 +255,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
             "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec"
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
-            "srs_app_coworkers")
+            "srs_app_coworkers" "srs_app_hybrid")
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -258,7 +279,13 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVER"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    if [[ $SRS_SRT == YES ]]; then
+        MODULE_DEPENDS+=("SRT")
+    fi
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibIncs+=("${LibSRTRoot[*]}")
+    fi
     MODULE_FILES=("srs_main_server")
     SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
     SERVER_OBJS="${MODULE_OBJS[@]}"
@@ -296,8 +323,15 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibFiles+=("${LibSRTfile[*]}")
+    fi
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    if [[ $SRS_SRT == YES ]]; then
+        MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
+    fi
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
@@ -305,6 +339,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -325,9 +360,18 @@ if [ $SRS_UTEST = YES ]; then
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibIncs+=("${LibSRTRoot[*]}")
+    fi
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
+    if [[ $SRS_SRT == YES ]]; then
+        ModuleLibFiles+=("${LibSRTfile[*]}")
+    fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]}"
+    if [[ $SRS_SRT == YES ]]; then
+        MODULE_DEPENDS+=("SRT")
+    fi
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
 
@@ -583,6 +627,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${YELLOW}Experiment: HDS is enabled.${BLACK}"
     else
         echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
+    fi
+    if [ $SRS_SRT = YES ]; then
+        echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
+    else
+        echo -e "${GREEN}Warning: SRT is disabled.${BLACK}"
     fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"

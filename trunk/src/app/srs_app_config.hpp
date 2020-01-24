@@ -588,6 +588,13 @@ public:
     virtual bool get_forward_enabled(std::string vhost);
     // Get the forward directive of vhost.
     virtual SrsConfDirective* get_forwards(std::string vhost);
+
+public:
+    // Whether the srt sevice enabled
+    virtual bool get_srt_enabled();
+    // Get the srt service listen port
+    virtual unsigned short get_srt_listen_port();
+
 // http_hooks section
 private:
     // Get the http_hooks directive of vhost.
