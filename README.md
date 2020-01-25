@@ -157,6 +157,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-25, Fix [#1108][bug #1108], reap DVR tmp file when unpublish. 3.0.106
 * <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
 * v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
 * v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
@@ -295,6 +296,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
@@ -1628,6 +1630,7 @@ Winlin
 [bug #1111]: https://github.com/ossrs/srs/issues/1111
 [bug #463]: https://github.com/ossrs/srs/issues/463
 [bug #1147]: https://github.com/ossrs/srs/issues/1147
+[bug #1108]: https://github.com/ossrs/srs/issues/1108
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
@@ -1642,6 +1645,7 @@ Winlin
 [r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2
 [r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
 [r3.0a0]: https://github.com/ossrs/srs/releases/tag/v3.0-a0
+[r2.0r8]: https://github.com/ossrs/srs/releases/tag/v2.0-r8
 [r2.0r7]: https://github.com/ossrs/srs/releases/tag/v2.0-r7
 [r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5
