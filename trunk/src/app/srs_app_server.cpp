@@ -523,7 +523,7 @@ void SrsServer::dispose()
     // @remark don't dispose ingesters, for too slow.
     
     // dispose the source for hls and dvr.
-    SrsSource::dispose_all();
+    _srs_sources->dispose();
     
     // @remark don't dispose all connections, for too slow.
     
@@ -957,7 +957,7 @@ srs_error_t SrsServer::do_cycle()
             }
             
             // notice the stream sources to cycle.
-            if ((err = SrsSource::cycle_all()) != srs_success) {
+            if ((err = _srs_sources->cycle()) != srs_success) {
                 return srs_error_wrap(err, "source cycle");
             }
             

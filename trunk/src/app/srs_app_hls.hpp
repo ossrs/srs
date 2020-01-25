@@ -185,6 +185,9 @@ public:
 public:
     // Initialize the hls muxer.
     virtual srs_error_t initialize();
+    // When publish or unpublish stream.
+    virtual srs_error_t on_publish(SrsRequest* req);
+    virtual srs_error_t on_unpublish();
     // When publish, update the config for muxer.
     virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,

@@ -416,9 +416,14 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, stri
                 return err;
             }
             SrsAmf0Object* ex = prop->to_object();
-            
-            if ((prop = ex->ensure_property_string("redirect")) == NULL) {
-                return err;
+
+            // The redirect is tcUrl while redirect2 is RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574999798
+            if ((prop = ex->ensure_property_string("redirect2")) == NULL) {
+                // TODO: FIXME: Remove it when SRS3 released, it's temporarily support for SRS3 alpha versions(a0 to a8).
+                if ((prop = ex->ensure_property_string("redirect")) == NULL) {
+                    return err;
+                }
             }
             redirect = prop->to_str();
             

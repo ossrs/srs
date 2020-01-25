@@ -1023,7 +1023,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         if (it == tflvs.end()) {
             return err;
         }
-        
+
         // hstrs always enabled.
         // for origin, the http stream will be mount already when publish,
         //      so it must never enter this line for stream already mounted.
@@ -1064,7 +1064,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     if (srs_string_count(upath, "/") != srs_string_count(entry->mount, "/")) {
         return err;
     }
-    
+
     // convert to concreate class.
     SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(request);
     srs_assert(hreq);
@@ -1089,7 +1089,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     
     SrsSource* s = NULL;
-    if ((err = SrsSource::fetch_or_create(r, server, &s)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(r, server, &s)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }
     srs_assert(s != NULL);
@@ -1127,7 +1127,7 @@ srs_error_t SrsHttpStreamServer::initialize_flv_streaming()
         if (!conf->is_vhost()) {
             continue;
         }
-        
+
         if ((err = initialize_flv_entry(conf->arg0())) != srs_success) {
             return srs_error_wrap(err, "init flv entries");
         }
@@ -1139,7 +1139,7 @@ srs_error_t SrsHttpStreamServer::initialize_flv_streaming()
 srs_error_t SrsHttpStreamServer::initialize_flv_entry(std::string vhost)
 {
     srs_error_t err = srs_success;
-    
+
     if (!_srs_config->get_vhost_http_remux_enabled(vhost)) {
         return err;
     }

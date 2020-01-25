@@ -119,7 +119,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
-    srs_trace("contributors: " SRS_AUTO_CONSTRIBUTORS);
+    srs_trace("contributors: %s", SRS_AUTO_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s",
         _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
     srs_trace("configure detail: " SRS_AUTO_CONFIGURE);
@@ -237,16 +237,6 @@ void show_macro_features()
     if (true) {
         stringstream ss;
         ss << "SRS on ";
-#ifdef SRS_OSX
-        ss << "OSX";
-#endif
-#ifdef SRS_PI
-        ss << "RespberryPi";
-#endif
-#ifdef SRS_CUBIE
-        ss << "CubieBoard";
-#endif
-        
 #if defined(__amd64__)
         ss << " amd64";
 #endif
@@ -259,9 +249,11 @@ void show_macro_features()
 #if defined(__arm__)
         ss << "arm";
 #endif
-        
-#ifndef SRS_OSX
-        ss << ", glibc" << (int)__GLIBC__ << "." <<  (int)__GLIBC_MINOR__;
+#if defined(__aarch64__)
+        ss << " aarch64";
+#endif
+#if defined(SRS_AUTO_CROSSBUILD)
+        ss << "(crossbuild)";
 #endif
         
         ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()

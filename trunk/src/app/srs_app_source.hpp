@@ -438,32 +438,43 @@ public:
     virtual srs_error_t update_vsh(SrsSharedPtrMessage* msg);
 };
 
-// live streaming source.
-class SrsSource : public ISrsReloadHandler
+// The source manager to create and refresh all stream sources.
+class SrsSourceManager
 {
-    friend class SrsOriginHub;
 private:
-    static std::map<std::string, SrsSource*> pool;
+    std::map<std::string, SrsSource*> pool;
+public:
+    SrsSourceManager();
+    virtual ~SrsSourceManager();
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
-    static srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
-    static SrsSource* fetch(SrsRequest* r);
+    virtual SrsSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
-    static void dispose_all();
-    static srs_error_t cycle_all();
+    virtual void dispose();
+    virtual srs_error_t cycle();
 private:
-    static srs_error_t do_cycle_all();
+    virtual srs_error_t do_cycle();
 public:
     // when system exit, destroy the sources,
     // For gmc to analysis mem leaks.
-    static void destroy();
+    virtual void destroy();
+};
+
+// Global singleton instance.
+extern SrsSourceManager* _srs_sources;
+
+// live streaming source.
+class SrsSource : public ISrsReloadHandler
+{
+    friend class SrsOriginHub;
 private:
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
@@ -531,6 +542,8 @@ public:
     // Whether source is inactive, which means there is no publishing stream source.
     // @remark For edge, it's inactive util stream has been pulled from origin.
     virtual bool inactive();
+    // Update the authentication information in request.
+    virtual void update_auth(SrsRequest* r);
 public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

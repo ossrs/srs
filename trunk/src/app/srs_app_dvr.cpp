@@ -609,11 +609,23 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
         return srs_error_wrap(err, "segmenter");
     }
     
+    return err;
+}
+
+srs_error_t SrsDvrPlan::on_publish()
+{
+    srs_error_t err = srs_success;
+
     if ((err = async->start()) != srs_success) {
         return srs_error_wrap(err, "async");
     }
-    
+
     return err;
+}
+
+void SrsDvrPlan::on_unpublish()
+{
+    async->stop();
 }
 
 srs_error_t SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
@@ -699,6 +711,10 @@ SrsDvrSessionPlan::~SrsDvrSessionPlan()
 srs_error_t SrsDvrSessionPlan::on_publish()
 {
     srs_error_t err = srs_success;
+
+    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+        return err;
+    }
     
     // support multiple publish.
     if (dvr_enabled) {
@@ -724,6 +740,8 @@ srs_error_t SrsDvrSessionPlan::on_publish()
 
 void SrsDvrSessionPlan::on_unpublish()
 {
+    SrsDvrPlan::on_unpublish();
+
     // support multiple publish.
     if (!dvr_enabled) {
         return;
@@ -766,6 +784,10 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, S
 srs_error_t SrsDvrSegmentPlan::on_publish()
 {
     srs_error_t err = srs_success;
+
+    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+        return err;
+    }
     
     // support multiple publish.
     if (dvr_enabled) {
@@ -791,6 +813,16 @@ srs_error_t SrsDvrSegmentPlan::on_publish()
 
 void SrsDvrSegmentPlan::on_unpublish()
 {
+    srs_error_t err = srs_success;
+
+    SrsDvrPlan::on_unpublish();
+
+    if ((err = segment->close()) != srs_success) {
+        srs_warn("ignore err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    dvr_enabled = false;
 }
 
 srs_error_t SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)

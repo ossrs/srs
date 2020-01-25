@@ -5,8 +5,8 @@
 [![](https://codecov.io/gh/ossrs/srs/branch/3.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/3.0release)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
-SRS/3.0，[OuXuli][release3]，是一个简单的流媒体直播集群，简单的快乐。<br/>
-SRS(Simple RTMP Server) is a simple live streaming cluster, a simple joy.
+SRS/3.0，[OuXuli][release3]，是一个流媒体直播集群，高效、稳定、易用，简单而快乐。<br/>
+SRS(Simple RTMP Server) is a live streaming cluster, high efficiency, stable and simple.
 
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
 
@@ -116,6 +116,7 @@ For previous versions, please read:
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
 - [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
+- [x] Improve test coverage for core/kernel/protocol/service.
 - [x] [Experimental] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
@@ -129,7 +130,6 @@ For previous versions, please read:
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
-- [ ] Utest cover almost all kernel code.
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
@@ -146,6 +146,16 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-25, Fix [#1108][bug #1108], reap DVR tmp file when unpublish. 3.0.106
+* <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
+* v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
+* v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
+* v3.0, 2020-01-21, For [#1547][bug #1547], support setting cc/cxx/ar/ld/randlib tools. 3.0.103
+* v3.0, 2020-01-19, For [#1580][bug #1580], fix cid range problem. 3.0.102
+* v3.0, 2020-01-19, For [#1070][bug #1070], define FLV CodecID for [AV1][bug #1070] and [opus][bug #307]. 3.0.101
+* v3.0, 2020-01-16, For [#1575][bug #1575], correct RTMP redirect as tcUrl, add redirect2 as RTMP URL. 3.0.100
+* v3.0, 2020-01-15, For [#1509][bug #1509], decrease the fast vector init size from 64KB to 64B. 3.0.99
+* v3.0, 2020-01-15, For [#1509][bug #1509], release coroutine when source is idle. 3.0.98
 * <strong>v3.0, 2020-01-10, [3.0 alpha8(3.0.97)][r3.0a8] released. 121555 lines.</strong>
 * v3.0, 2020-01-09, For [#1042][bug #1042], improve test coverage for service. 3.0.97
 * v3.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 3.0.96
@@ -275,6 +285,7 @@ For previous versions, please read:
 
 ## V2 changes
 
+* <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
@@ -712,6 +723,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
 * 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
 * 2019-12-26, [Release v3.0-a6][r3.0a6], 3.0 alpha6, 3.0.85, 116056 lines.
@@ -1592,10 +1604,19 @@ Winlin
 [bug #1544]: https://github.com/ossrs/srs/issues/1544
 [bug #1255]: https://github.com/ossrs/srs/issues/1255
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
+[bug #1509]: https://github.com/ossrs/srs/issues/1509
+[bug #1575]: https://github.com/ossrs/srs/issues/1575
+[bug #307]: https://github.com/ossrs/srs/issues/307
+[bug #1070]: https://github.com/ossrs/srs/issues/1070
+[bug #1580]: https://github.com/ossrs/srs/issues/1580
+[bug #1547]: https://github.com/ossrs/srs/issues/1547
+[bug #1221]: https://github.com/ossrs/srs/issues/1221
+[bug #1108]: https://github.com/ossrs/srs/issues/1108
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
 [r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7
 [r3.0a6]: https://github.com/ossrs/srs/releases/tag/v3.0-a6
@@ -1605,6 +1626,7 @@ Winlin
 [r3.0a2]: https://github.com/ossrs/srs/releases/tag/v3.0-a2
 [r3.0a1]: https://github.com/ossrs/srs/releases/tag/v3.0-a1
 [r3.0a0]: https://github.com/ossrs/srs/releases/tag/v3.0-a0
+[r2.0r8]: https://github.com/ossrs/srs/releases/tag/v2.0-r8
 [r2.0r7]: https://github.com/ossrs/srs/releases/tag/v2.0-r7
 [r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5

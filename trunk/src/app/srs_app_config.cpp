@@ -6814,22 +6814,22 @@ string SrsConfig::get_vhost_http_dir(string vhost)
 bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
 {
     static bool DEFAULT = false;
-    
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("http_remux");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
