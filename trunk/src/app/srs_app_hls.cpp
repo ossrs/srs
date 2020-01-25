@@ -751,11 +751,9 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     
     // #EXTM3U\n
     // #EXT-X-VERSION:3\n
-    // #EXT-X-ALLOW-CACHE:YES\n
     std::stringstream ss;
-    ss << "#EXTM3U" << SRS_CONSTS_LF
-    << "#EXT-X-VERSION:3" << SRS_CONSTS_LF
-    << "#EXT-X-ALLOW-CACHE:YES" << SRS_CONSTS_LF;
+    ss << "#EXTM3U" << SRS_CONSTS_LF;
+    ss << "#EXT-X-VERSION:3" << SRS_CONSTS_LF;
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = dynamic_cast<SrsHlsSegment*>(segments->first());
