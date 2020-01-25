@@ -295,6 +295,7 @@ Remark:
 
 ## Releases
 
+* 2020-01-25, [Release v2.0-r8][r2.0r8], 2.0 release8, 2.0.272, 87292 lines.
 * 2018-11-29, [Release v2.0-r7][r2.0r7], 2.0 release7, 2.0.265, 86994 lines.
 * 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release6, 2.0.263, 86994 lines.
 * 2018-10-28, [Release v2.0-r5][r2.0r5], 2.0 release5, 2.0.258, 86916 lines.
@@ -338,6 +339,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
 * v2.0, 2019-12-26, For [#1488][bug #1488], pass client ip to http callback. 2.0.269
@@ -1367,6 +1369,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r2.0r8]: https://github.com/ossrs/srs/releases/tag/v2.0-r8
 [r2.0r7]: https://github.com/ossrs/srs/releases/tag/v2.0-r7
 [r2.0r6]: https://github.com/ossrs/srs/releases/tag/v2.0-r6
 [r2.0r5]: https://github.com/ossrs/srs/releases/tag/v2.0-r5
