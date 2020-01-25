@@ -61,7 +61,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
         return false;
     }
 
-    for (int index = 0; index < info_vec.size(); index++) {
+    for (size_t index = 0; index < info_vec.size(); index++) {
         std::string key;
         std::string value;
 

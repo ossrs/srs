@@ -30,12 +30,14 @@ public:
     ~rtmp_client();
 
     void receive_ts_data(SRT_DATA_MSG_PTR data_ptr);
-    
-private:
-    virtual void on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts);
+    int64_t get_last_live_ts();
+    std::string get_url();
 
     srs_error_t connect();
     void close();
+
+private:
+    virtual void on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts);
 
 private:
     srs_error_t on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
@@ -68,6 +70,7 @@ private:
 private:
     RTMP_CONN_PTR _rtmp_conn_ptr;
     bool _connect_flag;
+    int64_t _last_live_ts;
 };
 
 typedef std::shared_ptr<rtmp_client> RTMP_CLIENT_PTR;
@@ -87,6 +90,7 @@ private:
     SRT_DATA_MSG_PTR get_data_message();
     virtual srs_error_t cycle();
     void handle_ts_data(SRT_DATA_MSG_PTR data_ptr);
+    void check_rtmp_alive();
 
 private:
     static std::shared_ptr<srt2rtmp> s_srt2rtmp_ptr;
@@ -96,6 +100,7 @@ private:
     std::queue<SRT_DATA_MSG_PTR> _msg_queue;
 
     std::unordered_map<std::string, RTMP_CLIENT_PTR> _rtmp_client_map;
+    int64_t _lastcheck_ts;
 };
 
 #endif
