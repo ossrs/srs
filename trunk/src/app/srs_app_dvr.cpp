@@ -813,7 +813,16 @@ srs_error_t SrsDvrSegmentPlan::on_publish()
 
 void SrsDvrSegmentPlan::on_unpublish()
 {
+    srs_error_t err = srs_success;
+
     SrsDvrPlan::on_unpublish();
+
+    if ((err = segment->close()) != srs_success) {
+        srs_warn("ignore err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    dvr_enabled = false;
 }
 
 srs_error_t SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)

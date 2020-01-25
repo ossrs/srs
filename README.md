@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-25, Fix [#1108][bug #1108], reap DVR tmp file when unpublish. 3.0.106
 * <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
 * v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
 * v3.0, 2020-01-21, Fix [#1547][bug #1547], support crossbuild for ARM/MIPS.
@@ -1610,6 +1611,7 @@ Winlin
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
 [bug #1547]: https://github.com/ossrs/srs/issues/1547
 [bug #1221]: https://github.com/ossrs/srs/issues/1221
+[bug #1108]: https://github.com/ossrs/srs/issues/1108
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
