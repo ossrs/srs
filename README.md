@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-26, Fix [#607][bug #607], set RTMP identifying recursive depth to 3.
 * v3.0, 2020-01-25, Fix [#878][bug #878], remove deprecated #EXT-X-ALLOW-CACHE for HLS. 3.0.108
 * v3.0, 2020-01-25, Fix [#703][bug #703], drop video data util sps/pps. 3.0.107
 * v3.0, 2020-01-25, Fix [#1108][bug #1108], reap DVR tmp file when unpublish. 3.0.106
@@ -1616,6 +1617,7 @@ Winlin
 [bug #1108]: https://github.com/ossrs/srs/issues/1108
 [bug #703]: https://github.com/ossrs/srs/issues/703
 [bug #878]: https://github.com/ossrs/srs/issues/878
+[bug #607]: https://github.com/ossrs/srs/issues/607
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
