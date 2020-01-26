@@ -565,11 +565,6 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
     
-    // init st
-    if ((err = srs_st_init()) != srs_success) {
-        return srs_error_wrap(err, "initialize st failed");
-    }
-    
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
@@ -688,11 +683,6 @@ srs_error_t SrsServer::listen()
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
     }
-#ifdef SRS_AUTO_SRT
-    if ((err = listen_srt()) != srs_success) {
-        return srs_error_wrap(err, "srt listen");
-    }
-#endif
 
     return err;
 }
@@ -1008,32 +998,6 @@ srs_error_t SrsServer::do_cycle()
     
     return err;
 }
-
-#ifdef SRS_AUTO_SRT
-srs_error_t SrsServer::listen_srt() {
-    srs_error_t err = srs_success;
-
-    if(_srs_config->get_srt_enabled()) {
-        srs_trace("srt server is enabled...");
-        unsigned short srt_port = _srs_config->get_srt_listen_port();
-        srs_trace("srt server listen port:%d", srt_port);
-        err = srt2rtmp::get_instance()->init();
-        if (err != srs_success) {
-            srs_error_wrap(err, "srt start srt2rtmp error");
-            return err;
-        }
-
-        srt_ptr = std::make_shared<srt_server>(srt_port);
-        if (!srt_ptr) {
-            srs_error_wrap(err, "srt listen %d", srt_port);
-        }
-        srt_ptr->start();
-    } else {
-        srs_trace("srt server is disabled...");
-    }
-    return err;
-}
-#endif
 
 srs_error_t SrsServer::listen_rtmp()
 {

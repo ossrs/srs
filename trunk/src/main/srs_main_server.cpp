@@ -48,10 +48,15 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_hybrid.hpp>
+
+#ifdef SRS_AUTO_SRT
+#include <srt_server.hpp>
+#endif
 
 // pre-declare
-srs_error_t run(SrsServer* svr);
-srs_error_t run_master(SrsServer* svr);
+srs_error_t run_directly_or_daemon();
+srs_error_t run_hybrid_server();
 void show_macro_features();
 string srs_getenv(const char* name);
 
@@ -119,6 +124,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
+    srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
     srs_trace("contributors: %s", SRS_AUTO_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s",
         _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
@@ -177,10 +183,7 @@ srs_error_t do_main(int argc, char** argv)
     // features
     show_macro_features();
     
-    SrsServer* svr = new SrsServer();
-    SrsAutoFree(SrsServer, svr);
-    
-    if ((err = run(svr)) != srs_success) {
+    if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
     }
     
@@ -351,18 +354,13 @@ string srs_getenv(const char* name)
     return "";
 }
 
-srs_error_t run(SrsServer* svr)
+srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
-
-    // Initialize the whole system, set hooks to handle server level events.
-    if ((err = svr->initialize(NULL)) != srs_success) {
-        return srs_error_wrap(err, "server initialize");
-    }
     
     // If not daemon, directly run master.
     if (!_srs_config->get_daemon()) {
-        if ((err = run_master(svr)) != srs_success) {
+        if ((err = run_hybrid_server()) != srs_success) {
             return srs_error_wrap(err, "run master");
         }
         return srs_success;
@@ -399,49 +397,35 @@ srs_error_t run(SrsServer* svr)
     // son
     srs_trace("son(daemon) process running.");
     
-    if ((err = run_master(svr)) != srs_success) {
+    if ((err = run_hybrid_server()) != srs_success) {
         return srs_error_wrap(err, "daemon run master");
     }
     
     return err;
 }
 
-srs_error_t run_master(SrsServer* svr)
+srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
-    
-    if ((err = svr->initialize_st()) != srs_success) {
-        return srs_error_wrap(err, "initialize st");
+
+    _srs_hybrid->register_server(new SrsServerAdapter());
+#ifdef SRS_AUTO_SRT
+    _srs_hybrid->register_server(new SrtServerAdapter());
+#endif
+
+    // Do some system initialize.
+    if ((err = _srs_hybrid->initialize()) != srs_success) {
+        return srs_error_wrap(err, "hybrid initialize");
     }
-    
-    if ((err = svr->initialize_signal()) != srs_success) {
-        return srs_error_wrap(err, "initialize signal");
+
+    // Should run util hybrid servers all done.
+    if ((err = _srs_hybrid->run()) != srs_success) {
+        return srs_error_wrap(err, "hybrid run");
     }
-    
-    if ((err = svr->acquire_pid_file()) != srs_success) {
-        return srs_error_wrap(err, "acquire pid file");
-    }
-    
-    if ((err = svr->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen");
-    }
-    
-    if ((err = svr->register_signal()) != srs_success) {
-        return srs_error_wrap(err, "register signal");
-    }
-    
-    if ((err = svr->http_handle()) != srs_success) {
-        return srs_error_wrap(err, "http handle");
-    }
-    
-    if ((err = svr->ingest()) != srs_success) {
-        return srs_error_wrap(err, "ingest");
-    }
-    
-    if ((err = svr->cycle()) != srs_success) {
-        return srs_error_wrap(err, "main cycle");
-    }
-    
+
+    // After all done, stop and cleanup.
+    _srs_hybrid->stop();
+
     return err;
 }
 

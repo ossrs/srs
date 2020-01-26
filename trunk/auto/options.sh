@@ -111,51 +111,32 @@ SRS_EXTRA_FLAGS=
 function show_help() {
     cat << END
 
-Options:
-  -h, --help                print this message
-                          
-  --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
-  --with-hds                enable hds streaming, mux RTMP to F4M/F4V files.
-  --with-nginx              enable delivery HTTP stream with nginx.
-  --with-stream-caster      enable stream caster to serve other stream over other protocol.
-  --with-ffmpeg             enable transcoding tool ffmpeg.
-  --with-transcode          enable transcoding features.
-  --with-ingest             enable ingest features.
-  --with-stat               enable the data statistic, for http api.
-  --with-librtmp            enable srs-librtmp, library for client.
-  --with-research           build the research tools.
-  --with-utest              build the utest for SRS.
-  --with-srt                build the srt for SRS.
-  --with-gperf              build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
-  --with-gmc                build memory check for SRS with gperf tools.
-  --with-gmd                build memory defense(corrupt memory) for SRS with gperf tools.
-  --with-gmp                build memory profile for SRS with gperf tools.
-  --with-gcp                build cpu profile for SRS with gperf tools.
-  --with-gprof              build SRS with gprof(GNU profile tool).
-  --with-arm-ubuntu12       cross build SRS on ubuntu12 for armhf(v7cpu).
-  --with-mips-ubuntu12      cross build SRS on ubuntu12 for mips.
-                          
-  --without-ssl             disable rtmp complex handshake.
-  --without-hds             disable hds, the adobe http dynamic streaming.
-  --without-nginx           disable delivery HTTP stream with nginx.
-  --without-stream-caster   disable stream caster, only listen and serve RTMP/HTTP.
-  --without-ffmpeg          disable the ffmpeg transcode tool feature.
-  --without-transcode       disable the transcoding feature.
-  --without-ingest          disable the ingest feature.
-  --without-stat            disable the data statistic feature.
-  --without-librtmp         disable srs-librtmp, library for client.
-  --without-research        do not build the research tools.
-  --without-utest           do not build the utest for SRS.
-  --without-srt             do not build the srt for SRS.
-  --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmd/gmc/gmp/gcp).
-  --without-gmc             do not build memory check for SRS with gperf tools.
-  --without-gmd             do not build memory defense for SRS with gperf tools.
-  --without-gmp             do not build memory profile for SRS with gperf tools.
-  --without-gcp             do not build cpu profile for SRS with gperf tools.
-  --without-gprof           do not build srs with gprof(GNU profile tool).
-  --without-arm-ubuntu12    do not cross build srs on ubuntu12 for armhf(v7cpu).
-  --without-mips-ubuntu12   do not cross build srs on ubuntu12 for mips.
-                          
+Presets:
+  --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
+  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
+  --mips                    Enable crossbuild for MIPS
+
+Features:
+  -h, --help                Print this message and exit 0.
+
+  --with-ssl                Enable rtmp complex handshake, requires openssl-devel installed.
+  --with-hds                Enable hds streaming, mux RTMP to F4M/F4V files.
+  --with-stream-caster      Enable stream caster to serve other stream over other protocol.
+  --with-stat               Enable the data statistic, for http api.
+  --with-librtmp            Enable srs-librtmp, library for client.
+  --with-research           Build the research tools.
+  --with-utest              Build the utest for SRS.
+  --with-srt                Build the srt for SRS.
+
+  --without-ssl             Disable rtmp complex handshake.
+  --without-hds             Disable hds, the adobe http dynamic streaming.
+  --without-stream-caster   Disable stream caster, only listen and serve RTMP/HTTP.
+  --without-stat            Disable the data statistic feature.
+  --without-librtmp         Disable srs-librtmp, library for client.
+  --without-research        Do not build the research tools.
+  --without-utest           Do not build the utest for SRS.
+  --without-srt             Do not build the srt for SRS.
+
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
   --gcov                    Whether enable the GCOV compiler options.
@@ -529,9 +510,9 @@ apply_user_detail_options
 
 function regenerate_options() {
     # save all config options to macro to write to auto headers file
-    SRS_AUTO_USER_CONFIGURE="$opt"
+    SRS_AUTO_USER_CONFIGURE=`echo $opt`
     # regenerate the options for default values.
-SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
+    SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hls"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hls"; fi
     if [ $SRS_HDS = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-hds"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-hds"; fi
     if [ $SRS_DVR = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-dvr"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-dvr"; fi

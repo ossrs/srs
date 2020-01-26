@@ -199,3 +199,55 @@ void srt_server::on_work()
         }
     }
 }
+
+SrtServerAdapter::SrtServerAdapter()
+{
+}
+
+SrtServerAdapter::~SrtServerAdapter()
+{
+}
+
+srs_error_t SrtServerAdapter::initialize()
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: We could fork processes here, because here only ST is initialized.
+
+    return err;
+}
+
+srs_error_t SrtServerAdapter::run()
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: We could start a coroutine to dispatch SRT task to processes.
+
+    if(_srs_config->get_srt_enabled()) {
+        srs_trace("srt server is enabled...");
+        unsigned short srt_port = _srs_config->get_srt_listen_port();
+        srs_trace("srt server listen port:%d", srt_port);
+        err = srt2rtmp::get_instance()->init();
+        if (err != srs_success) {
+            return srs_error_wrap(err, "srt start srt2rtmp error");
+        }
+
+        srt_ptr = std::make_shared<srt_server>(srt_port);
+        if (!srt_ptr) {
+            return srs_error_wrap(err, "srt listen %d", srt_port);
+        }
+    } else {
+        srs_trace("srt server is disabled...");
+    }
+
+    if(_srs_config->get_srt_enabled()) {
+        srt_ptr->start();
+    }
+
+    return err;
+}
+
+void SrtServerAdapter::stop()
+{
+    // TODO: FIXME: If forked processes, we should do cleanup.
+}

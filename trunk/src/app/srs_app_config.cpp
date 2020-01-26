@@ -3391,9 +3391,7 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-           RTMP_SIG_SRS_SERVER ", " RTMP_SIG_SRS_URL ", licensed under " RTMP_SIG_SRS_LICENSE
-           ", built at " SRS_AUTO_BUILD_DATE ", configured by " SRS_AUTO_USER_CONFIGURE
-           ", which means " SRS_AUTO_CONFIGURE "\n""\n"
+           "%s, %s, %s, created by %s\n\n"
            "Usage: %s <-h?vVgG>|<[-t] -c filename>\n"
            "Options:\n"
            "   -?, -h              : Show this help and exit 0.\n"
@@ -3403,9 +3401,12 @@ void SrsConfig::print_help(char** argv)
            "   -c filename         : Use config file to start server.\n"
            "For example:\n"
            "   %s -v\n"
-           "   %s -t -c " SRS_CONF_DEFAULT_COFNIG_FILE "\n"
-           "   %s -c " SRS_CONF_DEFAULT_COFNIG_FILE "\n",
-           argv[0], argv[0], argv[0], argv[0]);
+           "   %s -t -c %s\n"
+           "   %s -c %s\n",
+           RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_URL, RTMP_SIG_SRS_LICENSE,
+           RTMP_SIG_SRS_AUTHORS,
+           argv[0], argv[0], argv[0], SRS_CONF_DEFAULT_COFNIG_FILE,
+           argv[0], SRS_CONF_DEFAULT_COFNIG_FILE);
 }
 
 srs_error_t SrsConfig::parse_file(const char* filename)

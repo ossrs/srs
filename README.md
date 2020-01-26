@@ -1,11 +1,11 @@
 # SRS
 
-![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/srs3)
-[![](https://circleci.com/gh/ossrs/srs/tree/3.0release.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/3.0release)
-[![](https://codecov.io/gh/ossrs/srs/branch/3.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/3.0release)
+![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/develop)
+[![](https://circleci.com/gh/ossrs/srs/tree/develop.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/develop)
+[![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
-SRS/3.0，[OuXuli][release3]，是一个流媒体直播集群，高效、稳定、易用，简单而快乐。<br/>
+SRS/4.0，[Leo][release4]，是一个流媒体直播集群，高效、稳定、易用，简单而快乐。<br/>
 SRS(Simple RTMP Server) is a live streaming cluster, high efficiency, stable and simple.
 
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
@@ -47,32 +47,36 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
 **From here,** strongly recommend to read bellow wikis:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* Usage: How to delivery RTMP Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
-* Usage: How to create a RTMP Origin Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
-* Usage: How to delivery HTTP FLV Live Streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
-* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
+* Usage: How to delivery RTMP-Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* Usage: How to create a RTMP-Origin Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
+* Usage: How to delivery HTTP-FLV?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
+* Usage: How to delivery HTTP-FLV Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
-* Usage: How to delivery HLS for other codec?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
-* Usage: How to transode RTMP stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
+* Usage: How to transcode to h.264+aac for HLS?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
+* Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
-* Usage: How to deploy in low lantency mode?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
-* Usage: How to ingest file/stream/device to RTMP?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
+* Usage: How to enable low lantency live streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
+* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
 * Usage: How to delivery HLS by SRS HTTP server?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
+* Usage: How to delivery DASH(Experimental)?([CN][v3_CN_SampleDASH], [EN][v3_EN_SampleDASH])
+* Usage: How to transmux SRT(Experimental) to live streaming?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
 * Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
-* Usage: How to improve edge performance by multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
-* Usage: Why choose SRS? About the milestone and product plan? ([CN][v1_CN_Product], [EN][v1_EN_Product])
-* Usage: How to file bug or chat with us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact])
+* Usage: How to enable multiple processes? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
+* Usage: Why SRS? What's the milestones? ([CN][v1_CN_Product], [EN][v1_EN_Product])
+* Usage: Want to contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact]) Or file an issue [here](https://github.com/ossrs/srs/issues/new)?
 
 <a name="srs-30-wiki"></a>
 ## Wiki
 
 Please select according to languages:
 
-* [SRS 3.0 English Wiki][v3_EN_Home]
-* [SRS 3.0 Chinese Wiki][v3_CN_Home]
+* [SRS 4.0 English Wiki][v4_EN_Home]
+* [SRS 4.0 Chinese Wiki][v4_CN_Home]
 
 For previous versions, please read:
 
+* [SRS 3.0 English Wiki][v3_EN_Home]
+* [SRS 3.0 Chinese Wiki][v3_CN_Home]
 * [SRS 2.0 English Wiki][v2_EN_Home]
 * [SRS 2.0 Chinese Wiki][v2_CN_Home]
 * [SRS 1.0 English Wiki][v1_EN_Home]
@@ -127,6 +131,7 @@ For previous versions, please read:
 - [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
 - [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
+- [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
@@ -137,12 +142,18 @@ For previous versions, please read:
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
 - [ ] Support H.264+Opus codec for WebRTC.
 - [ ] Support publishing stream by WebRTC.
+- [ ] Support change user to run SRS, [#1111][bug #1111].
+- [ ] Support HLS variant, [#463][bug #463].
 - [ ] Support playing stream by WebRTC.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
 <a name="history"></a>
 <a name="change-logs"></a>
+
+## V4 changes
+
+* v4.0, 2020-01-24, Fix [#1147][bug #1147], support SRT(Secure Reliable Transport). 4.0.1
 
 ## V3 changes
 
@@ -1002,13 +1013,13 @@ SRS always use the simplest architecture to solve complex domain problems.
 ## Modularity Architecture
 
 ```
-+------------------------------------------------------+
-|    SRS server    |   Programs in Main or Research    |
-+------------------------------------------------------+
-|  App(For SRS)    | Modules(1) |   research/librtmp   |
-+------------------------------------------------------+
-|    Service(C/S apps over ST)  | Libs(Export librtmp) |
-+------------------------------------------------------+
++----------------+-------------------------------------+
+| SRS/SRT server |    Programs in Main or Research     |
++----------------+--+------------+---------------------+
+|  App(For SRS)     | Modules(1) |  research/librtmp   |
++-------------------+------------+---------------------+
+|    Service(C/S apps over ST)   |     srs-librtmp     |
++--------------------------------+---------------------+
 |   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Format)     |
 +------------------------------------------------------+
 |      Kernel(File, Codec, Stream, LB services)        |
@@ -1027,31 +1038,33 @@ Remark:
 +---------+              +----------+
 | Publish |              |  Deliver |
 +---|-----+              +----|-----+
-+----------------------+-------------------------+----------------+
-|     Input            | SRS(Simple RTMP Server) |     Output     |
-+----------------------+-------------------------+----------------+
-|                      |   +-> DASH -------------+-> DASH player  |
-|    Encoder(1)        |   +-> RTMP/HDS  --------+-> Flash player |
-|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3U8 player  |
-|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
-|  ......)             |   +-> Fowarder ---------+-> RTMP server  |
-|                      |   +-> Transcoder -------+-> RTMP server  |
-|                      |   +-> EXEC(5) ----------+-> External app |
-|                      |   +-> DVR --------------+-> FLV file     |
-|                      |   +-> BandwidthTest ----+-> Flash        |
-+----------------------+                         |                |
-|  MediaSource(2)      |                         |                |
-|  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)-+-> SRS          |
-|   Device,            |                         |                |
-|   ......)            |                         |                |
-+----------------------+                         |                |
-|  MediaSource(2)      |                         |                |
-|  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,   --push-+->-- Streamer(4) -(rtmp)-+-> SRS          |
-|   Device,            |                         |                |
-|   ......)            |                         |                |
-+----------------------+-------------------------+----------------+
++----------------------+----------------------------+----------------+
+|     Input            | SRS(Simple RTMP Server)    |     Output     |
++----------------------+----------------------------+----------------+
+|                      |   +-> DASH ----------------+-> DASH player  |
+|    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
+|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
+|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
+|  ......)             |   +-> Fowarder ------------+-> RTMP server  |
+|                      |   +-> Transcoder ----------+-> RTMP server  |
+|                      |   +-> EXEC(5) -------------+-> External app |
+|                      |   +-> DVR -----------------+-> FLV file     |
+|                      |   +-> BandwidthTest -------+-> Flash        |
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (RTSP,FILE,         |                            |                |
+|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)----+-> SRS          |
+|   Device,            |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (RTSP,FILE,         |                            |                |
+|   HTTP,HLS,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
+|   Device,            |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
++----------------------+----------------------------+----------------+
 
 ```
 
@@ -1062,6 +1075,7 @@ Remark:
 1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v1_CN_Ingest].
 1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v2_CN_Streamer].
 1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v3_CN_NgExec].
+1. SRTModule: A isolate module which run in [hybrid](https://github.com/ossrs/srs/issues/1147#issuecomment-577574883) model.
 
 ## AUTHORS
 
@@ -1213,6 +1227,8 @@ Winlin
 [v2_EN_Home]: https://github.com/ossrs/srs/wiki/v2_EN_Home
 [v3_CN_Home]: https://github.com/ossrs/srs/wiki/v3_CN_Home
 [v3_EN_Home]: https://github.com/ossrs/srs/wiki/v3_EN_Home
+[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
+[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
 [donation1]: http://ossrs.net/srs.release/donation/index.html
 [donation2]: http://ossrs.net/srs.release/donation/paypal.html
@@ -1611,6 +1627,9 @@ Winlin
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
 [bug #1547]: https://github.com/ossrs/srs/issues/1547
 [bug #1221]: https://github.com/ossrs/srs/issues/1221
+[bug #1111]: https://github.com/ossrs/srs/issues/1111
+[bug #463]: https://github.com/ossrs/srs/issues/463
+[bug #1147]: https://github.com/ossrs/srs/issues/1147
 [bug #1108]: https://github.com/ossrs/srs/issues/1108
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
@@ -1683,4 +1702,5 @@ Winlin
 [branch2]: https://github.com/ossrs/srs/tree/2.0release
 [release2]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release30
+[release4]: https://github.com/ossrs/srs/wiki/v1_CN_Product#release40
 
