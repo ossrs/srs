@@ -147,6 +147,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then

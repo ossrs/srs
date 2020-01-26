@@ -48,6 +48,8 @@ SRS_FFMPEG_STUB=NO
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=NO
+# If enabled, link shared libraries for libst.so which uses MPL license.
+SRS_SHARED_ST=NO
 # whether enable the gcov
 SRS_GCOV=NO
 # whether enable the log verbose/info/trace level.
@@ -183,6 +185,7 @@ Conflicts:
 
 Experts:
   --use-sys-ssl                     Do not compile ssl, use system ssl(-lssl) if required.
+  --use-shared-st                   Use link shared libraries for ST which uses MPL license.
   --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
 
@@ -272,6 +275,8 @@ function parse_user_option() {
         --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
+        --use-shared-st)                SRS_SHARED_ST=YES           ;;
+
         --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
@@ -535,6 +540,7 @@ function regenerate_options() {
     if [ $SRS_GPERF_CP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gcp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gcp"; fi
     if [ $SRS_GPROF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gprof"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gprof"; fi
     if [ $SRS_STATIC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static"; fi
+    if [ $SRS_SHARED_ST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --use-shared-st"; fi
     if [ $SRS_LOG_VERBOSE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
