@@ -164,6 +164,7 @@ fi
 # srt code path
 if [[ $SRS_SRT == YES ]]; then
     LibSRTRoot="${SRS_WORKDIR}/src/srt"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
+    if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
 fi
 # the link options, always use static link
 SrsLinkOptions="-ldl";
