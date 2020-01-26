@@ -776,7 +776,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-delivery"></a>
 **Stream Delivery**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
 |   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
@@ -789,7 +789,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="cluster"></a>
 **Cluster**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
 |   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
@@ -802,7 +802,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-service"></a>
 **Stream Service**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
 |   DVR API     |   Stable  |   Stable  |   X       |   X       |   X       |
@@ -819,7 +819,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="efficiency"></a>
 **Efficiency**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
 |MultipleProcess| Experiment|   Stable  |   X       |   X       |   X       |
@@ -829,7 +829,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-caster"></a>
 **Stream Caster**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Ingest      |   Stable  |   X       |   X       |   X       |   X       |
 |   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
@@ -839,7 +839,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="debug-system"></a>
 **Debug System**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   BW check    |   Stable  |   X       |   X       |   X       |   X       |
 | Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
@@ -847,7 +847,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="docs"></a>
 **Docs**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Demos       |   Stable  |   X       |   X       |   X       |   X       |
 |   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
@@ -855,7 +855,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="others"></a>
 **Others** 
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
 | Client Library|   Stable  |   X       |   X       |   X       |   X       |
