@@ -1047,6 +1047,12 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
                   srs_avc_level2str(c->avc_level).c_str(), c->width, c->height,
                   c->video_data_rate / 1000, c->frame_rate, c->duration);
     }
+
+    // Ignore video data when no sps/pps
+    // @bug https://github.com/ossrs/srs/issues/703#issuecomment-578393155
+    if (format->vcodec && !format->vcodec->is_avc_codec_ok()) {
+        return err;
+    }
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // apply the error strategy for hls.
