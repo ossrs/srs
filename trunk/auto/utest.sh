@@ -167,7 +167,11 @@ echo "" >> ${FILE}
 echo "# link all depends libraries" >> ${FILE}
 echo -n "DEPS_LIBRARIES_FILES = " >> ${FILE}
 for item in ${ModuleLibFiles[*]}; do
-    echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    if [[ -f ${item} ]]; then
+        echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    else
+        echo -n "${item} " >> ${FILE}
+    fi
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}
 #
