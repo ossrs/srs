@@ -903,6 +903,11 @@ srs_error_t SrsOriginHub::cycle()
     return err;
 }
 
+bool SrsOriginHub::active()
+{
+    return is_active;
+}
+
 srs_error_t SrsOriginHub::on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet)
 {
     srs_error_t err = srs_success;
@@ -2458,10 +2463,10 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
     
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
-    
+
     srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
     consumer->set_queue_size(queue_size);
-    
+
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
         if (meta->data()) {
@@ -2474,22 +2479,25 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
             meta->ash()->timestamp = srsu2ms(gop_cache->start_time());
         }
     }
-    
-    // Copy metadata and sequence header to consumer.
-    if ((err = meta->dumps(consumer, atc, jitter_algorithm, dm, ds)) != srs_success) {
-        return srs_error_wrap(err, "meta dumps");
+
+    // If stream is publishing, dumps the sequence header and gop cache.
+    if (hub->active()) {
+        // Copy metadata and sequence header to consumer.
+        if ((err = meta->dumps(consumer, atc, jitter_algorithm, dm, ds)) != srs_success) {
+            return srs_error_wrap(err, "meta dumps");
+        }
+
+        // copy gop cache to client.
+        if (dg && (err = gop_cache->dump(consumer, atc, jitter_algorithm)) != srs_success) {
+            return srs_error_wrap(err, "gop cache dumps");
+        }
     }
-    
-    // copy gop cache to client.
-    if (dg && (err = gop_cache->dump(consumer, atc, jitter_algorithm)) != srs_success) {
-        return srs_error_wrap(err, "gop cache dumps");
-    }
-    
+
     // print status.
     if (dg) {
-        srs_trace("create consumer, queue_size=%.2f, jitter=%d", queue_size, jitter_algorithm);
+        srs_trace("create consumer, active=%d, queue_size=%.2f, jitter=%d", hub->active(), queue_size, jitter_algorithm);
     } else {
-        srs_trace("create consumer, ignore gop cache, jitter=%d", jitter_algorithm);
+        srs_trace("create consumer, active=%d, ignore gop cache, jitter=%d", hub->active(), jitter_algorithm);
     }
     
     // for edge, when play edge stream, check the state
