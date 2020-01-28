@@ -33,6 +33,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_service_st.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -443,6 +444,7 @@ public:
 class SrsSourceManager
 {
 private:
+    srs_mutex_t lock;
     std::map<std::string, SrsSource*> pool;
 public:
     SrsSourceManager();

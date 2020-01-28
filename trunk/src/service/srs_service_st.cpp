@@ -356,6 +356,9 @@ srs_mutex_t srs_mutex_new()
 
 int srs_mutex_destroy(srs_mutex_t mutex)
 {
+    if (!mutex) {
+        return 0;
+    }
     return st_mutex_destroy((st_mutex_t)mutex);
 }
 

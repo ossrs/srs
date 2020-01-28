@@ -1650,15 +1650,26 @@ SrsSourceManager* _srs_sources = new SrsSourceManager();
 
 SrsSourceManager::SrsSourceManager()
 {
+    lock = NULL;
 }
 
 SrsSourceManager::~SrsSourceManager()
 {
+    srs_mutex_destroy(lock);
 }
 
 srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     srs_error_t err = srs_success;
+
+    // Lazy create lock, because ST is not ready in SrsSourceManager constructor.
+    if (!lock) {
+        lock = srs_mutex_new();
+    }
+
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    SrsLocker(lock);
     
     SrsSource* source = NULL;
     if ((source = fetch(r)) != NULL) {
@@ -1676,6 +1687,7 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     if ((err = source->initialize(r, h)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
+    srs_usleep(10 * SRS_UTIME_SECONDS);
     
     pool[stream_url] = source;
     

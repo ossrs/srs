@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-28, Fix [#1230][bug #1230], racing condition in source fetch or create. 3.0.110
 * v3.0, 2020-01-27, Fix [#1303][bug #1303], do not dispatch previous meta when not publishing. 3.0.109
 * v3.0, 2020-01-26, Allow use libst.so for ST is MPL license.
 * v3.0, 2020-01-26, Fix [#607][bug #607], set RTMP identifying recursive depth to 3.
@@ -1630,6 +1631,7 @@ Winlin
 [bug #878]: https://github.com/ossrs/srs/issues/878
 [bug #607]: https://github.com/ossrs/srs/issues/607
 [bug #1303]: https://github.com/ossrs/srs/issues/1303
+[bug #1230]: https://github.com/ossrs/srs/issues/1230
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
