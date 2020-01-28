@@ -27,6 +27,7 @@
 // The version config.
 #define VERSION_MAJOR       4
 #define VERSION_MINOR       0
+// Version for SRS3.
 #define SRS3_VERSION_REVISION    111
 // Version for SRS4.
 #define SRS4_VERSION_REVISION    2
