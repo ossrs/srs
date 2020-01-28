@@ -146,7 +146,6 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2020-01-28, Use multiple revisions. 3.0.112
 * v3.0, 2020-01-28, Fix [#1230][bug #1230], racing condition in source fetch or create. 3.0.110
 * v3.0, 2020-01-27, Fix [#1303][bug #1303], do not dispatch previous meta when not publishing. 3.0.109
 * v3.0, 2020-01-26, Allow use libst.so for ST is MPL license.
