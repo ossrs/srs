@@ -418,6 +418,11 @@ void SrsFFMPEG::fast_stop()
     process->fast_stop();
 }
 
+void SrsFFMPEG::fast_kill()
+{
+    process->fast_kill();
+}
+
 #endif
 
 

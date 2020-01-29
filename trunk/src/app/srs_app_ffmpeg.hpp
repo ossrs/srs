@@ -83,6 +83,7 @@ public:
     virtual void stop();
 public:
     virtual void fast_stop();
+    virtual void fast_kill();
 };
 
 #endif

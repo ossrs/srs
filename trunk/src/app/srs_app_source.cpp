@@ -1687,7 +1687,6 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     if ((err = source->initialize(r, h)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
-    srs_usleep(10 * SRS_UTIME_SECONDS);
     
     pool[stream_url] = source;
     
