@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-01-29, Support isolate version file. 3.0.112
 * v3.0, 2020-01-29, Fix [#1206][bug #1206], dispose ingester while server quiting. 3.0.111
 * v3.0, 2020-01-28, Fix [#1230][bug #1230], racing condition in source fetch or create. 3.0.110
 * v3.0, 2020-01-27, Fix [#1303][bug #1303], do not dispatch previous meta when not publishing. 3.0.109
