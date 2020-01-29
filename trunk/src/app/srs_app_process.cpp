@@ -327,3 +327,28 @@ void SrsProcess::fast_stop()
     return;
 }
 
+void SrsProcess::fast_kill()
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!is_started) {
+        return;
+    }
+
+    if (pid <= 0) {
+        return;
+    }
+
+    if (kill(pid, SIGKILL) < 0) {
+        ret = ERROR_SYSTEM_KILL;
+        srs_warn("ignore fast kill process failed, pid=%d. ret=%d", pid, ret);
+        return;
+    }
+
+    // Try to wait pid to avoid zombie FFMEPG.
+    int status = 0;
+    waitpid(pid, &status, WNOHANG);
+
+    return;
+}
+

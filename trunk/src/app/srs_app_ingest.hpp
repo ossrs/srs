@@ -60,6 +60,7 @@ public:
     virtual srs_error_t cycle();
     // @see SrsFFMPEG.fast_stop().
     virtual void fast_stop();
+    virtual void fast_kill();
 };
 
 // Ingest file/stream/device,
@@ -75,6 +76,8 @@ private:
     // Whether the ingesters are expired, for example, the listen port changed,
     // all ingesters must be restart.
     bool expired;
+    // Whether already disposed.
+    bool disposed;
 public:
     SrsIngester();
     virtual ~SrsIngester();
@@ -84,7 +87,10 @@ public:
     virtual srs_error_t start();
     virtual void stop();
 private:
+    // Notify FFMPEG to fast stop.
     virtual void fast_stop();
+    // When SRS quit, directly kill FFMPEG after fast stop.
+    virtual void fast_kill();
 // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
