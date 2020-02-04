@@ -46,12 +46,9 @@ public:
     // @param req the request object of client.
     virtual srs_error_t check(SrsRtmpConnType type, std::string ip, SrsRequest* req);
 private:
-    // Security check the allow,
-    // @return, if allowed, ERROR_SYSTEM_SECURITY_ALLOW.
-    virtual int allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip);
-    // Security check the deny,
-    // @return, if denied, ERROR_SYSTEM_SECURITY_DENY.
-    virtual int deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip);
+    virtual srs_error_t do_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip, SrsRequest* req);
+    virtual srs_error_t allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip);
+    virtual srs_error_t deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip);
 };
 
 #endif
