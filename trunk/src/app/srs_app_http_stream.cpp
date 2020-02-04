@@ -300,7 +300,6 @@ srs_error_t SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJi
     return srs_success;
 }
 
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 SrsFastFlvStreamEncoder::SrsFastFlvStreamEncoder()
 {
 }
@@ -313,7 +312,6 @@ srs_error_t SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int 
 {
     return enc->write_tags(msgs, count);
 }
-#endif
 
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
@@ -511,7 +509,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
-#ifdef SRS_PERF_FAST_FLV_ENCODER
         bool realtime = _srs_config->get_realtime_enabled(req->vhost);
         if (realtime) {
             enc_desc = "FLV";
@@ -520,10 +517,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             enc_desc = "FastFLV";
             enc = new SrsFastFlvStreamEncoder();
         }
-#else
-        enc_desc = "FLV";
-        enc = new SrsFlvStreamEncoder();
-#endif
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc_desc = "AAC";
@@ -576,10 +569,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
     
-#ifdef SRS_PERF_FAST_FLV_ENCODER
     SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
-#endif
-    
+
     // Use receive thread to accept the close event to avoid FD leak.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
@@ -639,16 +630,12 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
         
         // sendout all messages.
-#ifdef SRS_PERF_FAST_FLV_ENCODER
         if (ffe) {
             err = ffe->write_tags(msgs.msgs, count);
         } else {
             err = streaming_send_messages(enc, msgs.msgs, count);
         }
-#else
-        err = streaming_send_messages(enc, msgs.msgs, count);
-#endif
-        
+
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];

@@ -97,7 +97,6 @@ public:
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 // A Fast HTTP FLV Live Streaming, to write multiple tags by writev.
 // @see https://github.com/ossrs/srs/issues/405
 class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
@@ -109,7 +108,6 @@ public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
 };
-#endif
 
 // Transmux RTMP to HTTP TS Streaming.
 class SrsTsStreamEncoder : public ISrsBufferEncoder
