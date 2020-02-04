@@ -153,6 +153,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-02-04, Update project code. 4.0.3
 * v4.0, 2020-01-26, Allow use libsrt.so for SRT is MPL license. 4.0.2
 * v4.0, 2020-01-24, Fix [#1147][bug #1147], support SRT(Secure Reliable Transport). 4.0.1
 
