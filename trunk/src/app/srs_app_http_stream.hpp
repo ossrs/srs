@@ -82,8 +82,9 @@ public:
 // Transmux RTMP to HTTP Live Streaming.
 class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
-protected:
+private:
     SrsFlvTransmuxer* enc;
+    bool header_written;
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
@@ -98,6 +99,8 @@ public:
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
+private:
+    virtual srs_error_t write_header(bool has_video = true, bool has_audio = true);
 };
 
 // Transmux RTMP to HTTP TS Streaming.

@@ -249,6 +249,7 @@ srs_error_t SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJit
 
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
 {
+    header_written = false;
     enc = new SrsFlvTransmuxer();
 }
 
@@ -265,26 +266,39 @@ srs_error_t SrsFlvStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*
         return srs_error_wrap(err, "init encoder");
     }
     
-    // write flv header.
-    if ((err = enc->write_header())  != srs_success) {
-        return srs_error_wrap(err, "write header");
-    }
-    
     return err;
 }
 
 srs_error_t SrsFlvStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_audio(timestamp, data, size);
 }
 
 srs_error_t SrsFlvStreamEncoder::write_video(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_video(timestamp, data, size);
 }
 
 srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_metadata(SrsFrameTypeScript, data, size);
 }
 
@@ -302,7 +316,50 @@ srs_error_t SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJi
 
 srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
+    srs_error_t err = srs_success;
+
+    // For https://github.com/ossrs/srs/issues/939
+    if (!header_written) {
+        bool has_video = false;
+        bool has_audio = false;
+
+        for (int i = 0; i < count && (!has_video || !has_audio); i++) {
+            SrsSharedPtrMessage* msg = msgs[i];
+            if (msg->is_video()) {
+                has_video = true;
+            } else if (msg->is_audio()) {
+                has_audio = true;
+            }
+        }
+
+        // Drop data if no A+V.
+        if (!has_video && !has_audio) {
+            return err;
+        }
+
+        if ((err = write_header(has_video, has_audio))  != srs_success) {
+            return srs_error_wrap(err, "write header");
+        }
+    }
+
     return enc->write_tags(msgs, count);
+}
+
+srs_error_t SrsFlvStreamEncoder::write_header(bool has_video, bool has_audio)
+{
+    srs_error_t err = srs_success;
+
+    if (!header_written) {
+        header_written = true;
+
+        if ((err = enc->write_header(has_video, has_audio))  != srs_success) {
+            return srs_error_wrap(err, "write header");
+        }
+
+        srs_trace("FLV: write header audio=%d, video=%d", has_audio, has_video);
+    }
+
+    return err;
 }
 
 SrsAacStreamEncoder::SrsAacStreamEncoder()
