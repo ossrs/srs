@@ -158,6 +158,8 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-04, Fix [#939][bug #939], response right A/V flag in FLV header. 3.0.113
+* v3.0, 2020-02-04, For [#939][bug #939], always enable fast FLV streaming.
 * <strong>v3.0, 2020-02-02, [3.0 beta0(3.0.112)][r3.0b0] released. 121709 lines.</strong>
 * v3.0, 2020-01-29, Support isolate version file. 3.0.112
 * v3.0, 2020-01-29, Fix [#1206][bug #1206], dispose ingester while server quiting. 3.0.111
@@ -1658,6 +1660,7 @@ Winlin
 [bug #1303]: https://github.com/ossrs/srs/issues/1303
 [bug #1230]: https://github.com/ossrs/srs/issues/1230
 [bug #1206]: https://github.com/ossrs/srs/issues/1206
+[bug #939]: https://github.com/ossrs/srs/issues/939
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

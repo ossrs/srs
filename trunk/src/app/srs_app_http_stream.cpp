@@ -249,6 +249,7 @@ srs_error_t SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJit
 
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
 {
+    header_written = false;
     enc = new SrsFlvTransmuxer();
 }
 
@@ -265,26 +266,39 @@ srs_error_t SrsFlvStreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*
         return srs_error_wrap(err, "init encoder");
     }
     
-    // write flv header.
-    if ((err = enc->write_header())  != srs_success) {
-        return srs_error_wrap(err, "write header");
-    }
-    
     return err;
 }
 
 srs_error_t SrsFlvStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_audio(timestamp, data, size);
 }
 
 srs_error_t SrsFlvStreamEncoder::write_video(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_video(timestamp, data, size);
 }
 
 srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = write_header())  != srs_success) {
+        return srs_error_wrap(err, "write header");
+    }
+
     return enc->write_metadata(SrsFrameTypeScript, data, size);
 }
 
@@ -300,20 +314,53 @@ srs_error_t SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJi
     return srs_success;
 }
 
-#ifdef SRS_PERF_FAST_FLV_ENCODER
-SrsFastFlvStreamEncoder::SrsFastFlvStreamEncoder()
+srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
-}
+    srs_error_t err = srs_success;
 
-SrsFastFlvStreamEncoder::~SrsFastFlvStreamEncoder()
-{
-}
+    // For https://github.com/ossrs/srs/issues/939
+    if (!header_written) {
+        bool has_video = false;
+        bool has_audio = false;
 
-srs_error_t SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
-{
+        for (int i = 0; i < count && (!has_video || !has_audio); i++) {
+            SrsSharedPtrMessage* msg = msgs[i];
+            if (msg->is_video()) {
+                has_video = true;
+            } else if (msg->is_audio()) {
+                has_audio = true;
+            }
+        }
+
+        // Drop data if no A+V.
+        if (!has_video && !has_audio) {
+            return err;
+        }
+
+        if ((err = write_header(has_video, has_audio))  != srs_success) {
+            return srs_error_wrap(err, "write header");
+        }
+    }
+
     return enc->write_tags(msgs, count);
 }
-#endif
+
+srs_error_t SrsFlvStreamEncoder::write_header(bool has_video, bool has_audio)
+{
+    srs_error_t err = srs_success;
+
+    if (!header_written) {
+        header_written = true;
+
+        if ((err = enc->write_header(has_video, has_audio))  != srs_success) {
+            return srs_error_wrap(err, "write header");
+        }
+
+        srs_trace("FLV: write header audio=%d, video=%d", has_audio, has_video);
+    }
+
+    return err;
+}
 
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
@@ -511,19 +558,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
-#ifdef SRS_PERF_FAST_FLV_ENCODER
-        bool realtime = _srs_config->get_realtime_enabled(req->vhost);
-        if (realtime) {
-            enc_desc = "FLV";
-            enc = new SrsFlvStreamEncoder();
-        } else {
-            enc_desc = "FastFLV";
-            enc = new SrsFastFlvStreamEncoder();
-        }
-#else
         enc_desc = "FLV";
         enc = new SrsFlvStreamEncoder();
-#endif
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc_desc = "AAC";
@@ -576,10 +612,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
     
-#ifdef SRS_PERF_FAST_FLV_ENCODER
-    SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
-#endif
-    
+    SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
+
     // Use receive thread to accept the close event to avoid FD leak.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
@@ -639,16 +673,12 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
         
         // sendout all messages.
-#ifdef SRS_PERF_FAST_FLV_ENCODER
         if (ffe) {
             err = ffe->write_tags(msgs.msgs, count);
         } else {
             err = streaming_send_messages(enc, msgs.msgs, count);
         }
-#else
-        err = streaming_send_messages(enc, msgs.msgs, count);
-#endif
-        
+
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];
