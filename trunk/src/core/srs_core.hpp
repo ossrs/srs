@@ -40,7 +40,7 @@
 
 // The project informations, may sent to client in HTTP header or RTMP metadata.
 #define RTMP_SIG_SRS_KEY "SRS"
-#define RTMP_SIG_SRS_CODE "OuXuli"
+#define RTMP_SIG_SRS_CODE "Leo"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
 #define RTMP_SIG_SRS_AUTHORS "winlin,wenjie,runner365"
