@@ -215,6 +215,7 @@ public:
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0, std::string a1);
     virtual SrsConfDirective* set_arg0(std::string a0);
     // Remove the v from sub directives, user must free the v.
     virtual void remove(SrsConfDirective* v);
