@@ -300,15 +300,7 @@ srs_error_t SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJi
     return srs_success;
 }
 
-SrsFastFlvStreamEncoder::SrsFastFlvStreamEncoder()
-{
-}
-
-SrsFastFlvStreamEncoder::~SrsFastFlvStreamEncoder()
-{
-}
-
-srs_error_t SrsFastFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
+srs_error_t SrsFlvStreamEncoder::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
     return enc->write_tags(msgs, count);
 }
@@ -509,14 +501,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         w->header()->set_content_type("video/x-flv");
-        bool realtime = _srs_config->get_realtime_enabled(req->vhost);
-        if (realtime) {
-            enc_desc = "FLV";
-            enc = new SrsFlvStreamEncoder();
-        } else {
-            enc_desc = "FastFLV";
-            enc = new SrsFastFlvStreamEncoder();
-        }
+        enc_desc = "FLV";
+        enc = new SrsFlvStreamEncoder();
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         w->header()->set_content_type("audio/x-aac");
         enc_desc = "AAC";
@@ -569,7 +555,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         }
     }
     
-    SrsFastFlvStreamEncoder* ffe = dynamic_cast<SrsFastFlvStreamEncoder*>(enc);
+    SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
 
     // Use receive thread to accept the close event to avoid FD leak.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
