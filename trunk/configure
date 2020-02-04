@@ -191,7 +191,7 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_version3" "srs_core_autofree" "srs_core_performance"
+MODULE_FILES=("srs_core" "srs_core_version4" "srs_core_autofree" "srs_core_performance"
 		"srs_core_mem_watch" "srs_core_time")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
