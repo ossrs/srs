@@ -418,6 +418,26 @@ VOID TEST(AppSecurity, CheckSecurity)
         }
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
     }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "all");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
 
     // Allowed if not denied.
     if (true) {
@@ -435,6 +455,21 @@ VOID TEST(AppSecurity, CheckSecurity)
         rules.get_or_create("deny", "play", "12.13.14.15");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "11.12.13.14", &rr));
     }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnUnknown, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
+    }
 
     // Allowed by rule.
     if (true) {
@@ -446,6 +481,26 @@ VOID TEST(AppSecurity, CheckSecurity)
         SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
         rules.get_or_create("allow", "play", "all");
         HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
     }
 
     // Allowed if not denied.
@@ -470,6 +525,21 @@ VOID TEST(AppSecurity, CheckSecurity)
         SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
         rules.get_or_create("allow", "play", "11.12.13.14");
         HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "11.12.13.14", &rr));
     }
 
     // Denied if dup.
