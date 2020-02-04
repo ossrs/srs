@@ -113,7 +113,7 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
     }
 
     if (allow_rules > 0 || (deny_rules + allow_rules) == 0) {
-        return srs_error_new(ERROR_SYSTEM_SECURITY_ALLOW, "not allowed by any of %d rules", allow_rules);
+        return srs_error_new(ERROR_SYSTEM_SECURITY_ALLOW, "not allowed by any of %d/%d rules", allow_rules, deny_rules);
     }
     return srs_success; // OK
 }
