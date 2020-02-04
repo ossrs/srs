@@ -735,10 +735,25 @@ SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0)
     if (!conf) {
         conf = new SrsConfDirective();
         conf->name = n;
-        conf->set_arg0(a0);
+        conf->args.push_back(a0);
         directives.push_back(conf);
     }
     
+    return conf;
+}
+
+SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0, string a1)
+{
+    SrsConfDirective* conf = get(n, a0);
+
+    if (!conf) {
+        conf = new SrsConfDirective();
+        conf->name = n;
+        conf->args.push_back(a0);
+        conf->args.push_back(a1);
+        directives.push_back(conf);
+    }
+
     return conf;
 }
 
