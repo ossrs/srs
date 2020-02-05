@@ -3487,6 +3487,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
+            && n != "ff_log_level"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -5779,6 +5780,18 @@ string SrsConfig::get_ff_log_dir()
         return DEFAULT;
     }
     
+    return conf->arg0();
+}
+
+string SrsConfig::get_ff_log_level()
+{
+    static string DEFAULT = "warning";
+
+    SrsConfDirective* conf = root->get("ff_log_level");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 

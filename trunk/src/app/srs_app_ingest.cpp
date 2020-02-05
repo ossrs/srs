@@ -409,7 +409,13 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
         log_file += stream;
         log_file += ".log";
     }
-    
+
+    std::string log_level = _srs_config->get_ff_log_level();
+    if (!log_level.empty()) {
+        ffmpeg->append_iparam("-loglevel");
+        ffmpeg->append_iparam(log_level);
+    }
+
     // input
     std::string input_type = _srs_config->get_ingest_input_type(ingest);
     if (input_type.empty()) {
@@ -423,7 +429,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
         }
         
         // for file, set re.
-        ffmpeg->set_iparams("-re");
+        ffmpeg->append_iparam("-re");
         
         if ((err = ffmpeg->initialize(input_url, output, log_file)) != srs_success) {
             return srs_error_wrap(err, "init ffmpeg");
@@ -435,7 +441,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
         }
         
         // for stream, no re.
-        ffmpeg->set_iparams("");
+        ffmpeg->append_iparam("");
         
         if ((err = ffmpeg->initialize(input_url, output, log_file)) != srs_success) {
             return srs_error_wrap(err, "init ffmpeg");

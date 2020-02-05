@@ -783,6 +783,8 @@ public:
     // The ffmpeg log dir.
     // @remark, /dev/null to disable it.
     virtual std::string get_ff_log_dir();
+    // The ffmpeg log level.
+    virtual std::string get_ff_log_level();
 // The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);
