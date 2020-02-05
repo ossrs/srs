@@ -236,6 +236,10 @@ void srt_handle::onwork()
             add_newconn(msg.conn_ptr, msg.events);
         }
 
+        if (_conn_map.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
         check_alive();
 
         ret = srt_epoll_wait(_handle_pollid, read_fds, &rfd_num, write_fds, &wfd_num, 
@@ -243,7 +247,6 @@ void srt_handle::onwork()
         if (ret < 0) {
             srs_info("srt handle epoll is timeout, ret=%d, srt_now_ms=%ld", 
                 ret, srt_now_ms);
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
             continue;
         }
 
