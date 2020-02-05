@@ -5785,7 +5785,7 @@ string SrsConfig::get_ff_log_dir()
 
 string SrsConfig::get_ff_log_level()
 {
-    static string DEFAULT = "warning";
+    static string DEFAULT = "info";
 
     SrsConfDirective* conf = root->get("ff_log_level");
     if (!conf || conf->arg0().empty()) {
