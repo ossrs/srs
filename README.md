@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-05, For [#665][bug #665], fix HTTP-FLV reloading bug. 3.0.116
 * v3.0, 2020-02-05, For [#1592][bug #1592], fix terminal echo off by redirect process stdin. 3.0.115
 * v3.0, 2020-02-04, For [#1186][bug #1186], refactor security check. 3.0.114
 * v3.0, 2020-02-04, Fix [#939][bug #939], response right A/V flag in FLV header. 3.0.113
@@ -1644,6 +1645,7 @@ Winlin
 [bug #939]: https://github.com/ossrs/srs/issues/939
 [bug #1186]: https://github.com/ossrs/srs/issues/1186
 [bug #1592]: https://github.com/ossrs/srs/issues/1592
+[bug #665]: https://github.com/ossrs/srs/issues/665
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

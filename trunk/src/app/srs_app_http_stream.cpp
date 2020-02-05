@@ -809,6 +809,11 @@ SrsLiveEntry::SrsLiveEntry(std::string m)
     _is_aac = (ext == ".aac");
 }
 
+SrsLiveEntry::~SrsLiveEntry()
+{
+    srs_freep(req);
+}
+
 bool SrsLiveEntry::is_flv()
 {
     return _is_flv;
@@ -846,7 +851,6 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
         std::map<std::string, SrsLiveEntry*>::iterator it;
         for (it = tflvs.begin(); it != tflvs.end(); ++it) {
             SrsLiveEntry* entry = it->second;
-            srs_freep(entry->req);
             srs_freep(entry);
         }
         tflvs.clear();
@@ -901,7 +905,9 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
         entry = new SrsLiveEntry(mount);
-        
+
+        entry->source = s;
+        entry->req = r->copy()->as_http();
         entry->cache = new SrsBufferCache(s, r);
         entry->stream = new SrsLiveStream(s, r, entry->cache);
         
@@ -971,7 +977,8 @@ srs_error_t SrsHttpStreamServer::on_reload_vhost_added(string vhost)
 srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost)
 {
     srs_error_t err = srs_success;
-    
+
+    // Create new vhost.
     if (tflvs.find(vhost) == tflvs.end()) {
         if ((err = initialize_flv_entry(vhost)) != srs_success) {
             return srs_error_wrap(err, "init flv entry");
@@ -981,41 +988,27 @@ srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost
         // and do mount automatically on playing http flv if this stream is a new http_remux stream.
         return err;
     }
-    
-    SrsLiveEntry* tmpl = tflvs[vhost];
-    SrsRequest* req = tmpl->req;
-    SrsSource* source = tmpl->source;
-    
-    if (source && req) {
-        // cleanup the exists http remux.
-        http_unmount(source, req);
-    }
-    
-    if (!_srs_config->get_vhost_http_remux_enabled(vhost)) {
-        return err;
-    }
-    
-    string old_tmpl_mount = tmpl->mount;
-    string new_tmpl_mount = _srs_config->get_vhost_http_remux_mount(vhost);
-    
-    /**
-     * TODO: not support to reload different mount url for the time being.
-     * if the mount is change, need more logical thing to deal with.
-     * such as erase stream from sflvs and free all related resource.
-     */
-    srs_assert(old_tmpl_mount == new_tmpl_mount);
-    
-    // do http mount directly with SrsRequest and SrsSource if stream is played already.
-    if (req) {
-        std::string sid = req->get_stream_url();
-        
-        // remount stream.
-        if ((err = http_mount(source, req)) != srs_success) {
-            return srs_error_wrap(err, "vhost %s http_remux reload failed", vhost.c_str());
+
+    // Update all streams for exists vhost.
+    // TODO: FIMXE: If url changed, needs more things to deal with.
+    std::map<std::string, SrsLiveEntry*>::iterator it;
+    for (it = sflvs.begin(); it != sflvs.end(); ++it) {
+        SrsLiveEntry* entry = it->second;
+        if (!entry || !entry->req || !entry->source) {
+            continue;
         }
-    } else {
-        // for without SrsRequest and SrsSource if stream is not played yet, do http mount automatically
-        // when start play this http flv stream.
+
+        SrsRequest* req = entry->req;
+        if (!req || req->vhost != vhost) {
+            continue;
+        }
+
+        SrsSource* source = entry->source;
+        if (_srs_config->get_vhost_http_remux_enabled(vhost)) {
+            http_mount(source, req);
+        } else {
+            http_unmount(source, req);
+        }
     }
     
     srs_trace("vhost %s http_remux reload success", vhost.c_str());
