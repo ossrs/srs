@@ -285,8 +285,8 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
-    if (_srs_config->get_ffmpeg_log_enabled()) {
-        log_file = _srs_config->get_ffmpeg_log_dir();
+    if (_srs_config->get_ff_log_enabled()) {
+        log_file = _srs_config->get_ff_log_dir();
         log_file += "/";
         log_file += "ffmpeg-encoder";
         log_file += "-";

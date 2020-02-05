@@ -888,6 +888,11 @@ VOID TEST(ConfigMainTest, CheckConf_ff_log_dir)
         MockSrsConfig conf;
         HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "ff_log_dirs ./objs;"));
     }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "ff_log_levels info;"));
+    }
 }
 
 VOID TEST(ConfigMainTest, CheckConf_srs_log_level)
@@ -3503,12 +3508,13 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srs_log_tank xxx;srs_log_level xxx2;srs_log_file xxx3;ff_log_dir xxx4;"));
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "srs_log_tank xxx;srs_log_level xxx2;srs_log_file xxx3;ff_log_dir xxx4; ff_log_level xxx5;"));
         EXPECT_TRUE(conf.get_log_tank_file());
         EXPECT_STREQ("xxx2", conf.get_log_level().c_str());
         EXPECT_STREQ("xxx3", conf.get_log_file().c_str());
-        EXPECT_STREQ("xxx4", conf.get_ffmpeg_log_dir().c_str());
-        EXPECT_TRUE(conf.get_ffmpeg_log_enabled());
+        EXPECT_STREQ("xxx4", conf.get_ff_log_dir().c_str());
+        EXPECT_STREQ("xxx5", conf.get_ff_log_level().c_str());
+        EXPECT_TRUE(conf.get_ff_log_enabled());
     }
 
     if (true) {
