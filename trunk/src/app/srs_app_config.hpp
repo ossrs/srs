@@ -779,10 +779,10 @@ public:
     // Get the log file path.
     virtual std::string get_log_file();
     // Whether ffmpeg log enabled
-    virtual bool get_ffmpeg_log_enabled();
+    virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.
     // @remark, /dev/null to disable it.
-    virtual std::string get_ffmpeg_log_dir();
+    virtual std::string get_ff_log_dir();
 // The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);

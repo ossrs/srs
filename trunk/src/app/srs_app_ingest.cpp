@@ -397,8 +397,8 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
-    if (_srs_config->get_ffmpeg_log_enabled()) {
-        log_file = _srs_config->get_ffmpeg_log_dir();
+    if (_srs_config->get_ff_log_enabled()) {
+        log_file = _srs_config->get_ff_log_dir();
         log_file += "/";
         log_file += "ffmpeg-ingest";
         log_file += "-";

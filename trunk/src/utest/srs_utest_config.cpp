@@ -3507,8 +3507,8 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_TRUE(conf.get_log_tank_file());
         EXPECT_STREQ("xxx2", conf.get_log_level().c_str());
         EXPECT_STREQ("xxx3", conf.get_log_file().c_str());
-        EXPECT_STREQ("xxx4", conf.get_ffmpeg_log_dir().c_str());
-        EXPECT_TRUE(conf.get_ffmpeg_log_enabled());
+        EXPECT_STREQ("xxx4", conf.get_ff_log_dir().c_str());
+        EXPECT_TRUE(conf.get_ff_log_enabled());
     }
 
     if (true) {
