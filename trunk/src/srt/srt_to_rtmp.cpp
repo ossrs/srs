@@ -61,6 +61,14 @@ void srt2rtmp::insert_data_message(unsigned char* data_p, unsigned int len, cons
     return;
 }
 
+void srt2rtmp::insert_ctrl_message(unsigned int msg_type, const std::string& key_path) {
+    std::unique_lock<std::mutex> locker(_mutex);
+
+    SRT_DATA_MSG_PTR msg_ptr = std::make_shared<SRT_DATA_MSG>(key_path, msg_type);
+    _msg_queue.push(msg_ptr);
+    //_notify_cond.notify_one();
+    return;
+}
 SRT_DATA_MSG_PTR srt2rtmp::get_data_message() {
     std::unique_lock<std::mutex> locker(_mutex);
     SRT_DATA_MSG_PTR msg_ptr;
@@ -79,8 +87,8 @@ SRT_DATA_MSG_PTR srt2rtmp::get_data_message() {
 }
 
 void srt2rtmp::check_rtmp_alive() {
-    const int64_t CHECK_INTERVAL    = 15*1000;
-    const int64_t ALIVE_TIMEOUT_MAX = 20*1000;
+    const int64_t CHECK_INTERVAL    = 5*1000;
+    const int64_t ALIVE_TIMEOUT_MAX = 5*1000;
 
     if (_lastcheck_ts == 0) {
         _lastcheck_ts = now_ms();
@@ -108,6 +116,22 @@ void srt2rtmp::check_rtmp_alive() {
     return;
 }
 
+void srt2rtmp::handle_close_rtmpsession(const std::string& key_path) {
+    RTMP_CLIENT_PTR rtmp_ptr;
+    auto iter = _rtmp_client_map.find(key_path);
+    if (iter == _rtmp_client_map.end()) {
+        srs_error("fail to close rtmp session fail, can't find session by key_path:%s", 
+            key_path.c_str());
+        return;
+    }
+    rtmp_ptr = iter->second;
+    _rtmp_client_map.erase(iter);
+    srs_trace("close rtmp session which key_path is %s", key_path.c_str());
+    rtmp_ptr->close();
+    
+    return;
+}
+
 //the cycle is running in srs coroutine
 srs_error_t srt2rtmp::cycle() {
     srs_error_t err = srs_success;
@@ -119,7 +143,25 @@ srs_error_t srt2rtmp::cycle() {
         if (!msg_ptr) {
             srs_usleep((30 * SRS_UTIME_MILLISECONDS));
         } else {
-            handle_ts_data(msg_ptr);
+            switch (msg_ptr->msg_type()) {
+                case SRT_MSG_DATA_TYPE:
+                {
+                    handle_ts_data(msg_ptr);
+                    break;
+                }
+                case SRT_MSG_CLOSE_TYPE:
+                {
+                    handle_close_rtmpsession(msg_ptr->get_path());
+                    break;
+                }
+                default:
+                {
+                    srs_error("srt to rtmp get wrong message type(%u), path:%s",
+                        msg_ptr->msg_type(), msg_ptr->get_path().c_str());
+                    assert(0);
+                }
+            }
+            
         }
         check_rtmp_alive();
         if ((err = _trd_ptr->pull()) != srs_success) {
