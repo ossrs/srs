@@ -85,11 +85,13 @@ public:
     void release();
 
     void insert_data_message(unsigned char* data_p, unsigned int len, const std::string& key_path);
+    void insert_ctrl_message(unsigned int msg_type, const std::string& key_path);
 
 private:
     SRT_DATA_MSG_PTR get_data_message();
     virtual srs_error_t cycle();
     void handle_ts_data(SRT_DATA_MSG_PTR data_ptr);
+    void handle_close_rtmpsession(const std::string& key_path);
     void check_rtmp_alive();
 
 private:
