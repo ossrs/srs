@@ -207,7 +207,9 @@ private:
     bool _is_aac;
     bool _is_mp3;
 public:
+    // We will free the request.
     SrsRequest* req;
+    // Shared source.
     SrsSource* source;
 public:
     // For template, the mount contains variables.
@@ -218,6 +220,7 @@ public:
     SrsBufferCache* cache;
     
     SrsLiveEntry(std::string m);
+    virtual ~SrsLiveEntry();
     
     bool is_flv();
     bool is_ts();

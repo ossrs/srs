@@ -17,8 +17,8 @@
 static bool MONITOR_STATICS_ENABLE = false;
 static long long MONITOR_TIMEOUT = 5000;
 const unsigned int DEF_DATA_SIZE = 188*7;
-const long long CHECK_ALIVE_INTERVAL = 10*1000;
-const long long CHECK_ALIVE_TIMEOUT = 15*1000;
+const long long CHECK_ALIVE_INTERVAL = 5*1000;
+const long long CHECK_ALIVE_TIMEOUT = 5*1000;
 
 long long srt_now_ms = 0;
 
@@ -236,6 +236,10 @@ void srt_handle::onwork()
             add_newconn(msg.conn_ptr, msg.events);
         }
 
+        if (_conn_map.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
         check_alive();
 
         ret = srt_epoll_wait(_handle_pollid, read_fds, &rfd_num, write_fds, &wfd_num, 
@@ -243,7 +247,6 @@ void srt_handle::onwork()
         if (ret < 0) {
             srs_info("srt handle epoll is timeout, ret=%d, srt_now_ms=%ld", 
                 ret, srt_now_ms);
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
             continue;
         }
 
@@ -376,6 +379,7 @@ void srt_handle::close_push_conn(SRTSOCKET srtsocket) {
             _push_conn_map.erase(push_iter);
         }
         _conn_map.erase(iter);
+        srt2rtmp::get_instance()->insert_ctrl_message(SRT_MSG_CLOSE_TYPE, conn_ptr->get_subpath());
         conn_ptr->close();
     }
 
