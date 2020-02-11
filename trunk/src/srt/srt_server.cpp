@@ -165,7 +165,6 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
 }
 
 void srt_server::srt_handle_data(SRT_SOCKSTATUS status, SRTSOCKET input_fd, const std::string& dscr) {
-    srs_trace("status:%d, fd:%d, dscr:%s", status, input_fd, dscr.c_str());
     _handle_ptr->handle_srt_socket(status, input_fd);
     return;
 }

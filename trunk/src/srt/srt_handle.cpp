@@ -188,7 +188,7 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
         close_push_conn(conn_fd);
         return;
     }
-    srs_trace("srt read data len:%d", ret);
+
     srt_conn_ptr->update_timestamp(srt_now_ms);
 
     srt2rtmp::get_instance()->insert_data_message(data, ret, subpath);
