@@ -15,10 +15,9 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 
-srt_server::srt_server(unsigned short port):listen_port(port)
-    ,server_socket(-1)
+srt_server::srt_server(unsigned short port):_listen_port(port)
+    ,_server_socket(-1)
 {
-    handle_ptr = std::make_shared<srt_handle>();
 }
 
 srt_server::~srt_server()
@@ -27,48 +26,49 @@ srt_server::~srt_server()
 }
 
 int srt_server::init_srt() {
-    if (server_socket != -1) {
+    if (_server_socket != -1) {
         return -1;
     }
 
-    server_socket = srt_create_socket();
+    _server_socket = srt_create_socket();
     sockaddr_in sa;
     memset(&sa, 0, sizeof sa);
     sa.sin_family = AF_INET;
-    sa.sin_port = htons(listen_port);
+    sa.sin_port = htons(_listen_port);
 
     sockaddr* psa = (sockaddr*)&sa;
 
-    int ret = srt_bind(server_socket, psa, sizeof(sa));
+    int ret = srt_bind(_server_socket, psa, sizeof(sa));
     if ( ret == SRT_ERROR )
     {
-        srt_close(server_socket);
+        srt_close(_server_socket);
         srs_error("srt bind error: %d", ret);
         return -1;
     }
 
-    ret = srt_listen(server_socket, 5);
+    ret = srt_listen(_server_socket, 5);
     if (ret == SRT_ERROR)
     {
-        srt_close(server_socket);
+        srt_close(_server_socket);
         srs_error("srt listen error: %d", ret);
         return -2;
     }
 
     _pollid = srt_epoll_create();
     if (_pollid < -1) {
-        srs_error("srt server srt_epoll_create error, port=%d", listen_port);
+        srs_error("srt server srt_epoll_create error, port=%d", _listen_port);
         return -1;
     }
+    _handle_ptr = std::make_shared<srt_handle>(_pollid);
 
     int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
-    ret = srt_epoll_add_usock(_pollid, server_socket, &events);
+    ret = srt_epoll_add_usock(_pollid, _server_socket, &events);
     if (ret < 0) {
         srs_error("srt server run add epoll error:%d", ret);
         return ret;
     }
 
-    srs_trace("srt server listen port=%d, server_fd=%d", listen_port, server_socket);
+    srs_trace("srt server listen port=%d, server_fd=%d", _listen_port, _server_socket);
     
     return 0;
 }
@@ -80,13 +80,9 @@ int srt_server::start()
     if ((ret = init_srt()) < 0) {
         return ret;
     }
-    ret = handle_ptr->start();
-    if (ret < 0) {
-        return ret;
-    }
 
     run_flag = true;
-    srs_trace("srt server is starting... port(%d)", listen_port);
+    srs_trace("srt server is starting... port(%d)", _listen_port);
     thread_run_ptr = std::make_shared<std::thread>(&srt_server::on_work, this);
     return 0;
 }
@@ -99,7 +95,6 @@ void srt_server::stop()
     }
     thread_run_ptr->join();
 
-    handle_ptr->stop();
     return;
 }
 
@@ -146,8 +141,8 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
                 srt_conn_ptr->close();
                 return;
             }
-            request_message_t msg = {srt_conn_ptr, conn_event};
-            handle_ptr->insert_message_queue(msg);
+            
+            _handle_ptr->add_newconn(srt_conn_ptr, conn_event);
             break;
         }
         case SRTS_CONNECTED:
@@ -169,10 +164,16 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
     }
 }
 
+void srt_server::srt_handle_data(SRT_SOCKSTATUS status, SRTSOCKET input_fd, const std::string& dscr) {
+    srs_trace("status:%d, fd:%d, dscr:%s", status, input_fd, dscr.c_str());
+    _handle_ptr->handle_srt_socket(status, input_fd);
+    return;
+}
+
 void srt_server::on_work()
 {
     const unsigned int SRT_FD_MAX = 100;
-    srs_trace("srt server is working port(%d)", listen_port);
+    srs_trace("srt server is working port(%d)", _listen_port);
     while (run_flag)
     {
         SRTSOCKET read_fds[SRT_FD_MAX];
@@ -185,17 +186,27 @@ void srt_server::on_work()
         if (ret < 0) {
             continue;
         }
-        srs_trace("srt server epoll get: ret=%d, rfd_num=%d, wfd_num=%d", 
+        _handle_ptr->check_alive();
+
+        srs_info("srt server epoll get: ret=%d, rfd_num=%d, wfd_num=%d", 
             ret, rfd_num, wfd_num);
 
         for (int index = 0; index < rfd_num; index++) {
             SRT_SOCKSTATUS status = srt_getsockstate(read_fds[index]);
-            srt_handle_connection(status, read_fds[index], "read fd");
+            if (_server_socket == read_fds[index]) {
+                srt_handle_connection(status, read_fds[index], "read fd");
+            } else {
+                srt_handle_data(status, read_fds[index], "read fd");
+            }
         }
         
         for (int index = 0; index < wfd_num; index++) {
             SRT_SOCKSTATUS status = srt_getsockstate(write_fds[index]);
-            srt_handle_connection(status, read_fds[index], "write fd");
+            if (_server_socket == write_fds[index]) {
+                srt_handle_connection(status, write_fds[index], "write fd");
+            } else {
+                srt_handle_data(status, write_fds[index], "write fd");
+            }
         }
     }
 }

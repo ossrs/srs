@@ -25,14 +25,16 @@ private:
     void on_work();
     //accept new srt connection
     void srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd, const std::string& dscr);
+    //get srt data read/write
+    void srt_handle_data(SRT_SOCKSTATUS status, SRTSOCKET input_fd, const std::string& dscr);
 
 private:
-    unsigned short listen_port;
-    SRTSOCKET server_socket;
+    unsigned short _listen_port;
+    SRTSOCKET _server_socket;
     int _pollid;
     bool run_flag;
     std::shared_ptr<std::thread> thread_run_ptr;
-    std::shared_ptr<srt_handle> handle_ptr;
+    std::shared_ptr<srt_handle> _handle_ptr;
 };
 
 typedef std::shared_ptr<srt_server> SRT_SERVER_PTR;
