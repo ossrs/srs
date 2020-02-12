@@ -595,6 +595,26 @@ public:
     virtual bool get_srt_enabled();
     // Get the srt service listen port
     virtual unsigned short get_srt_listen_port();
+    // Get the srt SRTO_MAXBW, max bandwith, default is -1.
+    virtual int get_srto_maxbw();
+    // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
+    virtual int get_srto_mss();
+    // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
+    virtual int get_srto_latency();
+    // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
+    virtual int get_srto_recv_latency();
+    // Get the srt SRTO_PEERLATENCY, peer latency, default is 0..
+    virtual int get_srto_peer_latency();
+    // Get the srt SRTO_TLPKDROP, Too-late Packet Drop, default is true.
+    virtual bool get_srto_tlpkdrop();
+    // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
+    virtual int get_srto_conntimeout();
+    // Get the srt SRTO_SNDBUF, send buffer, default is 8192 × (1500-28).
+    virtual int get_srto_sendbuf();
+    // Get the srt SRTO_RCVBUF, recv buffer, default is 8192 × (1500-28).
+    virtual int get_srto_recvbuf();
+    // SRTO_PAYLOADSIZE
+    virtual int get_srto_payloadsize();
 
 // http_hooks section
 private:

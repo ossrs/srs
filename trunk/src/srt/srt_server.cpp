@@ -25,6 +25,54 @@ srt_server::~srt_server()
 
 }
 
+int srt_server::init_srt_parameter() {
+    const int DEF_LATENCY = 188*7;
+
+    int opt_len = sizeof(int);
+
+    if (_server_socket == -1) {
+        return -1;
+    }
+    int maxbw = _srs_config->get_srto_maxbw();
+    srt_setsockopt(_server_socket, 0, SRTO_MAXBW, &maxbw, opt_len);
+    int mss = _srs_config->get_srto_mss();
+    srt_setsockopt(_server_socket, 0, SRTO_MSS, &mss, opt_len);
+
+    bool tlpkdrop = _srs_config->get_srto_tlpkdrop();
+    int tlpkdrop_i = tlpkdrop ? 1 : 0;
+    srt_setsockopt(_server_socket, 0, SRTO_TLPKTDROP, &tlpkdrop_i, opt_len);
+
+    int connection_timeout = _srs_config->get_srto_conntimeout();
+    srt_setsockopt(_server_socket, 0, SRTO_CONNTIMEO, &connection_timeout, opt_len);
+    
+    int send_buff = _srs_config->get_srto_sendbuf();
+    srt_setsockopt(_server_socket, 0, SRTO_SNDBUF, &send_buff, opt_len);
+    int recv_buff = _srs_config->get_srto_recvbuf();
+    srt_setsockopt(_server_socket, 0, SRTO_RCVBUF, &recv_buff, opt_len);
+    int payload_size = _srs_config->get_srto_payloadsize();
+    srt_setsockopt(_server_socket, 0, SRTO_PAYLOADSIZE, &payload_size, opt_len);
+
+    int latency = _srs_config->get_srto_latency();
+    if (DEF_LATENCY != latency) {
+        srt_setsockopt(_server_socket, 0, SRTO_LATENCY, &latency, opt_len);
+    }
+    
+    int recv_latency = _srs_config->get_srto_recv_latency();
+    if (DEF_LATENCY != recv_latency) {
+        srt_setsockopt(_server_socket, 0, SRTO_RCVLATENCY, &recv_latency, opt_len);
+    }
+    
+    int peer_latency = _srs_config->get_srto_peer_latency();
+    if (DEF_LATENCY != peer_latency) {
+        srt_setsockopt(_server_socket, 0, SRTO_PEERLATENCY, &recv_latency, opt_len);
+    }
+    
+    srs_trace("init srt parameter, maxbw:%d, mss:%d, tlpkdrop:%d, connect timeout:%d, \
+send buff:%d, recv buff:%d, payload size:%d, latency:%d, recv latency:%d, peer latency:%d",
+        maxbw, mss, tlpkdrop, connection_timeout, send_buff, recv_buff, payload_size,
+        latency, recv_latency, peer_latency);
+    return 0;
+}
 int srt_server::init_srt() {
     if (_server_socket != -1) {
         return -1;
@@ -53,6 +101,8 @@ int srt_server::init_srt() {
         srs_error("srt listen error: %d", ret);
         return -2;
     }
+
+    init_srt_parameter();
 
     _pollid = srt_epoll_create();
     if (_pollid < -1) {

@@ -131,13 +131,14 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
     int val_i;
     int opt_len = sizeof(int);
 
-    val_i = 1000;
-    srt_setsockopt(conn_ptr->get_conn(), 0, SRTO_LATENCY, &val_i, opt_len);
-    val_i = 2048;
-    srt_setsockopt(conn_ptr->get_conn(), 0, SRTO_MAXBW, &val_i, opt_len);
-
     srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_LATENCY, &val_i, &opt_len);
     srs_trace("srto SRTO_LATENCY=%d", val_i);
+
+    srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_PEERLATENCY, &val_i, &opt_len);
+    srs_trace("srto SRTO_PEERLATENCY=%d", val_i);
+    srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_RCVLATENCY, &val_i, &opt_len);
+    srs_trace("srto SRTO_RCVLATENCY=%d", val_i);
+
     srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_SNDBUF, &val_i, &opt_len);
     srs_trace("srto SRTO_SNDBUF=%d", val_i);
     srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_RCVBUF, &val_i, &opt_len);
