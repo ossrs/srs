@@ -912,7 +912,6 @@ VOID TEST(KernelFLVTest, CoverWriterErrorCase)
 		HELPER_EXPECT_FAILED(m.write_video(0, NULL, 0));
 	}
 
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 	if (true) {
 		MockSrsFileWriter w;
 		HELPER_EXPECT_SUCCESS(w.open(""));
@@ -963,7 +962,6 @@ VOID TEST(KernelFLVTest, CoverWriterErrorCase)
         SrsSharedPtrMessage* msgs = &msg;
 		HELPER_EXPECT_FAILED(m.write_tags(&msgs, 1));
 	}
-#endif
 }
 
 VOID TEST(KernelFLVTest, CoverReaderErrorCase)
@@ -4028,7 +4026,6 @@ VOID TEST(KernelFLVTest, CoverAll)
         EXPECT_TRUE(s.is_video());
     }
     
-#ifdef SRS_PERF_FAST_FLV_ENCODER
     if (true) {
         MockSrsFileWriter f;
         SrsFlvTransmuxer mux;
@@ -4045,7 +4042,6 @@ VOID TEST(KernelFLVTest, CoverAll)
         
         EXPECT_EQ(16, f.tellg());
     }
-#endif
 }
 
 VOID TEST(KernelFLVTest, CoverSharedPtrMessage)

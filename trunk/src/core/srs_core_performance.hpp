@@ -178,13 +178,6 @@
 #endif
 
 /**
- * define the following macro to enable the fast flv encoder.
- * @see https://github.com/ossrs/srs/issues/405
- */
-#undef SRS_PERF_FAST_FLV_ENCODER
-#define SRS_PERF_FAST_FLV_ENCODER
-
-/**
  * whether ensure glibc memory check.
  */
 #define SRS_PERF_GLIBC_MEMORY_CHECK

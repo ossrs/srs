@@ -153,10 +153,26 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-02-04, Update project code. 4.0.3
+* v4.0, 2020-01-26, Allow use libsrt.so for SRT is MPL license. 4.0.2
 * v4.0, 2020-01-24, Fix [#1147][bug #1147], support SRT(Secure Reliable Transport). 4.0.1
 
 ## V3 changes
 
+* v3.0, 2020-02-05, For [#665][bug #665], fix HTTP-FLV reloading bug. 3.0.116
+* v3.0, 2020-02-05, For [#1592][bug #1592], fix terminal echo off by redirect process stdin. 3.0.115
+* v3.0, 2020-02-04, For [#1186][bug #1186], refactor security check. 3.0.114
+* v3.0, 2020-02-04, Fix [#939][bug #939], response right A/V flag in FLV header. 3.0.113
+* v3.0, 2020-02-04, For [#939][bug #939], always enable fast FLV streaming.
+* <strong>v3.0, 2020-02-02, [3.0 beta0(3.0.112)][r3.0b0] released. 121709 lines.</strong>
+* v3.0, 2020-01-29, Support isolate version file. 3.0.112
+* v3.0, 2020-01-29, Fix [#1206][bug #1206], dispose ingester while server quiting. 3.0.111
+* v3.0, 2020-01-28, Fix [#1230][bug #1230], racing condition in source fetch or create. 3.0.110
+* v3.0, 2020-01-27, Fix [#1303][bug #1303], do not dispatch previous meta when not publishing. 3.0.109
+* v3.0, 2020-01-26, Allow use libst.so for ST is MPL license.
+* v3.0, 2020-01-26, Fix [#607][bug #607], set RTMP identifying recursive depth to 3.
+* v3.0, 2020-01-25, Fix [#878][bug #878], remove deprecated #EXT-X-ALLOW-CACHE for HLS. 3.0.108
+* v3.0, 2020-01-25, Fix [#703][bug #703], drop video data util sps/pps. 3.0.107
 * v3.0, 2020-01-25, Fix [#1108][bug #1108], reap DVR tmp file when unpublish. 3.0.106
 * <strong>v3.0, 2020-01-21, [3.0 alpha9(3.0.105)][r3.0a9] released. 121577 lines.</strong>
 * v3.0, 2020-01-21, Fix [#1221][bug #1221], remove complex configure options. 3.0.104
@@ -734,6 +750,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
 * 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
 * 2019-12-29, [Release v3.0-a7][r3.0a7], 3.0 alpha7, 3.0.90, 116356 lines.
@@ -784,7 +801,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-delivery"></a>
 **Stream Delivery**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
 |   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
@@ -792,12 +809,13 @@ Comparing with other media servers, SRS is much better and stronger, for details
 |   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   HDS         | Experiment|   X       |   X       |   Stable  |   Stable  |
 |   MPEG-DASH   | Experiment|   X       |   X       |   X       |   X       |
+|   SRT         | Experiment|   X       |   X       |   X       |   Stable  |
 |   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
 
 <a name="cluster"></a>
 **Cluster**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
 |   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
@@ -810,7 +828,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-service"></a>
 **Stream Service**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
 |   DVR API     |   Stable  |   Stable  |   X       |   X       |   X       |
@@ -827,7 +845,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="efficiency"></a>
 **Efficiency**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
 |MultipleProcess| Experiment|   Stable  |   X       |   X       |   X       |
@@ -837,7 +855,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="stream-caster"></a>
 **Stream Caster**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Ingest      |   Stable  |   X       |   X       |   X       |   X       |
 |   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
@@ -847,7 +865,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="debug-system"></a>
 **Debug System**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   BW check    |   Stable  |   X       |   X       |   X       |   X       |
 | Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
@@ -855,7 +873,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="docs"></a>
 **Docs**
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Demos       |   Stable  |   X       |   X       |   X       |   X       |
 |   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
@@ -863,7 +881,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 <a name="others"></a>
 **Others** 
 
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
 | Client Library|   Stable  |   X       |   X       |   X       |   X       |
@@ -1118,6 +1136,15 @@ Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1
 ```
 git clone https://gitlab.com/winlinvip/srs-gitlab.git
 ```
+
+| Branch | Cost | Size | CMD |
+| --- | --- | --- | --- |
+| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/winlinvip/srs.oschina.git |
+| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
+| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/winlinvip/srs.oschina.git |
+| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
+| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/winlinvip/srs.oschina.git |
+| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
 
 ## System Requirements
 
@@ -1631,10 +1658,21 @@ Winlin
 [bug #463]: https://github.com/ossrs/srs/issues/463
 [bug #1147]: https://github.com/ossrs/srs/issues/1147
 [bug #1108]: https://github.com/ossrs/srs/issues/1108
+[bug #703]: https://github.com/ossrs/srs/issues/703
+[bug #878]: https://github.com/ossrs/srs/issues/878
+[bug #607]: https://github.com/ossrs/srs/issues/607
+[bug #1303]: https://github.com/ossrs/srs/issues/1303
+[bug #1230]: https://github.com/ossrs/srs/issues/1230
+[bug #1206]: https://github.com/ossrs/srs/issues/1206
+[bug #939]: https://github.com/ossrs/srs/issues/939
+[bug #1186]: https://github.com/ossrs/srs/issues/1186
+[bug #1592]: https://github.com/ossrs/srs/issues/1592
+[bug #665]: https://github.com/ossrs/srs/issues/665
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b0]: https://github.com/ossrs/srs/releases/tag/v3.0-b0
 [r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
 [r3.0a7]: https://github.com/ossrs/srs/releases/tag/v3.0-a7

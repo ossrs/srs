@@ -215,6 +215,7 @@ public:
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0, std::string a1);
     virtual SrsConfDirective* set_arg0(std::string a0);
     // Remove the v from sub directives, user must free the v.
     virtual void remove(SrsConfDirective* v);
@@ -785,10 +786,12 @@ public:
     // Get the log file path.
     virtual std::string get_log_file();
     // Whether ffmpeg log enabled
-    virtual bool get_ffmpeg_log_enabled();
+    virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.
     // @remark, /dev/null to disable it.
-    virtual std::string get_ffmpeg_log_dir();
+    virtual std::string get_ff_log_dir();
+    // The ffmpeg log level.
+    virtual std::string get_ff_log_level();
 // The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);

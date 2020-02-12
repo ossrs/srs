@@ -362,7 +362,7 @@ public:
     //   1. E.2 The FLV header
     //   2. PreviousTagSize0 UI32 Always 0
     // that is, 9+4=13bytes.
-    virtual srs_error_t write_header();
+    virtual srs_error_t write_header(bool has_video = true, bool has_audio = true);
     virtual srs_error_t write_header(char flv_header[9]);
     // Write flv metadata.
     // @param type, the type of data, or other message type.
@@ -381,7 +381,6 @@ public:
     // including the tag header, body, and 4bytes previous tag size.
     // @remark assert data_size is not negative.
     static int size_tag(int data_size);
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 private:
     // The cache tag header.
     int nb_tag_headers;
@@ -395,7 +394,6 @@ private:
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
-#endif
 private:
     virtual void cache_metadata(char type, char* data, int size, char* cache);
     virtual void cache_audio(int64_t timestamp, char* data, int size, char* cache);
