@@ -220,6 +220,8 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
     _h264_sps_changed = false;
     _h264_pps_changed = false;
     _h264_sps_pps_sent = false;
+
+    _last_live_ts = now_ms();
     srs_trace("rtmp client construct url:%s", url_sz);
 }
 
@@ -251,6 +253,7 @@ srs_error_t rtmp_client::connect() {
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
 
+    _last_live_ts = now_ms();
     if (_connect_flag) {
         return srs_success;
     }
