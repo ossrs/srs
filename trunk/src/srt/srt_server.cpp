@@ -187,9 +187,6 @@ void srt_server::on_work()
         }
         _handle_ptr->check_alive();
 
-        srs_info("srt server epoll get: ret=%d, rfd_num=%d, wfd_num=%d", 
-            ret, rfd_num, wfd_num);
-
         for (int index = 0; index < rfd_num; index++) {
             SRT_SOCKSTATUS status = srt_getsockstate(read_fds[index]);
             if (_server_socket == read_fds[index]) {
@@ -208,6 +205,7 @@ void srt_server::on_work()
             }
         }
     }
+    srt_epoll_clear_usocks(_pollid);
 }
 
 SrtServerAdapter::SrtServerAdapter()
