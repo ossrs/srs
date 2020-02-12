@@ -21,6 +21,8 @@ public:
 private:
     //init srt socket and srt epoll
     int init_srt();
+    int init_srt_parameter();
+    
     //srt main epoll loop
     void on_work();
     //accept new srt connection

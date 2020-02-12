@@ -3525,7 +3525,10 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->get("srt_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen") {
+            if (n != "enabled" && n != "listen" && n != "maxbw"
+                && n != "mss" && n != "latency" && n != "recvlatency"
+                && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
+                && n != "sendbuf" && n != "recvbuf" && n != "payloadsize") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
             }
         }
@@ -6699,6 +6702,146 @@ unsigned short SrsConfig::get_srt_listen_port()
         return DEFAULT;
     }
     return (unsigned short)atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_maxbw() {
+    static int64_t DEFAULT = -1;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("maxbw");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_mss() {
+    static int DEFAULT = 1500;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("mms");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_latency() {
+    static int DEFAULT = 120;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("latency");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_recv_latency() {
+    static int DEFAULT = 120;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("recvlatency");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_peer_latency() {
+    static int DEFAULT = 120;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("peerlatency");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_srto_tlpkdrop() {
+    static bool DEFAULT = true;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("tlpkdrop");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_srto_conntimeout() {
+    static int DEFAULT = 3000;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("connect_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_sendbuf() {
+    static int64_t DEFAULT = 8192 * (1500-28);
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("sendbuf");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_recvbuf() {
+    static int64_t DEFAULT = 8192 * (1500-28);
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("recvbuf");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_payloadsize() {
+    static int DEFAULT = 1316;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("payloadsize");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_http_stream_enabled()
