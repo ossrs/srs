@@ -26,7 +26,8 @@ srt_server::~srt_server()
 }
 
 int srt_server::init_srt_parameter() {
-    const int DEF_LATENCY = 188*7;
+    const int DEF_RECV_LATENCY = 120;
+    const int DEF_PEER_LATENCY = 0;
 
     int opt_len = sizeof(int);
 
@@ -53,17 +54,17 @@ int srt_server::init_srt_parameter() {
     srt_setsockopt(_server_socket, 0, SRTO_PAYLOADSIZE, &payload_size, opt_len);
 
     int latency = _srs_config->get_srto_latency();
-    if (DEF_LATENCY != latency) {
+    if (DEF_RECV_LATENCY != latency) {
         srt_setsockopt(_server_socket, 0, SRTO_LATENCY, &latency, opt_len);
     }
     
     int recv_latency = _srs_config->get_srto_recv_latency();
-    if (DEF_LATENCY != recv_latency) {
+    if (DEF_RECV_LATENCY != recv_latency) {
         srt_setsockopt(_server_socket, 0, SRTO_RCVLATENCY, &recv_latency, opt_len);
     }
     
     int peer_latency = _srs_config->get_srto_peer_latency();
-    if (DEF_LATENCY != peer_latency) {
+    if (DEF_PEER_LATENCY != peer_latency) {
         srt_setsockopt(_server_socket, 0, SRTO_PEERLATENCY, &recv_latency, opt_len);
     }
     
