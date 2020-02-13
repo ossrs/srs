@@ -218,7 +218,7 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
             break;
         }
     }
-
+    port = (port == 0) ? 1935 : port;
     if (_vhost == DEF_VHOST) {
         sprintf(url_sz, "rtmp://127.0.0.1:%d/%s/%s", port,
             _appname.c_str(), _streamname.c_str());
