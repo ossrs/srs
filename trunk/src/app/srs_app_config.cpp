@@ -6761,7 +6761,7 @@ int SrsConfig::get_srto_recv_latency() {
 }
 
 int SrsConfig::get_srto_peer_latency() {
-    static int DEFAULT = 120;
+    static int DEFAULT = 0;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
