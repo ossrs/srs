@@ -4,6 +4,7 @@
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_stream.hpp>
@@ -207,11 +208,22 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
     }
     char url_sz[128];
     
+    std::vector<std::string> ip_ports = _srs_config->get_listens();
+    int port = 0;
+    std::string ip;
+
+    for (auto item : ip_ports) {
+        srs_parse_endpoint(item, ip, port);
+        if (port != 0) {
+            break;
+        }
+    }
+
     if (_vhost == DEF_VHOST) {
-        sprintf(url_sz, "rtmp://127.0.0.1/%s/%s",
+        sprintf(url_sz, "rtmp://127.0.0.1:%d/%s/%s", port,
             _appname.c_str(), _streamname.c_str());
     } else {
-        sprintf(url_sz, "rtmp://127.0.0.1/%s?vhost=%s/%s",
+        sprintf(url_sz, "rtmp://127.0.0.1:%d/%s?vhost=%s/%s", port,
             _appname.c_str(), _vhost.c_str(), _streamname.c_str());
     }
     
