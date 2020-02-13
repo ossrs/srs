@@ -296,7 +296,11 @@ int ts_demux::decode(SRT_DATA_MSG_PTR data_ptr, TS_DATA_CALLBACK_PTR callback)
     path = data_ptr->get_path();
     for (unsigned int index = 0; index < count; index++)
     {
-        ret = decode_unit(data_ptr->get_data() + 188*index, path, callback);
+        unsigned char* data = data_ptr->get_data() + 188*index;
+        if (data[0] != 0x47) {
+            continue;
+        }
+        ret = decode_unit(data, path, callback);
         if (ret < 0)
         {
             break;
