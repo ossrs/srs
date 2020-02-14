@@ -48,6 +48,9 @@ function user_extra_params(query, params) {
     if (vhost == "ossrs.net") {
         vhost = "r.ossrs.net";
     }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
 
     for (var key in query.user_query) {
         if (key == 'app' || key == 'autostart' || key == 'dir'
@@ -89,6 +92,9 @@ function build_default_rtmp_url() {
     if (vhost == "ossrs.net") {
         vhost = "r.ossrs.net";
     }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
 
     var queries = [];
     if (server != vhost && vhost != "__defaultVhost__") {
@@ -118,6 +124,9 @@ function build_default_publish_rtmp_url() {
     // that is migrating to r.ossrs.net
     if (vhost == "ossrs.net") {
         vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
     }
 
     var queries = [];
@@ -149,6 +158,9 @@ function build_default_bandwidth_rtmp_url() {
     // that is migrating to r.ossrs.net
     if (vhost == "ossrs.net") {
         vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
     }
 
     return "rtmp://" + server + ":" + port + "/" + app + "?key=" + key + "&vhost=" + vhost;
