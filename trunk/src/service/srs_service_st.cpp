@@ -23,10 +23,11 @@
 
 #include <srs_service_st.hpp>
 
-#include <st.h>
+#include <co_routine.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -40,6 +41,17 @@ using namespace std;
 
 #ifdef __linux__
 #include <sys/epoll.h>
+
+static int set_fd_nonblock(int fd)
+{
+    int flags;
+
+    flags = fcntl(fd, F_GETFL, 0); 
+    flags |= O_NONBLOCK;
+    flags |= O_NDELAY;
+    int ret = fcntl(fd, F_SETFL, flags);
+    return ret;
+}
 
 bool srs_st_epoll_is_supported(void)
 {
@@ -56,37 +68,12 @@ bool srs_st_epoll_is_supported(void)
 
 srs_error_t srs_st_init()
 {
-#ifdef __linux__
-    // check epoll, some old linux donot support epoll.
-    // @see https://github.com/ossrs/srs/issues/162
-    if (!srs_st_epoll_is_supported()) {
-        return srs_error_new(ERROR_ST_SET_EPOLL, "linux epoll disabled");
-    }
-#endif
-    
-    // Select the best event system available on the OS. In Linux this is
-    // epoll(). On BSD it will be kqueue.
-    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
-        return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
-    }
-    
-    int r0 = 0;
-    if((r0 = st_init()) != 0){
-        return srs_error_new(ERROR_ST_INITIALIZE, "st initialize failed, r0=%d", r0);
-    }
-    srs_trace("st_init success, use %s", st_get_eventsys_name());
-    
     return srs_success;
 }
 
 void srs_close_stfd(srs_netfd_t& stfd)
 {
-    if (stfd) {
-        // we must ensure the close is ok.
-        int err = st_netfd_close((st_netfd_t)stfd);
-        srs_assert(err != -1);
-        stfd = NULL;
-    }
+    ::close(stfd);
 }
 
 srs_error_t srs_fd_closeexec(int fd)
@@ -144,18 +131,17 @@ srs_error_t srs_fd_keepalive(int fd)
 
 srs_thread_t srs_thread_self()
 {
-    return (srs_thread_t)st_thread_self();
+    return (srs_thread_t)co_self();
 }
 
 srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
-    st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
+    srs_utime_t timeout = SRS_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
         timeout = tm;
     }
-    
-    *pstfd = NULL;
-    srs_netfd_t stfd = NULL;
+
+    (void)timeout;
 
     char sport[8];
     snprintf(sport, sizeof(sport), "%d", port);
@@ -175,20 +161,15 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     if(sock == -1){
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
+
+    *pstfd = sock;
     
-    srs_assert(!stfd);
-    stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
-        ::close(sock);
-        return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
-    }
-    
-    if (st_connect((st_netfd_t)stfd, r->ai_addr, r->ai_addrlen, timeout) == -1){
-        srs_close_stfd(stfd);
+    // TODO: timeout
+    if (connect(sock, r->ai_addr, r->ai_addrlen) == -1) {
+        srs_close_stfd(sock);
         return srs_error_new(ERROR_ST_CONNECT, "connect to %s:%d", server.c_str(), port);
     }
     
-    *pstfd = stfd;
     return srs_success;
 }
 
@@ -214,16 +195,12 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
         return srs_error_wrap(err, "set reuseport");
     }
 
-    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+    if (::bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 
     if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
         return srs_error_new(ERROR_SOCKET_LISTEN, "listen");
-    }
-
-    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
-        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
     }
 
     return err;
@@ -255,10 +232,14 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
+    set_fd_nonblock(fd);
+
     if ((err = do_srs_tcp_listen(fd, r, pfd)) != srs_success) {
         ::close(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }
+
+    *pfd = fd;
 
     return err;
 }
@@ -281,10 +262,6 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 
     if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
-    }
-
-    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
-        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
     }
 
     return err;
@@ -326,85 +303,121 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
 srs_cond_t srs_cond_new()
 {
-    return (srs_cond_t)st_cond_new();
+    return (srs_cond_t)co_cond_alloc();
 }
 
 int srs_cond_destroy(srs_cond_t cond)
 {
-    return st_cond_destroy((st_cond_t)cond);
+    return co_cond_free((stCoCond_t*)cond);
 }
 
 int srs_cond_wait(srs_cond_t cond)
 {
-    return st_cond_wait((st_cond_t)cond);
+    return co_cond_timedwait((stCoCond_t*)cond, -1);
 }
 
 int srs_cond_timedwait(srs_cond_t cond, srs_utime_t timeout)
 {
-    return st_cond_timedwait((st_cond_t)cond, (st_utime_t)timeout);
+    return co_cond_timedwait((stCoCond_t*)cond, timeout);
 }
 
 int srs_cond_signal(srs_cond_t cond)
 {
-    return st_cond_signal((st_cond_t)cond);
+    return co_cond_signal((stCoCond_t*)cond);
 }
 
 srs_mutex_t srs_mutex_new()
 {
-    return (srs_mutex_t)st_mutex_new();
+    return NULL;
 }
 
 int srs_mutex_destroy(srs_mutex_t mutex)
 {
-    if (!mutex) {
-        return 0;
-    }
-    return st_mutex_destroy((st_mutex_t)mutex);
+    return 0;
 }
 
 int srs_mutex_lock(srs_mutex_t mutex)
 {
-    return st_mutex_lock((st_mutex_t)mutex);
+    return 0;
 }
 
 int srs_mutex_unlock(srs_mutex_t mutex)
 {
-    return st_mutex_unlock((st_mutex_t)mutex);
+    return 0;
 }
 
 int srs_netfd_fileno(srs_netfd_t stfd)
 {
-    return st_netfd_fileno((st_netfd_t)stfd);
+    return stfd;
 }
 
 int srs_usleep(srs_utime_t usecs)
 {
-    return st_usleep((st_utime_t)usecs);
+    // XXX: libco has no API like co_sleep, use co_cond_timedwait instead
+    stCoCond_t* cond = co_cond_alloc();
+    co_cond_timedwait(cond, usecs/1000.0);
+
+    return 0;
 }
 
 srs_netfd_t srs_netfd_open_socket(int osfd)
 {
-    return (srs_netfd_t)st_netfd_open_socket(osfd);
+    set_fd_nonblock(osfd);
+    return osfd;
 }
 
 srs_netfd_t srs_netfd_open(int osfd)
 {
-    return (srs_netfd_t)st_netfd_open(osfd);
+    set_fd_nonblock(osfd);
+    return osfd;
 }
 
 int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, int *fromlen, srs_utime_t timeout)
 {
-    return st_recvfrom((st_netfd_t)stfd, buf, len, from, fromlen, (st_utime_t)timeout);
+    // TODO: timeout
+    return recvfrom(stfd, buf, len, 0, from, (socklen_t*)fromlen);
 }
 
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)
 {
-    return (srs_netfd_t)st_accept((st_netfd_t)stfd, addr, addrlen, (st_utime_t)timeout);
+	struct pollfd pf = { 0 };
+    pf.fd = stfd;
+    pf.events = (POLLIN | POLLERR | POLLHUP);
+
+    srs_utime_t atm = timeout;
+    if (atm != SRS_UTIME_NO_TIMEOUT)
+        atm /= 1000;
+
+    int client_fd;
+    while ((client_fd = accept(stfd, addr, (socklen_t*)addrlen)) < 0) {
+        if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+            return -1;
+        } 
+        
+        co_poll(co_get_epoll_ct(), &pf, 1, atm);
+    }
+
+    set_fd_nonblock(client_fd);
+
+    return client_fd;
 }
 
 ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
 {
-    return st_read((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
+	struct pollfd pf = { 0 };
+    pf.fd = stfd;
+    pf.events = (POLLIN | POLLERR | POLLHUP);
+
+    int n;
+    while ((n = ::read(stfd, buf, nbyte)) < 0) {
+        if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+            return -1;
+        } 
+
+        co_poll(co_get_epoll_ct(), &pf, 1, timeout);
+    }
+
+    return n;
 }
 
 bool srs_is_never_timeout(srs_utime_t tm)
@@ -414,7 +427,6 @@ bool srs_is_never_timeout(srs_utime_t tm)
 
 SrsStSocket::SrsStSocket()
 {
-    stfd = NULL;
     stm = rtm = SRS_UTIME_NO_TIMEOUT;
     rbytes = sbytes = 0;
 }
@@ -465,15 +477,15 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     
     ssize_t nb_read;
     if (rtm == SRS_UTIME_NO_TIMEOUT) {
-        nb_read = st_read((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
+        nb_read = srs_read(stfd, buf, size, -1);
     } else {
-        nb_read = st_read((st_netfd_t)stfd, buf, size, rtm);
+        nb_read = srs_read(stfd, buf, size, rtm / 1000);
     }
     
     if (nread) {
         *nread = nb_read;
     }
-    
+
     // On success a non-negative integer indicating the number of bytes actually read is returned
     // (a value of 0 means the network connection is closed or end of file is reached).
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
@@ -499,13 +511,25 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     srs_error_t err = srs_success;
     
-    ssize_t nb_read;
-    if (rtm == SRS_UTIME_NO_TIMEOUT) {
-        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
-    } else {
-        nb_read = st_read_fully((st_netfd_t)stfd, buf, size, rtm);
+    ssize_t nb_read = 0;
+
+    int wait_read_bytes = size;
+    while (wait_read_bytes > 0) {
+        int bytes = ::read(stfd, buf, wait_read_bytes);
+        if (bytes > 0) {
+            nb_read += bytes;
+            wait_read_bytes -= bytes;
+            if (nb_read == (ssize_t)size) {
+                break;
+            }
+        } else if (bytes == 0) {
+            break;
+        } else {
+            if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
+                break;
+        }
     }
-    
+ 
     if (nread) {
         *nread = nb_read;
     }
@@ -535,11 +559,30 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
     
-    ssize_t nb_write;
-    if (stm == SRS_UTIME_NO_TIMEOUT) {
-        nb_write = st_write((st_netfd_t)stfd, buf, size, ST_UTIME_NO_TIMEOUT);
-    } else {
-        nb_write = st_write((st_netfd_t)stfd, buf, size, stm);
+    ssize_t nb_write = 0;
+
+	struct pollfd pf = { 0 };
+    pf.fd = stfd;
+    pf.events = (POLLOUT | POLLERR | POLLHUP);
+
+    srs_utime_t wtm = stm;
+    if (wtm != SRS_UTIME_NO_TIMEOUT)
+        wtm = stm / 1000;
+
+    int wait_write_bytes = size;
+    while (wait_write_bytes > 0) {
+        int n = 0;
+        if ((n = ::write(stfd, buf, size)) < 0) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                break;
+            }
+
+            co_poll(co_get_epoll_ct(), &pf, 1, wtm);
+            continue;
+        } 
+
+        wait_write_bytes -= n;
+        nb_write += n;
     }
     
     if (nwrite) {
@@ -566,11 +609,44 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     srs_error_t err = srs_success;
     
-    ssize_t nb_write;
-    if (stm == SRS_UTIME_NO_TIMEOUT) {
-        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
-    } else {
-        nb_write = st_writev((st_netfd_t)stfd, iov, iov_size, stm);
+    srs_utime_t tm = stm;
+    if (tm != SRS_UTIME_NO_TIMEOUT)
+        tm = stm / 1000;
+
+    int wait_write_bytes = 0;
+    for (int i = 0; i < iov_size; ++i)
+        wait_write_bytes += iov[i].iov_len;
+
+    ssize_t nb_write = 0;
+    iovec* cur_iov = (iovec*)iov;
+    int cur_iov_size = iov_size;
+
+    while (wait_write_bytes > 0) {
+        int n = 0;
+        if ((n = ::writev(stfd, cur_iov, cur_iov_size)) < 0) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                break;
+            }
+
+	        struct pollfd pf = {0};
+            pf.fd = stfd;
+            pf.events = (POLLOUT | POLLERR | POLLHUP);
+
+            co_poll(co_get_epoll_ct(), &pf, 1, tm);
+            continue;
+        } 
+
+        wait_write_bytes -= n;
+        nb_write += n;
+
+        while (n >= (int)cur_iov->iov_len) {
+            n -= cur_iov->iov_len;
+            --cur_iov_size;
+            ++cur_iov;
+        }
+        // FIXME: no modify iov
+        (*cur_iov).iov_base = (void*)((char*)(*cur_iov).iov_base + n);
+        (*cur_iov).iov_len -= n;
     }
     
     if (nwrite) {
@@ -595,7 +671,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 
 SrsTcpClient::SrsTcpClient(string h, int p, srs_utime_t tm)
 {
-    stfd = NULL;
+    stfd = -1;
     io = new SrsStSocket();
     
     host = h;
@@ -616,7 +692,7 @@ srs_error_t SrsTcpClient::connect()
     
     close();
     
-    srs_assert(stfd == NULL);
+    srs_assert(stfd == -1);
     if ((err = srs_tcp_connect(host, port, timeout, &stfd)) != srs_success) {
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }

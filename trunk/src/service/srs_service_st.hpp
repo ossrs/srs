@@ -31,7 +31,7 @@
 #include <srs_protocol_io.hpp>
 
 // Wrap for coroutine.
-typedef void* srs_netfd_t;
+typedef int srs_netfd_t;
 typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;

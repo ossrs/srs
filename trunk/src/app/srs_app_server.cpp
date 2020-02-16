@@ -32,6 +32,8 @@
 #include <algorithm>
 using namespace std;
 
+#include <co_routine.h>
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -344,7 +346,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* s)
     server = s;
     sig_pipe[0] = sig_pipe[1] = -1;
     trd = new SrsSTCoroutine("signal", this);
-    signal_read_stfd = NULL;
+    signal_read_stfd = -1;
 }
 
 SrsSignalManager::~SrsSignalManager()
@@ -368,7 +370,7 @@ srs_error_t SrsSignalManager::initialize()
         return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "create pipe");
     }
     
-    if ((signal_read_stfd = srs_netfd_open(sig_pipe[0])) == NULL) {
+    if ((signal_read_stfd = srs_netfd_open(sig_pipe[0])) < 0) {
         return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "open pipe");
     }
     
@@ -794,7 +796,7 @@ srs_error_t SrsServer::ingest()
 srs_error_t SrsServer::cycle()
 {
     srs_error_t err = do_cycle();
-    
+
 #ifdef SRS_AUTO_GPERF_MC
     destroy();
     
@@ -885,6 +887,10 @@ srs_error_t SrsServer::do_cycle()
     
     // the daemon thread, update the time cache
     // TODO: FIXME: use SrsHourGlass.
+
+    // FIXME: libco will take over user's event loop
+    co_eventloop(co_get_epoll_ct(), NULL, NULL);
+
     while (true) {
         if (handler && (err = handler->on_cycle()) != srs_success) {
             return srs_error_wrap(err, "handle callback");

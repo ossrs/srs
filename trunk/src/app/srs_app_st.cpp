@@ -23,7 +23,7 @@
 
 #include <srs_app_st.hpp>
 
-#include <st.h>
+#include <co_routine.h>
 #include <string>
 using namespace std;
 
@@ -79,13 +79,24 @@ int SrsDummyCoroutine::cid()
     return 0;
 }
 
-_ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
+void* co_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stack_size) {
+	(void)joinable;
+	(void)stack_size;
+
+	stCoRoutine_t *co = NULL;
+    co_create(&co, NULL, start, arg);
+    co_resume(co);
+	return co;
+}
+
+_ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)co_thread_create;
 
 SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, int cid)
 {
     name = n;
     handler = h;
     context = cid;
+    term = co_cond_alloc();
     trd = NULL;
     trd_err = srs_success;
     started = interrupted = disposed = cycle_done = false;
@@ -94,7 +105,8 @@ SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, int cid)
 SrsSTCoroutine::~SrsSTCoroutine()
 {
     stop();
-    
+
+    co_cond_free(term);
     srs_freep(trd_err);
 }
 
@@ -142,8 +154,8 @@ void SrsSTCoroutine::stop()
     // When not started, the rd is NULL.
     if (trd) {
         void* res = NULL;
-        int r0 = st_thread_join((st_thread_t)trd, &res);
-        srs_assert(!r0);
+
+        co_cond_timedwait(term, -1);
 
         srs_error_t err_res = (srs_error_t)res;
         if (err_res != srs_success) {
@@ -171,8 +183,6 @@ void SrsSTCoroutine::interrupt()
     if (trd_err == srs_success) {
         trd_err = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
     }
-    
-    st_thread_interrupt((st_thread_t)trd);
 }
 
 srs_error_t SrsSTCoroutine::pull()
@@ -219,6 +229,9 @@ void* SrsSTCoroutine::pfn(void* arg)
         // It's ok to directly use it, because it's returned by st_thread_join.
         p->trd_err = err;
     }
+
+    // FIXME: 
+    //co_cond_signal(term);
 
     return (void*)err;
 }
