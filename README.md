@@ -1085,7 +1085,7 @@ Remark:
 
 There are two types of people that have contributed to the SRS project:
 
-* Maintainers: Contribute and maintain important features. Names will send in streaming metadata.
+* Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
 * [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
 
 Maintainers of SRS project:
