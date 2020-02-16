@@ -1085,20 +1085,20 @@ Remark:
 
 There are two types of people that have contributed to the SRS project:
 
-* Maintainers: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata.
+* Maintainers: Contribute and maintain important features. Names will send in streaming metadata.
 * [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
 
 Maintainers of SRS project:
 
-* Winlin: All areas of streaming server and documents.
-* Wenjie: The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
-* Runner365: The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
+* [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
+* [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
+* [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
 
 A big THANK YOU goes to:
 
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* Michael Talyanksy for introducing ST to us.
+* [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
 
 ## Mirrors
 
@@ -1171,8 +1171,8 @@ Winlin
 [authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
-[st2]: http://sourceforge.net/projects/state-threads/
-[state-threads]: http://sourceforge.net/projects/state-threads/
+[st2]: https://github.com/ossrs/state-threads/tree/srs
+[state-threads]: https://github.com/ossrs/state-threads/tree/srs
 [nginx-rtmp]: https://github.com/arut/nginx-rtmp-module
 [http-parser]: https://github.com/joyent/http-parser
 [nginx]: http://nginx.org/
