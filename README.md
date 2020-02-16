@@ -1085,21 +1085,20 @@ Remark:
 
 There are two types of people that have contributed to the SRS project:
 
-* AUTHORS: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata. 
-* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
+* Maintainers: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata.
+* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
 
-About all AUTHORS and CONTRIBUTORS, read [AUTHORS.txt][authors].
+Maintainers of SRS project:
+
+* Winlin: All areas of streaming server and documents.
+* Wenjie: The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
+* Runner365: The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
 
 A big THANK YOU goes to:
 
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* Michael Talyanksy for introducing us to use st.
-* Roman Arutyunyan for creating [nginx-rtmp][nginx-rtmp] for SRS to refer to. 
-* Joyent for creating [http-parser][http-parser] for http-api for SRS.
-* Igor Sysoev for creating [nginx][nginx] for SRS to refer to.
-* [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use as transcoder.
-* Guido van Rossum for creating Python for api-server for SRS.
+* Michael Talyanksy for introducing ST to us.
 
 ## Mirrors
 
