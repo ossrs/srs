@@ -160,6 +160,8 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2020-02-14, [3.0 beta1(3.0.117)][r3.0b1] released. 121964 lines.</strong>
+* v3.0, 2020-02-14, For [#1595][bug #1595], migrating streaming from ossrs.net to r.ossrs.net. 3.0.117
 * v3.0, 2020-02-05, For [#665][bug #665], fix HTTP-FLV reloading bug. 3.0.116
 * v3.0, 2020-02-05, For [#1592][bug #1592], fix terminal echo off by redirect process stdin. 3.0.115
 * v3.0, 2020-02-04, For [#1186][bug #1186], refactor security check. 3.0.114
@@ -751,6 +753,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-02-14, [Release v3.0-b1][r3.0b1], 3.0 beta1, 3.0.117, 121964 lines.
 * 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
 * 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
@@ -1100,21 +1103,20 @@ Remark:
 
 There are two types of people that have contributed to the SRS project:
 
-* AUTHORS: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata. 
-* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
+* Maintainers: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata.
+* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
 
-About all AUTHORS and CONTRIBUTORS, read [AUTHORS.txt][authors].
+Maintainers of SRS project:
+
+* Winlin: All areas of streaming server and documents.
+* Wenjie: The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
+* Runner365: The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
 
 A big THANK YOU goes to:
 
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* Michael Talyanksy for introducing us to use st.
-* Roman Arutyunyan for creating [nginx-rtmp][nginx-rtmp] for SRS to refer to. 
-* Joyent for creating [http-parser][http-parser] for http-api for SRS.
-* Igor Sysoev for creating [nginx][nginx] for SRS to refer to.
-* [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use as transcoder.
-* Guido van Rossum for creating Python for api-server for SRS.
+* Michael Talyanksy for introducing ST to us.
 
 ## Mirrors
 
@@ -1669,10 +1671,12 @@ Winlin
 [bug #1186]: https://github.com/ossrs/srs/issues/1186
 [bug #1592]: https://github.com/ossrs/srs/issues/1592
 [bug #665]: https://github.com/ossrs/srs/issues/665
+[bug #1595]: https://github.com/ossrs/srs/issues/1595
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b1]: https://github.com/ossrs/srs/releases/tag/v3.0-b1
 [r3.0b0]: https://github.com/ossrs/srs/releases/tag/v3.0-b0
 [r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8
