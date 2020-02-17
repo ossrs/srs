@@ -94,11 +94,14 @@ srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, c
             }
             cache->copy(&pkt);
             cache->payload->append(pkt.payload->bytes(), pkt.payload->length());
-            if (!cache->completed && pprint->can_print()) {
+            if (pprint->can_print()) {
                 srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " rtsp: rtp chunked %dB, age=%d, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB",
                           nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc,
                           cache->payload->length()
                           );
+            }
+
+            if (!cache->completed){
                 return err;
             }
         } else {
@@ -645,6 +648,7 @@ srs_error_t SrsRtspConn::connect()
         std::string output = output_template;
         output = srs_string_replace(output, "[app]", app);
         output = srs_string_replace(output, "[stream]", rtsp_stream);
+        url = output;
     }
     
     // connect host.
