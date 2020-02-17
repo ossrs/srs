@@ -240,6 +240,11 @@ srs_error_t SrsRtspConn::serve()
     return err;
 }
 
+std::string SrsRtspConn::remote_ip()
+{
+    return "";
+}
+
 srs_error_t SrsRtspConn::do_cycle()
 {
     srs_error_t err = srs_success;
@@ -681,6 +686,7 @@ SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
+    manager = new SrsCoroutineManager();
 }
 
 SrsRtspCaster::~SrsRtspCaster()
@@ -688,10 +694,20 @@ SrsRtspCaster::~SrsRtspCaster()
     std::vector<SrsRtspConn*>::iterator it;
     for (it = clients.begin(); it != clients.end(); ++it) {
         SrsRtspConn* conn = *it;
-        srs_freep(conn);
+        manager->remove(conn);
     }
     clients.clear();
     used_ports.clear();
+
+    srs_freep(manager);
+}
+
+srs_error_t SrsRtspCaster::initialize()
+{
+    srs_error_t err = srs_success;
+    if ((err = manager->start()) != srs_success) {
+        return srs_error_wrap(err, "start manager");
+    }
 }
 
 srs_error_t SrsRtspCaster::alloc_port(int* pport)
@@ -744,6 +760,6 @@ void SrsRtspCaster::remove(SrsRtspConn* conn)
     }
     srs_info("rtsp: remove connection from caster.");
     
-    srs_freep(conn);
+    manager->remove(conn);
 }
 
