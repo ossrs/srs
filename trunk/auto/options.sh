@@ -204,6 +204,10 @@ Remark:
 END
 }
 
+function ignore_option() {
+    echo "ignore option \"$option\""
+}
+
 function parse_user_option() {
     case "$option" in
         -h)                             help=yes                    ;;
@@ -293,18 +297,16 @@ function parse_user_option() {
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
 
-        --without-stream-caster) ;&
-        --without-ingest) ;&
-        --without-ssl) ;&
-        --without-stat) ;&
-        --without-transcode) ;&
-        --without-http-callback) ;&
-        --without-http-server) ;&
-        --without-http-api) ;&
-        --without-hls) ;&
-        --without-dvr)
-            echo "ignore option \"$option\""
-        ;;
+        --without-stream-caster)        ignore_option               ;;
+        --without-ingest)               ignore_option               ;;
+        --without-ssl)                  ignore_option               ;;
+        --without-stat)                 ignore_option               ;;
+        --without-transcode)            ignore_option               ;;
+        --without-http-callback)        ignore_option               ;;
+        --without-http-server)          ignore_option               ;;
+        --without-http-api)             ignore_option               ;;
+        --without-hls)                  ignore_option               ;;
+        --without-dvr)                  ignore_option               ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
