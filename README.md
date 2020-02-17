@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-17, For [#1601][bug #1601], flush async on_dvr/on_hls events before stop. 3.0.118
 * <strong>v3.0, 2020-02-14, [3.0 beta1(3.0.117)][r3.0b1] released. 121964 lines.</strong>
 * v3.0, 2020-02-14, For [#1595][bug #1595], migrating streaming from ossrs.net to r.ossrs.net. 3.0.117
 * v3.0, 2020-02-05, For [#665][bug #665], fix HTTP-FLV reloading bug. 3.0.116
@@ -1649,6 +1650,7 @@ Winlin
 [bug #1592]: https://github.com/ossrs/srs/issues/1592
 [bug #665]: https://github.com/ossrs/srs/issues/665
 [bug #1595]: https://github.com/ossrs/srs/issues/1595
+[bug #1601]: https://github.com/ossrs/srs/issues/1601
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
