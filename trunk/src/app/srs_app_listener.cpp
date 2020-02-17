@@ -72,7 +72,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     handler = h;
     ip = i;
     port = p;
-    lfd = -1;
+    lfd = NULL;
     
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
@@ -148,7 +148,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     ip = i;
     port = p;
 
-    lfd = -1;
+    lfd = NULL;
     
     trd = new SrsDummyCoroutine();
 }
@@ -161,7 +161,7 @@ SrsTcpListener::~SrsTcpListener()
 
 int SrsTcpListener::fd()
 {
-    return srs_netfd_fileno(lfd);
+    return srs_netfd_fileno(lfd);;
 }
 
 srs_error_t SrsTcpListener::listen()
@@ -191,10 +191,10 @@ srs_error_t SrsTcpListener::cycle()
         }
         
         srs_netfd_t fd = srs_accept(lfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
-        if(fd < 0){
+        if(fd == NULL){
             return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd));
         }
-
+        
 	    if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
 	        return srs_error_wrap(err, "set closeexec");
 	    }

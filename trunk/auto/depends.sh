@@ -212,23 +212,34 @@ if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $SRS_EXPORT_LIBRTMP_PROJECT = 
 fi
 
 #####################################################################################
-# libco
+# state-threads
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    if [[ -f ${SRS_OBJS}/co/libcolib.a ]]; then
-        echo "The libco is ok.";
+    # check the cross build flag file, if flag changed, need to rebuild the st.
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
+    if [[ $SRS_VALGRIND == YES ]]; then
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
+    fi
+    # Pass the global extra flags.
+    if [[ $SRS_EXTRA_FLAGS != '' ]]; then
+      _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
+    fi
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/st/libst.a ]]; then
+        echo "The state-threads is ok.";
     else
-        echo "Building libco.";
+        echo "Building state-threads.";
         (
-            rm -rf ${SRS_OBJS}/co && cd ${SRS_OBJS} &&
-            ln -sf ../3rdparty/libco && cd libco &&
-            make clean && make colib &&
-            cd .. && rm -f co && ln -sf libco/ co
+            rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
+            ln -sf ../3rdparty/st-srs && cd st-srs &&
+            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
+                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+            cd .. && rm -f st && ln -sf st-srs/obj st
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libco failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/co/lib/libcolib.a ]; then echo "Build libco static lib failed."; exit -1; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 fi
 
 #####################################################################################

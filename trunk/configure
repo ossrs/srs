@@ -142,12 +142,12 @@ END
 
 #####################################################################################
 # Libraries, external library to build in srs,
-# header(.h): add to ModuleLibIncs if need the specified library. for example, LibCoRoot
-# library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibCofile
+# header(.h): add to ModuleLibIncs if need the specified library. for example, LibSTRoot
+# library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
 #
-# libco the basic network library for SRS.
-LibcoRoot="${SRS_OBJS_DIR}/co"; Libcofile="${LibcoRoot}/lib/libcolib.a -lpthread"
-if [[ $SRS_SHARED_LIBCO == YES ]]; then Libcofile="-lcolib -lpthread"; fi
+# st(state-threads) the basic network library for SRS.
+LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
@@ -233,7 +233,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
-    ModuleLibIncs=(${LibcoRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
     MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
         "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
         "srs_service_conn")
@@ -246,7 +246,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibcoRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -284,7 +284,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [[ $SRS_SRT == YES ]]; then
         MODULE_DEPENDS+=("SRT")
     fi
-    ModuleLibIncs=(${LibcoRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
@@ -297,7 +297,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibcoRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=()
     DEFINES=""
     # add each modules for main
@@ -324,24 +324,24 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     done
     #
     # all depends libraries
-    ModuleLibFiles=(${Libcofile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
-    ModuleLibIncs=(${LibcoRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
     fi
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
-    # srs: srs(simple rtmp server) over co(libco)
+    # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
     #
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
-    ModuleLibFiles=(${Libcofile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -361,11 +361,11 @@ if [ $SRS_UTEST = YES ]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
-    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibcoRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
-    ModuleLibFiles=(${Libcofile} ${LibSSLfile})
+    ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
@@ -413,7 +413,7 @@ help:
 	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project"
-	@echo "     server             build the srs(simple rtmp server) over co(libco)"
+	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
@@ -451,7 +451,7 @@ END
 else
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "Build the srs(simple rtmp server) over co(libco)"
+	@echo "Build the srs(simple rtmp server) over ST(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
 
 END
