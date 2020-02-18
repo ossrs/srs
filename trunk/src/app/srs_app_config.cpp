@@ -3488,6 +3488,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
+            && n != "grace_start_wait"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -4048,6 +4049,18 @@ bool SrsConfig::get_asprocess()
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_grace_start_wait()
+{
+    static srs_utime_t DEFAULT = 2300 * SRS_UTIME_MILLISECONDS;
+
+    SrsConfDirective* conf = root->get("grace_start_wait");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atol(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 srs_utime_t SrsConfig::get_grace_final_wait()
