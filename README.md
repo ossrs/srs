@@ -160,6 +160,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-18, For [#1579][bug #1579], support force gracefully quit. 3.0.120
 * v3.0, 2020-02-18, For [#1579][bug #1579], support gracefully quit. 3.0.119
 * v3.0, 2020-02-17, For [#1601][bug #1601], flush async on_dvr/on_hls events before stop. 3.0.118
 * <strong>v3.0, 2020-02-14, [3.0 beta1(3.0.117)][r3.0b1] released. 121964 lines.</strong>
