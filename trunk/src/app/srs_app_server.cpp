@@ -920,7 +920,14 @@ void SrsServer::on_signal(int signo)
         #endif
 #endif
     }
-    
+
+    // For K8S, force to gracefully quit for gray release or canary.
+    // @see https://github.com/ossrs/srs/issues/1595#issuecomment-587473037
+    if (signo == SRS_SIGNAL_FAST_QUIT && _srs_config->is_force_grace_quit()) {
+        srs_trace("force gracefully quit, signo=%d", signo);
+        signo = SRS_SIGNAL_GRACEFULLY_QUIT;
+    }
+
     if ((signo == SIGINT || signo == SRS_SIGNAL_FAST_QUIT) && !signal_fast_quit) {
         srs_trace("sig=%d, user terminate program, fast quit", signo);
         signal_fast_quit = true;

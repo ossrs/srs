@@ -3487,7 +3487,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
-            && n != "ff_log_level" && n != "grace_final_wait"
+            && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -4060,6 +4060,18 @@ srs_utime_t SrsConfig::get_grace_final_wait()
     }
 
     return (srs_utime_t)(::atol(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+bool SrsConfig::is_force_grace_quit()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("force_grace_quit");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

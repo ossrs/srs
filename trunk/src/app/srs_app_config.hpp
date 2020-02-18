@@ -470,6 +470,8 @@ public:
     virtual bool get_asprocess();
     // Get the final wait in ms for gracefully quit.
     virtual srs_utime_t get_grace_final_wait();
+    // Whether force to gracefully quit, never fast quit.
+    virtual bool is_force_grace_quit();
 // stream_caster section
 public:
     // Get all stream_caster in config file.
