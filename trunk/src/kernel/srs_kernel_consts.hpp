@@ -132,7 +132,6 @@
 #define SRS_SIGNAL_FAST_QUIT SIGTERM
 // The signal for srs to gracefully quit, do carefully dispose then exit.
 // @see https://github.com/ossrs/srs/issues/1579
-// TODO: FIXME: Not implemented.
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
 
 // The application level signals.

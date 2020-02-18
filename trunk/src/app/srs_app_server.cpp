@@ -396,6 +396,11 @@ srs_error_t SrsSignalManager::start()
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_FAST_QUIT, &sa, NULL);
+
+    sa.sa_handler = SrsSignalManager::sig_catcher;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
@@ -407,8 +412,8 @@ srs_error_t SrsSignalManager::start()
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
     
-    srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d",
-              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT);
+    srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d, grace_quit=%d",
+              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT, SRS_SIGNAL_GRACEFULLY_QUIT);
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "signal manager");
@@ -465,6 +470,7 @@ SrsServer::SrsServer()
     signal_reload = false;
     signal_persistence_config = false;
     signal_gmc_stop = false;
+    signal_fast_quit = false;
     signal_gracefully_quit = false;
     pid_fd = -1;
     
@@ -531,6 +537,44 @@ void SrsServer::dispose()
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
+}
+
+void SrsServer::gracefully_dispose()
+{
+    _srs_config->unsubscribe(this);
+
+    // prevent fresh clients.
+    close_listeners(SrsListenerRtmpStream);
+    close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerMpegTsOverUdp);
+    close_listeners(SrsListenerRtsp);
+    close_listeners(SrsListenerFlv);
+
+    // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
+    ingester->stop();
+
+    // Wait for connections to quit.
+    // While gracefully quiting, user can requires SRS to fast quit.
+    int wait_step = 1;
+    while (!conns.empty() && !signal_fast_quit) {
+        for (int i = 0; i < wait_step && !conns.empty() && !signal_fast_quit; i++) {
+            srs_usleep(1000 * SRS_UTIME_MILLISECONDS);
+        }
+
+        wait_step = (wait_step * 2) % 33;
+        srs_trace("wait for %d conns to quit", conns.size());
+    }
+
+    // dispose the source for hls and dvr.
+    _srs_sources->dispose();
+
+#ifdef SRS_AUTO_MEM_WATCH
+    srs_memory_report();
+#endif
+
+    srs_usleep(_srs_config->get_grace_final_wait());
+    srs_trace("final wait for another %dms", srsu2msi(_srs_config->get_grace_final_wait()));
 }
 
 srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
@@ -807,19 +851,33 @@ srs_error_t SrsServer::cycle()
     srs_warn("sleep a long time for system st-threads to cleanup.");
     srs_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
-#else
-    // normally quit with neccessary cleanup by dispose().
+
+    return err;
+#endif
+
+    // quit normally.
     srs_warn("main cycle terminated, system quit normally.");
-    dispose();
+
+    // fast quit, do some essential cleanup.
+    if (signal_fast_quit) {
+        dispose();
+        srs_trace("srs disposed");
+    }
+
+    // gracefully quit, do carefully cleanup.
+    if (signal_gracefully_quit) {
+        gracefully_dispose();
+        srs_trace("srs gracefully quit");
+    }
+
     srs_trace("srs terminated");
     
     // for valgrind to detect.
     srs_freep(_srs_config);
     srs_freep(_srs_log);
-    
+
     exit(0);
-#endif
-    
+
     return err;
 }
 
@@ -863,8 +921,14 @@ void SrsServer::on_signal(int signo)
 #endif
     }
     
-    if ((signo == SIGINT || signo == SRS_SIGNAL_FAST_QUIT) && !signal_gracefully_quit) {
+    if ((signo == SIGINT || signo == SRS_SIGNAL_FAST_QUIT) && !signal_fast_quit) {
         srs_trace("sig=%d, user terminate program, fast quit", signo);
+        signal_fast_quit = true;
+        return;
+    }
+
+    if (signo == SRS_SIGNAL_GRACEFULLY_QUIT && !signal_gracefully_quit) {
+        srs_trace("sig=%d, user start gracefully quit", signo);
         signal_gracefully_quit = true;
         return;
     }
@@ -909,9 +973,9 @@ srs_error_t SrsServer::do_cycle()
                 return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid, ::getppid());
             }
             
-            // gracefully quit for SIGINT or SIGTERM.
-            if (signal_gracefully_quit) {
-                srs_trace("cleanup for gracefully terminate.");
+            // gracefully quit for SIGINT or SIGTERM or SIGQUIT.
+            if (signal_fast_quit || signal_gracefully_quit) {
+                srs_trace("cleanup for quit signal fast=%d, grace=%d", signal_fast_quit, signal_gracefully_quit);
                 return err;
             }
             

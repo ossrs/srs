@@ -227,6 +227,7 @@ private:
     bool signal_reload;
     bool signal_persistence_config;
     bool signal_gmc_stop;
+    bool signal_fast_quit;
     bool signal_gracefully_quit;
     // Parent pid for asprocess.
     int ppid;
@@ -241,6 +242,9 @@ private:
     // When SIGTERM, SRS should do cleanup, for example,
     // to stop all ingesters, cleanup HLS and dvr.
     virtual void dispose();
+    // Close listener to stop accepting new connections,
+    // then wait and quit when all connections finished.
+    virtual void gracefully_dispose();
 // server startup workflow, @see run_master()
 public:
     // Initialize server with callback handler ch.

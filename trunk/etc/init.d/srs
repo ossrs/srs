@@ -178,6 +178,18 @@ logrotate() {
     return 0
 }
 
+grace() {
+    # not start, exit
+    load_process_info
+    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+
+    ok_msg "Gracefully quit for SRS(pid ${srs_pid})..."
+    kill -s SIGQUIT ${srs_pid}
+
+    ok_msg "Gracefully quit"
+    return 0
+}
+
 menu() {
     case "$1" in
         start)
@@ -199,10 +211,14 @@ menu() {
         rotate)
             logrotate
             ;;
+        grace)
+            grace
+            ;;
         *)
-            echo "Usage: $0 {start|stop|status|restart|reload|rotate}"
+            echo "Usage: $0 {start|stop|status|restart|reload|rotate|grace}"
             echo "    reload    Apply log file by not restarting SRS"
             echo "    rotate    For log rotate, to send SIGUSR1 to SRS to reopen the log file."
+            echo "    grace    For gracefully quit, to send SIGQUIT to SRS."
             return 1
             ;;
     esac
