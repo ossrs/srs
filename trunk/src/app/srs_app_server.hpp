@@ -260,12 +260,13 @@ public:
     // The signal manager convert signal to io message,
     // whatever, we will got the signo like the orignal signal(int signo) handler.
     // @param signo the signal number from user, where:
-    //      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGTERM, dispose then quit.
+    //      SRS_SIGNAL_FAST_QUIT, the SIGTERM, do essential dispose then quit.
+    //      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGQUIT, do careful dispose then quit.
     //      SRS_SIGNAL_REOPEN_LOG, the SIGUSR1, reopen the log file.
     //      SRS_SIGNAL_RELOAD, the SIGHUP, reload the config.
     //      SRS_SIGNAL_PERSISTENCE_CONFIG, application level signal, persistence config to file.
     // @remark, for SIGINT:
-    //       no gmc, directly exit.
+    //       no gmc, fast quit, do essential dispose then quit.
     //       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
     // @remark, maybe the HTTP RAW API will trigger the on_signal() also.
     virtual void on_signal(int signo);

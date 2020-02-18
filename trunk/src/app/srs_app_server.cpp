@@ -395,7 +395,7 @@ srs_error_t SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
+    sigaction(SRS_SIGNAL_FAST_QUIT, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
@@ -407,8 +407,8 @@ srs_error_t SrsSignalManager::start()
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
     
-    srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
-              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
+    srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d",
+              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT);
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "signal manager");
@@ -863,8 +863,8 @@ void SrsServer::on_signal(int signo)
 #endif
     }
     
-    if ((signo == SIGINT || signo == SRS_SIGNAL_GRACEFULLY_QUIT) && !signal_gracefully_quit) {
-        srs_trace("sig=%d, user terminate program, gracefully quit", signo);
+    if ((signo == SIGINT || signo == SRS_SIGNAL_FAST_QUIT) && !signal_gracefully_quit) {
+        srs_trace("sig=%d, user terminate program, fast quit", signo);
         signal_gracefully_quit = true;
         return;
     }

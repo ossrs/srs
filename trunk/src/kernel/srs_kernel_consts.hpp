@@ -124,8 +124,15 @@
 #define SRS_SIGNAL_RELOAD SIGHUP
 // Reopen the log file.
 #define SRS_SIGNAL_REOPEN_LOG SIGUSR1
-// The signal for srs to gracefully quit, do dispose then exit.
-#define SRS_SIGNAL_GRACEFULLY_QUIT SIGTERM
+// For gracefully upgrade, start new SRS and gracefully quit old one.
+// @see https://github.com/ossrs/srs/issues/1579
+// TODO: Not implemented.
+#define SRS_SIGNAL_UPGRADE SIGUSR2
+// The signal for srs to fast quit, do essential dispose then exit.
+#define SRS_SIGNAL_FAST_QUIT SIGTERM
+// The signal for srs to gracefully quit, do carefully dispose then exit.
+// TODO: FIXME: Not implemented.
+#define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
 
 // The application level signals.
 // Persistence the config in memory to config file.
