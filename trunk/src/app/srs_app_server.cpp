@@ -543,6 +543,10 @@ void SrsServer::gracefully_dispose()
 {
     _srs_config->unsubscribe(this);
 
+    // Always wait for a while to start.
+    srs_usleep(_srs_config->get_grace_start_wait());
+    srs_trace("start wait for %dms", srsu2msi(_srs_config->get_grace_start_wait()));
+
     // prevent fresh clients.
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
@@ -574,7 +578,7 @@ void SrsServer::gracefully_dispose()
 #endif
 
     srs_usleep(_srs_config->get_grace_final_wait());
-    srs_trace("final wait for another %dms", srsu2msi(_srs_config->get_grace_final_wait()));
+    srs_trace("final wait for %dms", srsu2msi(_srs_config->get_grace_final_wait()));
 }
 
 srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
