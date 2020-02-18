@@ -131,6 +131,7 @@
 // The signal for srs to fast quit, do essential dispose then exit.
 #define SRS_SIGNAL_FAST_QUIT SIGTERM
 // The signal for srs to gracefully quit, do carefully dispose then exit.
+// @see https://github.com/ossrs/srs/issues/1579
 // TODO: FIXME: Not implemented.
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
 
@@ -153,7 +154,7 @@
 // Downloading speed-up, play to edge, ingest from origin
 #define SRS_CONSTS_LOG_EDGE_PLAY "EIG"
 // Uploading speed-up, publish to edge, foward to origin
-#define SRS_CONSTS_LOG_EDGE_PUBLISH "EFW"
+#define SRS_CONSTS_LOG_EDGE_PUBLISH "EPB"
 // The edge/origin forwarder.
 #define SRS_CONSTS_LOG_FOWARDER "FWR"
 // Play stream on edge/origin.
