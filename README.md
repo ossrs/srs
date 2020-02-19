@@ -153,6 +153,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-02-19, For [#1579][bug #1579], support rolling update of k8s. 4.0.7
 * v4.0, 2020-02-18, For [#1579][bug #1579], support start/final wait for gracefully quit. 4.0.6
 * v4.0, 2020-02-18, For [#1579][bug #1579], support gracefully quit and force to. 4.0.5
 * v4.0, 2020-02-13, SRT supports detail config for [DynamicEncoding](https://github.com/runner365/srt_encoder). 4.0.4
