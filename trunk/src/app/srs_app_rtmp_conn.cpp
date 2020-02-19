@@ -406,7 +406,7 @@ srs_error_t SrsRtmpConn::service_cycle()
             rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT);
             rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT);
             
-            srs_trace("rtmp: retry for republish");
+            srs_info("rtmp: retry for republish");
             srs_freep(err);
             continue;
         }
