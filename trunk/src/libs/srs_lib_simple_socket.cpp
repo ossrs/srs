@@ -77,8 +77,11 @@
 #ifndef SRS_HIJACK_IO
 struct SrsBlockSyncSocket
 {
+    int family;
     SOCKET fd;
-    int    family;
+    SOCKET fdv4;
+    SOCKET fdv6;
+    // Bytes transmit.
     int64_t rbytes;
     int64_t sbytes;
     // The send/recv timeout in ms.
@@ -86,15 +89,26 @@ struct SrsBlockSyncSocket
     int64_t stm;
     
     SrsBlockSyncSocket() {
+        family = AF_UNSPEC;
         stm = rtm = SRS_UTIME_NO_TIMEOUT;
         rbytes = sbytes = 0;
         
         SOCKET_RESET(fd);
+        SOCKET_RESET(fdv4);
+        SOCKET_RESET(fdv6);
         SOCKET_SETUP();
     }
 
     virtual ~SrsBlockSyncSocket() {
-        SOCKET_CLOSE(fd);
+        if (SOCKET_VALID(fd)) {
+            SOCKET_CLOSE(fd);
+        }
+        if (SOCKET_VALID(fdv4)) {
+            SOCKET_CLOSE(fdv4);
+        }
+        if (SOCKET_VALID(fdv6)) {
+            SOCKET_CLOSE(fdv6);
+        }
         SOCKET_CLEANUP();
     }
 };
@@ -112,19 +126,17 @@ int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner)
 {
     SrsBlockSyncSocket* skt = (SrsBlockSyncSocket*)ctx;
 
-    skt->family = AF_INET6;
-    skt->fd = ::socket(skt->family, SOCK_STREAM, 0);   // Try IPv6 first.
-    if (!SOCKET_VALID(skt->fd)) {
-        skt->family = AF_INET;
-        skt->fd = ::socket(skt->family, SOCK_STREAM, 0);   // Try IPv4 instead, if IPv6 fails.
-    }
-    if (!SOCKET_VALID(skt->fd)) {
+    skt->family = AF_UNSPEC;
+    skt->fdv4 = ::socket(AF_INET, SOCK_STREAM, 0);
+    skt->fdv6 = ::socket(AF_INET6, SOCK_STREAM, 0);
+    if (!SOCKET_VALID(skt->fdv4) && !SOCKET_VALID(skt->fdv4)) {
         return ERROR_SOCKET_CREATE;
     }
 
     // No TCP cache.
     int v = 1;
-    setsockopt(skt->fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+    setsockopt(skt->fdv4, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+    setsockopt(skt->fdv6, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 
     return ERROR_SUCCESS;
 }
@@ -137,7 +149,7 @@ int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port)
     
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = skt->family;
+    hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     
     addrinfo* r  = NULL;
@@ -145,7 +157,16 @@ int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port)
     if(getaddrinfo(server_ip, sport, (const addrinfo*)&hints, &r)) {
         return ERROR_SOCKET_CONNECT;
     }
-    
+
+    skt->family = r->ai_family;
+    if (r->ai_family == AF_INET6) {
+        skt->fd = skt->fdv6;
+        SOCKET_RESET(skt->fdv6);
+    } else {
+        skt->fd = skt->fdv4;
+        SOCKET_RESET(skt->fdv4);
+    }
+
     if(::connect(skt->fd, r->ai_addr, r->ai_addrlen) < 0){
         return ERROR_SOCKET_CONNECT;
     }
