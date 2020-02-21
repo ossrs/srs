@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-21, Fix bug for librtmp client ipv4/ipv6 socket. 3.0.122
 * v3.0, 2020-02-18, For [#1579][bug #1579], support start/final wait for gracefully quit. 3.0.121
 * v3.0, 2020-02-18, For [#1579][bug #1579], support force gracefully quit. 3.0.120
 * v3.0, 2020-02-18, For [#1579][bug #1579], support gracefully quit. 3.0.119
