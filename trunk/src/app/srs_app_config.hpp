@@ -468,6 +468,8 @@ public:
     virtual std::string get_work_dir();
     // Whether use asprocess mode.
     virtual bool get_asprocess();
+    // Whether empty client IP is ok.
+    virtual bool empty_ip_ok();
     // Get the start wait in ms for gracefully quit.
     virtual srs_utime_t get_grace_start_wait();
     // Get the final wait in ms for gracefully quit.

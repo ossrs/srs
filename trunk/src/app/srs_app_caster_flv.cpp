@@ -76,8 +76,12 @@ srs_error_t SrsAppCasterFlv::initialize()
 srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
-    
+
     string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    if (ip.empty() && !_srs_config->empty_ip_ok()) {
+        srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
+    }
+
     SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
