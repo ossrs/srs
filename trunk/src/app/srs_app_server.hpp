@@ -68,6 +68,8 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
+    // UDP sream, rtp over udp
+    SrsListenerRtcOverUdp = 6,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -153,6 +155,19 @@ class SrsUdpCasterListener : public SrsUdpStreamListener
 public:
     SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsUdpCasterListener();
+};
+
+// A UDP listener, for udp stream caster server.
+class SrsRtcListener : public SrsListener
+{
+protected:
+    SrsUdpListener* listener;
+    ISrsUdpHandler* rtc;
+public:
+    SrsRtcListener(SrsServer* svr, SrsListenerType t);
+    virtual ~SrsRtcListener();
+public:
+    virtual srs_error_t listen(std::string i, int p);
 };
 
 // Convert signal to io,
@@ -284,6 +299,7 @@ private:
     virtual srs_error_t listen_http_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
+    virtual srs_error_t listen_rtc();
     // Close the listeners for specified type,
     // Remove the listen object from manager.
     virtual void close_listeners(SrsListenerType type);

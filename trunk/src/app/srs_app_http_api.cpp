@@ -47,6 +47,73 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 
+string test_sdp =
+"v=0\\r\\n"
+"o=- 0 0 IN IP4 127.0.0.1\\r\\n"
+"s=-\\r\\n"
+"t=0 0\\r\\n"
+"a=ice-lite\\r\\n"
+"a=group:BUNDLE 0 1\\r\\n"
+"a=msid-semantic: WMS 6VrfBKXrwK\\r\\n"
+"m=audio 9 UDP/TLS/RTP/SAVPF 111\\r\\n"
+"c=IN IP4 0.0.0.0\\r\\n"
+"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
+"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
+"a=ice-ufrag:xiaozhihongjohn\\r\\n"
+"a=ice-pwd:simple_rtmp_server__john\\r\\n"
+"a=ice-options:trickle\\r\\n"
+"a=fingerprint:sha-256 76:E8:6A:6D:48:F0:86:58:30:2E:69:56:0F:C6:A1:B8:69:98:5D:73:45:93:37:8E:C4:2B:C7:97:04:18:E4:24\\r\\n"
+"a=sendrecv\\r\\n"
+"a=mid:0\\r\\n"
+"a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\\r\\n"
+"a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\\r\\n"
+"a=rtcp-mux\\r\\n"
+"a=rtpmap:111 opus/48000/2\\r\\n"
+"a=fmtp:111 minptime=10;useinbandfec=1\\r\\n"
+"a=maxptime:60\\r\\n"
+"a=ssrc:3233846890 cname:o/i14u9pJrxRKAsu\\r\\n"
+"a=ssrc:3233846890 msid:6VrfBKXrwK a0\\r\\n"
+"a=ssrc:3233846890 mslabel:6VrfBKXrwK\\r\\n"
+"a=ssrc:3233846890 label:6VrfBKXrwKa0\\r\\n"
+"m=video 9 UDP/TLS/RTP/SAVPF 96 98 102\\r\\n"
+"c=IN IP4 0.0.0.0\\r\\n"
+"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
+"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
+"b=as:2000000\\r\\n"
+"a=ice-ufrag:xiaozhihongjohn\\r\\n"
+"a=ice-pwd:simple_rtmp_server__john\\r\\n"
+"a=ice-options:trickle\\r\\n"
+"a=extmap:2 urn:ietf:params:rtp-hdrext:toffset\\r\\n"
+"a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\\r\\n"
+"a=extmap:4 urn:3gpp:video-orientation\\r\\n"
+"a=fingerprint:sha-256 76:E8:6A:6D:48:F0:86:58:30:2E:69:56:0F:C6:A1:B8:69:98:5D:73:45:93:37:8E:C4:2B:C7:97:04:18:E4:24\\r\\n"
+"a=sendrecv\\r\\n"
+"a=mid:1\\r\\n"
+"a=rtcp-mux\\r\\n"
+"a=rtpmap:96 VP8/90000\\r\\n"
+"a=rtcp-fb:96 ccm fir\\r\\n"
+"a=rtcp-fb:96 nack\\r\\n"
+"a=rtcp-fb:96 nack pli\\r\\n"
+"a=rtcp-fb:96 goog-remb\\r\\n"
+"a=rtcp-fb:96 transport-cc\\r\\n"
+"a=rtpmap:98 VP9/90000\\r\\n"
+"a=rtcp-fb:98 ccm fir\\r\\n"
+"a=rtcp-fb:98 nack\\r\\n"
+"a=rtcp-fb:98 nack pli\\r\\n"
+"a=rtcp-fb:98 goog-remb\\r\\n"
+"a=rtcp-fb:98 transport-cc\\r\\n"
+"a=rtpmap:102 H264/90000\\r\\n"
+"a=rtcp-fb:102 goog-remb\\r\\n"
+"a=rtcp-fb:102 transport-cc\\r\\n"
+"a=rtcp-fb:102 ccm fir \\r\\n"
+"a=rtcp-fb:102 nack\\r\\n"
+"a=rtcp-fb:102 nack pli \\r\\n"
+"a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f\\r\\n"
+"a=ssrc:3233846889 cname:o/i14u9pJrxRKAsu\\r\\n"
+"a=ssrc:3233846889 msid:6VrfBKXrwK v0\\r\\n"
+"a=ssrc:3233846889 mslabel:6VrfBKXrwK\\r\\n"
+"a=ssrc:3233846889 label:6VrfBKXrwKv0\\r\\n";
+
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
     srs_error_t err = srs_success;
@@ -773,6 +840,44 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, code);
             }
         }
+    } else {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
+    }
+    
+    return srs_api_response(w, r, obj->dumps());
+}
+
+SrsGoApiSdp::SrsGoApiSdp()
+{
+}
+
+SrsGoApiSdp::~SrsGoApiSdp()
+{
+}
+
+srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+    
+    SrsStatistic* stat = SrsStatistic::instance();
+    
+    // path: {pattern}{stream_id}
+    // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
+    int sid = r->parse_rest_id(entry->pattern);
+    
+    SrsStatisticStream* stream = NULL;
+    if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
+        return srs_api_response_code(w, r, ERROR_RTMP_STREAM_NOT_FOUND);
+    }
+    
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::integer(stat->server_id()));
+    
+    if (r->is_http_post()) {
+        obj->set("sdp", SrsJsonAny::str(test_sdp.c_str()));
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

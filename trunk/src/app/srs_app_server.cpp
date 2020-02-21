@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
+#include <srs_app_rtc_udp.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
@@ -108,6 +109,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerRtcOverUdp:
+            return "RTC over UDP";
         default:
             return "UNKONWN";
     }
@@ -333,6 +336,45 @@ SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, Sr
 SrsUdpCasterListener::~SrsUdpCasterListener()
 {
     srs_freep(caster);
+}
+
+SrsRtcListener::SrsRtcListener(SrsServer* svr, SrsListenerType t) : SrsListener(svr, t)
+{
+    srs_assert(type == SrsListenerRtcOverUdp);
+    rtc = new SrsRtcOverUdp();
+}
+
+SrsRtcListener::~SrsRtcListener()
+{
+}
+
+srs_error_t SrsRtcListener::listen(std::string i, int p)
+{
+    srs_error_t err = srs_success;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerRtcOverUdp);
+    
+    ip = i;
+    port = p;
+    
+    srs_freep(listener);
+    listener = new SrsUdpListener(rtc, ip, port);
+    
+    if ((err = listener->listen()) != srs_success) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+    }
+    
+    // notify the handler the fd changed.
+    if ((err = rtc->on_stfd_change(listener->stfd())) != srs_success) {
+        return srs_error_wrap(err, "notify fd change failed");
+    }
+    
+    string v = srs_listener_type2string(type);
+    srs_trace("%s listen at udp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
+    
+    return err;
 }
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -728,6 +770,10 @@ srs_error_t SrsServer::listen()
     if ((err = listen_stream_caster()) != srs_success) {
         return srs_error_wrap(err, "stream caster listen");
     }
+
+    if ((err = listen_rtc()) != srs_success) {
+        return srs_error_wrap(err, "rtc listen");
+    }
     
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
@@ -789,6 +835,9 @@ srs_error_t SrsServer::http_handle()
     }
     if ((err = http_api_mux->handle("/api/v1/streams/", new SrsGoApiStreams())) != srs_success) {
         return srs_error_wrap(err, "handle streams");
+    }
+    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp())) != srs_success) {
+        return srs_error_wrap(err, "handle sdp");
     }
     if ((err = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
         return srs_error_wrap(err, "handle clients");
@@ -1183,6 +1232,35 @@ srs_error_t SrsServer::listen_stream_caster()
         if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
         }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsServer::listen_rtc()
+{
+    srs_error_t err = srs_success;
+    
+    close_listeners(SrsListenerRtcOverUdp);
+    
+    if (!_srs_config->get_rtc_enabled()) {
+        return err;
+    }
+        
+    SrsListener* listener = NULL;
+        
+    listener = new SrsRtcListener(this, SrsListenerRtcOverUdp);
+    srs_assert(listener != NULL);
+        
+    listeners.push_back(listener);
+        
+    int port = _srs_config->get_rtc_listen();
+    if (port <= 0) {
+        return srs_error_new(ERROR_RTC_PORT, "invalid port=%d", port);
+    }
+        
+    if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
+        return srs_error_wrap(err, "listen at %d", port);
     }
     
     return err;
