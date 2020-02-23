@@ -166,8 +166,10 @@ public:
 
 class SrsGoApiSdp : public ISrsHttpHandler
 {
+private:
+    SrsServer* server;
 public:
-    SrsGoApiSdp();
+    SrsGoApiSdp(SrsServer* svr);
     virtual ~SrsGoApiSdp();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

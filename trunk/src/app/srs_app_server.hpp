@@ -157,6 +157,8 @@ public:
     virtual ~SrsUdpCasterListener();
 };
 
+class SrsRtcOverUdp;
+
 // A UDP listener, for udp stream caster server.
 class SrsRtcListener : public SrsListener
 {
@@ -166,6 +168,8 @@ protected:
 public:
     SrsRtcListener(SrsServer* svr, SrsListenerType t);
     virtual ~SrsRtcListener();
+
+    SrsRtcOverUdp* get_rtc();
 public:
     virtual srs_error_t listen(std::string i, int p);
 };
@@ -335,6 +339,8 @@ public:
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+// listeners commuction
+    virtual SrsListener* find_listener(SrsListenerType type);
 };
 
 #endif

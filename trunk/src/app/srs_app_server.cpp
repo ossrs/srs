@@ -348,6 +348,12 @@ SrsRtcListener::~SrsRtcListener()
 {
 }
 
+
+SrsRtcOverUdp* SrsRtcListener::get_rtc()
+{
+    return dynamic_cast<SrsRtcOverUdp*>(rtc);
+}
+
 srs_error_t SrsRtcListener::listen(std::string i, int p)
 {
     srs_error_t err = srs_success;
@@ -836,7 +842,7 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/streams/", new SrsGoApiStreams())) != srs_success) {
         return srs_error_wrap(err, "handle streams");
     }
-    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp())) != srs_success) {
+    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(this))) != srs_success) {
         return srs_error_wrap(err, "handle sdp");
     }
     if ((err = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
@@ -1280,6 +1286,23 @@ void SrsServer::close_listeners(SrsListenerType type)
         srs_freep(listener);
         it = listeners.erase(it);
     }
+}
+
+SrsListener* SrsServer::find_listener(SrsListenerType type)
+{
+    std::vector<SrsListener*>::iterator it;
+    for (it = listeners.begin(); it != listeners.end();) {
+        SrsListener* listener = *it;
+        
+        if (listener->listen_type() != type) {
+            ++it;
+            continue;
+        }
+        
+        return *it;
+    }
+
+    return NULL;
 }
 
 void SrsServer::resample_kbps()

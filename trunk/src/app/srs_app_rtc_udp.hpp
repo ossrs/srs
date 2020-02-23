@@ -34,18 +34,62 @@ struct sockaddr;
 #include <srs_kernel_ts.hpp>
 #include <srs_app_listener.hpp>
 
+class SrsRtcSession;
+
+class SrsRtcUserInfo {
+private:
+    std::string username;
+    std::string password;
+public:
+    SrsRtcUserInfo(const std::string& u, const std::string& p);
+    ~SrsRtcUserInfo();
+
+    bool operator<(const SrsRtcUserInfo& rhs) const
+    {
+        return username < rhs.username && password < rhs.password;
+    }
+};
+
 // The rtc over udp stream receiver
 class SrsRtcOverUdp : virtual public ISrsUdpHandler
 {
 private:
+    std::map<std::string, SrsRtcSession*> id_session_map; // ip:port => session
+    std::map<std::string, std::map<SrsRtcUserInfo, SrsRtcSession*> > user_session_map;
 public:
     SrsRtcOverUdp();
     virtual ~SrsRtcOverUdp();
+
+    SrsRtcSession* create_rtc_session(const std::string& peer_ip, const std::string& remote_username, const std::string& remote_password);
+    SrsRtcSession* find_rtc_session_by_user_info(const std::string& peer_ip, const std::string& remote_username, const std::string& remote_password);
+    SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 private:
-    virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
+    virtual srs_error_t on_udp_bytes(const std::string& host, const int& port, const std::string& peer_id, char* buf, int nb_buf);
+    srs_error_t on_rtp_or_rtcp(const std::string& host, const int& port, const std::string& peer_id, const char* buf, int nb_buf);
+    srs_error_t on_stun(const std::string& host, const int& port, const std::string& peer_id, const char* buf, int nb_buf);
+    srs_error_t on_dtls(const std::string& host, const int& port, const std::string& peer_id, const char* buf, int nb_buf);
+};
+
+class SrsRtpPacket;
+class SrsStunPacket;
+
+class SrsRtcSession
+{
+private:
+    std::string local_username; 
+    std::string local_password;
+    std::string remote_username;
+    std::string remote_password;
+public:
+    SrsRtcSession();
+    virtual ~SrsRtcSession();
+
+    srs_error_t on_rtp_or_rtcp(SrsRtpPacket* rtp_packet);
+    srs_error_t on_stun(SrsStunPacket* stun_packet);
+    srs_error_t on_dtls();
 };
 
 #endif
