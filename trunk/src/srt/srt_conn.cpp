@@ -4,28 +4,43 @@
 #include <vector>
 
 bool is_streamid_valid(const std::string& streamid) {
-    int mode = ERR_SRT_MODE;
-    std::string url_subpash;
-
-    bool ret = get_streamid_info(streamid, mode, url_subpash);
-    if (!ret) {
-        return ret;
-    }
-
-    if ((mode != PULL_SRT_MODE) && (mode != PUSH_SRT_MODE)) {
+    if (streamid.empty()) {
         return false;
     }
 
-    if (url_subpash.empty()) {
+    size_t pos = streamid.find(" ");
+    if (pos != streamid.npos) {
+        return false;
+    }
+
+    int mode;
+    std::string subpath;
+
+    bool ret = get_streamid_info(streamid, mode, subpath);
+    if (!ret) {
+        return false;
+    }
+    
+    if ((mode != PUSH_SRT_MODE) && (mode != PULL_SRT_MODE)) {
         return false;
     }
 
     std::vector<std::string> info_vec;
-    string_split(url_subpash, "/", info_vec);
-    if (info_vec.size() < 2) {
+    string_split(subpath, "/", info_vec);
+
+    if (info_vec.size() < 2) {//it must be appname/stream at least.
         return false;
     }
 
+    for (auto item : info_vec) {
+        if (item.empty()) {
+            return false;
+        }
+        pos = item.find(" ");
+        if (pos != item.npos) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -46,13 +61,21 @@ bool get_key_value(const std::string& info, std::string& key, std::string& value
 }
 
 //eg. streamid=#!::h:live/livestream,m:publish
-bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash) {
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpath) {
     std::vector<std::string> info_vec;
     std::string real_streamid;
 
-    size_t pos = streamid.find("#!::h");
+    mode = PUSH_SRT_MODE;
+
+    size_t pos = streamid.find("#!::");
     if (pos != 0) {
-        return false;
+        pos = streamid.find("/");
+        if (pos == streamid.npos) {
+            url_subpath = "live/" + streamid;
+            return true;
+        }
+        url_subpath = streamid;
+        return true;
     }
     real_streamid = streamid.substr(4);
 
@@ -71,7 +94,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
         }
         
         if (key == "h") {
-            url_subpash = value;//eg. h=live/stream
+            url_subpath = value;//eg. h=live/stream
         } else if (key == "m") {
             std::string mode_str = string_lower(value);//m=publish or m=request
             if (mode_str == "publish") {
@@ -79,8 +102,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
             } else if (mode_str == "request") {
                 mode = PULL_SRT_MODE;
             } else {
-                mode = ERR_SRT_MODE;
-                return false;
+                mode = PUSH_SRT_MODE;
             }
         } else {//not suport
             continue;
@@ -93,6 +115,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
 srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn_fd),
     _streamid(streamid) {
     get_streamid_info(streamid, _mode, _url_subpath);
+    
     _update_timestamp = now_ms();
     
     std::vector<std::string> path_vec;
