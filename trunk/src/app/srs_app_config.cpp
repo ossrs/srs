@@ -3529,7 +3529,8 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "listen" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
-                && n != "sendbuf" && n != "recvbuf" && n != "payloadsize") {
+                && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
+                && n != "default_app") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
             }
         }
@@ -6891,6 +6892,20 @@ int SrsConfig::get_srto_payloadsize() {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_default_app_name() {
+    static string DEFAULT = "live";
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("default_app");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return conf->arg0();
 }
 
 bool SrsConfig::get_http_stream_enabled()
