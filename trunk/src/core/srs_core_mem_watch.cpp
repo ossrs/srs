@@ -74,7 +74,7 @@ void srs_memory_report()
     std::map<void*, SrsMemoryObject*>::iterator it;
     for (it = _srs_ptrs.begin(); it != _srs_ptrs.end(); ++it) {
         SrsMemoryObject* obj = it->second;
-        printf("    %s: %#"PRIx64", %dB\n", obj->category.c_str(), (int64_t)obj->ptr, obj->size);
+        printf("    %s: %#" PRIx64 ", %dB\n", obj->category.c_str(), (int64_t)obj->ptr, obj->size);
         total += obj->size;
     }
     

@@ -1232,6 +1232,10 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     SrsConnection* conn = NULL;
     
     if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
+        if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
+            srs_close_stfd(stfd); srs_error_reset(err);
+            return srs_success;
+        }
         return srs_error_wrap(err, "fd2conn");
     }
     srs_assert(conn);

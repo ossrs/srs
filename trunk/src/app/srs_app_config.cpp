@@ -3489,7 +3489,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_server" && n != "stream_caster" && n != "srt_server"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
-            && n != "grace_start_wait"
+            && n != "grace_start_wait" && n != "empty_ip_ok"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -3529,7 +3529,8 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "listen" && n != "maxbw"
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
-                && n != "sendbuf" && n != "recvbuf" && n != "payloadsize") {
+                && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
+                && n != "default_app") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
             }
         }
@@ -4063,6 +4064,18 @@ bool SrsConfig::get_asprocess()
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::empty_ip_ok()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("empty_ip_ok");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 srs_utime_t SrsConfig::get_grace_start_wait()
@@ -6879,6 +6892,20 @@ int SrsConfig::get_srto_payloadsize() {
         return DEFAULT;
     }
     return atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_default_app_name() {
+    static string DEFAULT = "live";
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("default_app");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return conf->arg0();
 }
 
 bool SrsConfig::get_http_stream_enabled()
