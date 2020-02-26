@@ -554,9 +554,11 @@ void SrsServer::gracefully_dispose()
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
+    srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->stop();
+    srs_trace("ingesters stopped");
 
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
@@ -572,6 +574,7 @@ void SrsServer::gracefully_dispose()
 
     // dispose the source for hls and dvr.
     _srs_sources->dispose();
+    srs_trace("source disposed");
 
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
