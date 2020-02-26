@@ -153,6 +153,11 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-02-25, For [#1615][bug #1615], support default app(live) for vmix SRT. 4.0.9
+* v4.0, 2020-02-21, For [#1598][bug #1598], support SLB health checking by TCP. 4.0.8
+* v4.0, 2020-02-19, For [#1579][bug #1579], support rolling update of k8s. 4.0.7
+* v4.0, 2020-02-18, For [#1579][bug #1579], support start/final wait for gracefully quit. 4.0.6
+* v4.0, 2020-02-18, For [#1579][bug #1579], support gracefully quit and force to. 4.0.5
 * v4.0, 2020-02-13, SRT supports detail config for [DynamicEncoding](https://github.com/runner365/srt_encoder). 4.0.4
 * v4.0, 2020-02-04, Update project code. 4.0.3
 * v4.0, 2020-01-26, Allow use libsrt.so for SRT is MPL license. 4.0.2
@@ -160,6 +165,14 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-02-21, For [#1598][bug #1598], support SLB health checking by TCP. 3.0.123
+* v3.0, 2020-02-21, Fix bug for librtmp client ipv4/ipv6 socket. 3.0.122
+* v3.0, 2020-02-18, For [#1579][bug #1579], support start/final wait for gracefully quit. 3.0.121
+* v3.0, 2020-02-18, For [#1579][bug #1579], support force gracefully quit. 3.0.120
+* v3.0, 2020-02-18, For [#1579][bug #1579], support gracefully quit. 3.0.119
+* v3.0, 2020-02-17, For [#1601][bug #1601], flush async on_dvr/on_hls events before stop. 3.0.118
+* <strong>v3.0, 2020-02-14, [3.0 beta1(3.0.117)][r3.0b1] released. 121964 lines.</strong>
+* v3.0, 2020-02-14, For [#1595][bug #1595], migrating streaming from ossrs.net to r.ossrs.net. 3.0.117
 * v3.0, 2020-02-05, For [#665][bug #665], fix HTTP-FLV reloading bug. 3.0.116
 * v3.0, 2020-02-05, For [#1592][bug #1592], fix terminal echo off by redirect process stdin. 3.0.115
 * v3.0, 2020-02-04, For [#1186][bug #1186], refactor security check. 3.0.114
@@ -751,6 +764,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-02-14, [Release v3.0-b1][r3.0b1], 3.0 beta1, 3.0.117, 121964 lines.
 * 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
 * 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
 * 2020-01-10, [Release v3.0-a8][r3.0a8], 3.0 alpha8, 3.0.97, 121555 lines.
@@ -1100,21 +1114,20 @@ Remark:
 
 There are two types of people that have contributed to the SRS project:
 
-* AUTHORS: Contribute important features. Names of all authors responsed in NetConnection.connect and metadata. 
-* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
+* Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
+* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
 
-About all AUTHORS and CONTRIBUTORS, read [AUTHORS.txt][authors].
+Maintainers of SRS project:
+
+* [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
+* [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
+* [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
 
 A big THANK YOU goes to:
 
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* Michael Talyanksy for introducing us to use st.
-* Roman Arutyunyan for creating [nginx-rtmp][nginx-rtmp] for SRS to refer to. 
-* Joyent for creating [http-parser][http-parser] for http-api for SRS.
-* Igor Sysoev for creating [nginx][nginx] for SRS to refer to.
-* [FFMPEG][FFMPEG] and [libx264][libx264] group for SRS to use as transcoder.
-* Guido van Rossum for creating Python for api-server for SRS.
+* [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
 
 ## Mirrors
 
@@ -1187,8 +1200,8 @@ Winlin
 [authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v1_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
-[st2]: http://sourceforge.net/projects/state-threads/
-[state-threads]: http://sourceforge.net/projects/state-threads/
+[st2]: https://github.com/ossrs/state-threads/tree/srs
+[state-threads]: https://github.com/ossrs/state-threads/tree/srs
 [nginx-rtmp]: https://github.com/arut/nginx-rtmp-module
 [http-parser]: https://github.com/joyent/http-parser
 [nginx]: http://nginx.org/
@@ -1669,10 +1682,16 @@ Winlin
 [bug #1186]: https://github.com/ossrs/srs/issues/1186
 [bug #1592]: https://github.com/ossrs/srs/issues/1592
 [bug #665]: https://github.com/ossrs/srs/issues/665
+[bug #1595]: https://github.com/ossrs/srs/issues/1595
+[bug #1601]: https://github.com/ossrs/srs/issues/1601
+[bug #1579]: https://github.com/ossrs/srs/issues/1579
+[bug #1598]: https://github.com/ossrs/srs/issues/1598
+[bug #1615]: https://github.com/ossrs/srs/issues/1615
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b1]: https://github.com/ossrs/srs/releases/tag/v3.0-b1
 [r3.0b0]: https://github.com/ossrs/srs/releases/tag/v3.0-b0
 [r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
 [r3.0a8]: https://github.com/ossrs/srs/releases/tag/v3.0-a8

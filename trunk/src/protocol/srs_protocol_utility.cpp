@@ -122,7 +122,7 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     srs_vhost_resolve(vhost, stream, param);
     
     // Ignore when the param only contains the default vhost.
-    if (param == "?vhost="SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+    if (param == "?vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         param = "";
     }
 }

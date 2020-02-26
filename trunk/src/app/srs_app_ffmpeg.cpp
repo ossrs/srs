@@ -230,7 +230,7 @@ srs_error_t SrsFFMPEG::start()
     params.push_back(ffmpeg);
     
     // input params
-    for (int i = 0; i < iparams.size(); i++) {
+    for (int i = 0; i < (int)iparams.size(); i++) {
         string iparam = iparams.at(i);
         if (!iparam.empty()) {
             params.push_back(iparam);

@@ -3,6 +3,8 @@
 #include "stringex.hpp"
 #include <vector>
 
+#include <srs_app_config.hpp>
+
 bool is_streamid_valid(const std::string& streamid) {
     if (streamid.empty()) {
         return false;
@@ -71,7 +73,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
     if (pos != 0) {
         pos = streamid.find("/");
         if (pos == streamid.npos) {
-            url_subpath = "live/" + streamid;
+            url_subpath = _srs_config->get_default_app_name() + "/" + streamid;
             return true;
         }
         url_subpath = streamid;

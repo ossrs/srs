@@ -61,6 +61,7 @@ private:
 protected:
     std::vector<ISrsAsyncCallTask*> tasks;
     srs_cond_t wait;
+    srs_mutex_t lock;
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
@@ -73,6 +74,8 @@ public:
 // Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
+private:
+    virtual void flush_tasks();
 };
 
 #endif

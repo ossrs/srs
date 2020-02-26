@@ -256,7 +256,12 @@ void srt_server::on_work()
             }
         }
     }
+
+    // New API at 2020-01-28, >1.4.1
+    // @see https://github.com/Haivision/srt/commit/b8c70ec801a56bea151ecce9c09c4ebb720c2f68#diff-fb66028e8746fea578788532533a296bR786
+#if (SRT_VERSION_MAJOR<<24 | SRT_VERSION_MINOR<<16 | SRT_VERSION_PATCH<<8) > 0x01040100
     srt_epoll_clear_usocks(_pollid);
+#endif
 }
 
 SrtServerAdapter::SrtServerAdapter()
