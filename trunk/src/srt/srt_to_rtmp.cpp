@@ -381,7 +381,7 @@ srs_error_t rtmp_client::write_audio_raw_frame(char* frame, int frame_size, SrsR
     if ((err = _aac_ptr->mux_aac2flv(frame, frame_size, codec, dts, &data, &size)) != srs_success) {
         return srs_error_wrap(err, "mux aac to flv");
     }
-    
+
     return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
 
@@ -410,7 +410,12 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
-    
+    dts = dts / 90;
+    pts = pts / 90;
+
+    if (dts == 0) {
+        dts = pts;
+    }
     // send each frame.
     while (!avs_ptr->empty()) {
         char* frame = NULL;
@@ -480,14 +485,46 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
     return err;
 }
 
+int rtmp_client::get_sample_rate(char sound_rate) {
+    int sample_rate = 44100;
+
+    switch (sound_rate)
+    {
+    case SrsAudioSampleRate44100:
+        sample_rate = 44100;
+        break;
+    case SrsAudioSampleRate22050:
+        sample_rate = 22050;
+        break;
+    case SrsAudioSampleRate11025:
+        sample_rate = 11025;
+        break;
+    case SrsAudioSampleRate5512:
+        sample_rate = 5512;
+        break;
+    default:
+        break;
+    }
+    return sample_rate;
+}
+
 srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts) {
     srs_error_t err = srs_success;
+    uint64_t last_dts;
+    uint64_t real_dts;
+    int index = 0;
+    int sample_size = 1024;
 
     // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
     
+    last_dts = dts/90;
+    if (last_dts == 0) {
+        last_dts = pts/90;
+    }
+
     // send each frame.
     while (!avs_ptr->empty()) {
         char* frame = NULL;
@@ -496,16 +533,21 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         if ((err = _aac_ptr->adts_demux(avs_ptr.get(), &frame, &frame_size, codec)) != srs_success) {
             return srs_error_wrap(err, "demux adts");
         }
-        //srs_trace("audio annexb demux sampling_frequency_index:%d, aac_packet_type:%d, sound_rate:%d, sound_size:%d", 
-        //    codec.sampling_frequency_index, codec.aac_packet_type, codec.sound_rate,
-        //    codec.sound_size);
-        //srs_trace_data(frame, frame_size, "audio annexb demux:");
-        // ignore invalid frame,
-        //  * atleast 1bytes for aac to decode the data.
+
         if (frame_size <= 0) {
             continue;
         }
-        
+        int sample_rate = get_sample_rate(codec.sound_rate);
+
+        if (codec.aac_packet_type > SrsAudioOpusFrameTraitRaw) {
+            sample_size = 2048;
+        } else {
+            sample_size = 1024;
+        }
+
+        real_dts = last_dts + index * 1000.0 * sample_size / sample_rate;
+        index++;
+
         // generate sh.
         if (_aac_specific_config.empty()) {
             std::string sh;
@@ -516,14 +558,14 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
             
             codec.aac_packet_type = 0;
             
-            if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
+            if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, real_dts)) != srs_success) {
                 return srs_error_wrap(err, "write raw audio frame");
             }
         }
         
         // audio raw data.
         codec.aac_packet_type = 1;
-        if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+        if ((err = write_audio_raw_frame(frame, frame_size, &codec, real_dts)) != srs_success) {
             return srs_error_wrap(err, "write audio raw frame");
         }
         _last_live_ts = now_ms();
@@ -541,8 +583,6 @@ void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media
     }
 
     auto avs_ptr = std::make_shared<SrsBuffer>((char*)data_ptr->get_data(), data_ptr->data_len());
-    dts = dts / 90;
-    pts = pts / 90;
 
     if (media_type == STREAM_TYPE_VIDEO_H264) {
         on_ts_video(avs_ptr, dts, pts);

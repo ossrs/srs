@@ -291,7 +291,6 @@ int ts_demux::decode(SRT_DATA_MSG_PTR data_ptr, TS_DATA_CALLBACK_PTR callback)
         return -1;
     }
 
-
     unsigned int count = data_ptr->data_len()/188;
     path = data_ptr->get_path();
     for (unsigned int index = 0; index < count; index++)
