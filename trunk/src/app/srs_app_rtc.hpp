@@ -21,24 +21,32 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_PROTOCOL_STUN_HPP
-#define SRS_PROTOCOL_STUN_HPP
-
-#include <string>
+#ifndef SRS_APP_RTC_HPP
+#define SRS_APP_RTC_HPP
 
 #include <srs_core.hpp>
-#include <srs_kernel_error.hpp>
 
-class SrsStunPacket 
+struct sockaddr;
+#include <string>
+#include <map>
+
+#include <srs_app_st.hpp>
+#include <srs_kernel_ts.hpp>
+#include <srs_app_listener.hpp>
+
+class SrsRtcServer;
+
+// The rtc over udp stream receiver
+class SrsRtc : virtual public ISrsUdpHandler
 {
+private:
+    SrsRtcServer* rtc_server;
 public:
-    SrsStunPacket();
-    virtual ~SrsStunPacket();
-
-    std::string ufrag();
-    std::string pwd();
-
-    srs_error_t decode(const char* buf, const int nb_buf);
+    SrsRtc(SrsRtcServer* rtc_svr);
+    virtual ~SrsRtc();
+// Interface ISrsUdpHandler
+public:
+    virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
 #endif

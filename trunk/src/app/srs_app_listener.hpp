@@ -68,13 +68,13 @@ public:
 // Bind udp port, start thread to recv packet and handler it.
 class SrsUdpListener : public ISrsCoroutineHandler
 {
-private:
+protected:
     srs_netfd_t lfd;
     SrsCoroutine* trd;
-private:
+protected:
     char* buf;
     int nb_buf;
-private:
+protected:
     ISrsUdpHandler* handler;
     std::string ip;
     int port;
@@ -109,6 +109,15 @@ public:
 public:
     virtual srs_error_t listen();
 // Interface ISrsReusableThreadHandler.
+public:
+    virtual srs_error_t cycle();
+};
+
+class SrsUdpRemuxListener : public SrsUdpListener
+{
+public:
+    SrsUdpRemuxListener(ISrsUdpHandler* h, std::string i, int p);
+    virtual ~SrsUdpRemuxListener();
 public:
     virtual srs_error_t cycle();
 };

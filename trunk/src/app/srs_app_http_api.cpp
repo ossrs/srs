@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
-#include <srs_app_rtc_udp.hpp>
+#include <srs_app_rtc.hpp>
 
 string test_sdp =
 "v=0\\r\\n"
@@ -875,14 +875,6 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
 
-    SrsRtcListener* rtc_listener = dynamic_cast<SrsRtcListener*>(server->find_listener(SrsListenerRtcOverUdp));
-    if (rtc_listener == NULL) {
-        return srs_go_http_error(w, SRS_CONSTS_HTTP_Unauthorized);
-    }
-
-    SrsRtcOverUdp* rtc = rtc_listener->get_rtc();
-    rtc->create_rtc_session("192.168.170.169", "xiaozhihongjohn", "ok");
-    
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::integer(stat->server_id()));
     

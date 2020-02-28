@@ -10,17 +10,17 @@ SrsStunPacket::~SrsStunPacket()
 {
 }
 
-string SrsStunPacket::username()
+string SrsStunPacket::ufrag()
 {
     return "";
 }
 
-string SrsStunPacket::password()
+string SrsStunPacket::pwd()
 {
     return "";
 }
 
-srs_error_t SrsStunPacket::decode(const char* buf, const int& nb_buf)
+srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
 {
     srs_error_t err = srs_success;
 

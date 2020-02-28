@@ -41,6 +41,7 @@ class SrsServer;
 class SrsConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
+class SrsRtcServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
@@ -68,8 +69,8 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
-    // UDP sream, rtp over udp
-    SrsListenerRtcOverUdp = 6,
+    // UDP remux, rtp over udp
+    SrsListenerRtc = 6,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -157,19 +158,15 @@ public:
     virtual ~SrsUdpCasterListener();
 };
 
-class SrsRtcOverUdp;
-
-// A UDP listener, for udp stream caster server.
+// A UDP listener, for udp remux rtc server
 class SrsRtcListener : public SrsListener
 {
 protected:
     SrsUdpListener* listener;
     ISrsUdpHandler* rtc;
 public:
-    SrsRtcListener(SrsServer* svr, SrsListenerType t);
+    SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t);
     virtual ~SrsRtcListener();
-
-    SrsRtcOverUdp* get_rtc();
 public:
     virtual srs_error_t listen(std::string i, int p);
 };
@@ -225,6 +222,7 @@ private:
     // TODO: FIXME: rename to http_api
     SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
+    SrsRtcServer* rtc_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;

@@ -44,7 +44,8 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
-#include <srs_app_rtc_udp.hpp>
+#include <srs_app_rtc.hpp>
+#include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
@@ -109,8 +110,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
-        case SrsListenerRtcOverUdp:
-            return "RTC over UDP";
+        case SrsListenerRtc:
+            return "RTC";
         default:
             return "UNKONWN";
     }
@@ -338,20 +339,14 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
     srs_freep(caster);
 }
 
-SrsRtcListener::SrsRtcListener(SrsServer* svr, SrsListenerType t) : SrsListener(svr, t)
+SrsRtcListener::SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t) : SrsListener(svr, t)
 {
-    srs_assert(type == SrsListenerRtcOverUdp);
-    rtc = new SrsRtcOverUdp();
+    srs_assert(type == SrsListenerRtc);
+    rtc = new SrsRtc(rtc_svr);
 }
 
 SrsRtcListener::~SrsRtcListener()
 {
-}
-
-
-SrsRtcOverUdp* SrsRtcListener::get_rtc()
-{
-    return dynamic_cast<SrsRtcOverUdp*>(rtc);
 }
 
 srs_error_t SrsRtcListener::listen(std::string i, int p)
@@ -360,13 +355,13 @@ srs_error_t SrsRtcListener::listen(std::string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerRtcOverUdp);
+    srs_assert(type == SrsListenerRtc);
     
     ip = i;
     port = p;
     
     srs_freep(listener);
-    listener = new SrsUdpListener(rtc, ip, port);
+    listener = new SrsUdpRemuxListener(rtc, ip, port);
     
     if ((err = listener->listen()) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
@@ -533,6 +528,7 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
+    rtc_server = new SrsRtcServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
 }
@@ -1247,7 +1243,7 @@ srs_error_t SrsServer::listen_rtc()
 {
     srs_error_t err = srs_success;
     
-    close_listeners(SrsListenerRtcOverUdp);
+    close_listeners(SrsListenerRtc);
     
     if (!_srs_config->get_rtc_enabled()) {
         return err;
@@ -1255,7 +1251,7 @@ srs_error_t SrsServer::listen_rtc()
         
     SrsListener* listener = NULL;
         
-    listener = new SrsRtcListener(this, SrsListenerRtcOverUdp);
+    listener = new SrsRtcListener(this, rtc_server, SrsListenerRtc);
     srs_assert(listener != NULL);
         
     listeners.push_back(listener);

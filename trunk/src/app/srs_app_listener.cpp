@@ -207,3 +207,42 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
+SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpHandler* h, std::string i, int p) : SrsUdpListener(h, i, p)
+{
+}
+
+SrsUdpRemuxListener::~SrsUdpRemuxListener()
+{
+}
+
+srs_error_t SrsUdpRemuxListener::cycle()
+{
+	srs_error_t err = srs_success;
+    
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "udp listener");
+        }   
+
+        int nread = 0;
+        sockaddr_storage from;
+        int nb_from = sizeof(from);
+        if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
+            srs_error("udp recv error");
+            // remux udp never return
+            continue;
+        }   
+    
+        if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
+            //srs_error("udp handle packet error");
+            // remux udp never return
+            continue;
+        }   
+    
+        if (SrsUdpPacketRecvCycleInterval > 0) {
+            srs_usleep(SrsUdpPacketRecvCycleInterval);
+        }   
+    }   
+    
+    return err;
+}
