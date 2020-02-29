@@ -3530,7 +3530,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
-                && n != "default_app") {
+                && n != "default_app" && n != "mix_correct") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
             }
         }
@@ -6752,6 +6752,20 @@ unsigned short SrsConfig::get_srt_listen_port()
         return DEFAULT;
     }
     return (unsigned short)atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_srt_mix_correct() {
+    static bool DEFAULT = true;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("mix_correct");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 int SrsConfig::get_srto_maxbw() {

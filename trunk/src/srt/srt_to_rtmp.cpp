@@ -322,12 +322,13 @@ srs_error_t rtmp_client::write_h264_sps_pps(uint32_t dts, uint32_t pts) {
         return srs_error_wrap(err, "avc to flv");
     }
     
-    // the timestamp in rtmp message header is dts.
-    uint32_t timestamp = dts;
-    if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
-        return srs_error_wrap(err, "write packet");
+    if (_srs_config->get_srt_mix_correct()) {
+        _rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
+        rtmp_write_work();
+    } else {
+        rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
     }
-    
+
     // reset sps and pps.
     _h264_sps_changed = false;
     _h264_pps_changed = false;
@@ -367,10 +368,14 @@ srs_error_t rtmp_client::write_h264_ipb_frame(char* frame, int frame_size, uint3
     if ((err = _avc_ptr->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "mux avc to flv");
     }
-    
-    // the timestamp in rtmp message header is dts.
-    uint32_t timestamp = dts;
-    return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
+    if (_srs_config->get_srt_mix_correct()) {
+        _rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
+        rtmp_write_work();
+    } else {
+        rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
+    }
+
+    return err;
 }
 
 srs_error_t rtmp_client::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts) {
@@ -381,14 +386,20 @@ srs_error_t rtmp_client::write_audio_raw_frame(char* frame, int frame_size, SrsR
     if ((err = _aac_ptr->mux_aac2flv(frame, frame_size, codec, dts, &data, &size)) != srs_success) {
         return srs_error_wrap(err, "mux aac to flv");
     }
+    if (_srs_config->get_srt_mix_correct()) {
+        _rtmp_queue.insert_rtmp_data((unsigned char*)data, size, (int64_t)dts, SrsFrameTypeAudio);
+        rtmp_write_work();
+    } else {
+        rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
+    }
 
-    return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
+    return err;
 }
 
 srs_error_t rtmp_client::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size) {
     srs_error_t err = srs_success;
     SrsSharedPtrMessage* msg = NULL;
-    
+
     if ((err = srs_rtmp_create_msg(type, timestamp, data, size, _rtmp_conn_ptr->sid(), &msg)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
@@ -401,6 +412,19 @@ srs_error_t rtmp_client::rtmp_write_packet(char type, uint32_t timestamp, char* 
     }
     
     return err;
+}
+
+void rtmp_client::rtmp_write_work() {
+    rtmp_packet_info_s packet_info;
+    bool ret = false;
+    
+    do {
+        ret = _rtmp_queue.get_rtmp_data(packet_info);
+        if (ret) {
+            rtmp_write_packet(packet_info._type, packet_info._dts, (char*)packet_info._data, packet_info._len);
+        }
+    } while(ret);
+    return;
 }
 
 srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts) {
@@ -416,6 +440,7 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
     if (dts == 0) {
         dts = pts;
     }
+
     // send each frame.
     while (!avs_ptr->empty()) {
         char* frame = NULL;
@@ -510,8 +535,9 @@ int rtmp_client::get_sample_rate(char sound_rate) {
 
 srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts) {
     srs_error_t err = srs_success;
-    uint64_t last_dts;
+    uint64_t base_dts;
     uint64_t real_dts;
+    uint64_t first_dts;
     int index = 0;
     int sample_size = 1024;
 
@@ -520,11 +546,11 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         return srs_error_wrap(err, "connect");
     }
     
-    last_dts = dts/90;
-    if (last_dts == 0) {
-        last_dts = pts/90;
+    base_dts = dts/90;
+    if (base_dts == 0) {
+        base_dts = pts/90;
     }
-
+    
     // send each frame.
     while (!avs_ptr->empty()) {
         char* frame = NULL;
@@ -545,7 +571,10 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
             sample_size = 1024;
         }
 
-        real_dts = last_dts + index * 1000.0 * sample_size / sample_rate;
+        real_dts = base_dts + index * 1000.0 * sample_size / sample_rate;
+        if (index == 0) {
+            first_dts = real_dts;
+        }
         index++;
 
         // generate sh.
@@ -571,6 +600,12 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         _last_live_ts = now_ms();
     }
     
+    uint64_t diff_t = real_dts - first_dts;
+    diff_t += 100;
+    if ((diff_t > 200) && (diff_t < 600)) {
+        srs_info("set_queue_timeout timeout:%lu", diff_t);
+        _rtmp_queue.set_queue_timeout(diff_t);
+    }
     return err;
 }
 
@@ -593,4 +628,76 @@ void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media
         assert(0);
     }
     return;
+}
+
+rtmp_packet_queue::rtmp_packet_queue():_queue_timeout(QUEUE_DEF_TIMEOUT)
+    ,_queue_maxlen(QUEUE_LEN_MAX)
+    ,_first_packet_t(-1)
+    ,_first_local_t(-1) {
+
+}
+
+rtmp_packet_queue::~rtmp_packet_queue() {
+    for (auto item : _send_map) {
+        rtmp_packet_info_s info = item.second;
+        if (info._data) {
+            delete info._data;
+        }
+    }
+    _send_map.clear();
+}
+
+void rtmp_packet_queue::set_queue_timeout(int64_t queue_timeout) {
+    _queue_timeout = queue_timeout;
+}
+
+void rtmp_packet_queue::insert_rtmp_data(unsigned char* data, int len, int64_t dts, char media_type) {
+    rtmp_packet_info_s packet_info;
+
+    packet_info._data = data;
+    packet_info._len  = len;
+    packet_info._dts  = dts;
+    packet_info._type = media_type;
+
+    if (_first_packet_t == -1) {
+        _first_packet_t = dts;
+        _first_local_t = (int64_t)now_ms();
+    }
+
+    _send_map.insert(std::make_pair(dts, packet_info));
+    return;
+}
+
+bool rtmp_packet_queue::is_ready() {
+    if (!_srs_config->get_srt_mix_correct() && !_send_map.empty()) {
+        return true;
+    }
+    if (_send_map.size() < 2) {
+        return false;
+    }
+
+    if (_send_map.size() >= (size_t)_queue_maxlen) {
+        return true;
+    }
+
+    auto first_item = _send_map.begin();
+    int64_t now_t = (int64_t)now_ms();
+
+    int64_t diff_t = (now_t - _first_local_t) - (first_item->first - _first_packet_t);
+
+    if (diff_t >= _queue_timeout) {
+        return true;
+    }
+    return false;
+}
+
+bool rtmp_packet_queue::get_rtmp_data(rtmp_packet_info_s& packet_info) {
+    if (!is_ready()) {
+        return false;
+    }
+    auto iter = _send_map.begin();
+    packet_info = iter->second;
+    _send_map.erase(iter);
+
+    return true;
 }
