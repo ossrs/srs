@@ -6765,7 +6765,7 @@ bool SrsConfig::get_srt_mix_correct() {
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 int SrsConfig::get_srto_maxbw() {
