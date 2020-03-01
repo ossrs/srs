@@ -265,7 +265,11 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                         //callback last media data in data buffer
                         on_callback(callback, _last_pid, key_path, _last_dts, _last_pts);
 
-                        pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
+                        int ret = pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
+                        assert(ret <= 188);
+                        if (ret > 188) {
+                            return -1;
+                        }
 
                         _last_pts = pts;
                         _last_dts = (dts == 0) ? pts : dts;
