@@ -153,6 +153,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-01, For [#1621][bug #1621], support mix_correct for aggregate aac packets. 4.0.10
 * v4.0, 2020-02-25, For [#1615][bug #1615], support default app(live) for vmix SRT. 4.0.9
 * v4.0, 2020-02-21, For [#1598][bug #1598], support SLB health checking by TCP. 4.0.8
 * v4.0, 2020-02-19, For [#1579][bug #1579], support rolling update of k8s. 4.0.7
@@ -1687,6 +1688,7 @@ Winlin
 [bug #1579]: https://github.com/ossrs/srs/issues/1579
 [bug #1598]: https://github.com/ossrs/srs/issues/1598
 [bug #1615]: https://github.com/ossrs/srs/issues/1615
+[bug #1621]: https://github.com/ossrs/srs/issues/1621
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
