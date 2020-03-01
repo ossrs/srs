@@ -625,6 +625,8 @@ public:
     virtual int get_srto_payloadsize();
     // Get the default app.
     virtual std::string get_default_app_name();
+    // Get the mix_correct
+    virtual bool get_srt_mix_correct();
 
 // http_hooks section
 private:

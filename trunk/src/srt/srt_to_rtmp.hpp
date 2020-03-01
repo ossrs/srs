@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <queue>
+#include <map>
 #include <mutex>
 #include <condition_variable>
 #include <srs_kernel_ts.hpp>
@@ -23,6 +24,37 @@ typedef std::shared_ptr<SrsRawH264Stream> AVC_PTR;
 typedef std::shared_ptr<SrsRawAacStream> AAC_PTR;
 
 #define DEFAULT_VHOST "__default_host__"
+
+#define QUEUE_DEF_TIMEOUT 500
+#define QUEUE_LEN_MAX     100
+
+typedef struct {
+    unsigned char* _data;
+    int _len;
+    int64_t _dts;
+    char _type;
+    char reserve[3];
+} rtmp_packet_info_s;
+
+class rtmp_packet_queue {
+public:
+    rtmp_packet_queue();
+    ~rtmp_packet_queue();
+
+    void set_queue_timeout(int64_t queue_timeout);
+    void insert_rtmp_data(unsigned char* data, int len, int64_t dts, char media_type);
+    bool get_rtmp_data(rtmp_packet_info_s& packet_info);
+
+private:
+    bool is_ready();
+
+private:
+    int64_t _queue_timeout;
+    int64_t _queue_maxlen;
+    int64_t _first_packet_t;
+    int64_t _first_local_t;
+    std::multimap<int64_t, rtmp_packet_info_s> _send_map;//key:dts, value:rtmp_packet_info
+};
 
 class rtmp_client : public ts_media_data_callback_I, public std::enable_shared_from_this<rtmp_client> {
 public:
@@ -47,6 +79,8 @@ private:
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 
     int get_sample_rate(char sound_rate);
+
+    void rtmp_write_work();
 
 private:
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
@@ -73,6 +107,9 @@ private:
     RTMP_CONN_PTR _rtmp_conn_ptr;
     bool _connect_flag;
     int64_t _last_live_ts;
+
+private:
+    rtmp_packet_queue _rtmp_queue;
 };
 
 typedef std::shared_ptr<rtmp_client> RTMP_CLIENT_PTR;
