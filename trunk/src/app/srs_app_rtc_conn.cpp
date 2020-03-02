@@ -25,6 +25,8 @@
 
 using namespace std;
 
+#include <sstream>
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_stun_stack.hpp>
@@ -41,12 +43,75 @@ static bool is_dtls(const char* data, const int size) {
     return data != NULL && size > 0 && (data[0] >= 20 && data[0] <= 64);
 }
 
-SrsSDP::SrsSDP()
+SrsSdpMediaInfo::SrsSdpMediaInfo()
 {
 }
 
-SrsSDP::~SrsSDP()
+SrsSdpMediaInfo::~SrsSdpMediaInfo()
 {
+}
+
+SrsSdp::SrsSdp()
+{
+}
+
+SrsSdp::~SrsSdp()
+{
+}
+
+srs_error_t SrsSdp::parse(const string& sdp)
+{
+    srs_error_t err = srs_success;
+
+    if (sdp.size() < 2 || sdp[0] != 'v' || sdp[1] != '=') {
+        return srs_error_wrap(err, "invalid sdp");
+    }
+
+    string line;
+    istringstream is(sdp);
+    while (getline(is, line)) {
+        srs_trace("line=%s", line.c_str());
+
+        if (line.size() < 2 || line[1] != '=') {
+            return srs_error_wrap(err, "invalid sdp line=%s", line.c_str());
+        }
+
+        switch (line[1]) {
+            case 'v' :{
+                break;
+            }
+            case 'o' :{
+                break;
+            }
+            case 's' :{
+                break;
+            }
+            case 't' :{
+                break;
+            }
+            case 'c' :{
+                break;
+            }
+            case 'a' :{
+                if (parse_attr(line) != srs_success) {
+                    return srs_error_wrap(err, "parse sdp line=%s failed", line.c_str());
+                }
+                break;
+            }
+            case 'm' :{
+                break;
+            }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSdp::parse_attr(const string& line)
+{
+    srs_error_t err = srs_success;
+
+    return err;
 }
 
 SrsRtcSession::SrsRtcSession()

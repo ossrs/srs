@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_rtc.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 string test_sdp =
 "v=0\\r\\n"
@@ -871,7 +872,35 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
         return srs_api_response_code(w, r, ERROR_RTMP_STREAM_NOT_FOUND);
     }
-    
+
+    string req_json;
+    r->body_read_all(req_json);
+    srs_trace("req_json=%s", req_json.c_str());
+
+    SrsJsonAny* json = SrsJsonAny::loads(req_json);
+    SrsJsonObject* req_obj = json->to_object();
+
+    SrsJsonAny* remote_sdp_obj = req_obj->get_property("sdp");
+    SrsJsonAny* app_obj = req_obj->get_property("app");
+    SrsJsonAny* stream_name_obj = req_obj->get_property("stream");
+
+    if (remote_sdp_obj == NULL || app_obj == NULL || stream_name_obj == NULL) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    string remote_sdp = remote_sdp_obj->to_str();
+    string app = app_obj->to_str();
+    string stream_name = stream_name_obj->to_str();
+
+    srs_trace("remote_sdp=%s", remote_sdp.c_str());
+    srs_trace("app=%s, stream=%s", app.c_str(), stream_name.c_str());
+
+    SrsSdp srs_sdp;
+    err = srs_sdp.parse(remote_sdp);
+    if (err != srs_success) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
 

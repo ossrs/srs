@@ -28,16 +28,36 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 class SrsServer;
 class SrsStunPacket;
 
-class SrsSDP
+class SrsSdpMediaInfo
 {
 private:
 public:
-    SrsSDP();
-    virtual ~SrsSDP();
+    SrsSdpMediaInfo();
+    virtual ~SrsSdpMediaInfo();
+};
+
+class SrsSdp
+{
+private:
+    std::string sdp;
+    int version;
+    std::string ice_ufrag;
+    std::string ice_pwd;
+    std::string fingerprint;
+    std::string setup;
+    std::vector<SrsSdpMediaInfo> media_infos;
+public:
+    SrsSdp();
+    virtual ~SrsSdp();
+
+    srs_error_t parse(const std::string& sdp);
+private:
+    srs_error_t parse_attr(const std::string& line);
 };
 
 enum SrsRtcSessionStateType
@@ -53,8 +73,8 @@ class SrsRtcSession
 {
 public:
 private:
-    SrsSDP  peer_sdp;
-    SrsSDP  offer_sdp;
+    SrsSdp  peer_sdp;
+    SrsSdp  offer_sdp;
     SrsRtcSessionStateType session_state;
 public:
     SrsRtcSession();
