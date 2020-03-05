@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2020-03-05, [3.0 beta2(3.0.123)][r3.0b2] released. 122170 lines.</strong>
 * v3.0, 2020-02-21, For [#1598][bug #1598], support SLB health checking by TCP. 3.0.123
 * v3.0, 2020-02-21, Fix bug for librtmp client ipv4/ipv6 socket. 3.0.122
 * v3.0, 2020-02-18, For [#1579][bug #1579], support start/final wait for gracefully quit. 3.0.121
@@ -745,6 +746,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-03-05, [Release v3.0-b2][r3.0b2], 3.0 beta2, 3.0.123, 122170 lines.
 * 2020-02-14, [Release v3.0-b1][r3.0b1], 3.0 beta1, 3.0.117, 121964 lines.
 * 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
 * 2020-01-21, [Release v3.0-a9][r3.0a9], 3.0 alpha9, 3.0.105, 121577 lines.
@@ -1662,6 +1664,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b2]: https://github.com/ossrs/srs/releases/tag/v3.0-b2
 [r3.0b1]: https://github.com/ossrs/srs/releases/tag/v3.0-b1
 [r3.0b0]: https://github.com/ossrs/srs/releases/tag/v3.0-b0
 [r3.0a9]: https://github.com/ossrs/srs/releases/tag/v3.0-a9
