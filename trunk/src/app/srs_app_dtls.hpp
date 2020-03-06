@@ -21,32 +21,32 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_RTC_HPP
-#define SRS_APP_RTC_HPP
+#ifndef SRS_APP_DTLS_HPP
+#define SRS_APP_DTLS_HPP
 
 #include <srs_core.hpp>
 
-struct sockaddr;
 #include <string>
-#include <map>
 
-#include <srs_app_st.hpp>
-#include <srs_kernel_ts.hpp>
-#include <srs_app_listener.hpp>
+#include <openssl/ssl.h>
 
-class SrsRtcServer;
-
-// The rtc over udp stream receiver
-class SrsRtc : virtual public ISrsUdpRemuxHandler
+class SrsDtls
 {
 private:
-    SrsRtcServer* rtc_server;
+    static SrsDtls* _instance;
+private:
+    std::string fingerprint;
+    SSL_CTX*    dtls_ctx;
+private:
+    SrsDtls();
+    virtual ~SrsDtls();
+
+    void init();
 public:
-    SrsRtc(SrsRtcServer* rtc_svr);
-    virtual ~SrsRtc();
-// Interface ISrsUdpHandler
+    static SrsDtls* instance();
+    SSL_CTX* get_dtls_ctx() { return dtls_ctx; }
 public:
-    virtual srs_error_t on_udp_packet(srs_netfd_t fd, const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    std::string get_fingerprint() const { return fingerprint; }
 };
 
 #endif

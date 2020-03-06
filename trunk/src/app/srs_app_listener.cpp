@@ -59,6 +59,19 @@ srs_error_t ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
     return srs_success;
 }
 
+ISrsUdpRemuxHandler::ISrsUdpRemuxHandler()
+{
+}
+
+ISrsUdpRemuxHandler::~ISrsUdpRemuxHandler()
+{
+}
+
+srs_error_t ISrsUdpRemuxHandler::on_stfd_change(srs_netfd_t /*fd*/)
+{
+    return srs_success;
+}
+
 ISrsTcpHandler::ISrsTcpHandler()
 {
 }
@@ -207,12 +220,51 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
-SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpHandler* h, std::string i, int p) : SrsUdpListener(h, i, p)
+SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, int p)
 {
+    handler = h;
+    ip = i;
+    port = p;
+    lfd = NULL;
+    
+    nb_buf = SRS_UDP_MAX_PACKET_SIZE;
+    buf = new char[nb_buf];
+    
+    trd = new SrsDummyCoroutine();
 }
 
 SrsUdpRemuxListener::~SrsUdpRemuxListener()
 {
+    srs_freep(trd);
+    srs_close_stfd(lfd);
+    srs_freepa(buf);
+}
+
+int SrsUdpRemuxListener::fd()
+{
+    return srs_netfd_fileno(lfd);
+}
+
+srs_netfd_t SrsUdpRemuxListener::stfd()
+{
+    return lfd;
+}
+
+srs_error_t SrsUdpRemuxListener::listen()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+    }
+    
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("udp", this);
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "start thread");
+    }
+    
+    return err;
 }
 
 srs_error_t SrsUdpRemuxListener::cycle()
@@ -233,9 +285,10 @@ srs_error_t SrsUdpRemuxListener::cycle()
             continue;
         }   
     
-        if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
+        if ((err = handler->on_udp_packet(lfd, (const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             //srs_error("udp handle packet error");
             // remux udp never return
+            srs_error("udp remux error:%s", srs_error_desc(err).c_str());
             continue;
         }   
     

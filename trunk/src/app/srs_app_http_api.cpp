@@ -49,73 +49,6 @@ using namespace std;
 #include <srs_app_rtc.hpp>
 #include <srs_app_rtc_conn.hpp>
 
-string test_sdp =
-"v=0\\r\\n"
-"o=- 0 0 IN IP4 127.0.0.1\\r\\n"
-"s=-\\r\\n"
-"t=0 0\\r\\n"
-"a=ice-lite\\r\\n"
-"a=group:BUNDLE 0 1\\r\\n"
-"a=msid-semantic: WMS 6VrfBKXrwK\\r\\n"
-"m=audio 9 UDP/TLS/RTP/SAVPF 111\\r\\n"
-"c=IN IP4 0.0.0.0\\r\\n"
-"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
-"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
-"a=ice-ufrag:xiaozhihongjohn\\r\\n"
-"a=ice-pwd:simple_rtmp_server__john\\r\\n"
-"a=ice-options:trickle\\r\\n"
-"a=fingerprint:sha-256 76:E8:6A:6D:48:F0:86:58:30:2E:69:56:0F:C6:A1:B8:69:98:5D:73:45:93:37:8E:C4:2B:C7:97:04:18:E4:24\\r\\n"
-"a=sendrecv\\r\\n"
-"a=mid:0\\r\\n"
-"a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\\r\\n"
-"a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\\r\\n"
-"a=rtcp-mux\\r\\n"
-"a=rtpmap:111 opus/48000/2\\r\\n"
-"a=fmtp:111 minptime=10;useinbandfec=1\\r\\n"
-"a=maxptime:60\\r\\n"
-"a=ssrc:3233846890 cname:o/i14u9pJrxRKAsu\\r\\n"
-"a=ssrc:3233846890 msid:6VrfBKXrwK a0\\r\\n"
-"a=ssrc:3233846890 mslabel:6VrfBKXrwK\\r\\n"
-"a=ssrc:3233846890 label:6VrfBKXrwKa0\\r\\n"
-"m=video 9 UDP/TLS/RTP/SAVPF 96 98 102\\r\\n"
-"c=IN IP4 0.0.0.0\\r\\n"
-"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
-"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
-"b=as:2000000\\r\\n"
-"a=ice-ufrag:xiaozhihongjohn\\r\\n"
-"a=ice-pwd:simple_rtmp_server__john\\r\\n"
-"a=ice-options:trickle\\r\\n"
-"a=extmap:2 urn:ietf:params:rtp-hdrext:toffset\\r\\n"
-"a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\\r\\n"
-"a=extmap:4 urn:3gpp:video-orientation\\r\\n"
-"a=fingerprint:sha-256 76:E8:6A:6D:48:F0:86:58:30:2E:69:56:0F:C6:A1:B8:69:98:5D:73:45:93:37:8E:C4:2B:C7:97:04:18:E4:24\\r\\n"
-"a=sendrecv\\r\\n"
-"a=mid:1\\r\\n"
-"a=rtcp-mux\\r\\n"
-"a=rtpmap:96 VP8/90000\\r\\n"
-"a=rtcp-fb:96 ccm fir\\r\\n"
-"a=rtcp-fb:96 nack\\r\\n"
-"a=rtcp-fb:96 nack pli\\r\\n"
-"a=rtcp-fb:96 goog-remb\\r\\n"
-"a=rtcp-fb:96 transport-cc\\r\\n"
-"a=rtpmap:98 VP9/90000\\r\\n"
-"a=rtcp-fb:98 ccm fir\\r\\n"
-"a=rtcp-fb:98 nack\\r\\n"
-"a=rtcp-fb:98 nack pli\\r\\n"
-"a=rtcp-fb:98 goog-remb\\r\\n"
-"a=rtcp-fb:98 transport-cc\\r\\n"
-"a=rtpmap:102 H264/90000\\r\\n"
-"a=rtcp-fb:102 goog-remb\\r\\n"
-"a=rtcp-fb:102 transport-cc\\r\\n"
-"a=rtcp-fb:102 ccm fir \\r\\n"
-"a=rtcp-fb:102 nack\\r\\n"
-"a=rtcp-fb:102 nack pli \\r\\n"
-"a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f\\r\\n"
-"a=ssrc:3233846889 cname:o/i14u9pJrxRKAsu\\r\\n"
-"a=ssrc:3233846889 msid:6VrfBKXrwK v0\\r\\n"
-"a=ssrc:3233846889 mslabel:6VrfBKXrwK\\r\\n"
-"a=ssrc:3233846889 label:6VrfBKXrwKv0\\r\\n";
-
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
     srs_error_t err = srs_success;
@@ -849,9 +782,10 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
-SrsGoApiSdp::SrsGoApiSdp(SrsServer* svr)
+SrsGoApiSdp::SrsGoApiSdp(SrsServer* svr, SrsRtcServer* rtc_svr)
 {
     server = svr;
+    rtc_server = rtc_svr;
 }
 
 SrsGoApiSdp::~SrsGoApiSdp()
@@ -888,15 +822,24 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
 
-    string remote_sdp = remote_sdp_obj->to_str();
+    string remote_sdp_str = remote_sdp_obj->to_str();
     string app = app_obj->to_str();
     string stream_name = stream_name_obj->to_str();
 
-    srs_trace("remote_sdp=%s", remote_sdp.c_str());
+    srs_trace("remote_sdp_str=%s", remote_sdp_str.c_str());
     srs_trace("app=%s, stream=%s", app.c_str(), stream_name.c_str());
 
-    SrsSdp srs_sdp;
-    err = srs_sdp.parse(remote_sdp);
+    SrsSdp remote_sdp;
+    err = remote_sdp.decode(remote_sdp_str);
+    if (err != srs_success) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    SrsSdp local_sdp;
+    rtc_server->create_rtc_session(remote_sdp, local_sdp);
+
+    string local_sdp_str = "";
+    err = local_sdp.encode(local_sdp_str);
     if (err != srs_success) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
@@ -906,9 +849,20 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::integer(stat->server_id()));
+
+    string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:9527 typ host generation 0 ufrag " 
+        + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
+
+    SrsJsonObject* candidate_obj = SrsJsonAny::object();
+    //SrsAutoFree(SrsJsonObject, candidate_obj);
+
+    candidate_obj->set("candidate", SrsJsonAny::str(candidate_str.c_str()));
+    candidate_obj->set("sdpMid", SrsJsonAny::str("0"));
+    candidate_obj->set("sdpMLineIndex", SrsJsonAny::str("0"));
     
     if (r->is_http_post()) {
-        obj->set("sdp", SrsJsonAny::str(test_sdp.c_str()));
+        obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+        obj->set("candidate", candidate_obj);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

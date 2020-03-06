@@ -69,7 +69,7 @@ SrsRtc::~SrsRtc()
 {
 }
 
-srs_error_t SrsRtc::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
+srs_error_t SrsRtc::on_udp_packet(srs_netfd_t fd, const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     char address_string[64];
     char port_string[16];
@@ -82,5 +82,5 @@ srs_error_t SrsRtc::on_udp_packet(const sockaddr* from, const int fromlen, char*
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
 
-    return rtc_server->on_udp_packet(peer_ip, peer_port, buf, nb_buf);
+    return rtc_server->on_udp_packet(fd, peer_ip, peer_port, from, fromlen, buf, nb_buf);
 }

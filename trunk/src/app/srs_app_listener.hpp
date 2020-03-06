@@ -54,6 +54,16 @@ public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
 };
 
+class ISrsUdpRemuxHandler
+{
+public:
+    ISrsUdpRemuxHandler();
+    virtual ~ISrsUdpRemuxHandler();
+public:
+    virtual srs_error_t on_stfd_change(srs_netfd_t fd);
+    virtual srs_error_t on_udp_packet(srs_netfd_t fd, const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
+};
+
 // The tcp connection handler.
 class ISrsTcpHandler
 {
@@ -113,11 +123,27 @@ public:
     virtual srs_error_t cycle();
 };
 
-class SrsUdpRemuxListener : public SrsUdpListener
+class SrsUdpRemuxListener : public ISrsCoroutineHandler
 {
+protected:
+    srs_netfd_t lfd;
+    SrsCoroutine* trd;
+protected:
+    char* buf;
+    int nb_buf;
+protected:
+    ISrsUdpRemuxHandler* handler;
+    std::string ip;
+    int port;
 public:
-    SrsUdpRemuxListener(ISrsUdpHandler* h, std::string i, int p);
+    SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, int p);
     virtual ~SrsUdpRemuxListener();
+public:
+    virtual int fd();
+    virtual srs_netfd_t stfd();
+public:
+    virtual srs_error_t listen();
+// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };

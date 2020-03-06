@@ -397,6 +397,11 @@ int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, in
     return st_recvfrom((st_netfd_t)stfd, buf, len, from, fromlen, (st_utime_t)timeout);
 }
 
+int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr * to, int tolen, srs_utime_t timeout)
+{
+    return st_sendto((st_netfd_t)stfd, buf, len, to, tolen, (st_utime_t)timeout);
+}
+
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)
 {
     return (srs_netfd_t)st_accept((st_netfd_t)stfd, addr, addrlen, (st_utime_t)timeout);

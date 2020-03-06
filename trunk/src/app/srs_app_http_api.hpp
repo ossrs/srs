@@ -31,6 +31,7 @@ class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
 class SrsServer;
+class SrsRtcServer;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
@@ -168,8 +169,9 @@ class SrsGoApiSdp : public ISrsHttpHandler
 {
 private:
     SrsServer* server;
+    SrsRtcServer* rtc_server;
 public:
-    SrsGoApiSdp(SrsServer* svr);
+    SrsGoApiSdp(SrsServer* svr, SrsRtcServer* rtc_svr);
     virtual ~SrsGoApiSdp();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

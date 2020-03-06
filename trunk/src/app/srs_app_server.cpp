@@ -838,7 +838,7 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/streams/", new SrsGoApiStreams())) != srs_success) {
         return srs_error_wrap(err, "handle streams");
     }
-    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(this))) != srs_success) {
+    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(this, rtc_server))) != srs_success) {
         return srs_error_wrap(err, "handle sdp");
     }
     if ((err = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {

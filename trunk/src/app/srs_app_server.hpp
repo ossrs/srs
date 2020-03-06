@@ -162,8 +162,8 @@ public:
 class SrsRtcListener : public SrsListener
 {
 protected:
-    SrsUdpListener* listener;
-    ISrsUdpHandler* rtc;
+    SrsUdpRemuxListener* listener;
+    ISrsUdpRemuxHandler* rtc;
 public:
     SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t);
     virtual ~SrsRtcListener();
