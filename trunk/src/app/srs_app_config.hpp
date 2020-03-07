@@ -496,6 +496,7 @@ public:
     virtual int get_rtc_enabled();
     virtual bool get_rtc_enabled(SrsConfDirective* conf);
     virtual int get_rtc_listen();
+    virtual std::string get_rtc_candidates();
 
 // vhost specified section
 public:

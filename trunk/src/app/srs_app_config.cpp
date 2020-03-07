@@ -4255,6 +4255,23 @@ int SrsConfig::get_rtc_listen()
     return ::atoi(conf->arg0().c_str());
 }
 
+std::string SrsConfig::get_rtc_candidates()
+{
+    static string DEFAULT = "*";
+    
+    SrsConfDirective* conf = root->get("rtc");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("candidate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);

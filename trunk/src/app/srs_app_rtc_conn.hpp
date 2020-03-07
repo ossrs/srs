@@ -37,6 +37,16 @@
 class SrsServer;
 class SrsStunPacket;
 
+class SrsCandidate
+{
+private:
+public:
+    SrsCandidate();
+    virtual ~SrsCandidate();
+
+    static std::vector<std::string> get_candidate_ips();
+};
+
 class SrsSdpMediaInfo
 {
 private:
@@ -151,6 +161,7 @@ public:
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+
     virtual srs_error_t on_udp_packet(srs_netfd_t fd, const std::string& peer_ip, const int peer_port, 
         const sockaddr* from, const int fromlen, const char* data, const int size);
 

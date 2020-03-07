@@ -850,19 +850,20 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     obj->set("server", SrsJsonAny::integer(stat->server_id()));
 
-    string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:9527 typ host generation 0 ufrag " 
-        + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
+    // XXX: ice candidate
+    //string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:9527 typ host generation 0 ufrag " 
+    //    + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
 
-    SrsJsonObject* candidate_obj = SrsJsonAny::object();
+    //SrsJsonObject* candidate_obj = SrsJsonAny::object();
     //SrsAutoFree(SrsJsonObject, candidate_obj);
 
-    candidate_obj->set("candidate", SrsJsonAny::str(candidate_str.c_str()));
-    candidate_obj->set("sdpMid", SrsJsonAny::str("0"));
-    candidate_obj->set("sdpMLineIndex", SrsJsonAny::str("0"));
+    //candidate_obj->set("candidate", SrsJsonAny::str(candidate_str.c_str()));
+    //candidate_obj->set("sdpMid", SrsJsonAny::str("0"));
+    //candidate_obj->set("sdpMLineIndex", SrsJsonAny::str("0"));
     
     if (r->is_http_post()) {
         obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-        obj->set("candidate", candidate_obj);
+        // obj->set("candidate", candidate_obj);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

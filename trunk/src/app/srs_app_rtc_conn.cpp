@@ -39,6 +39,8 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_stun_stack.hpp>
 #include <srs_app_dtls.hpp>
+#include <srs_app_config.hpp>
+#include <srs_service_utility.hpp>
 
 static bool is_stun(const char* data, const int size) 
 {
@@ -70,6 +72,33 @@ static string gen_random_str(int len)
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
+
+SrsCandidate::SrsCandidate()
+{
+}
+
+SrsCandidate::~SrsCandidate()
+{
+}
+
+std::vector<std::string> SrsCandidate::get_candidate_ips()
+{
+    std::vector<std::string> candidate_ips;
+
+    string candidate = _srs_config->get_rtc_candidates();
+    if (candidate == "*" || candidate == "0.0.0.0") {
+        std::vector<std::string> tmp = srs_get_local_ips();
+        for (int i = 0; i < tmp.size(); ++i) {
+            if (tmp[i] != "127.0.0.1") {
+                candidate_ips.push_back(tmp[i]);
+            }
+        }
+    } else {
+        candidate_ips.push_back(candidate);
+    }
+
+    return candidate_ips;
+}
 
 SrsSdpMediaInfo::SrsSdpMediaInfo()
 {
@@ -139,6 +168,15 @@ srs_error_t SrsSdp::encode(string& sdp_str)
 {
     srs_error_t err = srs_success;
 
+    string candidate_lines = "";
+
+    std::vector<string> candidate_ips = SrsCandidate::get_candidate_ips();
+    for (int i = 0; i < candidate_ips.size(); ++i) {
+        ostringstream os;
+        os << "a=candidate:10 1 udp 2115783679 " << candidate_ips[i] << " " << _srs_config->get_rtc_listen() <<" typ host generation 0\\r\\n";
+        candidate_lines += os.str();
+    }
+
     // FIXME:
     sdp_str = 
 		"v=0\\r\\n"
@@ -150,7 +188,7 @@ srs_error_t SrsSdp::encode(string& sdp_str)
 		"a=msid-semantic: WMS 6VrfBKXrwK\\r\\n"
 		"m=audio 9 UDP/TLS/RTP/SAVPF 111\\r\\n"
 		"c=IN IP4 0.0.0.0\\r\\n"
-		"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
+        + candidate_lines +
 		"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
 		"a=ice-ufrag:" + ice_ufrag + "\\r\\n"
 		"a=ice-pwd:" + ice_pwd + "\\r\\n"
@@ -170,7 +208,7 @@ srs_error_t SrsSdp::encode(string& sdp_str)
 		"a=ssrc:3233846890 label:6VrfBKXrwKa0\\r\\n"
 		"m=video 9 UDP/TLS/RTP/SAVPF 96 98 102\\r\\n"
 		"c=IN IP4 0.0.0.0\\r\\n"
-		"a=candidate:10 1 udp 2115783679 192.168.170.129 9527 typ host generation 0\\r\\n"
+        + candidate_lines +
 		"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
 		"b=as:2000000\\r\\n"
 		"a=ice-ufrag:" + ice_ufrag + "\\r\\n"
