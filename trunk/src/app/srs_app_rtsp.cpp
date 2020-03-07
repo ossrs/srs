@@ -242,6 +242,7 @@ srs_error_t SrsRtspConn::serve()
 
 std::string SrsRtspConn::remote_ip()
 {
+    // TODO: FIXME: Implement it.
     return "";
 }
 

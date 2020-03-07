@@ -179,6 +179,8 @@ SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirec
     srs_assert(type == SrsListenerRtsp);
     if (type == SrsListenerRtsp) {
         caster = new SrsRtspCaster(c);
+
+        // TODO: FIXME: Must check error.
         caster->initialize();
     }
 }

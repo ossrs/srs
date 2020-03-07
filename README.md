@@ -153,6 +153,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-07, For [#1612][bug #1612], fix crash bug for RTSP. 4.0.12
 * v4.0, 2020-03-07, For [#1631][bug #1631], support sei_filter for SRT. 4.0.11
 * v4.0, 2020-03-01, For [#1621][bug #1621], support mix_correct for aggregate aac for SRT. 4.0.10
 * v4.0, 2020-02-25, For [#1615][bug #1615], support default app(live) for vmix SRT. 4.0.9
@@ -1693,6 +1694,7 @@ Winlin
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
+[bug #1612]: https://github.com/ossrs/srs/issues/1612
 [bug #xxxxxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxxxxx
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
