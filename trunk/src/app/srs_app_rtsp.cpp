@@ -712,6 +712,7 @@ srs_error_t SrsRtspCaster::initialize()
     if ((err = manager->start()) != srs_success) {
         return srs_error_wrap(err, "start manager");
     }
+    return err;
 }
 
 srs_error_t SrsRtspCaster::alloc_port(int* pport)
