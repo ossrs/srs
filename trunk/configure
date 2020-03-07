@@ -730,7 +730,6 @@ fi
 # next step
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
     echo ""
     echo "You can run 3rdparty applications:"
     if [ $SRS_HTTP_CALLBACK = YES ]; then

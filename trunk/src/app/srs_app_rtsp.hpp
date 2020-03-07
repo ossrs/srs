@@ -100,7 +100,7 @@ public:
 };
 
 // The rtsp connection serve the fd.
-class SrsRtspConn : public ISrsCoroutineHandler
+class SrsRtspConn : public ISrsCoroutineHandler, public ISrsConnection
 {
 private:
     std::string output_template;
@@ -143,6 +143,7 @@ public:
     virtual ~SrsRtspConn();
 public:
     virtual srs_error_t serve();
+    virtual std::string remote_ip();
 private:
     virtual srs_error_t do_cycle();
 // internal methods
@@ -179,6 +180,7 @@ private:
     std::map<int, bool> used_ports;
 private:
     std::vector<SrsRtspConn*> clients;
+    SrsCoroutineManager* manager;
 public:
     SrsRtspCaster(SrsConfDirective* c);
     virtual ~SrsRtspCaster();
@@ -188,6 +190,7 @@ public:
     virtual srs_error_t alloc_port(int* pport);
     // Free the alloced rtp port.
     virtual void free_port(int lpmin, int lpmax);
+    virtual srs_error_t initialize();
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);

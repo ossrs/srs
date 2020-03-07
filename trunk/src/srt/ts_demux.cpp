@@ -259,11 +259,21 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                     if(ts_header_info._payload_unit_start_indicator){
                         unsigned char* ret_data_p = nullptr;
                         size_t ret_size = 0;
+                        uint64_t dts = 0;
+                        uint64_t pts = 0;
                         
                         //callback last media data in data buffer
                         on_callback(callback, _last_pid, key_path, _last_dts, _last_pts);
 
-                        pes_parse(data_p+npos, npos, &ret_data_p, ret_size, _last_dts, _last_pts);
+                        int ret = pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
+                        assert(ret <= 188);
+                        if (ret > 188) {
+                            return -1;
+                        }
+
+                        _last_pts = pts;
+                        _last_dts = (dts == 0) ? pts : dts;
+
                         if ((ret_data_p != nullptr) && (ret_size > 0)) {
                             insert_into_databuf(ret_data_p, ret_size, key_path, ts_header_info._PID);
                         }
@@ -290,7 +300,6 @@ int ts_demux::decode(SRT_DATA_MSG_PTR data_ptr, TS_DATA_CALLBACK_PTR callback)
     {
         return -1;
     }
-
 
     unsigned int count = data_ptr->data_len()/188;
     path = data_ptr->get_path();
