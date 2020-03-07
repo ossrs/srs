@@ -129,6 +129,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         switch (type) {
             // FIXME: enum 
             case 6: {
+                username = val;
                 size_t p = val.find(":");
                 if (p != string::npos) {
                     local_ufrag = val.substr(0, p);

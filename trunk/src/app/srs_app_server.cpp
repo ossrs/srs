@@ -44,7 +44,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
-#include <srs_app_rtc.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
@@ -342,7 +341,7 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
 SrsRtcListener::SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t) : SrsListener(svr, t)
 {
     srs_assert(type == SrsListenerRtc);
-    rtc = new SrsRtc(rtc_svr);
+    rtc = rtc_svr;
 }
 
 SrsRtcListener::~SrsRtcListener()
@@ -528,7 +527,7 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
-    rtc_server = new SrsRtcServer(this);
+    rtc_server = new SrsRtcServer();
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
 }

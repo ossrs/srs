@@ -26,12 +26,16 @@
 
 #include <srs_core.hpp>
 
+#include <sys/socket.h>
+
 #include <string>
 
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
 struct sockaddr;
+
+class SrsUdpRemuxSocket;
 
 // The udp packet handler.
 class ISrsUdpHandler
@@ -61,7 +65,7 @@ public:
     virtual ~ISrsUdpRemuxHandler();
 public:
     virtual srs_error_t on_stfd_change(srs_netfd_t fd);
-    virtual srs_error_t on_udp_packet(srs_netfd_t fd, const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
+    virtual srs_error_t on_udp_packet(SrsUdpRemuxSocket* udp_remux_socket) = 0;
 };
 
 // The tcp connection handler.
@@ -121,6 +125,31 @@ public:
 // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
+};
+
+class SrsUdpRemuxSocket
+{
+private:
+    char* buf;
+    int nb_buf;
+    int nread;
+    srs_netfd_t lfd;
+    sockaddr_storage from;
+    int fromlen;
+    std::string peer_ip;
+    int peer_port;
+public:
+    SrsUdpRemuxSocket(srs_netfd_t fd);
+    virtual ~SrsUdpRemuxSocket();
+
+    int recvfrom(srs_utime_t timeout);
+    int sendto(void* data, int size, srs_utime_t timeout);
+
+    char* data() { return buf; }
+    int size() { return nread; }
+    std::string get_peer_ip() const { return peer_ip; }
+    int get_peer_port() const { return peer_port; }
+    std::string get_peer_id();
 };
 
 class SrsUdpRemuxListener : public ISrsCoroutineHandler

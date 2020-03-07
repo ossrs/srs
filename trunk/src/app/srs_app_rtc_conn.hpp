@@ -25,6 +25,7 @@
 #define SRS_APP_RTC_CONN_HPP
 
 #include <srs_core.hpp>
+#include <srs_app_listener.hpp>
 #include <srs_service_st.hpp>
 
 #include <string>
@@ -34,6 +35,7 @@
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
 
+class SrsUdpRemuxSocket;
 class SrsServer;
 class SrsStunPacket;
 
@@ -103,37 +105,39 @@ private:
     srtp_t srtp_send;
     srtp_t srtp_recv;
 
-    srs_netfd_t fd;
-    const sockaddr* from;
-    int fromlen;
-
     bool handshake_done;
 
 public:
-    SrsDtlsSession(srs_netfd_t lfd, const sockaddr* f, int fl);
+    SrsDtlsSession();
     virtual ~SrsDtlsSession();
 
-    srs_error_t on_dtls(const char* data, const int len);
+    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_application_data(const char* data, const int len);
 
-    void send_client_hello();
-    srs_error_t handshake();
+    void send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t handshake(SrsUdpRemuxSocket* udp_remux_socket);
+ 
+private:
     srs_error_t srtp_init();
     srs_error_t srtp_sender_side_init();
     srs_error_t srtp_receiver_side_init();
 };
 
+class SrsRtcServer;
+
 class SrsRtcSession
 {
 private:
+    SrsRtcServer* rtc_server;
     SrsSdp  remote_sdp;
     SrsSdp  local_sdp;
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
 public:
-    SrsRtcSession();
+    SrsRtcSession(SrsRtcServer* svr);
     virtual ~SrsRtcSession();
-
+public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
     SrsSdp* get_remote_sdp() { return &remote_sdp; }
     SrsRtcSessionStateType get_session_state() { return session_state; }
@@ -141,40 +145,37 @@ public:
     void set_local_sdp(const SrsSdp& sdp) { local_sdp = sdp; }
     void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
     void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
-
-    srs_error_t on_udp_packet(const std::string& peer_ip, const int peer_port, const char* data, const int size);
-    srs_error_t on_binding_request(const SrsStunPacket& stun_packet, const std::string& peer_ip, const uint16_t peer_port, 
-        SrsStunPacket& stun_binding_response);
-    srs_error_t on_dtls(const char* buf, const int nb_buf);
-    srs_error_t send_client_hello(srs_netfd_t fd, const sockaddr* from, int fromlen);
-    srs_error_t send_packet();
+public:
+    srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
+    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
+public:
+    srs_error_t send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
+private:
+    srs_error_t on_binding_request(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
 };
 
-class SrsRtcServer
+class SrsRtcServer : public ISrsUdpRemuxHandler
 {
 private:
-    SrsServer* server;
-    std::map<std::string, SrsRtcSession*> map_ufrag_sessions;
-    std::map<std::string, SrsRtcSession*> map_ip_port_sessions;
+    std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
+    std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
 public:
-    SrsRtcServer(SrsServer* svr);
+    SrsRtcServer();
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
 
-    virtual srs_error_t on_udp_packet(srs_netfd_t fd, const std::string& peer_ip, const int peer_port, 
-        const sockaddr* from, const int fromlen, const char* data, const int size);
+    virtual srs_error_t on_udp_packet(SrsUdpRemuxSocket* udp_remux_socket);
 
     SrsRtcSession* create_rtc_session(const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    bool insert_into_ip_port_sessions(const std::string& peer_ip, const uint16_t peer_port, SrsRtcSession* rtc_session);
+    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
 private:
-    srs_error_t on_stun(srs_netfd_t fd, const std::string& peer_ip, const int peer_port, const sockaddr* from, const int fromlen, const char* data, const int size);
-    srs_error_t on_dtls(srs_netfd_t fd, const std::string& peer_ip, const int peer_port, const sockaddr* from, const int fromlen, const char* data, const int size);
-    srs_error_t on_rtp_or_rtcp(srs_netfd_t fd, const std::string& peer_ip, const int peer_port, 
-        const sockaddr* from, const int fromlen, const char* data, const int size);
+    srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket);
 private:
-    SrsRtcSession* find_rtc_session_by_ufrag(const std::string& ufrag);
-    SrsRtcSession* find_rtc_session_by_ip_port(const std::string& peer_ip, const uint16_t peer_port);
+    SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
+    SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
 };
 
 #endif

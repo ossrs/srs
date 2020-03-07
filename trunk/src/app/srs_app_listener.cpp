@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -220,6 +221,57 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
+SrsUdpRemuxSocket::SrsUdpRemuxSocket(srs_netfd_t fd)
+{
+    nb_buf = SRS_UDP_MAX_PACKET_SIZE;
+    buf = new char[nb_buf];
+    nread = 0;
+
+    lfd = fd;
+
+    fromlen = 0;
+}
+
+SrsUdpRemuxSocket::~SrsUdpRemuxSocket()
+{
+    srs_freepa(buf);
+}
+
+int SrsUdpRemuxSocket::recvfrom(srs_utime_t timeout)
+{
+    fromlen = sizeof(from);
+    nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
+
+    if (nread > 0) {
+	    char address_string[64];
+        char port_string[16];
+        if (getnameinfo((sockaddr*)&from, fromlen, 
+                       (char*)&address_string, sizeof(address_string),
+                       (char*)&port_string, sizeof(port_string),
+                       NI_NUMERICHOST|NI_NUMERICSERV)) {
+            return -1;
+        }   
+
+        peer_ip = std::string(address_string);
+        peer_port = atoi(port_string);	
+    }
+
+    return nread;
+}
+
+int SrsUdpRemuxSocket::sendto(void* data, int size, srs_utime_t timeout)
+{
+    return srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
+}
+
+std::string SrsUdpRemuxSocket::get_peer_id()
+{
+    char id_buf[1024];
+    int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
+
+    return string(id_buf, len);
+}
+
 SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, int p)
 {
     handler = h;
@@ -276,19 +328,17 @@ srs_error_t SrsUdpRemuxListener::cycle()
             return srs_error_wrap(err, "udp listener");
         }   
 
-        int nread = 0;
-        sockaddr_storage from;
-        int nb_from = sizeof(from);
-        if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
+        SrsUdpRemuxSocket udp_remux_socket(lfd);
+
+        if (udp_remux_socket.recvfrom(SRS_UTIME_NO_TIMEOUT) <= 0) {
             srs_error("udp recv error");
             // remux udp never return
             continue;
         }   
     
-        if ((err = handler->on_udp_packet(lfd, (const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
-            //srs_error("udp handle packet error");
+        if ((err = handler->on_udp_packet(&udp_remux_socket)) != srs_success) {
             // remux udp never return
-            srs_error("udp remux error:%s", srs_error_desc(err).c_str());
+            srs_error("udp packet handler error:%s", srs_error_desc(err).c_str());
             continue;
         }   
     

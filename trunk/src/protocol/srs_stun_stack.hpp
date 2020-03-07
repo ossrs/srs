@@ -70,6 +70,7 @@ class SrsStunPacket
 {
 private:
     uint16_t message_type;
+    std::string username;
     std::string local_ufrag;
     std::string remote_ufrag;
     std::string transcation_id;
@@ -83,6 +84,7 @@ public:
     bool is_binding_response() const { return message_type == BindingResponse; }
 
     uint16_t get_message_type() const { return message_type; }
+    std::string get_username() const { return username; }
     std::string get_local_ufrag() const { return local_ufrag; }
     std::string get_remote_ufrag() const { return remote_ufrag; }
     std::string get_transcation_id() const { return transcation_id; }
