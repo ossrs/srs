@@ -459,6 +459,12 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
             continue;
         }
+
+        if (_srs_config->get_srt_sei_filter()) {
+            if (nal_unit_type == SrsAvcNaluTypeSEI) {
+                continue;
+            }
+        }
         
         // for sps
         if (_avc_ptr->is_sps(frame, frame_size)) {
@@ -624,8 +630,7 @@ void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media
     } else if (media_type == STREAM_TYPE_AUDIO_AAC) {
         on_ts_audio(avs_ptr, dts, pts);
     } else {
-        srs_error("mpegts demux unkown stream type:0x%02x", media_type);
-        assert(0);
+        srs_error("mpegts demux unkown stream type:0x%02x, only support h264+aac", media_type);
     }
     return;
 }
