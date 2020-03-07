@@ -613,6 +613,8 @@ public:
     virtual int get_srto_recv_latency();
     // Get the srt SRTO_PEERLATENCY, peer latency, default is 0..
     virtual int get_srto_peer_latency();
+    // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
+    virtual bool get_srt_sei_filter();
     // Get the srt SRTO_TLPKDROP, Too-late Packet Drop, default is true.
     virtual bool get_srto_tlpkdrop();
     // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
