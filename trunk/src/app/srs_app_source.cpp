@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_rtp.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_encoder.hpp>
@@ -824,6 +825,7 @@ SrsOriginHub::SrsOriginHub()
     dash = new SrsDash();
     dvr = new SrsDvr();
     encoder = new SrsEncoder();
+    rtp = new SrsRtp();
 #ifdef SRS_AUTO_HDS
     hds = new SrsHds();
 #endif
@@ -866,6 +868,10 @@ srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
     
     if ((err = format->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
+    }
+    
+    if ((err = rtp->initialize(this, req)) != srs_success) {
+        return srs_error_wrap(err, "rtp initialize");
     }
     
     if ((err = hls->initialize(this, req)) != srs_success) {
@@ -965,6 +971,12 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
                   srs_flv_srates[c->sound_rate]);
     }
+
+    if ((err = rtp->on_audio(msg, format)) != srs_success) {
+        srs_warn("rtp: ignore audio error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+        rtp->on_unpublish();
+    }
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
@@ -1058,6 +1070,12 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if (format->vcodec && !format->vcodec->is_avc_codec_ok()) {
         return err;
     }
+
+    if ((err = rtp->on_video(msg, format)) != srs_success) {
+        srs_warn("rtp: ignore video error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+        rtp->on_unpublish();
+    }
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // apply the error strategy for hls.
@@ -1126,6 +1144,10 @@ srs_error_t SrsOriginHub::on_publish()
         return srs_error_wrap(err, "encoder publish");
     }
     
+    if ((err = rtp->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "rtp publish");
+    }
+
     if ((err = hls->on_publish()) != srs_success) {
         return srs_error_wrap(err, "hls publish");
     }
@@ -1163,6 +1185,7 @@ void SrsOriginHub::on_unpublish()
     destroy_forwarders();
     
     encoder->on_unpublish();
+    rtp->on_unpublish();
     hls->on_unpublish();
     dash->on_unpublish();
     dvr->on_unpublish();
@@ -2224,7 +2247,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
         return srs_error_wrap(err, "create message");
     }
     
-    // directly process the audio message.
+    // directly process the video message.
     if (!mix_correct) {
         return on_video_imp(&msg);
     }

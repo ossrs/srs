@@ -47,14 +47,14 @@ static bool is_stun(const char* data, const int size)
     return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1); 
 }
 
-static bool is_rtp_or_rtcp(const char* data, const int size) 
+static bool is_dtls(const char* data, size_t len) 
 {
-    return data != NULL && size > 0 && (data[0] >= 128 && data[0] <= 191);
+  	return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-static bool is_dtls(const char* data, const int size) 
+static bool is_rtp_or_rtcp(const char* data, size_t len) 
 {
-    return data != NULL && size > 0 && (data[0] >= 20 && data[0] <= 64);
+  	return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
 static string gen_random_str(int len)

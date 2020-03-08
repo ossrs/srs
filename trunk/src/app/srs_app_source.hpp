@@ -54,6 +54,7 @@ class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
+class SrsRtp;
 class SrsDvr;
 class SrsDash;
 class SrsEncoder;
@@ -335,6 +336,8 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
+    // rtp handler
+    SrsRtp* rtp;
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
