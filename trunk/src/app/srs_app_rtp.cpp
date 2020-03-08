@@ -73,82 +73,22 @@ static string dump_string_hex(const char* buf, const int nb_buf, const int& max_
     return string(tmp_buf, len);
 }
 
-
-SrsRtpRawFrame::SrsRtpRawFrame(char* buf, int len)
-{
-    if (buf && len > 0) {
-        payload = new char[len];
-        size = len;
-        memcpy(payload, buf, len);
-    } else {
-        payload = NULL;
-        size = 0;
-    }
-}
-
-SrsRtpRawFrame::~SrsRtpRawFrame()
-{
-    if (payload) {
-        delete [] payload;
-        payload = NULL;
-        size = 0;
-    }
-}
-
-srs_error_t SrsRtpRawFrame::avcc_to_annexb()
-{
-    srs_error_t err = srs_success;
-
-    if (! (payload[0] == 0x00 && payload[1] == 0x00 && payload[2] == 0x00 && payload[3] == 0x01)) {
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtpRawFrame::frame_to_packet()
-{
-    srs_error_t err = srs_success;
-    if (payload == NULL || size <= 4) {
-        return srs_error_wrap(err, "invalid rtp raw frame");
-    }
-
-    avcc_to_annexb();
-
-    char buf[1500] = {0};
-    SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
-}
-
 SrsRtpMuxer::SrsRtpMuxer()
 {
+    sequence = 0;
 }
 
 SrsRtpMuxer::~SrsRtpMuxer()
 {
 }
 
-srs_error_t SrsRtpMuxer::video_frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format)
+srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
 {
     srs_error_t err = srs_success;
 
-    if (shared_video->size < 5) {
-        return srs_error_wrap(err, "invalid video size:%d", shared_video->size);
+    for (int i = 0; i < format->video->nb_samples; ++i) {
+        SrsSample sample = format->video->samples[i];
     }
-
-    SrsRtpRawFrame* rtp_raw_frame = new SrsRtpRawFrame(shared_video->payload + 5, shared_video->size - 5);
-    SrsAutoFree(SrsRtpRawFrame, rtp_raw_frame);
-
-    rtp_raw_frame->frame_to_packet();
-
-    srs_trace("video dump=%s", dump_string_hex(shared_video->payload, shared_video->size).c_str());
-
-    //srs_avcc_to_annexb(raw, raw_len);
-
-    return err;
-}
-
-srs_error_t SrsRtpMuxer::audio_frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format)
-{
-    srs_error_t err = srs_success;
 
     return err;
 }
@@ -188,7 +128,7 @@ srs_error_t SrsRtp::initialize(SrsOriginHub* h, SrsRequest* r)
     hub = h;
     req = r;
 
-    rtp_muxer = new SrsRtpMuxer();
+    rtp_h264_muxer = new SrsRtpMuxer();
     
     return err;
 }
@@ -255,7 +195,8 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // ignore sequence header
     srs_assert(format->audio);
 
-    return rtp_muxer->audio_frame_to_packet(audio, format);
+    // TODO: rtc no support aac
+    return err;
 }
 
 srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
@@ -281,5 +222,5 @@ srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video);
-    return rtp_muxer->video_frame_to_packet(video, format);
+    return rtp_h264_muxer->frame_to_packet(video, format);
 }

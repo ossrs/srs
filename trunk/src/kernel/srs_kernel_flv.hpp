@@ -38,6 +38,7 @@ class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
+class SrsSample;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -285,6 +286,9 @@ public:
     // @remark, not all message payload can be decoded to packet. for example,
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
+
+    SrsSample* rtp_fragments;
+    int nb_rtp_fragments;
 private:
     class SrsSharedPtrPayload
     {
@@ -298,6 +302,8 @@ private:
         int size;
         // The reference count
         int shared_count;
+        SrsSample* rtp_fragments;
+        int nb_rtp_fragments;
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();

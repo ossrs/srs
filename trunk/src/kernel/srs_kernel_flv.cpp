@@ -203,6 +203,8 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;
     size = 0;
+    rtp_fragments = NULL;
+    nb_rtp_fragments = 0;
     shared_count = 0;
 }
 
@@ -214,7 +216,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_freepa(payload);
 }
 
-SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
+SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL), rtp_fragments(NULL), nb_rtp_fragments(0)
 {
     ptr = NULL;
 }
@@ -345,6 +347,8 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
+    copy->rtp_fragments = ptr->rtp_fragments;
+    copy->nb_rtp_fragments = ptr->nb_rtp_fragments;
     
     return copy;
 }

@@ -35,30 +35,16 @@ class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsOriginHub;
 
-class SrsRtpRawFrame
-{
-public:
-    int64_t timestamp;
-    char* payload;
-    int size;
-public:
-    SrsRtpRawFrame(char* buf, int len);
-    virtual ~SrsRtpRawFrame();
-public:
-    srs_error_t avcc_to_annexb();
-    srs_error_t frame_to_packet();
-};
-
 class SrsRtpMuxer
 {
 private:
+    uint32_t sequence;
     std::map<uint32_t, std::string> packet_queue;
 public:
     SrsRtpMuxer();
     virtual ~SrsRtpMuxer();
 public:
-    srs_error_t video_frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-    srs_error_t audio_frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+    srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 class SrsRtp
@@ -68,7 +54,7 @@ private:
     bool enabled;
     bool disposable;
     srs_utime_t last_update_time;
-    SrsRtpMuxer* rtp_muxer;
+    SrsRtpMuxer* rtp_h264_muxer;
     SrsOriginHub* hub;
 public:
     SrsRtp();
