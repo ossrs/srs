@@ -38,8 +38,12 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_stun_stack.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_rtmp_msg_array.hpp>
 #include <srs_app_dtls.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
 
 static bool is_stun(const char* data, const int size) 
@@ -72,6 +76,29 @@ static string gen_random_str(int len)
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
+
+static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len);
+static string dump_string_hex(const std::string& str, const int& max_len = 128)
+{
+    return dump_string_hex(str.c_str(), str.size(), max_len);
+}
+
+static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
+{
+    char tmp_buf[1024*16];
+    int len = 0;
+    
+    for (int i = 0; i < nb_buf && i < max_len; ++i) {
+        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 1, "%02X ", (uint8_t)buf[i]);
+        if (nb <= 0)
+            break;
+
+        len += nb; 
+    }   
+    tmp_buf[len] = '\0';
+
+    return string(tmp_buf, len);
+}
 
 SrsCandidate::SrsCandidate()
 {
@@ -206,7 +233,7 @@ srs_error_t SrsSdp::encode(string& sdp_str)
 		"a=ssrc:3233846890 msid:6VrfBKXrwK a0\\r\\n"
 		"a=ssrc:3233846890 mslabel:6VrfBKXrwK\\r\\n"
 		"a=ssrc:3233846890 label:6VrfBKXrwKa0\\r\\n"
-		"m=video 9 UDP/TLS/RTP/SAVPF 96 98 102\\r\\n"
+		"m=video 9 UDP/TLS/RTP/SAVPF 102\\r\\n"
 		"c=IN IP4 0.0.0.0\\r\\n"
         + candidate_lines +
 		"a=rtcp:9 IN IP4 0.0.0.0\\r\\n"
@@ -221,18 +248,6 @@ srs_error_t SrsSdp::encode(string& sdp_str)
 		"a=sendrecv\\r\\n"
 		"a=mid:1\\r\\n"
 		"a=rtcp-mux\\r\\n"
-		"a=rtpmap:96 VP8/90000\\r\\n"
-		"a=rtcp-fb:96 ccm fir\\r\\n"
-		"a=rtcp-fb:96 nack\\r\\n"
-		"a=rtcp-fb:96 nack pli\\r\\n"
-		"a=rtcp-fb:96 goog-remb\\r\\n"
-		"a=rtcp-fb:96 transport-cc\\r\\n"
-		"a=rtpmap:98 VP9/90000\\r\\n"
-		"a=rtcp-fb:98 ccm fir\\r\\n"
-		"a=rtcp-fb:98 nack\\r\\n"
-		"a=rtcp-fb:98 nack pli\\r\\n"
-		"a=rtcp-fb:98 goog-remb\\r\\n"
-		"a=rtcp-fb:98 transport-cc\\r\\n"
 		"a=rtpmap:102 H264/90000\\r\\n"
 		"a=rtcp-fb:102 goog-remb\\r\\n"
 		"a=rtcp-fb:102 transport-cc\\r\\n"
@@ -279,8 +294,10 @@ srs_error_t SrsSdp::parse_attr(const string& line)
     return err;
 }
 
-SrsDtlsSession::SrsDtlsSession()
+SrsDtlsSession::SrsDtlsSession(SrsRtcSession* s)
 {
+    rtc_session = s;
+
     dtls = NULL;
     bio_in = NULL;
     bio_out = NULL;
@@ -310,7 +327,7 @@ srs_error_t SrsDtlsSession::handshake(SrsUdpRemuxSocket* udp_remux_socket)
     int ssl_err = SSL_get_error(dtls, ret); 
     switch(ssl_err) {   
         case SSL_ERROR_NONE: {   
-            err = on_dtls_handshake_done();
+            err = on_dtls_handshake_done(udp_remux_socket);
         }  
         break;
 
@@ -362,12 +379,20 @@ srs_error_t SrsDtlsSession::on_dtls(SrsUdpRemuxSocket* udp_remux_socket)
 	return err;
 }
 
-srs_error_t SrsDtlsSession::on_dtls_handshake_done()
+srs_error_t SrsDtlsSession::on_dtls_handshake_done(SrsUdpRemuxSocket* udp_remux_socket)
 {
+    srs_error_t err = srs_success;
     srs_trace("dtls handshake done");
 
     handshake_done = true;
-    return srtp_init();
+    if ((err = srtp_initialize()) != srs_success) {
+        srs_error("srtp init failed, err=%s", srs_error_desc(err).c_str());
+        return srs_error_wrap(err, "srtp init failed");
+    }
+
+    rtc_session->on_connection_established(udp_remux_socket);
+
+    return err;
 }
 
 srs_error_t SrsDtlsSession::on_dtls_application_data(const char* buf, const int nb_buf)
@@ -394,7 +419,7 @@ void SrsDtlsSession::send_client_hello(SrsUdpRemuxSocket* udp_remux_socket)
     } 
 }
 
-srs_error_t SrsDtlsSession::srtp_init() 
+srs_error_t SrsDtlsSession::srtp_initialize() 
 {
     srs_error_t err = srs_success;
 
@@ -416,6 +441,12 @@ srs_error_t SrsDtlsSession::srtp_init()
 
 	client_key = sClientMasterKey + sClientMasterSalt;
 	server_key = sServerMasterKey + sServerMasterSalt;
+
+    srs_trace("client_key size=%d, server_key=%d", client_key.size(), server_key.size());
+
+    if (srtp_init() != 0) {
+        return srs_error_wrap(err, "srtp init failed");
+    }
 
     if (srtp_sender_side_init() != srs_success) {
         return srs_error_wrap(err, "srtp sender size init failed");
@@ -492,11 +523,132 @@ srs_error_t SrsDtlsSession::srtp_receiver_side_init()
     return err;
 }
 
-SrsRtcSession::SrsRtcSession(SrsRtcServer* svr)
+srs_error_t SrsDtlsSession::srtp_sender_protect(char* protected_buf, const char* ori_buf, int& nb_protected_buf)
 {
-    rtc_server = svr;
+    srs_error_t err = srs_success;
+
+    if (srtp_send) {
+        memcpy(protected_buf, ori_buf, nb_protected_buf);
+        if (srtp_protect(srtp_send, protected_buf, &nb_protected_buf) != 0) {
+            srs_error("srtp sender protect failed");
+            return srs_error_wrap(err, "srtp sender protect failed");
+        }
+
+        return err;
+    }
+
+    return srs_error_wrap(err, "srtp sender protect failed");
+}
+
+SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpRemuxSocket* u, int parent_cid)
+    : ukt(NULL)
+{
+    _parent_cid = parent_cid;
+    trd = new SrsDummyCoroutine();
+
+    rtc_session = s;
+    ukt = *u;
+}
+
+SrsRtcSenderThread::~SrsRtcSenderThread()
+{
+    srs_freep(trd);
+}
+
+int SrsRtcSenderThread::cid()
+{
+    return trd->cid();
+}
+
+srs_error_t SrsRtcSenderThread::start()
+{
+    srs_error_t err = srs_success;
+    
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("recv", this, _parent_cid);
+    
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "recv thread");
+    }
+    
+    return err;
+}
+
+void SrsRtcSenderThread::stop()
+{
+    trd->stop();
+}
+
+void SrsRtcSenderThread::stop_loop()
+{
+    trd->interrupt();
+}
+
+
+srs_error_t SrsRtcSenderThread::cycle()
+{
+    srs_error_t err = srs_success;
+
+	SrsSource* source = NULL;
+    SrsRequest req;
+    req.app = rtc_session->app;
+    req.stream = rtc_session->stream;
+
+    if (_srs_sources->fetch_or_create(&req, rtc_session->server, &source) != srs_success) {
+        srs_error("rtc fetch source failed");
+        return srs_error_wrap(err, "rtc fetch source failed");
+    }
+
+    srs_trace("rtc fetch source success, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
+
+	SrsConsumer* consumer = NULL;
+    if (source->create_consumer(NULL, consumer) != srs_success) {
+        srs_trace("rtc create consumer, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
+        return srs_error_wrap(err, "rtc create consumer, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
+    }    
+
+    SrsAutoFree(SrsConsumer, consumer);
+
+    while (true) {
+        SrsMessageArray msgs(SRS_PERF_MW_MSGS);
+
+        int msg_count = 0;
+        if (consumer->dump_packets(&msgs, msg_count) != srs_success) {
+            srs_trace("rtc pop no rtp packets");
+            continue;
+        }
+
+        srs_trace("rtc pop %d rtp packets", msg_count);
+
+		for (int i = 0; i < msg_count; i++) {
+            SrsSharedPtrMessage* msg = msgs.msgs[i];
+
+            for (int i = 0; i < msg->nb_rtp_fragments; ++i) {
+                srs_trace("rtp fragment size=%d, payload=%s", msg->rtp_fragments[i].size, 
+                    dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 128).c_str());
+
+                if (rtc_session->dtls_session) {
+                    char rtp_send_protected_buf[1500];
+                    int rtp_send_protected_len = msg->rtp_fragments[i].size;
+                    rtc_session->dtls_session->srtp_sender_protect(rtp_send_protected_buf, msg->rtp_fragments[i].bytes, rtp_send_protected_len);
+                    ukt.sendto(rtp_send_protected_buf, rtp_send_protected_len, 0);
+                }
+            }
+        }
+
+        srs_usleep(16000);
+    }
+}
+
+
+SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr)
+{
+    server = svr;
+    rtc_server = rtc_svr;
     session_state = INIT;
     dtls_session = NULL;
+
+    strd = NULL;
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -557,10 +709,25 @@ srs_error_t SrsRtcSession::on_binding_request(SrsUdpRemuxSocket* udp_remux_socke
 srs_error_t SrsRtcSession::send_client_hello(SrsUdpRemuxSocket* udp_remux_socket)
 {
     if (dtls_session == NULL) {
-        dtls_session = new SrsDtlsSession();
+        dtls_session = new SrsDtlsSession(this);
     }
 
     dtls_session->send_client_hello(udp_remux_socket);
+}
+
+void SrsRtcSession::on_connection_established(SrsUdpRemuxSocket* udp_remux_socket)
+{
+    start_play(udp_remux_socket);
+}
+
+srs_error_t SrsRtcSession::start_play(SrsUdpRemuxSocket* udp_remux_socket)
+{
+    srs_error_t err = srs_success;
+
+    strd = new SrsRtcSenderThread(this, udp_remux_socket, _srs_context->get_id());
+    strd->start();
+
+    return err;
 }
 
 srs_error_t SrsRtcSession::on_dtls(SrsUdpRemuxSocket* udp_remux_socket)
@@ -568,8 +735,9 @@ srs_error_t SrsRtcSession::on_dtls(SrsUdpRemuxSocket* udp_remux_socket)
     return dtls_session->on_dtls(udp_remux_socket);
 }
 
-SrsRtcServer::SrsRtcServer()
+SrsRtcServer::SrsRtcServer(SrsServer* svr)
 {
+    server = svr;
 }
 
 SrsRtcServer::~SrsRtcServer()
@@ -600,7 +768,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpRemuxSocket* udp_remux_socket)
 
 SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
-    SrsRtcSession* session = new SrsRtcSession(this);
+    SrsRtcSession* session = new SrsRtcSession(server, this);
 
     std::string local_pwd = gen_random_str(32);
     std::string local_ufrag = "";

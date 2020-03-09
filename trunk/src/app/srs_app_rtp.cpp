@@ -86,9 +86,71 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
 {
     srs_error_t err = srs_success;
 
+    SrsSample* samples = new SrsSample[2000];
+    int sample_index = 0;
     for (int i = 0; i < format->video->nb_samples; ++i) {
         SrsSample sample = format->video->samples[i];
+
+        srs_trace("nal size=%d, dump=%s", sample.size, dump_string_hex(sample.bytes, sample.size, 128).c_str());
+
+        static int max_packet_size = 900;
+        if (sample.size < max_packet_size) {
+            char* buf = new char[1460];
+            SrsBuffer* stream = new SrsBuffer(buf, 1460);
+            SrsAutoFree(SrsBuffer, stream);
+            // write rtp header first
+            stream->write_1bytes(0x80);
+            stream->write_1bytes((1 << 7) | 102);
+
+            stream->write_2bytes(sequence++);
+            stream->write_4bytes((int32_t)shared_frame->timestamp);
+            stream->write_4bytes((int32_t)3233846889);
+            stream->write_bytes(sample.bytes, sample.size);
+
+            samples[sample_index].bytes = stream->data();
+            samples[sample_index].size = stream->pos();
+            ++sample_index;
+        } else {
+            int num_of_packet = (sample.size + max_packet_size) / max_packet_size;
+            char* p = sample.bytes + 1;
+            int left_bytes = sample.size - 1;
+            for (int n = 0; n < num_of_packet; ++n) {
+                char* buf = new char[1460];
+                SrsBuffer* stream = new SrsBuffer(buf, 1460);
+                SrsAutoFree(SrsBuffer, stream);
+                // write rtp header first
+                stream->write_1bytes(0x80);
+                if (n == num_of_packet - 1) {
+                    stream->write_1bytes((1 << 7) | 102);
+                } else {
+                    stream->write_1bytes(102);
+                }
+
+                stream->write_2bytes(sequence++);
+                stream->write_4bytes((int32_t)shared_frame->timestamp);
+                stream->write_4bytes((int32_t)3233846889);
+
+                stream->write_1bytes(sample.bytes[0] & 0xE0 | 28);
+                if (n == 0) {
+                    stream->write_1bytes(0x80 | sample.bytes[0] & 0x1F);
+                } else if (n == num_of_packet - 1) {
+                    stream->write_1bytes(0x40 | sample.bytes[0] & 0x1F);
+                } else {
+                    stream->write_1bytes(0x00 | sample.bytes[0] & 0x1F);
+                }
+
+                int len = max_packet_size ? max_packet_size : left_bytes;
+                stream->write_bytes(p, len);
+                left_bytes -= len;
+                p += len;
+
+                samples[sample_index].bytes = stream->data();
+                samples[sample_index].size = stream->pos();
+                ++sample_index;
+            }
+        }
     }
+    shared_frame->set_rtp_fragments(samples, sample_index);
 
     return err;
 }

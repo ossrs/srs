@@ -214,6 +214,14 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
+
+    for (int i = 0; i < nb_rtp_fragments; ++i) {
+        srs_freep(rtp_fragments[i].bytes);
+    }
+
+    if (nb_rtp_fragments) {
+        srs_freepa(rtp_fragments);
+    }
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL), rtp_fragments(NULL), nb_rtp_fragments(0)
@@ -305,6 +313,15 @@ bool SrsSharedPtrMessage::check(int stream_id)
     this->stream_id = stream_id;
     
     return false;
+}
+
+void SrsSharedPtrMessage::set_rtp_fragments(SrsSample* samples, int nb_samples)
+{
+    ptr->rtp_fragments = samples;
+    ptr->nb_rtp_fragments = nb_samples;
+
+    rtp_fragments = samples;
+    nb_rtp_fragments = nb_samples;
 }
 
 bool SrsSharedPtrMessage::is_av()

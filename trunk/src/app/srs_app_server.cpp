@@ -527,7 +527,7 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
-    rtc_server = new SrsRtcServer();
+    rtc_server = new SrsRtcServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
 }

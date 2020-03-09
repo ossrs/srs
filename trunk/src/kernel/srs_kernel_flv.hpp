@@ -333,6 +333,8 @@ public:
     // check perfer cid and stream id.
     // @return whether stream id already set.
     virtual bool check(int stream_id);
+
+    virtual void set_rtp_fragments(SrsSample* samples, int nb_samples);
 public:
     virtual bool is_av();
     virtual bool is_audio();

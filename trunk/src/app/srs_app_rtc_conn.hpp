@@ -37,7 +37,10 @@
 
 class SrsUdpRemuxSocket;
 class SrsServer;
+class SrsConsumer;
 class SrsStunPacket;
+class SrsRtcServer;
+class SrsRtcSession;
 
 class SrsCandidate
 {
@@ -95,6 +98,8 @@ enum SrsRtcSessionStateType
 class SrsDtlsSession
 {
 private:
+    SrsRtcSession* rtc_session;
+
 	SSL* dtls;
     BIO* bio_in;
     BIO* bio_out;
@@ -108,34 +113,62 @@ private:
     bool handshake_done;
 
 public:
-    SrsDtlsSession();
+    SrsDtlsSession(SrsRtcSession* s);
     virtual ~SrsDtlsSession();
 
     srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t on_dtls_handshake_done();
+    srs_error_t on_dtls_handshake_done(SrsUdpRemuxSocket* udp_remux_socket);
     srs_error_t on_dtls_application_data(const char* data, const int len);
 
     void send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
     srs_error_t handshake(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t srtp_sender_protect(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
  
 private:
-    srs_error_t srtp_init();
+    srs_error_t srtp_initialize();
     srs_error_t srtp_sender_side_init();
     srs_error_t srtp_receiver_side_init();
 };
 
-class SrsRtcServer;
+class SrsRtcSenderThread : public ISrsCoroutineHandler
+{
+protected:
+    SrsCoroutine* trd;
+    int _parent_cid;
+private:
+    SrsRtcSession* rtc_session;
+    SrsUdpRemuxSocket ukt;
+public:
+    // Constructor.
+    // @param tm The receive timeout in srs_utime_t.
+    SrsRtcSenderThread(SrsRtcSession* s, SrsUdpRemuxSocket* u, int parent_cid);
+    virtual ~SrsRtcSenderThread();
+public:
+    virtual int cid();
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void stop_loop();
+public:
+    virtual srs_error_t cycle();
+};
 
 class SrsRtcSession
 {
+    friend class SrsRtcSenderThread;
 private:
+    SrsServer* server;
     SrsRtcServer* rtc_server;
     SrsSdp  remote_sdp;
     SrsSdp  local_sdp;
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
+    SrsRtcSenderThread* strd;
 public:
-    SrsRtcSession(SrsRtcServer* svr);
+    std::string app;
+    std::string stream;
+public:
+    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
@@ -145,22 +178,29 @@ public:
     void set_local_sdp(const SrsSdp& sdp) { local_sdp = sdp; }
     void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
     void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
+    void set_app_stream(const std::string& a, const std::string& s) { app = a; stream = s; }
 public:
     srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
 public:
     srs_error_t send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
+    void on_connection_established(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t start_play(SrsUdpRemuxSocket* udp_remux_socket);
 private:
     srs_error_t on_binding_request(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
+private:
+    srs_error_t do_playing(SrsConsumer* consumer, SrsUdpRemuxSocket* udp_remux_socket);
 };
 
 class SrsRtcServer : public ISrsUdpRemuxHandler
 {
 private:
+    SrsServer* server;
+private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
 public:
-    SrsRtcServer();
+    SrsRtcServer(SrsServer* svr);
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();

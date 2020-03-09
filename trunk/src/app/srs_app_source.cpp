@@ -1696,6 +1696,7 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     
     SrsSource* source = NULL;
     if ((source = fetch(r)) != NULL) {
+        srs_trace("found source");
         *pps = source;
         return err;
     }
@@ -1705,6 +1706,8 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
+
+    srs_trace("new source, stream_url=%s", stream_url.c_str());
     
     source = new SrsSource();
     if ((err = source->initialize(r, h)) != srs_success) {

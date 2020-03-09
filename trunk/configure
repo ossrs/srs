@@ -149,7 +149,7 @@ END
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # srtp
-LibSrtpRoot="${SRS_OBJS_DIR}/srtp2"; LibSrtpFile="${LibSrtpRoot}/lib/libsrtp2.a"
+LibSrtpRoot="${SRS_OBJS_DIR}/srtp2/include"; LibSrtpFile="${SRS_OBJS_DIR}/srtp2/lib/libsrtp2.a"
 if [[ $SRS_SHARED_SRTP == YES ]]; then LibSrtpFile="-lsrtp2"; fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""

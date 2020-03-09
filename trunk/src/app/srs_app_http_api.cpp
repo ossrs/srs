@@ -835,7 +835,8 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     }
 
     SrsSdp local_sdp;
-    rtc_server->create_rtc_session(remote_sdp, local_sdp);
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(remote_sdp, local_sdp);
+    rtc_session->set_app_stream(app, stream_name);
 
     string local_sdp_str = "";
     err = local_sdp.encode(local_sdp_str);
