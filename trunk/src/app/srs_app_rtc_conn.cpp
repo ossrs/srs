@@ -625,7 +625,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 
             for (int i = 0; i < msg->nb_rtp_fragments; ++i) {
                 srs_trace("rtp fragment size=%d, payload=%s", msg->rtp_fragments[i].size, 
-                    dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 128).c_str());
+                    dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 1460).c_str());
 
                 if (rtc_session->dtls_session) {
                     char rtp_send_protected_buf[1500];

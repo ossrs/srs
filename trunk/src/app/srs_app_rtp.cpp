@@ -58,19 +58,17 @@ static string dump_string_hex(const std::string& str, const int& max_len = 128)
 
 static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
 {
-    char tmp_buf[1024*16];
-    int len = 0;
+    string ret;
+    ret.reserve(nb_buf > max_len ? nb_buf * 4 : max_len * 4);
     
+    char tmp[64];
     for (int i = 0; i < nb_buf && i < max_len; ++i) {
-        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 1, "%02X ", (uint8_t)buf[i]);
-        if (nb <= 0)
-            break;
-
-        len += nb; 
+        int nb = snprintf(tmp, sizeof(tmp), "%02X ", (uint8_t)buf[i]);
+        assert(nb == 3);
+        ret.append(tmp, nb);
     }   
-    tmp_buf[len] = '\0';
 
-    return string(tmp_buf, len);
+    return ret;
 }
 
 SrsRtpMuxer::SrsRtpMuxer()
@@ -86,15 +84,29 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
 {
     srs_error_t err = srs_success;
 
-    SrsSample* samples = new SrsSample[2000];
-    int sample_index = 0;
-    for (int i = 0; i < format->video->nb_samples; ++i) {
-        SrsSample sample = format->video->samples[i];
+    int nb_samples = format->video->nb_samples;
+    SrsSample* samples = format->video->samples;
 
-        srs_trace("nal size=%d, dump=%s", sample.size, dump_string_hex(sample.bytes, sample.size, 128).c_str());
+    SrsSample sps_pps_samples[2];
+    if (format->is_avc_sequence_header()) {
+        sps_pps_samples[0].bytes = format->vcodec->sequenceParameterSetNALUnit.data();
+        sps_pps_samples[0].size = format->vcodec->sequenceParameterSetNALUnit.size();
+        sps_pps_samples[1].bytes = format->vcodec->pictureParameterSetNALUnit.data();
+        sps_pps_samples[1].size = format->vcodec->pictureParameterSetNALUnit.size();
+
+        nb_samples = 2;
+        samples = sps_pps_samples;
+    }
+
+    SrsSample* rtp_fragment_samples = new SrsSample[2000];
+    int rtp_fragment_samples_index = 0;
+    for (int i = 0; i < nb_samples; ++i) {
+        SrsSample sample = samples[i];
+
+        srs_trace("nal size=%d, dump=%s", sample.size, dump_string_hex(sample.bytes, sample.size, sample.size).c_str());
 
         static int max_packet_size = 900;
-        if (sample.size < max_packet_size) {
+        if (sample.size <= max_packet_size) {
             char* buf = new char[1460];
             SrsBuffer* stream = new SrsBuffer(buf, 1460);
             SrsAutoFree(SrsBuffer, stream);
@@ -107,9 +119,10 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
             stream->write_4bytes((int32_t)3233846889);
             stream->write_bytes(sample.bytes, sample.size);
 
-            samples[sample_index].bytes = stream->data();
-            samples[sample_index].size = stream->pos();
-            ++sample_index;
+            rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
+            rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
+
+            ++rtp_fragment_samples_index;
         } else {
             int num_of_packet = (sample.size + max_packet_size) / max_packet_size;
             char* p = sample.bytes + 1;
@@ -130,27 +143,29 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
                 stream->write_4bytes((int32_t)shared_frame->timestamp);
                 stream->write_4bytes((int32_t)3233846889);
 
-                stream->write_1bytes(sample.bytes[0] & 0xE0 | 28);
+                stream->write_1bytes((sample.bytes[0] & 0xE0) | 28);
                 if (n == 0) {
-                    stream->write_1bytes(0x80 | sample.bytes[0] & 0x1F);
+                    stream->write_1bytes(0x80 | (sample.bytes[0] & 0x1F));
                 } else if (n == num_of_packet - 1) {
-                    stream->write_1bytes(0x40 | sample.bytes[0] & 0x1F);
+                    stream->write_1bytes(0x40 | (sample.bytes[0] & 0x1F));
                 } else {
-                    stream->write_1bytes(0x00 | sample.bytes[0] & 0x1F);
+                    stream->write_1bytes(0x00 | (sample.bytes[0] & 0x1F));
                 }
 
-                int len = max_packet_size ? max_packet_size : left_bytes;
+                int len = left_bytes > max_packet_size ? max_packet_size : left_bytes;
                 stream->write_bytes(p, len);
                 left_bytes -= len;
                 p += len;
 
-                samples[sample_index].bytes = stream->data();
-                samples[sample_index].size = stream->pos();
-                ++sample_index;
+                rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
+                rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
+
+                ++rtp_fragment_samples_index;
+
             }
         }
     }
-    shared_frame->set_rtp_fragments(samples, sample_index);
+    shared_frame->set_rtp_fragments(rtp_fragment_samples, rtp_fragment_samples_index);
 
     return err;
 }

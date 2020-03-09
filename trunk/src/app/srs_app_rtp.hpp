@@ -38,7 +38,7 @@ class SrsOriginHub;
 class SrsRtpMuxer
 {
 private:
-    uint32_t sequence;
+    uint16_t sequence;
     std::map<uint32_t, std::string> packet_queue;
 public:
     SrsRtpMuxer();
