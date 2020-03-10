@@ -100,6 +100,32 @@ void SrsBuffer::skip(int size)
     p += size;
 }
 
+// make sure we have enough size in data buf before skipping
+bool SrsBuffer::skip_x(int size)
+{
+	srs_assert(p);
+
+	if (require(size)) {
+		p += size;
+		return true;
+	}
+	else {
+		return false; 
+	}
+}
+
+bool SrsBuffer::chk_bytes(char * data, int size)
+{
+	if (require(size)) {
+		memcpy(data, p, size);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+
 int8_t SrsBuffer::read_1bytes()
 {
     srs_assert(require(1));
@@ -183,6 +209,19 @@ void SrsBuffer::read_bytes(char* data, int size)
     memcpy(data, p, size);
     
     p += size;
+}
+
+bool SrsBuffer::read_bytes_x(char* data, int size)
+{
+	if (require(size)) {
+		memcpy(data, p, size);
+
+		p += size;
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 void SrsBuffer::write_1bytes(int8_t value)

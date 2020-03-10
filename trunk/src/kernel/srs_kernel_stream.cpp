@@ -73,3 +73,114 @@ void SrsSimpleStream::append(SrsSimpleStream* src)
 {
     append(src->bytes(), src->length());
 }
+
+
+
+/*
+* beikesong: SrsSimpleBufferX
+*
+*/
+SrsSimpleBufferX::SrsSimpleBufferX()
+{
+	oft = 0;
+}
+
+SrsSimpleBufferX::~SrsSimpleBufferX()
+{
+}
+
+bool SrsSimpleBufferX::require(int require)
+{
+	int len = length();
+
+	return require <= len - oft;
+}
+
+char * SrsSimpleBufferX::curat()
+{
+	return (length() == 0) ? NULL : &data.at(oft);
+}
+
+int SrsSimpleBufferX::cursize()
+{
+	int len = length();
+	return (len < oft) ? 0 : (len - oft);
+}
+
+int SrsSimpleBufferX::getoft()
+{
+	return oft;
+}
+
+bool SrsSimpleBufferX::skip_x(int size)
+{
+	if (require(size)) {
+		oft += size;
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool SrsSimpleBufferX::chk_bytes(char * cb, int size)
+{
+	if (require(size)){
+		memcpy(cb, &data.at(oft), size);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool SrsSimpleBufferX::read_bytes_x(char * cb, int size)
+{
+	if (require(size)) {
+		memcpy(cb, &data.at(oft), size);
+		oft += size;
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+void SrsSimpleBufferX::resetoft()
+{
+	oft = 0;
+}
+
+int SrsSimpleBufferX::length()
+{
+	int len = (int)data.size();
+	srs_assert(len >= 0);
+	return len;
+}
+
+char* SrsSimpleBufferX::bytes()
+{
+	return (length() == 0) ? NULL : &data.at(0);
+}
+
+void SrsSimpleBufferX::erase(int size)
+{
+	if (size <= 0) {
+		return;
+	}
+
+	if (size >= length()) {
+		data.clear();
+		return;
+	}
+
+	data.erase(data.begin(), data.begin() + size);
+}
+
+void SrsSimpleBufferX::append(const char* bytes, int size)
+{
+	srs_assert(size > 0);
+
+	data.insert(data.end(), bytes, bytes + size);
+}
+

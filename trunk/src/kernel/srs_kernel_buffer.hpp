@@ -137,6 +137,15 @@ public:
      * @remark assert initialized, the data() not NULL.
      */
     virtual void skip(int size);
+
+    // will check if it has enough bytes to skip
+	virtual bool skip_x(int size);
+
+    /*
+	* beikesong: check bytes number but not move pos pointer
+	* user should use skip() to move pointer
+	*/
+	virtual bool chk_bytes(char * data, int size);
 public:
     /**
      * get 1bytes char from stream.
@@ -166,6 +175,9 @@ public:
      * get bytes from stream, length specifies by param len.
      */
     virtual void read_bytes(char* data, int size);
+
+	// check if it has enough bytes before reading
+	virtual bool read_bytes_x(char* data, int size);
 public:
     /**
      * write 1bytes char to stream.

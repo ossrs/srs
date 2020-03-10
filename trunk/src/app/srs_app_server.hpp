@@ -50,8 +50,8 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
-class SrsRtspCaster;
 class SrsCoroutineManager;
+class Srs28181StreamServer;
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -69,6 +69,10 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
+    // TCP stream, gb28181 stream over tcp
+    SrsListener28181TcpStream = 6,
+    //  28181 udp stream linstener
+    SrsListener28181UdpStream = 7,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -103,12 +107,48 @@ public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
 
+/*
+// a server for gb28181 stream.
+class Srs28181StreamServer : public ISrsTcpHandler
+{
+private:
+    std::string output;
+    int local_port_min;
+    int local_port_max;
+    // The key: port, value: whether used.
+    std::map<int, bool> used_ports;
+private:
+    //std::vector<SrsRtspConn*> clients;
+    std::vector<SrsListener*> listeners;
+public:
+    Srs28181StreamServer(SrsConfDirective* c);
+    virtual ~SrsRtspCaster();
+public:
+    // create a  stream listener
+    virtual srs_error_t create_listener();
+    // release a listener
+    virtual srs_error_t release_listener();
+    // Alloc a rtp port from local ports pool.
+    // @param pport output the rtp port.
+    virtual srs_error_t alloc_port(int* pport);
+    // Free the alloced rtp port.
+    virtual void free_port(int lpmin, int lpmax);
+// Interface ISrsTcpHandler
+public:
+    //virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+// internal methods.
+public:
+    virtual void remove(SrsRtspConn* conn);
+};
+*/
+
+
 // A TCP listener, for rtsp server.
 class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
-    SrsRtspCaster* caster;
+    ISrsTcpHandler* caster;
 public:
     SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsRtspListener();
@@ -128,6 +168,22 @@ private:
 public:
     SrsHttpFlvListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsHttpFlvListener();
+public:
+    virtual srs_error_t listen(std::string i, int p);
+// Interface ISrsTcpHandler
+public:
+    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+};
+
+// A tcp listener, for an extend tcp stream
+class SrsTcpStreamListener : virtual public SrsListener, virtual public ISrsTcpHandler
+{
+private:
+    SrsTcpListener* listener;
+    ISrsTcpHandler* caster;
+public:
+    SrsTcpStreamListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    virtual ~SrsTcpStreamListener();
 public:
     virtual srs_error_t listen(std::string i, int p);
 // Interface ISrsTcpHandler
@@ -211,6 +267,9 @@ private:
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;
 private:
+    // for testing
+    Srs28181StreamServer* srs_28181_streams;
+private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
     //       for the server never delete the file; when system startup, the pid in pid file
@@ -290,6 +349,9 @@ private:
     virtual void close_listeners(SrsListenerType type);
     // Resample the server kbs.
     virtual void resample_kbps();
+public:
+    // create a 28181 stream listener
+    virtual srs_error_t create_28181stream_listener(SrsListenerType type, int& port, std::string& suuid);
 // For internal only
 public:
     // When listener got a fd, notice server to accept it.

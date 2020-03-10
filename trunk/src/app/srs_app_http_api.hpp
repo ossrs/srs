@@ -201,6 +201,18 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+class SrsGoApi28181StreamCreation : public ISrsHttpHandler
+{
+public:
+    SrsGoApi28181StreamCreation(SrsServer * srv);
+    virtual ~SrsGoApi28181StreamCreation();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    SrsServer * server;
+};
+
+
 class SrsGoApiError : public ISrsHttpHandler
 {
 public:

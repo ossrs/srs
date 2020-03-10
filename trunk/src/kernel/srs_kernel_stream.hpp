@@ -66,4 +66,78 @@ public:
     virtual void append(SrsSimpleStream* src);
 };
 
+
+/**
+* a simple buffer based on vector
+*/
+class SrsSimpleBufferX
+{
+private:
+	std::vector<char> data;
+
+	// current offset in bytes from data.at(0) (data beginning) 
+	u_int32_t oft;
+public:
+	SrsSimpleBufferX();
+	virtual ~SrsSimpleBufferX();
+public:
+	/**
+	* get the length of buffer. empty if zero.
+	* @remark assert length() is not negative.
+	*/
+	virtual int length();
+	/**
+	* get the buffer bytes.
+	* @return the bytes, NULL if empty.
+	*/
+	virtual char* bytes();
+	/**
+	* erase size of bytes from begin.
+	* @param size to erase size of bytes.
+	*       clear if size greater than or equals to length()
+	* @remark ignore size is not positive.
+	*/
+	virtual void erase(int size);
+	/**
+	* append specified bytes to buffer.
+	* @param size the size of bytes
+	* @remark assert size is positive.
+	*/
+	virtual void append(const char* bytes, int size);
+
+	// resocman: exhance this class by adding thoes functions
+	/** 
+	* tell current position  return char * p=data.at(oft)
+	*/
+	virtual char* curat();
+	/*
+	* current size from oft to end: length()-oft
+	*/
+	virtual int cursize();
+	/**
+	* get current oft value
+	*/
+	virtual int getoft();
+	/**
+	* check if we have enough size in vector
+	*/
+	virtual bool require(int size);
+	/**
+	* move size bytes from cur position
+	*/
+	virtual bool skip_x(int size);
+	/**
+	* chek size bytes value, but dont move cur position
+	*/
+	virtual bool chk_bytes(char * cb, int size);
+	/**
+	*  read size bytes and move cur positon
+	*/
+	virtual bool read_bytes_x(char * cb, int size);
+	/**
+	* reset cur position to the beginning of vector
+	*/
+	virtual void resetoft();
+};
+
 #endif

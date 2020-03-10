@@ -108,6 +108,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case  SrsListener28181TcpStream:
+            return "GB28181-Stream over TCP";
         default:
             return "UNKONWN";
     }
@@ -179,9 +181,6 @@ SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirec
     srs_assert(type == SrsListenerRtsp);
     if (type == SrsListenerRtsp) {
         caster = new SrsRtspCaster(c);
-
-        // TODO: FIXME: Must check error.
-        caster->initialize();
     }
 }
 
@@ -282,6 +281,60 @@ srs_error_t SrsHttpFlvListener::on_tcp_client(srs_netfd_t stfd)
     
     return err;
 }
+
+SrsTcpStreamListener::SrsTcpStreamListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
+{
+    listener = NULL;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListener28181TcpStream);
+    if (type == SrsListener28181TcpStream) {
+        //caster = new SrsGB28181TcpStreamCaster(c);
+    }
+}
+
+SrsTcpStreamListener::~SrsTcpStreamListener()
+{
+    srs_freep(caster);
+    srs_freep(listener);
+}
+
+srs_error_t SrsTcpStreamListener::listen(string i, int p)
+{
+    srs_error_t err = srs_success;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    //srs_assert(type == SrsListenerRtsp);
+    
+    ip = i;
+    port = p;
+    
+    srs_freep(listener);
+    listener = new SrsTcpListener(this, ip, port);
+    
+    if ((err = listener->listen()) != srs_success) {
+        return srs_error_wrap(err, "tcp stream listen %s:%d", ip.c_str(), port);
+    }
+    
+    string v = srs_listener_type2string(type);
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
+    
+    return err;
+}
+
+srs_error_t SrsTcpStreamListener::on_tcp_client(srs_netfd_t stfd)
+{
+    srs_error_t err = caster->on_tcp_client(stfd);
+    if (err != srs_success) {
+        srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+    
+    return srs_success;
+}
+
 
 SrsUdpStreamListener::SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c) : SrsListener(svr, t)
 {
@@ -503,6 +556,7 @@ void SrsServer::destroy()
     
     dispose();
     
+    srs_freep(srs_28181_streams);
     srs_freep(http_api_mux);
     srs_freep(http_server);
     srs_freep(http_heartbeat);
@@ -801,6 +855,10 @@ srs_error_t SrsServer::http_handle()
     }
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
+    }
+
+    if ((err = http_api_mux->handle("/api/v1/srs28181stream-request-listener", new SrsGoApi28181StreamCreation(this))) != srs_success) {
+        return srs_error_wrap(err, "handle srs28181stream-request-listener");
     }
     
     // test the request info.
@@ -1187,8 +1245,20 @@ srs_error_t SrsServer::listen_stream_caster()
             return srs_error_wrap(err, "listen at %d", port);
         }
     }
+
+    srs_28181_streams = new Srs28181StreamServer();
+    //srs_28181_streams->create_listener(Listener_UDP);
     
     return err;
+}
+
+srs_error_t SrsServer::create_28181stream_listener(SrsListenerType type, int& port, std::string& suuid)
+{
+    if(srs_28181_streams==NULL){
+        return srs_error_new(13025,"srs 28181 stream server is null!");
+    }    
+    return srs_28181_streams->create_listener(type, port,suuid);
+    srs_trace("srsserver - create a new 28181 stream listener[port:%d]",port);
 }
 
 void SrsServer::close_listeners(SrsListenerType type)
