@@ -123,6 +123,7 @@ public:
     void send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
     srs_error_t handshake(SrsUdpRemuxSocket* udp_remux_socket);
     srs_error_t srtp_sender_protect(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    srs_error_t srtp_receiver_unprotect(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
  
 private:
     srs_error_t srtp_initialize();
@@ -182,6 +183,7 @@ public:
 public:
     srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket);
 public:
     srs_error_t send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
     void on_connection_established(SrsUdpRemuxSocket* udp_remux_socket);

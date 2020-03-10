@@ -86,14 +86,20 @@ static string dump_string_hex(const std::string& str, const int& max_len = 128)
 static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
 {
     char tmp_buf[1024*16];
-    int len = 0;
+    tmp_buf[0] = '\n';
+    int len = 1;
     
     for (int i = 0; i < nb_buf && i < max_len; ++i) {
-        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 1, "%02X ", (uint8_t)buf[i]);
+        //int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "(%03d)%02X ", i, (uint8_t)buf[i]);
+        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
         if (nb <= 0)
             break;
 
         len += nb; 
+
+        if (i % 16 == 15) {
+            tmp_buf[len++] = '\n';
+        }
     }   
     tmp_buf[len] = '\0';
 
@@ -540,6 +546,23 @@ srs_error_t SrsDtlsSession::srtp_sender_protect(char* protected_buf, const char*
     return srs_error_wrap(err, "srtp sender protect failed");
 }
 
+srs_error_t SrsDtlsSession::srtp_receiver_unprotect(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf)
+{
+    srs_error_t err = srs_success;
+
+    if (srtp_send) {
+        memcpy(unprotected_buf, ori_buf, nb_unprotected_buf);
+        if (srtp_unprotect(srtp_recv, unprotected_buf, &nb_unprotected_buf) != 0) {
+            srs_error("srtp receiver unprotect failed");
+            return srs_error_wrap(err, "srtp receiver unprotect failed");
+        }
+
+        return err;
+    }
+
+    return srs_error_wrap(err, "srtp receiver unprotect failed");
+}
+
 SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpRemuxSocket* u, int parent_cid)
     : ukt(NULL)
 {
@@ -626,6 +649,12 @@ srs_error_t SrsRtcSenderThread::cycle()
             for (int i = 0; i < msg->nb_rtp_fragments; ++i) {
                 srs_trace("rtp fragment size=%d, payload=%s", msg->rtp_fragments[i].size, 
                     dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 1460).c_str());
+
+                SrsBuffer stream(msg->rtp_fragments[i].bytes + 2, 2);
+                static uint16_t seq = 0;
+                stream.write_2bytes(++seq);
+
+                srs_trace("seq=%u", seq);
 
                 if (rtc_session->dtls_session) {
                     char rtp_send_protected_buf[1500];
@@ -735,6 +764,56 @@ srs_error_t SrsRtcSession::on_dtls(SrsUdpRemuxSocket* udp_remux_socket)
     return dtls_session->on_dtls(udp_remux_socket);
 }
 
+srs_error_t SrsRtcSession::on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket)
+{
+    srs_error_t err = srs_success;
+    if (dtls_session == NULL) {
+        return srs_error_wrap(err, "recv unexpect rtp/rtcp packet before dtls done");
+    }
+
+    char srtp_unprotect_buf[1460];
+    int nb_srtp_unprotect_buf = udp_remux_socket->size();
+    if (dtls_session->srtp_receiver_unprotect(srtp_unprotect_buf, udp_remux_socket->data(), nb_srtp_unprotect_buf) != srs_success) {
+        return srs_error_wrap(err, "srtp receiver unprotect failed");
+    }
+
+    //srs_trace("srtp unprotect success, %s", dump_string_hex(srtp_unprotect_buf, nb_srtp_unprotect_buf, nb_srtp_unprotect_buf).c_str());
+
+    SrsBuffer* stream = new SrsBuffer(srtp_unprotect_buf, nb_srtp_unprotect_buf);
+    uint8_t first = stream->read_1bytes();
+    uint8_t second = stream->read_1bytes();
+    bool marker = (second & 0x80) == 0x80;
+    uint8_t payload_type = second &0x7F;
+
+    uint16_t sequence = stream->read_2bytes();
+    uint32_t timestamp = stream->read_4bytes();
+    uint32_t ssrc = stream->read_4bytes();
+
+    srs_trace("sequence=%u, timestamp=%u, ssrc=%u, marker=%d, payload_type=%u", sequence, timestamp, ssrc, marker, payload_type);
+
+    if (first & 0x10) {
+        uint16_t extern_profile = stream->read_2bytes();
+        uint16_t extern_length = stream->read_2bytes();
+
+        srs_trace("extern_profile=%u, extern_length=%u", extern_profile, extern_length);
+
+        stream->read_string(extern_length * 4);
+    }
+
+    if (payload_type == 102) {
+        char rtp_send_protected_buf[1500];
+        int rtp_send_protected_len = nb_srtp_unprotect_buf;
+        SrsBuffer stream(srtp_unprotect_buf + 8, 4);
+        stream.write_4bytes(3233846889);
+        dtls_session->srtp_sender_protect(rtp_send_protected_buf, srtp_unprotect_buf, rtp_send_protected_len);
+        udp_remux_socket->sendto(rtp_send_protected_buf, rtp_send_protected_len, 0);
+    }
+
+    srs_trace("rtp payload, %s", dump_string_hex(stream->data() + stream->pos(), stream->left(), stream->left()).c_str());
+
+    return err;
+}
+
 SrsRtcServer::SrsRtcServer(SrsServer* svr)
 {
     server = svr;
@@ -828,7 +907,6 @@ srs_error_t SrsRtcServer::on_dtls(SrsUdpRemuxSocket* udp_remux_socket)
     srs_error_t err = srs_success;
     srs_trace("on dtls");
 
-    // FIXME
     SrsRtcSession* rtc_session = find_rtc_session_by_peer_id(udp_remux_socket->get_peer_id());
 
     if (rtc_session == NULL) {
@@ -844,6 +922,15 @@ srs_error_t SrsRtcServer::on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket)
 {
     srs_error_t err = srs_success;
     srs_trace("on rtp/rtcp");
+
+    SrsRtcSession* rtc_session = find_rtc_session_by_peer_id(udp_remux_socket->get_peer_id());
+
+    if (rtc_session == NULL) {
+        return srs_error_wrap(err, "can not find rtc session by peer_id=%s", udp_remux_socket->get_peer_id().c_str());
+    }
+
+    rtc_session->on_rtp_or_rtcp(udp_remux_socket);
+
     return err;
 }
 

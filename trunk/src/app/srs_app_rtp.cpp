@@ -53,20 +53,34 @@ using namespace std;
 static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len);
 static string dump_string_hex(const std::string& str, const int& max_len = 128)
 {
-	return dump_string_hex(str.c_str(), str.size(), max_len);
+    return dump_string_hex(str.c_str(), str.size(), max_len);
 }
 
 static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
 {
     string ret;
-    ret.reserve(nb_buf > max_len ? nb_buf * 4 : max_len * 4);
+    ret.reserve((nb_buf > max_len ? nb_buf : max_len) * 8);
+
+    char tmp_buf[1024*16];
+    tmp_buf[0] = '\n';
+    int len = 1;
     
-    char tmp[64];
     for (int i = 0; i < nb_buf && i < max_len; ++i) {
-        int nb = snprintf(tmp, sizeof(tmp), "%02X ", (uint8_t)buf[i]);
-        assert(nb == 3);
-        ret.append(tmp, nb);
+        //int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "(%03d)%02X ", i, (uint8_t)buf[i]);
+        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
+        if (nb <= 0)
+            break;
+
+        len += nb; 
+
+        if (i % 16 == 15) {
+            tmp_buf[len++] = '\n';
+            ret.append(tmp_buf, len);
+            len = 0;
+        }   
     }   
+    tmp_buf[len] = '\0';
+    ret.append(tmp_buf, len);
 
     return ret;
 }
@@ -80,12 +94,22 @@ SrsRtpMuxer::~SrsRtpMuxer()
 {
 }
 
+#if 0
 srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
 {
     srs_error_t err = srs_success;
 
     int nb_samples = format->video->nb_samples;
     SrsSample* samples = format->video->samples;
+
+    SrsSample* rtp_fragment_samples = new SrsSample[2000];
+    int rtp_fragment_samples_index = 0;
+
+    static int debug_fd = -1;
+    static uint8_t start_code[4] = {0x00, 0x00, 0x00, 0x01};
+    if (debug_fd < 0) {
+        debug_fd = open("./raw.264", O_CREAT|O_TRUNC|O_RDWR, 0664);
+    }
 
     SrsSample sps_pps_samples[2];
     if (format->is_avc_sequence_header()) {
@@ -96,14 +120,61 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
 
         nb_samples = 2;
         samples = sps_pps_samples;
+
+        {
+            char* buf = new char[1460];
+            SrsBuffer* stream = new SrsBuffer(buf, 1460);
+            SrsAutoFree(SrsBuffer, stream);
+            // write rtp header first
+            stream->write_1bytes(0x80);
+            stream->write_1bytes(102);
+
+            stream->write_2bytes(sequence++);
+            stream->write_4bytes((int32_t)shared_frame->timestamp * 90);
+            stream->write_4bytes((int32_t)3233846889);
+
+            stream->write_1bytes(24/*STAP-A*/);
+            // AUD
+            stream->write_2bytes(2);
+            stream->write_1bytes(0x09);
+            stream->write_1bytes(0x10);
+
+            stream->write_2bytes(sps_pps_samples[0].size);
+            stream->write_bytes(sps_pps_samples[0].bytes, sps_pps_samples[0].size);
+            stream->write_2bytes(sps_pps_samples[1].size);
+            stream->write_bytes(sps_pps_samples[1].bytes, sps_pps_samples[1].size);
+
+            if (debug_fd >= 0) {
+                write(debug_fd, start_code, sizeof(start_code));
+                write(debug_fd, sps_pps_samples[0].bytes, sps_pps_samples[0].size);
+                write(debug_fd, start_code, sizeof(start_code));
+                write(debug_fd, sps_pps_samples[1].bytes, sps_pps_samples[1].size);
+            }
+
+            rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
+            rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
+
+            ++rtp_fragment_samples_index;
+        }
+        shared_frame->set_rtp_fragments(rtp_fragment_samples, rtp_fragment_samples_index);
+
+        return err;
     }
 
-    SrsSample* rtp_fragment_samples = new SrsSample[2000];
-    int rtp_fragment_samples_index = 0;
     for (int i = 0; i < nb_samples; ++i) {
         SrsSample sample = samples[i];
 
         srs_trace("nal size=%d, dump=%s", sample.size, dump_string_hex(sample.bytes, sample.size, sample.size).c_str());
+
+        if ((sample.bytes[0] & 0x1F) == 0x06) {
+            srs_trace("ignore SEI");
+            continue;
+        }
+
+        if (debug_fd >= 0) {
+            write(debug_fd, start_code, sizeof(start_code));
+            write(debug_fd, sample.bytes, sample.size);
+        }
 
         static int max_packet_size = 900;
         if (sample.size <= max_packet_size) {
@@ -112,12 +183,23 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
             SrsAutoFree(SrsBuffer, stream);
             // write rtp header first
             stream->write_1bytes(0x80);
-            stream->write_1bytes((1 << 7) | 102);
+            if ((sample.bytes[0] & 0x1F) <= 5) {
+                stream->write_1bytes((1 << 7) | 102);
+            } else {
+                stream->write_1bytes(102);
+            }
 
             stream->write_2bytes(sequence++);
-            stream->write_4bytes((int32_t)shared_frame->timestamp);
+            stream->write_4bytes((int32_t)shared_frame->timestamp * 90);
             stream->write_4bytes((int32_t)3233846889);
+
+#if 0 // single nalu
             stream->write_bytes(sample.bytes, sample.size);
+#else
+            stream->write_1bytes((sample.bytes[0] & 0xE0) | 24/*STAP-A*/);
+            stream->write_2bytes(sample.size);
+            stream->write_bytes(sample.bytes, sample.size);
+#endif
 
             rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
             rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
@@ -133,14 +215,129 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
                 SrsAutoFree(SrsBuffer, stream);
                 // write rtp header first
                 stream->write_1bytes(0x80);
-                if (n == num_of_packet - 1) {
+                if ((sample.bytes[0] & 0x1F) <= 5) {
                     stream->write_1bytes((1 << 7) | 102);
                 } else {
                     stream->write_1bytes(102);
                 }
 
                 stream->write_2bytes(sequence++);
-                stream->write_4bytes((int32_t)shared_frame->timestamp);
+                stream->write_4bytes((int32_t)shared_frame->timestamp * 90);
+                stream->write_4bytes((int32_t)3233846889);
+
+                stream->write_1bytes((sample.bytes[0] & 0xE0) | 28);
+                if (n == 0) {
+                    stream->write_1bytes(0x80 | (sample.bytes[0] & 0x1F));
+                } else if (n == num_of_packet - 1) {
+                    stream->write_1bytes(0x40 | (sample.bytes[0] & 0x1F));
+                } else {
+                    stream->write_1bytes(0x00 | (sample.bytes[0] & 0x1F));
+                }
+
+                int len = left_bytes > max_packet_size ? max_packet_size : left_bytes;
+                stream->write_bytes(p, len);
+                left_bytes -= len;
+                p += len;
+
+                rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
+                rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
+
+                ++rtp_fragment_samples_index;
+
+            }
+        }
+    }
+    shared_frame->set_rtp_fragments(rtp_fragment_samples, rtp_fragment_samples_index);
+
+    return err;
+}
+#endif
+
+srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
+{
+    srs_error_t err = srs_success;
+
+    int nb_samples = format->video->nb_samples;
+    SrsSample* samples = format->video->samples;
+
+    SrsSample* rtp_fragment_samples = new SrsSample[2000];
+    int rtp_fragment_samples_index = 0;
+
+    static int debug_fd = -1;
+    static uint8_t start_code[4] = {0x00, 0x00, 0x00, 0x01};
+    if (debug_fd < 0) {
+        debug_fd = open("./raw.264", O_CREAT|O_TRUNC|O_RDWR, 0664);
+    }
+
+    SrsSample sps_pps_samples[2];
+    if (format->is_avc_sequence_header()) {
+        sps_pps_samples[0].bytes = format->vcodec->sequenceParameterSetNALUnit.data();
+        sps_pps_samples[0].size = format->vcodec->sequenceParameterSetNALUnit.size();
+        sps_pps_samples[1].bytes = format->vcodec->pictureParameterSetNALUnit.data();
+        sps_pps_samples[1].size = format->vcodec->pictureParameterSetNALUnit.size();
+
+        nb_samples = 2;
+        samples = sps_pps_samples;
+    }
+
+    for (int i = 0; i < nb_samples; ++i) {
+        SrsSample sample = samples[i];
+
+        srs_trace("nal size=%d, dump=%s", sample.size, dump_string_hex(sample.bytes, sample.size, sample.size).c_str());
+
+        if ((sample.bytes[0] & 0x1F) == 0x06) {
+            srs_trace("ignore SEI");
+            continue;
+        }
+
+        if (debug_fd >= 0) {
+            write(debug_fd, start_code, sizeof(start_code));
+            write(debug_fd, sample.bytes, sample.size);
+        }
+
+        static int max_packet_size = 900;
+        if (sample.size <= max_packet_size) {
+            char* buf = new char[1460];
+            SrsBuffer* stream = new SrsBuffer(buf, 1460);
+            SrsAutoFree(SrsBuffer, stream);
+            // write rtp header first
+            stream->write_1bytes(0x80);
+            if ((sample.bytes[0] & 0x1F) <= 5) {
+                stream->write_1bytes((1 << 7) | 102);
+            } else {
+                stream->write_1bytes(102);
+            }
+
+            stream->write_2bytes(sequence++);
+            stream->write_4bytes((int32_t)shared_frame->timestamp * 90);
+            stream->write_4bytes((int32_t)3233846889);
+
+            stream->write_1bytes((sample.bytes[0] & 0xE0) | 28/*FU-A*/);
+            stream->write_1bytes(0xC0 | (sample.bytes[0] & 0x1F));
+            stream->write_bytes(sample.bytes + 1, sample.size - 1);
+
+            rtp_fragment_samples[rtp_fragment_samples_index].bytes = stream->data();
+            rtp_fragment_samples[rtp_fragment_samples_index].size = stream->pos();
+
+            ++rtp_fragment_samples_index;
+        } else {
+            int num_of_packet = (sample.size + max_packet_size) / max_packet_size;
+            char* p = sample.bytes + 1;
+            int left_bytes = sample.size - 1;
+            for (int n = 0; n < num_of_packet; ++n) {
+                char* buf = new char[1460];
+                SrsBuffer* stream = new SrsBuffer(buf, 1460);
+                SrsAutoFree(SrsBuffer, stream);
+                // write rtp header first
+                stream->write_1bytes(0x80);
+                if ((sample.bytes[0] & 0x1F) <= 5) {
+                    stream->write_1bytes((1 << 7) | 102);
+                } else {
+                    stream->write_1bytes(102);
+                }
+
+                stream->write_2bytes(sequence++);
+                stream->write_4bytes((int32_t)shared_frame->timestamp * 90);
                 stream->write_4bytes((int32_t)3233846889);
 
                 stream->write_1bytes((sample.bytes[0] & 0xE0) | 28);
