@@ -31,6 +31,7 @@
 #include <map>
 
 class SrsFormat;
+class SrsSample;
 class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsOriginHub;
@@ -39,12 +40,17 @@ class SrsRtpMuxer
 {
 private:
     uint16_t sequence;
-    std::map<uint32_t, std::string> packet_queue;
+    std::string sps;
+    std::string pps;
 public:
     SrsRtpMuxer();
     virtual ~SrsRtpMuxer();
 public:
     srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+private:
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample);
+    srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsSample>& rtp_packet_vec);
 };
 
 class SrsRtp

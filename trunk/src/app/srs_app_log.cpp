@@ -37,7 +37,7 @@
 #include <srs_kernel_utility.hpp>
 
 // the max size of a line of log.
-#define LOG_MAX_SIZE 4096
+#define LOG_MAX_SIZE 4096000
 
 // the tail append to each log.
 #define LOG_TAIL '\n'

@@ -85,10 +85,13 @@ static string dump_string_hex(const std::string& str, const int& max_len = 128)
 
 static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
 {
+	string ret;
+    ret.reserve(max_len * 4); 
+
     char tmp_buf[1024*16];
     tmp_buf[0] = '\n';
     int len = 1;
-    
+        
     for (int i = 0; i < nb_buf && i < max_len; ++i) {
         //int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "(%03d)%02X ", i, (uint8_t)buf[i]);
         int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
@@ -97,13 +100,17 @@ static string dump_string_hex(const char* buf, const int nb_buf, const int& max_
 
         len += nb; 
 
-        if (i % 16 == 15) {
+        if (i % 48 == 47) {
             tmp_buf[len++] = '\n';
-        }
+            ret.append(tmp_buf, len);
+            len = 0;
+        }   
     }   
     tmp_buf[len] = '\0';
+    ret.append(tmp_buf, len);
 
-    return string(tmp_buf, len);
+    return ret;
+
 }
 
 SrsCandidate::SrsCandidate()
