@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-11, For [#1634][bug #1634], refactor output with datetime for ingest/encoder/exec. 3.0.125
 * v3.0, 2020-03-11, For [#1634][bug #1634], fix quit by accident SIGTERM while killing FFMPEG. 3.0.124
 * <strong>v3.0, 2020-03-05, [3.0 beta2(3.0.123)][r3.0b2] released. 122170 lines.</strong>
 * v3.0, 2020-02-21, For [#1598][bug #1598], support SLB health checking by TCP. 3.0.123
