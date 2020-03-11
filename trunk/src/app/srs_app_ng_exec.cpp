@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_utility.hpp>
 
 SrsNgExec::SrsNgExec()
 {
@@ -219,6 +220,8 @@ string SrsNgExec::parse(SrsRequest* req, string tmpl)
     output = srs_string_replace(output, "[tcUrl]", req->tcUrl);
     output = srs_string_replace(output, "[swfUrl]", req->swfUrl);
     output = srs_string_replace(output, "[pageUrl]", req->pageUrl);
+
+    output = srs_path_build_timestamp(output);
     
     if (output.find("[url]") != string::npos) {
         string url = srs_generate_rtmp_url(req->host, req->port, req->host, req->vhost, req->app, req->stream, req->param);
