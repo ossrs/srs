@@ -892,6 +892,7 @@ srs_error_t SrsServer::cycle()
 void SrsServer::on_signal(int signo)
 {
     if (signo == SRS_SIGNAL_RELOAD) {
+        srs_trace("reload config, signo=%d", signo);
         signal_reload = true;
         return;
     }
@@ -899,7 +900,7 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
-        srs_warn("reopen log file");
+        srs_warn("reopen log file, signo=%d", signo);
         return;
     }
 #endif
@@ -907,7 +908,7 @@ void SrsServer::on_signal(int signo)
 #ifdef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
-        srs_warn("for gmc, the SIGUSR1 used as SIGINT");
+        srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
         return;
     }
 #endif
@@ -919,7 +920,7 @@ void SrsServer::on_signal(int signo)
     
     if (signo == SIGINT) {
 #ifdef SRS_AUTO_GPERF_MC
-        srs_trace("gmc is on, main cycle will terminate normally.");
+        srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
 #else
         #ifdef SRS_AUTO_MEM_WATCH
