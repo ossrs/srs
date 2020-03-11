@@ -30,6 +30,8 @@ using namespace std;
 #include <arpa/inet.h>
 
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <sstream>
 
@@ -41,7 +43,9 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_app_dtls.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_rtp.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
@@ -76,42 +80,6 @@ static string gen_random_str(int len)
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
-
-static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len);
-static string dump_string_hex(const std::string& str, const int& max_len = 128)
-{
-    return dump_string_hex(str.c_str(), str.size(), max_len);
-}
-
-static string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = 128)
-{
-	string ret;
-    ret.reserve(max_len * 4); 
-
-    char tmp_buf[1024*16];
-    tmp_buf[0] = '\n';
-    int len = 1;
-        
-    for (int i = 0; i < nb_buf && i < max_len; ++i) {
-        //int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "(%03d)%02X ", i, (uint8_t)buf[i]);
-        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
-        if (nb <= 0)
-            break;
-
-        len += nb; 
-
-        if (i % 48 == 47) {
-            tmp_buf[len++] = '\n';
-            ret.append(tmp_buf, len);
-            len = 0;
-        }   
-    }   
-    tmp_buf[len] = '\0';
-    ret.append(tmp_buf, len);
-
-    return ret;
-
-}
 
 SrsCandidate::SrsCandidate()
 {
@@ -654,14 +622,10 @@ srs_error_t SrsRtcSenderThread::cycle()
             SrsSharedPtrMessage* msg = msgs.msgs[i];
 
             for (int i = 0; i < msg->nb_rtp_fragments; ++i) {
-                srs_trace("rtp fragment size=%d, payload=%s", msg->rtp_fragments[i].size, 
-                    dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 1460).c_str());
-
                 SrsBuffer stream(msg->rtp_fragments[i].bytes + 2, 2);
-                static uint16_t seq = 0;
-                stream.write_2bytes(++seq);
-
-                srs_trace("seq=%u", seq);
+                uint16_t seq = stream.read_2bytes();
+                srs_trace("rtp fragment size=%d, seq=%u, payload=%s", msg->rtp_fragments[i].size, seq, 
+                    dump_string_hex(msg->rtp_fragments[i].bytes, msg->rtp_fragments[i].size, 1460).c_str());
 
                 if (rtc_session->dtls_session) {
                     char rtp_send_protected_buf[1500];
@@ -670,6 +634,8 @@ srs_error_t SrsRtcSenderThread::cycle()
                     ukt.sendto(rtp_send_protected_buf, rtp_send_protected_len, 0);
                 }
             }
+
+            srs_freep(msg);
         }
 
         srs_usleep(16000);
@@ -778,27 +744,40 @@ srs_error_t SrsRtcSession::on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket)
         return srs_error_wrap(err, "recv unexpect rtp/rtcp packet before dtls done");
     }
 
+    uint8_t payload_type = udp_remux_socket->data()[1] & 0x7F;
+
     char srtp_unprotect_buf[1460];
     int nb_srtp_unprotect_buf = udp_remux_socket->size();
     if (dtls_session->srtp_receiver_unprotect(srtp_unprotect_buf, udp_remux_socket->data(), nb_srtp_unprotect_buf) != srs_success) {
-        return srs_error_wrap(err, "srtp receiver unprotect failed");
+        return srs_error_wrap(err, "srtp receiver unprotect failed, payload_type=%u", payload_type);
     }
 
     //srs_trace("srtp unprotect success, %s", dump_string_hex(srtp_unprotect_buf, nb_srtp_unprotect_buf, nb_srtp_unprotect_buf).c_str());
 
     SrsBuffer* stream = new SrsBuffer(srtp_unprotect_buf, nb_srtp_unprotect_buf);
+    SrsAutoFree(SrsBuffer, stream);
     uint8_t first = stream->read_1bytes();
     uint8_t second = stream->read_1bytes();
-    bool marker = (second & 0x80) == 0x80;
-    uint8_t payload_type = second &0x7F;
+
+    bool padding = (first & 0x20);
+    bool ext = (first & 0x10);
+    uint8_t cc = (first & 0x0F);
+
+    bool marker = (second & 0x80);
 
     uint16_t sequence = stream->read_2bytes();
     uint32_t timestamp = stream->read_4bytes();
     uint32_t ssrc = stream->read_4bytes();
 
-    srs_trace("sequence=%u, timestamp=%u, ssrc=%u, marker=%d, payload_type=%u", sequence, timestamp, ssrc, marker, payload_type);
+    srs_trace("sequence=%u, timestamp=%u, ssrc=%u, padding=%d, ext=%d, cc=%u, marker=%d, payload_type=%u", 
+        sequence, timestamp, ssrc, padding, ext, cc, marker, payload_type);
 
-    if (first & 0x10) {
+    for (uint8_t i = 0; i < cc; ++i) {
+        uint32_t csrc = 0;
+        csrc = stream->read_4bytes();
+    }
+
+    if (ext) {
         uint16_t extern_profile = stream->read_2bytes();
         uint16_t extern_length = stream->read_2bytes();
 
@@ -808,6 +787,58 @@ srs_error_t SrsRtcSession::on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket)
     }
 
     if (payload_type == 102) {
+        static uint32_t pre_seq = 0;
+        uint32_t seq = sequence;
+        
+        srs_assert(pre_seq == 0 || (pre_seq + 1 == seq));
+
+        pre_seq = seq;
+
+        static uint8_t start_code[4] = {0x00, 0x00, 0x00, 0x01};
+        static int fd = -1;
+        if (fd < 0) {
+            fd = open("rtc.264", O_CREAT|O_TRUNC|O_RDWR, 0664);
+        }
+
+        const uint8_t* p = (const uint8_t*)stream->data() + stream->pos();
+        int len = stream->left();
+        uint8_t header = p[0];
+        uint8_t nal_type = header & kNalTypeMask;
+
+        srs_trace("nal_type=%u, seq=%u, rtp payload, %s", nal_type, sequence, dump_string_hex(stream->data() + stream->pos(), stream->left(), stream->left()).c_str());
+
+        if (nal_type >=1 && nal_type <= 23) {
+            srs_trace("single nalu");
+            write(fd, start_code, sizeof(start_code));
+            write(fd, p, len);
+        } else if (nal_type == kFuA) {
+            srs_trace("FuA");
+            if (p[1] & 0x80) {
+                uint8_t nal_type = ((p[0] & (~kNalTypeMask)) | (p[1] & kNalTypeMask));
+                write(fd, start_code, sizeof(start_code));
+                write(fd, &nal_type, 1);
+                write(fd, p + 2, len - 2);
+            } else {
+                write(fd, p + 2, len - 2);
+            }
+        } else if (nal_type == kStapA) {
+            srs_trace("StapA");
+            int pos = 1;
+            while (pos < len) {
+                int nal_len = p[pos] << 8 | p[pos + 1];
+                srs_trace("nal_len=%d", nal_len);
+                write(fd, start_code, sizeof(start_code));
+                write(fd, p + pos + 2, nal_len);
+                pos += nal_len + 2;
+            }
+            srs_assert(pos == len);
+        } else {
+            srs_assert(false);
+        }
+    }
+
+    // XXX:send h264 back to client, for debug
+    if (payload_type == 102) {
         char rtp_send_protected_buf[1500];
         int rtp_send_protected_len = nb_srtp_unprotect_buf;
         SrsBuffer stream(srtp_unprotect_buf + 8, 4);
@@ -815,8 +846,6 @@ srs_error_t SrsRtcSession::on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket)
         dtls_session->srtp_sender_protect(rtp_send_protected_buf, srtp_unprotect_buf, rtp_send_protected_len);
         udp_remux_socket->sendto(rtp_send_protected_buf, rtp_send_protected_len, 0);
     }
-
-    srs_trace("rtp payload, %s", dump_string_hex(stream->data() + stream->pos(), stream->left(), stream->left()).c_str());
 
     return err;
 }

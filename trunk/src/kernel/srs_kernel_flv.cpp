@@ -216,10 +216,10 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_freepa(payload);
 
     for (int i = 0; i < nb_rtp_fragments; ++i) {
-        srs_freep(rtp_fragments[i].bytes);
+        srs_freepa(rtp_fragments[i].bytes);
     }
 
-    if (nb_rtp_fragments) {
+    if (rtp_fragments != NULL && nb_rtp_fragments > 0) {
         srs_freepa(rtp_fragments);
     }
 }

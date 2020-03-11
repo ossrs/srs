@@ -36,6 +36,23 @@ class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsOriginHub;
 
+const int max_payload_size = 1200;
+const int kRtpPacketSize = 1500;
+
+const uint8_t kMarker = 0x80;
+const uint8_t kH264PayloadType = 102;
+
+const uint8_t kNalTypeMask = 0x1F;
+
+const uint8_t kIdr = 5;
+const uint8_t kStapA = 24; 
+const uint8_t kFuA = 28; 
+
+const uint8_t kStart = 0x80;
+const uint8_t kEnd = 0x40;
+
+const uint32_t kVideoSSRC = 3233846889;
+
 class SrsRtpMuxer
 {
 private:
@@ -48,8 +65,8 @@ public:
 public:
     srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample);
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsSample>& rtp_packet_vec);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsSample>& rtp_packet_vec);
     srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsSample>& rtp_packet_vec);
 };
 
