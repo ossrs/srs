@@ -382,6 +382,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", vhost->arg0());
     output = srs_string_replace(output, "[port]", srs_int2str(port));
+    output = srs_path_build_timestamp(output);
     if (output.empty()) {
         return srs_error_new(ERROR_ENCODER_NO_OUTPUT, "empty output url, ingest=%s", ingest->arg0().c_str());
     }
