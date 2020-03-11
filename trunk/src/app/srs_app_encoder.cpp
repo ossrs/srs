@@ -94,14 +94,16 @@ srs_error_t SrsEncoder::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
-        if ((err = do_cycle()) != srs_success) {
-            srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
-            srs_error_reset(err);
-        }
-        
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd->pull()) != srs_success) {
             err = srs_error_wrap(err, "encoder");
             break;
+        }
+
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
         }
     
         srs_usleep(SRS_RTMP_ENCODER_CIMS);
