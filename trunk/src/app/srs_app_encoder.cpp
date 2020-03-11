@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
@@ -284,6 +285,7 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[param]", req->param);
     output = srs_string_replace(output, "[engine]", engine->arg0());
+    output = srs_path_build_timestamp(output);
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
