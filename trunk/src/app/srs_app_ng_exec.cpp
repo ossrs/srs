@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_utility.hpp>
 
 SrsNgExec::SrsNgExec()
 {
