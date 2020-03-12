@@ -438,7 +438,8 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* p
 srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
 {
     srs_error_t err = srs_success;
-    
+    char samplingFrequencyIndex = codec->sampling_frequency_index;
+
     // only support aac profile 1-4.
     if (codec->aac_object == SrsAacObjectTypeReserved) {
         return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid aac object");
@@ -446,21 +447,11 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     
     SrsAacObjectType audioObjectType = codec->aac_object;
     char channelConfiguration = codec->channel_configuration;
-    char samplingFrequencyIndex = codec->sampling_frequency_index;
     
-    // override the aac samplerate by user specified.
-    // @see https://github.com/ossrs/srs/issues/212#issuecomment-64146899
-    switch (codec->sound_rate) {
-        case SrsAudioSampleRate11025:
-            samplingFrequencyIndex = 0x0a; break;
-        case SrsAudioSampleRate22050:
-            samplingFrequencyIndex = 0x07; break;
-        case SrsAudioSampleRate44100:
-            samplingFrequencyIndex = 0x04; break;
-        default:
-            break;
+    if (samplingFrequencyIndex >= 16) {
+        samplingFrequencyIndex = 4;//default 44100
     }
-    
+
     char chs[2];
     // @see ISO_IEC_14496-3-AAC-2001.pdf
     // AudioSpecificConfig (), page 33

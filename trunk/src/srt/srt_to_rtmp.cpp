@@ -516,25 +516,11 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
     return err;
 }
 
-int rtmp_client::get_sample_rate(char sound_rate) {
+int rtmp_client::get_sample_rate(char sample_index) {
     int sample_rate = 44100;
 
-    switch (sound_rate)
-    {
-    case SrsAudioSampleRate44100:
-        sample_rate = 44100;
-        break;
-    case SrsAudioSampleRate22050:
-        sample_rate = 22050;
-        break;
-    case SrsAudioSampleRate11025:
-        sample_rate = 11025;
-        break;
-    case SrsAudioSampleRate5512:
-        sample_rate = 5512;
-        break;
-    default:
-        break;
+    if ((sample_index >= 0) && (sample_index < 16)) {
+        sample_rate = mpeg4audio_sample_rates[sample_index];
     }
     return sample_rate;
 }
