@@ -466,7 +466,6 @@ SrsInotifyWorker::SrsInotifyWorker(SrsServer* s)
     server = s;
     trd = new SrsSTCoroutine("inotify", this);
     inotify_fd = NULL;
-    watch_conf = watch_k8s = 0;
 }
 
 SrsInotifyWorker::~SrsInotifyWorker()
@@ -539,25 +538,12 @@ srs_error_t SrsInotifyWorker::start()
 
     // Watch the config directory events.
     string config_dir = srs_path_dirname(_srs_config->config());
-    if (true) {
-        uint32_t mask = IN_ALL_EVENTS;
-        if ((watch_conf = ::inotify_add_watch(fd, config_dir.c_str(), mask)) < 0) {
-            return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, watch=%d, mask=%#x",
-                config_dir.c_str(), fd, watch_conf, mask);
-        }
-        srs_trace("auto reload watching fd=%d, watch=%d, file=%s", fd, watch_conf, config_dir.c_str());
+    uint32_t mask = IN_MODIFY | IN_CREATE | IN_MOVED_TO; int watch_conf = 0;
+    if ((watch_conf = ::inotify_add_watch(fd, config_dir.c_str(), mask)) < 0) {
+        return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, watch=%d, mask=%#x",
+            config_dir.c_str(), fd, watch_conf, mask);
     }
-
-    // Watch k8s sub directory.
-    string k8s_file = config_dir + "/..data";
-    if (srs_path_exists(k8s_file)) {
-        uint32_t mask = IN_ALL_EVENTS;
-        if ((watch_k8s = ::inotify_add_watch(fd, k8s_file.c_str(), mask)) < 0) {
-            return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, watch=%d, mask=%#x",
-                k8s_file.c_str(), fd, watch_k8s, mask);
-        }
-        srs_trace("auto reload watching fd=%d, watch=%d, file=%s", fd, watch_k8s, k8s_file.c_str());
-    }
+    srs_trace("auto reload watching fd=%d, watch=%d, file=%s", fd, watch_conf, config_dir.c_str());
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "inotify");
@@ -590,21 +576,21 @@ srs_error_t SrsInotifyWorker::cycle()
         for (char* ptr = buf; ptr < buf + nn; ptr += sizeof(inotify_event) + ie->len) {
             ie = (inotify_event*)ptr;
 
-            //if (!ie->len || !ie->name) {
-            //    continue;
-            //}
-            //
-            //string name = ie->name;
-            //if ((name == k8s_file || name == config_file) && ie->mask & (IN_MODIFY|IN_CREATE)) {
-            //    do_reload = true;
-            //}
+            if (!ie->len || !ie->name) {
+                continue;
+            }
+
+            string name = ie->name;
+            if ((name == k8s_file || name == config_file) && ie->mask & (IN_MODIFY|IN_CREATE|IN_MOVED_TO)) {
+                do_reload = true;
+            }
 
             srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d", ie->wd, ie->mask, ie->len, ie->name, do_reload);
         }
 
         // Notify server to do reload.
         if (do_reload && srs_path_exists(config_path)) {
-            //server->on_signal(SRS_SIGNAL_RELOAD);
+            server->on_signal(SRS_SIGNAL_RELOAD);
         }
 
         srs_usleep(3000 * SRS_UTIME_MILLISECONDS);

@@ -146,7 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
-* v3.0, 2020-03-12, For [#1635][bug #1635], inotify watch ConfigMap for reload. 3.0.131
+* v3.0, 2020-03-12, For [#1635][bug #1635], inotify watch ConfigMap for reload. 3.0.134
 * v3.0, 2020-03-12, For [#1635][bug #1635], support auto reaload config by inotify. 3.0.129
 * v3.0, 2020-03-12, For [#1630][bug #1630], disable cache for stream changing, and drop dup header. 3.0.128
 * v3.0, 2020-03-12, For [#1594][bug #1594], detect and disable daemon for docker. 3.0.127
