@@ -356,11 +356,12 @@ string srs_getenv(const char* name)
 }
 
 // Detect docker by https://stackoverflow.com/a/41559867
-srs_error_t srs_detect_docker(bool* is_docker)
+bool _srs_in_docker = false;
+srs_error_t srs_detect_docker()
 {
     srs_error_t err = srs_success;
 
-    *is_docker = false;
+    _srs_in_docker = false;
 
     SrsFileReader fr;
     if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
@@ -379,7 +380,7 @@ srs_error_t srs_detect_docker(bool* is_docker)
 
     string s(buf, nn);
     if (srs_string_contains(s, "/docker")) {
-        *is_docker = true;
+        _srs_in_docker = true;
     }
 
     return err;
@@ -389,18 +390,17 @@ srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
 
+    // Ignore any error while detecting docker.
+    if ((err = srs_detect_docker()) != srs_success) {
+        srs_error_reset(err);
+    }
+
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
     bool in_daemon = _srs_config->get_daemon();
-    if (in_daemon && _srs_config->disable_daemon_for_docker()) {
-        bool is_docker = false;
-        err = srs_detect_docker(&is_docker);
-        srs_error_reset(err); // Ignore any error while detecting docker.
-
-        if (is_docker) {
-            srs_warn("disable daemon for docker");
-            in_daemon = false;
-        }
+    if (in_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
+        srs_warn("disable daemon for docker");
+        in_daemon = false;
     }
     
     // If not daemon, directly run master.

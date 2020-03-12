@@ -284,6 +284,9 @@
 #define ERROR_MP4_ILLEGAL_MOOF              3089
 #define ERROR_OCLUSTER_DISCOVER             3090
 #define ERROR_OCLUSTER_REDIRECT             3091
+#define ERROR_INOTIFY_CREATE                3092
+#define ERROR_INOTIFY_OPENFD                3093
+#define ERROR_INOTIFY_WATCH                 3094
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
