@@ -505,7 +505,56 @@ srs_error_t SrsInotifyWorker::start()
         return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
     }
 
-    srs_trace("auto reload watching fd=%d", fd);
+    // /* the following are legal, implemented events that user-space can watch for */
+    // #define IN_ACCESS               0x00000001      /* File was accessed */
+    // #define IN_MODIFY               0x00000002      /* File was modified */
+    // #define IN_ATTRIB               0x00000004      /* Metadata changed */
+    // #define IN_CLOSE_WRITE          0x00000008      /* Writtable file was closed */
+    // #define IN_CLOSE_NOWRITE        0x00000010      /* Unwrittable file closed */
+    // #define IN_OPEN                 0x00000020      /* File was opened */
+    // #define IN_MOVED_FROM           0x00000040      /* File was moved from X */
+    // #define IN_MOVED_TO             0x00000080      /* File was moved to Y */
+    // #define IN_CREATE               0x00000100      /* Subfile was created */
+    // #define IN_DELETE               0x00000200      /* Subfile was deleted */
+    // #define IN_DELETE_SELF          0x00000400      /* Self was deleted */
+    // #define IN_MOVE_SELF            0x00000800      /* Self was moved */
+    //
+    // /* the following are legal events.  they are sent as needed to any watch */
+    // #define IN_UNMOUNT              0x00002000      /* Backing fs was unmounted */
+    // #define IN_Q_OVERFLOW           0x00004000      /* Event queued overflowed */
+    // #define IN_IGNORED              0x00008000      /* File was ignored */
+    //
+    // /* helper events */
+    // #define IN_CLOSE                (IN_CLOSE_WRITE | IN_CLOSE_NOWRITE) /* close */
+    // #define IN_MOVE                 (IN_MOVED_FROM | IN_MOVED_TO) /* moves */
+    //
+    // /* special flags */
+    // #define IN_ONLYDIR              0x01000000      /* only watch the path if it is a directory */
+    // #define IN_DONT_FOLLOW          0x02000000      /* don't follow a sym link */
+    // #define IN_EXCL_UNLINK          0x04000000      /* exclude events on unlinked objects */
+    // #define IN_MASK_ADD             0x20000000      /* add to the mask of an already existing watch */
+    // #define IN_ISDIR                0x40000000      /* event occurred against dir */
+    // #define IN_ONESHOT              0x80000000      /* only send event once */
+
+    // Watch the config directory events.
+    string config_dir = srs_path_dirname(_srs_config->config());
+    if (true) {
+        uint32_t mask = IN_MODIFY | IN_CREATE;
+        if (::inotify_add_watch(fd, config_dir.c_str(), mask) < 0) {
+            return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, mask=%#x", config_dir.c_str(), fd, mask);
+        }
+        srs_trace("auto reload watching fd=%d, file=%s", fd, config_dir.c_str());
+    }
+
+    // Watch k8s sub directory.
+    string k8s_file = config_dir + "/..data";
+    if (srs_path_exists(k8s_file)) {
+        uint32_t mask = IN_MODIFY;
+        if (::inotify_add_watch(fd, k8s_file.c_str(), mask) < 0) {
+            return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, mask=%#x", k8s_file.c_str(), fd, mask);
+        }
+        srs_trace("auto reload watching fd=%d, file=%s", fd, k8s_file.c_str());
+    }
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "inotify");
@@ -518,80 +567,41 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-    int fd = srs_netfd_fileno(inotify_fd);
-    // Watch the config file events.
-    string config_file = _srs_config->config();
-    // Only care about the modify or create or moved(for symbol link) event.
-    // @see https://github.com/ossrs/srs/issues/1635#issuecomment-598077374
-    //      #define IN_MODIFY               0x00000002      /* File was modified */
-    //      #define IN_CREATE               0x00000100      /* Subfile was created */
-    //      #define IN_DELETE_SELF          0x00000400      /* Self was deleted */
-    //      #define IN_MOVE_SELF            0x00000800      /* Self was moved */
-    //      #define IN_IGNORED              0x00008000      /* File was ignored */
-    uint32_t mask = IN_MODIFY | IN_CREATE | IN_DELETE_SELF | IN_MOVE_SELF | IN_IGNORED;
-    // Whether config file is removed, then we should watch it again.
-    bool self_gone = false;
-    // The current watch fd, if file is gone, we set to -1.
-    int watch_fd = 0;
+    string config_path = _srs_config->config();
+    string config_file = srs_path_basename(config_path);
+    string k8s_file = "..data";
 
     while (true) {
-        if (watch_fd <= 0 && srs_path_exists(config_file)) {
-            if ((watch_fd = ::inotify_add_watch(fd, config_file.c_str(), mask)) < 0) {
-                srs_warn("inotify ignore error, fd=%d, watch=%d, file=%s, mask=%#x",
-                    fd, watch_fd, config_file.c_str(), mask);
-            } else {
-                srs_trace("inotify watch %s fd=%d, watch=%d, mask=%#x, gone=%d",
-                    config_file.c_str(), fd, watch_fd, mask, self_gone);
-            }
-
-            // If the file come back again, we should reload it.
-            if (watch_fd > 0 && self_gone) {
-                // Notify server to do reload.
-                server->on_signal(SRS_SIGNAL_RELOAD);
-            }
+        char buf[4096];
+        ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
+        if (nn < 0) {
+            srs_warn("inotify ignore read failed, nn=%d", (int)nn);
+            break;
         }
 
-        if (watch_fd > 0) {
-            char buf[4096];
-            ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
-            if (nn < 0) {
-                srs_warn("inotify ignore read failed, nn=%d", (int)nn);
-                break;
+        // Whether config file changed.
+        bool do_reload = false;
+
+        // Parse all inotify events.
+        inotify_event* ie = NULL;
+        for (char* ptr = buf; ptr < buf + nn; ptr += sizeof(inotify_event) + ie->len) {
+            ie = (inotify_event*)ptr;
+
+            if (!ie->len || !ie->name) {
+                continue;
             }
 
-            // Whether config file changed.
-            bool do_reload = false;
-            // Now, we should reset it, for it come back.
-            self_gone = false;
-
-            // Parse all inotify events.
-            for (int i = 0; i < (int)nn; i += (int)sizeof(inotify_event)) {
-                inotify_event* ie = (inotify_event*)(buf + i);
-                if (ie->wd != watch_fd) {
-                    continue;
-                }
-
-                if (ie->mask & (IN_MOVE_SELF|IN_DELETE_SELF|IN_IGNORED)) {
-                    self_gone = true;
-                } else if (ie->mask & (IN_MODIFY|IN_CREATE)) {
-                    do_reload = true;
-                }
-
-                srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d, moved=%d",
-                    ie->wd, ie->mask, ie->len, ie->name, do_reload, self_gone);
+            string name = ie->name;
+            if ((name == k8s_file || name == config_file) && ie->mask & (IN_MODIFY|IN_CREATE)) {
+                do_reload = true;
             }
 
-            // Notify server to do reload.
-            if (do_reload && srs_path_exists(config_file)) {
-                server->on_signal(SRS_SIGNAL_RELOAD);
-            }
+            srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d", ie->wd, ie->mask, ie->len, ie->name, do_reload);
+        }
 
-            // Remove watch when self moved.
-            if (self_gone && watch_fd > 0) {
-                int r0 = inotify_rm_watch(fd, watch_fd);
-                srs_trace("inotify remove fd=%d, watch=%d, r0=%d", fd, watch_fd, r0);
-                watch_fd = -1;
-            }
+        // Notify server to do reload.
+        if (do_reload && srs_path_exists(config_path)) {
+            server->on_signal(SRS_SIGNAL_RELOAD);
         }
 
         srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
