@@ -539,7 +539,7 @@ srs_error_t SrsInotifyWorker::start()
     // Watch the config directory events.
     string config_dir = srs_path_dirname(_srs_config->config());
     if (true) {
-        uint32_t mask = IN_MODIFY | IN_CREATE;
+        uint32_t mask = IN_ALL_EVENTS;
         if (::inotify_add_watch(fd, config_dir.c_str(), mask) < 0) {
             return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, mask=%#x", config_dir.c_str(), fd, mask);
         }
@@ -549,7 +549,7 @@ srs_error_t SrsInotifyWorker::start()
     // Watch k8s sub directory.
     string k8s_file = config_dir + "/..data";
     if (srs_path_exists(k8s_file)) {
-        uint32_t mask = IN_MODIFY;
+        uint32_t mask = IN_ALL_EVENTS;
         if (::inotify_add_watch(fd, k8s_file.c_str(), mask) < 0) {
             return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, mask=%#x", k8s_file.c_str(), fd, mask);
         }
@@ -601,7 +601,7 @@ srs_error_t SrsInotifyWorker::cycle()
 
         // Notify server to do reload.
         if (do_reload && srs_path_exists(config_path)) {
-            server->on_signal(SRS_SIGNAL_RELOAD);
+            //server->on_signal(SRS_SIGNAL_RELOAD);
         }
 
         srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
