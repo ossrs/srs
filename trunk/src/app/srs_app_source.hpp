@@ -407,8 +407,10 @@ private:
     SrsSharedPtrMessage* meta;
     // The cached video sequence header, for example, sps/pps for h.264.
     SrsSharedPtrMessage* video;
+    SrsSharedPtrMessage* previous_video;
     // The cached audio sequence header, for example, asc for aac.
     SrsSharedPtrMessage* audio;
+    SrsSharedPtrMessage* previous_audio;
     // The format for sequence header.
     SrsRtmpFormat* vformat;
     SrsRtmpFormat* aformat;
@@ -418,6 +420,8 @@ public:
 public:
     // Dispose the metadata cache.
     virtual void dispose();
+    // For each publishing, clear the metadata cache.
+    virtual void clear();
 public:
     // Get the cached metadata.
     virtual SrsSharedPtrMessage* data();
@@ -431,6 +435,13 @@ public:
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
     virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+public:
+    // Previous exists sequence header.
+    virtual SrsSharedPtrMessage* previous_vsh();
+    virtual SrsSharedPtrMessage* previous_ash();
+    // Update previous sequence header, drop old one, set to new sequence header.
+    virtual void update_previous_vsh();
+    virtual void update_previous_ash();
 public:
     // Update the cached metadata by packet.
     virtual srs_error_t update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
