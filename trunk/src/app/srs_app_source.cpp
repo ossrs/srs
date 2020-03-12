@@ -1506,6 +1506,7 @@ void SrsOriginHub::destroy_forwarders()
 SrsMetaCache::SrsMetaCache()
 {
     meta = video = audio = NULL;
+    previous_video = previous_audio = NULL;
     vformat = new SrsRtmpFormat();
     aformat = new SrsRtmpFormat();
 }
@@ -1516,6 +1517,13 @@ SrsMetaCache::~SrsMetaCache()
 }
 
 void SrsMetaCache::dispose()
+{
+    clear();
+    srs_freep(previous_video);
+    srs_freep(previous_audio);
+}
+
+void SrsMetaCache::clear()
 {
     srs_freep(meta);
     srs_freep(video);
@@ -1568,6 +1576,28 @@ srs_error_t SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAl
     }
     
     return err;
+}
+
+SrsSharedPtrMessage* SrsMetaCache::previous_vsh()
+{
+    return previous_video;
+}
+
+SrsSharedPtrMessage* SrsMetaCache::previous_ash()
+{
+    return previous_audio;
+}
+
+void SrsMetaCache::update_previous_vsh()
+{
+    srs_freep(previous_video);
+    previous_video = video? video->copy() : NULL;
+}
+
+void SrsMetaCache::update_previous_ash()
+{
+    srs_freep(previous_audio);
+    previous_audio = audio? audio->copy() : NULL;
 }
 
 srs_error_t SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated)
@@ -1636,6 +1666,7 @@ srs_error_t SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
 {
     srs_freep(audio);
     audio = msg->copy();
+    update_previous_ash();
     return aformat->on_audio(msg);
 }
 
@@ -1643,6 +1674,7 @@ srs_error_t SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
 {
     srs_freep(video);
     video = msg->copy();
+    update_previous_vsh();
     return vformat->on_video(msg);
 }
 
@@ -2138,9 +2170,9 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && meta->ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->ash()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(meta->ash()->payload, msg->payload, msg->size);
+    if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+        if (meta->previous_ash()->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(meta->previous_ash()->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh audio, size=%d", msg->size);
         }
     }
@@ -2257,9 +2289,9 @@ srs_error_t SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     
     // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
-    if (is_sequence_header && meta->vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->vsh()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(meta->vsh()->payload, msg->payload, msg->size);
+    if (is_sequence_header && meta->previous_vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
+        if (meta->previous_vsh()->size == msg->size) {
+            drop_for_reduce = srs_bytes_equals(meta->previous_vsh()->payload, msg->payload, msg->size);
             srs_warn("drop for reduce sh video, size=%d", msg->size);
         }
     }
@@ -2415,6 +2447,10 @@ srs_error_t SrsSource::on_publish()
     
     // reset the mix queue.
     mix_queue->clear();
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->clear();
     
     // detect the monotonically again.
     is_monotonically_increase = true;
@@ -2450,7 +2486,12 @@ void SrsSource::on_unpublish()
     // donot clear the sequence header, for it maybe not changed,
     // when drop dup sequence header, drop the metadata also.
     gop_cache->clear();
-    
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->update_previous_vsh();
+    meta->update_previous_ash();
+
     srs_trace("cleanup when unpublish");
     
     _can_publish = true;

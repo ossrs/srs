@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
 
 #ifdef SRS_AUTO_SRT
@@ -354,12 +355,56 @@ string srs_getenv(const char* name)
     return "";
 }
 
+// Detect docker by https://stackoverflow.com/a/41559867
+srs_error_t srs_detect_docker(bool* is_docker)
+{
+    srs_error_t err = srs_success;
+
+    *is_docker = false;
+
+    SrsFileReader fr;
+    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
+        return err;
+    }
+
+    ssize_t nn;
+    char buf[1024];
+    if ((err = fr.read(buf, sizeof(buf), &nn)) != srs_success) {
+        return err;
+    }
+
+    if (nn <= 0) {
+        return err;
+    }
+
+    string s(buf, nn);
+    if (srs_string_contains(s, "/docker")) {
+        *is_docker = true;
+    }
+
+    return err;
+}
+
 srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
+
+    // Load daemon from config, disable it for docker.
+    // @see https://github.com/ossrs/srs/issues/1594
+    bool in_daemon = _srs_config->get_daemon();
+    if (in_daemon && _srs_config->disable_daemon_for_docker()) {
+        bool is_docker = false;
+        err = srs_detect_docker(&is_docker);
+        srs_error_reset(err); // Ignore any error while detecting docker.
+
+        if (is_docker) {
+            srs_warn("disable daemon for docker");
+            in_daemon = false;
+        }
+    }
     
     // If not daemon, directly run master.
-    if (!_srs_config->get_daemon()) {
+    if (!in_daemon) {
         if ((err = run_hybrid_server()) != srs_success) {
             return srs_error_wrap(err, "run master");
         }

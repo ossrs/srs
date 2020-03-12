@@ -646,12 +646,12 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
-        pprint->elapse();
-        
         // Whether client closed the FD.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "recv thread");
         }
+
+        pprint->elapse();
 
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.

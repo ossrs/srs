@@ -381,7 +381,6 @@ srs_error_t SrsRtmpConn::service_cycle()
     }
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
@@ -704,14 +703,14 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
-        // collect elapse for pithy print.
-        pprint->elapse();
-        
         // when source is set to expired, disconnect it.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        // collect elapse for pithy print.
+        pprint->elapse();
+
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/ossrs/srs/issues/196
         // @see: https://github.com/ossrs/srs/issues/217
@@ -872,12 +871,12 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
     while (true) {
-        pprint->elapse();
-        
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        pprint->elapse();
+
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
