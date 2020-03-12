@@ -466,7 +466,6 @@ SrsInotifyWorker::SrsInotifyWorker(SrsServer* s)
     server = s;
     trd = new SrsSTCoroutine("inotify", this);
     inotify_fd = NULL;
-    watch_fd = 0;
 }
 
 SrsInotifyWorker::~SrsInotifyWorker()
@@ -496,25 +495,17 @@ srs_error_t SrsInotifyWorker::start()
         return srs_error_new(ERROR_INOTIFY_CREATE, "create inotify");
     }
 
-    // Watch the config file events.
-    string config_file = _srs_config->config();
-    watch_fd = ::inotify_add_watch(fd, config_file.c_str(), IN_ALL_EVENTS);
-    if (watch_fd < 0) {
-        ::close(fd);
-        return srs_error_new(ERROR_INOTIFY_WATCH, "watch %s", config_file.c_str());
-    }
-
     // Open as stfd to read by ST.
     if ((inotify_fd = srs_netfd_open(fd)) == NULL) {
         ::close(fd);
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "open fd=%d, file=%s, wd=%d", fd, config_file.c_str(), watch_fd);
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "open fd=%d", fd);
     }
 
     if (((err = srs_fd_closeexec(fd))) != srs_success) {
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d, file=%s, wd=%d", fd, config_file.c_str(), watch_fd);
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
     }
 
-    srs_trace("auto reload watching %s, fd=%d, wd=%d", config_file.c_str(), fd, watch_fd);
+    srs_trace("auto reload watching fd=%d", fd);
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "inotify");
@@ -527,40 +518,83 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
+    int fd = srs_netfd_fileno(inotify_fd);
+    // Watch the config file events.
+    string config_file = _srs_config->config();
+    // Only care about the modify or create or moved(for symbol link) event.
+    // @see https://github.com/ossrs/srs/issues/1635#issuecomment-598077374
+    //      #define IN_MODIFY               0x00000002      /* File was modified */
+    //      #define IN_CREATE               0x00000100      /* Subfile was created */
+    //      #define IN_DELETE_SELF          0x00000400      /* Self was deleted */
+    //      #define IN_MOVE_SELF            0x00000800      /* Self was moved */
+    //      #define IN_IGNORED              0x00008000      /* File was ignored */
+    uint32_t mask = IN_MODIFY | IN_CREATE | IN_DELETE_SELF | IN_MOVE_SELF | IN_IGNORED;
+    // Whether config file is removed, then we should watch it again.
+    bool self_gone = false;
+    // The current watch fd, if file is gone, we set to -1.
+    int watch_fd = 0;
+
     while (true) {
-        char buf[4096];
-        ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
-        if (nn < 0) {
-            srs_warn("inotify ignore read failed, nn=%d", (int)nn);
-            break;
-        }
-
-        // Whether config file changed.
-        bool do_reload = false;
-
-        // Parse all inotify events.
-        for (int i = 0; i < (int)nn && !do_reload; i += (int)sizeof(inotify_event)) {
-            inotify_event* ie = (inotify_event*)(buf + i);
-            if (ie->wd != watch_fd) {
-                continue;
+        if (watch_fd <= 0 && srs_path_exists(config_file)) {
+            if ((watch_fd = ::inotify_add_watch(fd, config_file.c_str(), mask)) < 0) {
+                srs_warn("inotify ignore error, fd=%d, watch=%d, file=%s, mask=%#x",
+                    fd, watch_fd, config_file.c_str(), mask);
+            } else {
+                srs_trace("inotify watch %s fd=%d, watch=%d, mask=%#x, gone=%d",
+                    config_file.c_str(), fd, watch_fd, mask, self_gone);
             }
 
-            // Only care about the modify or create event.
-            // @see https://github.com/ossrs/srs/issues/1635#issuecomment-598077374
-            if ((ie->mask&IN_MODIFY) != IN_MODIFY && (ie->mask&IN_CREATE) != IN_CREATE) {
-                continue;
+            // If the file come back again, we should reload it.
+            if (watch_fd > 0 && self_gone) {
+                // Notify server to do reload.
+                server->on_signal(SRS_SIGNAL_RELOAD);
+            }
+        }
+
+        if (watch_fd > 0) {
+            char buf[4096];
+            ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
+            if (nn < 0) {
+                srs_warn("inotify ignore read failed, nn=%d", (int)nn);
+                break;
             }
 
-            do_reload = true;
-            srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s", ie->wd, ie->mask, ie->len, ie->name);
+            // Whether config file changed.
+            bool do_reload = false;
+            // Now, we should reset it, for it come back.
+            self_gone = false;
+
+            // Parse all inotify events.
+            for (int i = 0; i < (int)nn; i += (int)sizeof(inotify_event)) {
+                inotify_event* ie = (inotify_event*)(buf + i);
+                if (ie->wd != watch_fd) {
+                    continue;
+                }
+
+                if (ie->mask & (IN_MOVE_SELF|IN_DELETE_SELF|IN_IGNORED)) {
+                    self_gone = true;
+                } else if (ie->mask & (IN_MODIFY|IN_CREATE)) {
+                    do_reload = true;
+                }
+
+                srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d, moved=%d",
+                    ie->wd, ie->mask, ie->len, ie->name, do_reload, self_gone);
+            }
+
+            // Notify server to do reload.
+            if (do_reload && srs_path_exists(config_file)) {
+                server->on_signal(SRS_SIGNAL_RELOAD);
+            }
+
+            // Remove watch when self moved.
+            if (self_gone && watch_fd > 0) {
+                int r0 = inotify_rm_watch(fd, watch_fd);
+                srs_trace("inotify remove fd=%d, watch=%d, r0=%d", fd, watch_fd, r0);
+                watch_fd = -1;
+            }
         }
 
-        // Notify server to do reload.
-        if (do_reload) {
-            server->on_signal(SRS_SIGNAL_RELOAD);
-        }
-
-        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+        srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
     }
 
     return err;

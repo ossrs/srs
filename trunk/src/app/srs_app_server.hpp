@@ -192,7 +192,6 @@ private:
     SrsServer* server;
     SrsCoroutine* trd;
     srs_netfd_t inotify_fd;
-    int watch_fd;
 public:
     SrsInotifyWorker(SrsServer* s);
     virtual ~SrsInotifyWorker();
