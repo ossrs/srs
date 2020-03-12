@@ -3488,7 +3488,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
-            && n != "grace_start_wait" && n != "empty_ip_ok"
+            && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -4097,6 +4097,18 @@ bool SrsConfig::is_force_grace_quit()
     }
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::disable_daemon_for_docker()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("disable_daemon_for_docker");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()
