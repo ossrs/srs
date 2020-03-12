@@ -185,6 +185,24 @@ private:
     static void sig_catcher(int signo);
 };
 
+// Auto reload by inotify.
+// @see https://github.com/ossrs/srs/issues/1635
+class SrsInotifyWorker : public ISrsCoroutineHandler
+{
+private:
+    SrsServer* server;
+    SrsCoroutine* trd;
+    srs_netfd_t inotify_fd;
+public:
+    SrsInotifyWorker(SrsServer* s);
+    virtual ~SrsInotifyWorker();
+public:
+    virtual srs_error_t start();
+// Interface ISrsEndlessThreadHandler.
+public:
+    virtual srs_error_t cycle();
+};
+
 // A handler to the handle cycle in SRS RTMP server.
 class ISrsServerCycle
 {
