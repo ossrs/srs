@@ -360,7 +360,7 @@ srs_error_t SrsRtcListener::listen(std::string i, int p)
     port = p;
     
     srs_freep(listener);
-    listener = new SrsUdpRemuxListener(rtc, ip, port);
+    listener = new SrsUdpMuxListener(rtc, ip, port);
     
     if ((err = listener->listen()) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
@@ -648,6 +648,10 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
     
     if ((err = http_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "http server initialize");
+    }
+
+    if ((err = rtc_server->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc server initialize");
     }
     
     return err;

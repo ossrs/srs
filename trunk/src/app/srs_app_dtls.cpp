@@ -29,6 +29,8 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 
+#include <srtp2/srtp.h>
+
 SrsDtls* SrsDtls::_instance = NULL;
 
 SrsDtls::SrsDtls()
@@ -50,6 +52,10 @@ SrsDtls* SrsDtls::instance()
 
 void SrsDtls::init()
 {
+    // srtp init first
+    srs_assert(srtp_init() == 0);
+
+    // init dtls context
 	EVP_PKEY* dtls_private_key = EVP_PKEY_new();
     srs_assert(dtls_private_key);
 

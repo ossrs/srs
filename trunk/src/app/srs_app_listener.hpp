@@ -35,7 +35,7 @@
 
 struct sockaddr;
 
-class SrsUdpRemuxSocket;
+class SrsUdpMuxSocket;
 
 // The udp packet handler.
 class ISrsUdpHandler
@@ -58,14 +58,14 @@ public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
 };
 
-class ISrsUdpRemuxHandler
+class ISrsUdpMuxHandler
 {
 public:
-    ISrsUdpRemuxHandler();
-    virtual ~ISrsUdpRemuxHandler();
+    ISrsUdpMuxHandler();
+    virtual ~ISrsUdpMuxHandler();
 public:
     virtual srs_error_t on_stfd_change(srs_netfd_t fd);
-    virtual srs_error_t on_udp_packet(SrsUdpRemuxSocket* udp_remux_socket) = 0;
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt) = 0;
 };
 
 // The tcp connection handler.
@@ -127,7 +127,7 @@ public:
     virtual srs_error_t cycle();
 };
 
-class SrsUdpRemuxSocket
+class SrsUdpMuxSocket
 {
 private:
     char* buf;
@@ -139,11 +139,15 @@ private:
     std::string peer_ip;
     int peer_port;
 public:
-    SrsUdpRemuxSocket(srs_netfd_t fd);
-    virtual ~SrsUdpRemuxSocket();
+    SrsUdpMuxSocket(srs_netfd_t fd);
+    virtual ~SrsUdpMuxSocket();
+
+    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
+    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
 
     int recvfrom(srs_utime_t timeout);
     int sendto(void* data, int size, srs_utime_t timeout);
+    int sendtov(struct iovec* iov, size_t iovlen, srs_utime_t timeout);
 
     char* data() { return buf; }
     int size() { return nread; }
@@ -152,7 +156,7 @@ public:
     std::string get_peer_id();
 };
 
-class SrsUdpRemuxListener : public ISrsCoroutineHandler
+class SrsUdpMuxListener : public ISrsCoroutineHandler
 {
 protected:
     srs_netfd_t lfd;
@@ -161,12 +165,12 @@ protected:
     char* buf;
     int nb_buf;
 protected:
-    ISrsUdpRemuxHandler* handler;
+    ISrsUdpMuxHandler* handler;
     std::string ip;
     int port;
 public:
-    SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, int p);
-    virtual ~SrsUdpRemuxListener();
+    SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p);
+    virtual ~SrsUdpMuxListener();
 public:
     virtual int fd();
     virtual srs_netfd_t stfd();
@@ -175,6 +179,8 @@ public:
 // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
+private:
+    void set_socket_buffer();
 };
 
 #endif

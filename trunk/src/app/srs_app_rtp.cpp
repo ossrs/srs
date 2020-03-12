@@ -87,10 +87,12 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
             packet_fu_a(shared_frame, format, &sample, rtp_packet_vec);
         }
 
+#if 0
         srs_trace("nal size=%d, nal=%s", sample.size, dump_string_hex(sample.bytes, sample.size, sample.size).c_str());
         for (int i = 0; i < shared_frame->nb_rtp_fragments; ++i) {
             srs_trace("rtp=%s", dump_string_hex(shared_frame->rtp_fragments[i].bytes, shared_frame->rtp_fragments[i].size, kRtpPacketSize).c_str());
         }
+#endif
     }
 
     SrsSample* rtp_samples = new SrsSample[rtp_packet_vec.size()];
@@ -134,7 +136,6 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
             stream->write_1bytes(kH264PayloadType);
         }
         // sequence
-        srs_trace("sequence=%u", sequence);
         stream->write_2bytes(sequence++);
         // timestamp
         stream->write_4bytes(int32_t(shared_frame->timestamp * 90));
@@ -186,7 +187,6 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     // marker payloadtype
     stream->write_1bytes(kMarker | kH264PayloadType);
     // sequenct
-    srs_trace("sequence=%u", sequence);
     stream->write_2bytes(sequence++);
     // timestamp
     stream->write_4bytes(int32_t(shared_frame->timestamp * 90));
@@ -220,7 +220,6 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
     // marker payloadtype
     stream->write_1bytes(kMarker | kH264PayloadType);
     // sequenct
-    srs_trace("sequence=%u", sequence);
     stream->write_2bytes(sequence++);
     // timestamp
     stream->write_4bytes(int32_t(shared_frame->timestamp * 90));

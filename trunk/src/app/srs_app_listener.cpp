@@ -60,15 +60,15 @@ srs_error_t ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
     return srs_success;
 }
 
-ISrsUdpRemuxHandler::ISrsUdpRemuxHandler()
+ISrsUdpMuxHandler::ISrsUdpMuxHandler()
 {
 }
 
-ISrsUdpRemuxHandler::~ISrsUdpRemuxHandler()
+ISrsUdpMuxHandler::~ISrsUdpMuxHandler()
 {
 }
 
-srs_error_t ISrsUdpRemuxHandler::on_stfd_change(srs_netfd_t /*fd*/)
+srs_error_t ISrsUdpMuxHandler::on_stfd_change(srs_netfd_t /*fd*/)
 {
     return srs_success;
 }
@@ -221,7 +221,7 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
-SrsUdpRemuxSocket::SrsUdpRemuxSocket(srs_netfd_t fd)
+SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 {
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
@@ -232,12 +232,31 @@ SrsUdpRemuxSocket::SrsUdpRemuxSocket(srs_netfd_t fd)
     fromlen = 0;
 }
 
-SrsUdpRemuxSocket::~SrsUdpRemuxSocket()
+SrsUdpMuxSocket::~SrsUdpMuxSocket()
 {
     srs_freepa(buf);
 }
 
-int SrsUdpRemuxSocket::recvfrom(srs_utime_t timeout)
+SrsUdpMuxSocket::SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs)
+{
+    operator=(rhs);
+}
+
+SrsUdpMuxSocket& SrsUdpMuxSocket::operator=(const SrsUdpMuxSocket& rhs)
+{
+    buf = NULL;
+    nb_buf = 0;
+    nread = 0;
+    lfd = rhs.lfd;
+    from = rhs.from;
+    fromlen = rhs.fromlen;
+    peer_ip = rhs.peer_ip;
+    peer_port = rhs.peer_port;
+
+    return *this;
+}
+
+int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 {
     fromlen = sizeof(from);
     nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
@@ -259,12 +278,23 @@ int SrsUdpRemuxSocket::recvfrom(srs_utime_t timeout)
     return nread;
 }
 
-int SrsUdpRemuxSocket::sendto(void* data, int size, srs_utime_t timeout)
+int SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
 {
     return srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
 }
 
-std::string SrsUdpRemuxSocket::get_peer_id()
+int SrsUdpMuxSocket::sendtov(struct iovec* iov, size_t iovlen, srs_utime_t timeout)
+{
+     struct msghdr udphdr = {0};
+     udphdr.msg_name = &from;
+     udphdr.msg_namelen = fromlen;
+     udphdr.msg_iov = iov;
+     udphdr.msg_iovlen = iovlen;
+
+    return srs_sendmsg(lfd, &udphdr, 0, timeout);
+}
+
+std::string SrsUdpMuxSocket::get_peer_id()
 {
     char id_buf[1024];
     int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
@@ -272,7 +302,7 @@ std::string SrsUdpRemuxSocket::get_peer_id()
     return string(id_buf, len);
 }
 
-SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, int p)
+SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
 {
     handler = h;
     ip = i;
@@ -285,30 +315,32 @@ SrsUdpRemuxListener::SrsUdpRemuxListener(ISrsUdpRemuxHandler* h, std::string i, 
     trd = new SrsDummyCoroutine();
 }
 
-SrsUdpRemuxListener::~SrsUdpRemuxListener()
+SrsUdpMuxListener::~SrsUdpMuxListener()
 {
     srs_freep(trd);
     srs_close_stfd(lfd);
     srs_freepa(buf);
 }
 
-int SrsUdpRemuxListener::fd()
+int SrsUdpMuxListener::fd()
 {
     return srs_netfd_fileno(lfd);
 }
 
-srs_netfd_t SrsUdpRemuxListener::stfd()
+srs_netfd_t SrsUdpMuxListener::stfd()
 {
     return lfd;
 }
 
-srs_error_t SrsUdpRemuxListener::listen()
+srs_error_t SrsUdpMuxListener::listen()
 {
     srs_error_t err = srs_success;
 
     if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
+
+    set_socket_buffer();
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this);
@@ -319,7 +351,38 @@ srs_error_t SrsUdpRemuxListener::listen()
     return err;
 }
 
-srs_error_t SrsUdpRemuxListener::cycle()
+void SrsUdpMuxListener::set_socket_buffer()
+{
+    int sndbuf_size = 0;
+    socklen_t opt_len = sizeof(sndbuf_size);
+    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
+    srs_trace("default udp remux socket sndbuf=%d", sndbuf_size);
+
+    sndbuf_size = 1024*1024*10; // 10M
+    if (setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, sizeof(sndbuf_size)) < 0) {
+        srs_warn("set sock opt SO_SNDBUFFORCE failed");
+    }
+
+    opt_len = sizeof(sndbuf_size);
+    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
+    srs_trace("udp remux socket sndbuf=%d", sndbuf_size);
+
+    int rcvbuf_size = 0;
+    opt_len = sizeof(rcvbuf_size);
+    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
+    srs_trace("default udp remux socket rcvbuf=%d", rcvbuf_size);
+
+    rcvbuf_size = 1024*1024*10; // 10M
+    if (setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, sizeof(rcvbuf_size)) < 0) {
+        srs_warn("set sock opt SO_RCVBUFFORCE failed");
+    }
+
+    opt_len = sizeof(rcvbuf_size);
+    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
+    srs_trace("udp remux socket rcvbuf=%d", rcvbuf_size);
+}
+
+srs_error_t SrsUdpMuxListener::cycle()
 {
 	srs_error_t err = srs_success;
     
@@ -328,15 +391,15 @@ srs_error_t SrsUdpRemuxListener::cycle()
             return srs_error_wrap(err, "udp listener");
         }   
 
-        SrsUdpRemuxSocket udp_remux_socket(lfd);
+        SrsUdpMuxSocket udp_mux_skt(lfd);
 
-        if (udp_remux_socket.recvfrom(SRS_UTIME_NO_TIMEOUT) <= 0) {
+        if (udp_mux_skt.recvfrom(SRS_UTIME_NO_TIMEOUT) <= 0) {
             srs_error("udp recv error");
             // remux udp never return
             continue;
         }   
     
-        if ((err = handler->on_udp_packet(&udp_remux_socket)) != srs_success) {
+        if ((err = handler->on_udp_packet(&udp_mux_skt)) != srs_success) {
             // remux udp never return
             srs_error("udp packet handler error:%s", srs_error_desc(err).c_str());
             continue;

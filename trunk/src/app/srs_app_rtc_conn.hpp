@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_service_st.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <string>
 #include <map>
@@ -35,12 +36,21 @@
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
 
-class SrsUdpRemuxSocket;
+class SrsUdpMuxSocket;
 class SrsServer;
 class SrsConsumer;
 class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcSession;
+class SrsSharedPtrMessage;
+
+const uint8_t kSR = 200;
+const uint8_t kRR = 201;
+const uint8_t kSDES = 202;
+const uint8_t kBye = 203;
+const uint8_t kApp = 204;
+
+const srs_utime_t kSrsRtcSessionStunTimeoutUs = 10*1000*1000LL;
 
 class SrsCandidate
 {
@@ -116,19 +126,22 @@ public:
     SrsDtlsSession(SrsRtcSession* s);
     virtual ~SrsDtlsSession();
 
-    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t on_dtls_handshake_done(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_dtls_application_data(const char* data, const int len);
 
-    void send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t handshake(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t srtp_sender_protect(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
-    srs_error_t srtp_receiver_unprotect(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
- 
+    void send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
+public:
+    srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
+    srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
+private:
+    srs_error_t handshake(SrsUdpMuxSocket* udp_mux_skt);
 private:
     srs_error_t srtp_initialize();
-    srs_error_t srtp_sender_side_init();
-    srs_error_t srtp_receiver_side_init();
+    srs_error_t srtp_send_init();
+    srs_error_t srtp_recv_init();
 };
 
 class SrsRtcSenderThread : public ISrsCoroutineHandler
@@ -138,11 +151,11 @@ protected:
     int _parent_cid;
 private:
     SrsRtcSession* rtc_session;
-    SrsUdpRemuxSocket ukt;
+    SrsUdpMuxSocket ukt;
 public:
     // Constructor.
     // @param tm The receive timeout in srs_utime_t.
-    SrsRtcSenderThread(SrsRtcSession* s, SrsUdpRemuxSocket* u, int parent_cid);
+    SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
 public:
     virtual int cid();
@@ -152,6 +165,8 @@ public:
     virtual void stop_loop();
 public:
     virtual srs_error_t cycle();
+private:
+    void send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* udp_mux_skt);
 };
 
 class SrsRtcSession
@@ -165,39 +180,76 @@ private:
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
     SrsRtcSenderThread* strd;
+    std::string username;
+    std::string peer_id;
+    srs_utime_t last_stun_time;
 public:
     std::string app;
     std::string stream;
 public:
-    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr);
+    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const std::string& un);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
-    SrsSdp* get_remote_sdp() { return &remote_sdp; }
-    SrsRtcSessionStateType get_session_state() { return session_state; }
-
     void set_local_sdp(const SrsSdp& sdp) { local_sdp = sdp; }
+
+    SrsSdp* get_remote_sdp() { return &remote_sdp; }
     void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
+
+    SrsRtcSessionStateType get_session_state() { return session_state; }
     void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
+
+    std::string id() const { return peer_id + "_" + username; }
+
     void set_app_stream(const std::string& a, const std::string& s) { app = a; stream = s; }
+
+    std::string get_peer_id() const { return peer_id; }
+    void set_peer_id(const std::string& id) { peer_id = id; }
 public:
-    srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
-    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
+    srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtp(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtcp(SrsUdpMuxSocket* udp_mux_skt);
 public:
-    srs_error_t send_client_hello(SrsUdpRemuxSocket* udp_remux_socket);
-    void on_connection_established(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t start_play(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
+    void on_connection_established(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t start_play(SrsUdpMuxSocket* udp_mux_skt);
+public:
+    bool is_stun_timeout() { return last_stun_time + kSrsRtcSessionStunTimeoutUs < srs_get_system_time(); }
 private:
-    srs_error_t on_binding_request(SrsUdpRemuxSocket* udp_remux_socket, SrsStunPacket* stun_req);
+    srs_error_t on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
 private:
-    srs_error_t do_playing(SrsConsumer* consumer, SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t do_playing(SrsConsumer* consumer, SrsUdpMuxSocket* udp_mux_skt);
 };
 
-class SrsRtcServer : public ISrsUdpRemuxHandler
+// XXX: is there any other timer thread?
+class SrsRtcTimerThread : public ISrsCoroutineHandler
+{
+protected:
+    SrsCoroutine* trd;
+    int _parent_cid;
+private:
+    SrsRtcServer* rtc_server;
+public:
+    // Constructor.
+    // @param tm The receive timeout in srs_utime_t.
+    SrsRtcTimerThread(SrsRtcServer* rtc_svr, int parent_cid);
+    virtual ~SrsRtcTimerThread();
+public:
+    virtual int cid();
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void stop_loop();
+public:
+    virtual srs_error_t cycle();
+};
+
+class SrsRtcServer : public ISrsUdpMuxHandler
 {
 private:
     SrsServer* server;
+    SrsRtcTimerThread* rttrd;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -207,14 +259,15 @@ public:
 public:
     virtual srs_error_t initialize();
 
-    virtual srs_error_t on_udp_packet(SrsUdpRemuxSocket* udp_remux_socket);
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt);
 
     SrsRtcSession* create_rtc_session(const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
+    void check_and_clean_timeout_session();
 private:
-    srs_error_t on_stun(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t on_dtls(SrsUdpRemuxSocket* udp_remux_socket);
-    srs_error_t on_rtp_or_rtcp(SrsUdpRemuxSocket* udp_remux_socket);
+    srs_error_t on_stun(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtp_or_rtcp(SrsUdpMuxSocket* udp_mux_skt);
 private:
     SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
     SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
