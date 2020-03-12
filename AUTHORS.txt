@@ -54,3 +54,5 @@ CONTRIBUTORS ordered by first contribution.
 * Michael.Ma<wnpllr@gmail.com>
 * lam2003<linmin3@yy.com>
 * runner365<shi.weibd@hotmail.com>
+* XiaofengWang<wasphin@gmail.com>
+* XiaLixin<xialx@yuntongxun.com>

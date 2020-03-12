@@ -50,6 +50,7 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
+class SrsRtspCaster;
 class SrsCoroutineManager;
 
 // The listener type for server to identify the connection,
@@ -107,7 +108,7 @@ class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandle
 {
 private:
     SrsTcpListener* listener;
-    ISrsTcpHandler* caster;
+    SrsRtspCaster* caster;
 public:
     SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsRtspListener();

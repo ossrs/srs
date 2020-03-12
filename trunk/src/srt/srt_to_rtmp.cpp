@@ -460,6 +460,7 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
             continue;
         }
 
+        // TODO: FIXME: Should cache this config, it's better not to get it for each video frame.
         if (_srs_config->get_srt_sei_filter()) {
             if (nal_unit_type == SrsAvcNaluTypeSEI) {
                 continue;
