@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
+#include <sys/inotify.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -457,6 +458,114 @@ void SrsSignalManager::sig_catcher(int signo)
     errno = err;
 }
 
+// Whether we are in docker, defined in main module.
+extern bool _srs_in_docker;
+
+SrsInotifyWorker::SrsInotifyWorker(SrsServer* s)
+{
+    server = s;
+    trd = new SrsSTCoroutine("inotify", this);
+    inotify_fd = NULL;
+    watch_fd = 0;
+}
+
+SrsInotifyWorker::~SrsInotifyWorker()
+{
+    srs_freep(trd);
+    srs_close_stfd(inotify_fd);
+}
+
+srs_error_t SrsInotifyWorker::start()
+{
+    srs_error_t err = srs_success;
+
+    // Whether enable auto reload config.
+    bool auto_reload = _srs_config->inotify_auto_reload();
+    if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
+        srs_warn("enable auto reload for docker");
+        auto_reload = true;
+    }
+
+    if (!auto_reload) {
+        return err;
+    }
+
+    // Create inotify to watch config file.
+    int fd = ::inotify_init1(IN_NONBLOCK);
+    if (fd < 0) {
+        return srs_error_new(ERROR_INOTIFY_CREATE, "create inotify");
+    }
+
+    // Watch the config file events.
+    string config_file = _srs_config->config();
+    watch_fd = ::inotify_add_watch(fd, config_file.c_str(), IN_ALL_EVENTS);
+    if (watch_fd < 0) {
+        ::close(fd);
+        return srs_error_new(ERROR_INOTIFY_WATCH, "watch %s", config_file.c_str());
+    }
+
+    // Open as stfd to read by ST.
+    if ((inotify_fd = srs_netfd_open(fd)) == NULL) {
+        ::close(fd);
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "open fd=%d, file=%s, wd=%d", fd, config_file.c_str(), watch_fd);
+    }
+
+    if (((err = srs_fd_closeexec(fd))) != srs_success) {
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d, file=%s, wd=%d", fd, config_file.c_str(), watch_fd);
+    }
+
+    srs_trace("auto reload watching %s, fd=%d, wd=%d", config_file.c_str(), fd, watch_fd);
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "inotify");
+    }
+
+    return err;
+}
+
+srs_error_t SrsInotifyWorker::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        char buf[4096];
+        ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
+        if (nn < 0) {
+            srs_warn("inotify ignore read failed, nn=%d", (int)nn);
+            break;
+        }
+
+        // Whether config file changed.
+        bool do_reload = false;
+
+        // Parse all inotify events.
+        for (int i = 0; i < (int)nn && !do_reload; i += (int)sizeof(inotify_event)) {
+            inotify_event* ie = (inotify_event*)(buf + i);
+            if (ie->wd != watch_fd) {
+                continue;
+            }
+
+            // Only care about the modify or create event.
+            // @see https://github.com/ossrs/srs/issues/1635#issuecomment-598077374
+            if ((ie->mask&IN_MODIFY) != IN_MODIFY && (ie->mask&IN_CREATE) != IN_CREATE) {
+                continue;
+            }
+
+            do_reload = true;
+            srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s", ie->wd, ie->mask, ie->len, ie->name);
+        }
+
+        // Notify server to do reload.
+        if (do_reload) {
+            server->on_signal(SRS_SIGNAL_RELOAD);
+        }
+
+        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+
+    return err;
+}
+
 ISrsServerCycle::ISrsServerCycle()
 {
 }
@@ -849,7 +958,16 @@ srs_error_t SrsServer::ingest()
 
 srs_error_t SrsServer::cycle()
 {
-    srs_error_t err = do_cycle();
+    srs_error_t err = srs_success;
+
+    // Start the inotify auto reload by watching config file.
+    SrsInotifyWorker inotify(this);
+    if ((err = inotify.start()) != srs_success) {
+        return srs_error_wrap(err, "start inotify");
+    }
+
+    // Do server main cycle.
+     err = do_cycle();
     
 #ifdef SRS_AUTO_GPERF_MC
     destroy();

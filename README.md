@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-12, For [#1635][bug #1635], support auto reaload config by inotify. 3.0.129
 * v3.0, 2020-03-12, For [#1630][bug #1630], disable cache for stream changing, and drop dup header. 3.0.128
 * v3.0, 2020-03-12, For [#1594][bug #1594], detect and disable daemon for docker. 3.0.127
 * v3.0, 2020-03-12, For [#1634][bug #1634], always check status in thread loop. 3.0.126
@@ -1668,6 +1669,7 @@ Winlin
 [bug #1634]: https://github.com/ossrs/srs/issues/1634
 [bug #1594]: https://github.com/ossrs/srs/issues/1594
 [bug #1630]: https://github.com/ossrs/srs/issues/1630
+[bug #1635]: https://github.com/ossrs/srs/issues/1635
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

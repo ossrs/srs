@@ -45,6 +45,7 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
+bool _srs_in_docker = false;
 
 #include <srs_app_st.hpp>
 
