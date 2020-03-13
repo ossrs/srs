@@ -520,9 +520,10 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
 int rtmp_client::get_sample_rate(char sample_index) {
     int sample_rate = 44100;
 
-    if ((sample_index >= 0) && (sample_index < 16)) {
-        sample_rate = mpeg4audio_sample_rates[sample_index];
+    if ((sample_index >= 0) && (sample_index < SrsAAcSampleRateNumbers)) {
+        sample_rate = srs_aac_srates[(uint8_t)sample_index];
     }
+
     return sample_rate;
 }
 

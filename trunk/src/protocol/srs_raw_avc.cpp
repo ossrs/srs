@@ -438,7 +438,6 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* p
 srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
 {
     srs_error_t err = srs_success;
-    char samplingFrequencyIndex = codec->sampling_frequency_index;
 
     // only support aac profile 1-4.
     if (codec->aac_object == SrsAacObjectTypeReserved) {
@@ -447,9 +446,10 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     
     SrsAacObjectType audioObjectType = codec->aac_object;
     char channelConfiguration = codec->channel_configuration;
-    
-    if (samplingFrequencyIndex >= 16) {
-        samplingFrequencyIndex = 4;//default 44100
+
+    char samplingFrequencyIndex = codec->sampling_frequency_index;
+    if (samplingFrequencyIndex >= SrsAAcSampleRateNumbers) {
+        samplingFrequencyIndex = 4; // Default to 44100
     }
 
     char chs[2];
