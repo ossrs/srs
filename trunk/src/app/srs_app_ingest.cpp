@@ -201,15 +201,17 @@ srs_error_t SrsIngester::cycle()
     srs_error_t err = srs_success;
     
     while (!disposed) {
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "ingester");
+        }
+
         if ((err = do_cycle()) != srs_success) {
             srs_warn("Ingester: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
-        
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "ingester");
-        }
-    
+
         srs_usleep(SRS_AUTO_INGESTER_CIMS);
     }
     
@@ -382,6 +384,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* 
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", vhost->arg0());
     output = srs_string_replace(output, "[port]", srs_int2str(port));
+    output = srs_path_build_timestamp(output);
     if (output.empty()) {
         return srs_error_new(ERROR_ENCODER_NO_OUTPUT, "empty output url, ingest=%s", ingest->arg0().c_str());
     }

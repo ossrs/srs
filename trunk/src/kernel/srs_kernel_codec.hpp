@@ -304,6 +304,9 @@ extern int srs_flv_srates[];
  */
 extern int srs_aac_srates[];
 
+// The number of aac samplerates, size for srs_aac_srates.
+#define SrsAAcSampleRateNumbers 16
+
 // The impossible aac sample rate index.
 #define SrsAacSampleRateUnset 15
 

@@ -248,6 +248,10 @@ srs_error_t SrsProcess::start()
     
     // parent.
     if (pid > 0) {
+        // Wait for a while for process to really started.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597568840
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
         is_started = true;
         srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
                   pid, bin.c_str(), stdout_file.c_str(), stderr_file.c_str(), actual_cli.c_str());

@@ -234,15 +234,17 @@ srs_error_t SrsEdgeIngester::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "edge ingester");
+        }
+
         if ((err = do_cycle()) != srs_success) {
             srs_warn("EdgeIngester: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
-        
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "edge ingester");
-        }
-        
+
         srs_usleep(SRS_EDGE_INGESTER_CIMS);
     }
     
@@ -314,7 +316,6 @@ srs_error_t SrsEdgeIngester::ingest(string& redirect)
     redirect = "";
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "thread quit");
         }
@@ -534,14 +535,16 @@ srs_error_t SrsEdgeForwarder::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
-        if ((err = do_cycle()) != srs_success) {
-            return srs_error_wrap(err, "do cycle");
-        }
-        
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "thread pull");
         }
-    
+
+        if ((err = do_cycle()) != srs_success) {
+            return srs_error_wrap(err, "do cycle");
+        }
+
         srs_usleep(SRS_EDGE_FORWARDER_CIMS);
     }
     
