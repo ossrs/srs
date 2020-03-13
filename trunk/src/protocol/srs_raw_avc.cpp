@@ -447,6 +447,13 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     SrsAacObjectType audioObjectType = codec->aac_object;
     char channelConfiguration = codec->channel_configuration;
 
+    // Here we are generating AAC sequence header, the ASC structure,
+    // because we have already parsed the sampling rate from AAC codec,
+    // which is more precise than the sound_rate defined by RTMP.
+    //
+    // For example, AAC sampling_frequency_index is 3(48000HZ) or 4(44100HZ),
+    // the sound_rate is always 3(44100HZ), if we covert sound_rate to
+    // sampling_frequency_index, we may make mistake.
     char samplingFrequencyIndex = codec->sampling_frequency_index;
     if (samplingFrequencyIndex >= SrsAAcSampleRateNumbers) {
         samplingFrequencyIndex = 4; // Default to 44100
