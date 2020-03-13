@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -773,6 +774,96 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, code);
             }
         }
+    } else {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
+    }
+    
+    return srs_api_response(w, r, obj->dumps());
+}
+
+SrsGoApiSdp::SrsGoApiSdp(SrsServer* svr, SrsRtcServer* rtc_svr)
+{
+    server = svr;
+    rtc_server = rtc_svr;
+}
+
+SrsGoApiSdp::~SrsGoApiSdp()
+{
+}
+
+srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+    
+    SrsStatistic* stat = SrsStatistic::instance();
+    
+    // path: {pattern}{stream_id}
+    // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
+    int sid = r->parse_rest_id(entry->pattern);
+    
+    SrsStatisticStream* stream = NULL;
+    if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
+        return srs_api_response_code(w, r, ERROR_RTMP_STREAM_NOT_FOUND);
+    }
+
+    string req_json;
+    r->body_read_all(req_json);
+    srs_trace("req_json=%s", req_json.c_str());
+
+    SrsJsonAny* json = SrsJsonAny::loads(req_json);
+    SrsJsonObject* req_obj = json->to_object();
+
+    SrsJsonAny* remote_sdp_obj = req_obj->get_property("sdp");
+    SrsJsonAny* app_obj = req_obj->get_property("app");
+    SrsJsonAny* stream_name_obj = req_obj->get_property("stream");
+
+    if (remote_sdp_obj == NULL || app_obj == NULL || stream_name_obj == NULL) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    string remote_sdp_str = remote_sdp_obj->to_str();
+    string app = app_obj->to_str();
+    string stream_name = stream_name_obj->to_str();
+
+    srs_trace("remote_sdp_str=%s", remote_sdp_str.c_str());
+    srs_trace("app=%s, stream=%s", app.c_str(), stream_name.c_str());
+
+    SrsSdp remote_sdp;
+    err = remote_sdp.decode(remote_sdp_str);
+    if (err != srs_success) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    SrsSdp local_sdp;
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(remote_sdp, local_sdp);
+    rtc_session->set_app_stream(app, stream_name);
+
+    string local_sdp_str = "";
+    err = local_sdp.encode(local_sdp_str);
+    if (err != srs_success) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::integer(stat->server_id()));
+
+    // XXX: ice candidate
+    //string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:9527 typ host generation 0 ufrag " 
+    //    + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
+
+    //SrsJsonObject* candidate_obj = SrsJsonAny::object();
+    //SrsAutoFree(SrsJsonObject, candidate_obj);
+
+    //candidate_obj->set("candidate", SrsJsonAny::str(candidate_str.c_str()));
+    //candidate_obj->set("sdpMid", SrsJsonAny::str("0"));
+    //candidate_obj->set("sdpMLineIndex", SrsJsonAny::str("0"));
+    
+    if (r->is_http_post()) {
+        obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+        // obj->set("candidate", candidate_obj);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

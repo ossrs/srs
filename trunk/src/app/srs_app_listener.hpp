@@ -26,12 +26,16 @@
 
 #include <srs_core.hpp>
 
+#include <sys/socket.h>
+
 #include <string>
 
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
 struct sockaddr;
+
+class SrsUdpMuxSocket;
 
 // The udp packet handler.
 class ISrsUdpHandler
@@ -54,6 +58,16 @@ public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf) = 0;
 };
 
+class ISrsUdpMuxHandler
+{
+public:
+    ISrsUdpMuxHandler();
+    virtual ~ISrsUdpMuxHandler();
+public:
+    virtual srs_error_t on_stfd_change(srs_netfd_t fd);
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt) = 0;
+};
+
 // The tcp connection handler.
 class ISrsTcpHandler
 {
@@ -68,13 +82,13 @@ public:
 // Bind udp port, start thread to recv packet and handler it.
 class SrsUdpListener : public ISrsCoroutineHandler
 {
-private:
+protected:
     srs_netfd_t lfd;
     SrsCoroutine* trd;
-private:
+protected:
     char* buf;
     int nb_buf;
-private:
+protected:
     ISrsUdpHandler* handler;
     std::string ip;
     int port;
@@ -111,6 +125,62 @@ public:
 // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
+};
+
+class SrsUdpMuxSocket
+{
+private:
+    char* buf;
+    int nb_buf;
+    int nread;
+    srs_netfd_t lfd;
+    sockaddr_storage from;
+    int fromlen;
+    std::string peer_ip;
+    int peer_port;
+public:
+    SrsUdpMuxSocket(srs_netfd_t fd);
+    virtual ~SrsUdpMuxSocket();
+
+    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
+    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
+
+    int recvfrom(srs_utime_t timeout);
+    int sendto(void* data, int size, srs_utime_t timeout);
+    int sendtov(struct iovec* iov, size_t iovlen, srs_utime_t timeout);
+
+    char* data() { return buf; }
+    int size() { return nread; }
+    std::string get_peer_ip() const { return peer_ip; }
+    int get_peer_port() const { return peer_port; }
+    std::string get_peer_id();
+};
+
+class SrsUdpMuxListener : public ISrsCoroutineHandler
+{
+protected:
+    srs_netfd_t lfd;
+    SrsCoroutine* trd;
+protected:
+    char* buf;
+    int nb_buf;
+protected:
+    ISrsUdpMuxHandler* handler;
+    std::string ip;
+    int port;
+public:
+    SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p);
+    virtual ~SrsUdpMuxListener();
+public:
+    virtual int fd();
+    virtual srs_netfd_t stfd();
+public:
+    virtual srs_error_t listen();
+// Interface ISrsReusableThreadHandler.
+public:
+    virtual srs_error_t cycle();
+private:
+    void set_socket_buffer();
 };
 
 #endif

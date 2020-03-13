@@ -324,6 +324,8 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
+#define ERROR_RTC_PORT                      4041
+#define ERROR_RTP_PACKET_CREATE             4042
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

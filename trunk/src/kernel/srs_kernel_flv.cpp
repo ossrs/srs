@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_rtp.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_mem_watch.hpp>
@@ -228,6 +229,10 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
             ptr->shared_count--;
         }
     }
+
+    for (int i = 0; i < rtp_packets.size(); ++i) {
+        srs_freep(rtp_packets[i]);
+    }
 }
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -345,8 +350,17 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
-    
+
+    for (int i = 0; i < rtp_packets.size(); ++i) {
+        copy->rtp_packets.push_back(rtp_packets[i]->copy());
+    }
+
     return copy;
+}
+
+void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
+{
+    rtp_packets = pkts;
 }
 
 SrsFlvTransmuxer::SrsFlvTransmuxer()

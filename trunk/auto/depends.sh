@@ -243,6 +243,27 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
+# srtp
+#####################################################################################
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]]; then
+        echo "The srtp2 is ok.";
+    else
+        echo "Building srtp2.";
+        (
+            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS} &&
+            unzip -q ../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 && 
+            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
+fi
+
+#####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
 function write_nginx_html5()

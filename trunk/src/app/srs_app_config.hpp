@@ -498,6 +498,14 @@ public:
     virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     // Get the max udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
+
+// rtc section
+public:
+    virtual int get_rtc_enabled();
+    virtual bool get_rtc_enabled(SrsConfDirective* conf);
+    virtual int get_rtc_listen();
+    virtual std::string get_rtc_candidates();
+
 // vhost specified section
 public:
     // Get the vhost directive by vhost name.

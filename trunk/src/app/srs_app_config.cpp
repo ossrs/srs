@@ -3486,7 +3486,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster" && n != "srt_server"
+            && n != "http_server" && n != "stream_caster" && n != "rtc" && n != "srt_server"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
@@ -4264,6 +4264,62 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_rtc_enabled()
+{
+    SrsConfDirective* conf = root->get("rtc");
+    return get_rtc_enabled(conf);
+}
+
+bool SrsConfig::get_rtc_enabled(SrsConfDirective* conf)
+{
+    static bool DEFAULT = false;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_listen()
+{
+    static int DEFAULT = 9527;
+    
+    SrsConfDirective* conf = root->get("rtc");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+std::string SrsConfig::get_rtc_candidates()
+{
+    static string DEFAULT = "*";
+    
+    SrsConfDirective* conf = root->get("rtc");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("candidate");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return (conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
