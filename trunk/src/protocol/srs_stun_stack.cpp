@@ -12,23 +12,6 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
-static string dump_string_hex(const std::string& str, const int& max_len = 128)
-{
-    char buf[1024*16];
-    int len = 0;
-    
-    for (int i = 0; i < str.size() && i < max_len; ++i) {
-        int nb = snprintf(buf + len, sizeof(buf) - len - 1, "%02X ", (uint8_t)str[i]);
-        if (nb <= 0)
-            break;
-
-        len += nb;
-    }
-    buf[len] = '\0';
-
-    return string(buf, len);
-}
-
 static srs_error_t hmac_encode(const std::string& algo, const char* key, const int& key_length,  
         const char* input, const int input_length, char* output, unsigned int& output_length)
 {
@@ -95,8 +78,6 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         return srs_error_wrap(err, "invalid stun packet, size=%d", stream->size());
     }
 
-    srs_trace("stun packet, nb_buf=%d", nb_buf);
-
     message_type = stream->read_2bytes();
     uint16_t message_len = stream->read_2bytes();
     string magic_cookie = stream->read_string(4);
@@ -113,8 +94,6 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         uint16_t type = stream->read_2bytes();
         uint16_t len = stream->read_2bytes();
 
-        srs_trace("type=%u, len=%u", type, len);
-
         if (stream->left() < len) {
             return srs_error_wrap(err, "invalid stun packet");
         }
@@ -124,11 +103,9 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         if (len % 4 != 0) {
             stream->read_string(4 - (len % 4));
         }
-        //srs_trace("val=%s", val.c_str());
 
         switch (type) {
-            // FIXME: enum 
-            case 6: {
+            case Username: {
                 username = val;
                 size_t p = val.find(":");
                 if (p != string::npos) {
@@ -168,7 +145,7 @@ srs_error_t SrsStunPacket::encode_binding_response(const string& pwd, SrsBuffer*
 
     stream->write_2bytes(BindingResponse);
     stream->write_2bytes(property_username.size() + mapped_address.size());
-    stream->write_4bytes(0x2112A442);
+    stream->write_4bytes(kStunMagicCookie);
     stream->write_string(transcation_id);
     stream->write_string(property_username);
     stream->write_string(mapped_address);
@@ -226,22 +203,12 @@ string SrsStunPacket::encode_mapped_address()
     SrsBuffer* stream = new SrsBuffer(buf, sizeof(buf));
     SrsAutoFree(SrsBuffer, stream);
 
-    uint32_t magic_cookie = 0x2112A442;
-#if 1
     stream->write_2bytes(XorMappedAddress);
     stream->write_2bytes(8);
     stream->write_1bytes(0); // ignore this bytes
     stream->write_1bytes(1); // ipv4 family
-    stream->write_2bytes(mapped_port ^ (magic_cookie >> 16));
-    stream->write_4bytes(mapped_address ^ magic_cookie);
-#else
-    stream->write_2bytes(MappedAddress);
-    stream->write_2bytes(8);
-    stream->write_1bytes(0); // ignore this bytes
-    stream->write_1bytes(1); // ipv4 family
-    stream->write_2bytes(mapped_port);
-    stream->write_4bytes(mapped_address);
-#endif
+    stream->write_2bytes(mapped_port ^ (kStunMagicCookie >> 16));
+    stream->write_4bytes(mapped_address ^ kStunMagicCookie);
 
     return string(stream->data(), stream->pos());
 }

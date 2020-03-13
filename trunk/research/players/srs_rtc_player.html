@@ -7,7 +7,7 @@
 <body>
 
 rtc_media_player: <br>
-<video id = "rtc_media_player" autoplay></video>
+<video width="1280" height="720" id = "rtc_media_player" autoplay></video>
 
 </body>
 
@@ -16,7 +16,7 @@ rtc_media_player: <br>
 var PeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
 var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription;
 
-var url = "http://hw.com:1985/api/v1/sdp/";
+var url = document.location.protocol + "//" + document.domain + ":1985/api/v1/sdp/";
 
 var method = "POST";
 var shouldBeAsync = true;

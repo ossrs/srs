@@ -31,6 +31,10 @@
 
 class SrsBuffer;
 
+// @see: https://tools.ietf.org/html/rfc5389
+// The magic cookie field MUST contain the fixed value 0x2112A442 in network byte order
+const uint32_t kStunMagicCookie = 0x2112A442;
+
 enum SrsStunMessageType
 {
 	// see @ https://tools.ietf.org/html/rfc3489#section-11.1	

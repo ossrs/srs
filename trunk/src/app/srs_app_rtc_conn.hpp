@@ -153,8 +153,6 @@ private:
     SrsRtcSession* rtc_session;
     SrsUdpMuxSocket ukt;
 public:
-    // Constructor.
-    // @param tm The receive timeout in srs_utime_t.
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
 public:
@@ -231,8 +229,6 @@ protected:
 private:
     SrsRtcServer* rtc_server;
 public:
-    // Constructor.
-    // @param tm The receive timeout in srs_utime_t.
     SrsRtcTimerThread(SrsRtcServer* rtc_svr, int parent_cid);
     virtual ~SrsRtcTimerThread();
 public:

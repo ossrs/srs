@@ -689,6 +689,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
                 int nb_protected_buf = msg->rtp_packets[i]->size;
 
                 rtc_session->dtls_session->protect_rtp(protected_buf, msg->rtp_packets[i]->payload, nb_protected_buf);
+                // TODO: use sendmmsg to send multi packet one system call
                 udp_mux_skt->sendto(protected_buf, nb_protected_buf, 0);
             }
         }

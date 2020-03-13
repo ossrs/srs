@@ -77,8 +77,8 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         uint8_t header = sample.bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
+        // ignore SEI nal
         if (nal_type == 0x06) {
-            srs_trace("ignore SEI");
             continue;
         }
 
@@ -87,13 +87,6 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         } else {
             packet_fu_a(shared_frame, format, &sample, rtp_packet_vec);
         }
-
-#if 0
-        srs_trace("nal size=%d, nal=%s", sample.size, dump_string_hex(sample.bytes, sample.size, sample.size).c_str());
-        for (int i = 0; i < shared_frame->nb_rtp_fragments; ++i) {
-            srs_trace("rtp=%s", dump_string_hex(shared_frame->rtp_fragments[i].bytes, shared_frame->rtp_fragments[i].size, kRtpPacketSize).c_str());
-        }
-#endif
     }
 
     shared_frame->set_rtp_packets(rtp_packet_vec);
