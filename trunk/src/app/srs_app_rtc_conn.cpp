@@ -37,6 +37,7 @@ using namespace std;
 
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_rtp.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_stun_stack.hpp>
@@ -682,12 +683,12 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
 	for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
-        for (int i = 0; i < msg->nb_rtp_fragments; ++i) {
+        for (int i = 0; i < msg->rtp_packets.size(); ++i) {
             if (rtc_session->dtls_session) {
                 char protected_buf[kRtpPacketSize];
-                int nb_protected_buf = msg->rtp_fragments[i].size;
+                int nb_protected_buf = msg->rtp_packets[i]->size;
 
-                rtc_session->dtls_session->protect_rtp(protected_buf, msg->rtp_fragments[i].bytes, nb_protected_buf);
+                rtc_session->dtls_session->protect_rtp(protected_buf, msg->rtp_packets[i]->payload, nb_protected_buf);
                 udp_mux_skt->sendto(protected_buf, nb_protected_buf, 0);
             }
         }

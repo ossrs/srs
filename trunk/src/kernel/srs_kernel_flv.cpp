@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_rtp.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_mem_watch.hpp>
@@ -203,8 +204,6 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;
     size = 0;
-    rtp_fragments = NULL;
-    nb_rtp_fragments = 0;
     shared_count = 0;
 }
 
@@ -214,17 +213,9 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
-
-    for (int i = 0; i < nb_rtp_fragments; ++i) {
-        srs_freepa(rtp_fragments[i].bytes);
-    }
-
-    if (rtp_fragments != NULL && nb_rtp_fragments > 0) {
-        srs_freepa(rtp_fragments);
-    }
 }
 
-SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL), rtp_fragments(NULL), nb_rtp_fragments(0)
+SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
 }
@@ -237,6 +228,10 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
         } else {
             ptr->shared_count--;
         }
+    }
+
+    for (int i = 0; i < rtp_packets.size(); ++i) {
+        srs_freep(rtp_packets[i]);
     }
 }
 
@@ -315,15 +310,6 @@ bool SrsSharedPtrMessage::check(int stream_id)
     return false;
 }
 
-void SrsSharedPtrMessage::set_rtp_fragments(SrsSample* samples, int nb_samples)
-{
-    ptr->rtp_fragments = samples;
-    ptr->nb_rtp_fragments = nb_samples;
-
-    rtp_fragments = samples;
-    nb_rtp_fragments = nb_samples;
-}
-
 bool SrsSharedPtrMessage::is_av()
 {
     return ptr->header.message_type == RTMP_MSG_AudioMessage
@@ -364,10 +350,17 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
-    copy->rtp_fragments = ptr->rtp_fragments;
-    copy->nb_rtp_fragments = ptr->nb_rtp_fragments;
-    
+
+    for (int i = 0; i < rtp_packets.size(); ++i) {
+        copy->rtp_packets.push_back(rtp_packets[i]->copy());
+    }
+
     return copy;
+}
+
+void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
+{
+    rtp_packets = pkts;
 }
 
 SrsFlvTransmuxer::SrsFlvTransmuxer()

@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 // For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -39,6 +40,7 @@ class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
 class SrsSample;
+class SrsRtpSharedPacket;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -287,8 +289,7 @@ public:
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
 
-    SrsSample* rtp_fragments;
-    int nb_rtp_fragments;
+    std::vector<SrsRtpSharedPacket*> rtp_packets;
 private:
     class SrsSharedPtrPayload
     {
@@ -302,8 +303,6 @@ private:
         int size;
         // The reference count
         int shared_count;
-        SrsSample* rtp_fragments;
-        int nb_rtp_fragments;
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();
@@ -333,8 +332,6 @@ public:
     // check perfer cid and stream id.
     // @return whether stream id already set.
     virtual bool check(int stream_id);
-
-    virtual void set_rtp_fragments(SrsSample* samples, int nb_samples);
 public:
     virtual bool is_av();
     virtual bool is_audio();
@@ -347,6 +344,8 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
+public:
+    virtual void set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts);
 };
 
 // Transmux RTMP packets to FLV stream.

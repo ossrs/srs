@@ -2300,7 +2300,7 @@ srs_error_t SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     if ((err = hub->on_video(msg, is_sequence_header)) != srs_success) {
         return srs_error_wrap(err, "hub consume video");
     }
-    
+
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {

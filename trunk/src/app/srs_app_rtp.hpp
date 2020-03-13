@@ -33,6 +33,7 @@
 class SrsFormat;
 class SrsSample;
 class SrsSharedPtrMessage;
+class SrsRtpSharedPacket;
 class SrsRequest;
 class SrsOriginHub;
 
@@ -65,9 +66,9 @@ public:
 public:
     srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsSample>& rtp_packet_vec);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsSample>& rtp_packet_vec);
-    srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsSample>& rtp_packet_vec);
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
+    srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
 };
 
 class SrsRtp

@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_rtp.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
@@ -68,7 +69,7 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         pps.assign(format->vcodec->pictureParameterSetNALUnit.data(), format->vcodec->pictureParameterSetNALUnit.size());
     }
 
-    vector<SrsSample> rtp_packet_vec;
+    vector<SrsRtpSharedPacket*> rtp_packet_vec;
 
     for (int i = 0; i < format->video->nb_samples; ++i) {
         SrsSample sample = format->video->samples[i];
@@ -95,17 +96,12 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
 #endif
     }
 
-    SrsSample* rtp_samples = new SrsSample[rtp_packet_vec.size()];
-    for (int i = 0; i < rtp_packet_vec.size(); ++i) {
-        rtp_samples[i] = rtp_packet_vec[i];
-    }
-
-    shared_frame->set_rtp_fragments(rtp_samples, rtp_packet_vec.size());
+    shared_frame->set_rtp_packets(rtp_packet_vec);
 
     return err;
 }
 
-srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsSample>& rtp_packet_vec)
+srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
 {
     srs_error_t err = srs_success;
 
@@ -136,7 +132,7 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
             stream->write_1bytes(kH264PayloadType);
         }
         // sequence
-        stream->write_2bytes(sequence++);
+        stream->write_2bytes(sequence);
         // timestamp
         stream->write_4bytes(int32_t(shared_frame->timestamp * 90));
         // ssrc
@@ -159,15 +155,14 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
         nb_left -= packet_size;
 
 
-        SrsSample rtp_packet;
-        rtp_packet.bytes = stream->data();
-        rtp_packet.size = stream->pos();
+        SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
+        rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
 
-        rtp_packet_vec.push_back(rtp_packet);
+        rtp_packet_vec.push_back(rtp_shared_pkt);
     }
 }
 
-srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsSample>& rtp_packet_vec)
+srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
 {
     srs_error_t err = srs_success;
 
@@ -187,7 +182,7 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     // marker payloadtype
     stream->write_1bytes(kMarker | kH264PayloadType);
     // sequenct
-    stream->write_2bytes(sequence++);
+    stream->write_2bytes(sequence);
     // timestamp
     stream->write_4bytes(int32_t(shared_frame->timestamp * 90));
     // ssrc
@@ -195,16 +190,15 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
 
     stream->write_bytes(sample->bytes, sample->size);
 
-    SrsSample rtp_packet;
-    rtp_packet.bytes = stream->data();
-    rtp_packet.size = stream->pos();
+    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
+    rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
 
-    rtp_packet_vec.push_back(rtp_packet);
+    rtp_packet_vec.push_back(rtp_shared_pkt);
 
     return err;
 }
 
-srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, SrsSharedPtrMessage* shared_frame, vector<SrsSample>& rtp_packet_vec)
+srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, SrsSharedPtrMessage* shared_frame, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
 {
     srs_error_t err = srs_success;
 
@@ -220,7 +214,7 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
     // marker payloadtype
     stream->write_1bytes(kMarker | kH264PayloadType);
     // sequenct
-    stream->write_2bytes(sequence++);
+    stream->write_2bytes(sequence);
     // timestamp
     stream->write_4bytes(int32_t(shared_frame->timestamp * 90));
     // ssrc
@@ -237,11 +231,10 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
     stream->write_2bytes(pps.size());
     stream->write_bytes((char*)pps.data(), pps.size());
 
-    SrsSample rtp_packet;
-    rtp_packet.bytes = stream->data();
-    rtp_packet.size = stream->pos();
+    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
+    rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
 
-    rtp_packet_vec.push_back(rtp_packet);
+    rtp_packet_vec.push_back(rtp_shared_pkt);
 
     return err;
 }
@@ -336,9 +329,6 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
     
-    SrsSharedPtrMessage* audio = shared_audio->copy();
-    SrsAutoFree(SrsSharedPtrMessage, audio);
-    
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
@@ -369,11 +359,8 @@ srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     // update the hls time, for hls_dispose.
     last_update_time = srs_get_system_time();
     
-    SrsSharedPtrMessage* video = shared_video->copy();
-    SrsAutoFree(SrsSharedPtrMessage, video);
-    
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video);
-    return rtp_h264_muxer->frame_to_packet(video, format);
+    return rtp_h264_muxer->frame_to_packet(shared_video, format);
 }
