@@ -454,9 +454,23 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     // For example, AAC sampling_frequency_index is 3(48000HZ) or 4(44100HZ),
     // the sound_rate is always 3(44100HZ), if we covert sound_rate to
     // sampling_frequency_index, we may make mistake.
-    char samplingFrequencyIndex = codec->sampling_frequency_index;
-    if (samplingFrequencyIndex >= SrsAAcSampleRateNumbers) {
-        samplingFrequencyIndex = 4; // Default to 44100
+    uint8_t samplingFrequencyIndex = (uint8_t)codec->sampling_frequency_index;
+    if (samplingFrequencyIndex >= SrsAacSampleRateUnset) {
+        switch (codec->sound_rate) {
+            case SrsAudioSampleRate5512:
+                samplingFrequencyIndex = 0x0c; break;
+            case SrsAudioSampleRate11025:
+                samplingFrequencyIndex = 0x0a; break;
+            case SrsAudioSampleRate22050:
+                samplingFrequencyIndex = 0x07; break;
+            case SrsAudioSampleRate44100:
+                samplingFrequencyIndex = 0x04; break;
+            default:
+                break;
+        }
+    }
+    if (samplingFrequencyIndex >= SrsAacSampleRateUnset) {
+        return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid sample index %d", samplingFrequencyIndex);
     }
 
     char chs[2];
@@ -470,9 +484,6 @@ srs_error_t SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, st
     // samplingFrequencyIndex; 4 bslbf
     chs[0] |= (samplingFrequencyIndex >> 1) & 0x07;
     chs[1] = (samplingFrequencyIndex << 7) & 0x80;
-    if (samplingFrequencyIndex == 0x0f) {
-        return srs_error_new(ERROR_AAC_DATA_INVALID, "invalid sampling frequency index");
-    }
     // 7bits left.
     
     // channelConfiguration; 4 bslbf
