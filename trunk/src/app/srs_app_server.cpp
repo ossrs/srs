@@ -112,7 +112,7 @@ std::string srs_listener_type2string(SrsListenerType type)
         case  SrsListener28181TcpStream:
             return "GB28181-Stream over TCP";
         case SrsListener28181UdpStream:
-            return "GB28181-Stream over UDP"
+            return "GB28181-Stream over UDP";
         default:
             return "UNKONWN";
     }
@@ -281,6 +281,46 @@ srs_error_t SrsHttpFlvListener::on_tcp_client(srs_netfd_t stfd)
         srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
+    
+    return err;
+}
+
+SrsUdpStreamListener::SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c) : SrsListener(svr, t)
+{
+    listener = NULL;
+    caster = c;
+}
+
+SrsUdpStreamListener::~SrsUdpStreamListener()
+{
+    srs_freep(listener);
+}
+
+srs_error_t SrsUdpStreamListener::listen(string i, int p)
+{
+    srs_error_t err = srs_success;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerMpegTsOverUdp);
+    
+    ip = i;
+    port = p;
+    
+    srs_freep(listener);
+    listener = new SrsUdpListener(caster, ip, port);
+    
+    if ((err = listener->listen()) != srs_success) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+    }
+    
+    // notify the handler the fd changed.
+    if ((err = caster->on_stfd_change(listener->stfd())) != srs_success) {
+        return srs_error_wrap(err, "notify fd change failed");
+    }
+    
+    string v = srs_listener_type2string(type);
+    srs_trace("%s listen at udp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
     
     return err;
 }

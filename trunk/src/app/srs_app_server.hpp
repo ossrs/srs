@@ -139,6 +139,19 @@ public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
 };
 
+// A UDP listener, for udp server.
+class SrsUdpStreamListener : public SrsListener
+{
+protected:
+    SrsUdpListener* listener;
+    ISrsUdpHandler* caster;
+public:
+    SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c);
+    virtual ~SrsUdpStreamListener();
+public:
+    virtual srs_error_t listen(std::string i, int p);
+};
+
 // A UDP listener, for udp stream caster server.
 class SrsUdpCasterListener : public SrsUdpStreamListener
 {
