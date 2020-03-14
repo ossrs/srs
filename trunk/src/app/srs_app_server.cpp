@@ -30,7 +30,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
-#include <sys/inotify.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -44,6 +43,7 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_gb28181.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
@@ -111,6 +111,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "HTTP-FLV";
         case  SrsListener28181TcpStream:
             return "GB28181-Stream over TCP";
+        case SrsListener28181UdpStream:
+            return "GB28181-Stream over UDP"
         default:
             return "UNKONWN";
     }
@@ -283,100 +285,6 @@ srs_error_t SrsHttpFlvListener::on_tcp_client(srs_netfd_t stfd)
     return err;
 }
 
-SrsTcpStreamListener::SrsTcpStreamListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
-{
-    listener = NULL;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListener28181TcpStream);
-    if (type == SrsListener28181TcpStream) {
-        //caster = new SrsGB28181TcpStreamCaster(c);
-    }
-}
-
-SrsTcpStreamListener::~SrsTcpStreamListener()
-{
-    srs_freep(caster);
-    srs_freep(listener);
-}
-
-srs_error_t SrsTcpStreamListener::listen(string i, int p)
-{
-    srs_error_t err = srs_success;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    //srs_assert(type == SrsListenerRtsp);
-    
-    ip = i;
-    port = p;
-    
-    srs_freep(listener);
-    listener = new SrsTcpListener(this, ip, port);
-    
-    if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "tcp stream listen %s:%d", ip.c_str(), port);
-    }
-    
-    string v = srs_listener_type2string(type);
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
-    
-    return err;
-}
-
-srs_error_t SrsTcpStreamListener::on_tcp_client(srs_netfd_t stfd)
-{
-    srs_error_t err = caster->on_tcp_client(stfd);
-    if (err != srs_success) {
-        srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-    }
-    
-    return srs_success;
-}
-
-
-SrsUdpStreamListener::SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c) : SrsListener(svr, t)
-{
-    listener = NULL;
-    caster = c;
-}
-
-SrsUdpStreamListener::~SrsUdpStreamListener()
-{
-    srs_freep(listener);
-}
-
-srs_error_t SrsUdpStreamListener::listen(string i, int p)
-{
-    srs_error_t err = srs_success;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp);
-    
-    ip = i;
-    port = p;
-    
-    srs_freep(listener);
-    listener = new SrsUdpListener(caster, ip, port);
-    
-    if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
-    }
-    
-    // notify the handler the fd changed.
-    if ((err = caster->on_stfd_change(listener->stfd())) != srs_success) {
-        return srs_error_wrap(err, "notify fd change failed");
-    }
-    
-    string v = srs_listener_type2string(type);
-    srs_trace("%s listen at udp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
-    
-    return err;
-}
-
 SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
     // the caller already ensure the type is ok,
@@ -514,147 +422,6 @@ void SrsSignalManager::sig_catcher(int signo)
     errno = err;
 }
 
-// Whether we are in docker, defined in main module.
-extern bool _srs_in_docker;
-
-SrsInotifyWorker::SrsInotifyWorker(SrsServer* s)
-{
-    server = s;
-    trd = new SrsSTCoroutine("inotify", this);
-    inotify_fd = NULL;
-}
-
-SrsInotifyWorker::~SrsInotifyWorker()
-{
-    srs_freep(trd);
-    srs_close_stfd(inotify_fd);
-}
-
-srs_error_t SrsInotifyWorker::start()
-{
-    srs_error_t err = srs_success;
-
-    // Whether enable auto reload config.
-    bool auto_reload = _srs_config->inotify_auto_reload();
-    if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
-        srs_warn("enable auto reload for docker");
-        auto_reload = true;
-    }
-
-    if (!auto_reload) {
-        return err;
-    }
-
-    // Create inotify to watch config file.
-    int fd = ::inotify_init1(IN_NONBLOCK);
-    if (fd < 0) {
-        return srs_error_new(ERROR_INOTIFY_CREATE, "create inotify");
-    }
-
-    // Open as stfd to read by ST.
-    if ((inotify_fd = srs_netfd_open(fd)) == NULL) {
-        ::close(fd);
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "open fd=%d", fd);
-    }
-
-    if (((err = srs_fd_closeexec(fd))) != srs_success) {
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
-    }
-
-    // /* the following are legal, implemented events that user-space can watch for */
-    // #define IN_ACCESS               0x00000001      /* File was accessed */
-    // #define IN_MODIFY               0x00000002      /* File was modified */
-    // #define IN_ATTRIB               0x00000004      /* Metadata changed */
-    // #define IN_CLOSE_WRITE          0x00000008      /* Writtable file was closed */
-    // #define IN_CLOSE_NOWRITE        0x00000010      /* Unwrittable file closed */
-    // #define IN_OPEN                 0x00000020      /* File was opened */
-    // #define IN_MOVED_FROM           0x00000040      /* File was moved from X */
-    // #define IN_MOVED_TO             0x00000080      /* File was moved to Y */
-    // #define IN_CREATE               0x00000100      /* Subfile was created */
-    // #define IN_DELETE               0x00000200      /* Subfile was deleted */
-    // #define IN_DELETE_SELF          0x00000400      /* Self was deleted */
-    // #define IN_MOVE_SELF            0x00000800      /* Self was moved */
-    //
-    // /* the following are legal events.  they are sent as needed to any watch */
-    // #define IN_UNMOUNT              0x00002000      /* Backing fs was unmounted */
-    // #define IN_Q_OVERFLOW           0x00004000      /* Event queued overflowed */
-    // #define IN_IGNORED              0x00008000      /* File was ignored */
-    //
-    // /* helper events */
-    // #define IN_CLOSE                (IN_CLOSE_WRITE | IN_CLOSE_NOWRITE) /* close */
-    // #define IN_MOVE                 (IN_MOVED_FROM | IN_MOVED_TO) /* moves */
-    //
-    // /* special flags */
-    // #define IN_ONLYDIR              0x01000000      /* only watch the path if it is a directory */
-    // #define IN_DONT_FOLLOW          0x02000000      /* don't follow a sym link */
-    // #define IN_EXCL_UNLINK          0x04000000      /* exclude events on unlinked objects */
-    // #define IN_MASK_ADD             0x20000000      /* add to the mask of an already existing watch */
-    // #define IN_ISDIR                0x40000000      /* event occurred against dir */
-    // #define IN_ONESHOT              0x80000000      /* only send event once */
-
-    // Watch the config directory events.
-    string config_dir = srs_path_dirname(_srs_config->config());
-    uint32_t mask = IN_MODIFY | IN_CREATE | IN_MOVED_TO; int watch_conf = 0;
-    if ((watch_conf = ::inotify_add_watch(fd, config_dir.c_str(), mask)) < 0) {
-        return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, watch=%d, mask=%#x",
-            config_dir.c_str(), fd, watch_conf, mask);
-    }
-    srs_trace("auto reload watching fd=%d, watch=%d, file=%s", fd, watch_conf, config_dir.c_str());
-
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "inotify");
-    }
-
-    return err;
-}
-
-srs_error_t SrsInotifyWorker::cycle()
-{
-    srs_error_t err = srs_success;
-
-    string config_path = _srs_config->config();
-    string config_file = srs_path_basename(config_path);
-    string k8s_file = "..data";
-
-    while (true) {
-        char buf[4096];
-        ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
-        if (nn < 0) {
-            srs_warn("inotify ignore read failed, nn=%d", (int)nn);
-            break;
-        }
-
-        // Whether config file changed.
-        bool do_reload = false;
-
-        // Parse all inotify events.
-        inotify_event* ie = NULL;
-        for (char* ptr = buf; ptr < buf + nn; ptr += sizeof(inotify_event) + ie->len) {
-            ie = (inotify_event*)ptr;
-
-            if (!ie->len || !ie->name) {
-                continue;
-            }
-
-            string name = ie->name;
-            if ((name == k8s_file || name == config_file) && ie->mask & (IN_MODIFY|IN_CREATE|IN_MOVED_TO)) {
-                do_reload = true;
-            }
-
-            srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d", ie->wd, ie->mask, ie->len, ie->name, do_reload);
-        }
-
-        // Notify server to do reload.
-        if (do_reload && srs_path_exists(config_path)) {
-            server->on_signal(SRS_SIGNAL_RELOAD);
-        }
-
-        srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
-    }
-
-    return err;
-}
-
 ISrsServerCycle::ISrsServerCycle()
 {
 }
@@ -753,11 +520,9 @@ void SrsServer::gracefully_dispose()
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
-    srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->stop();
-    srs_trace("ingesters stopped");
 
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
@@ -773,7 +538,6 @@ void SrsServer::gracefully_dispose()
 
     // dispose the source for hls and dvr.
     _srs_sources->dispose();
-    srs_trace("source disposed");
 
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
@@ -1047,16 +811,7 @@ srs_error_t SrsServer::ingest()
 
 srs_error_t SrsServer::cycle()
 {
-    srs_error_t err = srs_success;
-
-    // Start the inotify auto reload by watching config file.
-    SrsInotifyWorker inotify(this);
-    if ((err = inotify.start()) != srs_success) {
-        return srs_error_wrap(err, "start inotify");
-    }
-
-    // Do server main cycle.
-     err = do_cycle();
+    srs_error_t err = do_cycle();
     
 #ifdef SRS_AUTO_GPERF_MC
     destroy();
@@ -1099,7 +854,6 @@ srs_error_t SrsServer::cycle()
 void SrsServer::on_signal(int signo)
 {
     if (signo == SRS_SIGNAL_RELOAD) {
-        srs_trace("reload config, signo=%d", signo);
         signal_reload = true;
         return;
     }
@@ -1107,7 +861,7 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
-        srs_warn("reopen log file, signo=%d", signo);
+        srs_warn("reopen log file");
         return;
     }
 #endif
@@ -1115,7 +869,7 @@ void SrsServer::on_signal(int signo)
 #ifdef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
-        srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
+        srs_warn("for gmc, the SIGUSR1 used as SIGINT");
         return;
     }
 #endif
@@ -1127,7 +881,7 @@ void SrsServer::on_signal(int signo)
     
     if (signo == SIGINT) {
 #ifdef SRS_AUTO_GPERF_MC
-        srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
+        srs_trace("gmc is on, main cycle will terminate normally.");
         signal_gmc_stop = true;
 #else
         #ifdef SRS_AUTO_MEM_WATCH
@@ -1401,8 +1155,8 @@ srs_error_t SrsServer::listen_stream_caster()
         }
     }
 
+    // create a 28181 stream server
     srs_28181_streams = new Srs28181StreamServer();
-    //srs_28181_streams->create_listener(Listener_UDP);
     
     return err;
 }
@@ -1412,8 +1166,9 @@ srs_error_t SrsServer::create_28181stream_listener(SrsListenerType type, int& po
     if(srs_28181_streams==NULL){
         return srs_error_new(13025,"srs 28181 stream server is null!");
     }    
+
     return srs_28181_streams->create_listener(type, port,suuid);
-    srs_trace("srsserver - create a new 28181 stream listener[port:%d]",port);
+    srs_trace("create a new 28181 stream listener[port:%d]",port);
 }
 
 void SrsServer::close_listeners(SrsListenerType type)

@@ -28,7 +28,7 @@ using namespace std;
 
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_rtsp_stack.hpp>
+#include <srs_gb28181_stack.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_file.hpp>
@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <st.h>
 //#include <uuid/uuid.h>
+
 
 Srs28181AudioCache::Srs28181AudioCache()
 {
@@ -115,8 +116,6 @@ Srs28181StreamServer::Srs28181StreamServer(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
-    //trd = new SrsSTCoroutine();
-    //trd->start();
 }
 
 Srs28181StreamServer::~Srs28181StreamServer()
@@ -252,21 +251,6 @@ Srs28181TcpStreamListener::Srs28181TcpStreamListener()
     listener = NULL;
 }
 
-//(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
-/*
-Srs28181TcpStreamListener::Srs28181TcpStreamListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) 
-{
-    listener = NULL;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerGB28181TcpStream);
-    if (type == SrsListenerGB28181TcpStream) {
-        caster = new Srs28181Caster(c);
-    }
-}
-*/
-
 Srs28181TcpStreamListener::~Srs28181TcpStreamListener()
 {
     std::vector<Srs28181TcpStreamConn*>::iterator it;
@@ -283,10 +267,6 @@ Srs28181TcpStreamListener::~Srs28181TcpStreamListener()
 srs_error_t Srs28181TcpStreamListener::listen(string i, int p)
 {
     srs_error_t err = srs_success;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    //srs_assert(type == SrsListenerRtsp);
     
     std::string ip = i;
     int port = p;
@@ -422,7 +402,7 @@ void SrsOneCycleCoroutine::stop()
         void* res = NULL;
         int r0 = st_thread_join((st_thread_t)trd, &res);
         // will confirm with winlin
-        // i think it is not nessary
+        // i think it is not nessary in one cycle thread
         //srs_assert(!r0);
 
         srs_error_t err_res = (srs_error_t)res;
@@ -455,11 +435,6 @@ void SrsOneCycleCoroutine::interrupt()
     st_thread_interrupt((st_thread_t)trd);
 }
 
-// srs_error_t SrsOneCycleCoroutine::pull()
-// {
-//     return srs_error_copy(trd_err);
-// }
-
 int SrsOneCycleCoroutine::cid()
 {
     return context;
@@ -477,7 +452,7 @@ srs_error_t SrsOneCycleCoroutine::cycle()
     
     srs_error_t err = handler->cycle();
     // Set cycle done, no need to interrupt it.
-    // besson: i think we should set cycle_down here
+    // besson: in one cycle thread, i think we should set cycle_down here
     // we don't need to interrupt or stop a thread if it return from cycle function anymore
     cycle_done = true;
 
@@ -497,7 +472,7 @@ void* SrsOneCycleCoroutine::pfn(void* arg)
 
     srs_error_t err = p->cycle();
 
-    // besson: should exit here in OneCyleCoroutine
+    // besson: it should exit here in OneCyleCoroutine
     st_thread_exit(NULL);
 
     // Set the err for function pull to fetch it.
@@ -511,12 +486,6 @@ void* SrsOneCycleCoroutine::pfn(void* arg)
 
     return (void*)err;
 }
-
-
-
-
-
-
 
 
 SrsLiveUdpListener::~SrsLiveUdpListener()
@@ -627,7 +596,6 @@ Srs28181UdpStreamListener::Srs28181UdpStreamListener(Srs28181StreamServer* srv, 
     listener = NULL;
     streamcore = new Srs28181StreamCore(suuid);
     lifeguard = NULL;
-    //workdone = true;
 }
 
 Srs28181UdpStreamListener::~Srs28181UdpStreamListener()
@@ -659,6 +627,7 @@ srs_error_t Srs28181UdpStreamListener::cycle()
         {
             srs_warn("28181-udp-listener - recv timeout. we will release this listener[%d-%d]",
                 DEFAULT_28181_SLEEP,nb_packet);
+
             server->release_listener(this);
             return srs_error_new(13027,"28181-udp-listener recv timeout");
         }
@@ -681,7 +650,6 @@ srs_error_t Srs28181UdpStreamListener::listen(string i, int p)
     port = p;
     
     srs_freep(listener);
-    //listener = new SrsUdpListener(this, ip, port);
     listener = new SrsLiveUdpListener(this, ip, port);
     
     if ((err = listener->listen()) != srs_success) {
@@ -698,6 +666,7 @@ srs_error_t Srs28181UdpStreamListener::listen(string i, int p)
     if ((err = lifeguard->start()) != srs_success) {
         return srs_error_wrap(err, "start thread");
     }
+
     //string v = srs_listener_type2string(type);
     srs_trace("%s listen 28181 stream at udp://%s:%d, fd=%d", "v.c_str()", ip.c_str(), port, listener->fd());
     
@@ -721,10 +690,9 @@ srs_error_t Srs28181UdpStreamListener::on_udp_packet(const sockaddr* from, const
 }
 
 
-Srs28181StreamCore::Srs28181StreamCore(std::string suuid)//(Srs28181TcpStreamListener* l, std::string o)
+Srs28181StreamCore::Srs28181StreamCore(std::string suuid)
 {
-    //output_template = o;
-
+    // TODO: may rewrite stream name formation
     target_tcUrl = "rtmp://127.0.0.1:7935/live/"+suuid;//"rtmp://127.0.0.1:" + "7935" + "/live/test";
 	output_template = "rtmp://127.0.0.1:7935/[app]/[stream]";
     
@@ -734,7 +702,6 @@ Srs28181StreamCore::Srs28181StreamCore(std::string suuid)//(Srs28181TcpStreamLis
     video_id = stream_id;
     boundary_type_ = MarkerBoundary;//TimestampBoundary;
     
-    //req = NULL;
     sdk = NULL;
     vjitter = new Srs28181Jitter();
     ajitter = new Srs28181Jitter();
@@ -759,7 +726,7 @@ Srs28181StreamCore::~Srs28181StreamCore()
 }
 
 #define GB28181_STREAM
-srs_error_t Srs28181StreamCore::on_stream_packet(SrsRtpPacket* pkt, int stream_id)
+srs_error_t Srs28181StreamCore::on_stream_packet(Srs2SRtpPacket* pkt, int stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -797,7 +764,7 @@ srs_error_t Srs28181StreamCore::on_stream_packet(SrsRtpPacket* pkt, int stream_i
 }
 
 
-srs_error_t Srs28181StreamCore::on_stream_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
+srs_error_t Srs28181StreamCore::on_stream_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts)
 {
 
 	//int ret = ERROR_SUCCESS;
@@ -845,14 +812,6 @@ srs_error_t Srs28181StreamCore::on_stream_video(SrsRtpPacket* pkt, int64_t dts, 
 			//srs_trace("h264-ps stream: Ignore this frame size=%d, dts=%d", frame_size, dts);
 			continue;
 		}
-
-		char sc[3]; 
-		sc[0] = (char)0x00;
-		sc[1] = (char)0x00;
-		sc[2] = (char)0x01;
-		stream2file("./h264_wframe.h264", sc, 3);
-		stream2file("./h264_wframe.h264", frame, frame_size);
-		stream2file("./h264_nosc.h264", frame, frame_size);
 
 		// for sps
 		if (avc->is_sps(frame, frame_size)) {
@@ -902,7 +861,7 @@ srs_error_t Srs28181StreamCore::on_stream_video(SrsRtpPacket* pkt, int64_t dts, 
 			srs_warn("h264-ps stream: Re-write SPS-PPS Successful! frame size=%d, dts=%d", frame_size, dts);
 		}
 
-		//pengzhang: make sure you control flows in one important function
+		//besson: make sure you control flows in one important function
 		//dont spread controlers everythere. mpegts_upd is not a good example
 
 		// attention: should ship sps/pps frame in every tsb rtp group
@@ -925,36 +884,7 @@ srs_error_t Srs28181StreamCore::on_stream_video(SrsRtpPacket* pkt, int64_t dts, 
 	return err;
 }
 
-/*
-srs_error_t Srs28181StreamCore::cycle()
-{
-    // serve the rtsp client.
-    srs_error_t err = do_cycle();
-    
-    //caster->remove(this);
-    if (err == srs_success) {
-        srs_trace("client finished.");
-    } else if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. code=%d", srs_error_code(err));
-        srs_freep(err);
-    }
-
-    listener->remove_conn(this);
-    
-    //  do not need caster anymore
-    // if (video_rtp) {
-    //     caster->free_port(video_rtp->port(), video_rtp->port() + 1);
-    // }
-    
-    // if (audio_rtp) {
-    //     caster->free_port(audio_rtp->port(), audio_rtp->port() + 1);
-    // }
-    
-    return err;
-}
-*/
-
-srs_error_t Srs28181StreamCore::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
+srs_error_t Srs28181StreamCore::on_rtp_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts)
 {
     srs_error_t err = srs_success;
     
@@ -973,7 +903,7 @@ srs_error_t Srs28181StreamCore::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int
     return err;
 }
 
-srs_error_t Srs28181StreamCore::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t Srs28181StreamCore::on_rtp_audio(Srs2SRtpPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -992,7 +922,7 @@ srs_error_t Srs28181StreamCore::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
     return err;
 }
 
-srs_error_t Srs28181StreamCore::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t Srs28181StreamCore::kickoff_audio_cache(Srs2SRtpPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -1031,8 +961,6 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
 
 	pprint->elapse();
 
-	stream2file("rtp.mp4",buf,nb_buf);
-
 	if (true) {
 		SrsBuffer stream(buf,nb_buf);
 
@@ -1040,7 +968,7 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
 		//	return ret;
 		//}
 
-		SrsRtpPacket pkt;
+		Srs2SRtpPacket pkt;
 		if ((ret = pkt.decode_v2(&stream)) != ERROR_SUCCESS) {
 			srs_error("28181: decode rtp packet failed. ret=%d", ret);
 			return ret;
@@ -1048,7 +976,7 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
 
 		if (pkt.chunked) {
 			if (!cache_) {
-				cache_ = new SrsRtpPacket();
+				cache_ = new Srs2SRtpPacket();
 			}
 			cache_->copy(&pkt);
 			cache_->payload->append(pkt.payload->bytes(), pkt.payload->length());
@@ -1072,7 +1000,7 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
 			// : NOTE:if u receive from middle or stream loss starting rtp, will also deal this uncompleted packet, 
 			// the following progress will skip this ncompleted packet
 			srs_freep(cache_);
-			cache_ = new SrsRtpPacket();
+			cache_ = new Srs2SRtpPacket();
 			cache_->reap(&pkt);
 
 		}
@@ -1086,11 +1014,9 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
 	}
 
 	// always free it.
-	SrsAutoFree(SrsRtpPacket, cache_);
+	SrsAutoFree(Srs2SRtpPacket, cache_);
 
 #ifdef PS_IN_RTP
-	stream2file("./ps.ps",cache_->payload->bytes(), cache_->payload->length());
-	// ps stream
 	if ((status = cache_->decode_stream()) != ERROR_SUCCESS) {
 		if (status == ERROR_RTP_PS_HK_PRIVATE_PROTO) {
 			//private_proto = true;
@@ -1102,11 +1028,6 @@ int Srs28181StreamCore::decode_packet(char* buf, int nb_buf)
     // only rtp no ps
     cache_->tgtstream->append(cache_->payload->bytes(),cache_->payload->length());
 #endif
-
-	stream2file("./h264.h264",cache_->tgtstream->bytes(),cache_->tgtstream->length());
-    return 0;
-	// temporarily return on testing
-	//return ret;
 
     srs_error_t err = srs_success;
 	if ((err = on_stream_packet(cache_, stream_id)) != srs_success) {
@@ -1125,8 +1046,6 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 
 	pprint->elapse();
 
-	stream2file("rtp.mp4", buf, nb_buf);
-
 	if (true) {
 		SrsBuffer stream(buf,nb_buf);
 
@@ -1134,7 +1053,7 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 			return ret;
 		}*/
 
-		SrsRtpPacket pkt;
+		Srs2SRtpPacket pkt;
 		if ((ret = pkt.decode_v2(&stream, boundary_type_)) != ERROR_SUCCESS) {
 			srs_error("rtp auto decoder: decode rtp packet failed. ret=%d", ret);
 			return ret;
@@ -1142,7 +1061,7 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 
 		if (pkt.chunked) {
 			if (!cache_) {
-				cache_ = new SrsRtpPacket();
+				cache_ = new Srs2SRtpPacket();
 			}
 
 			if (boundary_type_ == MarkerBoundary) {
@@ -1177,7 +1096,7 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 					first_rtp_tsb_enabled_ = true;
 
 					srs_freep(first_rtp_tsb_);
-					first_rtp_tsb_ = new SrsRtpPacket();
+					first_rtp_tsb_ = new Srs2SRtpPacket();
 					first_rtp_tsb_->copy(&pkt);
 					first_rtp_tsb_->payload->append(pkt.payload->bytes(), pkt.payload->length());
 
@@ -1209,10 +1128,10 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 
 		}
 		else {
-			// pengzhang: NOTE:if u receive from middle or stream loss starting rtp, will also deal this uncompleted packet, 
-			// the following progress will skip this ncompleted packet
+			// bession:NOTE:if u receive a stream in the middle of rtp groups or a stream losses starting rtp packets, 
+			// the following progress will skip this ncompleted packets
 			srs_freep(cache_);
-			cache_ = new SrsRtpPacket();
+			cache_ = new Srs2SRtpPacket();
 			cache_->reap(&pkt);
 
 		}
@@ -1226,10 +1145,8 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 	}
 
 	// always free it.
-	SrsAutoFree(SrsRtpPacket, cache_);
+	SrsAutoFree(Srs2SRtpPacket, cache_);
 
-	stream2file("./ps.ps", cache_->payload->bytes(), cache_->payload->length());
-	// ps stream
 	if ((status = cache_->decode_stream()) != 0) {
 		if (status == ERROR_RTP_PS_HK_PRIVATE_PROTO) {
 			//private_proto = true;
@@ -1237,10 +1154,6 @@ int Srs28181StreamCore::decode_packet_v2(char* buf, int nb_buf)
 			srs_error(" rtp type 96 ps. private proto port:%d, stream_id:%d", 0, stream_id);
 		}
 	}
-
-	stream2file("./h264.h264", cache_->tgtstream->bytes(), cache_->tgtstream->length());
-	// temporarily return on testing
-	//return ret;
 
     srs_error_t err = srs_success;
 	if ((err = on_stream_packet(cache_, stream_id)) != srs_success) {
@@ -1466,12 +1379,6 @@ void Srs28181StreamCore::close()
     srs_freep(sdk);
 }
 
-
-
-
-
-
-
 Srs28181TcpStreamConn::Srs28181TcpStreamConn(Srs28181TcpStreamListener* l, srs_netfd_t fd, std::string o)
 {
     output_template = o;
@@ -1480,8 +1387,6 @@ Srs28181TcpStreamConn::Srs28181TcpStreamConn(Srs28181TcpStreamListener* l, srs_n
 	output_template = "rtmp://127.0.0.1:7935/[app]/[stream]";
     
     session = "";
-   // video_rtp = NULL;
-    //audio_rtp = NULL;
 
     // TODO: set stream_id when connected
     stream_id = 50125;
@@ -1491,7 +1396,6 @@ Srs28181TcpStreamConn::Srs28181TcpStreamConn(Srs28181TcpStreamListener* l, srs_n
     //caster = c;
     stfd = fd;
     skt = new SrsStSocket();
-    //rtsp = new SrsRtspStack(skt);
     trd = new SrsSTCoroutine("28181tcpstream", this);
     
     //req = NULL;
@@ -1569,7 +1473,7 @@ srs_error_t Srs28181TcpStreamConn::do_cycle()
 }
 
 //#define GB28181_STREAM
-srs_error_t Srs28181TcpStreamConn::on_rtp_packet(SrsRtpPacket* pkt, int stream_id)
+srs_error_t Srs28181TcpStreamConn::on_rtp_packet(Srs2SRtpPacket* pkt, int stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -1607,7 +1511,7 @@ srs_error_t Srs28181TcpStreamConn::on_rtp_packet(SrsRtpPacket* pkt, int stream_i
 }
 
 
-srs_error_t Srs28181TcpStreamConn::on_rtp_video_adv(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
+srs_error_t Srs28181TcpStreamConn::on_rtp_video_adv(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts)
 {
 
 	//int ret = ERROR_SUCCESS;
@@ -1640,10 +1544,6 @@ srs_error_t Srs28181TcpStreamConn::on_rtp_video_adv(SrsRtpPacket* pkt, int64_t d
 			continue;
 		}
 
-		//if ((ret = avc->annexb_demux(stream, &frame, &frame_size)) != ERROR_SUCCESS) {
-		//	return ret;
-		//}
-
 		// ignore others.
 		// 5bits, 7.3.1 NAL unit syntax,
 		// H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
@@ -1656,14 +1556,6 @@ srs_error_t Srs28181TcpStreamConn::on_rtp_video_adv(SrsRtpPacket* pkt, int64_t d
 			//srs_trace("h264-ps stream: Ignore this frame size=%d, dts=%d", frame_size, dts);
 			continue;
 		}
-
-		char sc[3]; 
-		sc[0] = (char)0x00;
-		sc[1] = (char)0x00;
-		sc[2] = (char)0x01;
-		stream2file("./h264_wframe.h264", sc, 3);
-		stream2file("./h264_wframe.h264", frame, frame_size);
-		stream2file("./h264_nosc.h264", frame, frame_size);
 
 		// for sps
 		if (avc->is_sps(frame, frame_size)) {
@@ -1763,7 +1655,7 @@ srs_error_t Srs28181TcpStreamConn::cycle()
     return err;
 }
 
-srs_error_t Srs28181TcpStreamConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
+srs_error_t Srs28181TcpStreamConn::on_rtp_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts)
 {
     srs_error_t err = srs_success;
     
@@ -1782,7 +1674,7 @@ srs_error_t Srs28181TcpStreamConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, 
     return err;
 }
 
-srs_error_t Srs28181TcpStreamConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t Srs28181TcpStreamConn::on_rtp_audio(Srs2SRtpPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -1801,7 +1693,7 @@ srs_error_t Srs28181TcpStreamConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
     return err;
 }
 
-srs_error_t Srs28181TcpStreamConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t Srs28181TcpStreamConn::kickoff_audio_cache(Srs2SRtpPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -1839,8 +1731,6 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 
 	pprint->elapse();
 
-	stream2file("rtp.mp4",buf,nb_buf);
-
 	if (true) {
 		SrsBuffer stream(buf,nb_buf);
 
@@ -1848,7 +1738,7 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 		//	return ret;
 		//}
 
-		SrsRtpPacket pkt;
+		Srs2SRtpPacket pkt;
 		if ((ret = pkt.decode_v2(&stream)) != ERROR_SUCCESS) {
 			srs_error("28181: decode rtp packet failed. ret=%d", ret);
 			return ret;
@@ -1856,7 +1746,7 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 
 		if (pkt.chunked) {
 			if (!cache_) {
-				cache_ = new SrsRtpPacket();
+				cache_ = new Srs2SRtpPacket();
 			}
 			cache_->copy(&pkt);
 			cache_->payload->append(pkt.payload->bytes(), pkt.payload->length());
@@ -1880,7 +1770,7 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 			// : NOTE:if u receive from middle or stream loss starting rtp, will also deal this uncompleted packet, 
 			// the following progress will skip this ncompleted packet
 			srs_freep(cache_);
-			cache_ = new SrsRtpPacket();
+			cache_ = new Srs2SRtpPacket();
 			cache_->reap(&pkt);
 
 		}
@@ -1897,11 +1787,9 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 	}
 
 	// always free it.
-	SrsAutoFree(SrsRtpPacket, cache_);
+	SrsAutoFree(Srs2SRtpPacket, cache_);
 
 #ifdef PS_IN_RTP
-	stream2file("./ps.ps",cache_->payload->bytes(), cache_->payload->length());
-	// ps stream
 	if ((status = cache_->decode_stream()) != ERROR_SUCCESS) {
 		if (status == ERROR_RTP_PS_HK_PRIVATE_PROTO) {
 			//private_proto = true;
@@ -1910,10 +1798,6 @@ int Srs28181TcpStreamConn::decode_packet(char* buf, int nb_buf)
 		}
 	}
 #endif
-
-	stream2file("./h264.h264",cache_->tgtstream->bytes(),cache_->tgtstream->length());
-	// temporarily return on testing
-	//return ret;
 
     srs_error_t err = srs_success;
 	if ((err = on_rtp_packet(cache_, stream_id)) != srs_success) {
@@ -1932,8 +1816,6 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 
 	pprint->elapse();
 
-	stream2file("rtp.mp4", buf, nb_buf);
-
 	if (true) {
 		SrsBuffer stream(buf,nb_buf);
 
@@ -1941,7 +1823,7 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 			return ret;
 		}*/
 
-		SrsRtpPacket pkt;
+		Srs2SRtpPacket pkt;
 		if ((ret = pkt.decode_v2(&stream, boundary_type_)) != ERROR_SUCCESS) {
 			srs_error("rtp auto decoder: decode rtp packet failed. ret=%d", ret);
 			return ret;
@@ -1949,7 +1831,7 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 
 		if (pkt.chunked) {
 			if (!cache_) {
-				cache_ = new SrsRtpPacket();
+				cache_ = new Srs2SRtpPacket();
 			}
 
 			if (boundary_type_ == MarkerBoundary) {
@@ -1984,7 +1866,7 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 					first_rtp_tsb_enabled_ = true;
 
 					srs_freep(first_rtp_tsb_);
-					first_rtp_tsb_ = new SrsRtpPacket();
+					first_rtp_tsb_ = new Srs2SRtpPacket();
 					first_rtp_tsb_->copy(&pkt);
 					first_rtp_tsb_->payload->append(pkt.payload->bytes(), pkt.payload->length());
 
@@ -2019,7 +1901,7 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 			// pengzhang: NOTE:if u receive from middle or stream loss starting rtp, will also deal this uncompleted packet, 
 			// the following progress will skip this ncompleted packet
 			srs_freep(cache_);
-			cache_ = new SrsRtpPacket();
+			cache_ = new Srs2SRtpPacket();
 			cache_->reap(&pkt);
 
 		}
@@ -2033,10 +1915,8 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 	}
 
 	// always free it.
-	SrsAutoFree(SrsRtpPacket, cache_);
+	SrsAutoFree(Srs2SRtpPacket, cache_);
 
-	stream2file("./ps.ps", cache_->payload->bytes(), cache_->payload->length());
-	// ps stream
 	if ((status = cache_->decode_stream()) != 0) {
 		if (status == ERROR_RTP_PS_HK_PRIVATE_PROTO) {
 			//private_proto = true;
@@ -2044,10 +1924,6 @@ int Srs28181TcpStreamConn::decode_packet_v2(char* buf, int nb_buf)
 			srs_error(" rtp type 96 ps. private proto port:%d, stream_id:%d", 0, stream_id);
 		}
 	}
-
-	stream2file("./h264.h264", cache_->tgtstream->bytes(), cache_->tgtstream->length());
-	// temporarily return on testing
-	//return ret;
 
     srs_error_t err = srs_success;
 	if ((err = on_rtp_packet(cache_, stream_id)) != srs_success) {

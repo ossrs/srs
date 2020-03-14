@@ -1301,11 +1301,13 @@ SrsGoApi28181StreamCreation::~SrsGoApi28181StreamCreation()
 srs_error_t SrsGoApi28181StreamCreation::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
+    
     std::string suuid = "";
     int port = 0;
     std::stringstream sstream;
     SrsJsonObject* content = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, content);
+
     if((err = server->create_28181stream_listener(SrsListener28181UdpStream,port,suuid))!=srs_success)
     {
         srs_warn("SrsGoApi28181StreamCreation - create listener failed[%d]",srs_error_code(err));
@@ -1313,10 +1315,12 @@ srs_error_t SrsGoApi28181StreamCreation::serve_http(ISrsHttpResponseWriter* w, I
         content->set("desc",SrsJsonAny::str("create listener failed"));
         return srs_api_response(w, r, content->dumps());
     }
+
     sstream<<port;
     content->set("status",SrsJsonAny::str("successful"));
     content->set("stream-uuid",SrsJsonAny::str(suuid.c_str()));
     content->set("listen-port",SrsJsonAny::str(sstream.str().c_str()));
+
     return srs_api_response(w, r, content->dumps());
 }
 

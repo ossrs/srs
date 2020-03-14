@@ -38,7 +38,7 @@
 
 class SrsStSocket;
 class SrsConfDirective;
-class SrsRtpPacket;
+class Srs2SRtpPacket;
 class SrsRequest;
 class SrsStSocket;
 class SrsRtmpClient;
@@ -92,18 +92,14 @@ public:
     virtual void remove();
 };
 
-// A common listener, for RTMP/HTTP server.
+// A base listener
 class Srs28181Listener
 {
 protected:
-    //SrsListenerType type;
-protected:
     std::string ip;
     int port;
-    //SrsServer* server;
 public:
     Srs28181Listener();
-   //Srs28181Listener(SrsServer* svr, SrsListenerType t);
     virtual ~Srs28181Listener();
 public:
     //virtual SrsListenerType listen_type();
@@ -111,7 +107,6 @@ public:
 };
 
 // A TCP listener
-//class Srs28181TcpStreamListener : public Srs28181Listener, public SrsTcpListener
 class Srs28181TcpStreamListener : public Srs28181Listener, public ISrsTcpHandler
 {
 private:
@@ -138,8 +133,9 @@ public:
 // problem in multiple threads. For SRS, we only use single thread module,
 // like NGINX to get very high performance, with asynchronous and non-blocking
 // sockets.
+
 /* 
-* 
+* SrsOneCycleCoroutine has these features:
 * 1.will exit thread if it returns from cycle function
 * 2.no pull function 
 * 3.can destory itself in cycle
@@ -187,7 +183,7 @@ private:
     static void* pfn(void* arg);
 };
 
-// Bind a udp port, start thread to recv packet and handler it.
+// Bind a udp port, start a thread to recv packet and handler it.
 class SrsLiveUdpListener : public ISrsCoroutineHandler
 {
 private:
@@ -209,18 +205,16 @@ public:
 public:
     virtual int fd();
     virtual srs_netfd_t stfd();
-    // set timeout value 
     //virtual srs_error_t wait(srs_utime_t tm);
 public:
     uint64_t nb_packet();
 public:
     virtual srs_error_t listen();
-// Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
 };
 
-
+// A guard thread
 class SrsLifeGuardThread : public SrsOneCycleCoroutine
 {
 private:
@@ -235,7 +229,6 @@ public:
     virtual void wait(srs_utime_t tm);
 };
 
-
 // 28181 udp stream linstener
 class Srs28181UdpStreamListener : public Srs28181Listener, public ISrsUdpHandler, public ISrsCoroutineHandler
 {
@@ -247,7 +240,6 @@ private:
     uint64_t nb_packet;
     bool workdone;
 public:
-    //Srs28181UdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c);
     Srs28181UdpStreamListener(Srs28181StreamServer * srv, std::string suuid);
     virtual ~Srs28181UdpStreamListener();
 private:
@@ -303,20 +295,11 @@ private:
     // video stream.
     int video_id;
     std::string video_codec;
-    //SrsRtpConn* video_rtp;
     // audio stream.
     int audio_id;
     std::string audio_codec;
     int audio_sample_rate;
     int audio_channel;
-    //SrsRtpConn* audio_rtp;
-private:
-    //srs_netfd_t stfd;
-    //SrsStSocket* skt;
-    ////SrsRtspStack* rtsp;
-    ////SrsRtspCaster* caster;
-    //Srs28181TcpStreamListener* listener;
-    //SrsCoroutine* trd;
 private:
     ////SrsRequest* req;
     SrsSimpleRtmpClient* sdk;
@@ -339,28 +322,20 @@ private:
 
     int stream_id;
 
-    SrsRtpPacket* cache_;
+    Srs2SRtpPacket* cache_;
 
 	// the timestamp of a rtp group
 	uint32_t group_timestamp;
-	// if timestamp boundary flag enabled
-	// true says using rtp timestamp decode rtp group
+	// true says using timestamp boundary
 	bool first_rtp_tsb_enabled_;
 	// first rtp with new timestamp in a rtp group
-	SrsRtpPacket * first_rtp_tsb_;
+	Srs2SRtpPacket * first_rtp_tsb_;
 
     // indicates rtp group boundary decode type: marker or timestamp
 	int boundary_type_;
 public:
-    //Srs28181StreamCore(Srs28181TcpStreamListener* l, srs_netfd_t fd, std::string o);
     Srs28181StreamCore(std::string suuid);
     virtual ~Srs28181StreamCore();
-
-    // used in tcp but not needed in udp
-//public:
-    //virtual srs_error_t init();
-//private:
-    //virtual srs_error_t do_cycle();
 
 public:
     // decode rtp using MB boundary
@@ -369,15 +344,12 @@ public:
     virtual int decode_packet_v2(char* buf, int nb_buf);
 // internal methods
 public:
-    virtual srs_error_t on_stream_packet(SrsRtpPacket* pkt, int stream_id);
-    virtual srs_error_t on_stream_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
-// Interface ISrsOneCycleThreadHandler
-//public:
-    //virtual srs_error_t cycle();
+    virtual srs_error_t on_stream_packet(Srs2SRtpPacket* pkt, int stream_id);
+    virtual srs_error_t on_stream_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
 private:
-    virtual srs_error_t on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
-    virtual srs_error_t on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
-    virtual srs_error_t kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t on_rtp_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
+    virtual srs_error_t on_rtp_audio(Srs2SRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t kickoff_audio_cache(Srs2SRtpPacket* pkt, int64_t dts);
 private:
     virtual srs_error_t write_sequence_header();
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
@@ -391,32 +363,29 @@ private:
     virtual void close();
 };
 
+// TODO: will rewrite blow codes for TCP mode in future
 // The 28181 tcp stream connection 
 class Srs28181TcpStreamConn : public ISrsCoroutineHandler
 {
 private:
     std::string output;
     std::string output_template;
-    std::string target_tcUrl;//rtsp_tcUrl;
-    std::string stream_name;//rtsp_stream;
+    std::string target_tcUrl;
+    std::string stream_name;
     SrsPithyPrint* pprint;
 private:
     std::string session;
     // video stream.
     int video_id;
     std::string video_codec;
-    //SrsRtpConn* video_rtp;
     // audio stream.
     int audio_id;
     std::string audio_codec;
     int audio_sample_rate;
     int audio_channel;
-    //SrsRtpConn* audio_rtp;
 private:
     srs_netfd_t stfd;
     SrsStSocket* skt;
-    //SrsRtspStack* rtsp;
-    //SrsRtspCaster* caster;
     Srs28181TcpStreamListener* listener;
     SrsCoroutine* trd;
 private:
@@ -441,7 +410,7 @@ private:
 
     int stream_id;
 
-    SrsRtpPacket* cache_;
+    Srs2SRtpPacket* cache_;
 
 	// the timestamp of a rtp group
 	uint32_t group_timestamp;
@@ -449,7 +418,7 @@ private:
 	// true says using rtp timestamp decode rtp group
 	bool first_rtp_tsb_enabled_;
 	// first rtp with new timestamp in a rtp group
-	SrsRtpPacket * first_rtp_tsb_;
+	Srs2SRtpPacket * first_rtp_tsb_;
 
     // indicates rtp group boundary decode type: marker or timestamp
 	int boundary_type_;
@@ -468,15 +437,15 @@ private:
     virtual int decode_packet_v2(char* buf, int nb_buf);
 // internal methods
 public:
-    virtual srs_error_t on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
-    virtual srs_error_t on_rtp_video_adv(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
+    virtual srs_error_t on_rtp_packet(Srs2SRtpPacket* pkt, int stream_id);
+    virtual srs_error_t on_rtp_video_adv(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 private:
-    virtual srs_error_t on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
-    virtual srs_error_t on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
-    virtual srs_error_t kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t on_rtp_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
+    virtual srs_error_t on_rtp_audio(Srs2SRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t kickoff_audio_cache(Srs2SRtpPacket* pkt, int64_t dts);
 private:
     virtual srs_error_t write_sequence_header();
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
@@ -489,3 +458,4 @@ private:
     // Close the connection to RTMP server.
     virtual void close();
 };
+#endif

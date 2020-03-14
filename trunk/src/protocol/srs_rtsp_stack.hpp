@@ -35,7 +35,6 @@
 
 class SrsBuffer;
 class SrsSimpleStream;
-class SrsSimpleBufferX;
 class SrsAudioFrame;
 class ISrsProtocolReadWriter;
 
@@ -126,47 +125,6 @@ enum SrsRtspTokenState
     // When CRLF follow the token.
     SrsRtspTokenStateEOF = 102,
 };
-
-enum SrsRtpDecoderType
-{
-	TimestampBoundary = 1,
-	MarkerBoundary = 2,
-};
-
-#define ERROR_RTP_PS_CORRUPT				12060
-#define ERROR_RTP_PS_HK_PRIVATE_PROTO		12061
-#define ERROR_RTP_PS_FIRST_TSB_LOSS			12062
-
-#pragma pack (1)
-struct Packet_Start_Code {
-	u_int32_t start_code; //4bytes,need htonl exchange
-	//u_int8_t start_code[3];
-	//u_int8_t stream_id[1];
-};
-
-struct PS_Packet_Header {
-	Packet_Start_Code psc; //4bytes
-	u_int8_t holder[9];
-	u_int8_t pack_stuffing_length; //low 3bit,high 5 bits are reserved;
-};
-
-struct PS_Sys_Header {
-	Packet_Start_Code psc;
-	u_int16_t header_length;
-};
-
-struct PS_Map {
-	Packet_Start_Code psc;
-	u_int16_t psm_length;  //2 bytes need htons exchange
-};
-
-struct PS_PES {
-	Packet_Start_Code psc; //4bytes
-	u_int16_t pes_packet_length;  //2 bytes need htonl exchange
-	u_int8_t holder[2];
-	u_int8_t pes_header_data_length;
-};
-#pragma pack ()
 
 // The rtp packet.
 // 5. RTP Data Transfer Protocol, @see rfc3550-2003-rtp.pdf, page 12
@@ -286,73 +244,29 @@ public:
     uint32_t ssrc; //32bits
     
     // The payload.
-    SrsSimpleBufferX* payload;
-
-    // Beikesong: target tgt h264 stream load or other types
-	SrsSimpleBufferX* tgtstream;
-
+    SrsSimpleStream* payload;
     // Whether transport in chunked payload.
     bool chunked;
     // Whether message is completed.
     // normal message always completed.
     // while chunked completed when the last chunk arriaved.
     bool completed;
-
-    // whether some private data in stream
-	bool private_proto;
     
     // The audio samples, one rtp packets may contains multiple audio samples.
     SrsAudioFrame* audio;
-
-    private:
-		// pengzhang: indicate current rtp group timestamp
-		//u_int32_t group_ts;
-		bool start_new_timestamp;
-
-public:
-	// true says rtp decode is marker, otherwise is timestamp  
-	bool marker_boundary;
-	// get rtp decode type: TimestampBoundary or MarkerBoundary
-	virtual int get_decodertype();
-
-	virtual bool newtimestamp();
-
 public:
     SrsRtpPacket();
     virtual ~SrsRtpPacket();
 public:
     // copy the header from src.
     virtual void copy(SrsRtpPacket* src);
-    // 
-    virtual void copy_v2(SrsRtpPacket* src);
     // reap the src to this packet, reap the payload.
     virtual void reap(SrsRtpPacket* src);
-    // 
-    virtual void reap_v2(SrsRtpPacket* src);
     // decode rtp packet from stream.
     virtual srs_error_t decode(SrsBuffer* stream);
-
-    virtual int decode_v2(SrsBuffer* stream, int & boundary_type);
-	virtual int decode_v2(SrsBuffer* stream);
-    // not check payload type
-    virtual int decode_v3(SrsBuffer* stream);
-	virtual int decode_stream();
 private:
     virtual srs_error_t decode_97(SrsBuffer* stream);
     virtual srs_error_t decode_96(SrsBuffer* stream);
-
-private:
-    virtual int decode_96ps_rtp(SrsBuffer* stream, int8_t marker);
-
-	// decode rtp group by using timestamp as boundary  
-	virtual int decode_96ps_rtp_tsb(SrsBuffer* stream, u_int32_t & group_timestamp);
-	// decode rtp by using timestamp boundary
-	// will not compare timestamp in this one
-	virtual int decode_96ps_rtp_tsb2(SrsBuffer* stream);
-    // only decode rtp not ps anymore
-    virtual int decode_raw_rtp(SrsBuffer* stream, int8_t marker);
-	// only aim on high stabilable
-	virtual int decode_96ps_core();
 };
 
 // The sdp in announce, @see rfc2326-1998-rtsp.pdf, page 159
