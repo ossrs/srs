@@ -4323,6 +4323,11 @@ std::string SrsConfig::get_rtc_candidates()
     if (!eip.empty()) {
         return eip;
     }
+
+    // If configed as ENV, but no ENV set, use default value.
+    if (srs_string_starts_with(conf->arg0(), "$")) {
+        return DEFAULT;
+    }
     
     return (conf->arg0().c_str());
 }
