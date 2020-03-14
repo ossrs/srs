@@ -59,7 +59,6 @@ using namespace std;
 srs_error_t run_directly_or_daemon();
 srs_error_t run_hybrid_server();
 void show_macro_features();
-string srs_getenv(const char* name);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
@@ -342,17 +341,6 @@ void show_macro_features()
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
 #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
-}
-
-string srs_getenv(const char* name)
-{
-    char* cv = ::getenv(name);
-    
-    if (cv) {
-        return cv;
-    }
-    
-    return "";
 }
 
 // Detect docker by https://stackoverflow.com/a/41559867

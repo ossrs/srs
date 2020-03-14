@@ -851,7 +851,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     obj->set("server", SrsJsonAny::integer(stat->server_id()));
 
     // XXX: ice candidate
-    //string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:9527 typ host generation 0 ufrag " 
+    //string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:8000 typ host generation 0 ufrag "
     //    + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
 
     //SrsJsonObject* candidate_obj = SrsJsonAny::object();

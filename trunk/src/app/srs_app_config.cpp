@@ -4290,7 +4290,7 @@ bool SrsConfig::get_rtc_enabled(SrsConfDirective* conf)
 
 int SrsConfig::get_rtc_listen()
 {
-    static int DEFAULT = 9527;
+    static int DEFAULT = 8000;
     
     SrsConfDirective* conf = root->get("rtc");
     if (!conf) {
@@ -4317,6 +4317,11 @@ std::string SrsConfig::get_rtc_candidates()
     conf = conf->get("candidate");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
+    }
+
+    string eip = srs_getenv(conf->arg0());
+    if (!eip.empty()) {
+        return eip;
     }
     
     return (conf->arg0().c_str());

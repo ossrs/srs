@@ -1227,3 +1227,23 @@ string dump_string_hex(const char* buf, const int nb_buf, const int& max_len)
     return ret;
 
 }
+
+string srs_getenv(string key)
+{
+    string ekey = key;
+    if (srs_string_starts_with(key, "$")) {
+        ekey = key.substr(1);
+    }
+
+    if (ekey.empty()) {
+        return "";
+    }
+
+    char* value = ::getenv(ekey.c_str());
+    if (value) {
+        return value;
+    }
+
+    return "";
+}
+

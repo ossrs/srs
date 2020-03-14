@@ -653,5 +653,9 @@ extern void srs_api_dump_summaries(SrsJsonObject* obj);
 extern std::string dump_string_hex(const std::string& str, const int& max_len = INT_MAX);
 extern std::string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = INT_MAX);
 
+// Get ENV variable, which may starts with $.
+//      srs_getenv("EIP") === srs_getenv("$EIP")
+extern std::string srs_getenv(std::string key);
+
 #endif
 
