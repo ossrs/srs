@@ -52,6 +52,7 @@ const uint8_t kFuA = 28;
 const uint8_t kStart = 0x80;
 const uint8_t kEnd = 0x40;
 
+// FIXME: ssrc can relate to source
 const uint32_t kVideoSSRC = 3233846889;
 
 class SrsRtpMuxer

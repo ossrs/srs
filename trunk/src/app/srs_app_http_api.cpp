@@ -795,21 +795,13 @@ SrsGoApiSdp::~SrsGoApiSdp()
 srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
-    
-    SrsStatistic* stat = SrsStatistic::instance();
-    
-    // path: {pattern}{stream_id}
-    // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
-    int sid = r->parse_rest_id(entry->pattern);
-    
-    SrsStatisticStream* stream = NULL;
-    if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
-        return srs_api_response_code(w, r, ERROR_RTMP_STREAM_NOT_FOUND);
-    }
 
+    // path: {pattern}
+    // method: POST
+    // e.g. /api/v1/sdp/ args = json:{"sdp":"sdp...", "app":"webrtc", "stream":"test"}
+    
     string req_json;
     r->body_read_all(req_json);
-    srs_trace("req_json=%s", req_json.c_str());
 
     SrsJsonAny* json = SrsJsonAny::loads(req_json);
     SrsJsonObject* req_obj = json->to_object();
@@ -826,18 +818,17 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     string app = app_obj->to_str();
     string stream_name = stream_name_obj->to_str();
 
-    srs_trace("remote_sdp_str=%s", remote_sdp_str.c_str());
-    srs_trace("app=%s, stream=%s", app.c_str(), stream_name.c_str());
-
     SrsSdp remote_sdp;
     err = remote_sdp.decode(remote_sdp_str);
     if (err != srs_success) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
 
+    SrsRequest request;
+    request.app = app;
+    request.stream = stream_name;
     SrsSdp local_sdp;
-    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(remote_sdp, local_sdp);
-    rtc_session->set_app_stream(app, stream_name);
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
     err = local_sdp.encode(local_sdp_str);
@@ -849,22 +840,12 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     SrsAutoFree(SrsJsonObject, obj);
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    obj->set("server", SrsJsonAny::integer(stat->server_id()));
+    obj->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
 
-    // XXX: ice candidate
-    //string candidate_str = "candidate:1 1 udp 2115783679 192.168.170.129:8000 typ host generation 0 ufrag "
-    //    + local_sdp.get_ice_ufrag() + "netwrok-cost 50";
-
-    //SrsJsonObject* candidate_obj = SrsJsonAny::object();
-    //SrsAutoFree(SrsJsonObject, candidate_obj);
-
-    //candidate_obj->set("candidate", SrsJsonAny::str(candidate_str.c_str()));
-    //candidate_obj->set("sdpMid", SrsJsonAny::str("0"));
-    //candidate_obj->set("sdpMLineIndex", SrsJsonAny::str("0"));
+    // TODO: add candidates in response json?
     
     if (r->is_http_post()) {
         obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-        // obj->set("candidate", candidate_obj);
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
