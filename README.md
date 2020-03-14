@@ -302,7 +302,6 @@ For previous versions, please read:
 * v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, Fix [#105][bug #105], support log rotate signal SIGUSR1. 3.0.8
 * v3.0, 2016-12-07, fix typo and refine grammar. 3.0.7
-* v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
 * v3.0, 2015-10-20, fix [#502][bug #502], support snapshot with http-callback or transcoder. 3.0.5
 * v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
