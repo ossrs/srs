@@ -58,7 +58,7 @@ function user_extra_params(query, params) {
             || key === 'filename' || key === 'host' || key === 'hostname'
             || key === 'http_port' || key === 'pathname' || key === 'port'
             || key === 'server' || key === 'stream' || key === 'buffer'
-            || key === 'schema' || key === 'vhost' || key === 'api_port'
+            || key === 'schema' || key === 'vhost'
         ) {
             continue;
         }
@@ -207,9 +207,7 @@ function build_default_hls_url() {
 }
 
 function build_default_rtc_url(query) {
-    var schema = (!query.schema)? "http":query.schema;
     var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.api_port)? 1985:query.api_port;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
     var stream = (!query.stream)? "livestream":query.stream;
@@ -229,8 +227,8 @@ function build_default_rtc_url(query) {
     }
     queries = user_extra_params(query, queries);
 
-    var uri = schema + "://" + server + ":" + port + "/api/v1/sdp/?app=" + app + "&stream=" + stream + "&" + queries.join('&');
-    while (uri.lastIndexOf("&") == uri.length - 1) {
+    var uri = "webrtc://" + server + "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.lastIndexOf("?") == uri.length - 1) {
         uri = uri.substr(0, uri.length - 1);
     }
 

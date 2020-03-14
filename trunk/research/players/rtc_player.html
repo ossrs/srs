@@ -61,6 +61,7 @@
         $("#btn_play").click(function(){
             $('#rtc_media_player').show();
             var urlObject = parse_rtmp_url($("#txt_url").val());
+            var schame = window.location.protocol;
 
             var pc = new RTCPeerConnection(null);
             pc.onaddstream = function (event) {
@@ -82,14 +83,29 @@
                 return pc.setLocalDescription(offer).then(function(){ return offer; });
             }).then(function(offer) {
                 return new Promise(function(resolve, reject) {
+                    var port = urlObject.user_query.api || 1985;
+                    var api = urlObject.user_query.play || '/api/v1/sdp/';
+                    if (api.lastIndexOf('/') != api.length - 1) {
+                        api += '/';
+                    }
+
+                    var url = schame + '//' + urlObject.server + ':' + port + api
+                        + '?app=' + urlObject.app + '&stream=' + urlObject.stream;
+                    for (var key in urlObject.user_query) {
+                        if (key != 'api' && key != 'play') {
+                            url += '&' + key + '=' + urlObject.user_query[key];
+                        }
+                    }
+
                     var data = {
-                        "url": urlObject.url, "app": urlObject.app, "stream": urlObject.stream,
+                        "url": url, "streamurl": urlObject.url,
+                        "app": urlObject.app, "stream": urlObject.stream,
                         "sdp": offer.sdp
                     };
                     console.log("offer: " + JSON.stringify(data));
 
                     $.ajax({
-                        type: "POST", url: urlObject.url, data: JSON.stringify(data),
+                        type: "POST", url: url, data: JSON.stringify(data),
                         contentType:'application/json', dataType: 'json'
                     }).done(function(data) {
                         console.log("answer: " + JSON.stringify(data));
