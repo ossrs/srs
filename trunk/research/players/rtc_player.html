@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+</head>
+<body>
+<!--
+<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
+-->
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a id="srs_index" class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
+                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
+                    <!--<li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>-->
+                    <!--<li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>-->
+                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_url" class="input-xxlarge" value="">
+        <button class="btn btn-primary" id="btn_play">播放视频</button>
+    </div>
+
+    <label></label>
+    <video id="rtc_media_player" autoplay controls></video>
+
+    <footer>
+        <p></p>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2020</a></p>
+    </footer>
+</div>
+<script type="text/javascript">
+    $(function(){
+        $('#rtc_media_player').hide();
+        var query = parse_query_string();
+        srs_init_rtc("#txt_url", query);
+
+        $("#btn_play").click(function(){
+            $('#rtc_media_player').show();
+            var urlObject = parse_rtmp_url($("#txt_url").val());
+
+            var pc = new RTCPeerConnection(null);
+            pc.onaddstream = function (event) {
+                var player = document.getElementById('rtc_media_player');
+                player.srcObject = event.stream;
+            };
+            new Promise(function(resolve, reject) {
+                pc.createOffer(function(offer){
+                    resolve(offer);
+                },function(reason){
+                    reject(reason);
+                },{
+                    mandatory: {
+                        OfferToReceiveAudio: true,
+                        OfferToReceiveVideo: true
+                    }
+                });
+            }).then(function(offer) {
+                return pc.setLocalDescription(offer).then(function(){ return offer; });
+            }).then(function(offer) {
+                return new Promise(function(resolve, reject) {
+                    var data = {
+                        "url": urlObject.url, "app": urlObject.app, "stream": urlObject.stream,
+                        "sdp": offer.sdp
+                    };
+                    console.log("offer: " + JSON.stringify(data));
+
+                    $.ajax({
+                        type: "POST", url: urlObject.url, data: JSON.stringify(data),
+                        contentType:'application/json', dataType: 'json'
+                    }).done(function(data) {
+                        console.log("answer: " + JSON.stringify(data));
+                        resolve(data.sdp);
+                    }).fail(function(reason){
+                        reject(reason);
+                    });
+                });
+            }).then(function(answer) {
+                pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
+            }).catch(function(reason) {
+                throw reason;
+            });
+        });
+    });
+</script>
+</body>
+</html>

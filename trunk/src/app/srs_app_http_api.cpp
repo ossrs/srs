@@ -791,6 +791,7 @@ SrsGoApiSdp::~SrsGoApiSdp()
 {
 }
 
+// TODO: FIXME: Support query string http://localhost:1985/api/v1/sdp?app=live&stream=livestream
 srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
