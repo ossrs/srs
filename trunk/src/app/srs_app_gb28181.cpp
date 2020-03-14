@@ -319,7 +319,6 @@ srs_error_t Srs28181TcpStreamListener::remove_conn(Srs28181TcpStreamConn* c)
     return err;
 }
 
-
 SrsLiveUdpListener::SrsLiveUdpListener(Srs28181UdpStreamListener* h, string i, int p)
 {
     handler = h;
@@ -336,7 +335,6 @@ SrsLiveUdpListener::SrsLiveUdpListener(Srs28181UdpStreamListener* h, string i, i
     
     trd = NULL;
 }
-
 
 
 SrsOneCycleCoroutine::SrsOneCycleCoroutine(string n, ISrsCoroutineHandler* h, int cid)
